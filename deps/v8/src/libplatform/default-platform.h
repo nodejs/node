@@ -40,6 +40,9 @@ class DefaultPlatform : public Platform {
                                       Task* task) override;
   virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
                                              double delay_in_seconds) override;
+  virtual void CallIdleOnForegroundThread(Isolate* isolate,
+                                          IdleTask* task) override;
+  virtual bool IdleTasksEnabled(Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
 
  private:

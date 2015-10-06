@@ -8,12 +8,18 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class FunctionLiteral;
+class Isolate;
+class Zone;
+
 namespace AstNumbering {
 // Assign type feedback IDs and bailout IDs to an AST node tree.
 //
 bool Renumber(Isolate* isolate, Zone* zone, FunctionLiteral* function);
 }
-}
-}  // namespace v8::internal
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_AST_NUMBERING_H_

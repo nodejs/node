@@ -7,11 +7,26 @@
 
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
+#include "src/base/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
+#include "src/x64/frames-x64.h"
 
 namespace v8 {
 namespace internal {
+
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {kRegister_rax_Code};
+const Register kReturnRegister1 = {kRegister_rdx_Code};
+const Register kJSFunctionRegister = {kRegister_rdi_Code};
+const Register kContextRegister = {kRegister_rsi_Code};
+const Register kInterpreterAccumulatorRegister = {kRegister_rax_Code};
+const Register kInterpreterRegisterFileRegister = {kRegister_r11_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_r12_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_r14_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_r15_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_rbx_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_rax_Code};
 
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
@@ -32,21 +47,15 @@ enum PointersToHereCheck {
   kPointersToHereAreAlwaysInteresting
 };
 
-enum SmiOperationConstraint {
-  PRESERVE_SOURCE_REGISTER,
-  BAILOUT_ON_NO_OVERFLOW,
-  BAILOUT_ON_OVERFLOW,
-  NUMBER_OF_CONSTRAINTS
+enum class SmiOperationConstraint {
+  kPreserveSourceRegister = 1 << 0,
+  kBailoutOnNoOverflow = 1 << 1,
+  kBailoutOnOverflow = 1 << 2
 };
 
-STATIC_ASSERT(NUMBER_OF_CONSTRAINTS <= 8);
+typedef base::Flags<SmiOperationConstraint> SmiOperationConstraints;
 
-class SmiOperationExecutionMode : public EnumSet<SmiOperationConstraint, byte> {
- public:
-  SmiOperationExecutionMode() : EnumSet<SmiOperationConstraint, byte>(0) { }
-  explicit SmiOperationExecutionMode(byte bits)
-      : EnumSet<SmiOperationConstraint, byte>(bits) { }
-};
+DEFINE_OPERATORS_FOR_FLAGS(SmiOperationConstraints)
 
 #ifdef DEBUG
 bool AreAliased(Register reg1,
@@ -546,11 +555,8 @@ class MacroAssembler: public Assembler {
 
   // Add an integer constant to a tagged smi, giving a tagged smi as result,
   // or jumping to a label if the result cannot be represented by a smi.
-  void SmiAddConstant(Register dst,
-                      Register src,
-                      Smi* constant,
-                      SmiOperationExecutionMode mode,
-                      Label* bailout_label,
+  void SmiAddConstant(Register dst, Register src, Smi* constant,
+                      SmiOperationConstraints constraints, Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
@@ -560,11 +566,8 @@ class MacroAssembler: public Assembler {
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
   // result, or jumping to a label if the result cannot be represented by a smi.
-  void SmiSubConstant(Register dst,
-                      Register src,
-                      Smi* constant,
-                      SmiOperationExecutionMode mode,
-                      Label* bailout_label,
+  void SmiSubConstant(Register dst, Register src, Smi* constant,
+                      SmiOperationConstraints constraints, Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Negating a smi can give a negative zero or too large positive value.
@@ -1173,12 +1176,6 @@ class MacroAssembler: public Assembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. Make sure that no pointers are left to the
-  // object(s) no longer allocated as they would be invalid when allocation is
-  // un-done.
-  void UndoAllocationInNewSpace(Register object);
-
   // Allocate a heap number in new space with undefined value. Returns
   // tagged pointer in result register, or jumps to gc_required if new
   // space is full.
@@ -1550,7 +1547,7 @@ class MacroAssembler: public Assembler {
 class CodePatcher {
  public:
   CodePatcher(byte* address, int size);
-  virtual ~CodePatcher();
+  ~CodePatcher();
 
   // Macro assembler to emit code.
   MacroAssembler* masm() { return &masm_; }
@@ -1582,6 +1579,11 @@ inline Operand FieldOperand(Register object,
 
 inline Operand ContextOperand(Register context, int index) {
   return Operand(context, Context::SlotOffset(index));
+}
+
+
+inline Operand ContextOperand(Register context, Register index) {
+  return Operand(context, index, times_pointer_size, Context::SlotOffset(0));
 }
 
 

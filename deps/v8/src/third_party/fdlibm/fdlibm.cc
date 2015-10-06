@@ -13,11 +13,14 @@
 // modified significantly by Google Inc.
 // Copyright 2014 the V8 project authors. All rights reserved.
 
-#include "src/v8.h"
-
-#include "src/double.h"
 #include "src/third_party/fdlibm/fdlibm.h"
 
+#include <stdint.h>
+#include <cmath>
+#include <limits>
+
+#include "src/base/macros.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace fdlibm {

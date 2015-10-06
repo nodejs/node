@@ -22,6 +22,10 @@
       'include_dirs': [
         '../..',
       ],
+      'defines': [
+        # TODO(jochen): Remove again after this is globally turned on.
+        'V8_IMMINENT_DEPRECATION_WARNINGS',
+      ],
       'sources': [  ### gcmole(all) ###
         'base/bits-unittest.cc',
         'base/cpu-unittest.cc',
@@ -39,6 +43,7 @@
         'base/utils/random-number-generator-unittest.cc',
         'char-predicates-unittest.cc',
         'compiler/change-lowering-unittest.cc',
+        'compiler/coalesced-live-ranges-unittest.cc',
         'compiler/common-operator-reducer-unittest.cc',
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
@@ -55,11 +60,15 @@
         'compiler/instruction-selector-unittest.h',
         'compiler/instruction-sequence-unittest.cc',
         'compiler/instruction-sequence-unittest.h',
+        'compiler/interpreter-assembler-unittest.cc',
+        'compiler/interpreter-assembler-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
+        'compiler/js-context-relaxation-unittest.cc',
         'compiler/js-intrinsic-lowering-unittest.cc',
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
         'compiler/js-type-feedback-unittest.cc',
+        'compiler/linkage-tail-call-unittest.cc',
         'compiler/liveness-analyzer-unittest.cc',
         'compiler/load-elimination-unittest.cc',
         'compiler/loop-peeling-unittest.cc',
@@ -85,6 +94,7 @@
         'compiler/value-numbering-reducer-unittest.cc',
         'compiler/zone-pool-unittest.cc',
         'counters-unittest.cc',
+        'interpreter/bytecode-array-builder-unittest.cc',
         'libplatform/default-platform-unittest.cc',
         'libplatform/task-queue-unittest.cc',
         'libplatform/worker-thread-unittest.cc',
@@ -152,6 +162,11 @@
               '-pedantic',
             ],
           },
+        }],
+        ['v8_wasm!=0', {
+          'dependencies': [
+            '../../third_party/wasm/test/unittests/wasm/wasm.gyp:wasm_unittests',
+          ],
         }],
       ],
     },

@@ -9,6 +9,34 @@
 namespace v8 {
 namespace internal {
 
+#ifdef DEBUG
+bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
+  DCHECK_NOT_NULL(location_);
+  Object* object = *location_;
+  if (object->IsSmi()) return true;
+  HeapObject* heap_object = HeapObject::cast(object);
+  Heap* heap = heap_object->GetHeap();
+  Object** roots_array_start = heap->roots_array_start();
+  if (roots_array_start <= location_ &&
+      location_ < roots_array_start + Heap::kStrongRootListLength &&
+      heap->RootCanBeTreatedAsConstant(
+          static_cast<Heap::RootListIndex>(location_ - roots_array_start))) {
+    return true;
+  }
+  if (!AllowHandleDereference::IsAllowed()) return false;
+  if (mode == INCLUDE_DEFERRED_CHECK &&
+      !AllowDeferredHandleDereference::IsAllowed()) {
+    // Accessing cells, maps and internalized strings is safe.
+    if (heap_object->IsCell()) return true;
+    if (heap_object->IsMap()) return true;
+    if (heap_object->IsInternalizedString()) return true;
+    return !heap->isolate()->IsDeferredHandle(location_);
+  }
+  return true;
+}
+#endif
+
+
 int HandleScope::NumberOfHandles(Isolate* isolate) {
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   int n = impl->blocks()->length();
@@ -67,7 +95,7 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
 void HandleScope::ZapRange(Object** start, Object** end) {
   DCHECK(end - start <= kHandleBlockSize);
   for (Object** p = start; p != end; p++) {
-    *reinterpret_cast<Address*>(p) = v8::internal::kHandleZapValue;
+    *reinterpret_cast<Address*>(p) = kHandleZapValue;
   }
 }
 #endif

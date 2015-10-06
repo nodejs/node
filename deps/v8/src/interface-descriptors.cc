@@ -100,18 +100,50 @@ void StoreDescriptor::InitializePlatformSpecific(
 }
 
 
-void StoreTransitionDescriptor::InitializePlatformSpecific(
+Type::FunctionType*
+StoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Type::FunctionType* function = Type::FunctionType::New(
+      AnyTagged(), Type::Undefined(), 4, isolate->interface_descriptor_zone());
+  function->InitParameter(0, AnyTagged());  // Receiver
+  function->InitParameter(1, AnyTagged());  // Name
+  function->InitParameter(2, AnyTagged());  // Value
+  function->InitParameter(3, AnyTagged());  // Map
+  return function;
+}
+
+
+Type::FunctionType*
+LoadGlobalViaContextDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Type::FunctionType* function = Type::FunctionType::New(
+      AnyTagged(), Type::Undefined(), 1, isolate->interface_descriptor_zone());
+  function->InitParameter(0, UntaggedSigned32());
+  return function;
+}
+
+
+void LoadGlobalViaContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
-                          MapRegister()};
+  Register registers[] = {SlotRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
-void ElementTransitionAndStoreDescriptor::InitializePlatformSpecific(
+Type::FunctionType*
+StoreGlobalViaContextDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Type::FunctionType* function = Type::FunctionType::New(
+      AnyTagged(), Type::Undefined(), 2, isolate->interface_descriptor_zone());
+  function->InitParameter(0, UntaggedSigned32());
+  function->InitParameter(1, AnyTagged());
+  return function;
+}
+
+
+void StoreGlobalViaContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ValueRegister(), MapRegister(), NameRegister(),
-                          ReceiverRegister()};
+  Register registers[] = {SlotRegister(), ValueRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -119,6 +151,13 @@ void ElementTransitionAndStoreDescriptor::InitializePlatformSpecific(
 void InstanceofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {left(), right()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void ToObjectDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ReceiverRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -359,16 +398,30 @@ ApiAccessorDescriptor::BuildCallInterfaceDescriptorFunctionType(
 }
 
 
-Type::FunctionType*
-MathRoundVariantDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+Type::FunctionType* MathRoundVariantCallFromUnoptimizedCodeDescriptor::
+    BuildCallInterfaceDescriptorFunctionType(Isolate* isolate,
+                                             int paramater_count) {
   Type::FunctionType* function = Type::FunctionType::New(
-      AnyTagged(), Type::Undefined(), 2, isolate->interface_descriptor_zone());
-  function->InitParameter(0, SmiType());
-  function->InitParameter(1, AnyTagged());
+      AnyTagged(), Type::Undefined(), 4, isolate->interface_descriptor_zone());
+  function->InitParameter(0, Type::Receiver());
+  function->InitParameter(1, SmiType());
+  function->InitParameter(2, AnyTagged());
+  function->InitParameter(3, AnyTagged());
   return function;
 }
 
 
+Type::FunctionType* MathRoundVariantCallFromOptimizedCodeDescriptor::
+    BuildCallInterfaceDescriptorFunctionType(Isolate* isolate,
+                                             int paramater_count) {
+  Type::FunctionType* function = Type::FunctionType::New(
+      AnyTagged(), Type::Undefined(), 5, isolate->interface_descriptor_zone());
+  function->InitParameter(0, Type::Receiver());
+  function->InitParameter(1, SmiType());
+  function->InitParameter(2, AnyTagged());
+  function->InitParameter(3, AnyTagged());
+  function->InitParameter(4, AnyTagged());
+  return function;
+}
 }  // namespace internal
 }  // namespace v8

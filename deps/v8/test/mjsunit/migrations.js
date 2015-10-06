@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-ayle license that can be
 // found in the LICENSE file.
 
+// Flags: --harmony-object-observe
 // Flags: --allow-natives-syntax --track-fields --expose-gc
 
 var global = Function('return this')();

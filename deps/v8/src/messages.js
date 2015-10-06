@@ -5,21 +5,8 @@
 // -------------------------------------------------------------------
 
 var $errorToString;
-var $getStackTraceLine;
-var $messageGetPositionInLine;
-var $messageGetLineNumber;
-var $messageGetSourceLine;
-var $noSideEffectToString;
-var $stackOverflowBoilerplate;
+var $internalErrorSymbol;
 var $stackTraceSymbol;
-var $toDetailString;
-var $Error;
-var $EvalError;
-var $RangeError;
-var $ReferenceError;
-var $SyntaxError;
-var $TypeError;
-var $URIError;
 var MakeError;
 var MakeEvalError;
 var MakeRangeError;
@@ -35,22 +22,43 @@ var MakeURIError;
 // -------------------------------------------------------------------
 // Imports
 
-var GlobalObject = global.Object;
-var InternalArray = utils.InternalArray;
-var ObjectDefineProperty = utils.ObjectDefineProperty;
-
 var ArrayJoin;
+var Bool16x8ToString;
+var Bool32x4ToString;
+var Bool8x16ToString;
+var Float32x4ToString;
+var FunctionSourceString
+var GlobalObject = global.Object;
+var Int16x8ToString;
+var Int32x4ToString;
+var Int8x16ToString;
+var InternalArray = utils.InternalArray;
+var ObjectDefineProperty;
 var ObjectToString;
 var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
+var ToString;
 
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
+  Bool16x8ToString = from.Bool16x8ToString;
+  Bool32x4ToString = from.Bool32x4ToString;
+  Bool8x16ToString = from.Bool8x16ToString;
+  Float32x4ToString = from.Float32x4ToString;
+  FunctionSourceString = from.FunctionSourceString;
+  Int16x8ToString = from.Int16x8ToString;
+  Int32x4ToString = from.Int32x4ToString;
+  Int8x16ToString = from.Int8x16ToString;
+  ObjectDefineProperty = from.ObjectDefineProperty;
   ObjectToString = from.ObjectToString;
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
+});
+
+utils.ImportNow(function(from) {
+  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -65,9 +73,9 @@ var GlobalEvalError;
 
 
 function NoSideEffectsObjectToString() {
-  if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
+  if (IS_UNDEFINED(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
-  return "[object " + %_ClassOf(TO_OBJECT_INLINE(this)) + "]";
+  return "[object " + %_ClassOf(TO_OBJECT(this)) + "]";
 }
 
 
@@ -78,7 +86,7 @@ function NoSideEffectToString(obj) {
   if (IS_UNDEFINED(obj)) return 'undefined';
   if (IS_NULL(obj)) return 'null';
   if (IS_FUNCTION(obj)) {
-    var str = %_CallFunction(obj, obj, $functionSourceString);
+    var str = %_CallFunction(obj, obj, FunctionSourceString);
     if (str.length > 128) {
       str = %_SubString(str, 0, 111) + "...<omitted>..." +
             %_SubString(str, str.length - 2, str.length);
@@ -86,6 +94,17 @@ function NoSideEffectToString(obj) {
     return str;
   }
   if (IS_SYMBOL(obj)) return %_CallFunction(obj, $symbolToString);
+  if (IS_SIMD_VALUE(obj)) {
+    switch (typeof(obj)) {
+      case 'float32x4': return %_CallFunction(obj, Float32x4ToString);
+      case 'int32x4':   return %_CallFunction(obj, Int32x4ToString);
+      case 'bool32x4':  return %_CallFunction(obj, Bool32x4ToString);
+      case 'int16x8':   return %_CallFunction(obj, Int16x8ToString);
+      case 'bool16x8':  return %_CallFunction(obj, Bool16x8ToString);
+      case 'int16x8':   return %_CallFunction(obj, Int16x8ToString);
+      case 'bool16x8':  return %_CallFunction(obj, Bool16x8ToString);
+    }
+  }
   if (IS_OBJECT(obj)
       && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");
@@ -133,7 +152,7 @@ function ToStringCheckErrorObject(obj) {
   if (CanBeSafelyTreatedAsAnErrorObject(obj)) {
     return %_CallFunction(obj, ErrorToString);
   } else {
-    return $toString(obj);
+    return ToString(obj);
   }
 }
 
@@ -153,8 +172,9 @@ function ToDetailString(obj) {
 
 
 function MakeGenericError(constructor, type, arg0, arg1, arg2) {
-  if (IS_UNDEFINED(arg0) && IS_STRING(type)) arg0 = [];
-  return new constructor(FormatMessage(type, arg0, arg1, arg2));
+  var error = new constructor(FormatMessage(type, arg0, arg1, arg2));
+  error[$internalErrorSymbol] = true;
+  return error;
 }
 
 
@@ -193,6 +213,16 @@ function GetLineNumber(message) {
 }
 
 
+//Returns the offset of the given position within the containing line.
+function GetColumnNumber(message) {
+  var script = %MessageGetScript(message);
+  var start_position = %MessageGetStartPosition(message);
+  var location = script.locationFromPosition(start_position, true);
+  if (location == null) return -1;
+  return location.column;
+}
+
+
 // Returns the source code line containing the given source
 // position, or the empty string if the position is invalid.
 function GetSourceLine(message) {
@@ -202,6 +232,7 @@ function GetSourceLine(message) {
   if (location == null) return "";
   return location.sourceText();
 }
+
 
 /**
  * Find a line number given a specific source position.
@@ -534,17 +565,6 @@ utils.SetUpLockedPrototype(SourceSlice,
   ["script", "from_line", "to_line", "from_position", "to_position"],
   ["sourceText", SourceSliceSourceText]
 );
-
-
-// Returns the offset of the given position within the containing
-// line.
-function GetPositionInLine(message) {
-  var script = %MessageGetScript(message);
-  var start_position = %MessageGetStartPosition(message);
-  var location = script.locationFromPosition(start_position, false);
-  if (location == null) return -1;
-  return start_position - location.start;
-}
 
 
 function GetStackTraceLine(recv, fun, pos, isGlobal) {
@@ -953,7 +973,7 @@ function DefineError(global, f) {
       // object. This avoids going through getters and setters defined
       // on prototype objects.
       if (!IS_UNDEFINED(m)) {
-        %AddNamedProperty(this, 'message', $toString(m), DONT_ENUM);
+        %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
       }
     } else {
       return new f(m);
@@ -973,101 +993,25 @@ GlobalURIError = DefineError(global, function URIError() { });
 
 %AddNamedProperty(GlobalError.prototype, 'message', '', DONT_ENUM);
 
-// Global list of error objects visited during ErrorToString. This is
-// used to detect cycles in error toString formatting.
-var visited_errors = new InternalArray();
-var cyclic_error_marker = new GlobalObject();
-
-function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
-  var current = error;
-  // Climb the prototype chain until we find the holder.
-  while (current && !%HasOwnProperty(current, name)) {
-    current = %_GetPrototype(current);
-  }
-  if (IS_NULL(current)) return UNDEFINED;
-  if (!IS_OBJECT(current)) return error[name];
-  // If the property is an accessor on one of the predefined errors that can be
-  // generated statically by the compiler, don't touch it. This is to address
-  // http://code.google.com/p/chromium/issues/detail?id=69187
-  var desc = %GetOwnProperty(current, name);
-  if (desc && desc[IS_ACCESSOR_INDEX]) {
-    var isName = name === "name";
-    if (current === GlobalReferenceError.prototype)
-      return isName ? "ReferenceError" : UNDEFINED;
-    if (current === GlobalSyntaxError.prototype)
-      return isName ? "SyntaxError" : UNDEFINED;
-    if (current === GlobalTypeError.prototype)
-      return isName ? "TypeError" : UNDEFINED;
-  }
-  // Otherwise, read normally.
-  return error[name];
-}
-
-function ErrorToStringDetectCycle(error) {
-  if (!%PushIfAbsent(visited_errors, error)) throw cyclic_error_marker;
-  try {
-    var name = GetPropertyWithoutInvokingMonkeyGetters(error, "name");
-    name = IS_UNDEFINED(name) ? "Error" : TO_STRING_INLINE(name);
-    var message = GetPropertyWithoutInvokingMonkeyGetters(error, "message");
-    message = IS_UNDEFINED(message) ? "" : TO_STRING_INLINE(message);
-    if (name === "") return message;
-    if (message === "") return name;
-    return name + ": " + message;
-  } finally {
-    visited_errors.length = visited_errors.length - 1;
-  }
-}
-
 function ErrorToString() {
   if (!IS_SPEC_OBJECT(this)) {
     throw MakeTypeError(kCalledOnNonObject, "Error.prototype.toString");
   }
 
-  try {
-    return ErrorToStringDetectCycle(this);
-  } catch(e) {
-    // If this error message was encountered already return the empty
-    // string for it instead of recursively formatting it.
-    if (e === cyclic_error_marker) {
-      return '';
-    }
-    throw e;
-  }
+  return %ErrorToStringRT(this);
 }
 
 utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
                        ['toString', ErrorToString]);
 
 $errorToString = ErrorToString;
-$getStackTraceLine = GetStackTraceLine;
-$messageGetPositionInLine = GetPositionInLine;
-$messageGetLineNumber = GetLineNumber;
-$messageGetSourceLine = GetSourceLine;
-$noSideEffectToString = NoSideEffectToString;
-$toDetailString = ToDetailString;
-
-$Error = GlobalError;
-$EvalError = GlobalEvalError;
-$RangeError = GlobalRangeError;
-$ReferenceError = GlobalReferenceError;
-$SyntaxError = GlobalSyntaxError;
-$TypeError = GlobalTypeError;
-$URIError = GlobalURIError;
 
 MakeError = function(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalError, type, arg0, arg1, arg2);
 }
 
-MakeEvalError = function(type, arg0, arg1, arg2) {
-  return MakeGenericError(GlobalEvalError, type, arg0, arg1, arg2);
-}
-
 MakeRangeError = function(type, arg0, arg1, arg2) {
   return MakeGenericError(GlobalRangeError, type, arg0, arg1, arg2);
-}
-
-MakeReferenceError = function(type, arg0, arg1, arg2) {
-  return MakeGenericError(GlobalReferenceError, type, arg0, arg1, arg2);
 }
 
 MakeSyntaxError = function(type, arg0, arg1, arg2) {
@@ -1084,8 +1028,8 @@ MakeURIError = function() {
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().
-$stackOverflowBoilerplate = MakeRangeError(kStackOverflow);
-%DefineAccessorPropertyUnchecked($stackOverflowBoilerplate, 'stack',
+var StackOverflowBoilerplate = MakeRangeError(kStackOverflow);
+%DefineAccessorPropertyUnchecked(StackOverflowBoilerplate, 'stack',
                                  StackTraceGetter, StackTraceSetter,
                                  DONT_ENUM);
 
@@ -1099,5 +1043,23 @@ captureStackTrace = function captureStackTrace(obj, cons_opt) {
 };
 
 GlobalError.captureStackTrace = captureStackTrace;
+
+utils.ExportToRuntime(function(to) {
+  to.Error = GlobalError;
+  to.EvalError = GlobalEvalError;
+  to.RangeError = GlobalRangeError;
+  to.ReferenceError = GlobalReferenceError;
+  to.SyntaxError = GlobalSyntaxError;
+  to.TypeError = GlobalTypeError;
+  to.URIError = GlobalURIError;
+  to.GetStackTraceLine = GetStackTraceLine;
+  to.NoSideEffectToString = NoSideEffectToString;
+  to.ToDetailString = ToDetailString;
+  to.MakeError = MakeGenericError;
+  to.MessageGetLineNumber = GetLineNumber;
+  to.MessageGetColumnNumber = GetColumnNumber;
+  to.MessageGetSourceLine = GetSourceLine;
+  to.StackOverflowBoilerplate = StackOverflowBoilerplate;
+});
 
 });

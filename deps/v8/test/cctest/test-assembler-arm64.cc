@@ -2970,61 +2970,6 @@ TEST(ldp_stp_offset_wide) {
 }
 
 
-TEST(ldnp_stnp_offset) {
-  INIT_V8();
-  SETUP();
-
-  uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
-                     0xffeeddccbbaa9988UL};
-  uint64_t dst[7] = {0, 0, 0, 0, 0, 0, 0};
-  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
-  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
-
-  START();
-  __ Mov(x16, src_base);
-  __ Mov(x17, dst_base);
-  __ Mov(x18, src_base + 24);
-  __ Mov(x19, dst_base + 56);
-  __ Ldnp(w0, w1, MemOperand(x16));
-  __ Ldnp(w2, w3, MemOperand(x16, 4));
-  __ Ldnp(x4, x5, MemOperand(x16, 8));
-  __ Ldnp(w6, w7, MemOperand(x18, -12));
-  __ Ldnp(x8, x9, MemOperand(x18, -16));
-  __ Stnp(w0, w1, MemOperand(x17));
-  __ Stnp(w2, w3, MemOperand(x17, 8));
-  __ Stnp(x4, x5, MemOperand(x17, 16));
-  __ Stnp(w6, w7, MemOperand(x19, -24));
-  __ Stnp(x8, x9, MemOperand(x19, -16));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x44556677, x0);
-  CHECK_EQUAL_64(0x00112233, x1);
-  CHECK_EQUAL_64(0x0011223344556677UL, dst[0]);
-  CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[2]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[3]);
-  CHECK_EQUAL_64(0x8899aabb, x6);
-  CHECK_EQUAL_64(0xbbaa9988, x7);
-  CHECK_EQUAL_64(0xbbaa99888899aabbUL, dst[4]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x8);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[5]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x9);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[6]);
-  CHECK_EQUAL_64(src_base, x16);
-  CHECK_EQUAL_64(dst_base, x17);
-  CHECK_EQUAL_64(src_base + 24, x18);
-  CHECK_EQUAL_64(dst_base + 56, x19);
-
-  TEARDOWN();
-}
-
-
 TEST(ldp_stp_preindex) {
   INIT_V8();
   SETUP();

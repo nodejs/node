@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --allow-natives-syntax
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
@@ -186,6 +186,14 @@ function CheckScopeContent(content, number, exec_state) {
   assertTrue(found, "Scope object " + response.body.object.ref + " not found");
 }
 
+
+function assertEqualsUnlessOptimized(expected, value, f) {
+  try {
+    assertEquals(expected, value);
+  } catch (e) {
+    assertOptimized(f);
+  }
+}
 
 // Simple empty block scope in local scope.
 BeginTest("Local block 1");
@@ -517,11 +525,11 @@ function shadowing_1() {
   {
     let i = 5;
     debugger;
-    assertEquals(27, i);
+    assertEqualsUnlessOptimized(27, i, shadowing_1);
   }
   assertEquals(0, i);
   debugger;
-  assertEquals(27, i);
+  assertEqualsUnlessOptimized(27, i, shadowing_1);
 }
 
 listener_delegate = function (exec_state) {
@@ -538,9 +546,9 @@ function shadowing_2() {
   {
     let j = 5;
     debugger;
-    assertEquals(27, j);
+    assertEqualsUnlessOptimized(27, j, shadowing_2);
   }
-  assertEquals(0, i);
+  assertEqualsUnlessOptimized(0, i, shadowing_2);
 }
 
 listener_delegate = function (exec_state) {

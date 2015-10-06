@@ -267,7 +267,7 @@ class AstValue : public ZoneObject {
   F(make_syntax_error, "MakeSyntaxError")                                  \
   F(make_type_error, "MakeTypeError")                                      \
   F(native, "native")                                                      \
-  F(new_target, "new.target")                                              \
+  F(new_target, ".new.target")                                             \
   F(next, "next")                                                          \
   F(proto, "__proto__")                                                    \
   F(prototype, "prototype")                                                \

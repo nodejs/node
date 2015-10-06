@@ -13,13 +13,14 @@
 
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalObject = global.Object;
-
 var MathMax;
 var MathMin;
+var ToNumber;
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
+  ToNumber = from.ToNumber;
 });
 
 // -------------------------------------------------------------------

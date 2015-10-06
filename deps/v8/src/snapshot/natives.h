@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_NATIVES_H_
 #define V8_SNAPSHOT_NATIVES_H_
 
+#include "src/objects.h"
 #include "src/vector.h"
 
 namespace v8 { class StartupData; }  // Forward declaration.
@@ -12,11 +13,13 @@ namespace v8 { class StartupData; }  // Forward declaration.
 namespace v8 {
 namespace internal {
 
-enum NativeType { CORE, EXPERIMENTAL, EXTRAS, D8, TEST };
+enum NativeType { CORE, CODE_STUB, EXPERIMENTAL, EXTRAS, D8, TEST };
 
 template <NativeType type>
 class NativesCollection {
  public:
+  // The following methods are implemented in js2c-generated code:
+
   // Number of built-in scripts.
   static int GetBuiltinsCount();
   // Number of debugger implementation scripts.
@@ -30,11 +33,18 @@ class NativesCollection {
   static Vector<const char> GetScriptSource(int index);
   static Vector<const char> GetScriptName(int index);
   static Vector<const char> GetScriptsSource();
+
+  // The following methods are implemented in natives-common.cc:
+
+  static FixedArray* GetSourceCache(Heap* heap);
+  static void UpdateSourceCache(Heap* heap);
 };
 
 typedef NativesCollection<CORE> Natives;
+typedef NativesCollection<CODE_STUB> CodeStubNatives;
 typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
 typedef NativesCollection<EXTRAS> ExtraNatives;
+
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 // Used for reading the natives at runtime. Implementation in natives-empty.cc

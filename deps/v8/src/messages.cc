@@ -6,7 +6,6 @@
 
 #include "src/api.h"
 #include "src/execution.h"
-#include "src/heap/spaces-inl.h"
 #include "src/messages.h"
 #include "src/string-builder.h"
 
@@ -19,13 +18,13 @@ namespace internal {
 void MessageHandler::DefaultMessageReport(Isolate* isolate,
                                           const MessageLocation* loc,
                                           Handle<Object> message_obj) {
-  SmartArrayPointer<char> str = GetLocalizedMessage(isolate, message_obj);
+  base::SmartArrayPointer<char> str = GetLocalizedMessage(isolate, message_obj);
   if (loc == NULL) {
     PrintF("%s\n", str.get());
   } else {
     HandleScope scope(isolate);
     Handle<Object> data(loc->script()->name(), isolate);
-    SmartArrayPointer<char> data_str;
+    base::SmartArrayPointer<char> data_str;
     if (data->IsString())
       data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
     PrintF("%s:%i: %s\n", data_str.get() ? data_str.get() : "<unknown>",
@@ -82,7 +81,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
     Handle<Object> argument(message->argument(), isolate);
     Handle<Object> args[] = {argument};
     MaybeHandle<Object> maybe_stringified = Execution::TryCall(
-        isolate->to_detail_string_fun(), isolate->js_builtins_object(),
+        isolate->to_detail_string_fun(), isolate->factory()->undefined_value(),
         arraysize(args), args);
     Handle<Object> stringified;
     if (!maybe_stringified.ToHandle(&stringified)) {
@@ -133,9 +132,8 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
 }
 
 
-SmartArrayPointer<char> MessageHandler::GetLocalizedMessage(
-    Isolate* isolate,
-    Handle<Object> data) {
+base::SmartArrayPointer<char> MessageHandler::GetLocalizedMessage(
+    Isolate* isolate, Handle<Object> data) {
   HandleScope scope(isolate);
   return GetMessage(isolate, data)->ToCString(DISALLOW_NULLS);
 }
@@ -299,14 +297,10 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
   if (arg->IsString()) {
     result_string = Handle<String>::cast(arg);
   } else {
-    Handle<String> fmt_str = factory->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("$noSideEffectToString"));
-    Handle<JSFunction> fun = Handle<JSFunction>::cast(
-        Object::GetProperty(isolate->js_builtins_object(), fmt_str)
-            .ToHandleChecked());
+    Handle<JSFunction> fun = isolate->no_side_effect_to_string_fun();
 
     MaybeHandle<Object> maybe_result =
-        Execution::TryCall(fun, isolate->js_builtins_object(), 1, &arg);
+        Execution::TryCall(fun, factory->undefined_value(), 1, &arg);
     Handle<Object> result;
     if (!maybe_result.ToHandle(&result) || !result->IsString()) {
       return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
@@ -328,23 +322,29 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
 }
 
 
+const char* MessageTemplate::TemplateString(int template_index) {
+  switch (template_index) {
+#define CASE(NAME, STRING) \
+  case k##NAME:            \
+    return STRING;
+    MESSAGE_TEMPLATES(CASE)
+#undef CASE
+    case kLastMessage:
+    default:
+      return NULL;
+  }
+}
+
+
 MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
                                                    Handle<String> arg0,
                                                    Handle<String> arg1,
                                                    Handle<String> arg2) {
   Isolate* isolate = arg0->GetIsolate();
-  const char* template_string;
-  switch (template_index) {
-#define CASE(NAME, STRING)    \
-  case k##NAME:               \
-    template_string = STRING; \
-    break;
-    MESSAGE_TEMPLATES(CASE)
-#undef CASE
-    case kLastMessage:
-    default:
-      isolate->ThrowIllegalOperation();
-      return MaybeHandle<String>();
+  const char* template_string = TemplateString(template_index);
+  if (template_string == NULL) {
+    isolate->ThrowIllegalOperation();
+    return MaybeHandle<String>();
   }
 
   IncrementalStringBuilder builder(isolate);
@@ -369,5 +369,98 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
 
   return builder.Finish();
 }
+
+
+MaybeHandle<String> ErrorToStringHelper::Stringify(Isolate* isolate,
+                                                   Handle<JSObject> error) {
+  VisitedScope scope(this, error);
+  if (scope.has_visited()) return isolate->factory()->empty_string();
+
+  Handle<String> name;
+  Handle<String> message;
+  Handle<Name> internal_key = isolate->factory()->internal_error_symbol();
+  Handle<String> message_string =
+      isolate->factory()->NewStringFromStaticChars("message");
+  Handle<String> name_string = isolate->factory()->name_string();
+  LookupIterator internal_error_lookup(
+      error, internal_key, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  LookupIterator message_lookup(
+      error, message_string, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  LookupIterator name_lookup(error, name_string,
+                             LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+
+  // Find out whether an internally created error object is on the prototype
+  // chain. If the name property is found on a holder prior to the internally
+  // created error object, use that name property. Otherwise just use the
+  // constructor name to avoid triggering possible side effects.
+  // Similar for the message property. If the message property shadows the
+  // internally created error object, use that message property. Otherwise
+  // use empty string as message.
+  if (internal_error_lookup.IsFound()) {
+    if (!ShadowsInternalError(isolate, &name_lookup, &internal_error_lookup)) {
+      Handle<JSObject> holder = internal_error_lookup.GetHolder<JSObject>();
+      name = Handle<String>(holder->constructor_name());
+    }
+    if (!ShadowsInternalError(isolate, &message_lookup,
+                              &internal_error_lookup)) {
+      message = isolate->factory()->empty_string();
+    }
+  }
+  if (name.is_null()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, name,
+        GetStringifiedProperty(isolate, &name_lookup,
+                               isolate->factory()->Error_string()),
+        String);
+  }
+  if (message.is_null()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, message,
+        GetStringifiedProperty(isolate, &message_lookup,
+                               isolate->factory()->empty_string()),
+        String);
+  }
+
+  if (name->length() == 0) return message;
+  if (message->length() == 0) return name;
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(name);
+  builder.AppendCString(": ");
+  builder.AppendString(message);
+  return builder.Finish();
+}
+
+
+bool ErrorToStringHelper::ShadowsInternalError(
+    Isolate* isolate, LookupIterator* property_lookup,
+    LookupIterator* internal_error_lookup) {
+  if (!property_lookup->IsFound()) return false;
+  Handle<JSObject> holder = property_lookup->GetHolder<JSObject>();
+  // It's fine if the property is defined on the error itself.
+  if (holder.is_identical_to(property_lookup->GetReceiver())) return true;
+  PrototypeIterator it(isolate, holder, PrototypeIterator::START_AT_RECEIVER);
+  while (true) {
+    if (it.IsAtEnd()) return false;
+    if (it.IsAtEnd(internal_error_lookup->GetHolder<JSObject>())) return true;
+    it.AdvanceIgnoringProxies();
+  }
+}
+
+
+MaybeHandle<String> ErrorToStringHelper::GetStringifiedProperty(
+    Isolate* isolate, LookupIterator* property_lookup,
+    Handle<String> default_value) {
+  if (!property_lookup->IsFound()) return default_value;
+  Handle<Object> obj;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::GetProperty(property_lookup),
+                             String);
+  if (obj->IsUndefined()) return default_value;
+  if (!obj->IsString()) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Execution::ToString(isolate, obj),
+                               String);
+  }
+  return Handle<String>::cast(obj);
+}
+
 }  // namespace internal
 }  // namespace v8

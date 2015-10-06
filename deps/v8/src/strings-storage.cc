@@ -80,7 +80,7 @@ const char* StringsStorage::GetName(Name* name) {
     String* str = String::cast(name);
     int length = Min(kMaxNameSize, str->length());
     int actual_length = 0;
-    SmartArrayPointer<char> data = str->ToCString(
+    base::SmartArrayPointer<char> data = str->ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
     return AddOrDisposeString(data.Detach(), actual_length);
   } else if (name->IsSymbol()) {

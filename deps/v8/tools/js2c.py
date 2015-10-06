@@ -196,7 +196,7 @@ def ReadMacros(lines):
   return (constants, macros)
 
 
-TEMPLATE_PATTERN = re.compile(r'^\s+T\(([A-Z][a-zA-Z]*),')
+TEMPLATE_PATTERN = re.compile(r'^\s+T\(([A-Z][a-zA-Z0-9]*),')
 
 def ReadMessageTemplates(lines):
   templates = []
@@ -377,7 +377,7 @@ class Sources:
 
 
 def IsDebuggerFile(filename):
-  return filename.endswith("-debugger.js")
+  return "debug" in filename
 
 def IsMacroFile(filename):
   return filename.endswith("macros.py")
@@ -447,7 +447,7 @@ def PrepareSources(source_files, native_type, emit_js):
     result.is_debugger_id.append(is_debugger)
 
     name = os.path.basename(source)[:-3]
-    result.names.append(name if not is_debugger else name[:-9])
+    result.names.append(name)
 
   return result
 

@@ -27,6 +27,8 @@
 
 // Tests the new String.prototype.normalize method.
 
+assertEquals(String.prototype.normalize.length, 0);
+assertEquals(String.prototype.propertyIsEnumerable("normalize"), false);
 
 // Common use case when searching for 'not very exact' match.
 // These are examples of data one might encounter in real use.

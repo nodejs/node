@@ -5,8 +5,6 @@
 #ifndef V8_MIPS_LITHIUM_GAP_RESOLVER_MIPS_H_
 #define V8_MIPS_LITHIUM_GAP_RESOLVER_MIPS_H_
 
-#include "src/v8.h"
-
 #include "src/lithium.h"
 
 namespace v8 {

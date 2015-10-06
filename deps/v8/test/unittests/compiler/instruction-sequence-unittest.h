@@ -126,7 +126,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
 
   void StartLoop(int loop_blocks);
   void EndLoop();
-  void StartBlock();
+  void StartBlock(bool deferred = false);
   Instruction* EndBlock(BlockCompletion completion = FallThrough());
 
   TestOperand Imm(int32_t imm = 0);
@@ -203,7 +203,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   InstructionOperand* ConvertInputs(size_t input_size, TestOperand* inputs);
   InstructionOperand ConvertInputOp(TestOperand op);
   InstructionOperand ConvertOutputOp(VReg vreg, TestOperand op);
-  InstructionBlock* NewBlock();
+  InstructionBlock* NewBlock(bool deferred = false);
   void WireBlock(size_t block_offset, int jump_offset);
 
   Instruction* Emit(InstructionCode code, size_t outputs_size = 0,
@@ -223,7 +223,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   typedef std::map<int, const Instruction*> Instructions;
   typedef std::vector<BlockCompletion> Completions;
 
-  SmartPointer<RegisterConfiguration> config_;
+  base::SmartPointer<RegisterConfiguration> config_;
   InstructionSequence* sequence_;
   int num_general_registers_;
   int num_double_registers_;

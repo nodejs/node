@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_PPC
 
 #include "src/interface-descriptors.h"
@@ -36,7 +34,11 @@ const Register VectorStoreICDescriptor::VectorRegister() { return r6; }
 const Register StoreTransitionDescriptor::MapRegister() { return r6; }
 
 
-const Register ElementTransitionAndStoreDescriptor::MapRegister() { return r6; }
+const Register LoadGlobalViaContextDescriptor::SlotRegister() { return r5; }
+
+
+const Register StoreGlobalViaContextDescriptor::SlotRegister() { return r5; }
+const Register StoreGlobalViaContextDescriptor::ValueRegister() { return r3; }
 
 
 const Register InstanceofDescriptor::left() { return r3; }
@@ -62,6 +64,14 @@ const Register GrowArrayElementsDescriptor::ObjectRegister() { return r3; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return r6; }
 
 
+void StoreTransitionDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
+                          MapRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {r5};
@@ -81,6 +91,10 @@ void ToNumberDescriptor::InitializePlatformSpecific(
   Register registers[] = {r3};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
+
+
+// static
+const Register ToObjectDescriptor::ReceiverRegister() { return r3; }
 
 
 void NumberToStringDescriptor::InitializePlatformSpecific(
@@ -158,11 +172,11 @@ void CallConstructDescriptor::InitializePlatformSpecific(
   // r3 : number of arguments
   // r4 : the function to call
   // r5 : feedback vector
-  // r6 : (only if r5 is not the megamorphic symbol) slot in feedback
-  //      vector (Smi)
+  // r6 : slot in feedback vector (Smi, for RecordCallTarget)
+  // r7 : original constructor (for IsSuperConstructorCall)
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
-  Register registers[] = {r3, r4, r5};
+  Register registers[] = {r3, r4, r7, r5};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -329,11 +343,22 @@ void ApiAccessorDescriptor::InitializePlatformSpecific(
 }
 
 
-void MathRoundVariantDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
+void MathRoundVariantCallFromUnoptimizedCodeDescriptor::
+    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r4,  // math rounding function
       r6,  // vector slot id
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void MathRoundVariantCallFromOptimizedCodeDescriptor::
+    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      r4,  // math rounding function
+      r6,  // vector slot id
+      r7,  // type vector
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

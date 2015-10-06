@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_IA32
 
 #include "src/interface-descriptors.h"
@@ -32,12 +30,16 @@ const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return edi; }
 const Register VectorStoreICDescriptor::VectorRegister() { return ebx; }
 
 
-const Register StoreTransitionDescriptor::MapRegister() { return ebx; }
-
-
-const Register ElementTransitionAndStoreDescriptor::MapRegister() {
-  return ebx;
+const Register StoreTransitionDescriptor::MapRegister() {
+  return FLAG_vector_stores ? no_reg : ebx;
 }
+
+
+const Register LoadGlobalViaContextDescriptor::SlotRegister() { return ebx; }
+
+
+const Register StoreGlobalViaContextDescriptor::SlotRegister() { return ebx; }
+const Register StoreGlobalViaContextDescriptor::ValueRegister() { return eax; }
 
 
 const Register InstanceofDescriptor::left() { return eax; }
@@ -63,6 +65,20 @@ const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
 
 
+void StoreTransitionDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
+                          MapRegister()};
+
+  // When FLAG_vector_stores is true, we want to pass the map register on the
+  // stack instead of in a register.
+  DCHECK(FLAG_vector_stores || !MapRegister().is(no_reg));
+
+  int register_count = FLAG_vector_stores ? 3 : 4;
+  data->InitializePlatformSpecific(register_count, registers);
+}
+
+
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ebx};
@@ -83,6 +99,10 @@ void ToNumberDescriptor::InitializePlatformSpecific(
   Register registers[] = {eax};
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
+
+
+// static
+const Register ToObjectDescriptor::ReceiverRegister() { return eax; }
 
 
 void NumberToStringDescriptor::InitializePlatformSpecific(
@@ -159,12 +179,12 @@ void CallConstructDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // eax : number of arguments
   // ebx : feedback vector
-  // edx : (only if ebx is not the megamorphic symbol) slot in feedback
-  //       vector (Smi)
+  // ecx : original constructor (for IsSuperConstructorCall)
+  // edx : slot in feedback vector (Smi, for RecordCallTarget)
   // edi : constructor function
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
-  Register registers[] = {eax, edi, ebx};
+  Register registers[] = {eax, edi, ecx, ebx};
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
@@ -332,11 +352,22 @@ void ApiAccessorDescriptor::InitializePlatformSpecific(
 }
 
 
-void MathRoundVariantDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
+void MathRoundVariantCallFromUnoptimizedCodeDescriptor::
+    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
   Register registers[] = {
       edi,  // math rounding function
       edx,  // vector slot id
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void MathRoundVariantCallFromOptimizedCodeDescriptor::
+    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      edi,  // math rounding function
+      edx,  // vector slot id
+      ebx   // type vector
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

@@ -39,7 +39,7 @@
 
 #include "src/v8.h"
 
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
 
@@ -59,7 +59,7 @@ TEST(MarkingDeque) {
   Address original_address = reinterpret_cast<Address>(&s);
   Address current_address = original_address;
   while (!s.IsFull()) {
-    s.PushBlack(HeapObject::FromAddress(current_address));
+    s.Push(HeapObject::FromAddress(current_address));
     current_address += kPointerSize;
   }
 

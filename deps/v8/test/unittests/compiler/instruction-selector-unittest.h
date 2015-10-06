@@ -39,22 +39,22 @@ class InstructionSelectorTest : public TestWithContext,
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
-              MakeMachineSignature(test->zone(), return_type), kMachPtr,
+              MakeCallDescriptor(test->zone(), return_type), kMachPtr,
               MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
-              MakeMachineSignature(test->zone(), return_type, parameter0_type),
+              MakeCallDescriptor(test->zone(), return_type, parameter0_type),
               kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
-              MakeMachineSignature(test->zone(), return_type, parameter0_type,
-                                   parameter1_type),
+              MakeCallDescriptor(test->zone(), return_type, parameter0_type,
+                                 parameter1_type),
               kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
@@ -62,8 +62,8 @@ class InstructionSelectorTest : public TestWithContext,
                   MachineType parameter2_type)
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
-              MakeMachineSignature(test->zone(), return_type, parameter0_type,
-                                   parameter1_type, parameter2_type),
+              MakeCallDescriptor(test->zone(), return_type, parameter0_type,
+                                 parameter1_type, parameter2_type),
               kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
 
@@ -85,41 +85,40 @@ class InstructionSelectorTest : public TestWithContext,
                                                             int local_count);
 
    private:
-    MachineSignature* MakeMachineSignature(Zone* zone,
-                                           MachineType return_type) {
+    CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type) {
       MachineSignature::Builder builder(zone, 1, 0);
       builder.AddReturn(return_type);
-      return builder.Build();
+      return Linkage::GetSimplifiedCDescriptor(zone, builder.Build());
     }
 
-    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
-                                           MachineType parameter0_type) {
+    CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
+                                       MachineType parameter0_type) {
       MachineSignature::Builder builder(zone, 1, 1);
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
-      return builder.Build();
+      return Linkage::GetSimplifiedCDescriptor(zone, builder.Build());
     }
 
-    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
-                                           MachineType parameter0_type,
-                                           MachineType parameter1_type) {
+    CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
+                                       MachineType parameter0_type,
+                                       MachineType parameter1_type) {
       MachineSignature::Builder builder(zone, 1, 2);
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
       builder.AddParam(parameter1_type);
-      return builder.Build();
+      return Linkage::GetSimplifiedCDescriptor(zone, builder.Build());
     }
 
-    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
-                                           MachineType parameter0_type,
-                                           MachineType parameter1_type,
-                                           MachineType parameter2_type) {
+    CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
+                                       MachineType parameter0_type,
+                                       MachineType parameter1_type,
+                                       MachineType parameter2_type) {
       MachineSignature::Builder builder(zone, 1, 3);
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
       builder.AddParam(parameter1_type);
       builder.AddParam(parameter2_type);
-      return builder.Build();
+      return Linkage::GetSimplifiedCDescriptor(zone, builder.Build());
     }
 
    private:

@@ -217,6 +217,12 @@ inline JSFunction* JavaScriptFrame::function() const {
 }
 
 
+inline Object* JavaScriptFrame::function_slot_object() const {
+  const int offset = JavaScriptFrameConstants::kFunctionOffset;
+  return Memory::Object_at(fp() + offset);
+}
+
+
 inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }

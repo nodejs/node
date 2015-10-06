@@ -44,7 +44,7 @@ import time
 from testrunner.local import execution
 from testrunner.local import progress
 from testrunner.local import testsuite
-from testrunner.local.testsuite import VARIANT_FLAGS
+from testrunner.local.testsuite import ALL_VARIANTS
 from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.network import network_execution
@@ -322,8 +322,17 @@ def RandomSeed():
   return seed
 
 
+def BuildbotToV8Mode(config):
+  """Convert buildbot build configs to configs understood by the v8 runner.
+
+  V8 configs are always lower case and without the additional _x64 suffix for
+  64 bit builds on windows with ninja.
+  """
+  mode = config[:-4] if config.endswith('_x64') else config
+  return mode.lower()
+
 def ProcessOptions(options):
-  global VARIANT_FLAGS
+  global ALL_VARIANTS
   global VARIANTS
 
   # Architecture and mode related stuff.
@@ -334,7 +343,7 @@ def ProcessOptions(options):
     options.mode = ",".join([tokens[1] for tokens in options.arch_and_mode])
   options.mode = options.mode.split(",")
   for mode in options.mode:
-    if not mode.lower() in MODES:
+    if not BuildbotToV8Mode(mode) in MODES:
       print "Unknown mode %s" % mode
       return False
   if options.arch in ["auto", "native"]:
@@ -414,8 +423,8 @@ def ProcessOptions(options):
     VARIANTS = ["stress"]
   if options.variants:
     VARIANTS = options.variants.split(",")
-    if not set(VARIANTS).issubset(VARIANT_FLAGS.keys()):
-      print "All variants must be in %s" % str(VARIANT_FLAGS.keys())
+    if not set(VARIANTS).issubset(ALL_VARIANTS):
+      print "All variants must be in %s" % str(ALL_VARIANTS)
       return False
   if options.predictable:
     VARIANTS = ["default"]
@@ -496,7 +505,7 @@ def Main():
   else:
     args_suites = OrderedDict() # Used as set
     for arg in args:
-      args_suites[arg.split(os.path.sep)[0]] = True
+      args_suites[arg.split('/')[0]] = True
     suite_paths = [ s for s in args_suites if s in suite_paths ]
 
   suites = []
@@ -531,7 +540,7 @@ def Execute(arch, mode, args, options, suites, workspace):
       # TODO(machenbach): Get rid of different output folder location on
       # buildbot. Currently this is capitalized Release and Debug.
       shell_dir = os.path.join(workspace, options.outdir, mode)
-      mode = mode.lower()
+      mode = BuildbotToV8Mode(mode)
     else:
       shell_dir = os.path.join(
           workspace,
@@ -612,10 +621,11 @@ def Execute(arch, mode, args, options, suites, workspace):
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
-    variant_flags = [VARIANT_FLAGS[var] for var in VARIANTS]
-    variant_tests = [ t.CopyAddingFlags(v)
+    variant_gen = s.CreateVariantGenerator(VARIANTS)
+    variant_tests = [ t.CopyAddingFlags(v, flags)
                       for t in s.tests
-                      for v in s.VariantFlags(t, variant_flags) ]
+                      for v in variant_gen.FilterVariantsByTest(t)
+                      for flags in variant_gen.GetFlagSets(t, v) ]
 
     if options.random_seed_stress_count > 1:
       # Duplicate test for random seed stress mode.
@@ -628,9 +638,9 @@ def Execute(arch, mode, args, options, suites, workspace):
           else:
             yield ["--random-seed=%d" % RandomSeed()]
       s.tests = [
-        t.CopyAddingFlags(v)
+        t.CopyAddingFlags(t.variant, flags)
         for t in variant_tests
-        for v in iter_seed_flags()
+        for flags in iter_seed_flags()
       ]
     else:
       s.tests = variant_tests
@@ -653,11 +663,13 @@ def Execute(arch, mode, args, options, suites, workspace):
         options.junitout, options.junittestsuite))
   if options.json_test_results:
     progress_indicator.Register(progress.JsonTestProgressIndicator(
-        options.json_test_results, arch, MODES[mode]["execution_mode"]))
+        options.json_test_results, arch, MODES[mode]["execution_mode"],
+        ctx.random_seed))
 
   run_networked = not options.no_network
   if not run_networked:
-    print("Network distribution disabled, running tests locally.")
+    if verbose_output:
+      print("Network distribution disabled, running tests locally.")
   elif utils.GuessOS() != "linux":
     print("Network distribution is only supported on Linux, sorry!")
     run_networked = False
@@ -685,6 +697,10 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   if options.time:
     verbose.PrintTestDurations(suites, overall_duration)
+
+  if num_tests == 0:
+    print("Warning: no tests were run!")
+
   return exit_code
 
 

@@ -6,6 +6,7 @@
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/ppc/frames-ppc.h"
 
 namespace v8 {
 namespace internal {
@@ -1473,15 +1474,19 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     }
   } else {
     // Push any stack arguments.
-    int num_slots = buffer.pushed_nodes.size();
+    int num_slots = static_cast<int>(descriptor->StackParameterCount());
     int slot = 0;
-    for (Node* node : buffer.pushed_nodes) {
+    for (Node* input : buffer.pushed_nodes) {
       if (slot == 0) {
-        Emit(kPPC_PushFrame, g.NoOutput(), g.UseRegister(node),
+        DCHECK(input);
+        Emit(kPPC_PushFrame, g.NoOutput(), g.UseRegister(input),
              g.TempImmediate(num_slots));
       } else {
-        Emit(kPPC_StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
-             g.TempImmediate(slot));
+        // Skip any alignment holes in pushed nodes.
+        if (input) {
+          Emit(kPPC_StoreToStackSlot, g.NoOutput(), g.UseRegister(input),
+               g.TempImmediate(slot));
+        }
       }
       ++slot;
     }
@@ -1577,8 +1582,17 @@ void InstructionSelector::VisitTailCall(Node* node) {
     InitializeCallBuffer(node, &buffer, true, false);
 
     // Push any stack arguments.
-    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-      Emit(kPPC_Push, g.NoOutput(), g.UseRegister(node));
+    int num_slots = static_cast<int>(descriptor->StackParameterCount());
+    int slot = 0;
+    for (Node* input : buffer.pushed_nodes) {
+      if (slot == 0) {
+        Emit(kPPC_PushFrame, g.NoOutput(), g.UseRegister(input),
+             g.TempImmediate(num_slots));
+      } else {
+        Emit(kPPC_StoreToStackSlot, g.NoOutput(), g.UseRegister(input),
+             g.TempImmediate(slot));
+      }
+      ++slot;
     }
 
     // Select the appropriate opcode based on the call type.

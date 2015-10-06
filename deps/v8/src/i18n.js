@@ -17,19 +17,15 @@
 // -------------------------------------------------------------------
 // Imports
 
+var ArrayIndexOf;
+var ArrayJoin;
+var IsFinite;
+var IsNaN;
 var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var ObjectDefineProperties = utils.ObjectDefineProperties;
-var ObjectDefineProperty = utils.ObjectDefineProperty;
-var SetFunctionName = utils.SetFunctionName;
-
-var ArrayIndexOf;
-var ArrayJoin;
-var IsFinite;
-var IsNaN;
 var MathFloor;
 var RegExpTest;
 var StringIndexOf;
@@ -54,6 +50,12 @@ utils.Import(function(from) {
   StringSplit = from.StringSplit;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
+  ToNumber = from.ToNumber;
+});
+
+utils.ImportNow(function(from) {
+  ObjectDefineProperties = from.ObjectDefineProperties;
+  ObjectDefineProperty = from.ObjectDefineProperty;
 });
 
 // -------------------------------------------------------------------
@@ -218,7 +220,7 @@ function addBoundMethod(obj, methodName, implementation, length) {
           }
         }
       }
-      SetFunctionName(boundMethod, internalName);
+      %FunctionSetName(boundMethod, internalName);
       %FunctionRemovePrototype(boundMethod);
       %SetNativeFlag(boundMethod);
       this[internalName] = boundMethod;
@@ -226,7 +228,7 @@ function addBoundMethod(obj, methodName, implementation, length) {
     return this[internalName];
   }
 
-  SetFunctionName(getter, methodName);
+  %FunctionSetName(getter, methodName);
   %FunctionRemovePrototype(getter);
   %SetNativeFlag(getter);
 
@@ -251,7 +253,7 @@ function supportedLocalesOf(service, locales, options) {
   if (IS_UNDEFINED(options)) {
     options = {};
   } else {
-    options = $toObject(options);
+    options = TO_OBJECT(options);
   }
 
   var matcher = options.localeMatcher;
@@ -717,7 +719,7 @@ function initializeLocaleList(locales) {
       return freezeArray(seen);
     }
 
-    var o = $toObject(locales);
+    var o = TO_OBJECT(locales);
     var len = TO_UINT32(o.length);
 
     for (var k = 0; k < len; k++) {
@@ -951,7 +953,7 @@ function initializeCollator(collator, locales, options) {
       return new Intl.Collator(locales, options);
     }
 
-    return initializeCollator($toObject(this), locales, options);
+    return initializeCollator(TO_OBJECT(this), locales, options);
   },
   DONT_ENUM
 );
@@ -985,7 +987,7 @@ function initializeCollator(collator, locales, options) {
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.Collator.prototype.resolvedOptions, 'resolvedOptions');
+%FunctionSetName(Intl.Collator.prototype.resolvedOptions, 'resolvedOptions');
 %FunctionRemovePrototype(Intl.Collator.prototype.resolvedOptions);
 %SetNativeFlag(Intl.Collator.prototype.resolvedOptions);
 
@@ -1005,7 +1007,7 @@ SetFunctionName(Intl.Collator.prototype.resolvedOptions, 'resolvedOptions');
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.Collator.supportedLocalesOf, 'supportedLocalesOf');
+%FunctionSetName(Intl.Collator.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.Collator.supportedLocalesOf);
 %SetNativeFlag(Intl.Collator.supportedLocalesOf);
 
@@ -1099,11 +1101,19 @@ function initializeNumberFormat(numberFormat, locales, options) {
   var mnid = getNumberOption(options, 'minimumIntegerDigits', 1, 21, 1);
   defineWEProperty(internalOptions, 'minimumIntegerDigits', mnid);
 
-  var mnfd = getNumberOption(options, 'minimumFractionDigits', 0, 20, 0);
-  defineWEProperty(internalOptions, 'minimumFractionDigits', mnfd);
+  var mnfd = options['minimumFractionDigits'];
+  var mxfd = options['maximumFractionDigits'];
+  if (!IS_UNDEFINED(mnfd) || !internalOptions.style === 'currency') {
+    mnfd = getNumberOption(options, 'minimumFractionDigits', 0, 20, 0);
+    defineWEProperty(internalOptions, 'minimumFractionDigits', mnfd);
+  }
 
-  var mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20, 3);
-  defineWEProperty(internalOptions, 'maximumFractionDigits', mxfd);
+  if (!IS_UNDEFINED(mxfd) || !internalOptions.style === 'currency') {
+    mnfd = IS_UNDEFINED(mnfd) ? 0 : mnfd;
+    fallback_limit = (mnfd > 3) ? mnfd : 3;
+    mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20, fallback_limit);
+    defineWEProperty(internalOptions, 'maximumFractionDigits', mxfd);
+  }
 
   var mnsd = options['minimumSignificantDigits'];
   var mxsd = options['maximumSignificantDigits'];
@@ -1157,8 +1167,6 @@ function initializeNumberFormat(numberFormat, locales, options) {
                                       internalOptions,
                                       resolved);
 
-  // We can't get information about number or currency style from ICU, so we
-  // assume user request was fulfilled.
   if (internalOptions.style === 'currency') {
     ObjectDefineProperty(resolved, 'currencyDisplay', {value: currencyDisplay,
                                                        writable: true});
@@ -1186,7 +1194,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
       return new Intl.NumberFormat(locales, options);
     }
 
-    return initializeNumberFormat($toObject(this), locales, options);
+    return initializeNumberFormat(TO_OBJECT(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1238,7 +1246,8 @@ function initializeNumberFormat(numberFormat, locales, options) {
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.NumberFormat.prototype.resolvedOptions, 'resolvedOptions');
+%FunctionSetName(Intl.NumberFormat.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.NumberFormat.prototype.resolvedOptions);
 %SetNativeFlag(Intl.NumberFormat.prototype.resolvedOptions);
 
@@ -1258,7 +1267,7 @@ SetFunctionName(Intl.NumberFormat.prototype.resolvedOptions, 'resolvedOptions');
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
+%FunctionSetName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.NumberFormat.supportedLocalesOf);
 %SetNativeFlag(Intl.NumberFormat.supportedLocalesOf);
 
@@ -1270,7 +1279,7 @@ SetFunctionName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
  */
 function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
-  var number = $toNumber(value) + 0;
+  var number = ToNumber(value) + 0;
 
   return %InternalNumberFormat(%GetImplFromInitializedIntlObject(formatter),
                                number);
@@ -1438,7 +1447,7 @@ function toDateTimeOptions(options, required, defaults) {
   if (IS_UNDEFINED(options)) {
     options = {};
   } else {
-    options = TO_OBJECT_INLINE(options);
+    options = TO_OBJECT(options);
   }
 
   var needsDefault = true;
@@ -1588,7 +1597,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
       return new Intl.DateTimeFormat(locales, options);
     }
 
-    return initializeDateTimeFormat($toObject(this), locales, options);
+    return initializeDateTimeFormat(TO_OBJECT(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1659,8 +1668,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.DateTimeFormat.prototype.resolvedOptions,
-                'resolvedOptions');
+%FunctionSetName(Intl.DateTimeFormat.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.DateTimeFormat.prototype.resolvedOptions);
 %SetNativeFlag(Intl.DateTimeFormat.prototype.resolvedOptions);
 
@@ -1680,7 +1689,7 @@ SetFunctionName(Intl.DateTimeFormat.prototype.resolvedOptions,
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.DateTimeFormat.supportedLocalesOf, 'supportedLocalesOf');
+%FunctionSetName(Intl.DateTimeFormat.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.DateTimeFormat.supportedLocalesOf);
 %SetNativeFlag(Intl.DateTimeFormat.supportedLocalesOf);
 
@@ -1695,7 +1704,7 @@ function formatDate(formatter, dateValue) {
   if (IS_UNDEFINED(dateValue)) {
     dateMs = %DateCurrentTime();
   } else {
-    dateMs = $toNumber(dateValue);
+    dateMs = ToNumber(dateValue);
   }
 
   if (!IsFinite(dateMs)) throw MakeRangeError(kDateRange);
@@ -1808,7 +1817,7 @@ function initializeBreakIterator(iterator, locales, options) {
       return new Intl.v8BreakIterator(locales, options);
     }
 
-    return initializeBreakIterator($toObject(this), locales, options);
+    return initializeBreakIterator(TO_OBJECT(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1838,8 +1847,8 @@ function initializeBreakIterator(iterator, locales, options) {
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.v8BreakIterator.prototype.resolvedOptions,
-                'resolvedOptions');
+%FunctionSetName(Intl.v8BreakIterator.prototype.resolvedOptions,
+                 'resolvedOptions');
 %FunctionRemovePrototype(Intl.v8BreakIterator.prototype.resolvedOptions);
 %SetNativeFlag(Intl.v8BreakIterator.prototype.resolvedOptions);
 
@@ -1860,7 +1869,7 @@ SetFunctionName(Intl.v8BreakIterator.prototype.resolvedOptions,
   },
   DONT_ENUM
 );
-SetFunctionName(Intl.v8BreakIterator.supportedLocalesOf, 'supportedLocalesOf');
+%FunctionSetName(Intl.v8BreakIterator.supportedLocalesOf, 'supportedLocalesOf');
 %FunctionRemovePrototype(Intl.v8BreakIterator.supportedLocalesOf);
 %SetNativeFlag(Intl.v8BreakIterator.supportedLocalesOf);
 
@@ -1956,7 +1965,7 @@ function OverrideFunction(object, name, f) {
                                        writeable: true,
                                        configurable: true,
                                        enumerable: false });
-  SetFunctionName(f, name);
+  %FunctionSetName(f, name);
   %FunctionRemovePrototype(f);
   %SetNativeFlag(f);
 }
@@ -1989,14 +1998,17 @@ OverrideFunction(GlobalString.prototype, 'localeCompare', function(that) {
  * If the form is not one of "NFC", "NFD", "NFKC", or "NFKD", then throw
  * a RangeError Exception.
  */
-OverrideFunction(GlobalString.prototype, 'normalize', function(that) {
+
+OverrideFunction(GlobalString.prototype, 'normalize', function() {
     if (%_IsConstructCall()) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
     CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
+    var s = TO_STRING_INLINE(this);
 
-    var form = GlobalString(%_Arguments(0) || 'NFC');
+    var formArg = %_Arguments(0);
+    var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING_INLINE(formArg);
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 
@@ -2007,7 +2019,7 @@ OverrideFunction(GlobalString.prototype, 'normalize', function(that) {
           %_CallFunction(NORMALIZATION_FORMS, ', ', ArrayJoin));
     }
 
-    return %StringNormalize(this, normalizationForm);
+    return %StringNormalize(s, normalizationForm);
   }
 );
 

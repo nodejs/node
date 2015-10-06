@@ -1117,16 +1117,18 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
     // Poke any stack arguments.
     for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
-      if (Node* node = buffer.pushed_nodes[n]) {
-        int const slot = static_cast<int>(n);
-        InstructionOperand value = g.UseRegister(node);
-        Emit(kArmPoke | MiscField::encode(slot), g.NoOutput(), value);
+      if (Node* input = buffer.pushed_nodes[n]) {
+        int slot = static_cast<int>(n);
+        Emit(kArmPoke | MiscField::encode(slot), g.NoOutput(),
+             g.UseRegister(input));
       }
     }
   } else {
     // Push any stack arguments.
-    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-      Emit(kArmPush, g.NoOutput(), g.UseRegister(node));
+    for (Node* input : base::Reversed(buffer.pushed_nodes)) {
+      // Skip any alignment holes in pushed nodes.
+      if (input == nullptr) continue;
+      Emit(kArmPush, g.NoOutput(), g.UseRegister(input));
     }
   }
 
@@ -1220,8 +1222,8 @@ void InstructionSelector::VisitTailCall(Node* node) {
     InitializeCallBuffer(node, &buffer, true, false);
 
     // Push any stack arguments.
-    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-      Emit(kArmPush, g.NoOutput(), g.UseRegister(node));
+    for (Node* input : base::Reversed(buffer.pushed_nodes)) {
+      Emit(kArmPush, g.NoOutput(), g.UseRegister(input));
     }
 
     // Select the appropriate opcode based on the call type.

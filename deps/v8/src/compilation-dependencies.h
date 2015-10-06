@@ -5,6 +5,9 @@
 #ifndef V8_DEPENDENCIES_H_
 #define V8_DEPENDENCIES_H_
 
+#include "src/handles.h"
+#include "src/objects.h"
+
 namespace v8 {
 namespace internal {
 

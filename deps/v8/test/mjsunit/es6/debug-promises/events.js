@@ -116,9 +116,7 @@ function testDone(iteration) {
   }
 
   var iteration = iteration || 0;
-  var dummy = {};
-  Object.observe(dummy, checkResult);
-  dummy.dummy = dummy;
+  %EnqueueMicrotask(checkResult);
 }
 
 testDone();

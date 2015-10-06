@@ -4,6 +4,7 @@
 
 #include "src/base/functional.h"
 #include "src/compiler/frame-states.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
 #include "src/bootstrapper.h"
-#include "src/debug.h"
+#include "src/conversions.h"
+#include "src/debug/debug.h"
+#include "src/frames-inl.h"
 #include "src/messages.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -19,6 +20,36 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_ImportToRuntime) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  Bootstrapper::ImportNatives(isolate, container);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_ImportExperimentalToRuntime) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  Bootstrapper::ImportExperimentalNatives(isolate, container);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_InstallJSBuiltins) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  Bootstrapper::InstallJSBuiltins(isolate, container);
   return isolate->heap()->undefined_value();
 }
 
@@ -222,113 +253,18 @@ RUNTIME_FUNCTION(Runtime_RenderCallSite) {
   if (location.start_pos() == -1) return isolate->heap()->empty_string();
 
   Zone zone;
-  SmartPointer<ParseInfo> info(location.function()->shared()->is_function()
-                                   ? new ParseInfo(&zone, location.function())
-                                   : new ParseInfo(&zone, location.script()));
+  base::SmartPointer<ParseInfo> info(
+      location.function()->shared()->is_function()
+          ? new ParseInfo(&zone, location.function())
+          : new ParseInfo(&zone, location.script()));
 
   if (!Parser::ParseStatic(info.get())) {
     isolate->clear_pending_exception();
     return isolate->heap()->empty_string();
   }
   CallPrinter printer(isolate, &zone);
-  const char* string = printer.Print(info->function(), location.start_pos());
+  const char* string = printer.Print(info->literal(), location.start_pos());
   return *isolate->factory()->NewStringFromAsciiChecked(string);
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetFromCacheRT) {
-  SealHandleScope shs(isolate);
-  // This is only called from codegen, so checks might be more lax.
-  CONVERT_ARG_CHECKED(JSFunctionResultCache, cache, 0);
-  CONVERT_ARG_CHECKED(Object, key, 1);
-
-  {
-    DisallowHeapAllocation no_alloc;
-
-    int finger_index = cache->finger_index();
-    Object* o = cache->get(finger_index);
-    if (o == key) {
-      // The fastest case: hit the same place again.
-      return cache->get(finger_index + 1);
-    }
-
-    for (int i = finger_index - 2; i >= JSFunctionResultCache::kEntriesIndex;
-         i -= 2) {
-      o = cache->get(i);
-      if (o == key) {
-        cache->set_finger_index(i);
-        return cache->get(i + 1);
-      }
-    }
-
-    int size = cache->size();
-    DCHECK(size <= cache->length());
-
-    for (int i = size - 2; i > finger_index; i -= 2) {
-      o = cache->get(i);
-      if (o == key) {
-        cache->set_finger_index(i);
-        return cache->get(i + 1);
-      }
-    }
-  }
-
-  // There is no value in the cache.  Invoke the function and cache result.
-  HandleScope scope(isolate);
-
-  Handle<JSFunctionResultCache> cache_handle(cache);
-  Handle<Object> key_handle(key, isolate);
-  Handle<Object> value;
-  {
-    Handle<JSFunction> factory(JSFunction::cast(
-        cache_handle->get(JSFunctionResultCache::kFactoryIndex)));
-    // TODO(antonm): consider passing a receiver when constructing a cache.
-    Handle<JSObject> receiver(isolate->global_proxy());
-    // This handle is nor shared, nor used later, so it's safe.
-    Handle<Object> argv[] = {key_handle};
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value,
-        Execution::Call(isolate, factory, receiver, arraysize(argv), argv));
-  }
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    cache_handle->JSFunctionResultCacheVerify();
-  }
-#endif
-
-  // Function invocation may have cleared the cache.  Reread all the data.
-  int finger_index = cache_handle->finger_index();
-  int size = cache_handle->size();
-
-  // If we have spare room, put new data into it, otherwise evict post finger
-  // entry which is likely to be the least recently used.
-  int index = -1;
-  if (size < cache_handle->length()) {
-    cache_handle->set_size(size + JSFunctionResultCache::kEntrySize);
-    index = size;
-  } else {
-    index = finger_index + JSFunctionResultCache::kEntrySize;
-    if (index == cache_handle->length()) {
-      index = JSFunctionResultCache::kEntriesIndex;
-    }
-  }
-
-  DCHECK(index % 2 == 0);
-  DCHECK(index >= JSFunctionResultCache::kEntriesIndex);
-  DCHECK(index < cache_handle->length());
-
-  cache_handle->set(index, *key_handle);
-  cache_handle->set(index + 1, *value);
-  cache_handle->set_finger_index(index);
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    cache_handle->JSFunctionResultCacheVerify();
-  }
-#endif
-
-  return *value;
 }
 
 
@@ -345,6 +281,18 @@ RUNTIME_FUNCTION(Runtime_MessageGetScript) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
   return message->script();
+}
+
+
+RUNTIME_FUNCTION(Runtime_ErrorToStringRT) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, error, 0);
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->error_tostring_helper()->Stringify(isolate, error));
+  return *result;
 }
 
 
@@ -412,15 +360,6 @@ RUNTIME_FUNCTION(Runtime_IS_VAR) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetFromCache) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_SMI_ARG_CHECKED(id, 0);
-  args[0] = isolate->native_context()->jsfunction_result_caches()->get(id);
-  return __RT_impl_Runtime_GetFromCacheRT(args, isolate);
-}
-
-
 RUNTIME_FUNCTION(Runtime_IncrementStatsCounter) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -467,5 +406,12 @@ RUNTIME_FUNCTION(Runtime_GetCallerJSFunction) {
   RUNTIME_ASSERT(it.frame()->type() == StackFrame::JAVA_SCRIPT);
   return JavaScriptFrame::cast(it.frame())->function();
 }
+
+
+RUNTIME_FUNCTION(Runtime_GetCodeStubExportsObject) {
+  HandleScope shs(isolate);
+  return isolate->heap()->code_stub_exports_object();
+}
+
 }  // namespace internal
 }  // namespace v8

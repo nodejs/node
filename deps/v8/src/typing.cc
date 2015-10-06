@@ -9,6 +9,7 @@
 #include "src/ostreams.h"
 #include "src/parser.h"  // for CompileTimeValue; TODO(rossberg): should move
 #include "src/scopes.h"
+#include "src/splay-tree-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -36,13 +37,8 @@ void AstTyper::Run(CompilationInfo* info) {
   AstTyper* visitor = new(info->zone()) AstTyper(info);
   Scope* scope = info->scope();
 
-  // Handle implicit declaration of the function name in named function
-  // expressions before other declarations.
-  if (scope->is_function_scope() && scope->function() != NULL) {
-    RECURSE(visitor->VisitVariableDeclaration(scope->function()));
-  }
   RECURSE(visitor->VisitDeclarations(scope->declarations()));
-  RECURSE(visitor->VisitStatements(info->function()->body()));
+  RECURSE(visitor->VisitStatements(info->literal()->body()));
 }
 
 #undef RECURSE

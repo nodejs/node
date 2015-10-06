@@ -28,8 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/platform/platform.h"
@@ -344,8 +342,10 @@ void Decoder::PrintPCImm21(Instruction* instr, int delta_pc, int n_bits) {
 
 // Print 26-bit hex immediate value.
 void Decoder::PrintXImm26(Instruction* instr) {
-  uint32_t imm = static_cast<uint32_t>(instr->Imm26Value()) << kImmFieldShift;
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  uint64_t target = static_cast<uint64_t>(instr->Imm26Value())
+                    << kImmFieldShift;
+  target = (reinterpret_cast<uint64_t>(instr) & ~0xfffffff) | target;
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%lx", target);
 }
 
 
@@ -1073,7 +1073,7 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
       Format(instr, "jr      'rs");
       break;
     case JALR:
-      Format(instr, "jalr    'rs");
+      Format(instr, "jalr    'rs, 'rd");
       break;
     case SLL:
       if (0x0 == static_cast<int>(instr->InstructionBits()))
@@ -1510,9 +1510,13 @@ void Decoder::DecodeTypeImmediateREGIMM(Instruction* instr) {
     case BGEZ:
       Format(instr, "bgez    'rs, 'imm16u -> 'imm16p4s2");
       break;
-    case BGEZAL:
-      Format(instr, "bgezal  'rs, 'imm16u -> 'imm16p4s2");
+    case BGEZAL: {
+      if (instr->RsValue() == 0)
+        Format(instr, "bal     'imm16s -> 'imm16p4s2");
+      else
+        Format(instr, "bgezal  'rs, 'imm16u -> 'imm16p4s2");
       break;
+    }
     case BGEZALL:
       Format(instr, "bgezall 'rs, 'imm16u -> 'imm16p4s2");
       break;

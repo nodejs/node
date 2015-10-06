@@ -341,14 +341,6 @@ MaybeHandle<Object> Execution::TryGetConstructorDelegate(
 }
 
 
-void StackGuard::EnableInterrupts() {
-  ExecutionAccess access(isolate_);
-  if (has_pending_interrupts(access)) {
-    set_interrupt_limits(access);
-  }
-}
-
-
 void StackGuard::SetStackLimit(uintptr_t limit) {
   ExecutionAccess access(isolate_);
   // If the current limits are special (e.g. due to a pending interrupt) then
@@ -362,6 +354,27 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
   }
   thread_local_.real_climit_ = limit;
   thread_local_.real_jslimit_ = jslimit;
+}
+
+
+void StackGuard::AdjustStackLimitForSimulator() {
+  ExecutionAccess access(isolate_);
+  uintptr_t climit = thread_local_.real_climit_;
+  // If the current limits are special (e.g. due to a pending interrupt) then
+  // leave them alone.
+  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, climit);
+  if (thread_local_.jslimit() == thread_local_.real_jslimit_) {
+    thread_local_.set_jslimit(jslimit);
+    isolate_->heap()->SetStackLimits();
+  }
+}
+
+
+void StackGuard::EnableInterrupts() {
+  ExecutionAccess access(isolate_);
+  if (has_pending_interrupts(access)) {
+    set_interrupt_limits(access);
+  }
 }
 
 
@@ -520,13 +533,11 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 // --- C a l l s   t o   n a t i v e s ---
 
-#define RETURN_NATIVE_CALL(name, args)                                  \
-  do {                                                                  \
-    Handle<Object> argv[] = args;                                       \
-    return Call(isolate,                                                \
-                isolate->name##_fun(),                                  \
-                isolate->js_builtins_object(),                          \
-                arraysize(argv), argv);                                \
+#define RETURN_NATIVE_CALL(name, args)                                         \
+  do {                                                                         \
+    Handle<Object> argv[] = args;                                              \
+    return Call(isolate, isolate->name##_fun(),                                \
+                isolate->factory()->undefined_value(), arraysize(argv), argv); \
   } while (false)
 
 
@@ -548,28 +559,9 @@ MaybeHandle<Object> Execution::ToDetailString(
 }
 
 
-MaybeHandle<Object> Execution::ToObject(
-    Isolate* isolate, Handle<Object> obj) {
-  if (obj->IsSpecObject()) return obj;
-  RETURN_NATIVE_CALL(to_object, { obj });
-}
-
-
 MaybeHandle<Object> Execution::ToInteger(
     Isolate* isolate, Handle<Object> obj) {
   RETURN_NATIVE_CALL(to_integer, { obj });
-}
-
-
-MaybeHandle<Object> Execution::ToUint32(
-    Isolate* isolate, Handle<Object> obj) {
-  RETURN_NATIVE_CALL(to_uint32, { obj });
-}
-
-
-MaybeHandle<Object> Execution::ToInt32(
-    Isolate* isolate, Handle<Object> obj) {
-  RETURN_NATIVE_CALL(to_int32, { obj });
 }
 
 
@@ -586,6 +578,30 @@ MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
 
 
 #undef RETURN_NATIVE_CALL
+
+
+MaybeHandle<Object> Execution::ToInt32(Isolate* isolate, Handle<Object> obj) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Execution::ToNumber(isolate, obj),
+                             Object);
+  return isolate->factory()->NewNumberFromInt(DoubleToInt32(obj->Number()));
+}
+
+
+MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
+  Handle<JSReceiver> receiver;
+  if (JSReceiver::ToObject(isolate, obj).ToHandle(&receiver)) {
+    return receiver;
+  }
+  THROW_NEW_ERROR(
+      isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject), Object);
+}
+
+
+MaybeHandle<Object> Execution::ToUint32(Isolate* isolate, Handle<Object> obj) {
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Execution::ToNumber(isolate, obj),
+                             Object);
+  return isolate->factory()->NewNumberFromUint(DoubleToUint32(obj->Number()));
+}
 
 
 MaybeHandle<JSRegExp> Execution::NewJSRegExp(Handle<String> pattern,
@@ -610,9 +626,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
   Handle<Object> args[] = { recv, fun, pos, is_global };
   MaybeHandle<Object> maybe_result =
       TryCall(isolate->get_stack_trace_line_fun(),
-              isolate->js_builtins_object(),
-              arraysize(args),
-              args);
+              isolate->factory()->undefined_value(), arraysize(args), args);
   Handle<Object> result;
   if (!maybe_result.ToHandle(&result) || !result->IsString()) {
     return isolate->factory()->empty_string();

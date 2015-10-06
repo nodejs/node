@@ -658,7 +658,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
   SC(array_function_runtime, V8.ArrayFunctionRuntime)                          \
   SC(array_function_native, V8.ArrayFunctionNative)                            \
-  SC(for_in, V8.ForIn)                                                         \
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \

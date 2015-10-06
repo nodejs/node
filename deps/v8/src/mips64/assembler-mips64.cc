@@ -32,8 +32,6 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/cpu.h"
@@ -681,11 +679,9 @@ int Assembler::target_at(int pos, bool is_internal) {
       // EndOfChain sentinel is returned directly, not relative to pc or pos.
       return kEndOfChain;
     } else {
-      uint64_t instr_address = reinterpret_cast<int64_t>(buffer_ + pos);
-      instr_address &= kImm28Mask;
-      int delta = static_cast<int>(instr_address - imm28);
-      DCHECK(pos > delta);
-      return pos - delta;
+      // Sign extend 28-bit offset.
+      int32_t delta = static_cast<int32_t>((imm28 << 4) >> 4);
+      return pos + delta;
     }
   }
 }
@@ -706,7 +702,6 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     return;
   }
 
-  DCHECK(IsBranch(instr) || IsJ(instr) || IsJal(instr) || IsLui(instr));
   if (IsBranch(instr)) {
     int32_t imm18 = target_pos - (pos + kBranchPCOffset);
     DCHECK((imm18 & 3) == 0);
@@ -736,16 +731,25 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
                  instr_ori | ((imm >> 16) & kImm16Mask));
     instr_at_put(pos + 3 * Assembler::kInstrSize,
                  instr_ori2 | (imm & kImm16Mask));
-  } else {
-    DCHECK(IsJ(instr) || IsJal(instr));
-    uint64_t imm28 = reinterpret_cast<uint64_t>(buffer_) + target_pos;
-    imm28 &= kImm28Mask;
+  } else if (IsJ(instr) || IsJal(instr)) {
+    int32_t imm28 = target_pos - pos;
     DCHECK((imm28 & 3) == 0);
 
-    instr &= ~kImm26Mask;
     uint32_t imm26 = static_cast<uint32_t>(imm28 >> 2);
     DCHECK(is_uint26(imm26));
+    // Place 26-bit signed offset with markings.
+    // When code is committed it will be resolved to j/jal.
+    int32_t mark = IsJ(instr) ? kJRawMark : kJalRawMark;
+    instr_at_put(pos, mark | (imm26 & kImm26Mask));
+  } else {
+    int32_t imm28 = target_pos - pos;
+    DCHECK((imm28 & 3) == 0);
 
+    uint32_t imm26 = static_cast<uint32_t>(imm28 >> 2);
+    DCHECK(is_uint26(imm26));
+    // Place raw 26-bit signed offset.
+    // When code is committed it will be resolved to j/jal.
+    instr &= ~kImm26Mask;
     instr_at_put(pos, instr | (imm26 & kImm26Mask));
   }
 }
@@ -1024,6 +1028,26 @@ uint64_t Assembler::jump_address(Label* L) {
   DCHECK((imm & 3) == 0);
 
   return imm;
+}
+
+
+uint64_t Assembler::jump_offset(Label* L) {
+  int64_t target_pos;
+  if (L->is_bound()) {
+    target_pos = L->pos();
+  } else {
+    if (L->is_linked()) {
+      target_pos = L->pos();  // L's link.
+      L->link_to(pc_offset());
+    } else {
+      L->link_to(pc_offset());
+      return kEndOfJumpChain;
+    }
+  }
+  int64_t imm = target_pos - pc_offset();
+  DCHECK((imm & 3) == 0);
+
+  return static_cast<uint64_t>(imm);
 }
 
 
@@ -1405,16 +1429,29 @@ void Assembler::bnezc(Register rs, int32_t offset) {
 
 
 void Assembler::j(int64_t target) {
-#if DEBUG
-  // Get pc of delay slot.
-  if (target != kEndOfJumpChain) {
-    uint64_t ipc = reinterpret_cast<uint64_t>(pc_ + 1 * kInstrSize);
-    bool in_range = ((ipc ^ static_cast<uint64_t>(target)) >>
-                     (kImm26Bits + kImmFieldShift)) == 0;
-    DCHECK(in_range && ((target & 3) == 0));
-  }
-#endif
   GenInstrJump(J, static_cast<uint32_t>(target >> 2) & kImm26Mask);
+}
+
+
+void Assembler::j(Label* target) {
+  uint64_t imm = jump_offset(target);
+  if (target->is_bound()) {
+    GenInstrJump(static_cast<Opcode>(kJRawMark),
+                 static_cast<uint32_t>(imm >> 2) & kImm26Mask);
+  } else {
+    j(imm);
+  }
+}
+
+
+void Assembler::jal(Label* target) {
+  uint64_t imm = jump_offset(target);
+  if (target->is_bound()) {
+    GenInstrJump(static_cast<Opcode>(kJalRawMark),
+                 static_cast<uint32_t>(imm >> 2) & kImm26Mask);
+  } else {
+    jal(imm);
+  }
 }
 
 
@@ -1433,15 +1470,6 @@ void Assembler::jr(Register rs) {
 
 
 void Assembler::jal(int64_t target) {
-#ifdef DEBUG
-  // Get pc of delay slot.
-  if (target != kEndOfJumpChain) {
-    uint64_t ipc = reinterpret_cast<uint64_t>(pc_ + 1 * kInstrSize);
-    bool in_range = ((ipc ^ static_cast<uint64_t>(target)) >>
-                     (kImm26Bits + kImmFieldShift)) == 0;
-    DCHECK(in_range && ((target & 3) == 0));
-  }
-#endif
   positions_recorder()->WriteRecordedPositions();
   GenInstrJump(JAL, static_cast<uint32_t>(target >> 2) & kImm26Mask);
 }
@@ -2920,7 +2948,6 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
   }
   Instr instr = instr_at(pc);
   DCHECK(RelocInfo::IsInternalReferenceEncoded(rmode));
-  DCHECK(IsJ(instr) || IsLui(instr) || IsJal(instr));
   if (IsLui(instr)) {
     Instr instr_lui = instr_at(pc + 0 * Assembler::kInstrSize);
     Instr instr_ori = instr_at(pc + 1 * Assembler::kInstrSize);
@@ -2951,21 +2978,29 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
     instr_at_put(pc + 3 * Assembler::kInstrSize,
                  instr_ori2 | (imm & kImm16Mask));
     return 4;  // Number of instructions patched.
-  } else {
+  } else if (IsJ(instr) || IsJal(instr)) {
+    // Regular j/jal relocation.
     uint32_t imm28 = (instr & static_cast<int32_t>(kImm26Mask)) << 2;
-    if (static_cast<int32_t>(imm28) == kEndOfJumpChain) {
-      return 0;  // Number of instructions patched.
-    }
-
     imm28 += pc_delta;
     imm28 &= kImm28Mask;
-    DCHECK((imm28 & 3) == 0);
-
     instr &= ~kImm26Mask;
-    uint32_t imm26 = imm28 >> 2;
-    DCHECK(is_uint26(imm26));
-
+    DCHECK((imm28 & 3) == 0);
+    uint32_t imm26 = static_cast<uint32_t>(imm28 >> 2);
     instr_at_put(pc, instr | (imm26 & kImm26Mask));
+    return 1;  // Number of instructions patched.
+  } else {
+    // Unbox raw offset and emit j/jal.
+    int32_t imm28 = (instr & static_cast<int32_t>(kImm26Mask)) << 2;
+    // Sign extend 28-bit offset to 32-bit.
+    imm28 = (imm28 << 4) >> 4;
+    uint64_t target =
+        static_cast<int64_t>(imm28) + reinterpret_cast<uint64_t>(pc);
+    target &= kImm28Mask;
+    DCHECK((imm28 & 3) == 0);
+    uint32_t imm26 = static_cast<uint32_t>(target >> 2);
+    // Check markings whether to emit j or jal.
+    uint32_t unbox = (instr & kJRawMark) ? J : JAL;
+    instr_at_put(pc, unbox | (imm26 & kImm26Mask));
     return 1;  // Number of instructions patched.
   }
 }
@@ -3009,8 +3044,7 @@ void Assembler::GrowBuffer() {
   // Relocate runtime entries.
   for (RelocIterator it(desc); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::INTERNAL_REFERENCE_ENCODED ||
-        rmode == RelocInfo::INTERNAL_REFERENCE) {
+    if (rmode == RelocInfo::INTERNAL_REFERENCE) {
       byte* p = reinterpret_cast<byte*>(it.rinfo()->pc());
       RelocateInternalReference(rmode, p, pc_delta);
     }
@@ -3066,10 +3100,10 @@ void Assembler::emit_code_stub_address(Code* stub) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(pc_, rmode, data, NULL);
-  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
+  if (rmode >= RelocInfo::COMMENT &&
+      rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsPosition(rmode));
     // These modes do not need an entry in the constant pool.
@@ -3130,14 +3164,12 @@ void Assembler::CheckTrampolinePool() {
 
       int pool_start = pc_offset();
       for (int i = 0; i < unbound_labels_count_; i++) {
-        uint64_t imm64;
-        imm64 = jump_address(&after_pool);
         { BlockGrowBufferScope block_buf_growth(this);
           // Buffer growth (and relocation) must be blocked for internal
           // references until associated instructions are emitted and available
           // to be patched.
           RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-          j(imm64);
+          j(&after_pool);
         }
         nop();
       }

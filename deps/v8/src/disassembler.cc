@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/disassembler.h"
 
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
-#include "src/disassembler.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/serialize.h"
 #include "src/string-stream.h"
@@ -182,7 +181,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         HeapStringAllocator allocator;
         StringStream accumulator(&allocator);
         relocinfo.target_object()->ShortPrint(&accumulator);
-        SmartArrayPointer<const char> obj_name = accumulator.ToCString();
+        base::SmartArrayPointer<const char> obj_name = accumulator.ToCString();
         out.AddFormatted("    ;; object: %s", obj_name.get());
       } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
         const char* reference_name = ref_encoder.NameOfAddress(
@@ -197,8 +196,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
           if (kind == Code::LOAD_IC &&
-              LoadICState::GetContextualMode(code->extra_ic_state()) ==
-                  CONTEXTUAL) {
+              LoadICState::GetTypeofMode(code->extra_ic_state()) ==
+                  NOT_INSIDE_TYPEOF) {
             out.AddFormatted(" contextual,");
           }
           InlineCacheState ic_state = code->ic_state();
@@ -216,15 +215,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
           DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
           out.AddFormatted(" %s, %s, ", Code::Kind2String(kind),
                            CodeStub::MajorName(major_key, false));
-          switch (major_key) {
-            case CodeStub::CallFunction: {
-              int argc = CallFunctionStub::ExtractArgcFromMinorKey(minor_key);
-              out.AddFormatted("argc = %d", argc);
-              break;
-            }
-            default:
-              out.AddFormatted("minor: %d", minor_key);
-          }
+          out.AddFormatted("minor: %d", minor_key);
         } else {
           out.AddFormatted(" %s", Code::Kind2String(kind));
         }

@@ -16,6 +16,7 @@ WORKSPACE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 
 # Ignore those.
 BLACKLISTED = [
+  "fixed_typed_array_base_data_offset",
   "page_flags",
   "math_exp_constants",
   "math_exp_log_table",

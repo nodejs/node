@@ -41,7 +41,7 @@ function CreateStringIterator(string) {
 
 // 21.1.5.2.1 %StringIteratorPrototype%.next( )
 function StringIteratorNext() {
-  var iterator = $toObject(this);
+  var iterator = TO_OBJECT(this);
 
   if (!HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,

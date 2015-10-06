@@ -94,6 +94,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGetTypeFeedbackVector(node);
     case Runtime::kInlineGetCallerJSFunction:
       return ReduceGetCallerJSFunction(node);
+    case Runtime::kInlineToObject:
+      return ReduceToObject(node);
     case Runtime::kInlineThrowNotDateError:
       return ReduceThrowNotDateError(node);
     case Runtime::kInlineCallFunction:
@@ -178,7 +180,7 @@ Reduction JSIntrinsicLowering::ReduceIncrementStatsCounter(Node* node) {
   if (!m.HasValue() || !m.Value().handle()->IsString()) {
     return ChangeToUndefined(node);
   }
-  SmartArrayPointer<char> name =
+  base::SmartArrayPointer<char> name =
       Handle<String>::cast(m.Value().handle())->ToCString();
   StatsCounter counter(jsgraph()->isolate(), name.get());
   if (!counter.Enabled()) return ChangeToUndefined(node);
@@ -524,6 +526,12 @@ Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
 
   node->set_op(common()->Dead());
   node->TrimInputCount(0);
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
+  node->set_op(javascript()->ToObject());
   return Changed(node);
 }
 

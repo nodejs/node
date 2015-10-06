@@ -1876,6 +1876,14 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
         case IrOpcode::kWord32And:
           return VisitWordCompare(this, value, kArm64Tst32, &cont, true,
                                   kLogical32Imm);
+        case IrOpcode::kWord32Equal: {
+          // Word32Equal(Word32Equal(x, y), 0) => Word32Compare(x, y, ne).
+          Int32BinopMatcher mequal(value);
+          node->ReplaceInput(0, mequal.left().node());
+          node->ReplaceInput(1, mequal.right().node());
+          cont.Negate();
+          return VisitWord32Compare(this, node, &cont);
+        }
         default:
           break;
       }

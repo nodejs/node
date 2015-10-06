@@ -7,12 +7,21 @@
 
 #include <map>
 
+#include "include/v8-profiler.h"
+#include "src/handles.h"
+#include "src/hashmap.h"
+#include "src/list.h"
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 
-class HeapObjectsMap;
-
+// Forward declarations.
 class AllocationTraceTree;
+class AllocationTracker;
+class HeapObjectsMap;
+class SharedFunctionInfo;
+class StringsStorage;
 
 class AllocationTraceNode {
  public:

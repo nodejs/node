@@ -304,6 +304,21 @@ class CallHelper {
   Isolate* isolate_;
 };
 
+// A call helper that calls the given code object assuming C calling convention.
+template <typename T>
+class CodeRunner : public CallHelper<T> {
+ public:
+  CodeRunner(Isolate* isolate, Handle<Code> code, CSignature* csig)
+      : CallHelper<T>(isolate, csig), code_(code) {}
+  virtual ~CodeRunner() {}
+
+  virtual byte* Generate() { return code_->entry(); }
+
+ private:
+  Handle<Code> code_;
+};
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

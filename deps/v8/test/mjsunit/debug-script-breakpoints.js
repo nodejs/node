@@ -30,37 +30,51 @@
 Debug = debug.Debug
 Debug.setListener(function(){});
 
+var script_id;
+var script_name;
+
+// Get current script id and name.
+var scripts = Debug.scripts();
+for (var i = 0; i < scripts.length; i++) {
+  var name = scripts[i].name;
+  var id = scripts[i].id;
+  if (name !== undefined && name.includes("debug-script-breakpoints.js")) {
+    script_id = id;
+    script_name = name;
+    break;
+  }
+}
+assertTrue(script_id !== undefined);
+assertTrue(script_name !== undefined);
+print("#" + script_id + ": " + script_name);
+
+
+// Checks script name, line and column.
+var checkBreakPoint = function(id, line, column) {
+  var breakpoint = Debug.scriptBreakPoints()[id];
+  assertEquals(script_name, breakpoint.script_name());
+  assertEquals(line, breakpoint.line());
+  assertEquals(column, breakpoint.column());
+}
+
+
 // Set and remove a script break point for a named script.
-var sbp = Debug.setScriptBreakPointByName("1", 2, 3);
+var sbp = Debug.setScriptBreakPointByName(script_name, 35, 5);
 assertEquals(1, Debug.scriptBreakPoints().length);
-assertEquals("1", Debug.scriptBreakPoints()[0].script_name());
-assertEquals(2, Debug.scriptBreakPoints()[0].line());
-assertEquals(3, Debug.scriptBreakPoints()[0].column());
+checkBreakPoint(0, 35, 5);
 Debug.clearBreakPoint(sbp);
 assertEquals(0, Debug.scriptBreakPoints().length);
 
 // Set three script break points for named scripts.
-var sbp1 = Debug.setScriptBreakPointByName("1", 2, 3);
-var sbp2 = Debug.setScriptBreakPointByName("2", 3, 4);
-var sbp3 = Debug.setScriptBreakPointByName("3", 4, 5);
+var sbp1 = Debug.setScriptBreakPointByName(script_name, 36, 3);
+var sbp2 = Debug.setScriptBreakPointByName(script_name, 37, 4);
+var sbp3 = Debug.setScriptBreakPointByName(script_name, 38, 5);
 
 // Check the content of the script break points.
 assertEquals(3, Debug.scriptBreakPoints().length);
-for (var i = 0; i < Debug.scriptBreakPoints().length; i++) {
-  var x = Debug.scriptBreakPoints()[i];
-  if ("1" == x.script_name()) {
-    assertEquals(2, x.line());
-    assertEquals(3, x.column());
-  } else if ("2" == x.script_name()) {
-    assertEquals(3, x.line());
-    assertEquals(4, x.column());
-  } else if ("3" == x.script_name()) {
-    assertEquals(4, x.line());
-    assertEquals(5, x.column());
-  } else {
-    assertUnreachable("unecpected script_name " + x.script_name());
-  }
-}
+checkBreakPoint(0, 36, 3);
+checkBreakPoint(1, 37, 4);
+checkBreakPoint(2, 38, 5);
 
 // Remove script break points (in another order than they where added).
 assertEquals(3, Debug.scriptBreakPoints().length);
@@ -71,37 +85,33 @@ assertEquals(1, Debug.scriptBreakPoints().length);
 Debug.clearBreakPoint(sbp2);
 assertEquals(0, Debug.scriptBreakPoints().length);
 
+
+// Checks script id, line and column.
+var checkBreakPoint = function(id, line, column) {
+  var breakpoint = Debug.scriptBreakPoints()[id];
+  assertEquals(script_id, breakpoint.script_id());
+  assertEquals(line, breakpoint.line());
+  assertEquals(column, breakpoint.column());
+}
+
+
 // Set and remove a script break point for a script id.
-var sbp = Debug.setScriptBreakPointById(1, 2, 3);
+var sbp = Debug.setScriptBreakPointById(script_id, 40, 6);
 assertEquals(1, Debug.scriptBreakPoints().length);
-assertEquals(1, Debug.scriptBreakPoints()[0].script_id());
-assertEquals(2, Debug.scriptBreakPoints()[0].line());
-assertEquals(3, Debug.scriptBreakPoints()[0].column());
+checkBreakPoint(0, 40, 6);
 Debug.clearBreakPoint(sbp);
 assertEquals(0, Debug.scriptBreakPoints().length);
 
 // Set three script break points for script ids.
-var sbp1 = Debug.setScriptBreakPointById(1, 2, 3);
-var sbp2 = Debug.setScriptBreakPointById(2, 3, 4);
-var sbp3 = Debug.setScriptBreakPointById(3, 4, 5);
+var sbp1 = Debug.setScriptBreakPointById(script_id, 42, 3);
+var sbp2 = Debug.setScriptBreakPointById(script_id, 43, 4);
+var sbp3 = Debug.setScriptBreakPointById(script_id, 44, 5);
 
 // Check the content of the script break points.
 assertEquals(3, Debug.scriptBreakPoints().length);
-for (var i = 0; i < Debug.scriptBreakPoints().length; i++) {
-  var x = Debug.scriptBreakPoints()[i];
-  if (1 == x.script_id()) {
-    assertEquals(2, x.line());
-    assertEquals(3, x.column());
-  } else if (2 == x.script_id()) {
-    assertEquals(3, x.line());
-    assertEquals(4, x.column());
-  } else if (3 == x.script_id()) {
-    assertEquals(4, x.line());
-    assertEquals(5, x.column());
-  } else {
-    assertUnreachable("unecpected script_id " + x.script_id());
-  }
-}
+checkBreakPoint(0, 42, 3);
+checkBreakPoint(1, 43, 4);
+checkBreakPoint(2, 44, 5);
 
 // Remove script break points (in another order than they where added).
 assertEquals(3, Debug.scriptBreakPoints().length);

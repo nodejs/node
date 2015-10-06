@@ -5,7 +5,8 @@
 #ifndef V8_EXTENSIONS_GC_EXTENSION_H_
 #define V8_EXTENSIONS_GC_EXTENSION_H_
 
-#include "src/v8.h"
+#include "include/v8.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

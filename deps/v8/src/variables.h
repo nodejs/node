@@ -44,7 +44,6 @@ class Variable: public ZoneObject {
     return force_context_allocation_;
   }
   void ForceContextAllocation() {
-    DCHECK(mode_ != TEMPORARY);
     force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }

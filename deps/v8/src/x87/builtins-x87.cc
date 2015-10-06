@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X87
 
 #include "src/code-factory.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
+#include "src/x87/frames-x87.h"
 
 namespace v8 {
 namespace internal {
@@ -100,45 +99,8 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
-static void Generate_Runtime_NewObject(MacroAssembler* masm,
-                                       bool create_memento,
-                                       Register original_constructor,
-                                       Label* count_incremented,
-                                       Label* allocated) {
-  int offset = 0;
-  if (create_memento) {
-    // Get the cell or allocation site.
-    __ mov(edi, Operand(esp, kPointerSize * 2));
-    __ push(edi);
-    offset = kPointerSize;
-  }
-
-  // Must restore esi (context) and edi (constructor) before calling
-  // runtime.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ mov(edi, Operand(esp, offset));
-  __ push(edi);
-  __ push(original_constructor);
-  if (create_memento) {
-    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
-  } else {
-    __ CallRuntime(Runtime::kNewObject, 2);
-  }
-  __ mov(ebx, eax);  // store result in ebx
-
-  // Runtime_NewObjectWithAllocationSite increments allocation count.
-  // Skip the increment.
-  if (create_memento) {
-    __ jmp(count_incremented);
-  } else {
-    __ jmp(allocated);
-  }
-}
-
-
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
-                                           bool use_new_target,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
@@ -154,38 +116,25 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
-    if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(ebx);
-      __ push(ebx);
-    }
-
     // Preserve the incoming parameters on the stack.
+    __ AssertUndefinedOrAllocationSite(ebx);
+    __ push(ebx);
     __ SmiTag(eax);
     __ push(eax);
     __ push(edi);
-    if (use_new_target) {
-      __ push(edx);
-    }
-
-    __ cmp(edx, edi);
-    Label normal_new;
-    Label count_incremented;
-    Label allocated;
-    __ j(equal, &normal_new);
-
-    // Original constructor and function are different.
-    Generate_Runtime_NewObject(masm, create_memento, edx, &count_incremented,
-                               &allocated);
-    __ bind(&normal_new);
+    __ push(edx);
 
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
-    Label rt_call;
+    Label rt_call, allocated;
     if (FLAG_inline_new) {
-      Label undo_allocation;
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(masm->isolate());
       __ cmp(Operand::StaticVariable(debug_step_in_fp), Immediate(0));
+      __ j(not_equal, &rt_call);
+
+      // Fall back to runtime if the original constructor and function differ.
+      __ cmp(edx, edi);
       __ j(not_equal, &rt_call);
 
       // Verified that the constructor is a JSFunction.
@@ -224,12 +173,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ j(not_equal, &allocate);
 
         __ push(eax);
+        __ push(edx);
         __ push(edi);
 
         __ push(edi);  // constructor
         __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
         __ pop(edi);
+        __ pop(edx);
         __ pop(eax);
         __ mov(esi, Map::kSlackTrackingCounterEnd - 1);
 
@@ -272,8 +223,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ j(less, &no_inobject_slack_tracking);
 
         // Allocate object with a slack.
-        __ movzx_b(esi,
-                   FieldOperand(eax, Map::kPreAllocatedPropertyFieldsOffset));
+        __ movzx_b(
+            esi,
+            FieldOperand(
+                eax, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset));
+        __ movzx_b(eax, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
+        __ sub(esi, eax);
         __ lea(esi,
                Operand(ebx, esi, times_pointer_size, JSObject::kHeaderSize));
         // esi: offset of first field after pre-allocated fields
@@ -298,7 +253,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ mov(Operand(esi, AllocationMemento::kMapOffset),
                factory->allocation_memento_map());
         // Get the cell or undefined.
-        __ mov(edx, Operand(esp, kPointerSize*2));
+        __ mov(edx, Operand(esp, 3 * kPointerSize));
+        __ AssertUndefinedOrAllocationSite(edx);
         __ mov(Operand(esi, AllocationMemento::kAllocationSiteOffset),
                edx);
       } else {
@@ -306,95 +262,52 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
 
       // Add the object tag to make the JSObject real, so that we can continue
-      // and jump into the continuation code at any time from now on. Any
-      // failures need to undo the allocation, so that the heap is in a
-      // consistent state and verifiable.
-      // eax: initial map
-      // ebx: JSObject
-      // edi: start of next object
+      // and jump into the continuation code at any time from now on.
+      // ebx: JSObject (untagged)
       __ or_(ebx, Immediate(kHeapObjectTag));
 
-      // Check if a non-empty properties array is needed.
-      // Allocate and initialize a FixedArray if it is.
-      // eax: initial map
-      // ebx: JSObject
-      // edi: start of next object
-      // Calculate the total number of properties described by the map.
-      __ movzx_b(edx, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
-      __ movzx_b(ecx,
-                 FieldOperand(eax, Map::kPreAllocatedPropertyFieldsOffset));
-      __ add(edx, ecx);
-      // Calculate unused properties past the end of the in-object properties.
-      __ movzx_b(ecx, FieldOperand(eax, Map::kInObjectPropertiesOffset));
-      __ sub(edx, ecx);
-      // Done if no extra properties are to be allocated.
-      __ j(zero, &allocated);
-      __ Assert(positive, kPropertyAllocationCountFailed);
-
-      // Scale the number of elements by pointer size and add the header for
-      // FixedArrays to the start of the next object calculation from above.
-      // ebx: JSObject
-      // edi: start of next object (will be start of FixedArray)
-      // edx: number of elements in properties array
-      __ Allocate(FixedArray::kHeaderSize,
-                  times_pointer_size,
-                  edx,
-                  REGISTER_VALUE_IS_INT32,
-                  edi,
-                  ecx,
-                  no_reg,
-                  &undo_allocation,
-                  RESULT_CONTAINS_TOP);
-
-      // Initialize the FixedArray.
-      // ebx: JSObject
-      // edi: FixedArray
-      // edx: number of elements
-      // ecx: start of next object
-      __ mov(eax, factory->fixed_array_map());
-      __ mov(Operand(edi, FixedArray::kMapOffset), eax);  // setup the map
-      __ SmiTag(edx);
-      __ mov(Operand(edi, FixedArray::kLengthOffset), edx);  // and length
-
-      // Initialize the fields to undefined.
-      // ebx: JSObject
-      // edi: FixedArray
-      // ecx: start of next object
-      __ mov(edx, factory->undefined_value());
-      __ lea(eax, Operand(edi, FixedArray::kHeaderSize));
-      __ InitializeFieldsWithFiller(eax, ecx, edx);
-
-      // Store the initialized FixedArray into the properties field of
-      // the JSObject
-      // ebx: JSObject
-      // edi: FixedArray
-      __ or_(edi, Immediate(kHeapObjectTag));  // add the heap tag
-      __ mov(FieldOperand(ebx, JSObject::kPropertiesOffset), edi);
-
-
       // Continue with JSObject being successfully allocated
-      // ebx: JSObject
+      // ebx: JSObject (tagged)
       __ jmp(&allocated);
-
-      // Undo the setting of the new top so that the heap is verifiable. For
-      // example, the map's unused properties potentially do not match the
-      // allocated objects unused properties.
-      // ebx: JSObject (previous new top)
-      __ bind(&undo_allocation);
-      __ UndoAllocationInNewSpace(ebx);
     }
 
     // Allocate the new receiver object using the runtime call.
+    // edx: original constructor
     __ bind(&rt_call);
-    Generate_Runtime_NewObject(masm, create_memento, edi, &count_incremented,
-                               &allocated);
+    int offset = kPointerSize;
+    if (create_memento) {
+      // Get the cell or allocation site.
+      __ mov(edi, Operand(esp, kPointerSize * 3));
+      __ push(edi);  // argument 1: allocation site
+      offset += kPointerSize;
+    }
+
+    // Must restore esi (context) and edi (constructor) before calling
+    // runtime.
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    __ mov(edi, Operand(esp, offset));
+    __ push(edi);  // argument 2/1: constructor function
+    __ push(edx);  // argument 3/2: original constructor
+    if (create_memento) {
+      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+    } else {
+      __ CallRuntime(Runtime::kNewObject, 2);
+    }
+    __ mov(ebx, eax);  // store result in ebx
+
+    // Runtime_NewObjectWithAllocationSite increments allocation count.
+    // Skip the increment.
+    Label count_incremented;
+    if (create_memento) {
+      __ jmp(&count_incremented);
+    }
+
     // New object allocated.
     // ebx: newly allocated object
     __ bind(&allocated);
 
     if (create_memento) {
-      int offset = (use_new_target ? 3 : 2) * kPointerSize;
-      __ mov(ecx, Operand(esp, offset));
+      __ mov(ecx, Operand(esp, 3 * kPointerSize));
       __ cmp(ecx, masm->isolate()->factory()->undefined_value());
       __ j(equal, &count_incremented);
       // ecx is an AllocationSite. We are creating a memento from it, so we
@@ -405,9 +318,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Restore the parameters.
-    if (use_new_target) {
-      __ pop(edx);  // new.target
-    }
+    __ pop(edx);  // new.target
     __ pop(edi);  // Constructor function.
 
     // Retrieve smi-tagged arguments count from the stack.
@@ -416,9 +327,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Push new.target onto the construct frame. This is stored just below the
     // receiver on the stack.
-    if (use_new_target) {
-      __ push(edx);
-    }
+    __ push(edx);
 
     // Push the allocated receiver to the stack. We need two copies
     // because we may have to return the original one and the calling
@@ -452,9 +361,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    // TODO(arv): Remove the "!use_new_target" before supporting optimization
-    // of functions that reference new.target
-    if (!is_api_function && !use_new_target) {
+    if (!is_api_function) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
@@ -482,8 +389,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Restore the arguments count and leave the construct frame. The arguments
     // count is stored below the reciever and the new.target.
     __ bind(&exit);
-    int offset = (use_new_target ? 2 : 1) * kPointerSize;
-    __ mov(ebx, Operand(esp, offset));
+    __ mov(ebx, Operand(esp, 2 * kPointerSize));
 
     // Leave construct frame.
   }
@@ -499,17 +405,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false, false);
-}
-
-
-void Builtins::Generate_JSConstructStubNewTarget(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, true, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, true, false);
 }
 
 
@@ -521,11 +422,12 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- edx: original constructor
   // -----------------------------------
 
-  // TODO(dslomov): support pretenuring
-  CHECK(!FLAG_pretenuring_call_new);
-
   {
     FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    // Preserve allocation site.
+    __ AssertUndefinedOrAllocationSite(ebx);
+    __ push(ebx);
 
     // Preserve actual arguments count.
     __ SmiTag(eax);
@@ -702,6 +604,156 @@ void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+
+// Generate code for entering a JS function with the interpreter.
+// On entry to the function the receiver and arguments have been pushed on the
+// stack left to right.  The actual argument count matches the formal parameter
+// count expected by the function.
+//
+// The live registers are:
+//   o edi: the JS function object being called
+//   o esi: our context
+//   o ebp: the caller's frame pointer
+//   o esp: stack pointer (pointing to return address)
+//
+// The function builds a JS frame.  Please see JavaScriptFrameConstants in
+// frames-ia32.h for its layout.
+// TODO(rmcilroy): We will need to include the current bytecode pointer in the
+// frame.
+void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ push(ebp);  // Caller's frame pointer.
+  __ mov(ebp, esp);
+  __ push(esi);  // Callee's context.
+  __ push(edi);  // Callee's JS function.
+
+  // Get the bytecode array from the function object and load the pointer to the
+  // first entry into edi (InterpreterBytecodeRegister).
+  __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(kInterpreterBytecodeArrayRegister,
+         FieldOperand(eax, SharedFunctionInfo::kFunctionDataOffset));
+
+  if (FLAG_debug_code) {
+    // Check function data field is actually a BytecodeArray object.
+    __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
+    __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
+                     eax);
+    __ Assert(equal, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
+  }
+
+  // Allocate the local and temporary register file on the stack.
+  {
+    // Load frame size from the BytecodeArray object.
+    __ mov(ebx, FieldOperand(kInterpreterBytecodeArrayRegister,
+                             BytecodeArray::kFrameSizeOffset));
+
+    // Do a stack check to ensure we don't go over the limit.
+    Label ok;
+    __ mov(ecx, esp);
+    __ sub(ecx, ebx);
+    ExternalReference stack_limit =
+        ExternalReference::address_of_real_stack_limit(masm->isolate());
+    __ cmp(ecx, Operand::StaticVariable(stack_limit));
+    __ j(above_equal, &ok);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ bind(&ok);
+
+    // If ok, push undefined as the initial value for all register file entries.
+    Label loop_header;
+    Label loop_check;
+    __ mov(eax, Immediate(masm->isolate()->factory()->undefined_value()));
+    __ jmp(&loop_check);
+    __ bind(&loop_header);
+    // TODO(rmcilroy): Consider doing more than one push per loop iteration.
+    __ push(eax);
+    // Continue loop if not done.
+    __ bind(&loop_check);
+    __ sub(ebx, Immediate(kPointerSize));
+    __ j(greater_equal, &loop_header);
+  }
+
+  // TODO(rmcilroy): List of things not currently dealt with here but done in
+  // fullcodegen's prologue:
+  //  - Support profiler (specifically profiling_counter).
+  //  - Call ProfileEntryHookStub when isolate has a function_entry_hook.
+  //  - Allow simulator stop operations if FLAG_stop_at is set.
+  //  - Deal with sloppy mode functions which need to replace the
+  //    receiver with the global proxy when called as functions (without an
+  //    explicit receiver object).
+  //  - Code aging of the BytecodeArray object.
+  //  - Supporting FLAG_trace.
+  //
+  // The following items are also not done here, and will probably be done using
+  // explicit bytecodes instead:
+  //  - Allocating a new local context if applicable.
+  //  - Setting up a local binding to the this function, which is used in
+  //    derived constructors with super calls.
+  //  - Setting new.target if required.
+  //  - Dealing with REST parameters (only if
+  //    https://codereview.chromium.org/1235153006 doesn't land by then).
+  //  - Dealing with argument objects.
+
+  // Perform stack guard check.
+  {
+    Label ok;
+    ExternalReference stack_limit =
+        ExternalReference::address_of_stack_limit(masm->isolate());
+    __ cmp(esp, Operand::StaticVariable(stack_limit));
+    __ j(above_equal, &ok);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+    __ bind(&ok);
+  }
+
+  // Load accumulator, register file, bytecode offset, dispatch table into
+  // registers.
+  __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
+  __ mov(kInterpreterRegisterFileRegister, ebp);
+  __ sub(
+      kInterpreterRegisterFileRegister,
+      Immediate(kPointerSize + StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  // Since the dispatch table root might be set after builtins are generated,
+  // load directly from the roots table.
+  __ LoadRoot(kInterpreterDispatchTableRegister,
+              Heap::kInterpreterTableRootIndex);
+  __ add(kInterpreterDispatchTableRegister,
+         Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+
+  // TODO(rmcilroy) Push our context as a stack located parameter of the
+  // bytecode handler.
+
+  // Dispatch to the first bytecode handler for the function.
+  __ movzx_b(esi, Operand(kInterpreterBytecodeArrayRegister,
+                          kInterpreterBytecodeOffsetRegister, times_1, 0));
+  __ mov(esi, Operand(kInterpreterDispatchTableRegister, esi,
+                      times_pointer_size, 0));
+  // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
+  // and header removal.
+  __ add(esi, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ call(esi);
+}
+
+
+void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
+  // TODO(rmcilroy): List of things not currently dealt with here but done in
+  // fullcodegen's EmitReturnSequence.
+  //  - Supporting FLAG_trace for Runtime::TraceExit.
+  //  - Support profiler (specifically decrementing profiling_counter
+  //    appropriately and calling out to HandleInterrupts if necessary).
+
+  // The return value is in accumulator, which is already in rax.
+
+  // Leave the frame (also dropping the register file).
+  __ leave();
+  // Return droping receiver + arguments.
+  // TODO(rmcilroy): Get number of arguments from BytecodeArray.
+  __ Ret(1 * kPointerSize, ecx);
 }
 
 
@@ -961,8 +1013,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
       __ SmiTag(eax);
       __ push(eax);
 
-      __ push(ebx);
-      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ mov(eax, ebx);
+      ToObjectStub stub(masm->isolate());
+      __ CallStub(&stub);
       __ mov(ebx, eax);
       __ Move(edx, Immediate(0));  // restore
 
@@ -1056,6 +1109,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
 
 static void Generate_PushAppliedArguments(MacroAssembler* masm,
+                                          const int vectorOffset,
                                           const int argumentsOffset,
                                           const int indexOffset,
                                           const int limitOffset) {
@@ -1071,12 +1125,9 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   __ mov(receiver, Operand(ebp, argumentsOffset));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  FeedbackVectorSpec spec(0, Code::KEYED_LOAD_IC);
-  Handle<TypeFeedbackVector> feedback_vector =
-      masm->isolate()->factory()->NewTypeFeedbackVector(&spec);
-  int index = feedback_vector->GetIndex(FeedbackVectorICSlot(0));
-  __ mov(slot, Immediate(Smi::FromInt(index)));
-  __ mov(vector, Immediate(feedback_vector));
+  int slot_index = TypeFeedbackVector::PushAppliedArgumentsIndex();
+  __ mov(slot, Immediate(Smi::FromInt(slot_index)));
+  __ mov(vector, Operand(ebp, vectorOffset));
   Handle<Code> ic =
       KeyedLoadICStub(masm->isolate(), LoadICState(kNoExtraICState)).GetCode();
   __ call(ic, RelocInfo::CODE_TARGET);
@@ -1124,6 +1175,13 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     static const int kArgumentsOffset = kFPOnStackSize + kPCOnStackSize;
     static const int kReceiverOffset = kArgumentsOffset + kPointerSize;
     static const int kFunctionOffset = kReceiverOffset + kPointerSize;
+    static const int kVectorOffset =
+        InternalFrameConstants::kCodeOffset - 1 * kPointerSize;
+
+    // Push the vector.
+    __ mov(edi, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(edi, FieldOperand(edi, SharedFunctionInfo::kFeedbackVectorOffset));
+    __ push(edi);
 
     __ push(Operand(ebp, kFunctionOffset));  // push this
     __ push(Operand(ebp, kArgumentsOffset));  // push arguments
@@ -1136,8 +1194,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     Generate_CheckStackOverflow(masm, kFunctionOffset, kEaxIsSmiTagged);
 
     // Push current index and limit.
-    const int kLimitOffset =
-        StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+    const int kLimitOffset = kVectorOffset - 1 * kPointerSize;
     const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
     __ push(eax);  // limit
     __ push(Immediate(0));  // index
@@ -1182,8 +1239,9 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     __ j(above_equal, &push_receiver);
 
     __ bind(&call_to_object);
-    __ push(ebx);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ mov(eax, ebx);
+    ToObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ mov(ebx, eax);
     __ jmp(&push_receiver);
 
@@ -1197,8 +1255,8 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     __ push(ebx);
 
     // Loop over the arguments array, pushing each value to the stack
-    Generate_PushAppliedArguments(
-        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+    Generate_PushAppliedArguments(masm, kVectorOffset, kArgumentsOffset,
+                                  kIndexOffset, kLimitOffset);
 
     // Call the function.
     Label call_proxy;
@@ -1247,6 +1305,13 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     static const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
     static const int kArgumentsOffset = kNewTargetOffset + kPointerSize;
     static const int kFunctionOffset = kArgumentsOffset + kPointerSize;
+    static const int kVectorOffset =
+        InternalFrameConstants::kCodeOffset - 1 * kPointerSize;
+
+    // Push the vector.
+    __ mov(edi, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(edi, FieldOperand(edi, SharedFunctionInfo::kFeedbackVectorOffset));
+    __ push(edi);
 
     // If newTarget is not supplied, set it to constructor
     Label validate_arguments;
@@ -1266,28 +1331,25 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     Generate_CheckStackOverflow(masm, kFunctionOffset, kEaxIsSmiTagged);
 
     // Push current index and limit.
-    const int kLimitOffset =
-        StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+    const int kLimitOffset = kVectorOffset - 1 * kPointerSize;
     const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
     __ Push(eax);  // limit
     __ push(Immediate(0));  // index
-    // Push newTarget and callee functions
-    __ push(Operand(ebp, kNewTargetOffset));
+    // Push the constructor function as callee.
     __ push(Operand(ebp, kFunctionOffset));
 
     // Loop over the arguments array, pushing each value to the stack
-    Generate_PushAppliedArguments(
-        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+    Generate_PushAppliedArguments(masm, kVectorOffset, kArgumentsOffset,
+                                  kIndexOffset, kLimitOffset);
 
     // Use undefined feedback vector
     __ LoadRoot(ebx, Heap::kUndefinedValueRootIndex);
     __ mov(edi, Operand(ebp, kFunctionOffset));
+    __ mov(ecx, Operand(ebp, kNewTargetOffset));
 
     // Call the function.
     CallConstructStub stub(masm->isolate(), SUPER_CONSTRUCTOR_CALL);
     __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
-
-    __ Drop(1);
 
     // Leave internal frame.
   }

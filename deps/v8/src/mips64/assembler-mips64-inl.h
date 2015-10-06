@@ -40,7 +40,7 @@
 #include "src/mips64/assembler-mips64.h"
 
 #include "src/assembler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 
 namespace v8 {
@@ -117,7 +117,7 @@ int FPURegister::ToAllocationIndex(FPURegister reg) {
 // -----------------------------------------------------------------------------
 // RelocInfo.
 
-void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
+void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
     byte* p = reinterpret_cast<byte*>(pc_);
@@ -186,11 +186,6 @@ void RelocInfo::set_target_address(Address target,
 
 Address Assembler::target_address_from_return_address(Address pc) {
   return pc - kCallTargetAddressOffset;
-}
-
-
-Address Assembler::break_address_from_return_address(Address pc) {
-  return pc - Assembler::kPatchDebugBreakSlotReturnOffset;
 }
 
 
@@ -349,45 +344,24 @@ void RelocInfo::set_code_age_stub(Code* stub,
 }
 
 
-Address RelocInfo::call_address() {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  // The pc_ offset of 0 assumes mips patched return sequence per
-  // debug-mips.cc BreakLocation::SetDebugBreakAtReturn(), or
-  // debug break slot per BreakLocation::SetDebugBreakAtSlot().
+Address RelocInfo::debug_call_address() {
+  // The pc_ offset of 0 assumes patched debug break slot or return
+  // sequence.
+  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
   return Assembler::target_address_at(pc_, host_);
 }
 
 
-void RelocInfo::set_call_address(Address target) {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  // The pc_ offset of 0 assumes mips patched return sequence per
-  // debug-mips.cc BreakLocation::SetDebugBreakAtReturn(), or
-  // debug break slot per BreakLocation::SetDebugBreakAtSlot().
+void RelocInfo::set_debug_call_address(Address target) {
+  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
+  // The pc_ offset of 0 assumes patched debug break slot or return
+  // sequence.
   Assembler::set_target_address_at(pc_, host_, target);
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target_code));
   }
-}
-
-
-Object* RelocInfo::call_object() {
-  return *call_object_address();
-}
-
-
-Object** RelocInfo::call_object_address() {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  return reinterpret_cast<Object**>(pc_ + 6 * Assembler::kInstrSize);
-}
-
-
-void RelocInfo::set_call_object(Object* target) {
-  *call_object_address() = target;
 }
 
 
@@ -442,11 +416,8 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
-  } else if (((RelocInfo::IsJSReturn(mode) &&
-              IsPatchedReturnSequence()) ||
-             (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence())) &&
-             isolate->debug()->has_break_points()) {
+  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
+             IsPatchedDebugBreakSlotSequence()) {
     visitor->VisitDebugTarget(this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
@@ -470,11 +441,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-  } else if (heap->isolate()->debug()->has_break_points() &&
-             ((RelocInfo::IsJSReturn(mode) &&
-              IsPatchedReturnSequence()) ||
-             (RelocInfo::IsDebugBreakSlot(mode) &&
-              IsPatchedDebugBreakSlotSequence()))) {
+  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
+             IsPatchedDebugBreakSlotSequence()) {
     StaticVisitor::VisitDebugTarget(heap, this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);

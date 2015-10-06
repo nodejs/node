@@ -284,7 +284,7 @@ class AstGraphBuilder : public AstVisitor {
                           FrameStateBeforeAndAfter& states,
                           const VectorSlotPair& feedback,
                           OutputFrameStateCombine framestate_combine,
-                          ContextualMode mode = CONTEXTUAL);
+                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
 
   // Builders for property loads and stores.
   Node* BuildKeyedLoad(Node* receiver, Node* key,
@@ -307,10 +307,12 @@ class AstGraphBuilder : public AstVisitor {
                             const VectorSlotPair& feedback);
 
   // Builders for global variable loads and stores.
-  Node* BuildGlobalLoad(Node* global, Handle<Name> name,
-                        const VectorSlotPair& feedback, ContextualMode mode);
-  Node* BuildGlobalStore(Node* global, Handle<Name> name, Node* value,
-                         const VectorSlotPair& feedback, TypeFeedbackId id);
+  Node* BuildGlobalLoad(Node* script_context, Node* global, Handle<Name> name,
+                        const VectorSlotPair& feedback, TypeofMode typeof_mode,
+                        int slot_index);
+  Node* BuildGlobalStore(Node* script_context, Node* global, Handle<Name> name,
+                         Node* value, const VectorSlotPair& feedback,
+                         TypeFeedbackId id, int slot_index);
 
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();
@@ -345,8 +347,10 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builders for dynamic hole-checks at runtime.
   Node* BuildHoleCheckSilent(Node* value, Node* for_hole, Node* not_hole);
-  Node* BuildHoleCheckThrow(Node* value, Variable* var, Node* not_hole,
-                            BailoutId bailout_id);
+  Node* BuildHoleCheckThenThrow(Node* value, Variable* var, Node* not_hole,
+                                BailoutId bailout_id);
+  Node* BuildHoleCheckElseThrow(Node* value, Variable* var, Node* for_hole,
+                                BailoutId bailout_id);
 
   // Builders for conditional errors.
   Node* BuildThrowIfStaticPrototype(Node* name, BailoutId bailout_id);
@@ -384,6 +388,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Common for all IterationStatement bodies.
   void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop);
+
+  // Dispatched from VisitCall.
+  void VisitCallSuper(Call* expr);
 
   // Dispatched from VisitCallRuntime.
   void VisitCallJSRuntime(CallRuntime* expr);

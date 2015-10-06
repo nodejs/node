@@ -18,22 +18,17 @@
     "test/simdjs/data/src/benchmarks/averageFloat32x4LoadX.js",
     "test/simdjs/data/src/benchmarks/averageFloat32x4LoadXY.js",
     "test/simdjs/data/src/benchmarks/averageFloat32x4LoadXYZ.js",
-    "test/simdjs/data/src/benchmarks/averageFloat64x2.js",
-    "test/simdjs/data/src/benchmarks/averageFloat64x2Load.js",
-    "test/simdjs/data/src/benchmarks/mandelbrot.js",
     "test/simdjs/data/src/benchmarks/matrix-multiplication.js",
     "test/simdjs/data/src/benchmarks/transform.js",
     "test/simdjs/data/src/benchmarks/shiftrows.js",
     "test/simdjs/data/src/benchmarks/transpose4x4.js",
     "test/simdjs/data/src/benchmarks/inverse4x4.js",
-    "test/simdjs/data/src/benchmarks/sinx4.js",
     "test/simdjs/data/src/benchmarks/memset.js",
     "test/simdjs/data/src/benchmarks/memcpy.js"
   ],
   "run_count": 5,
-  "run_count_android_arm": 1,
-  "run_count_android_arm64": 3,
   "run_count_arm": 3,
+  "run_count_arm64": 3,
   "tests": [
     {
       "flags": [
@@ -133,54 +128,6 @@
     },
     {
       "flags": [
-        "test/simdjs/data/src/benchmarks/averageFloat64x2.js"
-      ],
-      "main": "test/simdjs/harness-finish.js",
-      "name": "averageFloat64x2",
-      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
-      "tests": [
-        {
-          "name": "SIMD"
-        },
-        {
-          "name": "Non-SIMD"
-        }
-      ]
-    },
-    {
-      "flags": [
-        "test/simdjs/data/src/benchmarks/averageFloat64x2Load.js"
-      ],
-      "main": "test/simdjs/harness-finish.js",
-      "name": "averageFloat64x2Load",
-      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
-      "tests": [
-        {
-          "name": "SIMD"
-        },
-        {
-          "name": "Non-SIMD"
-        }
-      ]
-    },
-    {
-      "flags": [
-        "test/simdjs/data/src/benchmarks/mandelbrot.js"
-      ],
-      "main": "test/simdjs/harness-finish.js",
-      "name": "mandelbrot",
-      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
-      "tests": [
-        {
-          "name": "SIMD"
-        },
-        {
-          "name": "Non-SIMD"
-        }
-      ]
-    },
-    {
-      "flags": [
         "test/simdjs/data/src/benchmarks/matrix-multiplication.js"
       ],
       "main": "test/simdjs/harness-finish.js",
@@ -261,22 +208,6 @@
     },
     {
       "flags": [
-        "test/simdjs/data/src/benchmarks/sinx4.js"
-      ],
-      "main": "test/simdjs/harness-finish.js",
-      "name": "sinx4",
-      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
-      "tests": [
-        {
-          "name": "SIMD"
-        },
-        {
-          "name": "Non-SIMD"
-        }
-      ]
-    },
-    {
-      "flags": [
         "test/simdjs/data/src/benchmarks/memset.js"
       ],
       "main": "test/simdjs/harness-finish.js",
@@ -308,8 +239,7 @@
       ]
     }
   ],
-  "timeout_android_arm": 180,
-  "timeout_android_arm64": 120,
-  "timeout_arm": 120,
+  "timeout_arm": 240,
+  "timeout_arm64": 120,
   "units": "ms"
 }

@@ -93,9 +93,9 @@ void InstructionSequenceTest::EndLoop() {
 }
 
 
-void InstructionSequenceTest::StartBlock() {
+void InstructionSequenceTest::StartBlock(bool deferred) {
   block_returns_ = false;
-  NewBlock();
+  NewBlock(deferred);
 }
 
 
@@ -408,7 +408,7 @@ InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
 }
 
 
-InstructionBlock* InstructionSequenceTest::NewBlock() {
+InstructionBlock* InstructionSequenceTest::NewBlock(bool deferred) {
   CHECK(current_block_ == nullptr);
   Rpo rpo = Rpo::FromInt(static_cast<int>(instruction_blocks_.size()));
   Rpo loop_header = Rpo::Invalid();
@@ -430,7 +430,7 @@ InstructionBlock* InstructionSequenceTest::NewBlock() {
   }
   // Construct instruction block.
   auto instruction_block = new (zone())
-      InstructionBlock(zone(), rpo, loop_header, loop_end, false, false);
+      InstructionBlock(zone(), rpo, loop_header, loop_end, deferred, false);
   instruction_blocks_.push_back(instruction_block);
   current_block_ = instruction_block;
   sequence()->StartBlock(rpo);

@@ -8,8 +8,6 @@
 #include <cstring>
 #include <iosfwd>
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/base/bits.h"
 #include "src/bit-vector.h"
@@ -119,6 +117,7 @@ class LChunkBuilder;
   V(LoadFieldByIndex)                         \
   V(LoadFunctionPrototype)                    \
   V(LoadGlobalGeneric)                        \
+  V(LoadGlobalViaContext)                     \
   V(LoadKeyed)                                \
   V(LoadKeyedGeneric)                         \
   V(LoadNamedField)                           \
@@ -147,6 +146,7 @@ class LChunkBuilder;
   V(StoreCodeEntry)                           \
   V(StoreContextSlot)                         \
   V(StoreFrameContext)                        \
+  V(StoreGlobalViaContext)                    \
   V(StoreKeyed)                               \
   V(StoreKeyedGeneric)                        \
   V(StoreNamedField)                          \
@@ -4828,11 +4828,21 @@ class HPower final : public HTemplateInstruction<2> {
 };
 
 
+enum ExternalAddType {
+  AddOfExternalAndTagged,
+  AddOfExternalAndInt32,
+  NoExternalAdd
+};
+
+
 class HAdd final : public HArithmeticBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
                            HValue* left, HValue* right,
                            Strength strength = Strength::WEAK);
+  static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
+                           HValue* left, HValue* right, Strength strength,
+                           ExternalAddType external_add_type);
 
   // Add is only commutative if two integer values are added and not if two
   // tagged values are added (because it might be a String concatenation).
@@ -4875,6 +4885,16 @@ class HAdd final : public HArithmeticBinaryOperation {
 
   Representation RequiredInputRepresentation(int index) override;
 
+  bool IsConsistentExternalRepresentation() {
+    return left()->representation().IsExternal() &&
+           ((external_add_type_ == AddOfExternalAndInt32 &&
+             right()->representation().IsInteger32()) ||
+            (external_add_type_ == AddOfExternalAndTagged &&
+             right()->representation().IsTagged()));
+  }
+
+  ExternalAddType external_add_type() const { return external_add_type_; }
+
   DECLARE_CONCRETE_INSTRUCTION(Add)
 
  protected:
@@ -4883,10 +4903,37 @@ class HAdd final : public HArithmeticBinaryOperation {
   Range* InferRange(Zone* zone) override;
 
  private:
-  HAdd(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HArithmeticBinaryOperation(context, left, right, strength) {
+  HAdd(HValue* context, HValue* left, HValue* right, Strength strength,
+       ExternalAddType external_add_type = NoExternalAdd)
+      : HArithmeticBinaryOperation(context, left, right, strength),
+        external_add_type_(external_add_type) {
     SetFlag(kCanOverflow);
+    switch (external_add_type_) {
+      case AddOfExternalAndTagged:
+        DCHECK(left->representation().IsExternal());
+        DCHECK(right->representation().IsTagged());
+        SetDependsOnFlag(kNewSpacePromotion);
+        ClearFlag(HValue::kCanOverflow);
+        SetFlag(kHasNoObservableSideEffects);
+        break;
+
+      case NoExternalAdd:
+        // This is a bit of a hack: The call to this constructor is generated
+        // by a macro that also supports sub and mul, so it doesn't pass in
+        // a value for external_add_type but uses the default.
+        if (left->representation().IsExternal()) {
+          external_add_type_ = AddOfExternalAndInt32;
+        }
+        break;
+
+      case AddOfExternalAndInt32:
+        // See comment above.
+        UNREACHABLE();
+        break;
+    }
   }
+
+  ExternalAddType external_add_type_;
 };
 
 
@@ -5401,12 +5448,12 @@ class HUnknownOSRValue final : public HTemplateInstruction<0> {
 class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HLoadGlobalGeneric, HValue*,
-                                              Handle<String>, bool);
+                                              Handle<String>, TypeofMode);
 
   HValue* context() { return OperandAt(0); }
   HValue* global_object() { return OperandAt(1); }
   Handle<String> name() const { return name_; }
-  bool for_typeof() const { return for_typeof_; }
+  TypeofMode typeof_mode() const { return typeof_mode_; }
   FeedbackVectorICSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
@@ -5428,9 +5475,9 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
 
  private:
   HLoadGlobalGeneric(HValue* context, HValue* global_object,
-                     Handle<String> name, bool for_typeof)
+                     Handle<String> name, TypeofMode typeof_mode)
       : name_(name),
-        for_typeof_(for_typeof),
+        typeof_mode_(typeof_mode),
         slot_(FeedbackVectorICSlot::Invalid()) {
     SetOperandAt(0, context);
     SetOperandAt(1, global_object);
@@ -5439,9 +5486,38 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
   }
 
   Handle<String> name_;
-  bool for_typeof_;
+  TypeofMode typeof_mode_;
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorICSlot slot_;
+};
+
+
+class HLoadGlobalViaContext final : public HTemplateInstruction<1> {
+ public:
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HLoadGlobalViaContext, int, int);
+
+  HValue* context() { return OperandAt(0); }
+  int depth() const { return depth_; }
+  int slot_index() const { return slot_index_; }
+
+  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
+
+  Representation RequiredInputRepresentation(int index) override {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalViaContext)
+
+ private:
+  HLoadGlobalViaContext(HValue* context, int depth, int slot_index)
+      : depth_(depth), slot_index_(slot_index) {
+    SetOperandAt(0, context);
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
+
+  int const depth_;
+  int const slot_index_;
 };
 
 
@@ -5911,6 +5987,11 @@ class HObjectAccess final {
                          Representation::Integer32());
   }
 
+  static HObjectAccess ForOddballTypeOf() {
+    return HObjectAccess(kInobject, Oddball::kTypeOfOffset,
+                         Representation::HeapObject());
+  }
+
   static HObjectAccess ForElementsPointer() {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
   }
@@ -5948,6 +6029,12 @@ class HObjectAccess final {
   static HObjectAccess ForFixedTypedArrayBaseBasePointer() {
     return HObjectAccess(kInobject, FixedTypedArrayBase::kBasePointerOffset,
                          Representation::Tagged());
+  }
+
+  static HObjectAccess ForFixedTypedArrayBaseExternalPointer() {
+    return HObjectAccess::ForObservableJSObjectOffset(
+        FixedTypedArrayBase::kExternalPointerOffset,
+        Representation::External());
   }
 
   static HObjectAccess ForStringHashField() {
@@ -6019,10 +6106,10 @@ class HObjectAccess final {
                          Representation::Integer32());
   }
 
-  static HObjectAccess ForMapInObjectProperties() {
-    return HObjectAccess(kInobject,
-                         Map::kInObjectPropertiesOffset,
-                         Representation::UInteger8());
+  static HObjectAccess ForMapInObjectPropertiesOrConstructorFunctionIndex() {
+    return HObjectAccess(
+        kInobject, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
+        Representation::UInteger8());
   }
 
   static HObjectAccess ForMapInstanceType() {
@@ -6067,6 +6154,11 @@ class HObjectAccess final {
 
   static HObjectAccess ForPropertyCellValue() {
     return HObjectAccess(kInobject, PropertyCell::kValueOffset);
+  }
+
+  static HObjectAccess ForPropertyCellDetails() {
+    return HObjectAccess(kInobject, PropertyCell::kDetailsOffset,
+                         Representation::Smi());
   }
 
   static HObjectAccess ForCellValue() {
@@ -6153,11 +6245,6 @@ class HObjectAccess final {
   static HObjectAccess ForJSArrayBufferBitFieldSlot() {
     return HObjectAccess::ForObservableJSObjectOffset(
         JSArrayBuffer::kBitFieldSlot, Representation::Smi());
-  }
-
-  static HObjectAccess ForExternalArrayExternalPointer() {
-    return HObjectAccess::ForObservableJSObjectOffset(
-        ExternalArray::kExternalPointerOffset, Representation::External());
   }
 
   static HObjectAccess ForJSArrayBufferViewBuffer() {
@@ -6529,14 +6616,8 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
   DECLARE_INSTRUCTION_FACTORY_P6(HLoadKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind, LoadKeyedHoleMode, int);
 
-  bool is_external() const {
-    return IsExternalArrayElementsKind(elements_kind());
-  }
   bool is_fixed_typed_array() const {
     return IsFixedTypedArrayElementsKind(elements_kind());
-  }
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
   HValue* elements() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
@@ -6565,11 +6646,11 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
   Representation RequiredInputRepresentation(int index) override {
     // kind_fast:                 tagged[int32] (none)
     // kind_double:               tagged[int32] (none)
-    // kind_fixed_typed_array:    tagged[int32] (none)
+    // kind_fixed_typed_array:    external[int32] (none)
     // kind_external:             external[int32] (none)
     if (index == 0) {
-      return is_external() ? Representation::External()
-          : Representation::Tagged();
+      return is_fixed_typed_array() ? Representation::External()
+                                    : Representation::Tagged();
     }
     if (index == 1) {
       return ArrayInstructionInterface::KeyedAccessIndexRequirement(
@@ -6618,7 +6699,7 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
     SetOperandAt(1, key);
     SetOperandAt(2, dependency != NULL ? dependency : obj);
 
-    if (!is_typed_elements()) {
+    if (!is_fixed_typed_array()) {
       // I can detect the case between storing double (holey and fast) and
       // smi/object by looking at elements_kind_.
       DCHECK(IsFastSmiOrObjectElementsKind(elements_kind) ||
@@ -6644,18 +6725,15 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
         SetDependsOnFlag(kDoubleArrayElements);
       }
     } else {
-      if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-          elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
-          elements_kind == FLOAT32_ELEMENTS ||
+      if (elements_kind == FLOAT32_ELEMENTS ||
           elements_kind == FLOAT64_ELEMENTS) {
         set_representation(Representation::Double());
       } else {
         set_representation(Representation::Integer32());
       }
 
-      if (is_external()) {
+      if (is_fixed_typed_array()) {
         SetDependsOnFlag(kExternalMemory);
-      } else if (is_fixed_typed_array()) {
         SetDependsOnFlag(kTypedArrayElements);
       } else {
         UNREACHABLE();
@@ -6974,6 +7052,39 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
 };
 
 
+class HStoreGlobalViaContext final : public HTemplateInstruction<2> {
+ public:
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HStoreGlobalViaContext, HValue*,
+                                              int, int, LanguageMode);
+  HValue* context() const { return OperandAt(0); }
+  HValue* value() const { return OperandAt(1); }
+  int depth() const { return depth_; }
+  int slot_index() const { return slot_index_; }
+  LanguageMode language_mode() const { return language_mode_; }
+
+  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
+
+  Representation RequiredInputRepresentation(int index) override {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalViaContext)
+
+ private:
+  HStoreGlobalViaContext(HValue* context, HValue* value, int depth,
+                         int slot_index, LanguageMode language_mode)
+      : depth_(depth), slot_index_(slot_index), language_mode_(language_mode) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, value);
+    SetAllSideEffects();
+  }
+
+  int const depth_;
+  int const slot_index_;
+  LanguageMode const language_mode_;
+};
+
+
 class HStoreKeyed final : public HTemplateInstruction<3>,
                           public ArrayInstructionInterface {
  public:
@@ -6991,8 +7102,8 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
     // kind_fixed_typed_array:  tagged[int32] = (double | int32)
     // kind_external:           external[int32] = (double | int32)
     if (index == 0) {
-      return is_external() ? Representation::External()
-                           : Representation::Tagged();
+      return is_fixed_typed_array() ? Representation::External()
+                                    : Representation::Tagged();
     } else if (index == 1) {
       return ArrayInstructionInterface::KeyedAccessIndexRequirement(
           OperandAt(1)->representation());
@@ -7017,22 +7128,14 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
       return Representation::Smi();
     }
 
-    return IsExternalArrayElementsKind(kind) ||
-                   IsFixedTypedArrayElementsKind(kind)
-               ? Representation::Integer32()
-               : Representation::Tagged();
-  }
-
-  bool is_external() const {
-    return IsExternalArrayElementsKind(elements_kind());
+    if (IsFixedTypedArrayElementsKind(kind)) {
+      return Representation::Integer32();
+    }
+    return Representation::Tagged();
   }
 
   bool is_fixed_typed_array() const {
     return IsFixedTypedArrayElementsKind(elements_kind());
-  }
-
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
 
   Representation observed_input_representation(int index) override {
@@ -7124,25 +7227,20 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
       SetFlag(kTrackSideEffectDominators);
       SetDependsOnFlag(kNewSpacePromotion);
     }
-    if (is_external()) {
-      SetChangesFlag(kExternalMemory);
-      SetFlag(kAllowUndefinedAsNaN);
-    } else if (IsFastDoubleElementsKind(elements_kind)) {
+    if (IsFastDoubleElementsKind(elements_kind)) {
       SetChangesFlag(kDoubleArrayElements);
     } else if (IsFastSmiElementsKind(elements_kind)) {
       SetChangesFlag(kArrayElements);
     } else if (is_fixed_typed_array()) {
       SetChangesFlag(kTypedArrayElements);
+      SetChangesFlag(kExternalMemory);
       SetFlag(kAllowUndefinedAsNaN);
     } else {
       SetChangesFlag(kArrayElements);
     }
 
-    // EXTERNAL_{UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
-    if ((elements_kind >= EXTERNAL_INT8_ELEMENTS &&
-        elements_kind <= EXTERNAL_UINT32_ELEMENTS) ||
-        (elements_kind >= UINT8_ELEMENTS &&
-        elements_kind <= INT32_ELEMENTS)) {
+    // {UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
+    if (elements_kind >= UINT8_ELEMENTS && elements_kind <= INT32_ELEMENTS) {
       SetFlag(kTruncatingToInt32);
     }
   }

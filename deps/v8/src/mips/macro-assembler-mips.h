@@ -12,6 +12,19 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {kRegister_v0_Code};
+const Register kReturnRegister1 = {kRegister_v1_Code};
+const Register kJSFunctionRegister = {kRegister_a1_Code};
+const Register kContextRegister = {Register::kCpRegister};
+const Register kInterpreterAccumulatorRegister = {kRegister_v0_Code};
+const Register kInterpreterRegisterFileRegister = {kRegister_t3_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_t4_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_t5_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_t6_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_a1_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_a0_Code};
+
 // Forward declaration.
 class JumpTarget;
 
@@ -509,13 +522,6 @@ class MacroAssembler: public Assembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. The caller must make sure that no pointers
-  // are left to the object(s) no longer allocated as they would be invalid when
-  // allocation is undone.
-  void UndoAllocationInNewSpace(Register object, Register scratch);
-
-
   void AllocateTwoByteString(Register result,
                              Register length,
                              Register scratch1,
@@ -679,6 +685,17 @@ class MacroAssembler: public Assembler {
     sw(src2, MemOperand(sp, 2 * kPointerSize));
     sw(src3, MemOperand(sp, 1 * kPointerSize));
     sw(src4, MemOperand(sp, 0 * kPointerSize));
+  }
+
+  // Push five registers. Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3, Register src4,
+            Register src5) {
+    Subu(sp, sp, Operand(5 * kPointerSize));
+    sw(src1, MemOperand(sp, 4 * kPointerSize));
+    sw(src2, MemOperand(sp, 3 * kPointerSize));
+    sw(src3, MemOperand(sp, 2 * kPointerSize));
+    sw(src4, MemOperand(sp, 1 * kPointerSize));
+    sw(src5, MemOperand(sp, 0 * kPointerSize));
   }
 
   void Push(Register src, Condition cond, Register tst1, Register tst2) {
@@ -1228,19 +1245,19 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void CallJSExitStub(CodeStub* stub);
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f,
-                   int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  void CallRuntime(const Runtime::Function* f, int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
+                   BranchDelaySlot bd = PROTECT);
   void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
     const Runtime::Function* function = Runtime::FunctionForId(id);
     CallRuntime(function, function->nargs, kSaveFPRegs);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id,
-                   int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
+  void CallRuntime(Runtime::FunctionId id, int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
+                   BranchDelaySlot bd = PROTECT) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles, bd);
   }
 
   // Convenience function: call an external reference.
@@ -1710,7 +1727,7 @@ class CodePatcher {
   CodePatcher(byte* address,
               int instructions,
               FlushICache flush_cache = FLUSH);
-  virtual ~CodePatcher();
+  ~CodePatcher();
 
   // Macro assembler to emit code.
   MacroAssembler* masm() { return &masm_; }

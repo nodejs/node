@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/codegen.h"
@@ -317,9 +314,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
   int arg_count = 4;
-  __ TailCallExternalReference(ref, arg_count, 1);
+  __ TailCallRuntime(Runtime::kLoadIC_Miss, arg_count, 1);
 }
 
 
@@ -348,11 +344,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
-
   int arg_count = 4;
-  __ TailCallExternalReference(ref, arg_count, 1);
+  __ TailCallRuntime(Runtime::kKeyedLoadIC_Miss, arg_count, 1);
 }
 
 
@@ -437,16 +430,17 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
   Register vector = LoadWithVectorDescriptor::VectorRegister();
   Register slot = LoadWithVectorDescriptor::SlotRegister();
   DCHECK(!AreAliased(vector, slot, a4, a5, a6, t1));
-  Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
-      masm->isolate()->factory()->keyed_load_dummy_vector());
-  int slot_index = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
-  __ LoadRoot(vector, Heap::kKeyedLoadDummyVectorRootIndex);
+  Handle<TypeFeedbackVector> dummy_vector =
+      TypeFeedbackVector::DummyVector(masm->isolate());
+  int slot_index = dummy_vector->GetIndex(
+      FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
+  __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ li(slot, Operand(Smi::FromInt(slot_index)));
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::LOAD_IC, flags, false, receiver, key, a4, a5, a6, t1);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::LOAD_IC, flags,
+                                               receiver, key, a4, a5, a6, t1);
   // Cache miss.
   GenerateMiss(masm);
 
@@ -686,17 +680,18 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
     Register vector = LoadWithVectorDescriptor::VectorRegister();
     Register slot = LoadWithVectorDescriptor::SlotRegister();
     DCHECK(!AreAliased(vector, slot, a3, a4, a5, a6));
-    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
-        masm->isolate()->factory()->keyed_store_dummy_vector());
-    int slot_index = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
-    __ LoadRoot(vector, Heap::kKeyedStoreDummyVectorRootIndex);
+    Handle<TypeFeedbackVector> dummy_vector =
+        TypeFeedbackVector::DummyVector(masm->isolate());
+    int slot_index = dummy_vector->GetIndex(
+        FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
+    __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
     __ li(slot, Operand(Smi::FromInt(slot_index)));
   }
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::STORE_IC, flags, false, receiver, key, a3, a4, a5, a6);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
+                                               receiver, key, a3, a4, a5, a6);
   // Cache miss.
   __ Branch(&miss);
 
@@ -744,14 +739,24 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
-  // Push receiver, key and value for runtime call.
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
+static void StoreIC_PushArgs(MacroAssembler* masm) {
+  if (FLAG_vector_stores) {
+    __ Push(StoreDescriptor::ReceiverRegister(),
+            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister(),
+            VectorStoreICDescriptor::SlotRegister(),
+            VectorStoreICDescriptor::VectorRegister());
+  } else {
+    __ Push(StoreDescriptor::ReceiverRegister(),
+            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister());
+  }
+}
 
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
+
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
+  StoreIC_PushArgs(masm);
+
+  int args = FLAG_vector_stores ? 5 : 3;
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss, args, 1);
 }
 
 
@@ -765,8 +770,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::STORE_IC, flags, false, receiver, name, a3, a4, a5, a6);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
+                                               receiver, name, a3, a4, a5, a6);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
@@ -774,12 +779,11 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
+  StoreIC_PushArgs(masm);
+
   // Perform tail call to the entry.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kStoreIC_Miss), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
+  int args = FLAG_vector_stores ? 5 : 3;
+  __ TailCallRuntime(Runtime::kStoreIC_Miss, args, 1);
 }
 
 

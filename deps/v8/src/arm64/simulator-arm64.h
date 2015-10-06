@@ -8,8 +8,6 @@
 #include <stdarg.h>
 #include <vector>
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64.h"
@@ -268,7 +266,7 @@ class Simulator : public DecoderVisitor {
   uintptr_t PopAddress();
 
   // Accessor to the internal simulator stack area.
-  uintptr_t StackLimit() const;
+  uintptr_t StackLimit(uintptr_t c_limit) const;
 
   void ResetState();
 
@@ -403,7 +401,7 @@ class Simulator : public DecoderVisitor {
   }
   Instruction* lr() { return reg<Instruction*>(kLinkRegCode); }
 
-  Address get_sp() { return reg<Address>(31, Reg31IsStackPointer); }
+  Address get_sp() const { return reg<Address>(31, Reg31IsStackPointer); }
 
   template<typename T>
   T fpreg(unsigned code) const {
@@ -884,13 +882,14 @@ class Simulator : public DecoderVisitor {
 
 
 // The simulator has its own stack. Thus it has a different stack limit from
-// the C-based native code.
-// See also 'class SimulatorStack' in arm/simulator-arm.h.
+// the C-based native code.  The JS-based limit normally points near the end of
+// the simulator stack.  When the C-based limit is exhausted we reflect that by
+// lowering the JS-based limit as well, to make stack checks trigger.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
   static uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
                                             uintptr_t c_limit) {
-    return Simulator::current(isolate)->StackLimit();
+    return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
   static uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {

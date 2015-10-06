@@ -60,7 +60,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
       "Heap::NewSpaceAllocationTopAddress()");
-  Add(ExternalReference::debug_break(isolate).address(), "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address(isolate).address(),
       "Debug::step_in_fp_addr()");
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
@@ -218,20 +217,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   for (unsigned i = 0; i < arraysize(runtime_functions); ++i) {
     ExternalReference ref(
         static_cast<Runtime::FunctionId>(runtime_functions[i].id), isolate);
-    Add(ref.address(), runtime_functions[i].name);
-  }
-
-  static const RefTableEntry inline_caches[] = {
-#define IC_ENTRY(name)          \
-  { IC::k##name, "IC::" #name } \
-  ,
-      IC_UTIL_LIST(IC_ENTRY)
-#undef IC_ENTRY
-  };
-
-  for (unsigned i = 0; i < arraysize(inline_caches); ++i) {
-    ExternalReference ref(
-        IC_Utility(static_cast<IC::UtilityId>(inline_caches[i].id)), isolate);
     Add(ref.address(), runtime_functions[i].name);
   }
 
@@ -515,16 +500,19 @@ void Deserializer::DecodeReservation(
 }
 
 
-void Deserializer::FlushICacheForNewCodeObjects() {
-  if (!deserializing_user_code_) {
-    // The entire isolate is newly deserialized. Simply flush all code pages.
-    PageIterator it(isolate_->heap()->code_space());
-    while (it.has_next()) {
-      Page* p = it.next();
-      CpuFeatures::FlushICache(p->area_start(),
-                               p->area_end() - p->area_start());
-    }
+void Deserializer::FlushICacheForNewIsolate() {
+  DCHECK(!deserializing_user_code_);
+  // The entire isolate is newly deserialized. Simply flush all code pages.
+  PageIterator it(isolate_->heap()->code_space());
+  while (it.has_next()) {
+    Page* p = it.next();
+    CpuFeatures::FlushICache(p->area_start(), p->area_end() - p->area_start());
   }
+}
+
+
+void Deserializer::FlushICacheForNewCodeObjects() {
+  DCHECK(deserializing_user_code_);
   for (Code* code : new_code_objects_) {
     CpuFeatures::FlushICache(code->instruction_start(),
                              code->instruction_size());
@@ -572,10 +560,11 @@ void Deserializer::Deserialize(Isolate* isolate) {
     isolate_->heap()->RepairFreeListsAfterDeserialization();
     isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
     DeserializeDeferredObjects();
+    FlushICacheForNewIsolate();
   }
 
   isolate_->heap()->set_native_contexts_list(
-      isolate_->heap()->undefined_value());
+      isolate_->heap()->code_stub_context());
 
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.
@@ -585,14 +574,9 @@ void Deserializer::Deserialize(Isolate* isolate) {
   }
 
   // Update data pointers to the external strings containing natives sources.
-  for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-    Object* source = isolate_->heap()->natives_source_cache()->get(i);
-    if (!source->IsUndefined()) {
-      ExternalOneByteString::cast(source)->update_data_cache();
-    }
-  }
-
-  FlushICacheForNewCodeObjects();
+  Natives::UpdateSourceCache(isolate_->heap());
+  ExtraNatives::UpdateSourceCache(isolate_->heap());
+  CodeStubNatives::UpdateSourceCache(isolate_->heap());
 
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
@@ -649,6 +633,7 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
       Object* root;
       VisitPointer(&root);
       DeserializeDeferredObjects();
+      FlushICacheForNewCodeObjects();
       result = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
     }
     CommitNewInternalizedStrings(isolate);
@@ -904,6 +889,17 @@ Address Deserializer::Allocate(int space_index, int size) {
 #endif
     return address;
   }
+}
+
+
+Object** Deserializer::CopyInNativesSource(Vector<const char> source_vector,
+                                           Object** current) {
+  DCHECK(!isolate_->heap()->deserialization_complete());
+  NativesExternalStringResource* resource = new NativesExternalStringResource(
+      source_vector.start(), source_vector.length());
+  Object* resource_obj = reinterpret_cast<Object*>(resource);
+  UnalignedCopy(current++, &resource_obj);
+  return current;
 }
 
 
@@ -1173,17 +1169,20 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         CHECK(false);
         break;
 
-      case kNativesStringResource: {
-        DCHECK(!isolate_->heap()->deserialization_complete());
-        int index = source_.Get();
-        Vector<const char> source_vector = Natives::GetScriptSource(index);
-        NativesExternalStringResource* resource =
-            new NativesExternalStringResource(source_vector.start(),
-                                              source_vector.length());
-        Object* resource_obj = reinterpret_cast<Object*>(resource);
-        UnalignedCopy(current++, &resource_obj);
+      case kNativesStringResource:
+        current = CopyInNativesSource(Natives::GetScriptSource(source_.Get()),
+                                      current);
         break;
-      }
+
+      case kExtraNativesStringResource:
+        current = CopyInNativesSource(
+            ExtraNatives::GetScriptSource(source_.Get()), current);
+        break;
+
+      case kCodeStubNativesStringResource:
+        current = CopyInNativesSource(
+            CodeStubNatives::GetScriptSource(source_.Get()), current);
+        break;
 
       // Deserialize raw data of variable length.
       case kVariableRawData: {
@@ -1419,6 +1418,17 @@ void PartialSerializer::Serialize(Object** o) {
     Context* context = Context::cast(*o);
     global_object_ = context->global_object();
     back_reference_map()->AddGlobalProxy(context->global_proxy());
+    // The bootstrap snapshot has a code-stub context. When serializing the
+    // partial snapshot, it is chained into the weak context list on the isolate
+    // and it's next context pointer may point to the code-stub context.  Clear
+    // it before serializing, it will get re-added to the context list
+    // explicitly when it's loaded.
+    if (context->IsNativeContext()) {
+      context->set(Context::NEXT_CONTEXT_LINK,
+                   isolate_->heap()->undefined_value());
+      DCHECK(!context->global_object()->IsUndefined());
+      DCHECK(!context->builtins()->IsUndefined());
+    }
   }
   VisitPointer(o);
   SerializeDeferredObjects();
@@ -1623,7 +1633,10 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
 
 void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
-  DCHECK(!obj->IsJSFunction());
+  // Make sure that all functions are derived from the code-stub context
+  DCHECK(!obj->IsJSFunction() ||
+         JSFunction::cast(obj)->GetCreationContext() ==
+             isolate()->heap()->code_stub_context());
 
   int root_index = root_index_map_.Lookup(obj);
   // We can only encode roots as such if it has already been serialized.
@@ -1908,38 +1921,10 @@ void Serializer::ObjectSerializer::Serialize() {
   // We don't expect fillers.
   DCHECK(!object_->IsFiller());
 
-  if (object_->IsPrototypeInfo()) {
-    Object* prototype_users = PrototypeInfo::cast(object_)->prototype_users();
-    if (prototype_users->IsWeakFixedArray()) {
-      WeakFixedArray* array = WeakFixedArray::cast(prototype_users);
-      array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
-    }
-  }
-  // Compaction of a prototype users list can require the registered users
-  // to update their remembered slots. That doesn't work if those users
-  // have already been serialized themselves. So if this object is a
-  // registered user, compact its prototype's user list now.
-  if (object_->IsMap()) {
-    Map* map = Map::cast(object_);
-    if (map->is_prototype_map() && map->prototype_info()->IsPrototypeInfo() &&
-        PrototypeInfo::cast(map->prototype_info())->registry_slot() !=
-            PrototypeInfo::UNREGISTERED) {
-      JSObject* proto = JSObject::cast(map->prototype());
-      PrototypeInfo* info = PrototypeInfo::cast(proto->map()->prototype_info());
-      WeakFixedArray* array = WeakFixedArray::cast(info->prototype_users());
-      array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
-    }
-  }
-
   if (object_->IsScript()) {
     // Clear cached line ends.
     Object* undefined = serializer_->isolate()->heap()->undefined_value();
     Script::cast(object_)->set_line_ends(undefined);
-    Object* shared_list = Script::cast(object_)->shared_function_infos();
-    if (shared_list->IsWeakFixedArray()) {
-      WeakFixedArray::cast(shared_list)
-          ->Compact<WeakFixedArray::NullCallback>();
-    }
   }
 
   if (object_->IsExternalString()) {
@@ -2144,24 +2129,49 @@ void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
 }
 
 
-void Serializer::ObjectSerializer::VisitExternalOneByteString(
-    v8::String::ExternalOneByteStringResource** resource_pointer) {
-  Address references_start = reinterpret_cast<Address>(resource_pointer);
-  OutputRawData(references_start);
-  for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-    Object* source =
-        serializer_->isolate()->heap()->natives_source_cache()->get(i);
+bool Serializer::ObjectSerializer::SerializeExternalNativeSourceString(
+    int builtin_count,
+    v8::String::ExternalOneByteStringResource** resource_pointer,
+    FixedArray* source_cache, int resource_index) {
+  for (int i = 0; i < builtin_count; i++) {
+    Object* source = source_cache->get(i);
     if (!source->IsUndefined()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(source);
       typedef v8::String::ExternalOneByteStringResource Resource;
       const Resource* resource = string->resource();
       if (resource == *resource_pointer) {
-        sink_->Put(kNativesStringResource, "NativesStringResource");
+        sink_->Put(resource_index, "NativesStringResource");
         sink_->PutSection(i, "NativesStringResourceEnd");
         bytes_processed_so_far_ += sizeof(resource);
-        return;
+        return true;
       }
     }
+  }
+  return false;
+}
+
+
+void Serializer::ObjectSerializer::VisitExternalOneByteString(
+    v8::String::ExternalOneByteStringResource** resource_pointer) {
+  Address references_start = reinterpret_cast<Address>(resource_pointer);
+  OutputRawData(references_start);
+  if (SerializeExternalNativeSourceString(
+          Natives::GetBuiltinsCount(), resource_pointer,
+          Natives::GetSourceCache(serializer_->isolate()->heap()),
+          kNativesStringResource)) {
+    return;
+  }
+  if (SerializeExternalNativeSourceString(
+          ExtraNatives::GetBuiltinsCount(), resource_pointer,
+          ExtraNatives::GetSourceCache(serializer_->isolate()->heap()),
+          kExtraNativesStringResource)) {
+    return;
+  }
+  if (SerializeExternalNativeSourceString(
+          CodeStubNatives::GetBuiltinsCount(), resource_pointer,
+          CodeStubNatives::GetSourceCache(serializer_->isolate()->heap()),
+          kCodeStubNativesStringResource)) {
+    return;
   }
   // One of the strings in the natives cache should match the resource.  We
   // don't expect any other kinds of external strings here.
@@ -2494,7 +2504,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   HandleScope scope(isolate);
 
-  SmartPointer<SerializedCodeData> scd(
+  base::SmartPointer<SerializedCodeData> scd(
       SerializedCodeData::FromCachedData(isolate, cached_data, *source));
   if (scd.is_empty()) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
@@ -2522,7 +2532,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
   }
-  deserializer.FlushICacheForNewCodeObjects();
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();

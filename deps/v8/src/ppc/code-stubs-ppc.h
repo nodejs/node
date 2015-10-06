@@ -5,6 +5,8 @@
 #ifndef V8_PPC_CODE_STUBS_PPC_H_
 #define V8_PPC_CODE_STUBS_PPC_H_
 
+#include "src/ppc/frames-ppc.h"
+
 namespace v8 {
 namespace internal {
 
@@ -181,7 +183,7 @@ class RecordWriteStub : public PlatformCodeStub {
       masm->MultiPush(kJSCallerSaved & ~scratch1_.bit());
       if (mode == kSaveFPRegs) {
         // Save all volatile FP registers except d0.
-        masm->SaveFPRegs(sp, 1, DoubleRegister::kNumVolatileRegisters - 1);
+        masm->MultiPushDoubles(kCallerSavedDoubles & ~d0.bit());
       }
     }
 
@@ -189,7 +191,7 @@ class RecordWriteStub : public PlatformCodeStub {
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
         // Restore all volatile FP registers except d0.
-        masm->RestoreFPRegs(sp, 1, DoubleRegister::kNumVolatileRegisters - 1);
+        masm->MultiPopDoubles(kCallerSavedDoubles & ~d0.bit());
       }
       masm->MultiPop(kJSCallerSaved & ~scratch1_.bit());
       masm->pop(r0);

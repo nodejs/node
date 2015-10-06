@@ -29,7 +29,7 @@
 #include "test/cctest/cctest.h"
 
 #include "src/api.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"

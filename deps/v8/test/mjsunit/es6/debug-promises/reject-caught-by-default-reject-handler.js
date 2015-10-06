@@ -77,10 +77,7 @@ function testDone(iteration) {
     }
   }
 
-  // Run testDone through the Object.observe processing loop.
-  var dummy = {};
-  Object.observe(dummy, checkResult);
-  dummy.dummy = dummy;
+  %EnqueueMicrotask(checkResult);
 }
 
 testDone(0);

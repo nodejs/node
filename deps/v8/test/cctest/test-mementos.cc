@@ -101,6 +101,7 @@ TEST(PretenuringCallNew) {
   CcTest::InitializeVM();
   if (!i::FLAG_allocation_site_pretenuring) return;
   if (!i::FLAG_pretenuring_call_new) return;
+  if (i::FLAG_always_opt) return;
 
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();

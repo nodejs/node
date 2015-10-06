@@ -5,6 +5,8 @@
 #ifndef V8_BIGNUM_H_
 #define V8_BIGNUM_H_
 
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 

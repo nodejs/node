@@ -5,8 +5,6 @@
 #ifndef V8_LITHIUM_CODEGEN_H_
 #define V8_LITHIUM_CODEGEN_H_
 
-#include "src/v8.h"
-
 #include "src/bailout-reason.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"

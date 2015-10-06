@@ -208,30 +208,29 @@ class OperandGenerator {
   UnallocatedOperand ToUnallocatedOperand(LinkageLocation location,
                                           MachineType type,
                                           int virtual_register) {
-    if (location.location_ == LinkageLocation::ANY_REGISTER) {
+    if (location.IsAnyRegister()) {
       // any machine register.
       return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                 virtual_register);
     }
-    if (location.location_ < 0) {
+    if (location.IsCallerFrameSlot()) {
       // a location on the caller frame.
       return UnallocatedOperand(UnallocatedOperand::FIXED_SLOT,
-                                location.location_, virtual_register);
+                                location.AsCallerFrameSlot(), virtual_register);
     }
-    if (location.location_ > LinkageLocation::ANY_REGISTER) {
+    if (location.IsCalleeFrameSlot()) {
       // a spill location on this (callee) frame.
-      return UnallocatedOperand(
-          UnallocatedOperand::FIXED_SLOT,
-          location.location_ - LinkageLocation::ANY_REGISTER - 1,
-          virtual_register);
+      return UnallocatedOperand(UnallocatedOperand::FIXED_SLOT,
+                                location.AsCalleeFrameSlot(), virtual_register);
     }
     // a fixed register.
-    if (RepresentationOf(type) == kRepFloat64) {
+    MachineType rep = RepresentationOf(type);
+    if (rep == kRepFloat64 || rep == kRepFloat32) {
       return UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
-                                location.location_, virtual_register);
+                                location.AsRegister(), virtual_register);
     }
     return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
-                              location.location_, virtual_register);
+                              location.AsRegister(), virtual_register);
   }
 
   InstructionSelector* selector_;

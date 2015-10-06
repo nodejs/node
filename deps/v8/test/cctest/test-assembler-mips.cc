@@ -1458,18 +1458,18 @@ TEST(min_max) {
     } TestFloat;
 
     TestFloat test;
-    const double dblNaN = std::numeric_limits<double>::quiet_NaN();
-    const float  fltNaN = std::numeric_limits<float>::quiet_NaN();
-    const int tableLength = 5;
-    double inputsa[tableLength] = {2.0, 3.0, dblNaN, 3.0, dblNaN};
-    double inputsb[tableLength] = {3.0, 2.0, 3.0, dblNaN, dblNaN};
-    double outputsdmin[tableLength] = {2.0, 2.0, 3.0, 3.0, dblNaN};
-    double outputsdmax[tableLength] = {3.0, 3.0, 3.0, 3.0, dblNaN};
+    const double double_nan = std::numeric_limits<double>::quiet_NaN();
+    const float  float_nan = std::numeric_limits<float>::quiet_NaN();
+    const int kTableLength = 5;
+    double inputsa[kTableLength] = {2.0, 3.0, double_nan, 3.0, double_nan};
+    double inputsb[kTableLength] = {3.0, 2.0, 3.0, double_nan, double_nan};
+    double outputsdmin[kTableLength] = {2.0, 2.0, 3.0, 3.0, double_nan};
+    double outputsdmax[kTableLength] = {3.0, 3.0, 3.0, 3.0, double_nan};
 
-    float inputse[tableLength] = {2.0, 3.0, fltNaN, 3.0, fltNaN};
-    float inputsf[tableLength] = {3.0, 2.0, 3.0, fltNaN, fltNaN};
-    float outputsfmin[tableLength] = {2.0, 2.0, 3.0, 3.0, fltNaN};
-    float outputsfmax[tableLength] = {3.0, 3.0, 3.0, 3.0, fltNaN};
+    float inputse[kTableLength] = {2.0, 3.0, float_nan, 3.0, float_nan};
+    float inputsf[kTableLength] = {3.0, 2.0, 3.0, float_nan, float_nan};
+    float outputsfmin[kTableLength] = {2.0, 2.0, 3.0, 3.0, float_nan};
+    float outputsfmax[kTableLength] = {3.0, 3.0, 3.0, 3.0, float_nan};
 
     __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
     __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
@@ -1491,7 +1491,7 @@ TEST(min_max) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.a = inputsa[i];
       test.b = inputsb[i];
       test.e = inputse[i];
@@ -1499,7 +1499,7 @@ TEST(min_max) {
 
       (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
 
-      if (i < tableLength - 1) {
+      if (i < kTableLength - 1) {
         CHECK_EQ(test.c, outputsdmin[i]);
         CHECK_EQ(test.d, outputsdmax[i]);
         CHECK_EQ(test.g, outputsfmin[i]);
@@ -1517,7 +1517,7 @@ TEST(min_max) {
 
 TEST(rint_d)  {
   if (IsMipsArchVariant(kMips32r6)) {
-    const int tableLength = 30;
+    const int kTableLength = 30;
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
@@ -1530,7 +1530,7 @@ TEST(rint_d)  {
     }TestFloat;
 
     TestFloat test;
-    double inputs[tableLength] = {18446744073709551617.0,
+    double inputs[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
       1.7976931348623157E+308, 6.27463370218383111104242366943E-307,
@@ -1542,7 +1542,7 @@ TEST(rint_d)  {
       37778931862957161709582.0, 37778931862957161709583.0,
       37778931862957161709584.0, 37778931862957161709585.0,
       37778931862957161709586.0, 37778931862957161709587.0};
-    double outputs_RN[tableLength] = {18446744073709551617.0,
+    double outputs_RN[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
       1.7976931348623157E308, 0,
@@ -1554,7 +1554,7 @@ TEST(rint_d)  {
       37778931862957161709582.0, 37778931862957161709583.0,
       37778931862957161709584.0, 37778931862957161709585.0,
       37778931862957161709586.0, 37778931862957161709587.0};
-    double outputs_RZ[tableLength] = {18446744073709551617.0,
+    double outputs_RZ[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
       1.7976931348623157E308, 0,
@@ -1566,7 +1566,7 @@ TEST(rint_d)  {
       37778931862957161709582.0, 37778931862957161709583.0,
       37778931862957161709584.0, 37778931862957161709585.0,
       37778931862957161709586.0, 37778931862957161709587.0};
-    double outputs_RP[tableLength] = {18446744073709551617.0,
+    double outputs_RP[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
       1.7976931348623157E308, 1,
@@ -1578,7 +1578,7 @@ TEST(rint_d)  {
       37778931862957161709582.0, 37778931862957161709583.0,
       37778931862957161709584.0, 37778931862957161709585.0,
       37778931862957161709586.0, 37778931862957161709587.0};
-    double outputs_RM[tableLength] = {18446744073709551617.0,
+    double outputs_RM[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E147,
       1.7976931348623157E308, 0,
@@ -1611,7 +1611,7 @@ TEST(rint_d)  {
 
     for (int j = 0; j < 4; j++) {
       test.fcsr = fcsr_inputs[j];
-      for (int i = 0; i < tableLength; i++) {
+      for (int i = 0; i < kTableLength; i++) {
         test.a = inputs[i];
         (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.b, outputs[j][i]);
@@ -1696,7 +1696,7 @@ TEST(sel) {
 
 TEST(rint_s)  {
   if (IsMipsArchVariant(kMips32r6)) {
-    const int tableLength = 30;
+    const int kTableLength = 30;
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
@@ -1709,7 +1709,7 @@ TEST(rint_s)  {
     }TestFloat;
 
     TestFloat test;
-    float inputs[tableLength] = {18446744073709551617.0,
+    float inputs[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E37,
       1.7976931348623157E+38, 6.27463370218383111104242366943E-37,
@@ -1721,7 +1721,7 @@ TEST(rint_s)  {
       37778931862957161709582.0, 37778931862957161709583.0,
       37778931862957161709584.0, 37778931862957161709585.0,
       37778931862957161709586.0, 37778931862957161709587.0};
-    float outputs_RN[tableLength] = {18446744073709551617.0,
+    float outputs_RN[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E37,
       1.7976931348623157E38, 0,
@@ -1733,7 +1733,7 @@ TEST(rint_s)  {
       37778931862957161709582.0, 37778931862957161709583.0,
       37778931862957161709584.0, 37778931862957161709585.0,
       37778931862957161709586.0, 37778931862957161709587.0};
-    float outputs_RZ[tableLength] = {18446744073709551617.0,
+    float outputs_RZ[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E37,
       1.7976931348623157E38, 0,
@@ -1745,7 +1745,7 @@ TEST(rint_s)  {
       37778931862957161709582.0, 37778931862957161709583.0,
       37778931862957161709584.0, 37778931862957161709585.0,
       37778931862957161709586.0, 37778931862957161709587.0};
-    float outputs_RP[tableLength] = {18446744073709551617.0,
+    float outputs_RP[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E37,
       1.7976931348623157E38, 1,
@@ -1757,7 +1757,7 @@ TEST(rint_s)  {
       37778931862957161709582.0, 37778931862957161709583.0,
       37778931862957161709584.0, 37778931862957161709585.0,
       37778931862957161709586.0, 37778931862957161709587.0};
-    float outputs_RM[tableLength] = {18446744073709551617.0,
+    float outputs_RM[kTableLength] = {18446744073709551617.0,
       4503599627370496.0, -4503599627370496.0,
       1.26782468584154733584017312973E30, 1.44860108245951772690707170478E37,
       1.7976931348623157E38, 0,
@@ -1790,7 +1790,7 @@ TEST(rint_s)  {
 
     for (int j = 0; j < 4; j++) {
       test.fcsr = fcsr_inputs[j];
-      for (int i = 0; i < tableLength; i++) {
+      for (int i = 0; i < kTableLength; i++) {
         test.a = inputs[i];
         (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.b, outputs[j][i]);
@@ -1802,11 +1802,13 @@ TEST(rint_s)  {
 
 TEST(mina_maxa) {
   if (IsMipsArchVariant(kMips32r6)) {
-    const int tableLength = 12;
+    const int kTableLength = 15;
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
     MacroAssembler assm(isolate, NULL, 0);
+    const double double_nan = std::numeric_limits<double>::quiet_NaN();
+    const float  float_nan = std::numeric_limits<float>::quiet_NaN();
 
     typedef struct test_float {
       double a;
@@ -1820,53 +1822,37 @@ TEST(mina_maxa) {
     }TestFloat;
 
     TestFloat test;
-    double inputsa[tableLength] = {
-      5.3, 4.8, 6.1,
-      9.8, 9.8, 9.8,
-      -10.0, -8.9, -9.8,
-      -10.0, -8.9, -9.8
+    double inputsa[kTableLength] = {
+      5.3, 4.8, 6.1, 9.8, 9.8, 9.8, -10.0, -8.9,
+      -9.8, -10.0, -8.9, -9.8, double_nan, 3.0, double_nan
     };
-    double inputsb[tableLength] = {
-      4.8, 5.3, 6.1,
-      -10.0, -8.9, -9.8,
-      9.8, 9.8, 9.8,
-      -9.8, -11.2, -9.8
+    double inputsb[kTableLength] = {
+      4.8, 5.3, 6.1, -10.0, -8.9, -9.8, 9.8, 9.8,
+      9.8, -9.8, -11.2, -9.8, 3.0, double_nan, double_nan
     };
-    double resd[tableLength] = {
-      4.8, 4.8, 6.1,
-      9.8, -8.9, 9.8,
-      9.8, -8.9, 9.8,
-      -9.8, -8.9, -9.8
+    double resd[kTableLength] = {
+      4.8, 4.8, 6.1, 9.8, -8.9, -9.8, 9.8, -8.9,
+      -9.8, -9.8, -8.9, -9.8, 3.0, 3.0, double_nan
     };
-    double resd1[tableLength] = {
-      5.3, 5.3, 6.1,
-      -10.0, 9.8, 9.8,
-      -10.0, 9.8, 9.8,
-      -10.0, -11.2, -9.8
+    double resd1[kTableLength] = {
+      5.3, 5.3, 6.1, -10.0, 9.8, 9.8, -10.0, 9.8,
+      9.8, -10.0, -11.2, -9.8, 3.0, 3.0, double_nan
     };
-    float inputsc[tableLength] = {
-      5.3, 4.8, 6.1,
-      9.8, 9.8, 9.8,
-      -10.0, -8.9, -9.8,
-      -10.0, -8.9, -9.8
+    float inputsc[kTableLength] = {
+      5.3, 4.8, 6.1, 9.8, 9.8, 9.8, -10.0, -8.9,
+      -9.8, -10.0, -8.9, -9.8, float_nan, 3.0, float_nan
     };
-    float inputsd[tableLength] = {
-      4.8, 5.3, 6.1,
-      -10.0, -8.9, -9.8,
-      9.8, 9.8, 9.8,
-      -9.8, -11.2, -9.8
+    float inputsd[kTableLength] = {
+      4.8, 5.3, 6.1, -10.0, -8.9, -9.8, 9.8, 9.8,
+      9.8, -9.8, -11.2, -9.8, 3.0, float_nan, float_nan
     };
-    float resf[tableLength] = {
-      4.8, 4.8, 6.1,
-      9.8, -8.9, 9.8,
-      9.8, -8.9, 9.8,
-      -9.8, -8.9, -9.8
+    float resf[kTableLength] = {
+      4.8, 4.8, 6.1, 9.8, -8.9, -9.8, 9.8, -8.9,
+      -9.8, -9.8, -8.9, -9.8, 3.0, 3.0, float_nan
     };
-    float resf1[tableLength] = {
-      5.3, 5.3, 6.1,
-      -10.0, 9.8, 9.8,
-      -10.0, 9.8, 9.8,
-      -10.0, -11.2, -9.8
+    float resf1[kTableLength] = {
+      5.3, 5.3, 6.1, -10.0, 9.8, 9.8, -10.0, 9.8,
+      9.8, -10.0, -11.2, -9.8, 3.0, 3.0, float_nan
     };
 
     __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
@@ -1889,16 +1875,23 @@ TEST(mina_maxa) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.a = inputsa[i];
       test.b = inputsb[i];
       test.c = inputsc[i];
       test.d = inputsd[i];
       (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-      CHECK_EQ(test.resd, resd[i]);
-      CHECK_EQ(test.resf, resf[i]);
-      CHECK_EQ(test.resd1, resd1[i]);
-      CHECK_EQ(test.resf1, resf1[i]);
+      if (i < kTableLength - 1) {
+        CHECK_EQ(test.resd, resd[i]);
+        CHECK_EQ(test.resf, resf[i]);
+        CHECK_EQ(test.resd1, resd1[i]);
+        CHECK_EQ(test.resf1, resf1[i]);
+      } else {
+        DCHECK(std::isnan(test.resd));
+        DCHECK(std::isnan(test.resf));
+        DCHECK(std::isnan(test.resd1));
+        DCHECK(std::isnan(test.resf1));
+      }
     }
   }
 }
@@ -1918,22 +1911,22 @@ TEST(trunc_l) {
       int64_t c;  // a trunc result
       int64_t d;  // b trunc result
     }Test;
-    const int tableLength = 15;
-    double inputs_D[tableLength] = {
+    const int kTableLength = 15;
+    double inputs_D[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<double>::quiet_NaN(),
         std::numeric_limits<double>::infinity()
         };
-    float inputs_S[tableLength] = {
+    float inputs_S[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<float>::quiet_NaN(),
         std::numeric_limits<float>::infinity()
         };
-    double outputs[tableLength] = {
+    double outputs[kTableLength] = {
         2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
         -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
         2147483648.0, dFPU64InvalidResult,
@@ -1953,7 +1946,7 @@ TEST(trunc_l) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
       (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -1966,7 +1959,7 @@ TEST(trunc_l) {
 
 TEST(movz_movn) {
   if (IsMipsArchVariant(kMips32r2)) {
-    const int tableLength = 4;
+    const int kTableLength = 4;
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
@@ -1987,17 +1980,17 @@ TEST(movz_movn) {
     }TestFloat;
 
     TestFloat test;
-    double inputs_D[tableLength] = {
+    double inputs_D[kTableLength] = {
       5.3, -5.3, 5.3, -2.9
     };
-    double inputs_S[tableLength] = {
+    double inputs_S[kTableLength] = {
       4.8, 4.8, -4.8, -0.29
     };
 
-    float outputs_S[tableLength] = {
+    float outputs_S[kTableLength] = {
       4.8, 4.8, -4.8, -0.29
     };
-    double outputs_D[tableLength] = {
+    double outputs_D[kTableLength] = {
       5.3, -5.3, 5.3, -2.9
     };
 
@@ -2029,7 +2022,7 @@ TEST(movz_movn) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.c = inputs_S[i];
 
@@ -2053,7 +2046,7 @@ TEST(movz_movn) {
 
 TEST(movt_movd) {
   if (IsMipsArchVariant(kMips32r2)) {
-    const int tableLength = 4;
+    const int kTableLength = 4;
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
 
@@ -2073,22 +2066,22 @@ TEST(movt_movd) {
     }TestFloat;
 
     TestFloat test;
-    double inputs_D[tableLength] = {
+    double inputs_D[kTableLength] = {
       5.3, -5.3, 20.8, -2.9
     };
-    double inputs_S[tableLength] = {
+    double inputs_S[kTableLength] = {
       4.88, 4.8, -4.8, -0.29
     };
 
-    float outputs_S[tableLength] = {
+    float outputs_S[kTableLength] = {
       4.88, 4.8, -4.8, -0.29
     };
-    double outputs_D[tableLength] = {
+    double outputs_D[kTableLength] = {
       5.3, -5.3, 20.8, -2.9
     };
     int condition_flags[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.srcd = inputs_D[i];
       test.srcf = inputs_S[i];
 
@@ -2160,8 +2153,8 @@ TEST(cvt_w_d) {
     int32_t b;
     int32_t fcsr;
   }Test;
-  const int tableLength = 24;
-  double inputs[tableLength] = {
+  const int kTableLength = 24;
+  double inputs[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483637.0, 2147483638.0, 2147483639.0,
@@ -2169,28 +2162,28 @@ TEST(cvt_w_d) {
       2147483643.0, 2147483644.0, 2147483645.0,
       2147483646.0, 2147483647.0, 2147483653.0
       };
-  double outputs_RN[tableLength] = {
+  double outputs_RN[kTableLength] = {
       2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
       -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
       2147483637.0, 2147483638.0, 2147483639.0,
       2147483640.0, 2147483641.0, 2147483642.0,
       2147483643.0, 2147483644.0, 2147483645.0,
       2147483646.0, 2147483647.0, kFPUInvalidResult};
-  double outputs_RZ[tableLength] = {
+  double outputs_RZ[kTableLength] = {
       2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
       -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
       2147483637.0, 2147483638.0, 2147483639.0,
       2147483640.0, 2147483641.0, 2147483642.0,
       2147483643.0, 2147483644.0, 2147483645.0,
       2147483646.0, 2147483647.0, kFPUInvalidResult};
-  double outputs_RP[tableLength] = {
+  double outputs_RP[kTableLength] = {
       3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
       -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
       2147483637.0, 2147483638.0, 2147483639.0,
       2147483640.0, 2147483641.0, 2147483642.0,
       2147483643.0, 2147483644.0, 2147483645.0,
       2147483646.0, 2147483647.0, kFPUInvalidResult};
-  double outputs_RM[tableLength] = {
+  double outputs_RM[kTableLength] = {
       2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
       -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
       2147483637.0, 2147483638.0, 2147483639.0,
@@ -2217,7 +2210,7 @@ TEST(cvt_w_d) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (int j = 0; j < 4; j++) {
     test.fcsr = fcsr_inputs[j];
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.a = inputs[i];
       (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.b, outputs[j][i]);
@@ -2238,22 +2231,22 @@ TEST(trunc_w) {
     int32_t c;  // a trunc result
     int32_t d;  // b trunc result
   }Test;
-  const int tableLength = 15;
-  double inputs_D[tableLength] = {
+  const int kTableLength = 15;
+  double inputs_D[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483648.0,
       std::numeric_limits<double>::quiet_NaN(),
       std::numeric_limits<double>::infinity()
       };
-  float inputs_S[tableLength] = {
+  float inputs_S[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483648.0,
       std::numeric_limits<float>::quiet_NaN(),
       std::numeric_limits<float>::infinity()
       };
-  double outputs[tableLength] = {
+  double outputs[kTableLength] = {
       2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
       -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
       kFPUInvalidResult, kFPUInvalidResult,
@@ -2273,7 +2266,7 @@ TEST(trunc_w) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -2295,22 +2288,22 @@ TEST(round_w) {
     int32_t c;  // a trunc result
     int32_t d;  // b trunc result
   }Test;
-  const int tableLength = 15;
-  double inputs_D[tableLength] = {
+  const int kTableLength = 15;
+  double inputs_D[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483648.0,
       std::numeric_limits<double>::quiet_NaN(),
       std::numeric_limits<double>::infinity()
       };
-  float inputs_S[tableLength] = {
+  float inputs_S[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483648.0,
       std::numeric_limits<float>::quiet_NaN(),
       std::numeric_limits<float>::infinity()
       };
-  double outputs[tableLength] = {
+  double outputs[kTableLength] = {
       2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
       -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
       kFPUInvalidResult, kFPUInvalidResult,
@@ -2330,7 +2323,7 @@ TEST(round_w) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -2353,22 +2346,22 @@ TEST(round_l) {
       int64_t c;
       int64_t d;
     }Test;
-    const int tableLength = 15;
-    double inputs_D[tableLength] = {
+    const int kTableLength = 15;
+    double inputs_D[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<double>::quiet_NaN(),
         std::numeric_limits<double>::infinity()
         };
-    float inputs_S[tableLength] = {
+    float inputs_S[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<float>::quiet_NaN(),
         std::numeric_limits<float>::infinity()
         };
-    double outputs[tableLength] = {
+    double outputs[kTableLength] = {
         2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
         -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
         2147483648.0, dFPU64InvalidResult,
@@ -2388,7 +2381,7 @@ TEST(round_l) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
       (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -2400,7 +2393,7 @@ TEST(round_l) {
 
 
 TEST(sub) {
-  const int tableLength = 12;
+  const int kTableLength = 12;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -2416,27 +2409,27 @@ TEST(sub) {
   }TestFloat;
 
   TestFloat test;
-  double inputfs_D[tableLength] = {
+  double inputfs_D[kTableLength] = {
     5.3, 4.8, 2.9, -5.3, -4.8, -2.9,
     5.3, 4.8, 2.9, -5.3, -4.8, -2.9
   };
-  double inputft_D[tableLength] = {
+  double inputft_D[kTableLength] = {
     4.8, 5.3, 2.9, 4.8, 5.3, 2.9,
     -4.8, -5.3, -2.9, -4.8, -5.3, -2.9
   };
-  double outputs_D[tableLength] = {
+  double outputs_D[kTableLength] = {
     0.5, -0.5, 0.0, -10.1, -10.1, -5.8,
     10.1, 10.1, 5.8, -0.5, 0.5, 0.0
   };
-  float inputfs_S[tableLength] = {
+  float inputfs_S[kTableLength] = {
     5.3, 4.8, 2.9, -5.3, -4.8, -2.9,
     5.3, 4.8, 2.9, -5.3, -4.8, -2.9
   };
-  float inputft_S[tableLength] = {
+  float inputft_S[kTableLength] = {
     4.8, 5.3, 2.9, 4.8, 5.3, 2.9,
     -4.8, -5.3, -2.9, -4.8, -5.3, -2.9
   };
-  float outputs_S[tableLength] = {
+  float outputs_S[kTableLength] = {
     0.5, -0.5, 0.0, -10.1, -10.1, -5.8,
     10.1, 10.1, 5.8, -0.5, 0.5, 0.0
   };
@@ -2456,7 +2449,7 @@ TEST(sub) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     test.a = inputfs_S[i];
     test.b = inputft_S[i];
     test.c = inputfs_D[i];
@@ -2469,7 +2462,7 @@ TEST(sub) {
 
 
 TEST(sqrt_rsqrt_recip) {
-  const int tableLength = 4;
+  const int kTableLength = 4;
   const double deltaDouble = 2E-15;
   const float deltaFloat = 2E-7;
   const float sqrt2_s = sqrt(2);
@@ -2491,18 +2484,18 @@ TEST(sqrt_rsqrt_recip) {
   }TestFloat;
   TestFloat test;
 
-  double inputs_D[tableLength] = {
+  double inputs_D[kTableLength] = {
     0.0L, 4.0L, 2.0L, 4e-28L
   };
 
-  double outputs_D[tableLength] = {
+  double outputs_D[kTableLength] = {
     0.0L, 2.0L, sqrt2_d, 2e-14L
   };
-  float inputs_S[tableLength] = {
+  float inputs_S[kTableLength] = {
     0.0, 4.0, 2.0, 4e-28
   };
 
-  float outputs_S[tableLength] = {
+  float outputs_S[kTableLength] = {
     0.0, 2.0, sqrt2_s, 2e-14
   };
 
@@ -2536,7 +2529,7 @@ TEST(sqrt_rsqrt_recip) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
 
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     float f1;
     double d1;
     test.a = inputs_S[i];
@@ -2573,7 +2566,7 @@ TEST(sqrt_rsqrt_recip) {
 
 
 TEST(neg) {
-  const int tableLength = 3;
+  const int kTableLength = 3;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -2587,18 +2580,18 @@ TEST(neg) {
   }TestFloat;
 
   TestFloat test;
-  double inputs_D[tableLength] = {
+  double inputs_D[kTableLength] = {
     0.0, 4.0, -2.0
   };
 
-  double outputs_D[tableLength] = {
+  double outputs_D[kTableLength] = {
     0.0, -4.0, 2.0
   };
-  float inputs_S[tableLength] = {
+  float inputs_S[kTableLength] = {
     0.0, 4.0, -2.0
   };
 
-  float outputs_S[tableLength] = {
+  float outputs_S[kTableLength] = {
     0.0, -4.0, 2.0
   };
   __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
@@ -2615,7 +2608,7 @@ TEST(neg) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_S[i];
     test.c = inputs_D[i];
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -2626,7 +2619,7 @@ TEST(neg) {
 
 
 TEST(mul) {
-  const int tableLength = 4;
+  const int kTableLength = 4;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -2642,17 +2635,17 @@ TEST(mul) {
   }TestFloat;
 
   TestFloat test;
-  double inputfs_D[tableLength] = {
+  double inputfs_D[kTableLength] = {
     5.3, -5.3, 5.3, -2.9
   };
-  double inputft_D[tableLength] = {
+  double inputft_D[kTableLength] = {
     4.8, 4.8, -4.8, -0.29
   };
 
-  float inputfs_S[tableLength] = {
+  float inputfs_S[kTableLength] = {
     5.3, -5.3, 5.3, -2.9
   };
-  float inputft_S[tableLength] = {
+  float inputft_S[kTableLength] = {
     4.8, 4.8, -4.8, -0.29
   };
 
@@ -2672,7 +2665,7 @@ TEST(mul) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     test.a = inputfs_S[i];
     test.b = inputft_S[i];
     test.c = inputfs_D[i];
@@ -2685,7 +2678,7 @@ TEST(mul) {
 
 
 TEST(mov) {
-  const int tableLength = 4;
+  const int kTableLength = 4;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -2699,17 +2692,17 @@ TEST(mov) {
   }TestFloat;
 
   TestFloat test;
-  double inputs_D[tableLength] = {
+  double inputs_D[kTableLength] = {
     5.3, -5.3, 5.3, -2.9
   };
-  double inputs_S[tableLength] = {
+  double inputs_S[kTableLength] = {
     4.8, 4.8, -4.8, -0.29
   };
 
-  float outputs_S[tableLength] = {
+  float outputs_S[kTableLength] = {
     4.8, 4.8, -4.8, -0.29
   };
-  double outputs_D[tableLength] = {
+  double outputs_D[kTableLength] = {
     5.3, -5.3, 5.3, -2.9
   };
 
@@ -2727,7 +2720,7 @@ TEST(mov) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.c = inputs_S[i];
 
@@ -2750,22 +2743,22 @@ TEST(floor_w) {
     int32_t c;  // a floor result
     int32_t d;  // b floor result
   }Test;
-  const int tableLength = 15;
-  double inputs_D[tableLength] = {
+  const int kTableLength = 15;
+  double inputs_D[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483648.0,
       std::numeric_limits<double>::quiet_NaN(),
       std::numeric_limits<double>::infinity()
       };
-  float inputs_S[tableLength] = {
+  float inputs_S[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483648.0,
       std::numeric_limits<float>::quiet_NaN(),
       std::numeric_limits<float>::infinity()
       };
-  double outputs[tableLength] = {
+  double outputs[kTableLength] = {
       2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
       -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
       kFPUInvalidResult, kFPUInvalidResult,
@@ -2785,7 +2778,7 @@ TEST(floor_w) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -2808,22 +2801,22 @@ TEST(floor_l) {
       int64_t c;
       int64_t d;
     }Test;
-    const int tableLength = 15;
-    double inputs_D[tableLength] = {
+    const int kTableLength = 15;
+    double inputs_D[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<double>::quiet_NaN(),
         std::numeric_limits<double>::infinity()
         };
-    float inputs_S[tableLength] = {
+    float inputs_S[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<float>::quiet_NaN(),
         std::numeric_limits<float>::infinity()
         };
-    double outputs[tableLength] = {
+    double outputs[kTableLength] = {
         2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
         -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
         2147483648.0, dFPU64InvalidResult,
@@ -2843,7 +2836,7 @@ TEST(floor_l) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
       (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -2866,22 +2859,22 @@ TEST(ceil_w) {
     int32_t c;  // a floor result
     int32_t d;  // b floor result
   }Test;
-  const int tableLength = 15;
-  double inputs_D[tableLength] = {
+  const int kTableLength = 15;
+  double inputs_D[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483648.0,
       std::numeric_limits<double>::quiet_NaN(),
       std::numeric_limits<double>::infinity()
       };
-  float inputs_S[tableLength] = {
+  float inputs_S[kTableLength] = {
       2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
       -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
       2147483648.0,
       std::numeric_limits<float>::quiet_NaN(),
       std::numeric_limits<float>::infinity()
       };
-  double outputs[tableLength] = {
+  double outputs[kTableLength] = {
       3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
       -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
       kFPUInvalidResult, kFPUInvalidResult,
@@ -2901,7 +2894,7 @@ TEST(ceil_w) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (int i = 0; i < tableLength; i++) {
+  for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
     (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -2924,22 +2917,22 @@ TEST(ceil_l) {
       int64_t c;
       int64_t d;
     }Test;
-    const int tableLength = 15;
-    double inputs_D[tableLength] = {
+    const int kTableLength = 15;
+    double inputs_D[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<double>::quiet_NaN(),
         std::numeric_limits<double>::infinity()
         };
-    float inputs_S[tableLength] = {
+    float inputs_S[kTableLength] = {
         2.1, 2.6, 2.5, 3.1, 3.6, 3.5,
         -2.1, -2.6, -2.5, -3.1, -3.6, -3.5,
         2147483648.0,
         std::numeric_limits<float>::quiet_NaN(),
         std::numeric_limits<float>::infinity()
         };
-    double outputs[tableLength] = {
+    double outputs[kTableLength] = {
         3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
         -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
         2147483648.0, dFPU64InvalidResult,
@@ -2959,7 +2952,7 @@ TEST(ceil_l) {
     Handle<Code> code = isolate->factory()->NewCode(
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
-    for (int i = 0; i < tableLength; i++) {
+    for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
       (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
@@ -5055,6 +5048,58 @@ TEST(r6_balc) {
       int32_t res = run_balc(tc[i].offset);
       CHECK_EQ(tc[i].expected_res, res);
     }
+  }
+}
+
+
+uint32_t run_bal(int16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0);
+
+  __ mov(t0, ra);
+  __ bal(offset);       // Equivalent for "BGEZAL zero_reg, offset".
+  __ nop();
+
+  __ mov(ra, t0);
+  __ jr(ra);
+  __ nop();
+
+  __ li(v0, 1);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res =
+    reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(bal) {
+  CcTest::InitializeVM();
+
+  struct TestCaseBal {
+    int16_t  offset;
+    uint32_t  expected_res;
+  };
+
+  struct TestCaseBal tc[] = {
+    // offset, expected_res
+    {       4,      1 },
+  };
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseBal);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    CHECK_EQ(tc[i].expected_res, run_bal(tc[i].offset));
   }
 }
 

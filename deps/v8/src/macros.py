@@ -98,6 +98,7 @@ macro IS_ARRAY(arg)             = (%_IsArray(arg));
 macro IS_DATE(arg)              = (%_IsDate(arg));
 macro IS_FUNCTION(arg)          = (%_IsFunction(arg));
 macro IS_REGEXP(arg)            = (%_IsRegExp(arg));
+macro IS_SIMD_VALUE(arg)        = (%_IsSimdValue(arg));
 macro IS_SET(arg)               = (%_ClassOf(arg) === 'Set');
 macro IS_MAP(arg)               = (%_ClassOf(arg) === 'Map');
 macro IS_WEAKMAP(arg)           = (%_ClassOf(arg) === 'WeakMap');
@@ -116,7 +117,6 @@ macro IS_SHAREDARRAYBUFFER(arg) = (%_ClassOf(arg) === 'SharedArrayBuffer');
 macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
 macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
 macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
-macro IS_UNDETECTABLE(arg)      = (%_IsUndetectableObject(arg));
 macro IS_STRONG(arg)            = (%IsStrong(arg));
 
 # Macro for ECMAScript 5 queries of the type:
@@ -135,7 +135,7 @@ macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
 
 # Macro for ES6 CheckObjectCoercible
 # Will throw a TypeError of the form "[functionName] called on null or undefined".
-macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL_OR_UNDEFINED(arg) && !IS_UNDETECTABLE(arg)) throw MakeTypeError(kCalledOnNullOrUndefined, functionName);
+macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw MakeTypeError(kCalledOnNullOrUndefined, functionName);
 
 # Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
 define kBoundFunctionIndex = 0;
@@ -145,14 +145,14 @@ define kBoundArgumentsStartIndex = 2;
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));
-macro TO_INTEGER(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToInteger($toNumber(arg)));
-macro TO_INTEGER_FOR_SIDE_EFFECT(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : $toNumber(arg));
-macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero($toNumber(arg)));
-macro TO_INT32(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : (arg >> 0));
+macro TO_INTEGER(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToInteger(ToNumber(arg)));
+macro TO_INTEGER_FOR_SIDE_EFFECT(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : ToNumber(arg));
+macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero(ToNumber(arg)));
+macro TO_INT32(arg) = (arg | 0);
 macro TO_UINT32(arg) = (arg >>> 0);
 macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : $nonStringToString(arg));
 macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : $nonNumberToNumber(arg));
-macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : $toObject(arg));
+macro TO_OBJECT(arg) = (%_ToObject(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 macro HAS_OWN_PROPERTY(arg, index) = (%_CallFunction(arg, index, ObjectHasOwnProperty));
 macro SHOULD_CREATE_WRAPPER(functionName, receiver) = (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(functionName));

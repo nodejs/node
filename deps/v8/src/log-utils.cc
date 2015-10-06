@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/log-utils.h"
+
+#include "src/assert-scope.h"
+#include "src/base/platform/platform.h"
+#include "src/objects-inl.h"
 #include "src/string-stream.h"
+#include "src/utils.h"
 #include "src/version.h"
 
 namespace v8 {

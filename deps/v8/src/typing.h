@@ -5,8 +5,6 @@
 #ifndef V8_TYPING_H_
 #define V8_TYPING_H_
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/ast.h"
 #include "src/effects.h"

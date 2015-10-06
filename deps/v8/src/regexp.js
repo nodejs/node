@@ -16,6 +16,10 @@ var harmony_unicode_regexps = false;
 var GlobalRegExp = global.RegExp;
 var InternalPackedArray = utils.InternalPackedArray;
 
+utils.Import(function(from) {
+  ToNumber = from.ToNumber;
+});
+
 // -------------------------------------------------------------------
 
 // Property of the builtins object for recording the result of the last

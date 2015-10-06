@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-arrow-functions --allow-natives-syntax
-// Flags: --harmony-spreadcalls
+// Flags: --harmony-spreadcalls --harmony-destructuring
+// Flags: --harmony-rest-parameters --harmony-sloppy
 
 (function TestSuperNamedLoads() {
   function Base() { }
@@ -1979,7 +1980,8 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
 
   class Derived extends Base {
     constructor() {
-      super();
+      let r = super();
+      assertEquals(this, r);
       derivedCalled++;
     }
   }
@@ -1995,7 +1997,8 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
 
   class DerivedDerived extends Derived {
     constructor() {
-      super();
+      let r = super();
+      assertEquals(this, r);
       derivedDerivedCalled++;
     }
   }
@@ -2015,7 +2018,8 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
   }
   class Derived2 extends Base2 {
     constructor(v1, v2) {
-      super(v1);
+      let r = super(v1);
+      assertEquals(this, r);
       this.fromDerived = v2;
     }
   }
@@ -2119,6 +2123,34 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
 })();
 
 
+(function TestSuperInOtherScopes() {
+  var p = {x: 99};
+  var o0 = {__proto__: p, f() { return eval("'use strict'; super.x") }};
+  assertEquals(p.x, o0.f());
+  var o1 = {__proto__: p, f() { with ({}) return super.x }};
+  assertEquals(p.x, o1.f());
+  var o2 = {__proto__: p, f({a}) { return super.x }};
+  assertEquals(p.x, o2.f({}));
+  var o3 = {__proto__: p, f(...a) { return super.x }};
+  assertEquals(p.x, o3.f());
+  var o4 = {__proto__: p, f() { 'use strict'; { let x; return super.x } }};
+  assertEquals(p.x, o4.f());
+})();
+
+
+(function TestSuperCallInOtherScopes() {
+  class C {constructor() { this.x = 99 }}
+  class D0 extends C {constructor() { eval("'use strict'; super()") }}
+  assertEquals(99, (new D0).x);
+  class D2 extends C {constructor({a}) { super() }}
+  assertEquals(99, (new D2({})).x);
+  class D3 extends C {constructor(...a) { super() }}
+  assertEquals(99, (new D3()).x);
+  class D4 extends C {constructor() { { let x; super() } }}
+  assertEquals(99, (new D4).x);
+})();
+
+
 (function TestSuperCallInEval() {
   'use strict';
   class Base {
@@ -2128,7 +2160,8 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
   }
   class Derived extends Base {
     constructor(x) {
-      eval('super(x)');
+      let r = eval('super(x)');
+      assertEquals(this, r);
     }
   }
   let d = new Derived(42);
@@ -2145,7 +2178,8 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
   }
   class Derived extends Base {
     constructor(x) {
-      (() => super(x))();
+      let r = (() => super(x))();
+      assertEquals(this, r);
     }
   }
   let d = new Derived(42);
@@ -2181,6 +2215,47 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
 })();
 
 
+(function TestSuperCallInLoop() {
+  'use strict';
+  class Base {
+    constructor(x) {
+      this.x = x;
+    }
+  }
+  class Derived extends Base {
+    constructor(x, n) {
+      for (var i = 0; i < n; ++i) {
+        super(x);
+      }
+    }
+  }
+
+  let o = new Derived(23, 1);
+  assertEquals(23, o.x);
+  assertInstanceof(o, Derived);
+
+  assertThrows("new Derived(42, 0)", ReferenceError);
+  assertThrows("new Derived(65, 2)", ReferenceError);
+})();
+
+
+(function TestSuperCallReentrant() {
+  'use strict';
+  class Base {
+    constructor(fun) {
+      this.x = fun();
+    }
+  }
+  class Derived extends Base {
+    constructor(x) {
+      let f = () => super(() => x)
+      super(f);
+    }
+  }
+  assertThrows("new Derived(23)", ReferenceError);
+})();
+
+
 (function TestSuperCallSpreadInEval() {
   'use strict';
   class Base {
@@ -2190,7 +2265,8 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
   }
   class Derived extends Base {
     constructor(x) {
-      eval('super(...[x])');
+      let r = eval('super(...[x])');
+      assertEquals(this, r);
     }
   }
   let d = new Derived(42);
@@ -2207,7 +2283,8 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
   }
   class Derived extends Base {
     constructor(x) {
-      (() => super(...[x]))();
+      let r = (() => super(...[x]))();
+      assertEquals(this, r);
     }
   }
   let d = new Derived(42);

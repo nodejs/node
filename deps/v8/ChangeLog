@@ -1,3 +1,574 @@
+2015-08-19: Version 4.6.85
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-19: Version 4.6.84
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-19: Version 4.6.83
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-18: Version 4.6.82
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-18: Version 4.6.81
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-18: Version 4.6.80
+
+        Filter out slot buffer slots, that point to SMIs in dead objects
+        (Chromium issues 454297, 519577).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-17: Version 4.6.79
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-17: Version 4.6.78
+
+        Put V8 extras into the snapshot.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-15: Version 4.6.77
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-14: Version 4.6.76
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-14: Version 4.6.75
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-14: Version 4.6.74
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-13: Version 4.6.73
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-13: Version 4.6.72
+
+        Stage sloppy classes (issue 3305).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-13: Version 4.6.71
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-12: Version 4.6.70
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-12: Version 4.6.69
+
+        Stage --harmony-array-includes (issue 3575).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-12: Version 4.6.68
+
+        Use a new lexical context for sloppy-mode eval (issue 4288).
+
+        Add includes method to typed arrays (issue 3575).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-11: Version 4.6.67
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-11: Version 4.6.66
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-11: Version 4.6.65
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-10: Version 4.6.64
+
+        Disable --global-var-shortcuts (Chromium issue 517778).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-10: Version 4.6.63
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-09: Version 4.6.62
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-08: Version 4.6.61
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-08: Version 4.6.60
+
+        [IC] Make SeededNumberDictionary::UpdateMaxNumberKey prototype aware
+        (issue 4335).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-08: Version 4.6.59
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-07: Version 4.6.58
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-07: Version 4.6.57
+
+        Rename "extras exports" to "extras binding" (Chromium issue 507133).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-07: Version 4.6.56
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-06: Version 4.6.55
+
+        Fix off-by-one in Array.concat's max index check (Chromium issue
+        516592).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-06: Version 4.6.54
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-06: Version 4.6.53
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-05: Version 4.6.52
+
+        Ship --harmony-new-target (issue 3887).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-04: Version 4.6.51
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-04: Version 4.6.50
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-03: Version 4.6.49
+
+        SIMD.js Add the other SIMD Phase 1 types (issue 4124).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-03: Version 4.6.48
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-03: Version 4.6.47
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-01: Version 4.6.46
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-01: Version 4.6.45
+
+        Performance and stability improvements on all platforms.
+
+
+2015-08-01: Version 4.6.44
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-31: Version 4.6.43
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-31: Version 4.6.42
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-31: Version 4.6.41
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-30: Version 4.6.40
+
+        Pass the kGCCallbackFlagForced flag when invoking
+        Heap::CollectAllGarbage from AdjustAmountOfExternalAllocatedMemory
+        (Chromium issue 511294).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-30: Version 4.6.39
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-30: Version 4.6.38
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-29: Version 4.6.37
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-28: Version 4.6.36
+
+        Fix prototype registration upon SlowToFast migration (Chromium issue
+        513602).
+
+        Bugfix: Incorrect type feedback vector structure on recompile (Chromium
+        issue 514526).
+
+        Reland of "Remove ExternalArray, derived types, and element kinds"
+        (issue 3996).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-28: Version 4.6.35
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-28: Version 4.6.34
+
+        Remove ExternalArray, derived types, and element kinds (issue 3996).
+
+        Make V8 compile with MSVS 2015 (issue 4326).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-27: Version 4.6.33
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-26: Version 4.6.32
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-25: Version 4.6.31
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-25: Version 4.6.30
+
+        Make dates default to the local timezone if none specified (issue 4242,
+        Chromium issue 391730).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-24: Version 4.6.29
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-24: Version 4.6.28
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-23: Version 4.6.27
+
+        Fix check for a date with a 24th hour (Chromium issue 174609).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-23: Version 4.6.26
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-22: Version 4.6.25
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-22: Version 4.6.24
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-22: Version 4.6.23
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-21: Version 4.6.22
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-21: Version 4.6.21
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-21: Version 4.6.20
+
+        Don't run the second pass of the pending phantom callbacks if the heap
+        has been torn down (Chromium issue 511204).
+
+        Debugger: prepare code for debugging on a per-function basis (issue
+        4132).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-20: Version 4.6.19
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-20: Version 4.6.18
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-19: Version 4.6.17
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-18: Version 4.6.16
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-18: Version 4.6.15
+
+        Make NumberFormat use the ICU currency data, fix bug in NumberFormat
+        (Chromium issues 304722, 435465, 473104).
+
+        Properly fix enumerate / Object.keys wrt access checked objects
+        (Chromium issue 509936).
+
+        Fix object enumeration wrt access checked objects (Chromium issue
+        509936).
+
+        Fix DefineOwnProperty for data properties wrt failed access checks
+        (Chromium issue 509936).
+
+        Fix GetOwnPropertyNames on access-checked objects (Chromium issue
+        509936).
+
+        Fix getPrototypeOf for access checked objects (Chromium issue 509936).
+
+        Delete APIs deprecated since last release.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-17: Version 4.6.14
+
+        Array.prototype.reverse should call [[HasProperty]] on elements before
+        [[Get]] (issue 4223).
+
+        In RegExp, lastIndex is read with ToLength, not ToInteger (issue 4244).
+
+        Stage --harmony-new-target (issue 3887).
+
+        Re-ship harmony spread calls and spread arrays (issue 3018).
+
+        Expose SIMD.Float32x4 type to Javascript. This CL exposes the
+        constructor function, defines type related information, and implements
+        value type semantics. It also refactors test/mjsunit/samevalue.js to
+        test SameValue and SameValueZero (issue 4124).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-17: Version 4.6.13
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-16: Version 4.6.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-16: Version 4.6.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-16: Version 4.6.10
+
+        Expose SIMD.Float32x4 type to Javascript. This CL exposes the
+        constructor function, defines type related information, and implements
+        value type semantics. It also refactors test/mjsunit/samevalue.js to
+        test SameValue and SameValueZero (issue 4124).
+
+        Fix runtime-atomics for Win 10 SDK and remove volatile (Chromium issues
+        440500, 491424).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-15: Version 4.6.9
+
+        Let the second pass phantom callbacks run in a separate task on the
+        foreground thread.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-15: Version 4.6.8
+
+        Optimize String.prototype.includes (issue 3807).
+
+        Unship spread calls and spread arrays (issue 4298).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-15: Version 4.6.7
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-14: Version 4.6.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-14: Version 4.6.5
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-14: Version 4.6.4
+
+        MIPS64: Fix BlockTrampolinePoolFor() to emit trampoline before blocking,
+        if needed (issue 4294).
+
+        Add convenience method for converting v8::PersistentBase to v8::Local.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-13: Version 4.6.3
+
+        MIPS: Fix BlockTrampolinePoolFor() to emit trampoline before blocking,
+        if needed (issue 4294).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-13: Version 4.6.2
+
+        [arm] CheckConstPool between TurboFan instructions (issue 4292).
+
+        Fix keyed access of primitive objects in the runtime. For now it uses a
+        pretty slow path for accessing strings by wrapping it into a new
+        temporary wrapper (issues 3088, 4042).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-12: Version 4.6.1
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-09: Version 4.5.107
+
+        [arm] Don't call branch_offset within CheckConstPool (issue 4292).
+
+        [arm] Fix missing CheckBuffer for branches (issue 4292).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-09: Version 4.5.106
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-09: Version 4.5.105
+
+        Guard @@isConcatSpreadable behind a flag (Chromium issue 507553).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-08: Version 4.5.104
+
+        [x64] Fix handling of Smi constants in LSubI and LBitI (Chromium issue
+        478612).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-07-08: Version 4.5.103
 
         Performance and stability improvements on all platforms.

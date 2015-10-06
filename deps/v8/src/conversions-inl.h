@@ -18,6 +18,7 @@
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
 #include "src/double.h"
+#include "src/objects-inl.h"
 #include "src/scanner.h"
 #include "src/strtod.h"
 
@@ -94,6 +95,73 @@ int32_t DoubleToInt32(double x) {
     if (exponent > 31) return 0;
     return d.Sign() * static_cast<int32_t>(d.Significand() << exponent);
   }
+}
+
+
+bool IsSmiDouble(double value) {
+  return !IsMinusZero(value) && value >= Smi::kMinValue &&
+         value <= Smi::kMaxValue && value == FastI2D(FastD2I(value));
+}
+
+
+bool IsInt32Double(double value) {
+  return !IsMinusZero(value) && value >= kMinInt && value <= kMaxInt &&
+         value == FastI2D(FastD2I(value));
+}
+
+
+bool IsUint32Double(double value) {
+  return !IsMinusZero(value) && value >= 0 && value <= kMaxUInt32 &&
+         value == FastUI2D(FastD2UI(value));
+}
+
+
+int32_t NumberToInt32(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return DoubleToInt32(number->Number());
+}
+
+
+uint32_t NumberToUint32(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return DoubleToUint32(number->Number());
+}
+
+
+bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result) {
+  SealHandleScope shs(isolate);
+  if (number->IsSmi()) {
+    int value = Smi::cast(number)->value();
+    DCHECK(static_cast<unsigned>(Smi::kMaxValue) <=
+           std::numeric_limits<size_t>::max());
+    if (value >= 0) {
+      *result = static_cast<size_t>(value);
+      return true;
+    }
+    return false;
+  } else {
+    DCHECK(number->IsHeapNumber());
+    double value = HeapNumber::cast(number)->value();
+    if (value >= 0 && value <= std::numeric_limits<size_t>::max()) {
+      *result = static_cast<size_t>(value);
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+
+size_t NumberToSize(Isolate* isolate, Object* number) {
+  size_t result = 0;
+  bool is_valid = TryNumberToSize(isolate, number, &result);
+  CHECK(is_valid);
+  return result;
+}
+
+
+uint32_t DoubleToUint32(double x) {
+  return static_cast<uint32_t>(DoubleToInt32(x));
 }
 
 

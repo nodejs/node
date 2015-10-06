@@ -8,11 +8,10 @@
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/frames.h"
-#include "src/heap/store-buffer.h"
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
 #include "src/isolate.h"
@@ -35,7 +34,6 @@ V8_DECLARE_ONCE(init_natives_once);
 V8_DECLARE_ONCE(init_snapshot_once);
 #endif
 
-v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 v8::Platform* V8::platform_ = NULL;
 
 
