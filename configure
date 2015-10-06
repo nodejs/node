@@ -611,7 +611,7 @@ def configure_arm(o):
     o['variables']['arm_fpu'] = 'vfpv3'
     o['variables']['arm_version'] = '7'
   else:
-    o['variables']['arm_fpu'] = 'vfpv2'
+    o['variables']['arm_fpu'] = 'vfp'
     o['variables']['arm_version'] = '6' if is_arch_armv6() else 'default'
 
   o['variables']['arm_thumb'] = 0      # -marm
