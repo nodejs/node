@@ -21,9 +21,10 @@ hmac.fill('H');
 
 server._sharedCreds.context.enableTicketKeyCallback();
 server._sharedCreds.context.onticketkeycallback = function(name, iv, enc) {
+  var newName, newIV;
   if (enc) {
-    var newName = new Buffer(16);
-    var newIV = crypto.randomBytes(16);
+    newName = new Buffer(16);
+    newIV = crypto.randomBytes(16);
     newName.fill('A');
   } else {
     // Renew

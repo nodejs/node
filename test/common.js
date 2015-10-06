@@ -14,8 +14,9 @@ exports.isWindows = process.platform === 'win32';
 exports.isAix = process.platform === 'aix';
 
 function rimrafSync(p) {
+  var st;
   try {
-    var st = fs.lstatSync(p);
+    st = fs.lstatSync(p);
   } catch (e) {
     if (e.code === 'ENOENT')
       return;

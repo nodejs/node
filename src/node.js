@@ -546,14 +546,15 @@
   function evalScript(name) {
     var Module = NativeModule.require('module');
     var path = NativeModule.require('path');
+    var cwd;
 
     try {
-      var cwd = process.cwd();
+      cwd = process.cwd();
     } catch (e) {
       // getcwd(3) can fail if the current working directory has been deleted.
       // Fall back to the directory name of the (absolute) executable path.
       // It's not really correct but what are the alternatives?
-      var cwd = path.dirname(process.execPath);
+      cwd = path.dirname(process.execPath);
     }
 
     var module = new Module(name);

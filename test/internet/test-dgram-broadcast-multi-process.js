@@ -1,3 +1,4 @@
+/* eslint-disable block-scoped-var */
 'use strict';
 var common = require('../common'),
     assert = require('assert'),
