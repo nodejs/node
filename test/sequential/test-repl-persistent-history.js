@@ -135,6 +135,18 @@ const tests = [{
   expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
              prompt]
 },
+{
+  env: { NODE_REPL_HISTORY: historyPath,
+         NODE_REPL_HISTORY_SIZE: 1 },
+  test: [UP, UP, CLEAR],
+  expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+},
+{
+  env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
+         NODE_REPL_HISTORY_SIZE: 1 },
+  test: [UP, UP, UP, CLEAR],
+  expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
+},
 { // Make sure this is always the last test, since we change os.homedir()
   before: function mockHomedirFailure() {
     // Mock os.homedir() failure
