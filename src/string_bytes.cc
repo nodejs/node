@@ -6,6 +6,7 @@
 
 #include <limits.h>
 #include <string.h>  // memcpy
+#include <vector>
 
 // When creating strings >= this length v8's gc spins up and consumes
 // most of the execution time. For these cases it's more performant to
@@ -406,9 +407,7 @@ size_t StringBytes::Write(Isolate* isolate,
           reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t);
       if (is_aligned) {
         uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
-        for (size_t i = 0; i < nchars; i++)
-          dst[i] = dst[i] << 8 | dst[i] >> 8;
-        break;
+        SwapBytes(dst, dst, nchars);
       }
 
       ASSERT_EQ(sizeof(uint16_t), 2);
@@ -857,7 +856,16 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
                                  const uint16_t* buf,
                                  size_t buflen) {
   Local<String> val;
-
+  std::vector<uint16_t> dst;
+  if (IsBigEndian()) {
+    // Node's "ucs2" encoding expects LE character data inside a
+    // Buffer, so we need to reorder on BE platforms.  See
+    // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
+    // encoding specification
+    dst.resize(buflen);
+    SwapBytes(&dst[0], buf, buflen);
+    buf = &dst[0];
+  }
   if (buflen < EXTERN_APEX) {
     val = String::NewFromTwoByte(isolate,
                                  buf,
