@@ -198,6 +198,20 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
   return static_cast<TypeName*>(pointer);
 }
 
+void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
+  for (size_t i = 0; i < buflen; i++) {
+    // __builtin_bswap16 generates more efficient code with
+    // g++ 4.8 on PowerPC and other big-endian archs
+#ifdef __GNUC__
+    dst[i] = __builtin_bswap16(src[i]);
+#else
+    dst[i] = (src[i] << 8) | (src[i] >> 8);
+#endif
+  }
+}
+
+
+
 }  // namespace node
 
 #endif  // SRC_UTIL_INL_H_
