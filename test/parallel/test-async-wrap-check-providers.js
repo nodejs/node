@@ -47,9 +47,7 @@ new (process.binding('tty_wrap').TTY)();
 
 crypto.randomBytes(1, noop);
 
-try {
-  fs.unlinkSync(common.PIPE);
-} catch(e) { }
+common.refreshTmpDir();
 
 net.createServer(function(c) {
   c.end();

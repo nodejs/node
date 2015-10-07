@@ -21,6 +21,7 @@ if (common.isWindows) {
 } else {
   // use common.PIPE to ensure we stay within POSIX socket path length
   // restrictions, even on CI
+  common.refreshTmpDir();
   emptyTxt = common.PIPE + '.txt';
 
   function cleanup() {
