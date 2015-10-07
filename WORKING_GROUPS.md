@@ -29,6 +29,7 @@ back in to the TSC.
 * [Addon API](#addon-api)
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
+* [Intl](#Intl)
 
 ### [Website](https://github.com/nodejs/website)
 
@@ -103,6 +104,8 @@ to date and of high quality.
 * Promotion of Node.js speakers for meetups and conferences in their
 language.
 
+Note that the i18n working groups are distinct from the [Intl](#Intl) working group.
+
 Each language community maintains its own membership.
 
 * [nodejs-ar - Arabic (اللغة العربية)](https://github.com/nodejs/nodejs-ar)
@@ -140,6 +143,17 @@ Each language community maintains its own membership.
 * [nodejs-uk - Ukrainian (Українська)](https://github.com/nodejs/nodejs-uk)
 * [nodejs-vi - Vietnamese (Tiếng Việtnam)](https://github.com/nodejs/nodejs-vi)
 
+### [Intl](https://github.com/nodejs/Intl)
+
+The Intl Working Group is dedicated to support and improvement of
+Internationalization (i18n) and Localization (l10n) in Node. Its responsibilities are:
+
+1. Functionality & compliance (standards: ECMA, Unicode…)
+2. Support for Globalization and Internationalization issues that come up in the tracker
+3. Guidance and Best Practices
+4. Refinement of existing `Intl` implementation
+
+The Intl WG is not responsible for translation of content. That is the responsibility of the specific [i18n](#i18n) group for each language.
 
 ### [Evangelism](https://github.com/nodejs/evangelism)
 
