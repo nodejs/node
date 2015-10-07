@@ -176,6 +176,8 @@ inline void ClearWrap(v8::Local<v8::Object> object);
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
+inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
+
 class Utf8Value {
   public:
     explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
