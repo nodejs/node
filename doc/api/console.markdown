@@ -93,7 +93,7 @@ Example:
       ;
     }
     console.timeEnd('100-elements');
-    // prints 100-elements: 262ms
+    // prints 100-elements: 225.438ms
 
 ### console.trace(message[, ...])
 
