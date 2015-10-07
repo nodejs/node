@@ -3,6 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 common.globalCheck = false;
+common.refreshTmpDir();
 
 var net = require('net'),
     repl = require('repl'),

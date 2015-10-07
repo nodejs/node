@@ -11,6 +11,8 @@ process.on('exit', function() {
   assert(gotDomainError);
 });
 
+common.refreshTmpDir();
+
 // first fire up a simple HTTP server
 var server = http.createServer(function(req, res) {
   res.writeHead(200);
