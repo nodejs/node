@@ -99,6 +99,11 @@ if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu
 if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
 
+if not exist "%~dp0deps\icu" goto no-depsicu
+if "%target%"=="Clean" echo deleting %~dp0deps\icu
+if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
+:no-depsicu
+
 call :getnodeversion || exit /b 1
 
 @rem Set environment for msbuild
