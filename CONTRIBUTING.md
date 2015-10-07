@@ -6,8 +6,7 @@ When opening new issues or commenting on existing issues on this repository
 please make sure discussions are related to concrete technical issues with the
 Node.js software.
 
-For technical issues related to using Node.js that are not issues with the
-Node.js software, itself, please file an issue at the
+For general help using Node.js, please file an issue at the
 [nodejs help repository](https://github.com/nodejs/help/issues).
 
 Discussion of non-technical topics including subjects like intellectual
