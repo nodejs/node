@@ -614,6 +614,8 @@ def configure_arm(o):
     arm_float_abi = 'hard'
   else:
     arm_float_abi = 'default'
+  
+  arm_fpu = 'vfpv2'
 
   arm_fpu = 'vfpv2'
 
