@@ -472,10 +472,11 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   // need to reorder on BE platforms.  See http://nodejs.org/api/buffer.html
   // regarding Node's "ucs2" encoding specification.
   const bool aligned = (reinterpret_cast<uintptr_t>(data) % sizeof(*buf) == 0);
-  if (IsLittleEndian() && aligned) {
-    buf = reinterpret_cast<const uint16_t*>(data);
-  } else {
+  if (IsLittleEndian() && !aligned) {
     // Make a copy to avoid unaligned accesses in v8::String::NewFromTwoByte().
+    // This applies ONLY to little endian platforms, as misalignment will be
+    // handled by a byte-swapping operation in StringBytes::Encode on
+    // big endian platforms.
     uint16_t* copy = new uint16_t[length];
     for (size_t i = 0, k = 0; i < length; i += 1, k += 2) {
       // Assumes that the input is little endian.
@@ -485,6 +486,8 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
     }
     buf = copy;
     release = true;
+  } else {
+    buf = reinterpret_cast<const uint16_t*>(data);
   }
 
   args.GetReturnValue().Set(StringBytes::Encode(env->isolate(), buf, length));
