@@ -18,6 +18,8 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
+common.refreshTmpDir();
+
 var server = tls.Server(options, function(socket) {
   ++serverConnected;
   server.close();

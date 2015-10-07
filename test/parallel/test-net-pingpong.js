@@ -106,7 +106,7 @@ function pingPongTest(port, host) {
 }
 
 /* All are run at once, so run on different ports */
-console.log(common.PIPE);
+common.refreshTmpDir();
 pingPongTest(common.PIPE);
 pingPongTest(common.PORT);
 pingPongTest(common.PORT + 1, 'localhost');
