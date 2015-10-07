@@ -535,9 +535,10 @@ file:
      child.unref();
 
 When using the `detached` option to start a long-running process, the process
-will not stay running in the background unless it is provided with a `stdio`
-configuration that is not connected to the parent.  If the parent's `stdio` is
-inherited, the child will remain attached to the controlling terminal.
+will not stay running in the background after the parent exits unless it is
+provided with a `stdio` configuration that is not connected to the parent.
+If the parent's `stdio` is inherited, the child will remain attached to the
+controlling terminal.
 
 See also: [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) and [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options)
 
