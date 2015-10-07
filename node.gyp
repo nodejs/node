@@ -169,6 +169,7 @@
         'src/util.h',
         'src/util-inl.h',
         'src/util.cc',
+        'src/string_search.cc',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',
