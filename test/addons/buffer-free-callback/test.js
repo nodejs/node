@@ -1,6 +1,7 @@
 'use strict';
 // Flags: --expose-gc
 
+require('../../common');
 var assert = require('assert');
 var binding = require('./build/Release/binding');
 var buf = binding.alloc();
