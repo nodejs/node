@@ -70,6 +70,7 @@ const historyFixturePath = path.join(fixtures, '.node_repl_history');
 const historyPath = path.join(common.tmpDir, '.fixture_copy_repl_history');
 const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
 const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
+const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
 
 
 const tests = [{
@@ -113,11 +114,7 @@ const tests = [{
 },
 {
   env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
-  test: [UP, CLEAR, '\'42\'', ENTER/*, function(cb) {
-    // XXX(Fishrock123) Allow the REPL to save to disk.
-    // There isn't a way to do this programmatically right now.
-    setTimeout(cb, 50);
-  }*/],
+  test: [UP, CLEAR, '\'42\'', ENTER],
   expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
              '4', '2', '\'', '\'42\'\n', prompt, prompt],
   after: function ensureHistoryFixture() {
@@ -132,7 +129,7 @@ const tests = [{
                                     '\'Stay Fresh~\'' + os.EOL);
   }
 },
-{
+{ // Requires the above testcase
   env: {},
   test: [UP, UP, ENTER],
   expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
@@ -149,15 +146,44 @@ const tests = [{
   test: [UP],
   expected: [prompt, homedirErr, prompt, replDisabled, prompt]
 }];
+const numtests = tests.length;
 
+
+var testsNotRan = tests.length;
+
+process.on('beforeExit', () =>
+  assert.strictEqual(testsNotRan, 0)
+);
+
+function cleanupTmpFile() {
+  try {
+    // Write over the file, clearing any history
+    fs.writeFileSync(defaultHistoryPath, '');
+  } catch (err) {
+    if (err.code === 'ENOENT') return true;
+    throw err;
+  }
+  return true;
+}
 
 // Copy our fixture to the tmp directory
 fs.createReadStream(historyFixturePath)
-  .pipe(fs.createWriteStream(historyPath)).on('unpipe', runTest);
+  .pipe(fs.createWriteStream(historyPath)).on('unpipe', () => runTest());
 
-function runTest() {
+function runTest(assertCleaned) {
   const opts = tests.shift();
   if (!opts) return; // All done
+
+  if (assertCleaned) {
+    try {
+      assert.strictEqual(fs.readFileSync(defaultHistoryPath, 'utf8'), '');
+    } catch (e) {
+      if (e.code !== 'ENOENT') {
+        console.error(`Failed test # ${numtests - tests.length}`);
+        throw e;
+      }
+    }
+  }
 
   const env = opts.env;
   const test = opts.test;
@@ -177,7 +203,12 @@ function runTest() {
         if (output.charCodeAt(0) === 27 || /^[\r\n]+$/.test(output))
           return next();
 
-        assert.strictEqual(output, expected.shift());
+        try {
+          assert.strictEqual(output, expected.shift());
+        } catch (err) {
+          console.error(`Failed test # ${numtests - tests.length}`);
+          throw err;
+        }
         next();
       }
     }),
@@ -185,15 +216,37 @@ function runTest() {
     useColors: false,
     terminal: true
   }, function(err, repl) {
-    if (err) throw err;
+    if (err) {
+      console.error(`Failed test # ${numtests - tests.length}`);
+      throw err;
+    }
 
-    if (after) repl.on('close', after);
+    repl.once('close', () => {
+      if (repl._flushing) {
+        repl.once('flushHistory', onClose);
+        return;
+      }
 
-    repl.on('close', function() {
-      // Ensure everything that we expected was output
-      assert.strictEqual(expected.length, 0);
-      setImmediate(runTest);
+      onClose();
     });
+
+    function onClose() {
+      if (after) {
+        var cleaned = after();
+      } else {
+        var cleaned = cleanupTmpFile();
+      }
+
+      try {
+        // Ensure everything that we expected was output
+        assert.strictEqual(expected.length, 0);
+        testsNotRan--;
+        setImmediate(runTest, cleaned);
+      } catch (err) {
+        console.error(`Failed test # ${numtests - tests.length}`);
+        throw err;
+      }
+    }
 
     repl.inputStream.run(test);
   });
