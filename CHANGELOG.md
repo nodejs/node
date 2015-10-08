@@ -6513,7 +6513,7 @@ https://github.com/nodejs/node/commit/39ca93549af91575ca9d4cbafd1e170fbcef3dfa
 
   * API: request.uri -> request.url
     It is no longer an object, but a string. The 'url' module
-    was addded to parse that string. That is, node no longer
+    was added to parse that string. That is, node no longer
     parses the request URL automatically.
        require('url').parse(request.url)
     is roughly equivlent to the old request.uri object.
