@@ -4,7 +4,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 if (cluster.isMaster) {
-  assert.strictEqual(process.execArgv.length, 0, 'run test with no args');
+  assert.strictEqual(process.argv.length, 2, 'run test with no args');
 
   function checkExitCode(code, signal) {
     assert.strictEqual(code, 0);
@@ -28,11 +28,11 @@ if (cluster.isMaster) {
     portSet: process.debugPort + 2
   }).on('exit', checkExitCode);
 } else {
-  const hasDebugArg = process.execArgv.some(function(arg) {
-    return /debug/.test(arg);
+  const hasDebugPortArg = process.execArgv.some(function(arg) {
+    return /debug-port/.test(arg);
   });
 
-  assert.strictEqual(hasDebugArg, process.env.portSet !== undefined);
+  assert.strictEqual(hasDebugPortArg, process.env.portSet !== undefined);
   assert.strictEqual(process.debugPort, +process.env.portSet || 5858);
   process.exit();
 }
