@@ -22,11 +22,11 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing el' 
 ].forEach(function(methods) {
   zlib[methods.comp](inputString, function(err, compressed) {
     assert(!err);
-    let truncated = compressed.slice(0, compressed.length / 2);
+    const truncated = compressed.slice(0, compressed.length / 2);
 
     // sync sanity
     assert.doesNotThrow(function() {
-      let decompressed = zlib[methods.decompSync](compressed);
+      const decompressed = zlib[methods.decompSync](compressed);
       assert.equal(decompressed, inputString);
     });
 
