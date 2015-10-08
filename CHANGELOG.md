@@ -6785,7 +6785,7 @@ https://github.com/nodejs/node/commit/12bb0d46ce761e3d00a27170e63b40408c15b558
   * Bugfix: Internally use full paths when loading modules
     this fixes a shebang loading problem.
 
-  * Bugfix: Add '--' command line argument for seperating v8
+  * Bugfix: Add '--' command line argument for separating v8
     args from program args.
 
   * Add man page.
