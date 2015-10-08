@@ -127,7 +127,7 @@ Example:
 ### Class Method: Buffer.concat(list[, totalLength])
 
 * `list` {Array} List of Buffer objects to concat
-* `totalLength` {Number} Total length of the buffers list when concatenated
+* `totalLength` {Number} Total length of the buffers in the list when concatenated
 
 Returns a buffer which is the result of concatenating all the buffers in
 the list together.
