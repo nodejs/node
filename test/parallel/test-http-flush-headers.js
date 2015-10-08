@@ -10,7 +10,7 @@ server.on('request', function(req, res) {
   server.close();
 });
 server.listen(common.PORT, '127.0.0.1', function() {
-  let req = http.request({
+  const req = http.request({
     method: 'GET',
     host: '127.0.0.1',
     port: common.PORT,

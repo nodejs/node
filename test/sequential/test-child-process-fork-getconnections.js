@@ -6,7 +6,7 @@ const net = require('net');
 const count = 12;
 
 if (process.argv[2] === 'child') {
-  let sockets = [];
+  const sockets = [];
 
   process.on('message', function(m, socket) {
     function sendClosed(id) {
@@ -42,7 +42,7 @@ if (process.argv[2] === 'child') {
   });
 
   const server = net.createServer();
-  let sockets = [];
+  const sockets = [];
   let sent = 0;
 
   server.on('connection', function(socket) {
