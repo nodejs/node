@@ -44,7 +44,10 @@ AsyncWrap* JSStream::GetAsyncWrap() {
 
 
 bool JSStream::IsAlive() {
-  return MakeCallback(env()->isalive_string(), 0, nullptr)->IsTrue();
+  v8::Local<v8::Value> fn = object()->Get(env()->isalive_string());
+  if (!fn->IsFunction())
+    return false;
+  return MakeCallback(fn.As<v8::Function>(), 0, nullptr)->IsTrue();
 }
 
 
