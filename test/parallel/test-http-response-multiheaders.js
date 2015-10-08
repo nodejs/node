@@ -17,13 +17,13 @@ const norepeat = [
 const server = http.createServer(function(req, res) {
   var num = req.headers['x-num'];
   if (num == 1) {
-    for (let name of norepeat) {
+    for (const name of norepeat) {
       res.setHeader(name, ['A', 'B']);
     }
     res.setHeader('X-A', ['A', 'B']);
   } else if (num == 2) {
-    let headers = {};
-    for (let name of norepeat) {
+    const headers = {};
+    for (const name of norepeat) {
       headers[name] = ['A', 'B'];
     }
     headers['X-A'] = ['A', 'B'];
@@ -44,7 +44,7 @@ server.listen(common.PORT, common.mustCall(function() {
       {port:common.PORT, headers:{'x-num': n}},
       common.mustCall(function(res) {
         if (n == 2) server.close();
-        for (let name of norepeat) {
+        for (const name of norepeat) {
           assert.equal(res.headers[name], 'A');
         }
         assert.equal(res.headers['x-a'], 'A, B');
