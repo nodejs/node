@@ -33,7 +33,7 @@ function testSocketOptions(socket, socketOptions) {
       setImmediate(runTests);
     });
   }).listen(common.PORT, function() {
-    let c = new tls.TLSSocket(socket, socketOptions);
+    const c = new tls.TLSSocket(socket, socketOptions);
     c.connect(common.PORT, function() {
       c.end(sent);
     });
