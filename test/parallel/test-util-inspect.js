@@ -3,6 +3,111 @@ var common = require('../common');
 var assert = require('assert');
 var util = require('util');
 
+assert.equal(util.inspect(1), '1');
+assert.equal(util.inspect(false), 'false');
+assert.equal(util.inspect(''), "''");
+assert.equal(util.inspect('hello'), "'hello'");
+assert.equal(util.inspect(function() {}), '[Function]');
+assert.equal(util.inspect(undefined), 'undefined');
+assert.equal(util.inspect(null), 'null');
+assert.equal(util.inspect(/foo(bar\n)?/gi), '/foo(bar\\n)?/gi');
+assert.equal(util.inspect(new Date('Sun, 14 Feb 2010 11:48:40 GMT')),
+  new Date('2010-02-14T12:48:40+01:00').toString());
+
+assert.equal(util.inspect('\n\u0001'), "'\\n\\u0001'");
+
+assert.equal(util.inspect([]), '[]');
+assert.equal(util.inspect(Object.create([])), 'Array {}');
+assert.equal(util.inspect([1, 2]), '[ 1, 2 ]');
+assert.equal(util.inspect([1, [2, 3]]), '[ 1, [ 2, 3 ] ]');
+
+assert.equal(util.inspect({}), '{}');
+assert.equal(util.inspect({a: 1}), '{ a: 1 }');
+assert.equal(util.inspect({a: function() {}}), '{ a: [Function] }');
+assert.equal(util.inspect({a: 1, b: 2}), '{ a: 1, b: 2 }');
+assert.equal(util.inspect({'a': {}}), '{ a: {} }');
+assert.equal(util.inspect({'a': {'b': 2}}), '{ a: { b: 2 } }');
+assert.equal(util.inspect({'a': {'b': { 'c': { 'd': 2 }}}}),
+  '{ a: { b: { c: [Object] } } }');
+assert.equal(util.inspect({'a': {'b': { 'c': { 'd': 2 }}}}, false, null),
+  '{ a: { b: { c: { d: 2 } } } }');
+assert.equal(util.inspect([1, 2, 3], true), '[ 1, 2, 3, [length]: 3 ]');
+assert.equal(util.inspect({'a': {'b': { 'c': 2}}}, false, 0),
+  '{ a: [Object] }');
+assert.equal(util.inspect({'a': {'b': { 'c': 2}}}, false, 1),
+  '{ a: { b: [Object] } }');
+assert.equal(util.inspect(Object.create({},
+  {visible: {value: 1, enumerable: true}, hidden: {value: 2}})),
+  '{ visible: 1 }'
+);
+
+// Due to the hash seed randomization it's not deterministic the order that
+// the following ways this hash is displayed.
+// See http://codereview.chromium.org/9124004/
+
+var out = util.inspect(Object.create({},
+    {visible: {value: 1, enumerable: true}, hidden: {value: 2}}), true);
+if (out !== '{ [hidden]: 2, visible: 1 }' &&
+    out !== '{ visible: 1, [hidden]: 2 }') {
+  assert.ok(false);
+}
+
+
+// Objects without prototype
+var out = util.inspect(Object.create(null,
+    { name: {value: 'Tim', enumerable: true},
+      hidden: {value: 'secret'}}), true);
+if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
+    out !== "{ name: 'Tim', [hidden]: 'secret' }") {
+  assert(false);
+}
+
+
+assert.equal(
+  util.inspect(Object.create(null,
+    {name: {value: 'Tim', enumerable: true},
+      hidden: {value: 'secret'}})),
+  '{ name: \'Tim\' }'
+);
+
+
+// Dynamic properties
+assert.equal(util.inspect({get readonly() {}}),
+  '{ readonly: [Getter] }');
+
+assert.equal(util.inspect({get readwrite() {}, set readwrite(val) {}}),
+  '{ readwrite: [Getter/Setter] }');
+
+assert.equal(util.inspect({set writeonly(val) {}}),
+  '{ writeonly: [Setter] }');
+
+var value = {};
+value['a'] = value;
+assert.equal(util.inspect(value), '{ a: [Circular] }');
+
+// Array with dynamic properties
+value = [1, 2, 3];
+value.__defineGetter__('growingLength', function() {
+  this.push(true); return this.length;
+});
+assert.equal(util.inspect(value), '[ 1, 2, 3, growingLength: [Getter] ]');
+
+// Function with properties
+value = function() {};
+value.aprop = 42;
+assert.equal(util.inspect(value), '{ [Function] aprop: 42 }');
+
+// Regular expressions with properties
+value = /123/ig;
+value.aprop = 42;
+assert.equal(util.inspect(value), '{ /123/gi aprop: 42 }');
+
+// Dates with properties
+value = new Date('Sun, 14 Feb 2010 11:48:40 GMT');
+value.aprop = 42;
+assert.equal(util.inspect(value), '{ Sun, 14 Feb 2010 11:48:40 GMT aprop: 42 }'
+);
+
 // test the internal isDate implementation
 var Date2 = require('vm').runInNewContext('Date');
 var d = new Date2();
