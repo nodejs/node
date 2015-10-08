@@ -126,7 +126,7 @@ Example:
 ### Class Method: Buffer.concat(list[, totalLength])
 
 * `list` {Array} List of Buffer objects to concat
-* `totalLength` {Number} Total length of the buffers when concatenated
+* `totalLength` {Number} Total length of the buffers in the list when concatenated
 
 Returns a buffer which is the result of concatenating all the buffers in
 the list together.
@@ -137,6 +137,32 @@ zero-length buffer.
 If totalLength is not provided, it is read from the buffers in the list.
 However, this adds an additional loop to the function, so it is faster
 to provide the length explicitly.
+
+Example: build a single buffer from a list of three buffers:
+
+    var buf1 = new Buffer(10);
+    var buf2 = new Buffer(14);
+    var buf3 = new Buffer(18);
+
+    buf1.fill(0);
+    buf2.fill(0);
+    buf3.fill(0);
+
+    var buffers = [buf1, buf2, buf3];
+
+    var totalLength = 0;
+    for (var i = 0; i < buffers.length; i++) {
+      totalLength += buffers[i].length;
+    }
+
+    console.log(totalLength);
+    var bufA = Buffer.concat(buffers, totalLength);
+    console.log(bufA);
+    console.log(bufA.length);
+
+    // 42
+    // <Buffer 00 00 00 00 ...>
+    // 42
 
 ### Class Method: Buffer.compare(buf1, buf2)
 
