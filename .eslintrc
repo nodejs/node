@@ -70,6 +70,11 @@ rules:
   # require space after keywords, eg 'for (..)'
   space-after-keywords: 2
 
+  # ECMAScript 6
+  # list: http://eslint.org/docs/rules/#ecmascript-6
+  ## Suggest using 'const' wherever possible
+  prefer-const: 2
+
   # Strict Mode
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
   ## 'use strict' on top
