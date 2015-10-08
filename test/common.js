@@ -262,6 +262,10 @@ exports.platformTimeout = function(ms) {
     newTimeout *= 5;
   }
 
+  if (process.env.TEST_TIMEOUT_MULTIPLIER !== undefined) {
+    newTimeout = ms * process.env.TEST_TIMEOUT_MULTIPLIER;
+  }
+
   return newTimeout;
 };
 
