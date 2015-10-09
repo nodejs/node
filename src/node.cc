@@ -1543,15 +1543,12 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ary);
 }
 
+
 bool HasUnrefedTimerHandles(Environment* env) {
-
-  HandleScope handle_scope(env->isolate());
-
   for (auto w : *env->handle_wrap_queue()) {
     if (!w->persistent().IsEmpty() && w->flags_ & HandleWrap::kUnref)
       return true;
   }
-
   return false;
 }
 
