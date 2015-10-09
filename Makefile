@@ -34,7 +34,7 @@ V ?= 1
 ifeq ($(BUILDTYPE),Release)
 all: out/Makefile $(NODE_EXE)
 else
-all: out/Makefile $(NODE_EXE) $(NODE_G_EXE)
+all: out/Makefile $(NODE_G_EXE)
 endif
 
 # The .PHONY is needed to ensure that we recursively use the out/Makefile
