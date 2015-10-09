@@ -53,7 +53,6 @@ class HandleWrap : public AsyncWrap {
  private:
   friend class Environment;
   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);
-  friend bool HasUnrefedTimerHandles(Environment* env);
   static void OnClose(uv_handle_t* handle);
   ListNode<HandleWrap> handle_wrap_queue_;
   unsigned int flags_;
