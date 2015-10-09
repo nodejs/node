@@ -5290,7 +5290,7 @@ https://github.com/nodejs/node/commit/220e61c1f65bf4db09699fcf6399c0809c0bc446
 * Remove cmake build system, support for Cygwin, legacy code base,
 	process.ENV, process.ARGV, process.memoryUsage().vsize, os.openOSHandle
 
-* Documentation improvments (Igor Zinkovsky, Bert Belder, Ilya Dmitrichenko,
+* Documentation improvements (Igor Zinkovsky, Bert Belder, Ilya Dmitrichenko,
 koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * Performance improvements (Daniel Ennis, Bert Belder, Ben Noordhuis)
@@ -5615,7 +5615,7 @@ https://github.com/nodejs/node/commit/a745d19ce7d1c0e3778371af4f0346be70cf2c8e
 * cmake improvements (Tom Hughes)
 * node_net.cc: fix incorrect sizeof() (Tom Hughes)
 * Windows/cygwin: no more GetConsoleTitleW errors on XP (Bert Belder)
-* Doc improvments (koichik, Logan Smyth, Ben Noordhuis, Arnout Kazemier)
+* Doc improvements (koichik, Logan Smyth, Ben Noordhuis, Arnout Kazemier)
 
 ## 2011.07.19, Version 0.4.10 (stable)
 
@@ -6100,7 +6100,7 @@ https://github.com/nodejs/node/commit/2a4568c85f33869c75ff43ccd30f0ec188b43eab
 
 * Fix Buffer.toString() on 0-length slices. (Peter Griess)
 * Cache modules based on filename rather than ID (Isaac Schlueter)
-* querystring improvments (Jan Kassens, Micheil Smith)
+* querystring improvements (Jan Kassens, Micheil Smith)
 * Support DEL in the REPL. (Jérémy Lal)
 * Upgrade http-parser, upgrade V8 to 2.3.2
 
