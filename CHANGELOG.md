@@ -208,7 +208,7 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 
 ### Notable changes
 
-* **buffer**: Fixed a minor errors that was causing crashes (Michaël Zasso) [#2635](https://github.com/nodejs/node/pull/2635), 
+* **buffer**: Fixed a minor errors that was causing crashes (Michaël Zasso) [#2635](https://github.com/nodejs/node/pull/2635),
 * **child_process**: Fix error that was causing crashes (Evan Lucas) [#2727](https://github.com/nodejs/node/pull/2727)
 * **crypto**: Replace use of rwlocks, unsafe on Windows XP / 2003 (Ben Noordhuis) [#2723](https://github.com/nodejs/node/pull/2723)
 * **libuv**: Upgrade from 1.7.3 to 1.7.4 (Saúl Ibarra Corretgé) [#2817](https://github.com/nodejs/node/pull/2817)
@@ -1439,7 +1439,7 @@ _Note: a new version of the 'url' module was reverted prior to release as it was
   - Add support for default author field to make `npm init -y` work without user-input (@othiym23) [npm/npm/d8eee6cf9d](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9af)
   - Include local modules in `npm outdated` and `npm update` (@ArnaudRinquin) [npm/npm#7426](https://github.com/npm/npm/issues/7426)
   - The prefix used before the version number on `npm version` is now configurable via `tag-version-prefix` (@kkragenbrink) [npm/npm#8014](https://github.com/npm/npm/issues/8014)
-* **os**: `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailling slash on any platform (Christian Tellnes) [#747](https://github.com/nodejs/node/pull/747)
+* **os**: `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailing slash on any platform (Christian Tellnes) [#747](https://github.com/nodejs/node/pull/747)
 * **process**:
   - `process.nextTick()` performance has been improved by between 2-42% across the benchmark suite, notable because this is heavily used across core (Brian White) [#1571](https://github.com/nodejs/node/pull/1571)
   - New `process.geteuid()`, `process.seteuid(id)`, `process.getegid()` and `process.setegid(id)` methods allow you to get and set effective UID and GID of the process (Evan Lucas) [#1536](https://github.com/nodejs/node/pull/1536)
@@ -2478,7 +2478,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * [[`10277d2`](https://github.com/nodejs/node/commit/10277d2e57ee7fe9e0e3f63f10b9ea521e86e7f0)] - docs: include mention of new crypto methods (Calvin Metcalf)
 * [[`9a8f186`](https://github.com/nodejs/node/commit/9a8f18613da4956c963377e2ad55cdd3dabc32aa)] - child_process: add debug and error details (Zach Bruggeman)
 * [[`6f7a978`](https://github.com/nodejs/node/commit/6f7a9784eaef82a1aa6cf53bbbd7224c446876a0)] - crypto: clear error on return in TLS methods (Fedor Indutny)
-* [[`50daee7`](https://github.com/nodejs/node/commit/50daee7243a3f987e1a28d93c43f913471d6885a)] - stream: simpler stream constructon (Sam Newman)
+* [[`50daee7`](https://github.com/nodejs/node/commit/50daee7243a3f987e1a28d93c43f913471d6885a)] - stream: simpler stream construction (Sam Newman)
 * [[`e0730ee`](https://github.com/nodejs/node/commit/e0730eeaa5231841a7eba080c8170e41278c3c52)] - benchmark: allow compare via fine-grained filters (Brian White)
 * [[`96ffcb9`](https://github.com/nodejs/node/commit/96ffcb9a210a2fa1248ae5931290193573512a96)] - src: reduce cpu profiler overhead (Ben Noordhuis)
 * [[`3e675e4`](https://github.com/nodejs/node/commit/3e675e44b59f1be8e5581de000f3cb17ef747c14)] - benchmark: don't use template strings (Evan Lucas)
@@ -2575,7 +2575,7 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * [[`b5166cb`](https://github.com/nodejs/node/commit/b5166cb7d269cd1bf90d1768f82767b05b9ac1f8)] - benchmark: add bench-(url &amp; events) make targets (Yosuke Furukawa)
 * [[`5843ae8`](https://github.com/nodejs/node/commit/5843ae8dfba5db83f2c04ed2db847049cbd2ab0d)] - Revert "doc: clarify fs.symlink and fs.symlinkSync parameters" (Bert Belder)
 * [[`668bde8`](https://github.com/nodejs/node/commit/668bde8ac0d16382cbc98c904d8b5f55fd9fd9f0)] - win,msi: broadcast WM_SETTINGCHANGE after install (Mathias Küsel)
-* [[`69ce064`](https://github.com/nodejs/node/commit/69ce0641dc6a84c90ffdd0906790cd945f1c3629)] - build: remove artefacts on distclean (Johan Bergström)
+* [[`69ce064`](https://github.com/nodejs/node/commit/69ce0641dc6a84c90ffdd0906790cd945f1c3629)] - build: remove artifacts on distclean (Johan Bergström)
 * [[`1953886`](https://github.com/nodejs/node/commit/1953886126a2ab3e7291a73767ee4302a391a208)] - test: fs.createReadStream().destroy() fd leak (Rod Vagg)
 * [[`497fd72`](https://github.com/nodejs/node/commit/497fd72e21d2d1216e8457928d1a8082349fd0e5)] - fs: fix fd leak in ReadStream.destroy() (Alex Kocharin)
 * [[`8b09ae7`](https://github.com/nodejs/node/commit/8b09ae76f1d854a0db579fc0737df4809ce6087d)] - doc: add links for http_parser/libuv upgrades (Michael Hart)
@@ -4145,7 +4145,7 @@ https://github.com/nodejs/node/commit/01994e8119c24f2284bac0779b32acb49c95bee7
 * fs: make 'end' work with ReadStream without 'start' (Ben Noordhuis)
 * https: optimize createConnection() (Ryunosuke SATO)
 * buffer: speed up base64 encoding by 20% (Ben Noordhuis)
-* doc: Colorize API stabilitity index headers in docs (Luke Arduini)
+* doc: Colorize API stability index headers in docs (Luke Arduini)
 * net: socket.readyState corrections (bentaber)
 * http: Performance enhancements for http under streams2 (isaacs)
 * stream: fix to emit end event on http.ClientResponse (Shigeki Ohtsu)
@@ -4353,7 +4353,7 @@ https://github.com/nodejs/node/commit/2c4eef0d972838c51999d32c0d251857a713dc18
 
 * npm: Upgrade to v1.2.2
 * dns: make error message match errno (Dan Milon)
-* tls: follow RFC6125 more stricly (Fedor Indutny)
+* tls: follow RFC6125 more strictly (Fedor Indutny)
 * buffer: reject negative SlowBuffer offsets (Ben Noordhuis)
 * install: add simplejson fallback (Chris Dent)
 * http: fix "Cannot call method 'emit' of null" (Ben Noordhuis)
@@ -4616,7 +4616,7 @@ https://github.com/nodejs/node/commit/2134aa3d5c622fc3c3b02ccb713fcde0e0df479a
   - Support for parallel use of the cache folder
   - Retry on registry timeouts or network failures (Trent Mick)
   - Reduce 'engines' failures to a warning
-  - Use new zsh completion if aviailable (Jeremy Cantrell)
+  - Use new zsh completion if available (Jeremy Cantrell)
 
 * Fix [#3577](https://github.com/joyent/node/issues/3577) Un-break require('sys')
 * util: speed up formatting of large arrays/objects (Ben Noordhuis)
@@ -4907,7 +4907,7 @@ https://github.com/nodejs/node/commit/9cc55dca6f67a6096c858b841c677b0593404321
 
 * Upgrade V8 to 3.8.6
 * Use GYP build system on unix (Ben Noordhuis)
-* Experimenetal isolates support (Ben Noordhuis)
+* Experimental isolates support (Ben Noordhuis)
 * Improvements to Cluster API (Andreas Madsen)
 * Use isolates for internal debugger (Fedor Indutny)
 * Bug fixes
@@ -5290,7 +5290,7 @@ https://github.com/nodejs/node/commit/220e61c1f65bf4db09699fcf6399c0809c0bc446
 * Remove cmake build system, support for Cygwin, legacy code base,
 	process.ENV, process.ARGV, process.memoryUsage().vsize, os.openOSHandle
 
-* Documentation improvments (Igor Zinkovsky, Bert Belder, Ilya Dmitrichenko,
+* Documentation improvements (Igor Zinkovsky, Bert Belder, Ilya Dmitrichenko,
 koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * Performance improvements (Daniel Ennis, Bert Belder, Ben Noordhuis)
@@ -5615,7 +5615,7 @@ https://github.com/nodejs/node/commit/a745d19ce7d1c0e3778371af4f0346be70cf2c8e
 * cmake improvements (Tom Hughes)
 * node_net.cc: fix incorrect sizeof() (Tom Hughes)
 * Windows/cygwin: no more GetConsoleTitleW errors on XP (Bert Belder)
-* Doc improvments (koichik, Logan Smyth, Ben Noordhuis, Arnout Kazemier)
+* Doc improvements (koichik, Logan Smyth, Ben Noordhuis, Arnout Kazemier)
 
 ## 2011.07.19, Version 0.4.10 (stable)
 
@@ -6100,7 +6100,7 @@ https://github.com/nodejs/node/commit/2a4568c85f33869c75ff43ccd30f0ec188b43eab
 
 * Fix Buffer.toString() on 0-length slices. (Peter Griess)
 * Cache modules based on filename rather than ID (Isaac Schlueter)
-* querystring improvments (Jan Kassens, Micheil Smith)
+* querystring improvements (Jan Kassens, Micheil Smith)
 * Support DEL in the REPL. (Jérémy Lal)
 * Upgrade http-parser, upgrade V8 to 2.3.2
 
@@ -6513,10 +6513,10 @@ https://github.com/nodejs/node/commit/39ca93549af91575ca9d4cbafd1e170fbcef3dfa
 
   * API: request.uri -> request.url
     It is no longer an object, but a string. The 'url' module
-    was addded to parse that string. That is, node no longer
+    was added to parse that string. That is, node no longer
     parses the request URL automatically.
        require('url').parse(request.url)
-    is roughly equivlent to the old request.uri object.
+    is roughly equivalent to the old request.uri object.
     (isaacs)
 
   * Bugfix: Several libeio related race conditions.
@@ -6785,7 +6785,7 @@ https://github.com/nodejs/node/commit/12bb0d46ce761e3d00a27170e63b40408c15b558
   * Bugfix: Internally use full paths when loading modules
     this fixes a shebang loading problem.
 
-  * Bugfix: Add '--' command line argument for seperating v8
+  * Bugfix: Add '--' command line argument for separating v8
     args from program args.
 
   * Add man page.
@@ -6852,7 +6852,7 @@ https://github.com/nodejs/node/commit/b0fd3e281cb5f7cd8d3a26bd2b89e1b59998e5ed
     connection before sending data every time (Kevin van Zonneveld)
 
   * Bugfix: stdin fd (0) being ignored by node.File. (Abe Fettig)
-  * API: Remove connnection.fullClose()
+  * API: Remove connection.fullClose()
 
   * API: Return the EventEmitter from addListener for chaining.
   * API: tcp.Connection "disconnect" event renamed to "close"
