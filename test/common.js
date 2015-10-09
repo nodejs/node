@@ -5,6 +5,8 @@ var fs = require('fs');
 var assert = require('assert');
 var os = require('os');
 var child_process = require('child_process');
+var util = require('util');
+
 
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
@@ -165,10 +167,6 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
     return info.family === 'IPv6';
   });
 });
-
-var util = require('util');
-for (var i in util) exports[i] = util[i];
-//for (var i in exports) global[i] = exports[i];
 
 function protoCtrChain(o) {
   var result = [];
