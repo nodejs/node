@@ -18,11 +18,5 @@ try {
 
 const buf = new Buffer(kStringMaxLength);
 
-var maxString = buf.toString();
+const maxString = buf.toString('binary');
 assert.equal(maxString.length, kStringMaxLength);
-// Free the memory early instead of at the end of the next assignment
-maxString = undefined;
-
-maxString = buf.toString('binary');
-assert.equal(maxString.length, kStringMaxLength);
-maxString = undefined;
