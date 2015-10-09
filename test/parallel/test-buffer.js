@@ -1224,3 +1224,10 @@ assert.throws(function() {
 assert.throws(function() {
   new Buffer(null);
 }, /must start with number, buffer, array or string/);
+
+
+// Test prototype getters don't throw
+assert.equal(Buffer.prototype.parent, undefined);
+assert.equal(Buffer.prototype.offset, undefined);
+assert.equal(SlowBuffer.prototype.parent, undefined);
+assert.equal(SlowBuffer.prototype.offset, undefined);
