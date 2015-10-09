@@ -6516,7 +6516,7 @@ https://github.com/nodejs/node/commit/39ca93549af91575ca9d4cbafd1e170fbcef3dfa
     was addded to parse that string. That is, node no longer
     parses the request URL automatically.
        require('url').parse(request.url)
-    is roughly equivlent to the old request.uri object.
+    is roughly equivalent to the old request.uri object.
     (isaacs)
 
   * Bugfix: Several libeio related race conditions.
