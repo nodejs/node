@@ -4616,7 +4616,7 @@ https://github.com/nodejs/node/commit/2134aa3d5c622fc3c3b02ccb713fcde0e0df479a
   - Support for parallel use of the cache folder
   - Retry on registry timeouts or network failures (Trent Mick)
   - Reduce 'engines' failures to a warning
-  - Use new zsh completion if aviailable (Jeremy Cantrell)
+  - Use new zsh completion if available (Jeremy Cantrell)
 
 * Fix [#3577](https://github.com/joyent/node/issues/3577) Un-break require('sys')
 * util: speed up formatting of large arrays/objects (Ben Noordhuis)
