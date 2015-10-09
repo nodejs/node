@@ -66,9 +66,8 @@ if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
 assert.equal(
   util.inspect(Object.create(null,
     {name: {value: 'Tim', enumerable: true},
-      hidden: {value: 'secret'}}),
-    '{ name: \'Tim\' }'
-  )
+      hidden: {value: 'secret'}})),
+  '{ name: \'Tim\' }'
 );
 
 
