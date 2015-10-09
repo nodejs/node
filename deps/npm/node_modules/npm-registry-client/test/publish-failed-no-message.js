@@ -38,6 +38,7 @@ test('publish with a 500 response but no message', function (t) {
     t.ok(er, 'got expected error')
     t.notOk(data, 'no payload on failure')
 
+    server.close()
     t.end()
   })
 })

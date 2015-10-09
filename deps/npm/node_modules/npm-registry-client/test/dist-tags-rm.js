@@ -112,6 +112,7 @@ test('remove a dist-tag from a package', function (t) {
     t.ifError(error, 'no errors')
     t.notOk(data.test, 'dist-tag removed')
 
+    server.close()
     t.end()
   })
 })

@@ -28,6 +28,7 @@ tap.test('fetch with a 404 response', function (t) {
         'fetch failed with status code 404',
         'got expected error message'
       )
+      server.close()
       t.end()
     }
   )

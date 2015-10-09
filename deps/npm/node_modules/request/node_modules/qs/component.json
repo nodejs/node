@@ -1,0 +1,15 @@
+{
+  "name": "qs",
+  "repository": "hapijs/qs",
+  "description": "query-string parser / stringifier with nesting support",
+  "version": "5.1.0",
+  "keywords": ["querystring", "query", "parser"],
+  "main": "lib/index.js",
+  "scripts": [
+    "lib/index.js",
+    "lib/parse.js",
+    "lib/stringify.js",
+    "lib/utils.js"
+  ],
+  "license": "BSD-3-Clause"
+}

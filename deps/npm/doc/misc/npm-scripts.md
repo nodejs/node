@@ -69,10 +69,10 @@ npm will default some script values based on package contents.
   If there is a `server.js` file in the root of your package, then npm
   will default the `start` command to `node server.js`.
 
-* `"preinstall": "node-waf clean || true; node-waf configure build"`:
+* `"install": "node-gyp rebuild"`:
 
-  If there is a `wscript` file in the root of your package, npm will
-  default the `preinstall` command to compile using node-waf.
+  If there is a `bindings.gyp` file in the root of your package, npm will
+  default the `install` command to compile using node-gyp.
 
 ## USER
 
