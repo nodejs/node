@@ -369,6 +369,8 @@ readable.isPaused() // === false
 * `destination` {[Writable][] Stream} The destination for writing data
 * `options` {Object} Pipe options
   * `end` {Boolean} End the writer when the reader ends. Default = `true`
+  * `forwardErrors` If the stream should pass errors down the pipe instead of
+    throwing them. Default = `false`
 
 This method pulls all the data out of a readable stream, and writes it
 to the supplied destination, automatically managing the flow so that
