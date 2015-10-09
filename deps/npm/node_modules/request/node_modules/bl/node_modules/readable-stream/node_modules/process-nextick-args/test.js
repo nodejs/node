@@ -15,3 +15,10 @@ test('should work', function (t) {
     t.equals(c, 'profit');
   }, 'step', 3,  'profit');
 });
+
+test('correct number of arguments', function (t) {
+  t.plan(1);
+  nextTick(function () {
+    t.equals(2, arguments.length, 'correct number');
+  }, 1, 2);
+});

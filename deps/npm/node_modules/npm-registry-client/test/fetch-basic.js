@@ -79,6 +79,7 @@ test('basic fetch', function (t) {
 
       var sink = concat(function (data) {
         t.deepEqual(data, readFileSync(tgz))
+        server.close()
         t.end()
       })
 

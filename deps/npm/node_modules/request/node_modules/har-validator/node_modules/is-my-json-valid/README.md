@@ -85,7 +85,7 @@ var schema = {
 }
 
 // pass the external schemas as an option
-var validate = validate(schema, {schemas: {ext: ext}})
+var validate = validator(schema, {schemas: {ext: ext}})
 
 validate('hello') // returns true
 validate(42) // return false

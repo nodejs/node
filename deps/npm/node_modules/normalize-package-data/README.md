@@ -72,7 +72,7 @@ If the supplied data has an invalid name or version vield, `normalizeData` will 
 * As of v2: Dependencies that use shortcuts for hosted git providers (`org/proj`, `github:org/proj`, `bitbucket:org/proj`, `gitlab:org/proj`, `gist:docid`) will have the shortcut left in place. (In the case of github, the `org/proj` form will be expanded to `github:org/proj`.) THIS MARKS A BREAKING CHANGE FROM V1, where the shorcut was previously expanded to a URL.
 * If `description` field does not exist, but `readme` field does, then (more or less) the first paragraph of text that's found in the readme is taken as value for `description`.
 * If `repository` field is a string, it will become an object with `url` set to the original string value, and `type` set to `"git"`.
-* If `repository.url` is not a valid url, but in the style of "[owner-name]/[repo-name]", `repository.url` will be set to https://github.com/[owner-name]/[repo-name]
+* If `repository.url` is not a valid url, but in the style of "[owner-name]/[repo-name]", `repository.url` will be set to git+https://github.com/[owner-name]/[repo-name].git
 * If `bugs` field is a string, the value of `bugs` field is changed into an object with `url` set to the original string value.
 * If `bugs` field does not exist, but `repository` field points to a repository hosted on GitHub, the value of the `bugs` field gets set to an url in the form of https://github.com/[owner-name]/[repo-name]/issues . If the repository field points to a GitHub Gist repo url, the associated http url is chosen.
 * If `bugs` field is an object, the resulting value only has email and url properties. If email and url properties are not strings, they are ignored. If no valid values for either email or url is found, bugs field will be removed.

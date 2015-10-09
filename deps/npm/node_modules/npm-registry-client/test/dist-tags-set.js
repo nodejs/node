@@ -116,6 +116,7 @@ test('set dist-tags for a package', function (t) {
     t.ifError(error, 'no errors')
     t.ok(data.a && data.b, 'dist-tags set')
 
+    server.close()
     t.end()
   })
 })

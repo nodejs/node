@@ -193,6 +193,12 @@ function addNameVersion (name, v, data, cb) {
         var rp = url.parse(ruri)
         if (tb.hostname === rp.hostname && tb.protocol !== rp.protocol) {
           tb.protocol = rp.protocol
+          // If a different port is associated with the other protocol
+          // we need to update that as well
+          if (rp.port !== tb.port) {
+            tb.port = rp.port
+            delete tb.host
+          }
           delete tb.href
         }
         tb = url.format(tb)

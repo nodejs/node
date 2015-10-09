@@ -1,3 +1,143 @@
+### v2.14.7 (2015-10-01):
+
+#### MORE RELEASE STAGGERING?!
+
+Hi all, and greetings from [Open Source & Feelings](http://osfeels.com)!
+
+So we're switching gears a little with how we handle our weekly releases: from
+now on, we're going to stagger release weeks between dependency bumps and
+regular patches. So, this week, aside from a doc change, we'll be doing only
+version bumps. Expect actual patches next week!
+
+#### TOTALLY FOLLOWING THE RULES ALREADY
+
+So I snuck this in, because it's our own [@snopeks](https://github.com/snopeks)'
+first contribution to the main `npm` repo. She's been helping with building
+support documents for Orgs, and contributed her general intro guide to the new
+feature so you can read it with `npm help orgs` right in your terminal!
+
+* [`8324ea0`](https://github.com/npm/npm/commit/8324ea023ace4e08b6b8959ad199e2457af9f9cf)
+  [#9761](https://github.com/npm/npm/pull/9761) Added general user guide for
+  Orgs.
+  ([@snopeks](https://github.com/snopeks))
+
+#### JUST. ONE. MORE.
+
+* [`9a502ca`](https://github.com/npm/npm/commit/9a502ca96e2d43ec75a8f684c9ca33af7e910f0a)
+  Use unique package name in tests to work around weird test-state-based
+  failures.
+  ([@iarna](https://github.com/iarna))
+
+#### OKAY ACTUALLY THE THING I WAS SUPPOSED TO DO
+
+Anyway -- here's your version bump! :)
+
+* [`4aeb94c`](https://github.com/npm/npm/commit/4aeb94c9f0df3f41802cf2e0397a998f3b527c25)
+  `request@2.64.0`: No longer defaulting to `application/json` for `json`
+  requests. Also some minor doc and packaging patches.
+  ([@simov](https://github.com/simov))
+  `minimatch@3.0.0`: No longer packaging browser modules.
+  ([@isaacs](https://github.com/isaacs))
+* [`a18b213`](https://github.com/npm/npm/commit/a18b213e6945a8f5faf882927829ac95f844e2aa)
+  `glob@5.0.15`: Upgraded `minimatch` dependency.
+  ([@isaacs](https://github.com/isaacs))
+* [`9eb64d4`](https://github.com/npm/npm/commit/9eb64e44509519ca9d788502edb2eba4cea5c86b)
+  `nock@2.13.0`
+  ([@pgte](https://github.com/pgte))
+
+### v2.14.6 (2015-09-24):
+
+#### `¯\_(ツ)_/¯`
+
+Since `2.x` is LTS now, you can expect a slowdown in overall release sizes. On
+top of that, we had our all-company-npm-internal-conf thing on Monday and
+Tuesday so there wasn't really time to do much at all.
+
+Still, we're bringing you a couple of tiny little changes this week!
+
+* [`7b7da13`](https://github.com/npm/npm/commit/7b7da13c6cdf5eae53c20d5c69afc4c16e6f715d)
+  [#9471](https://github.com/npm/npm/pull/9471) When the port for a tarball is
+  different than the registry it's in, but the hostname is the same, the
+  protocol is now allowed to change, too.
+  ([@fastest963](https://github.com/fastest963))
+* [`6643ada`](https://github.com/npm/npm/commit/6643adaf9f37f08893e3ad28b797c55a36b2a152)
+  `request@2.63.0`: Use `application/json` as the default content type when
+  making `json` requests.
+  ([@simov](https://github.com/simov))
+
+### v2.14.5 (2015-09-17):
+
+#### NPM IS DEAD. LONG LIVE NPM
+
+That's right folks. As of this week, `npm@latest` is `npm@3`! There's some
+really great shiny new things over there, and you should really take a look.
+
+Many kudos to [@iarna](https://github.com/iarna) for her hard work on `npm@3`!
+
+Don't worry, we'll keep `2.x` around for a while (as LTS), but you won't see
+many, if any, new features on this end. From now on, we're going to use
+`latest-2` and `next-2` as the dist tags for the `npm@2` branch.
+
+#### OKAY THAT'S FINE CAN I DEPRECATE THINGS NOW?
+
+Yes! Specially if you're using scoped packages. Apparently, deprecating them
+never worked, but that should be better now. :)
+
+* [`eca7b24`](https://github.com/npm/npm/commit/eca7b24de9a0090da02a93a69726f5e70ab80543)
+  [#9558](https://github.com/npm/npm/issues/9558) Add tests for npm deprecate.
+  ([@zkat](https://github.com/zkat))
+* [`648fe16`](https://github.com/npm/npm/commit/648fe16157ef0db22395ae056d1dd4b4c1605bf4)
+  [#9558](https://github.com/npm/npm/issues/9558) `npm-registry-client@7.0.7`:
+  Fixes `npm deprecate` so you can actually deprecate scoped modules now (it
+  never worked).
+  ([@zkat](https://github.com/zkat))
+
+#### WTF IS `node-waf`
+
+idk. Some old thing. We don't talk about it anymore.
+
+* [`cf1b39f`](https://github.com/npm/npm/commit/cf1b39fc95a9ffad7fba4c2fee705c53b19d1d16)
+  [#9584](https://github.com/npm/npm/issues/9584) Fix ancient references to
+  `node-waf` in the docs to refer to the `node-gyp` version of things.
+  ([@KenanY](https://github.com/KenanY))
+
+#### THE `graceful-fs` AND `node-gyp` SAGA CONTINUES
+
+Last week had some sweeping `graceful-fs` upgrades, and this takes care of one
+of the stragglers, as well as bumping `node-gyp`. `node@4` users might be
+excited about this, or even `node@<4` users who previously had to cherry-pick a
+bunch of patches to get the latest npm working.
+
+* [`e07354f`](https://github.com/npm/npm/commit/e07354f3ff3a6be568fe950f1f825897f72912d8)
+  `sha@2.0.1`: Upgraded graceful-fs!
+  ([@ForbesLindesay](https://github.com/ForbesLindesay))
+* [`83cb6ee`](https://github.com/npm/npm/commit/83cb6ee4045b85e565e9678ca1878877e1dc75bd)
+  `node-gyp@3.0.3`
+  ([@rvagg](https://github.com/rvagg))
+
+#### DEPS! DEPS! MORE DEPS! OK STOP DEPS
+
+* [`0d60888`](https://github.com/npm/npm/commit/0d608889615a1cb63f5f852337e955053f201aeb)
+  `normalize-package-data@2.3.4`: Use an external package to check for built-in
+  node modules.
+  ([@sindresorhus](https://github.com/sindresorhus))
+* [`79b4dac`](https://github.com/npm/npm/commit/79b4dac11f1c2d8ad5489fc3104734e1c10d4793)
+  `retry@0.8.0`
+  ([@tim-kos](https://github.com/tim-kos))
+* [`c164941`](https://github.com/npm/npm/commit/c164941d3c792904d5b126a4fd36eefbe0699f52)
+  `request@2.62.0`: node 4 added to build targets. Option initialization issues
+  fixed.
+  ([@simov](https://github.com/simov))
+* [`0fd878a`](https://github.com/npm/npm/commit/0fd878a44d5ae303325808d1f00df4dce7549d50)
+  `lru-cache@2.7.0`: Cache serialization support and fixes a cache length bug.
+  ([@isaacs](https://github.com/isaacs))
+* [`6a7a114`](https://github.com/npm/npm/commit/6a7a114a45b4699995d6e09164fdfd0fa1274591)
+  `nock@2.12.0`
+  ([@pgte](https://github.com/pgte))
+* [`6b25e6d`](https://github.com/npm/npm/commit/6b25e6d2235c11f4444104db4545cb42a0267666)
+  `semver@5.0.3`: Removed uglify-js dead code.
+  ([@isaacs](https://github.com/isaacs))
+
 ### v2.14.4 (2015-09-10):
 
 #### THE GREAT NODEv4 SAGA

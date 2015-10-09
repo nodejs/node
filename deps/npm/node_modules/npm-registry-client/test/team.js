@@ -202,6 +202,11 @@ test('team command base validation', function (t) {
   t.end()
 })
 
+test('cleanup', function (t) {
+  server.close()
+  t.end()
+})
+
 function onJsonReq (req, cb) {
   var buffer = ''
   req.setEncoding('utf8')
