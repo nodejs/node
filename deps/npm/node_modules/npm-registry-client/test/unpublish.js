@@ -98,6 +98,7 @@ test('unpublish a package', function (t) {
   client.unpublish(URI, PARAMS, function (error) {
     t.ifError(error, 'no errors')
 
+    server.close()
     t.end()
   })
 })

@@ -112,13 +112,13 @@ test('if password auth, only sets authorization on put', function (t) {
     .reply(200, {})
 
   var starPut = nock('http://localhost:1010', {
-      reqheaders: {
-        authorization: 'Basic ' + new Buffer(AUTH.username + ':' +
-                                             AUTH.password).toString('base64')
-      }
-    })
-    .put('/underscore')
-    .reply(200)
+    reqheaders: {
+      authorization: 'Basic ' + new Buffer(AUTH.username + ':' +
+                                           AUTH.password).toString('base64')
+    }
+  })
+  .put('/underscore')
+  .reply(200)
 
   var params = { starred: STARRED, auth: AUTH }
 
@@ -132,28 +132,28 @@ test('if password auth, only sets authorization on put', function (t) {
 
 test('if token auth, sets bearer on get and put', function (t) {
   var starGet = nock('http://localhost:1010', {
-      reqheaders: {
-        authorization: 'Bearer foo'
-      }
-    })
-    .get('/underscore?write=true')
-    .reply(200, {})
+    reqheaders: {
+      authorization: 'Bearer foo'
+    }
+  })
+  .get('/underscore?write=true')
+  .reply(200, {})
 
   var getUser = nock('http://localhost:1010', {
-      reqheaders: {
-        authorization: 'Bearer foo'
-      }
-    })
-    .get('/-/whoami')
-    .reply(200, { username: 'bcoe' })
+    reqheaders: {
+      authorization: 'Bearer foo'
+    }
+  })
+  .get('/-/whoami')
+  .reply(200, { username: 'bcoe' })
 
   var starPut = nock('http://localhost:1010', {
-      reqheaders: {
-        authorization: 'Bearer foo'
-      }
-    })
-    .put('/underscore')
-    .reply(200)
+    reqheaders: {
+      authorization: 'Bearer foo'
+    }
+  })
+  .put('/underscore')
+  .reply(200)
 
   var params = {
     starred: STARRED,
@@ -168,4 +168,9 @@ test('if token auth, sets bearer on get and put', function (t) {
     getUser.done()
     t.end()
   })
+})
+
+test('cleanup', function (t) {
+  server.close()
+  t.end()
 })
