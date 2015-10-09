@@ -88,15 +88,17 @@ cctest: all
 	@out/$(BUILDTYPE)/$@
 
 test: | cctest  # Depends on 'all'.
-	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
+	$(PYTHON) tools/test.py --mode=$(BUILDTYPE) -J \
+		message parallel sequential
 	$(MAKE) jslint
 	$(MAKE) cpplint
 
 test-parallel: all
-	$(PYTHON) tools/test.py --mode=release parallel -J
+	$(PYTHON) tools/test.py --mode=$(BUILDTYPE) -J parallel
 
 test-valgrind: all
-	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
+	$(PYTHON) tools/test.py --mode=$(BUILDTYPE) --valgrind \
+		sequential parallel message
 
 test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
@@ -133,7 +135,7 @@ test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) | test/addons/.docbuildstamp
 build-addons: $(NODE_EXE) test/addons/.buildstamp
 
 test-gc: all test/gc/node_modules/weak/build/Release/weakref.node
-	$(PYTHON) tools/test.py --mode=release gc
+	$(PYTHON) tools/test.py --mode=$(BUILDTYPE) gc
 
 test-build: | all build-addons
 
@@ -144,8 +146,9 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 test-ci: | build-addons
-	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) addons message parallel sequential
+	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=$(BUILDTYPE) \
+		--flaky-tests=$(FLAKY_TESTS) $(TEST_CI_ARGS) \
+		addons message parallel sequential
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -175,11 +178,11 @@ test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
 
 test-addons: test-build
-	$(PYTHON) tools/test.py --mode=release addons
+	$(PYTHON) tools/test.py --mode=$(BUILDTYPE) addons
 
 test-timers:
 	$(MAKE) --directory=tools faketime
-	$(PYTHON) tools/test.py --mode=release timers
+	$(PYTHON) tools/test.py --mode=$(BUILDTYPE) timers
 
 test-timers-clean:
 	$(MAKE) --directory=tools clean
