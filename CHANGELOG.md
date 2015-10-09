@@ -4353,7 +4353,7 @@ https://github.com/nodejs/node/commit/2c4eef0d972838c51999d32c0d251857a713dc18
 
 * npm: Upgrade to v1.2.2
 * dns: make error message match errno (Dan Milon)
-* tls: follow RFC6125 more stricly (Fedor Indutny)
+* tls: follow RFC6125 more strictly (Fedor Indutny)
 * buffer: reject negative SlowBuffer offsets (Ben Noordhuis)
 * install: add simplejson fallback (Chris Dent)
 * http: fix "Cannot call method 'emit' of null" (Ben Noordhuis)
