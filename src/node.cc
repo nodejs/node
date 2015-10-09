@@ -1544,15 +1544,6 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-bool HasUnrefedTimerHandles(Environment* env) {
-  for (auto w : *env->handle_wrap_queue()) {
-    if (!w->persistent().IsEmpty() && w->flags_ & HandleWrap::kUnref)
-      return true;
-  }
-  return false;
-}
-
-
 static void Abort(const FunctionCallbackInfo<Value>& args) {
   ABORT();
 }
@@ -3970,23 +3961,26 @@ static void StartNodeInstance(void* arg) {
     {
       SealHandleScope seal(isolate);
       bool more;
+      uv_loop_t* event_loop = env->event_loop();
+
       do {
         v8::platform::PumpMessageLoop(default_platform, isolate);
-        more = uv_run(env->event_loop(), UV_RUN_ONCE);
+        more = uv_run(event_loop, UV_RUN_ONCE);
 
         if (more == false) {
           v8::platform::PumpMessageLoop(default_platform, isolate);
           EmitBeforeExit(env);
 
-          // We need to run an extra event loop turn to purge unrefed handles.
-          bool unrefedTimers = HasUnrefedTimerHandles(env);
-          if (unrefedTimers == true)
-            uv_run(env->event_loop(), UV_RUN_NOWAIT);
+          // If there are only unrefed handles left, we need to run an
+          // extra event loop turn to purge the unrefed handles.
+          if (event_loop->active_handles == 0 &&
+              event_loop->handle_queue[0] != event_loop->handle_queue[1])
+            uv_run(event_loop, UV_RUN_NOWAIT);
 
           // Emit `beforeExit` if the loop became alive either after emitting
           // event, or after running some callbacks.
-          more = uv_loop_alive(env->event_loop());
-          if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
+          more = uv_loop_alive(event_loop);
+          if (uv_run(event_loop, UV_RUN_NOWAIT) != 0)
             more = true;
         }
       } while (more == true);
