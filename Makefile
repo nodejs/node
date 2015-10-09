@@ -15,9 +15,14 @@ OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
-NODE ?= ./node$(EXEEXT)
 NODE_EXE = node$(EXEEXT)
 NODE_G_EXE = node_g$(EXEEXT)
+
+ifeq ($(BUILDTYPE),Release)
+NODE ?= ./$(NODE_EXE)
+else
+NODE ?= ./$(NODE_G_EXE)
+endif
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
