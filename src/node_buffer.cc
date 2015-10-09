@@ -842,11 +842,27 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
       return args.GetReturnValue().Set(-1);
     }
 
-    result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                          haystack_length / 2,
-                          reinterpret_cast<const uint16_t*>(*needle_value),
-                          needle_value.length(),
-                          offset / 2);
+    if (IsBigEndian()) {
+      StringBytes::InlineDecoder decoder;
+      decoder.Decode(Environment::GetCurrent(args), needle, args[3], UCS2);
+      const uint16_t* decoded_string =
+          reinterpret_cast<const uint16_t*>(decoder.out());
+
+      if (decoded_string == nullptr)
+        return args.GetReturnValue().Set(-1);
+
+      result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                            haystack_length / 2,
+                            decoded_string,
+                            decoder.size() / 2,
+                            offset / 2);
+    } else {
+      result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                            haystack_length / 2,
+                            reinterpret_cast<const uint16_t*>(*needle_value),
+                            needle_value.length(),
+                            offset / 2);
+    }
     result *= 2;
   } else if (enc == UTF8) {
     String::Utf8Value needle_value(needle);
