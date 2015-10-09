@@ -75,6 +75,7 @@ test('get the stars for a package', function (t) {
     t.ifError(er, 'no errors')
     t.deepEqual(info, USERS, 'got the list of users')
 
+    server.close()
     t.end()
   })
 })

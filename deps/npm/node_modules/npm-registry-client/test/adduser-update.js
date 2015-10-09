@@ -61,6 +61,7 @@ tap.test('update a user acct', function (t) {
     function (er, data) {
       if (er) throw er
       t.deepEqual(data, auth, 'got expected auth data')
+      server.close()
       t.end()
     }
   )
