@@ -70,6 +70,7 @@ exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
 var opensslCli = null;
 var inFreeBSDJail = null;
 var localhostIPv4 = null;
+var broadcastIPv4 = null;
 
 Object.defineProperty(exports, 'inFreeBSDJail', {
   get: function() {
@@ -89,23 +90,16 @@ Object.defineProperty(exports, 'inFreeBSDJail', {
 Object.defineProperty(exports, 'localhostIPv4', {
   get: function() {
     if (localhostIPv4 !== null) return localhostIPv4;
-
-    if (exports.inFreeBSDJail) {
-      // Jailed network interfaces are a bit special - since we need to jump
-      // through loops, as well as this being an exception case, assume the
-      // user will provide this instead.
-      if (process.env.LOCALHOST) {
-        localhostIPv4 = process.env.LOCALHOST;
-      } else {
-        console.error('Looks like we\'re in a FreeBSD Jail. ' +
-                      'Please provide your default interface address ' +
-                      'as LOCALHOST or expect some tests to fail.');
-      }
-    }
-
-    if (localhostIPv4 === null) localhostIPv4 = '127.0.0.1';
-
+    localhostIPv4 = getEnvironmentDefault('LOCALHOST', '127.0.0.1');
     return localhostIPv4;
+  }
+});
+
+Object.defineProperty(exports, 'broadcastIPv4', {
+  get: function() {
+    if (broadcastIPv4 !== null) return broadcastIPv4;
+    broadcastIPv4 = getEnvironmentDefault('BROADCAST', '255.255.255.255');
+    return broadcastIPv4;
   }
 });
 
@@ -169,6 +163,22 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
 var util = require('util');
 for (var i in util) exports[i] = util[i];
 //for (var i in exports) global[i] = exports[i];
+
+function getEnvironmentDefault(environ, defaultValue) {
+  let value = null;
+  if (exports.inFreeBSDJail) {
+    if (process.env[environ]) {
+      value = process.env[environ];
+    } else {
+      console.error('In a FreeBSD jail. You might have to override the value ' +
+                    'by passing %s=\'value\' to avoid any test ' +
+                    'failures', environ);
+    }
+  }
+
+  if (value === null) value = defaultValue;
+  return value;
+}
 
 function protoCtrChain(o) {
   var result = [];

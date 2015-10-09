@@ -6,7 +6,7 @@ var common = require('../common'),
     networkInterfaces = require('os').networkInterfaces(),
     Buffer = require('buffer').Buffer,
     fork = require('child_process').fork,
-    LOCAL_BROADCAST_HOST = '255.255.255.255',
+    LOCAL_BROADCAST_HOST = common.broadcastIPv4,
     TIMEOUT = common.platformTimeout(5000),
     messages = [
       new Buffer('First message to send'),
