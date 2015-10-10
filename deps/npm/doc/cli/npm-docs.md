@@ -4,9 +4,9 @@ npm-docs(1) -- Docs for a package in a web browser maybe
 ## SYNOPSIS
 
     npm docs [<pkgname> [<pkgname> ...]]
-    npm docs (with no args in a package dir)
+    npm docs .
     npm home [<pkgname> [<pkgname> ...]]
-    npm home (with no args in a package dir)
+    npm home .
 
 ## DESCRIPTION
 

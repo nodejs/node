@@ -1,375 +1,160 @@
-// traverse the node_modules/package.json tree
-// looking for duplicates.  If any duplicates are found,
-// then move them up to the highest level necessary
-// in order to make them no longer duplicated.
-//
-// This is kind of ugly, and really highlights the need for
-// much better "put pkg X at folder Y" abstraction.  Oh well,
-// whatever.  Perfect enemy of the good, and all that.
-
-var fs = require("fs")
-var asyncMap = require("slide").asyncMap
-var path = require("path")
-var readJson = require("read-package-json")
-var semver = require("semver")
-var rm = require("./utils/gently-rm.js")
-var log = require("npmlog")
-var npm = require("./npm.js")
-var mapToRegistry = require("./utils/map-to-registry.js")
+var util = require('util')
+var path = require('path')
+var validate = require('aproba')
+var without = require('lodash.without')
+var asyncMap = require('slide').asyncMap
+var chain = require('slide').chain
+var npa = require('npm-package-arg')
+var log = require('npmlog')
+var npm = require('./npm.js')
+var Installer = require('./install.js').Installer
+var findRequirement = require('./install/deps.js').findRequirement
+var earliestInstallable = require('./install/deps.js').earliestInstallable
+var checkPermissions = require('./install/check-permissions.js')
+var decomposeActions = require('./install/decompose-actions.js')
+var loadExtraneous = require('./install/deps.js').loadExtraneous
+var filterInvalidActions = require('./install/filter-invalid-actions.js')
+var recalculateMetadata = require('./install/deps.js').recalculateMetadata
+var sortActions = require('./install/diff-trees.js').sortActions
 
 module.exports = dedupe
+module.exports.Deduper = Deduper
 
-dedupe.usage = "npm dedupe [pkg pkg...]"
+dedupe.usage = 'npm dedupe [package names...]'
 
-function dedupe (args, silent, cb) {
-  if (typeof silent === "function") cb = silent, silent = false
+function dedupe (args, cb) {
+  validate('AF', arguments)
+  // the /path/to/node_modules/..
+  var where = path.resolve(npm.dir, '..')
   var dryrun = false
   if (npm.command.match(/^find/)) dryrun = true
-  return dedupe_(npm.prefix, args, {}, dryrun, silent, cb)
+  if (npm.config.get('dry-run')) dryrun = true
+
+  new Deduper(where, dryrun).run(cb)
 }
 
-function dedupe_ (dir, filter, unavoidable, dryrun, silent, cb) {
-  readInstalled(path.resolve(dir), {}, null, function (er, data, counter) {
-    if (er) {
-      return cb(er)
-    }
+function Deduper (where, dryrun) {
+  validate('SB', arguments)
+  Installer.call(this, where, dryrun, [])
+  this.noPackageJsonOk = true
+  this.topLevelLifecycles = false
+}
+util.inherits(Deduper, Installer)
 
-    if (!data) {
-      return cb()
-    }
-
-    // find out which things are dupes
-    var dupes = Object.keys(counter || {}).filter(function (k) {
-      if (filter.length && -1 === filter.indexOf(k)) return false
-      return counter[k] > 1 && !unavoidable[k]
-    }).reduce(function (s, k) {
-      s[k] = []
-      return s
-    }, {})
-
-    // any that are unavoidable need to remain as they are.  don't even
-    // try to touch them or figure it out.  Maybe some day, we can do
-    // something a bit more clever here, but for now, just skip over it,
-    // and all its children.
-    ;(function U (obj) {
-      if (unavoidable[obj.name]) {
-        obj.unavoidable = true
-      }
-      if (obj.parent && obj.parent.unavoidable) {
-        obj.unavoidable = true
-      }
-      Object.keys(obj.children).forEach(function (k) {
-        U(obj.children[k])
-      })
-    })(data)
-
-    // then collect them up and figure out who needs them
-    ;(function C (obj) {
-      if (dupes[obj.name] && !obj.unavoidable) {
-        dupes[obj.name].push(obj)
-        obj.duplicate = true
-      }
-      obj.dependents = whoDepends(obj)
-      Object.keys(obj.children).forEach(function (k) {
-        C(obj.children[k])
-      })
-    })(data)
-
-    if (dryrun) {
-      var k = Object.keys(dupes)
-      if (!k.length) return cb()
-      return npm.commands.ls(k, silent, cb)
-    }
-
-    var summary = Object.keys(dupes).map(function (n) {
-      return [n, dupes[n].filter(function (d) {
-        return d && d.parent && !d.parent.duplicate && !d.unavoidable
-      }).map(function M (d) {
-        return [d.path, d.version, d.dependents.map(function (k) {
-          return [k.path, k.version, k.dependencies[d.name] || ""]
-        })]
-      })]
-    }).map(function (item) {
-      var set = item[1]
-
-      var ranges = set.map(function (i) {
-        return i[2].map(function (d) {
-          return d[2]
-        })
-      }).reduce(function (l, r) {
-        return l.concat(r)
-      }, []).map(function (v, i, set) {
-        if (set.indexOf(v) !== i) return false
-        return v
-      }).filter(function (v) {
-        return v !== false
-      })
-
-      var locs = set.map(function (i) {
-        return i[0]
-      })
-
-      var versions = set.map(function (i) {
-        return i[1]
-      }).filter(function (v, i, set) {
-        return set.indexOf(v) === i
-      })
-
-      var has = set.map(function (i) {
-        return [i[0], i[1]]
-      }).reduce(function (set, kv) {
-        set[kv[0]] = kv[1]
-        return set
-      }, {})
-
-      var loc = locs.length ? locs.reduce(function (a, b) {
-        // a=/path/to/node_modules/foo/node_modules/bar
-        // b=/path/to/node_modules/elk/node_modules/bar
-        // ==/path/to/node_modules/bar
-        var nmReg = new RegExp("\\" + path.sep + "node_modules\\" + path.sep)
-        a = a.split(nmReg)
-        b = b.split(nmReg)
-        var name = a.pop()
-        b.pop()
-        // find the longest chain that both A and B share.
-        // then push the name back on it, and join by /node_modules/
-        for (var i = 0, al = a.length, bl = b.length; i < al && i < bl && a[i] === b[i]; i++);
-        return a.slice(0, i).concat(name).join(path.sep + "node_modules" + path.sep)
-      }) : undefined
-
-      return [item[0], { item: item
-                       , ranges: ranges
-                       , locs: locs
-                       , loc: loc
-                       , has: has
-                       , versions: versions
-                       }]
-    }).filter(function (i) {
-      return i[1].loc
+Deduper.prototype.normalizeTree = function (log, cb) {
+  validate('OF', arguments)
+  log.silly('dedupe', 'normalizeTree')
+  // If we're looking globally only look at the one package we're operating on
+  if (npm.config.get('global')) {
+    var args = this.args
+    this.currentTree.children = this.currentTree.children.filter(function (child) {
+      return args.filter(function (arg) { return arg === child.package.name }).length
     })
-
-    findVersions(npm, summary, function (er, set) {
-      if (er) return cb(er)
-      if (!set.length) return cb()
-      installAndRetest(set, filter, dir, unavoidable, silent, cb)
-    })
-  })
+  }
+  Installer.prototype.normalizeTree.call(this, log, cb)
 }
 
-function installAndRetest (set, filter, dir, unavoidable, silent, cb) {
-  //return cb(null, set)
-  var remove = []
+Deduper.prototype.loadIdealTree = function (cb) {
+  validate('F', arguments)
+  log.silly('install', 'loadIdealTree')
 
-  asyncMap(set, function (item, cb) {
-    // [name, has, loc, locMatch, regMatch, others]
-    var name = item[0]
-    var has = item[1]
-    var where = item[2]
-    var locMatch = item[3]
-    var regMatch = item[4]
-    var others = item[5]
+  var self = this
+  chain([
+    [this.newTracker(this.progress.loadIdealTree, 'cloneCurrentTree')],
+    [this, this.cloneCurrentTreeToIdealTree],
+    [this, this.finishTracker, 'cloneCurrentTree'],
 
-    // nothing to be done here.  oh well.  just a conflict.
-    if (!locMatch && !regMatch) {
-      log.warn("unavoidable conflict", item[0], item[1])
-      log.warn("unavoidable conflict", "Not de-duplicating")
-      unavoidable[item[0]] = true
-      return cb()
-    }
+    [this.newTracker(this.progress.loadIdealTree, 'loadAllDepsIntoIdealTree', 10)],
+    [function (next) {
+      loadExtraneous(self.idealTree, self.progress.loadAllDepsIntoIdealTree, next)
+    }],
+    [this, this.finishTracker, 'loadAllDepsIntoIdealTree'],
 
-    // nothing to do except to clean up the extraneous deps
-    if (locMatch && has[where] === locMatch) {
-      remove.push.apply(remove, others)
-      return cb()
-    }
-
-    if (regMatch) {
-      var what = name + "@" + regMatch
-      // where is /path/to/node_modules/foo/node_modules/bar
-      // for package "bar", but we need it to be just
-      // /path/to/node_modules/foo
-      var nmReg = new RegExp("\\" + path.sep + "node_modules\\" + path.sep)
-      where = where.split(nmReg)
-      where.pop()
-      where = where.join(path.sep + "node_modules" + path.sep)
-      remove.push.apply(remove, others)
-
-      return npm.commands.install(where, what, cb)
-    }
-
-    // hrm?
-    return cb(new Error("danger zone\n" + name + " " +
-                        regMatch + " " + locMatch))
-
-  }, function (er) {
-    if (er) return cb(er)
-    asyncMap(remove, rm, function (er) {
-      if (er) return cb(er)
-      remove.forEach(function (r) {
-        log.info("rm", r)
-      })
-      dedupe_(dir, filter, unavoidable, false, silent, cb)
-    })
-  })
+    [this, function (next) { recalculateMetadata(this.idealTree, log, next) }]
+  ], cb)
 }
 
-function findVersions (npm, summary, cb) {
-  // now, for each item in the summary, try to find the maximum version
-  // that will satisfy all the ranges.  next step is to install it at
-  // the specified location.
-  asyncMap(summary, function (item, cb) {
-    var name = item[0]
-    var data = item[1]
-    var loc = data.loc
-    var locs = data.locs.filter(function (l) {
-      return l !== loc
-    })
-
-    // not actually a dupe, or perhaps all the other copies were
-    // children of a dupe, so this'll maybe be picked up later.
-    if (locs.length === 0) {
-      return cb(null, [])
-    }
-
-    // { <folder>: <version> }
-    var has = data.has
-
-    // the versions that we already have.
-    // if one of these is ok, then prefer to use that.
-    // otherwise, try fetching from the registry.
-    var versions = data.versions
-
-    var ranges = data.ranges
-    mapToRegistry(name, npm.config, function (er, uri, auth) {
-      if (er) return cb(er)
-
-      npm.registry.get(uri, { auth : auth }, next)
-    })
-
-    function next (er, data) {
-      var regVersions = er ? [] : Object.keys(data.versions)
-      var locMatch = bestMatch(versions, ranges)
-      var tag = npm.config.get("tag")
-      var distTag = data["dist-tags"] && data["dist-tags"][tag]
-
-      var regMatch
-      if (distTag && data.versions[distTag] && matches(distTag, ranges)) {
-        regMatch = distTag
-      } else {
-        regMatch = bestMatch(regVersions, ranges)
-      }
-
-      cb(null, [[name, has, loc, locMatch, regMatch, locs]])
-    }
-  }, cb)
+Deduper.prototype.generateActionsToTake = function (cb) {
+  validate('F', arguments)
+  log.silly('dedupe', 'generateActionsToTake')
+  chain([
+    [this.newTracker(log, 'hoist', 1)],
+    [hoistChildren, this.idealTree, this.differences],
+    [this, this.finishTracker, 'hoist'],
+    [this.newTracker(log, 'sort-actions', 1)],
+    [this, function (next) {
+      this.differences = sortActions(this.differences)
+      next()
+    }],
+    [this, this.finishTracker, 'sort-actions'],
+    [filterInvalidActions, this.where, this.differences],
+    [checkPermissions, this.differences],
+    [decomposeActions, this.differences, this.todo]
+  ], cb)
 }
 
-function matches (version, ranges) {
-  return !ranges.some(function (r) {
-    return !semver.satisfies(version, r, true)
-  })
-}
-
-function bestMatch (versions, ranges) {
-  return versions.filter(function (v) {
-    return matches(v, ranges)
-  }).sort(semver.compareLoose).pop()
-}
-
-
-function readInstalled (dir, counter, parent, cb) {
-  var pkg, children, realpath
-
-  fs.realpath(dir, function (er, rp) {
-    realpath = rp
-    next()
-  })
-
-  readJson(path.resolve(dir, "package.json"), function (er, data) {
-    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
-    if (er) return cb() // not a package, probably.
-    counter[data.name] = counter[data.name] || 0
-    counter[data.name]++
-    pkg =
-      { _id: data._id
-      , name: data.name
-      , version: data.version
-      , dependencies: data.dependencies || {}
-      , optionalDependencies: data.optionalDependencies || {}
-      , devDependencies: data.devDependencies || {}
-      , bundledDependencies: data.bundledDependencies || []
-      , path: dir
-      , realPath: dir
-      , children: {}
-      , parent: parent
-      , family: Object.create(parent ? parent.family : null)
-      , unavoidable: false
-      , duplicate: false
-      }
-    if (parent) {
-      parent.children[data.name] = pkg
-      parent.family[data.name] = pkg
-    }
-    next()
-  })
-
-  fs.readdir(path.resolve(dir, "node_modules"), function (er, c) {
-    children = children || [] // error is ok, just means no children.
-    // check if there are scoped packages.
-    asyncMap(c || [], function (child, cb) {
-      if (child.indexOf('@') === 0) {
-        fs.readdir(path.resolve(dir, "node_modules", child), function (er, scopedChildren) {
-          // error is ok, just means no children.
-          (scopedChildren || []).forEach(function (sc) {
-            children.push(path.join(child, sc))
-          })
-          cb()
-        })
-      } else {
-        children.push(child)
-        cb()
-      }
-    }, function (er) {
-      if (er) return cb(er)
-      children = children.filter(function (p) {
-        return !p.match(/^[\._-]/)
-      })
-      next();
-    });
-  })
-
-  function next () {
-    if (!children || !pkg || !realpath) return
-
-    // ignore devDependencies.  Just leave them where they are.
-    children = children.filter(function (c) {
-      return !pkg.devDependencies.hasOwnProperty(c)
-    })
-
-    pkg.realPath = realpath
-    if (pkg.realPath !== pkg.path) children = []
-    var d = path.resolve(dir, "node_modules")
-    asyncMap(children, function (child, cb) {
-      readInstalled(path.resolve(d, child), counter, pkg, cb)
-    }, function (er) {
-      cb(er, pkg, counter)
-    })
+function move (node, hoistTo, diff) {
+  node.parent.children = without(node.parent.children, node)
+  hoistTo.children.push(node)
+  node.fromPath = node.path
+  node.path = path.resolve(hoistTo.path, 'node_modules', node.package.name)
+  node.parent = hoistTo
+  if (!diff.filter(function (action) { return action[0] === 'move' && action[1] === node }).length) {
+    diff.push(['move', node])
   }
 }
 
-function whoDepends (pkg) {
-  var start = pkg.parent || pkg
-  return whoDepends_(pkg, [], start)
+function moveRemainingChildren (node, diff) {
+  node.children.forEach(function (child) {
+    move(child, node, diff)
+    moveRemainingChildren(child, diff)
+  })
 }
 
-function whoDepends_ (pkg, who, test) {
-  if (test !== pkg &&
-      test.dependencies[pkg.name] &&
-      test.family[pkg.name] === pkg) {
-    who.push(test)
-  }
-  Object.keys(test.children).forEach(function (n) {
-    whoDepends_(pkg, who, test.children[n])
-  })
-  return who
+function remove (child, diff, done) {
+  remove_(child, diff, {}, done)
+}
+
+function remove_ (child, diff, seen, done) {
+  if (seen[child.path]) return done()
+  seen[child.path] = true
+  diff.push(['remove', child])
+  child.parent.children = without(child.parent.children, child)
+  asyncMap(child.children, function (child, next) {
+    remove_(child, diff, seen, next)
+  }, done)
+}
+
+function hoistChildren (tree, diff, next) {
+  hoistChildren_(tree, diff, {}, next)
+}
+
+function hoistChildren_ (tree, diff, seen, next) {
+  validate('OAOF', arguments)
+  if (seen[tree.path]) return next()
+  seen[tree.path] = true
+  asyncMap(tree.children, function (child, done) {
+    if (!tree.parent) return hoistChildren_(child, diff, seen, done)
+    var better = findRequirement(tree.parent, child.package.name, child.package._requested || npa(child.package.name + '@' + child.package.version))
+    if (better) {
+      return chain([
+        [remove, child, diff],
+        [recalculateMetadata, tree, log]
+      ], done)
+    }
+    var hoistTo = earliestInstallable(tree, tree.parent, child.package)
+    if (hoistTo) {
+      move(child, hoistTo, diff)
+      chain([
+        [recalculateMetadata, hoistTo, log],
+        [hoistChildren_, child, diff, seen],
+        [function (next) {
+          moveRemainingChildren(child, diff)
+          next()
+        }]
+      ], done)
+    } else {
+      done()
+    }
+  }, next)
 }

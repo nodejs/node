@@ -72,27 +72,33 @@ when B hasn&#39;t changed at all.</p>
 </code></pre><p>This generates <code>npm-shrinkwrap.json</code>, which will look something like this:</p>
 <pre><code>{
   &quot;name&quot;: &quot;A&quot;,
-  &quot;version&quot;: &quot;0.1.0&quot;,
+  &quot;version&quot;: &quot;1.1.0&quot;,
   &quot;dependencies&quot;: {
     &quot;B&quot;: {
-      &quot;version&quot;: &quot;0.0.1&quot;,
+      &quot;version&quot;: &quot;1.0.1&quot;,
+      &quot;from&quot;: &quot;B@^1.0.0&quot;,
+      &quot;resolved&quot;: &quot;https://registry.npmjs.org/B/-/B-1.0.1.tgz&quot;,
       &quot;dependencies&quot;: {
         &quot;C&quot;: {
-          &quot;version&quot;: &quot;0.0.1&quot;
+          &quot;version&quot;: &quot;1.0.1&quot;,
+          &quot;from&quot;: &quot;org/C#v1.0.1&quot;,
+          &quot;resolved&quot;: &quot;git://github.com/org/C.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4&quot;
         }
       }
     }
   }
 }
-</code></pre><p>The shrinkwrap command has locked down the dependencies based on
-what&#39;s currently installed in node_modules.  When <code>npm install</code>
-installs a package with an <code>npm-shrinkwrap.json</code> in the package
-root, the shrinkwrap file (rather than <code>package.json</code> files) completely
-drives the installation of that package and all of its dependencies
-(recursively).  So now the author publishes A@0.1.0, and subsequent
-installs of this package will use B@0.0.1 and C@0.0.1, regardless the
-dependencies and versions listed in A&#39;s, B&#39;s, and C&#39;s <code>package.json</code>
-files.</p>
+</code></pre><p>The shrinkwrap command has locked down the dependencies based on what&#39;s
+currently installed in <code>node_modules</code>.  The installation behavior is changed to:</p>
+<ol>
+<li><p>The module tree described by the shrinkwrap is reproduced. This means
+reproducing the structure described in the file, using the specific files
+referenced in &quot;resolved&quot; if available, falling back to normal package
+resolution using &quot;version&quot; if one isn&#39;t.</p>
+</li>
+<li><p>The tree is walked and any missing dependencies are installed in the usual fasion.</p>
+</li>
+</ol>
 <h3 id="using-shrinkwrapped-packages">Using shrinkwrapped packages</h3>
 <p>Using a shrinkwrapped package is no different than using any other
 package: you can <code>npm install</code> it by hand, or add a dependency to your
@@ -110,15 +116,14 @@ your package.</li>
 <ol>
 <li>Run <code>npm install</code> in the package root to install the current
 versions of all dependencies.</li>
-<li>Add or update dependencies. <code>npm install</code> each new or updated
-package individually and then update <code>package.json</code>.  Note that they
-must be explicitly named in order to be installed: running <code>npm
-install</code> with no arguments will merely reproduce the existing
+<li>Add or update dependencies. <code>npm install --save</code> each new or updated
+package individually to update the <code>package.json</code> and the shrinkwrap.
+Note that they must be explicitly named in order to be installed: running
+<code>npm install</code> with no arguments will merely reproduce the existing
 shrinkwrap.</li>
 <li>Validate that the package works as expected with the new
 dependencies.</li>
-<li>Run <code>npm shrinkwrap</code>, commit the new <code>npm-shrinkwrap.json</code>, and
-publish your package.</li>
+<li>Commit the new <code>npm-shrinkwrap.json</code>, and publish your package.</li>
 </ol>
 <p>You can use <a href="../cli/npm-outdated.html">npm-outdated(1)</a> to view dependencies with newer versions
 available.</p>
@@ -164,5 +169,5 @@ contents rather than versions.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-shrinkwrap &mdash; npm@2.14.7</p>
+<p id="footer">npm-shrinkwrap &mdash; npm@3.3.6</p>
 

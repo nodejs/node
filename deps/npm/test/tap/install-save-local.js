@@ -51,9 +51,9 @@ test('\'npm install --save ../local/path\' should save to package.json', functio
       t.ok(JSON.parse(fs.readFileSync(dependencyPackageJson, 'utf8')))
 
       var pkgJson = JSON.parse(fs.readFileSync(pkg + '/package.json', 'utf8'))
-      t.deepEqual(
-        pkgJson.dependencies,
-        { 'package-local-dependency': 'file:../package-local-dependency' },
+      t.is(Object.keys(pkgJson.dependencies).length, 1, 'only one dep')
+      t.ok(
+        /file:.*?[/]package-local-dependency$/.test(pkgJson.dependencies['package-local-dependency']),
         'local package saved correctly'
       )
       t.end()
@@ -80,9 +80,9 @@ test('\'npm install --save-dev ../local/path\' should save to package.json', fun
       t.ok(JSON.parse(fs.readFileSync(dependencyPackageJson, 'utf8')))
 
       var pkgJson = JSON.parse(fs.readFileSync(pkg + '/package.json', 'utf8'))
-      t.deepEqual(
-        pkgJson.devDependencies,
-        { 'package-local-dev-dependency': 'file:../package-local-dev-dependency' },
+      t.is(Object.keys(pkgJson.devDependencies).length, 1, 'only one dep')
+      t.ok(
+        /file:.*?[/]package-local-dev-dependency$/.test(pkgJson.devDependencies['package-local-dev-dependency']),
         'local package saved correctly'
       )
 
