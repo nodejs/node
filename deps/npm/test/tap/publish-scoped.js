@@ -1,60 +1,60 @@
-var fs = require("fs")
-var path = require("path")
+var fs = require('fs')
+var path = require('path')
 
-var test = require("tap").test
-var mkdirp = require("mkdirp")
-var rimraf = require("rimraf")
-var nock = require("nock")
+var test = require('tap').test
+var mkdirp = require('mkdirp')
+var rimraf = require('rimraf')
+var nock = require('nock')
 
-var npm = require("../../")
-var common = require("../common-tap.js")
+var npm = require('../../')
+var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, "prepublish_package")
+var pkg = path.join(__dirname, 'prepublish_package')
 
-test("setup", function (t) {
-  mkdirp(path.join(pkg, "cache"), next)
+test('setup', function (t) {
+  mkdirp(path.join(pkg, 'cache'), next)
 
   function next () {
     process.chdir(pkg)
     fs.writeFile(
-      path.join(pkg, "package.json"),
+      path.join(pkg, 'package.json'),
       JSON.stringify({
-        name: "@bigco/publish-organized",
-        version: "1.2.5"
+        name: '@bigco/publish-organized',
+        version: '1.2.5'
       }),
-      "ascii",
+      'ascii',
       function (er) {
         t.ifError(er)
 
-        t.pass("setup done")
+        t.pass('setup done')
         t.end()
       }
     )
   }
 })
 
-test("npm publish should honor scoping", function (t) {
+test('npm publish should honor scoping', function (t) {
   var put = nock(common.registry)
-              .put("/@bigco%2fpublish-organized")
+              .put('/@bigco%2fpublish-organized')
               .reply(201, verify)
 
   var configuration = {
-    cache    : path.join(pkg, "cache"),
-    loglevel : "silent",
-    registry : "http://nonexistent.lvh.me",
-    "//localhost:1337/:username" : "username",
-    "//localhost:1337/:_password" : new Buffer("password").toString("base64"),
-    "//localhost:1337/:email" : "ogd@aoaioxxysz.net"
+    cache: path.join(pkg, 'cache'),
+    loglevel: 'silent',
+    registry: 'http://nonexistent.lvh.me',
+    '//localhost:1337/:username': 'username',
+    '//localhost:1337/:_password': new Buffer('password').toString('base64'),
+    '//localhost:1337/:email': 'ogd@aoaioxxysz.net'
   }
 
   npm.load(configuration, onload)
 
   function onload (er) {
-    t.ifError(er, "npm bootstrapped successfully")
+    t.ifError(er, 'npm bootstrapped successfully')
 
-    npm.config.set("@bigco:registry", common.registry)
+    npm.config.set('@bigco:registry', common.registry)
     npm.commands.publish([], false, function (er) {
-      t.ifError(er, "published without error")
+      t.ifError(er, 'published without error')
 
       put.done()
 
@@ -65,25 +65,25 @@ test("npm publish should honor scoping", function (t) {
   function verify (_, body) {
     t.doesNotThrow(function () {
       var parsed = JSON.parse(body)
-      var current = parsed.versions["1.2.5"]
+      var current = parsed.versions['1.2.5']
       t.equal(
         current._npmVersion,
-        require(path.resolve(__dirname, "../../package.json")).version,
-        "npm version is correct"
+        require(path.resolve(__dirname, '../../package.json')).version,
+        'npm version is correct'
       )
 
       t.equal(
         current._nodeVersion,
         process.versions.node,
-        "node version is correct"
+        'node version is correct'
       )
-    }, "converted body back into object")
+    }, 'converted body back into object')
 
     return {ok: true}
   }
 })
 
-test("cleanup", function (t) {
+test('cleanup', function (t) {
   process.chdir(__dirname)
   rimraf(pkg, function (er) {
     t.ifError(er)

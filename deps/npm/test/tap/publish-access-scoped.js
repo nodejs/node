@@ -1,15 +1,15 @@
-var fs = require("fs")
-var path = require("path")
+var fs = require('fs')
+var path = require('path')
 
-var test = require("tap").test
-var mkdirp = require("mkdirp")
-var rimraf = require("rimraf")
-var nock = require("nock")
+var test = require('tap').test
+var mkdirp = require('mkdirp')
+var rimraf = require('rimraf')
+var nock = require('nock')
 
-var npm = require("../../")
-var common = require("../common-tap.js")
+var npm = require('../../')
+var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, "publish-access")
+var pkg = path.join(__dirname, 'publish-access')
 
 // TODO: nock uses setImmediate, breaks 0.8: replace with mockRegistry
 if (!global.setImmediate) {
@@ -19,46 +19,46 @@ if (!global.setImmediate) {
   }
 }
 
-test("setup", function (t) {
-  mkdirp(path.join(pkg, "cache"), function () {
+test('setup', function (t) {
+  mkdirp(path.join(pkg, 'cache'), function () {
     var configuration = {
-      cache    : path.join(pkg, "cache"),
-      loglevel : "silent",
-      registry : common.registry
+      cache: path.join(pkg, 'cache'),
+      loglevel: 'silent',
+      registry: common.registry
     }
 
     npm.load(configuration, next)
   })
 
   function next (er) {
-    t.ifError(er, "npm loaded successfully")
+    t.ifError(er, 'npm loaded successfully')
 
     process.chdir(pkg)
     fs.writeFile(
-      path.join(pkg, "package.json"),
+      path.join(pkg, 'package.json'),
       JSON.stringify({
-        name: "@bigco/publish-access",
-        version: "1.2.5"
+        name: '@bigco/publish-access',
+        version: '1.2.5'
       }),
-      "ascii",
+      'ascii',
       function (er) {
         t.ifError(er)
 
-        t.pass("setup done")
+        t.pass('setup done')
         t.end()
       }
     )
   }
 })
 
-test("scoped packages pass public access if set", function (t) {
+test('scoped packages pass public access if set', function (t) {
   var put = nock(common.registry)
-              .put("/@bigco%2fpublish-access")
+              .put('/@bigco%2fpublish-access')
               .reply(201, verify)
 
-  npm.config.set("access", "public")
+  npm.config.set('access', 'public')
   npm.commands.publish([], false, function (er) {
-    t.ifError(er, "published without error")
+    t.ifError(er, 'published without error')
 
     put.done()
     t.end()
@@ -67,14 +67,14 @@ test("scoped packages pass public access if set", function (t) {
   function verify (_, body) {
     t.doesNotThrow(function () {
       var parsed = JSON.parse(body)
-      t.equal(parsed.access, "public", "access level is correct")
-    }, "converted body back into object")
+      t.equal(parsed.access, 'public', 'access level is correct')
+    }, 'converted body back into object')
 
     return {ok: true}
   }
 })
 
-test("cleanup", function (t) {
+test('cleanup', function (t) {
   process.chdir(__dirname)
   rimraf(pkg, function (er) {
     t.ifError(er)

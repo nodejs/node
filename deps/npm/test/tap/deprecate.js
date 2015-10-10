@@ -1,14 +1,8 @@
-var fs = require('fs')
-var path = require('path')
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var mr = require('npm-registry-mock')
-var semver = require('semver')
 
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'deprecate')
 var server
 
 var cache = {

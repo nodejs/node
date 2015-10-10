@@ -11,8 +11,9 @@
 
 <h1><a href="../cli/npm-rm.html">npm-rm</a></h1> <p>Remove a package</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm uninstall [@&lt;scope&gt;/]&lt;package&gt; [--save|--save-dev|--save-optional]
-npm rm (with any of the previous argument usage)
+<pre><code>npm uninstall [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]... [--save|--save-dev|--save-optional]
+
+aliases: remove, rm, r, un, unlink
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This uninstalls a package, completely removing everything npm installed
 on its behalf.</p>
@@ -30,6 +31,8 @@ the package version in your main package.json:</p>
 <li><p><code>--save-optional</code>: Package will be removed from your <code>optionalDependencies</code>.</p>
 </li>
 </ul>
+<p>Further, if you have an <code>npm-shrinkwrap.json</code> then it will be updated as
+well.</p>
 <p>Scope is optional and follows the usual rules for <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>.</p>
 <p>Examples:</p>
 <pre><code>npm uninstall sax --save
@@ -57,5 +60,5 @@ npm uninstall dtrace-provider --save-optional
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-uninstall &mdash; npm@2.14.7</p>
+<p id="footer">npm-uninstall &mdash; npm@3.3.6</p>
 

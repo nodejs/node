@@ -3,8 +3,8 @@ npm-star(1) -- Mark your favorite packages
 
 ## SYNOPSIS
 
-    npm star <pkgname> [<pkg>, ...]
-    npm unstar <pkgname> [<pkg>, ...]
+    npm star [<pkg>...]
+    npm unstar [<pkg>...]
 
 ## DESCRIPTION
 

@@ -5,16 +5,16 @@
 .P
 .RS 2
 .nf
-npm pack [<pkg> [<pkg> \.\.\.]]
+npm pack [[<@scope>/]<pkg>\.\.\.]
 .fi
 .RE
 .SH DESCRIPTION
 .P
 For anything that's installable (that is, a package folder, tarball,
-tarball url, name@tag, name@version, or name), this command will fetch
-it to the cache, and then copy the tarball to the current working
-directory as \fB<name>\-<version>\.tgz\fP, and then write the filenames out to
-stdout\.
+tarball url, name@tag, name@version, name, or scoped name), this
+command will fetch it to the cache, and then copy the tarball to the
+current working directory as \fB<name>\-<version>\.tgz\fP, and then write
+the filenames out to stdout\.
 .P
 If the same package is specified multiple times, then the file will be
 overwritten the second time\.

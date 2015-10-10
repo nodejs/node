@@ -13,7 +13,7 @@ var pkg = path.join(__dirname, 'install-at-locally')
 var EXEC_OPTS = { cwd: pkg }
 
 var json = {
-  name: 'install-at-locally',
+  name: 'install-at-locally-mock',
   version: '0.0.0'
 }
 
@@ -25,8 +25,8 @@ test('setup', function (t) {
 test('\'npm install ./package@1.2.3\' should install local pkg', function (t) {
   var target = './package@1.2.3'
   setup(target)
-  common.npm(['install', target], EXEC_OPTS, function (err, code) {
-    var p = path.resolve(pkg, 'node_modules/install-at-locally/package.json')
+  common.npm(['install', '--loglevel=silent', target], EXEC_OPTS, function (err, code) {
+    var p = path.resolve(pkg, 'node_modules/install-at-locally-mock/package.json')
     t.ifError(err, 'install local package successful')
     t.equal(code, 0, 'npm install exited with code')
     t.ok(JSON.parse(fs.readFileSync(p, 'utf8')))
@@ -38,7 +38,7 @@ test('\'npm install install/at/locally@./package@1.2.3\' should install local pk
   var target = 'install/at/locally@./package@1.2.3'
   setup(target)
   common.npm(['install', target], EXEC_OPTS, function (err, code) {
-    var p = path.resolve(pkg, 'node_modules/install-at-locally/package.json')
+    var p = path.resolve(pkg, 'node_modules/install-at-locally-mock/package.json')
     t.ifError(err, 'install local package in explicit directory successful')
     t.equal(code, 0, 'npm install exited with code')
     t.ok(JSON.parse(fs.readFileSync(p, 'utf8')))

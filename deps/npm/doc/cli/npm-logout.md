@@ -3,7 +3,7 @@ npm-logout(1) -- Log out of the registry
 
 ## SYNOPSIS
 
-    npm logout [--registry=url] [--scope=@orgname]
+    npm logout [--registry=<url>] [--scope=<@scope>]
 
 ## DESCRIPTION
 

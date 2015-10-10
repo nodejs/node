@@ -1,46 +1,47 @@
-var common = require("../common-tap.js")
-var test = require("tap").test
-var npm = require.resolve("../../bin/npm-cli.js")
-var path = require("path")
-var fs = require("fs")
-var rimraf = require("rimraf")
-var mkdirp = require("mkdirp")
+var common = require('../common-tap.js')
+var test = require('tap').test
+var npm = require.resolve('../../bin/npm-cli.js')
+var path = require('path')
+var fs = require('fs')
+var rimraf = require('rimraf')
+var mkdirp = require('mkdirp')
 
-var mr = require("npm-registry-mock")
+var mr = require('npm-registry-mock')
 
-var spawn = require("child_process").spawn
+var spawn = require('child_process').spawn
 var node = process.execPath
 
-var pkg = path.resolve(process.env.npm_config_tmp || "/tmp",
-  "noargs-install-config-save")
+var pkg = path.resolve(process.env.npm_config_tmp || '/tmp',
+  'noargs-install-config-save')
 
-function writePackageJson() {
+function writePackageJson () {
   rimraf.sync(pkg)
   mkdirp.sync(pkg)
-  mkdirp.sync(pkg + "/cache")
+  mkdirp.sync(pkg + '/cache')
 
-  fs.writeFileSync(pkg + "/package.json", JSON.stringify({
-    "author": "Rocko Artischocko",
-    "name": "noargs",
-    "version": "0.0.0",
-    "devDependencies": {
-      "underscore": "1.3.1"
+  fs.writeFileSync(pkg + '/package.json', JSON.stringify({
+    'author': 'Rocko Artischocko',
+    'name': 'noargs',
+    'version': '0.0.0',
+    'devDependencies': {
+      'underscore': '1.3.1'
     }
-  }), "utf8")
+  }), 'utf8')
 }
 
 function createChild (args) {
   var env = {
-    "npm_config_save": true,
-    "npm_config_registry": common.registry,
-    "npm_config_cache": pkg + "/cache",
+    'npm_config_save': true,
+    'npm_config_registry': common.registry,
+    'npm_config_cache': pkg + '/cache',
     HOME: process.env.HOME,
     Path: process.env.PATH,
     PATH: process.env.PATH
   }
 
-  if (process.platform === "win32")
-    env.npm_config_cache = "%APPDATA%\\npm-cache"
+  if (process.platform === 'win32') {
+    env.npm_config_cache = '%APPDATA%\\npm-cache'
+  }
 
   return spawn(node, args, {
     cwd: pkg,
@@ -48,35 +49,35 @@ function createChild (args) {
   })
 }
 
-test("does not update the package.json with empty arguments", function (t) {
+test('does not update the package.json with empty arguments', function (t) {
   writePackageJson()
   t.plan(1)
 
-  mr({port : common.port}, function (er, s) {
-    var child = createChild([npm, "install"])
-    child.on("close", function () {
-      var text = JSON.stringify(fs.readFileSync(pkg + "/package.json", "utf8"))
+  mr({ port: common.port }, function (er, s) {
+    var child = createChild([npm, 'install'])
+    child.on('close', function () {
+      var text = JSON.stringify(fs.readFileSync(pkg + '/package.json', 'utf8'))
       s.close()
-      t.ok(text.indexOf("\"dependencies") === -1)
+      t.equal(text.indexOf('"dependencies'), -1, 'dependencies do not exist in file')
     })
   })
 })
 
-test("updates the package.json (adds dependencies) with an argument", function (t) {
+test('updates the package.json (adds dependencies) with an argument', function (t) {
   writePackageJson()
   t.plan(1)
 
-  mr({port : common.port}, function (er, s) {
-    var child = createChild([npm, "install", "underscore"])
-    child.on("close", function () {
+  mr({ port: common.port }, function (er, s) {
+    var child = createChild([npm, 'install', 'underscore'])
+    child.on('close', function () {
       s.close()
-      var text = JSON.stringify(fs.readFileSync(pkg + "/package.json", "utf8"))
-      t.ok(text.indexOf("\"dependencies") !== -1)
+      var text = JSON.stringify(fs.readFileSync(pkg + '/package.json', 'utf8'))
+      t.notEqual(text.indexOf('"dependencies'), -1, 'dependencies exist in file')
     })
   })
 })
 
-test("cleanup", function (t) {
-  rimraf.sync(pkg + "/cache")
+test('cleanup', function (t) {
+  rimraf.sync(pkg + '/cache')
   t.end()
 })

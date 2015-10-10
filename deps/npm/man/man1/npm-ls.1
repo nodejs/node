@@ -5,10 +5,9 @@
 .P
 .RS 2
 .nf
-npm list [[@<scope>/]<pkg> \.\.\.]
-npm ls [[@<scope>/]<pkg> \.\.\.]
-npm la [[@<scope>/]<pkg> \.\.\.]
-npm ll [[@<scope>/]<pkg> \.\.\.]
+npm ls [[<@scope>/]<pkg> \.\.\.]
+
+aliases: list, la, ll
 .fi
 .RE
 .SH DESCRIPTION
@@ -23,7 +22,7 @@ For example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@2.14.7 /path/to/npm
+npm@3.3.6 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -34,6 +33,9 @@ It will print out extraneous, missing, and invalid packages\.
 If a project specifies git urls for dependencies these are shown
 in parentheses after the name@version to make it easier for users to
 recognize potential forks of a project\.
+.P
+The tree shown is the logical dependency tree, based on package
+dependencies, not the physical layout of your node_modules folder\.
 .P
 When run as \fBll\fP or \fBla\fP, it shows extended information by default\.
 .SH CONFIGURATION
@@ -106,6 +108,16 @@ Default: false
 .RE
 .P
 Display only the dependency tree for packages in \fBdevDependencies\fP\|\.
+.SS only
+.RS 0
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+When "dev" or "development", is an alias to \fBdev\fP\|\.
+.P
+When "prod" or "production", is an alias to \fBproduction\fP\|\.`
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

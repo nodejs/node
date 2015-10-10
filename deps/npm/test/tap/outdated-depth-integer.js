@@ -1,24 +1,24 @@
 var common = require('../common-tap')
-  , test = require('tap').test
-  , rimraf = require('rimraf')
-  , npm = require('../../')
-  , mr = require('npm-registry-mock')
-  , pkg = __dirname + '/outdated-depth-integer'
+var test = require('tap').test
+var rimraf = require('rimraf')
+var npm = require('../../')
+var mr = require('npm-registry-mock')
+var pkg = __dirname + '/outdated-depth-integer'
 
-var osenv = require("osenv")
-var mkdirp = require("mkdirp")
-var fs = require("fs")
+var osenv = require('osenv')
+var mkdirp = require('mkdirp')
+var fs = require('fs')
 
 var pj = JSON.stringify({
-  "name": "whatever",
-  "description": "yeah idk",
-  "version": "1.2.3",
-  "main": "index.js",
-  "dependencies": {
-    "underscore": "1.3.1"
+  'name': 'whatever',
+  'description': 'yeah idk',
+  'version': '1.2.3',
+  'main': 'index.js',
+  'dependencies': {
+    'underscore': '1.3.1'
   },
-  "repository": "git://github.com/luk-/whatever"
-}, null, 2);
+  'repository': 'git://github.com/luk-/whatever'
+}, null, 2)
 
 function cleanup () {
   process.chdir(osenv.tmpdir())
@@ -28,10 +28,10 @@ function cleanup () {
 function setup () {
   mkdirp.sync(pkg)
   process.chdir(pkg)
-  fs.writeFileSync("package.json", pj)
+  fs.writeFileSync('package.json', pj)
 }
 
-test("setup", function (t) {
+test('setup', function (t) {
   cleanup()
   setup()
   t.end()
@@ -46,15 +46,16 @@ test('outdated depth integer', function (t) {
     undefined, // no version installed
     '1.3.1',   // wanted
     '1.5.1',   // latest
-    '1.3.1'
+    '1.3.1',
+    null
   ]]
 
-  mr({port : common.port}, function (er, s) {
+  mr({ port: common.port }, function (er, s) {
     npm.load({
-      cache: pkg + '/cache'
-    , loglevel: 'silent'
-    , registry: common.registry
-    , depth: 5
+      cache: pkg + '/cache',
+      loglevel: 'silent',
+      registry: common.registry,
+      depth: 5
     }
     , function () {
         npm.install('request@0.9.0', function (er) {
@@ -71,7 +72,7 @@ test('outdated depth integer', function (t) {
   })
 })
 
-test("cleanup", function (t) {
+test('cleanup', function (t) {
   cleanup()
   t.end()
 })

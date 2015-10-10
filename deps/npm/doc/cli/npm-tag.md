@@ -3,7 +3,8 @@ npm-tag(1) -- Tag a published version
 
 ## SYNOPSIS
 
-    npm tag <name>@<version> [<tag>]
+    [DEPRECATED] npm tag <name>@<version> [<tag>]
+    See `dist-tag`
 
 ## DESCRIPTION
 

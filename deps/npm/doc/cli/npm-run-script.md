@@ -3,8 +3,9 @@ npm-run-script(1) -- Run arbitrary package scripts
 
 ## SYNOPSIS
 
-    npm run-script [command] [-- <args>]
-    npm run [command] [-- <args>]
+    npm run-script <command> [-- <args>...]
+
+    alias: npm run
 
 ## DESCRIPTION
 

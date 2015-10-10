@@ -28,7 +28,7 @@ per\-project config file (/path/to/my/project/\.npmrc)
 .IP \(bu 2
 per\-user config file (~/\.npmrc)
 .IP \(bu 2
-global config file ($PREFIX/npmrc)
+global config file ($PREFIX/etc/npmrc)
 .IP \(bu 2
 npm builtin config file (/path/to/npm/npmrc)
 
@@ -173,6 +173,17 @@ Type: Boolean
 .P
 Force npm to always require authentication when accessing the registry,
 even for \fBGET\fP requests\.
+.SS also
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+When "dev" or "development" and running local \fBnpm shrinkwrap\fP,
+\fBnpm outdated\fP, or \fBnpm update\fP, is an alias for \fB\-\-dev\fP\|\.
 .SS bin\-links
 .RS 0
 .IP \(bu 2
@@ -370,6 +381,20 @@ Install \fBdev\-dependencies\fP along with packages\.
 .P
 Note that \fBdev\-dependencies\fP are also installed if the \fBnpat\fP flag is
 set\.
+.SS dry\-run
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done\.  This can be passed into any of the
+commands that modify your local installation, eg, \fBinstall\fP, \fBupdate\fP,
+\fBdedupe\fP, \fBuninstall\fP\|\.  This is NOT currently honored by network related
+commands, eg \fBdist\-tags\fP, \fBowner\fP, \fBpublish\fP, etc\.
 .SS editor
 .RS 0
 .IP \(bu 2
@@ -778,6 +803,27 @@ Type: path
 .P
 A node module to \fBrequire()\fP when npm loads\.  Useful for programmatic
 usage\.
+.SS only
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+When "dev" or "development" and running local \fBnpm install\fP without any
+arguments, only devDependencies (and their dependencies) are installed\.
+.P
+When "dev" or "development" and running local \fBnpm ls\fP, \fBnpm outdated\fP, or
+\fBnpm update\fP, is an alias for \fB\-\-dev\fP\|\.
+.P
+When "prod" or "production" and running local \fBnpm install\fP without any
+arguments, only non\-devDependencies (and their dependencies) are
+installed\.
+.P
+When "prod" or "production" and running local \fBnpm ls\fP, \fBnpm outdated\fP, or
+\fBnpm update\fP, is an alias for \fB\-\-production\fP\|\.
 .SS optional
 .RS 0
 .IP \(bu 2
@@ -830,6 +876,19 @@ local \fBnpm install\fP without any arguments\.
 Set the NODE_ENV="production" for lifecycle scripts\.
 
 .RE
+.SS progress
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When set to \fBtrue\fP, npm will display a progress bar during time intensive
+operations, if \fBprocess\.stderr\fP is a TTY\.
+.P
+Set to \fBfalse\fP to suppress the progress bar\.
 .SS proprietary\-attribs
 .RS 0
 .IP \(bu 2
@@ -1060,20 +1119,6 @@ using \fB\-s\fP to add a signature\.
 .P
 Note that git requires you to have set up GPG keys in your git configs
 for this to work properly\.
-.SS spin
-.RS 0
-.IP \(bu 2
-Default: true
-.IP \(bu 2
-Type: Boolean or \fB"always"\fP
-
-.RE
-.P
-When set to \fBtrue\fP, npm will display an ascii spinner while it is doing
-things, if \fBprocess\.stderr\fP is a TTY\.
-.P
-Set to \fBfalse\fP to suppress the spinner, or set to \fBalways\fP to output
-the spinner even for non\-TTY outputs\.
 .SS strict\-ssl
 .RS 0
 .IP \(bu 2
@@ -1131,7 +1176,7 @@ on success, but left behind on failure for forensic purposes\.
 .SS unicode
 .RS 0
 .IP \(bu 2
-Default: true
+Default: true on windows and mac/unix systems with a unicode locale
 .IP \(bu 2
 Type: Boolean
 

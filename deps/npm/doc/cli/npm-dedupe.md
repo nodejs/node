@@ -31,25 +31,20 @@ Because of the hierarchical nature of node's module lookup, b and d
 will both get their dependency met by the single c package at the root
 level of the tree.
 
+The deduplication algorithm walks the tree, moving each dependency as far
+up in the tree as possible, even if duplicates are not found. This will
+result in both a flat and deduplicated tree.
+
 If a suitable version exists at the target location in the tree
 already, then it will be left untouched, but the other duplicates will
 be deleted.
 
-If no suitable version can be found, then a warning is printed, and
-nothing is done.
+Arguments are ignored. Dedupe always acts on the entire tree.
 
-If any arguments are supplied, then they are filters, and only the
-named packages will be touched.
+Modules
 
-Note that this operation transforms the dependency tree, and may
-result in packages getting updated versions, perhaps from the npm
-registry.
-
-This feature is experimental, and may change in future versions.
-
-The `--tag` argument will apply to all of the affected dependencies. If a
-tag with the given name exists, the tagged version is preferred over newer
-versions.
+Note that this operation transforms the dependency tree, but will never
+result in new modules being installed.
 
 ## SEE ALSO
 

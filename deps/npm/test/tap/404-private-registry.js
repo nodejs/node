@@ -4,7 +4,7 @@ var path = require('path')
 var npm = require('../../')
 var addNamed = require('../../lib/cache/add-named')
 
-var packageName = path.basename(__filename,'.js')
+var packageName = path.basename(__filename, '.js')
 
 test('package names not mangled on error with non-root registry', function test404 (t) {
   nock('http://localhost:1337')

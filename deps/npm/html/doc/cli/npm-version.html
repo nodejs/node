@@ -12,6 +12,10 @@
 <h1><a href="../cli/npm-version.html">npm-version</a></h1> <p>Bump a package version</p>
 <h2 id="synopsis">SYNOPSIS</h2>
 <pre><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease]
+
+&#39;npm -v&#39; or &#39;npm --version&#39; to print npm version
+&#39;npm view &lt;pkg&gt; version&#39; to view a package&#39;s published version
+&#39;npm ls&#39; to inspect current package/dependency versions
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Run this in a package directory to bump the version and write the new
 data back to <code>package.json</code> and, if present, <code>npm-shrinkwrap.json</code>.</p>
@@ -50,7 +54,7 @@ This step is skipped if the <code>--force</code> flag is set.</li>
 <li>Run the <code>preversion</code> script. These scripts have access to the old <code>version</code> in package.json.
 A typical use would be running your full test suite before deploying.
 Any files you want added to the commit should be explicitly added using <code>git add</code>.</li>
-<li>Bump <code>version</code> in <code>package.json</code> as requested (<code>patch</code>, <code>minor</code>, <code>major</code>, etc). </li>
+<li>Bump <code>version</code> in <code>package.json</code> as requested (<code>patch</code>, <code>minor</code>, <code>major</code>, etc).</li>
 <li>Run the <code>version</code> script. These scripts have access to the new <code>version</code> in package.json
 (so they can incorporate it into file headers in generated files for example).
 Again, scripts should explicitly add generated files to the commit using <code>git add</code>.</li>
@@ -95,5 +99,5 @@ and tag up to the server, and deletes the <code>build/temp</code> directory.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-version &mdash; npm@2.14.7</p>
+<p id="footer">npm-version &mdash; npm@3.3.6</p>
 

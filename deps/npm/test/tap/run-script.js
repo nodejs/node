@@ -62,15 +62,14 @@ var preversionOnly = {
   }
 }
 
-
 function testOutput (t, command, er, code, stdout, stderr) {
   var lines
 
-  if (er)
-    throw er
+  if (er) throw er
 
-  if (stderr)
+  if (stderr) {
     throw new Error('npm ' + command + ' stderr: ' + stderr.toString())
+  }
 
   lines = stdout.trim().split('\n')
   stdout = lines.filter(function (line) {

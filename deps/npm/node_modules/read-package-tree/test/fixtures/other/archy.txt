@@ -1,0 +1,2 @@
+test/fixtures/other
+└── glob@4.0.5 test/fixtures/other/node_modules/glob (symlink)

@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require("./bin/npm-cli.js")
+require('./bin/npm-cli.js')

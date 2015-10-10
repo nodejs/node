@@ -16,97 +16,129 @@ packages.
 
 module.exports = outdated
 
-outdated.usage = "npm outdated [<pkg> [<pkg> ...]]"
+outdated.usage = 'npm outdated [[<@scope>/]<pkg> ...]'
 
-outdated.completion = require("./utils/completion/installed-deep.js")
+outdated.completion = require('./utils/completion/installed-deep.js')
 
+var os = require('os')
+var url = require('url')
+var path = require('path')
+var log = require('npmlog')
+var readPackageTree = require('read-package-tree')
+var readJson = require('read-package-json')
+var asyncMap = require('slide').asyncMap
+var color = require('ansicolors')
+var styles = require('ansistyles')
+var table = require('text-table')
+var semver = require('semver')
+var npa = require('npm-package-arg')
+var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
+var cache = require('./cache.js')
+var npm = require('./npm.js')
+var long = npm.config.get('long')
+var mapToRegistry = require('./utils/map-to-registry.js')
+var isExtraneous = require('./install/is-extraneous.js')
+var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 
-var path = require("path")
-  , readJson = require("read-package-json")
-  , cache = require("./cache.js")
-  , asyncMap = require("slide").asyncMap
-  , npm = require("./npm.js")
-  , url = require("url")
-  , color = require("ansicolors")
-  , styles = require("ansistyles")
-  , table = require("text-table")
-  , semver = require("semver")
-  , os = require("os")
-  , mapToRegistry = require("./utils/map-to-registry.js")
-  , npa = require("npm-package-arg")
-  , readInstalled = require("read-installed")
-  , long = npm.config.get("long")
-  , log = require("npmlog")
+function uniqName (item) {
+  return item[0].path + '|' + item[1] + '|' + item[7]
+}
+
+function uniq (list) {
+  var uniqed = []
+  var seen = {}
+  list.forEach(function (item) {
+    var name = uniqName(item)
+    if (seen[name]) return
+    seen[name] = true
+    uniqed.push(item)
+  })
+  return uniqed
+}
+
+function andRecalculateMetadata (next) {
+  return function (er, tree) {
+    if (er) return next(er)
+    recalculateMetadata(tree, log, next)
+  }
+}
 
 function outdated (args, silent, cb) {
-  if (typeof cb !== "function") cb = silent, silent = false
-  var dir = path.resolve(npm.dir, "..")
+  if (typeof cb !== 'function') {
+    cb = silent
+    silent = false
+  }
+  var dir = path.resolve(npm.dir, '..')
 
   // default depth for `outdated` is 0 (cf. `ls`)
-  if (npm.config.get("depth") === Infinity) npm.config.set("depth", 0)
+  if (npm.config.get('depth') === Infinity) npm.config.set('depth', 0)
 
-  outdated_(args, dir, {}, 0, function (er, list) {
-    if (!list) list = []
-    if (er || silent || list.length === 0) return cb(er, list)
-    list.sort(function(a, b) {
-      var aa = a[1].toLowerCase()
-        , bb = b[1].toLowerCase()
-      return aa === bb ? 0
-           : aa < bb ? -1 : 1
-    })
-    if (npm.config.get("json")) {
-      console.log(makeJSON(list))
-    } else if (npm.config.get("parseable")) {
-      console.log(makeParseable(list))
-    } else {
-      var outList = list.map(makePretty)
-      var outHead = [ "Package"
-                    , "Current"
-                    , "Wanted"
-                    , "Latest"
-                    , "Location"
-                    ]
-      if (long) outHead.push("Package Type")
-      var outTable = [outHead].concat(outList)
+  readPackageTree(dir, andRecalculateMetadata(function (er, tree) {
+    mutateIntoLogicalTree(tree)
+    outdated_(args, '', tree, {}, 0, function (er, list) {
+      list = uniq(list || []).sort(function (aa, bb) {
+        return aa[0].path.localeCompare(bb[0].path) ||
+          aa[1].localeCompare(bb[1])
+      })
+      if (er || silent || list.length === 0) return cb(er, list)
+      log.disableProgress()
+      if (npm.config.get('json')) {
+        console.log(makeJSON(list))
+      } else if (npm.config.get('parseable')) {
+        console.log(makeParseable(list))
+      } else {
+        var outList = list.map(makePretty)
+        var outHead = [ 'Package',
+                        'Current',
+                        'Wanted',
+                        'Latest',
+                        'Location'
+                      ]
+        if (long) outHead.push('Package Type')
+        var outTable = [outHead].concat(outList)
 
-      if (npm.color) {
-        outTable[0] = outTable[0].map(function(heading) {
-          return styles.underline(heading)
-        })
+        if (npm.color) {
+          outTable[0] = outTable[0].map(function (heading) {
+            return styles.underline(heading)
+          })
+        }
+
+        var tableOpts = {
+          align: ['l', 'r', 'r', 'r', 'l'],
+          stringLength: function (s) { return ansiTrim(s).length }
+        }
+        console.log(table(outTable, tableOpts))
       }
-
-      var tableOpts = { align: ["l", "r", "r", "r", "l"]
-                      , stringLength: function(s) { return ansiTrim(s).length }
-                      }
-      console.log(table(outTable, tableOpts))
-    }
-    cb(null, list)
-  })
+      cb(null, list.map(function (item) { return [item[0].parent.path].concat(item.slice(1, 7)) }))
+    })
+  }))
 }
 
 // [[ dir, dep, has, want, latest, type ]]
 function makePretty (p) {
-  var dep = p[1]
-    , dir = path.resolve(p[0], "node_modules", dep)
-    , has = p[2]
-    , want = p[3]
-    , latest = p[4]
-    , type = p[6]
+  var dep = p[0]
+  var depname = p[1]
+  var dir = dep.path
+  var has = p[2]
+  var want = p[3]
+  var latest = p[4]
+  var type = p[6]
+  var deppath = p[7]
 
-  if (!npm.config.get("global")) {
+  if (!npm.config.get('global')) {
     dir = path.relative(process.cwd(), dir)
   }
 
-  var columns = [ dep
-                , has || "MISSING"
-                , want
-                , latest
-                , dirToPrettyLocation(dir)
+  var columns = [ depname,
+                  has || 'MISSING',
+                  want,
+                  latest,
+                  deppath
                 ]
   if (long) columns[5] = type
 
   if (npm.color) {
-    columns[0] = color[has === want ? "yellow" : "red"](columns[0]) // dep
+    columns[0] = color[has === want ? 'yellow' : 'red'](columns[0]) // dep
     columns[2] = color.green(columns[2]) // want
     columns[3] = color.magenta(columns[3]) // latest
     columns[4] = color.brightBlack(columns[4]) // dir
@@ -117,171 +149,162 @@ function makePretty (p) {
 }
 
 function ansiTrim (str) {
-  var r = new RegExp("\x1b(?:\\[(?:\\d+[ABCDEFGJKSTm]|\\d+;\\d+[Hfm]|" +
-        "\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)", "g")
-  return str.replace(r, "")
-}
-
-function dirToPrettyLocation (dir) {
-  return dir.replace(/^node_modules[/\\]/, "")
-            .replace(/[[/\\]node_modules[/\\]/g, " > ")
+  var r = new RegExp('\x1b(?:\\[(?:\\d+[ABCDEFGJKSTm]|\\d+;\\d+[Hfm]|' +
+        '\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)', 'g')
+  return str.replace(r, '')
 }
 
 function makeParseable (list) {
   return list.map(function (p) {
+    var dep = p[0]
+    var depname = p[1]
+    var dir = dep.path
+    var has = p[2]
+    var want = p[3]
+    var latest = p[4]
+    var type = p[6]
 
-    var dep = p[1]
-      , dir = path.resolve(p[0], "node_modules", dep)
-      , has = p[2]
-      , want = p[3]
-      , latest = p[4]
-      , type = p[6]
+    var out = [
+      dir,
+      depname + '@' + want,
+      (has ? (depname + '@' + has) : 'MISSING'),
+      depname + '@' + latest
+    ]
+    if (long) out.push(type)
 
-    var out = [ dir
-           , dep + "@" + want
-           , (has ? (dep + "@" + has) : "MISSING")
-           , dep + "@" + latest
-           ]
-   if (long) out.push(type)
-
-   return out.join(":")
+    return out.join(':')
   }).join(os.EOL)
 }
 
 function makeJSON (list) {
   var out = {}
   list.forEach(function (p) {
-    var dir = path.resolve(p[0], "node_modules", p[1])
-    if (!npm.config.get("global")) {
+    var dep = p[0]
+    var depname = p[1]
+    var dir = dep.path
+    var has = p[2]
+    var want = p[3]
+    var latest = p[4]
+    var type = p[6]
+    if (!npm.config.get('global')) {
       dir = path.relative(process.cwd(), dir)
     }
-    out[p[1]] = { current: p[2]
-                , wanted: p[3]
-                , latest: p[4]
-                , location: dir
+    out[depname] = { current: has,
+                  wanted: want,
+                  latest: latest,
+                  location: dir
                 }
-    if (long) out[p[1]].type = p[6]
+    if (long) out[depname].type = type
   })
   return JSON.stringify(out, null, 2)
 }
 
-function outdated_ (args, dir, parentHas, depth, cb) {
-  // get the deps from package.json, or {<dir/node_modules/*>:"*"}
-  // asyncMap over deps:
-  //   shouldHave = cache.add(dep, req).version
-  //   if has === shouldHave then
-  //     return outdated(args, dir/node_modules/dep, parentHas + has)
-  //   else if dep in args or args is empty
-  //     return [dir, dep, has, shouldHave]
-
-  if (depth > npm.config.get("depth")) {
+function outdated_ (args, path, tree, parentHas, depth, cb) {
+  if (!tree.package) tree.package = {}
+  if (path && tree.package.name) path += ' > ' + tree.package.name
+  if (!path && tree.package.name) path = tree.package.name
+  if (depth > npm.config.get('depth')) {
     return cb(null, [])
   }
-  var deps = null
   var types = {}
-  readJson(path.resolve(dir, "package.json"), function (er, d) {
-    d = d || {}
-    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
-    deps = (er) ? true : (d.dependencies || {})
-    if (!er) {
-      Object.keys(deps).forEach(function (k) {
-        types[k] = "dependencies"
-      })
-    }
+  var pkg = tree.package
 
-    if (npm.config.get("save-dev")) {
-      deps = d.devDependencies || {}
-      Object.keys(deps).forEach(function (k) {
-        types[k] = "devDependencies"
-      })
+  var deps = tree.children.filter(function (child) { return !isExtraneous(child) }) || []
 
-      return next()
-    }
-
-    if (npm.config.get("save")) {
-      // remove optional dependencies from dependencies during --save.
-      Object.keys(d.optionalDependencies || {}).forEach(function (k) {
-        delete deps[k]
-      })
-      return next()
-    }
-
-    if (npm.config.get("save-optional")) {
-      deps = d.optionalDependencies || {}
-      Object.keys(deps).forEach(function (k) {
-        types[k] = "optionalDependencies"
-      })
-      return next()
-    }
-
-    var doUpdate = npm.config.get("dev") ||
-                    (!npm.config.get("production") &&
-                    !Object.keys(parentHas).length &&
-                    !npm.config.get("global"))
-
-    if (!er && d && doUpdate) {
-      Object.keys(d.devDependencies || {}).forEach(function (k) {
-        if (!(k in parentHas)) {
-          deps[k] = d.devDependencies[k]
-          types[k] = "devDependencies"
-        }
-      })
-    }
-    return next()
+  deps.forEach(function (dep) {
+    types[dep.package.name] = 'dependencies'
   })
 
-  var has = null
-  readInstalled(path.resolve(dir), { dev : true }, function (er, data) {
-    if (er) {
-      has = Object.create(parentHas)
-      return next()
-    }
-    var pkgs = Object.keys(data.dependencies)
-    pkgs = pkgs.filter(function (p) {
-      return !p.match(/^[\._-]/)
+  Object.keys(tree.missingDeps).forEach(function (name) {
+    deps.push({
+      package: { name: name },
+      path: tree.path,
+      parent: tree,
+      isMissing: true
     })
-    asyncMap(pkgs, function (pkg, cb) {
-      var jsonFile = path.resolve(dir, "node_modules", pkg, "package.json")
-      readJson(jsonFile, function (er, d) {
-        if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
-        if (d && d.name && d.private) delete deps[d.name]
-        cb(null, er ? [] : [[d.name, d.version, d._from]])
-      })
-    }, function (er, pvs) {
-      if (er) return cb(er)
-      has = Object.create(parentHas)
-      pvs.forEach(function (pv) {
-        has[pv[0]] = {
-          version: pv[1],
-          from: pv[2]
-        }
-      })
-
-      next()
-    })
+    types[name] = 'dependencies'
   })
 
-  function next () {
-    if (!has || !deps) return
-    if (deps === true) {
-      deps = Object.keys(has).reduce(function (l, r) {
-        l[r] = "latest"
-        return l
-      }, {})
-    }
-
-    // now get what we should have, based on the dep.
-    // if has[dep] !== shouldHave[dep], then cb with the data
-    // otherwise dive into the folder
-    asyncMap(Object.keys(deps), function (dep, cb) {
-      if (!long) return shouldUpdate(args, dir, dep, has, deps[dep], depth, cb)
-
-      shouldUpdate(args, dir, dep, has, deps[dep], depth, cb, types[dep])
-    }, cb)
+  // If we explicitly asked for dev deps OR we didn't ask for production deps
+  // AND we asked to save dev-deps OR we didn't ask to save anything that's NOT
+  // dev deps then…
+  // (All the save checking here is because this gets called from npm-update currently
+  // and that requires this logic around dev deps.)
+  // FIXME: Refactor npm update to not be in terms of outdated.
+  var dev = npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also'))
+  var prod = npm.config.get('production') || /^prod(uction)?$/.test(npm.config.get('only'))
+  if ((dev || !prod) &&
+      (npm.config.get('save-dev') || (
+        !npm.config.get('save') && !npm.config.get('save-optional')))) {
+    Object.keys(tree.missingDevDeps).forEach(function (name) {
+      deps.push({
+        package: { name: name },
+        path: tree.path,
+        parent: tree,
+        isMissing: true
+      })
+      if (!types[name]) {
+        types[name] = 'devDependencies'
+      }
+    })
   }
+
+  if (npm.config.get('save-dev')) {
+    deps = deps.filter(function (dep) { return pkg.devDependencies[dep.package.name] })
+    deps.forEach(function (dep) {
+      types[dep.package.name] = 'devDependencies'
+    })
+  } else if (npm.config.get('save')) {
+    // remove optional dependencies from dependencies during --save.
+    deps = deps.filter(function (dep) { return !pkg.optionalDependencies[dep.package.name] })
+  } else if (npm.config.get('save-optional')) {
+    deps = deps.filter(function (dep) { return pkg.optionalDependencies[dep.package.name] })
+    deps.forEach(function (dep) {
+      types[dep.package.name] = 'optionalDependencies'
+    })
+  }
+  var doUpdate = dev || (
+    !prod &&
+    !Object.keys(parentHas).length &&
+    !npm.config.get('global')
+  )
+  if (doUpdate) {
+    Object.keys(pkg.devDependencies).forEach(function (k) {
+      if (!(k in parentHas)) {
+        deps[k] = pkg.devDependencies[k]
+        types[k] = 'devDependencies'
+      }
+    })
+  }
+
+  var has = Object.create(parentHas)
+  tree.children.forEach(function (child) {
+    if (child.package.name && child.package.private) {
+      deps = deps.filter(function (dep) { return dep !== child })
+    }
+    has[child.package.name] = {
+      version: child.package.version,
+      from: child.package._from
+    }
+  })
+
+  // now get what we should have, based on the dep.
+  // if has[dep] !== shouldHave[dep], then cb with the data
+  // otherwise dive into the folder
+  asyncMap(deps, function (dep, cb) {
+    var name = dep.package.name
+    var required = (tree.package.dependencies)[name] ||
+                   (tree.package.optionalDependencies)[name] ||
+                   (tree.package.devDependencies)[name] ||
+                   dep.package._requested && dep.package._requested.spec ||
+                   '*'
+    if (!long) return shouldUpdate(args, dep, name, has, required, depth, path, cb)
+
+    shouldUpdate(args, dep, name, has, required, depth, path, cb, types[name])
+  }, cb)
 }
 
-function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
+function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
   // look up the most recent version.
   // if that's what we already have, or if it's not on the args list,
   // then dive into it.  Otherwise, cb() with the data.
@@ -292,31 +315,32 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
   function skip (er) {
     // show user that no viable version can be found
     if (er) return cb(er)
-    outdated_( args
-             , path.resolve(dir, "node_modules", dep)
-             , has
-             , depth + 1
-             , cb )
+    outdated_(args,
+              pkgpath,
+              tree,
+              has,
+              depth + 1,
+              cb)
   }
 
   function doIt (wanted, latest) {
     if (!long) {
-      return cb(null, [[ dir, dep, curr && curr.version, wanted, latest, req]])
+      return cb(null, [[ tree, dep, curr && curr.version, wanted, latest, req, null, pkgpath]])
     }
-    cb(null, [[ dir, dep, curr && curr.version, wanted, latest, req, type]])
+    cb(null, [[ tree, dep, curr && curr.version, wanted, latest, req, type, pkgpath]])
   }
 
   if (args.length && args.indexOf(dep) === -1) return skip()
   var parsed = npa(dep + '@' + req)
-  if (parsed.type === "git" || (parsed.hosted && parsed.hosted.type === "github")) {
-    return doIt("git", "git")
+  if (parsed.type === 'git' || parsed.type === 'hosted') {
+    return doIt('git', 'git')
   }
 
   // search for the latest package
   mapToRegistry(dep, npm.config, function (er, uri, auth) {
     if (er) return cb(er)
 
-    npm.registry.get(uri, { auth : auth }, updateDeps)
+    npm.registry.get(uri, { auth: auth }, updateDeps)
   })
 
   function updateLocalDeps (latestRegistryVersion) {
@@ -348,13 +372,14 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
       return updateLocalDeps()
     }
 
-    if (!d || !d["dist-tags"] || !d.versions) return cb()
-    var l = d.versions[d["dist-tags"].latest]
+    if (!d || !d['dist-tags'] || !d.versions) return cb()
+    var l = d.versions[d['dist-tags'].latest]
     if (!l) return cb()
 
     var r = req
-    if (d["dist-tags"][req])
-      r = d["dist-tags"][req]
+    if (d['dist-tags'][req]) {
+      r = d['dist-tags'][req]
+    }
 
     if (semver.validRange(r, true)) {
       // some kind of semver range.
@@ -369,11 +394,11 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
     // We didn't find the version in the doc.  See if cache can find it.
     cache.add(dep, req, null, false, onCacheAdd)
 
-    function onCacheAdd(er, d) {
+    function onCacheAdd (er, d) {
       // if this fails, then it means we can't update this thing.
       // it's probably a thing that isn't published.
       if (er) {
-        if (er.code && er.code === "ETARGET") {
+        if (er.code && er.code === 'ETARGET') {
           // no viable version found
           return skip(er)
         }
@@ -385,14 +410,14 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
       var dFromUrl = d._from && url.parse(d._from).protocol
       var cFromUrl = curr && curr.from && url.parse(curr.from).protocol
 
-      if (!curr || dFromUrl && cFromUrl && d._from !== curr.from
-          || d.version !== curr.version
-          || d.version !== l.version) {
+      if (!curr ||
+          dFromUrl && cFromUrl && d._from !== curr.from ||
+          d.version !== curr.version ||
+          d.version !== l.version) {
         if (parsed.type === 'local') return updateLocalDeps(l.version)
 
         doIt(d.version, l.version)
-      }
-      else {
+      } else {
         skip()
       }
     }

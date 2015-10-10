@@ -448,3 +448,4 @@ test('test process release - process.release ~ node@4.0.0-rc.4 - bogus string pa
     libPath64: 'win-x64/node.lib'
   })
 })
+

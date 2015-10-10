@@ -3,8 +3,7 @@ npm-repo(1) -- Open package repository page in the browser
 
 ## SYNOPSIS
 
-    npm repo <pkgname>
-    npm repo (with no args in a package dir)
+    npm repo [<pkg>]
 
 ## DESCRIPTION
 

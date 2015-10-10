@@ -61,7 +61,10 @@ test('installing a package that depends on the current package', function (t) {
 
           t.ok(existsSync(path.resolve(
             minimist,
-            'node_modules', 'optimist',
+            'node_modules', 'optimist'
+          )), 'optimist in place')
+          t.ok(existsSync(path.resolve(
+            minimist,
             'node_modules', 'minimist'
           )), 'circular dependency uncircled')
           t.end()

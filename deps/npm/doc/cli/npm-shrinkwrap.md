@@ -82,29 +82,32 @@ This generates `npm-shrinkwrap.json`, which will look something like this:
 
     {
       "name": "A",
-      "version": "0.1.0",
+      "version": "1.1.0",
       "dependencies": {
         "B": {
-          "version": "0.0.1",
+          "version": "1.0.1",
+          "from": "B@^1.0.0",
+          "resolved": "https://registry.npmjs.org/B/-/B-1.0.1.tgz",
           "dependencies": {
             "C": {
-              "version": "0.0.1"
+              "version": "1.0.1",
+              "from": "org/C#v1.0.1",
+              "resolved": "git://github.com/org/C.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4"
             }
           }
         }
       }
     }
 
-The shrinkwrap command has locked down the dependencies based on
-what's currently installed in node_modules.  When `npm install`
-installs a package with an `npm-shrinkwrap.json` in the package
-root, the shrinkwrap file (rather than `package.json` files) completely
-drives the installation of that package and all of its dependencies
-(recursively).  So now the author publishes A@0.1.0, and subsequent
-installs of this package will use B@0.0.1 and C@0.0.1, regardless the
-dependencies and versions listed in A's, B's, and C's `package.json`
-files.
+The shrinkwrap command has locked down the dependencies based on what's
+currently installed in `node_modules`.  The installation behavior is changed to:
 
+1. The module tree described by the shrinkwrap is reproduced. This means
+reproducing the structure described in the file, using the specific files
+referenced in "resolved" if available, falling back to normal package
+resolution using "version" if one isn't.
+
+2. The tree is walked and any missing dependencies are installed in the usual fasion.
 
 ### Using shrinkwrapped packages
 
@@ -126,15 +129,14 @@ To add or update a dependency in a shrinkwrapped package:
 
 1. Run `npm install` in the package root to install the current
    versions of all dependencies.
-2. Add or update dependencies. `npm install` each new or updated
-   package individually and then update `package.json`.  Note that they
-   must be explicitly named in order to be installed: running `npm
-   install` with no arguments will merely reproduce the existing
+2. Add or update dependencies. `npm install --save` each new or updated
+   package individually to update the `package.json` and the shrinkwrap.
+   Note that they must be explicitly named in order to be installed: running
+   `npm install` with no arguments will merely reproduce the existing
    shrinkwrap.
 3. Validate that the package works as expected with the new
    dependencies.
-4. Run `npm shrinkwrap`, commit the new `npm-shrinkwrap.json`, and
-   publish your package.
+4. Commit the new `npm-shrinkwrap.json`, and publish your package.
 
 You can use npm-outdated(1) to view dependencies with newer versions
 available.

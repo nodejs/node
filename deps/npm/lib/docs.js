@@ -1,14 +1,12 @@
 module.exports = docs
 
-docs.usage  = "npm docs <pkgname>"
-docs.usage += "\n"
-docs.usage += "npm docs ."
+docs.usage = 'npm docs <pkgname>' +
+             '\nnpm docs .'
 
-var npm = require("./npm.js")
-  , opener = require("opener")
-  , path = require("path")
-  , log = require("npmlog")
-  , mapToRegistry = require("./utils/map-to-registry.js")
+var npm = require('./npm.js')
+var opener = require('opener')
+var log = require('npmlog')
+var fetchPackageMetadata = require('./fetch-package-metadata.js')
 
 docs.completion = function (opts, cb) {
   // FIXME: there used to be registry completion here, but it stopped making
@@ -16,16 +14,12 @@ docs.completion = function (opts, cb) {
   cb()
 }
 
-function url (json) {
-  return json.homepage ? json.homepage : "https://npmjs.org/package/" + json.name
-}
-
 function docs (args, cb) {
-  args = args || []
+  if (!args || !args.length) args = ['.']
   var pending = args.length
-  if (!pending) return getDoc(".", cb)
-  args.forEach(function(proj) {
-    getDoc(proj, function(err) {
+  log.silly('docs', args)
+  args.forEach(function (proj) {
+    getDoc(proj, function (err) {
       if (err) {
         return cb(err)
       }
@@ -35,37 +29,11 @@ function docs (args, cb) {
 }
 
 function getDoc (project, cb) {
-  project = project || "."
-  var package = path.resolve(npm.localPrefix, "package.json")
-
-  if (project === "." || project === "./") {
-    var json
-    try {
-      json = require(package)
-      if (!json.name) throw new Error('package.json does not have a valid "name" property')
-      project = json.name
-    } catch (e) {
-      log.error(e.message)
-      return cb(docs.usage)
-    }
-
-    return opener(url(json), { command: npm.config.get("browser") }, cb)
-  }
-
-  mapToRegistry(project, npm.config, function (er, uri, auth) {
+  log.silly('getDoc', project)
+  fetchPackageMetadata(project, '.', function (er, d) {
     if (er) return cb(er)
-
-    npm.registry.get(uri + "/latest", { timeout : 3600, auth : auth }, next)
+    var url = d.homepage
+    if (!url) url = 'https://www.npmjs.org/package/' + d.name
+    return opener(url, {command: npm.config.get('browser')}, cb)
   })
-
-  function next (er, json) {
-    var github = "https://github.com/" + project + "#readme"
-
-    if (er) {
-      if (project.split("/").length !== 2) return cb(er)
-      return opener(github, { command: npm.config.get("browser") }, cb)
-    }
-
-    return opener(url(json), { command: npm.config.get("browser") }, cb)
-  }
 }

@@ -69,25 +69,23 @@ test('installing dependencies that have conflicting peerDependencies', function 
       '/invalid.js': [200, path.join(pkg, 'file-fail.js')]
     }
   }
-  mr({port: common.port, mocks: customMocks}, function (err, s) { // create mock registry.
+  mr({port: common.port, mocks: customMocks}, function (err, s) {
     t.ifError(err, 'mock registry started')
-    npm.load({
-      cache: pkg + "/cache",
-      registry: common.registry
-    }, function () {
-      npm.commands.install([], function (err) {
-        if (!err) {
-          t.fail("No error!")
-        } else {
-          t.equal(err.code, "EPEERINVALID")
-          t.equal(err.packageName, "underscore")
-          t.equal(err.packageVersion, "1.3.3")
-          t.equal(err.message, "The package underscore@1.3.3 does not satisfy its siblings' peerDependencies requirements!")
-        }
-        s.close() // shutdown mock registry.
-        t.end()
-      })
-    })
+    npm.load(
+      {
+        cache: cache,
+        registry: common.registry
+      },
+      function () {
+        npm.commands.install([], function (err, additions, tree) {
+          t.error(err)
+          var invalid = tree.warnings.filter(function (warning) { return warning.code === 'EPEERINVALID' })
+          t.is(invalid.length, 2)
+          s.close()
+          t.end()
+        })
+      }
+    )
   })
 })
 

@@ -3,15 +3,17 @@ npm-install(1) -- Install a package
 
 ## SYNOPSIS
 
-    npm install (with no args in a package dir)
+    npm install (with no args, in package dir)
+    npm install [<@scope>/]<name>
+    npm install [<@scope>/]<name>@<tag>
+    npm install [<@scope>/]<name>@<version>
+    npm install [<@scope>/]<name>@<version range>
     npm install <tarball file>
     npm install <tarball url>
     npm install <folder>
-    npm install [@<scope>/]<name> [--save|--save-dev|--save-optional] [--save-exact]
-    npm install [@<scope>/]<name>@<tag>
-    npm install [@<scope>/]<name>@<version>
-    npm install [@<scope>/]<name>@<version range>
-    npm i (with any of the previous argument usage)
+
+    alias: npm i
+    common options: [--save|--save-dev|--save-optional] [--save-exact] [--dry-run]
 
 ## DESCRIPTION
 
@@ -27,7 +29,7 @@ A `package` is:
 * d) a `<name>@<version>` that is published on the registry (see `npm-registry(7)`) with (c)
 * e) a `<name>@<tag>` that points to (d)
 * f) a `<name>` that has a "latest" tag satisfying (e)
-* g) a `<git remote url>` that resolves to (b)
+* g) a `<git remote url>` that resolves to (a)
 
 Even if you never publish your package, you can still get a lot of
 benefits of using npm if you just want to write a node program (a), and
@@ -71,7 +73,7 @@ after packing it up into a tarball (b).
 
           npm install https://github.com/indexzero/forever/tarball/v0.5.6
 
-* `npm install [@<scope>/]<name> [--save|--save-dev|--save-optional]`:
+* `npm install [<@scope>/]<name> [--save|--save-dev|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
     `npm-config(7)`.)
@@ -99,6 +101,9 @@ after packing it up into a tarball (b).
       exact version rather than using npm's default semver range
       operator.
 
+    Further, if you have an `npm-shrinkwrap.json` then it will be updated as
+    well.
+
     `<scope>` is optional. The package will be downloaded from the registry
     associated with the specified scope. If no registry is associated with
     the given scope the default registry is assumed. See `npm-scope(7)`.
@@ -121,7 +126,7 @@ after packing it up into a tarball (b).
     working directory, then it will try to install that, and only try to
     fetch the package by name if it is not valid.
 
-* `npm install [@<scope>/]<name>@<tag>`:
+* `npm install [<@scope>/]<name>@<tag>`:
 
     Install the version of the package that is referenced by the specified tag.
     If the tag does not exist in the registry data for that package, then this
@@ -132,7 +137,7 @@ after packing it up into a tarball (b).
           npm install sax@latest
           npm install @myorg/mypackage@latest
 
-* `npm install [@<scope>/]<name>@<version>`:
+* `npm install [<@scope>/]<name>@<version>`:
 
     Install the specified version of the package.  This will fail if the
     version has not been published to the registry.
@@ -142,7 +147,7 @@ after packing it up into a tarball (b).
           npm install sax@0.1.1
           npm install @myorg/privatepackage@1.5.0
 
-* `npm install [@<scope>/]<name>@<version range>`:
+* `npm install [<@scope>/]<name>@<version range>`:
 
     Install a version of the package matching the specified version range.  This
     will follow the same rules for resolving dependencies described in `package.json(5)`.
@@ -157,10 +162,10 @@ after packing it up into a tarball (b).
 
 * `npm install <git remote url>`:
 
-    Install a package by cloning a git remote url.  The format of the git
-    url is:
+    Installs the package from the hosted git provider, cloning it with
+    `git`. First it tries via the https (git with github) and if that fails, via ssh.
 
-          <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:/]<path>[#<commit-ish>]
+          <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit-ish>]
 
     `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
     `git+https`.  If no `<commit-ish>` is specified, then `master` is
@@ -241,6 +246,9 @@ The `--tag` argument will apply to all of the specified install targets. If a
 tag with the given name exists, the tagged version is preferred over newer
 versions.
 
+The `--dry-run` argument will report in the usual way what the install would
+have done without actually installing anything.
+
 The `--force` argument will force npm to fetch remote resources even if a
 local copy exists on disk.
 
@@ -264,6 +272,9 @@ shrinkwrap file and use the package.json instead.
 The `--nodedir=/path/to/node/source` argument will allow npm to find the
 node source code so that npm can compile native modules.
 
+The `--only={prod[uction]|dev[elopment]}` argument will cause either only
+`devDependencies` or only non-`devDependencies` to be installed.
+
 See `npm-config(7)`.  Many of the configuration params have some
 effect on installation, since that's most of what npm does.
 
@@ -271,26 +282,39 @@ effect on installation, since that's most of what npm does.
 
 To install a package, npm uses the following algorithm:
 
-    install(where, what, family, ancestors)
-    fetch what, unpack to <where>/node_modules/<what>
-    for each dep in what.dependencies
-      resolve dep to precise version
-    for each dep@version in what.dependencies
-        not in <where>/node_modules/<what>/node_modules/*
-        and not in <family>
-      add precise version deps to <family>
-      install(<where>/node_modules/<what>, dep, family)
+    load the existing node_modules tree from disk
+    clone the tree
+    fetch the package.json and assorted metadata and add it to the clone
+    walk the clone and add any missing dependencies
+      dependencies will be added as close to the top as is possible
+      without breaking any other modules
+    compare the original tree with the cloned tree and make a list of
+    actions to take to convert one to the other
+    execute all of the actions, deepest first
+      kinds of actions are install, update, remove and move
 
 For this `package{dep}` structure: `A{B,C}, B{C}, C{D}`,
 this algorithm produces:
 
     A
     +-- B
-    `-- C
-        `-- D
+    +-- C
+    +-- D
 
 That is, the dependency from B to C is satisfied by the fact that A
-already caused C to be installed at a higher level.
+already caused C to be installed at a higher level. D is still installed
+at the top level because nothing conflicts with it.
+
+For `A{B,C}, B{C,D@1}, C{D@2}`, this algorithm produces:
+
+    A
+    +-- B
+    +-- C
+       `-- D@2
+    +-- D@1
+
+Because B's D@1 will be installed in the top leve, C now has to install D@2
+privately for itself.
 
 See npm-folders(5) for a more detailed description of the specific
 folder structures that npm creates.

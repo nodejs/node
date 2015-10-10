@@ -11,8 +11,10 @@
 
 <h1><a href="../cli/npm-publish.html">npm-publish</a></h1> <p>Publish a package</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm publish &lt;tarball&gt; [--tag &lt;tag&gt;] [--access &lt;public|restricted&gt;]
-npm publish &lt;folder&gt; [--tag &lt;tag&gt;] [--access &lt;public|restricted&gt;]
+<pre><code>npm publish [&lt;tarball&gt;|&lt;folder&gt;] [--tag &lt;tag&gt;] [--access &lt;public|restricted&gt;]
+
+Publishes &#39;.&#39; if no argument supplied
+Sets tag &#39;latest&#39; if no --tag specified
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Publishes a package to the registry so that it can be installed by name. See
 <code><a href="../misc/npm-developers.html">npm-developers(7)</a></code> for details on what&#39;s included in the published package, as
@@ -66,5 +68,5 @@ it is removed with <a href="../cli/npm-unpublish.html">npm-unpublish(1)</a>.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-publish &mdash; npm@2.14.7</p>
+<p id="footer">npm-publish &mdash; npm@3.3.6</p>
 
