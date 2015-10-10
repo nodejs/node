@@ -65,11 +65,11 @@ process.on('exit', function onExit() {
 
 const expectedLines = [
   'Starting debugger agent.',
-  'Debugger listening on port ' + (port + 0),
+  'Debugger listening on (\\[::\\]|0\\.0\\.0\\.0):' + (port + 0),
   'Starting debugger agent.',
-  'Debugger listening on port ' + (port + 1),
+  'Debugger listening on (\\[::\\]|0\\.0\\.0\\.0):' + (port + 1),
   'Starting debugger agent.',
-  'Debugger listening on port ' + (port + 2),
+  'Debugger listening on (\\[::\\]|0\\.0\\.0\\.0):' + (port + 2),
 ];
 
 function assertOutputLines() {
@@ -79,5 +79,7 @@ function assertOutputLines() {
   outputLines.sort();
   expectedLines.sort();
 
-  assert.deepStrictEqual(outputLines, expectedLines);
+  assert.equal(outputLines.length, expectedLines.length);
+  for (var i = 0; i < expectedLines.length; i++)
+    assert(RegExp(expectedLines[i]).test(outputLines[i]));
 }

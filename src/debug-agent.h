@@ -30,6 +30,7 @@
 #include "v8-debug.h"
 
 #include <string.h>
+#include <string>
 
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
@@ -73,7 +74,7 @@ class Agent {
   typedef void (*DispatchHandler)(node::Environment* env);
 
   // Start the debugger agent thread
-  bool Start(int port, bool wait);
+  bool Start(const std::string& host, int port, bool wait);
   // Listen for debug events
   void Enable();
   // Stop the debugger agent
@@ -112,6 +113,7 @@ class Agent {
 
   State state_;
 
+  std::string host_;
   int port_;
   bool wait_;
 
