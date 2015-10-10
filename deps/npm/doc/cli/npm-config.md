@@ -8,7 +8,6 @@ npm-config(1) -- Manage the npm configuration files
     npm config delete <key>
     npm config list
     npm config edit
-    npm c [set|get|delete|list]
     npm get <key>
     npm set <key> <value> [--global]
 

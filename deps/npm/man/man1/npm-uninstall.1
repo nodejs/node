@@ -5,8 +5,9 @@
 .P
 .RS 2
 .nf
-npm uninstall [@<scope>/]<package> [\-\-save|\-\-save\-dev|\-\-save\-optional]
-npm rm (with any of the previous argument usage)
+npm uninstall [<@scope>/]<pkg>[@<version>]\.\.\. [\-\-save|\-\-save\-dev|\-\-save\-optional]
+
+aliases: remove, rm, r, un, unlink
 .fi
 .RE
 .SH DESCRIPTION
@@ -36,6 +37,9 @@ the package version in your main package\.json:
 \fB\-\-save\-optional\fP: Package will be removed from your \fBoptionalDependencies\fP\|\.
 
 .RE
+.P
+Further, if you have an \fBnpm\-shrinkwrap\.json\fP then it will be updated as
+well\.
 .P
 Scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fP\|\.
 .P

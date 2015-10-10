@@ -5,6 +5,10 @@ npm-version(1) -- Bump a package version
 
     npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]
 
+    'npm -v' or 'npm --version' to print npm version
+    'npm view <pkg> version' to view a package's published version
+    'npm ls' to inspect current package/dependency versions
+
 ## DESCRIPTION
 
 Run this in a package directory to bump the version and write the new

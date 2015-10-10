@@ -1,6 +1,0 @@
-package.json
-node_modules
-test/external
-examples
-/.eslint*
-/.travis.yml

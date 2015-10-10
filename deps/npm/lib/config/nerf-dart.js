@@ -1,4 +1,4 @@
-var url = require("url")
+var url = require('url')
 
 module.exports = toNerfDart
 
@@ -11,7 +11,7 @@ module.exports = toNerfDart
  *
  * @returns {String} A nerfed URL.
  */
-function toNerfDart(uri) {
+function toNerfDart (uri) {
   var parsed = url.parse(uri)
   delete parsed.protocol
   delete parsed.auth
@@ -19,5 +19,5 @@ function toNerfDart(uri) {
   delete parsed.search
   delete parsed.hash
 
-  return url.resolve(url.format(parsed), ".")
+  return url.resolve(url.format(parsed), '.')
 }

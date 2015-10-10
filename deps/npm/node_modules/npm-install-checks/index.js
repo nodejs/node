@@ -6,7 +6,6 @@ var semver = require("semver")
 exports.checkEngine = checkEngine
 function checkEngine (target, npmVer, nodeVer, force, strict, cb) {
   var nodev = force ? null : nodeVer
-    , strict = strict || target.engineStrict
     , eng = target.engines
   if (!eng) return cb()
   if (nodev && eng.node && !semver.satisfies(nodev, eng.node)

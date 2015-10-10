@@ -1,23 +1,22 @@
 
 module.exports = publish
 
-var npm = require("./npm.js")
-  , log = require("npmlog")
-  , path = require("path")
-  , readJson = require("read-package-json")
-  , lifecycle = require("./utils/lifecycle.js")
-  , chain = require("slide").chain
-  , mapToRegistry = require("./utils/map-to-registry.js")
-  , cachedPackageRoot = require("./cache/cached-package-root.js")
-  , createReadStream = require("graceful-fs").createReadStream
-  , npa = require("npm-package-arg")
-  , semver = require('semver')
-  , getPublishConfig = require("./utils/get-publish-config.js")
+var npm = require('./npm.js')
+var log = require('npmlog')
+var path = require('path')
+var readJson = require('read-package-json')
+var lifecycle = require('./utils/lifecycle.js')
+var chain = require('slide').chain
+var mapToRegistry = require('./utils/map-to-registry.js')
+var cachedPackageRoot = require('./cache/cached-package-root.js')
+var createReadStream = require('graceful-fs').createReadStream
+var npa = require('npm-package-arg')
+var semver = require('semver')
+var getPublishConfig = require('./utils/get-publish-config.js')
 
-publish.usage = "npm publish <tarball> [--tag <tagname>]"
-              + "\nnpm publish <folder> [--tag <tagname>]"
-              + "\n\nPublishes '.' if no argument supplied"
-              + "\n\nSets tag `latest` if no --tag specified"
+publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]' +
+                "\n\nPublishes '.' if no argument supplied" +
+                '\n\nSets tag `latest` if no --tag specified'
 
 publish.completion = function (opts, cb) {
   // publish can complete to a folder with a package.json
@@ -27,29 +26,29 @@ publish.completion = function (opts, cb) {
 }
 
 function publish (args, isRetry, cb) {
-  if (typeof cb !== "function") {
+  if (typeof cb !== 'function') {
     cb = isRetry
     isRetry = false
   }
-  if (args.length === 0) args = ["."]
+  if (args.length === 0) args = ['.']
   if (args.length !== 1) return cb(publish.usage)
 
-  log.verbose("publish", args)
+  log.verbose('publish', args)
 
   var t = npm.config.get('tag').trim()
   if (semver.validRange(t)) {
-    var er = new Error("Tag name must not be a valid SemVer range: " + t)
+    var er = new Error('Tag name must not be a valid SemVer range: ' + t)
     return cb(er)
   }
 
   var arg = args[0]
   // if it's a local folder, then run the prepublish there, first.
-  readJson(path.resolve(arg, "package.json"), function (er, data) {
-    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
+  readJson(path.resolve(arg, 'package.json'), function (er, data) {
+    if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
 
     if (data) {
-      if (!data.name) return cb(new Error("No name provided"))
-      if (!data.version) return cb(new Error("No version provided"))
+      if (!data.name) return cb(new Error('No name provided'))
+      if (!data.version) return cb(new Error('No version provided'))
     }
 
     // Error is OK. Could be publishing a URL or tarball, however, that means
@@ -61,26 +60,29 @@ function publish (args, isRetry, cb) {
 }
 
 // didPre in this case means that we already ran the prepublish script,
-// and that the "dir" is an actual directory, and not something silly
+// and that the 'dir' is an actual directory, and not something silly
 // like a tarball or name@version thing.
 // That means that we can run publish/postpublish in the dir, rather than
 // in the cache dir.
 function cacheAddPublish (dir, didPre, isRetry, cb) {
   npm.commands.cache.add(dir, null, null, false, function (er, data) {
     if (er) return cb(er)
-    log.silly("publish", data)
-    var cachedir = path.resolve(cachedPackageRoot(data), "package")
-    chain([ !didPre &&
-          [lifecycle, data, "prepublish", cachedir]
-        , [publish_, dir, data, isRetry, cachedir]
-        , [lifecycle, data, "publish", didPre ? dir : cachedir]
-        , [lifecycle, data, "postpublish", didPre ? dir : cachedir] ]
-      , cb )
+    log.silly('publish', data)
+    var cachedir = path.resolve(cachedPackageRoot(data), 'package')
+    chain(
+      [
+        !didPre && [lifecycle, data, 'prepublish', cachedir],
+        [publish_, dir, data, isRetry, cachedir],
+        [lifecycle, data, 'publish', didPre ? dir : cachedir],
+        [lifecycle, data, 'postpublish', didPre ? dir : cachedir]
+      ],
+      cb
+    )
   })
 }
 
 function publish_ (arg, data, isRetry, cachedir, cb) {
-  if (!data) return cb(new Error("no package.json file found"))
+  if (!data) return cb(new Error('no package.json file found'))
 
   var mappedConfig = getPublishConfig(
     data.publishConfig,
@@ -90,51 +92,52 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
   var config = mappedConfig.config
   var registry = mappedConfig.client
 
-  data._npmVersion  = npm.version
+  data._npmVersion = npm.version
   data._nodeVersion = process.versions.node
 
   delete data.modules
-  if (data.private) return cb(
-    new Error(
-      "This package has been marked as private\n" +
+  if (data.private) {
+    return cb(new Error(
+      'This package has been marked as private\n' +
       "Remove the 'private' field from the package.json to publish it."
-    )
-  )
+    ))
+  }
 
   mapToRegistry(data.name, config, function (er, registryURI, auth, registryBase) {
     if (er) return cb(er)
 
-    var tarballPath = cachedir + ".tgz"
+    var tarballPath = cachedir + '.tgz'
 
     // we just want the base registry URL in this case
-    log.verbose("publish", "registryBase", registryBase)
-    log.silly("publish", "uploading", tarballPath)
+    log.verbose('publish', 'registryBase', registryBase)
+    log.silly('publish', 'uploading', tarballPath)
 
     data._npmUser = {
-      name  : auth.username,
-      email : auth.email
+      name: auth.username,
+      email: auth.email
     }
 
     var params = {
-      metadata : data,
-      body     : createReadStream(tarballPath),
-      auth     : auth
+      metadata: data,
+      body: createReadStream(tarballPath),
+      auth: auth
     }
 
     // registry-frontdoor cares about the access level, which is only
     // configurable for scoped packages
-    if (config.get("access")) {
-      if (!npa(data.name).scope && config.get("access") === "restricted") {
+    if (config.get('access')) {
+      if (!npa(data.name).scope && config.get('access') === 'restricted') {
         return cb(new Error("Can't restrict access to unscoped packages."))
       }
 
-      params.access = config.get("access")
+      params.access = config.get('access')
     }
 
+    log.showProgress('publish:' + data._id)
     registry.publish(registryBase, params, function (er) {
-      if (er && er.code === "EPUBLISHCONFLICT" &&
-          npm.config.get("force") && !isRetry) {
-        log.warn("publish", "Forced publish over " + data._id)
+      if (er && er.code === 'EPUBLISHCONFLICT' &&
+          npm.config.get('force') && !isRetry) {
+        log.warn('publish', 'Forced publish over ' + data._id)
         return npm.commands.unpublish([data._id], function (er) {
           // ignore errors.  Use the force.  Reach out with your feelings.
           // but if it fails again, then report the first error.
@@ -144,7 +147,8 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
       // report the unpublish error if this was a retry and unpublish failed
       if (er && isRetry && isRetry !== true) return cb(isRetry)
       if (er) return cb(er)
-      console.log("+ " + data._id)
+      log.clearProgress()
+      console.log('+ ' + data._id)
       cb()
     })
   })

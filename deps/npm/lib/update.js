@@ -1,58 +1,60 @@
-/*
-for each pkg in prefix that isn't a git repo
-  look for a new version of pkg that satisfies dep
-  if so, install it.
-  if not, then update it
-*/
-
 module.exports = update
 
-update.usage = "npm update [pkg]"
+update.usage = 'npm update [-g] [<pkg>...]'
 
-var npm = require("./npm.js")
-  , asyncMap = require("slide").asyncMap
-  , log = require("npmlog")
-
-  // load these, just so that we know that they'll be available, in case
-  // npm itself is getting overwritten.
-  , install = require("./install.js")
-  , build = require("./build.js")
+var url = require('url')
+var log = require('npmlog')
+var chain = require('slide').chain
+var npm = require('./npm.js')
+var Installer = require('./install.js').Installer
 
 update.completion = npm.commands.outdated.completion
 
 function update (args, cb) {
-  npm.commands.outdated(args, true, function (er, outdated) {
+  var dryrun = false
+  if (npm.config.get('dry-run')) dryrun = true
+
+  npm.commands.outdated(args, true, function (er, rawOutdated) {
     if (er) return cb(er)
+    var outdated = rawOutdated.map(function (ww) {
+      return {
+        dep: ww[0],
+        depname: ww[1],
+        current: ww[2],
+        wanted: ww[3],
+        latest: ww[4],
+        req: ww[5],
+        what: ww[1] + '@' + ww[3]
+      }
+    })
 
     var wanted = outdated.filter(function (ww) {
-      var dep = ww[1]
-      var current = ww[2]
-      var wanted = ww[3]
-      var latest = ww[4]
-      if (current === wanted && wanted !== latest) {
+      if (ww.current === ww.wanted && ww.wanted !== ww.latest) {
         log.verbose(
           'outdated',
-          'not updating', dep,
+          'not updating', ww.depname,
           "because it's currently at the maximum version that matches its specified semver range"
         )
       }
-      return current !== wanted
+      return ww.current !== ww.wanted
     })
     if (wanted.length === 0) return cb()
 
     log.info('outdated', 'updating', wanted)
-    asyncMap(wanted, function (ww, cb) {
-      // [[ dir, dep, has, want, req ]]
-      var where = ww[0]
-        , dep = ww[1]
-        , want = ww[3]
-        , what = dep + "@" + want
-        , req = ww[5]
-        , url = require('url')
-
+    var toInstall = {}
+    wanted.forEach(function (ww) {
       // use the initial installation method (repo, tar, git) for updating
-      if (url.parse(req).protocol) what = req
-      npm.commands.install(where, what, cb)
-    }, cb)
+      if (url.parse(ww.req).protocol) ww.what = ww.req
+
+      var where = ww.dep.parent && ww.dep.parent.path || ww.dep.path
+      if (toInstall[where]) {
+        toInstall[where].push(ww.what)
+      } else {
+        toInstall[where] = [ww.what]
+      }
+    })
+    chain(Object.keys(toInstall).map(function (where) {
+      return [new Installer(where, dryrun, toInstall[where]), 'run']
+    }), cb)
   })
 }
