@@ -10,7 +10,7 @@ const kStringMaxLength = process.binding('buffer').kStringMaxLength;
 try {
   new Buffer(kStringMaxLength * 3);
 } catch(e) {
-  assert.equal(e.message, 'Invalid typed array length');
+  assert.equal(e.message, 'Invalid array buffer length');
   console.log(
       '1..0 # Skipped: intensive toString tests due to memory confinements');
   return;
