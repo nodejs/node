@@ -129,31 +129,31 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
 
   assert.throws(function() {
     buf1.toString();
-  }, /toString failed|Invalid array buffer length/);
+  }, RangeError, /toString\(\) failed: buffer larger than maximum/);
 
   assert.throws(function() {
     buf1.toString('ascii');
-  }, /toString failed/);
+  }, RangeError, /toString\(\) failed: buffer larger than maximum/);
 
   assert.throws(function() {
     buf1.toString('utf8');
-  }, /toString failed/);
+  }, RangeError, /toString\(\) failed: buffer larger than maximum/);
 
   assert.throws(function() {
     buf0.toString('utf16le');
-  }, /toString failed/);
+  }, RangeError, /toString\(\) failed: buffer larger than maximum/);
 
   assert.throws(function() {
     buf1.toString('binary');
-  }, /toString failed/);
+  }, RangeError, /toString\(\) failed: buffer larger than maximum/);
 
   assert.throws(function() {
     buf1.toString('base64');
-  }, /toString failed/);
+  }, RangeError, /toString\(\) failed: buffer larger than maximum/);
 
   assert.throws(function() {
     buf1.toString('hex');
-  }, /toString failed/);
+  }, RangeError, /toString\(\) failed: buffer larger than maximum/);
 
   var maxString = buf2.toString();
   assert.equal(maxString.length, kStringMaxLength);
