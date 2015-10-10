@@ -58,6 +58,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+
+#include <string>
 #include <vector>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -139,6 +141,7 @@ static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
+static std::string debug_host;  // NOLINT(runtime/string)
 static int debug_port = 5858;
 static bool prof_process = false;
 static bool v8_is_profiling = false;
@@ -3288,19 +3291,54 @@ static bool ParseDebugOpt(const char* arg) {
     debug_wait_connect = true;
     port = arg + sizeof("--debug-brk=") - 1;
   } else if (!strncmp(arg, "--debug-port=", sizeof("--debug-port=") - 1)) {
+    // XXX(bnoordhuis) Misnomer, configures port and listen address.
     port = arg + sizeof("--debug-port=") - 1;
   } else {
     return false;
   }
 
-  if (port != nullptr) {
-    debug_port = atoi(port);
-    if (debug_port < 1024 || debug_port > 65535) {
-      fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
-      PrintHelp();
-      exit(12);
-    }
+  if (port == nullptr) {
+    return true;
   }
+
+  std::string* const the_host = &debug_host;
+  int* const the_port = &debug_port;
+
+  // FIXME(bnoordhuis) Move IPv6 address parsing logic to lib/net.js.
+  // It seems reasonable to support [address]:port notation
+  // in net.Server#listen() and net.Socket#connect().
+  const size_t port_len = strlen(port);
+  if (port[0] == '[' && port[port_len - 1] == ']') {
+    the_host->assign(port + 1, port_len - 2);
+    return true;
+  }
+
+  const char* const colon = strrchr(port, ':');
+  if (colon == nullptr) {
+    // Either a port number or a host name.  Assume that
+    // if it's not all decimal digits, it's a host name.
+    for (size_t n = 0; port[n] != '\0'; n += 1) {
+      if (port[n] < '0' || port[n] > '9') {
+        *the_host = port;
+        return true;
+      }
+    }
+  } else {
+    const bool skip = (colon > port && port[0] == '[' && colon[-1] == ']');
+    the_host->assign(port + skip, colon - skip);
+  }
+
+  char* endptr;
+  errno = 0;
+  const char* const digits = colon != nullptr ? colon + 1 : port;
+  const long result = strtol(digits, &endptr, 10);  // NOLINT(runtime/int)
+  if (errno != 0 || *endptr != '\0' || result < 1024 || result > 65535) {
+    fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
+    PrintHelp();
+    exit(12);
+  }
+
+  *the_port = static_cast<int>(result);
 
   return true;
 }
@@ -3539,9 +3577,11 @@ static void StartDebug(Environment* env, bool wait) {
 
   env->debugger_agent()->set_dispatch_handler(
         DispatchMessagesDebugAgentCallback);
-  debugger_running = env->debugger_agent()->Start(debug_port, wait);
+  debugger_running =
+      env->debugger_agent()->Start(debug_host, debug_port, wait);
   if (debugger_running == false) {
-    fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
+    fprintf(stderr, "Starting debugger on %s:%d failed\n",
+            debug_host.c_str(), debug_port);
     fflush(stderr);
     return;
   }

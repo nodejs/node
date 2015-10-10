@@ -44,6 +44,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -69,7 +70,7 @@ Agent::~Agent() {
 }
 
 
-bool Agent::Start(int port, bool wait) {
+bool Agent::Start(const std::string& host, int port, bool wait) {
   int err;
 
   if (state_ == kRunning)
@@ -85,6 +86,7 @@ bool Agent::Start(int port, bool wait) {
     goto async_init_failed;
   uv_unref(reinterpret_cast<uv_handle_t*>(&child_signal_));
 
+  host_ = host;
   port_ = port;
   wait_ = wait;
 
@@ -211,6 +213,10 @@ void Agent::InitAdaptor(Environment* env) {
   Local<Object> api = t->GetFunction()->NewInstance();
   api->SetAlignedPointerInInternalField(0, this);
 
+  api->Set(String::NewFromUtf8(isolate, "host",
+                               NewStringType::kNormal).ToLocalChecked(),
+           String::NewFromUtf8(isolate, host_.data(), NewStringType::kNormal,
+                               host_.size()).ToLocalChecked());
   api->Set(String::NewFromUtf8(isolate, "port"), Integer::New(isolate, port_));
 
   env->process_object()->Set(String::NewFromUtf8(isolate, "_debugAPI"), api);

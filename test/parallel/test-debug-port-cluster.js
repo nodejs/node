@@ -16,7 +16,8 @@ child.stderr.setEncoding('utf8');
 
 const checkMessages = common.mustCall(() => {
   for (let port = PORT_MIN; port <= PORT_MAX; port += 1) {
-    assert(stderr.includes(`Debugger listening on port ${port}`));
+    const re = RegExp(`Debugger listening on (\\[::\\]|0\\.0\\.0\\.0):${port}`);
+    assert(re.test(stderr));
   }
 });
 
