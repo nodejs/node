@@ -39,10 +39,7 @@ Running Node.js will now share port 8000 between the workers:
     23521,Master Worker 23523 online
     23521,Master Worker 23528 online
 
-This feature was introduced recently, and may change in future versions.
-Please try it out and provide feedback.
-
-Also note that, on Windows, it is not yet possible to set up a named pipe
+Please note that, on Windows, it is not yet possible to set up a named pipe
 server in a worker.
 
 ## How It Works
