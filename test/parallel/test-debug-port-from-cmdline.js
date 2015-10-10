@@ -39,11 +39,10 @@ function processStderrLine(line) {
 function assertOutputLines() {
   var expectedLines = [
     'Starting debugger agent.',
-    'Debugger listening on port ' + debugPort
+    'Debugger listening on (\\[::\\]|0\\.0\\.0\\.0):' + debugPort,
   ];
 
   assert.equal(outputLines.length, expectedLines.length);
   for (var i = 0; i < expectedLines.length; i++)
-    assert.equal(outputLines[i], expectedLines[i]);
-
+    assert(RegExp(expectedLines[i]).test(outputLines[i]));
 }
