@@ -65,7 +65,8 @@ static void counter_gc_start(Isolate* isolate,
 static void counter_gc_done(Isolate* isolate,
                             GCType type,
                             GCCallbackFlags flags) {
-  uint64_t endgc = NODE_COUNT_GET_GC_RAWTIME();
+  uint64_t endgc = 0;
+  endgc = NODE_COUNT_GET_GC_RAWTIME();
   if (endgc != 0) {
     uint64_t totalperiod = endgc - counter_gc_end_time;
     uint64_t gcperiod = endgc - counter_gc_start_time;

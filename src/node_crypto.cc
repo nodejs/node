@@ -3321,6 +3321,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 
   bool r = hmac->HmacDigest(&md_value, &md_len);
   if (!r) {
+    delete[] md_value;
     md_value = nullptr;
     md_len = 0;
   }
