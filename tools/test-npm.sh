@@ -23,10 +23,10 @@ cd test-npm
 rm -rf npm-cache npm-tmp npm-prefix
 mkdir npm-cache npm-tmp npm-prefix
 
-# set some npm env varibles to point to our new temporary folders
-export npm_config_cache="npm-cache"
-export npm_config_prefix="npm-prefix"
-export npm_config_tmp="npm-tmp"
+# set some npm env variables to point to our new temporary folders
+export npm_config_cache="$(pwd)/npm-cache"
+export npm_config_prefix="$(pwd)/npm-prefix"
+export npm_config_tmp="$(pwd)/npm-tmp"
 
 # install npm devDependencies and run npm's tests
 
