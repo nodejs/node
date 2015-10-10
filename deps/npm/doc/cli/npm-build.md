@@ -3,7 +3,7 @@ npm-build(1) -- Build a package
 
 ## SYNOPSIS
 
-    npm build <package-folder>
+    npm build [<package-folder>]
 
 * `<package-folder>`:
   A folder containing a `package.json` file in its root.

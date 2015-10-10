@@ -11,15 +11,17 @@
 
 <h1><a href="../cli/npm-install.html">npm-install</a></h1> <p>Install a package</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm install (with no args in a package dir)
+<pre><code>npm install (with no args, in package dir)
+npm install [&lt;@scope&gt;/]&lt;name&gt;
+npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;tag&gt;
+npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;version&gt;
+npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;version range&gt;
 npm install &lt;tarball file&gt;
 npm install &lt;tarball url&gt;
 npm install &lt;folder&gt;
-npm install [@&lt;scope&gt;/]&lt;name&gt; [--save|--save-dev|--save-optional] [--save-exact]
-npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;tag&gt;
-npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;version&gt;
-npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;version range&gt;
-npm i (with any of the previous argument usage)
+
+alias: npm i
+common options: [--save|--save-dev|--save-optional] [--save-exact] [--dry-run]
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command installs a package, and any packages that it depends on. If the
 package has a shrinkwrap file, the installation of dependencies will be driven
@@ -32,7 +34,7 @@ by that. See <a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a>.</p>
 <li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry (see <code><a href="../misc/npm-registry.html">npm-registry(7)</a></code>) with (c)</li>
 <li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li>
 <li>f) a <code>&lt;name&gt;</code> that has a &quot;latest&quot; tag satisfying (e)</li>
-<li>g) a <code>&lt;git remote url&gt;</code> that resolves to (b)</li>
+<li>g) a <code>&lt;git remote url&gt;</code> that resolves to (a)</li>
 </ul>
 <p>Even if you never publish your package, you can still get a lot of
 benefits of using npm if you just want to write a node program (a), and
@@ -65,7 +67,7 @@ after packing it up into a tarball (b).</p>
 <p>  Example:</p>
 <pre><code>    npm install https://github.com/indexzero/forever/tarball/v0.5.6
 </code></pre></li>
-<li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p>
+<li><p><code>npm install [&lt;@scope&gt;/]&lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p>
 <p>  Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the &quot;tag&quot; config. (See
   <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.)</p>
 <p>  In most cases, this will install the latest version
@@ -86,6 +88,8 @@ package.json, there is an additional, optional flag:</p>
 <li><p><code>--save-exact</code>: Saved dependencies will be configured with an
 exact version rather than using npm&#39;s default semver range
 operator.</p>
+<p>Further, if you have an <code>npm-shrinkwrap.json</code> then it will be updated as
+well.</p>
 <p><code>&lt;scope&gt;</code> is optional. The package will be downloaded from the registry
 associated with the specified scope. If no registry is associated with
 the given scope the default registry is assumed. See <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>.</p>
@@ -107,7 +111,7 @@ npm install readable-stream --save --save-exact
 working directory, then it will try to install that, and only try to
 fetch the package by name if it is not valid.
 </code></pre><ul>
-<li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;tag&gt;</code>:</p>
+<li><p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;tag&gt;</code>:</p>
 <p>  Install the version of the package that is referenced by the specified tag.
   If the tag does not exist in the registry data for that package, then this
   will fail.</p>
@@ -115,14 +119,14 @@ fetch the package by name if it is not valid.
 <pre><code>    npm install sax@latest
     npm install @myorg/mypackage@latest
 </code></pre></li>
-<li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;version&gt;</code>:</p>
+<li><p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;version&gt;</code>:</p>
 <p>  Install the specified version of the package.  This will fail if the
   version has not been published to the registry.</p>
 <p>  Example:</p>
 <pre><code>    npm install sax@0.1.1
     npm install @myorg/privatepackage@1.5.0
 </code></pre></li>
-<li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;version range&gt;</code>:</p>
+<li><p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;version range&gt;</code>:</p>
 <p>  Install a version of the package matching the specified version range.  This
   will follow the same rules for resolving dependencies described in <code><a href="../files/package.json.html">package.json(5)</a></code>.</p>
 <p>  Note that most version ranges must be put in quotes so that your shell will
@@ -132,9 +136,9 @@ fetch the package by name if it is not valid.
     npm install @myorg/privatepackage@&quot;&gt;=0.1.0 &lt;0.2.0&quot;
 </code></pre></li>
 <li><p><code>npm install &lt;git remote url&gt;</code>:</p>
-<p>  Install a package by cloning a git remote url.  The format of the git
-  url is:</p>
-<pre><code>    &lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:/]&lt;path&gt;[#&lt;commit-ish&gt;]
+<p>  Installs the package from the hosted git provider, cloning it with
+  <code>git</code>. First it tries via the https (git with github) and if that fails, via ssh.</p>
+<pre><code>    &lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt;]
 </code></pre><p>  <code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, or
   <code>git+https</code>.  If no <code>&lt;commit-ish&gt;</code> is specified, then <code>master</code> is
   used.</p>
@@ -195,6 +199,8 @@ For example:</p>
 </code></pre><p>The <code>--tag</code> argument will apply to all of the specified install targets. If a
 tag with the given name exists, the tagged version is preferred over newer
 versions.</p>
+<p>The <code>--dry-run</code> argument will report in the usual way what the install would
+have done without actually installing anything.</p>
 <p>The <code>--force</code> argument will force npm to fetch remote resources even if a
 local copy exists on disk.</p>
 <pre><code>npm install sax --force
@@ -210,27 +216,39 @@ being installed.</p>
 shrinkwrap file and use the package.json instead.</p>
 <p>The <code>--nodedir=/path/to/node/source</code> argument will allow npm to find the
 node source code so that npm can compile native modules.</p>
+<p>The <code>--only={prod[uction]|dev[elopment]}</code> argument will cause either only
+<code>devDependencies</code> or only non-<code>devDependencies</code> to be installed.</p>
 <p>See <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.  Many of the configuration params have some
 effect on installation, since that&#39;s most of what npm does.</p>
 <h2 id="algorithm">ALGORITHM</h2>
 <p>To install a package, npm uses the following algorithm:</p>
-<pre><code>install(where, what, family, ancestors)
-fetch what, unpack to &lt;where&gt;/node_modules/&lt;what&gt;
-for each dep in what.dependencies
-  resolve dep to precise version
-for each dep@version in what.dependencies
-    not in &lt;where&gt;/node_modules/&lt;what&gt;/node_modules/*
-    and not in &lt;family&gt;
-  add precise version deps to &lt;family&gt;
-  install(&lt;where&gt;/node_modules/&lt;what&gt;, dep, family)
+<pre><code>load the existing node_modules tree from disk
+clone the tree
+fetch the package.json and assorted metadata and add it to the clone
+walk the clone and add any missing dependencies
+  dependencies will be added as close to the top as is possible
+  without breaking any other modules
+compare the original tree with the cloned tree and make a list of
+actions to take to convert one to the other
+execute all of the actions, deepest first
+  kinds of actions are install, update, remove and move
 </code></pre><p>For this <code>package{dep}</code> structure: <code>A{B,C}, B{C}, C{D}</code>,
 this algorithm produces:</p>
 <pre><code>A
 +-- B
-`-- C
-    `-- D
++-- C
++-- D
 </code></pre><p>That is, the dependency from B to C is satisfied by the fact that A
-already caused C to be installed at a higher level.</p>
+already caused C to be installed at a higher level. D is still installed
+at the top level because nothing conflicts with it.</p>
+<p>For <code>A{B,C}, B{C,D@1}, C{D@2}</code>, this algorithm produces:</p>
+<pre><code>A
++-- B
++-- C
+   `-- D@2
++-- D@1
+</code></pre><p>Because B&#39;s D@1 will be installed in the top leve, C now has to install D@2
+privately for itself.</p>
 <p>See <a href="../files/npm-folders.html">npm-folders(5)</a> for a more detailed description of the specific
 folder structures that npm creates.</p>
 <h3 id="limitations-of-npm-s-install-algorithm">Limitations of npm&#39;s Install Algorithm</h3>
@@ -277,5 +295,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@2.14.7</p>
+<p id="footer">npm-install &mdash; npm@3.3.6</p>
 

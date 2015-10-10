@@ -29,7 +29,6 @@ var pjChild = JSON.stringify({
   version: '1.0.3'
 }, null, 2) + '\n'
 
-
 test('setup', function (t) {
   bootstrap()
   setup(function (er, r) {

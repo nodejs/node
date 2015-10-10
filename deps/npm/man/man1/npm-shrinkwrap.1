@@ -111,13 +111,17 @@ This generates \fBnpm\-shrinkwrap\.json\fP, which will look something like this:
 .nf
 {
   "name": "A",
-  "version": "0\.1\.0",
+  "version": "1\.1\.0",
   "dependencies": {
     "B": {
-      "version": "0\.0\.1",
+      "version": "1\.0\.1",
+      "from": "B@^1\.0\.0",
+      "resolved": "https://registry\.npmjs\.org/B/\-/B\-1\.0\.1\.tgz",
       "dependencies": {
         "C": {
-          "version": "0\.0\.1"
+          "version": "1\.0\.1",
+          "from": "org/C#v1\.0\.1",
+          "resolved": "git://github\.com/org/C\.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4"
         }
       }
     }
@@ -126,15 +130,18 @@ This generates \fBnpm\-shrinkwrap\.json\fP, which will look something like this:
 .fi
 .RE
 .P
-The shrinkwrap command has locked down the dependencies based on
-what's currently installed in node_modules\.  When \fBnpm install\fP
-installs a package with an \fBnpm\-shrinkwrap\.json\fP in the package
-root, the shrinkwrap file (rather than \fBpackage\.json\fP files) completely
-drives the installation of that package and all of its dependencies
-(recursively)\.  So now the author publishes A@0\.1\.0, and subsequent
-installs of this package will use B@0\.0\.1 and C@0\.0\.1, regardless the
-dependencies and versions listed in A's, B's, and C's \fBpackage\.json\fP
-files\.
+The shrinkwrap command has locked down the dependencies based on what's
+currently installed in \fBnode_modules\fP\|\.  The installation behavior is changed to:
+.RS 0
+.IP 1. 3
+The module tree described by the shrinkwrap is reproduced\. This means
+reproducing the structure described in the file, using the specific files
+referenced in "resolved" if available, falling back to normal package
+resolution using "version" if one isn't\.
+.IP 2. 3
+The tree is walked and any missing dependencies are installed in the usual fasion\.
+
+.RE
 .SS Using shrinkwrapped packages
 .P
 Using a shrinkwrapped package is no different than using any other
@@ -161,17 +168,16 @@ To add or update a dependency in a shrinkwrapped package:
 Run \fBnpm install\fP in the package root to install the current
 versions of all dependencies\.
 .IP 2. 3
-Add or update dependencies\. \fBnpm install\fP each new or updated
-package individually and then update \fBpackage\.json\fP\|\.  Note that they
-must be explicitly named in order to be installed: running \fBnpm
-install\fP with no arguments will merely reproduce the existing
+Add or update dependencies\. \fBnpm install \-\-save\fP each new or updated
+package individually to update the \fBpackage\.json\fP and the shrinkwrap\.
+Note that they must be explicitly named in order to be installed: running
+\fBnpm install\fP with no arguments will merely reproduce the existing
 shrinkwrap\.
 .IP 3. 3
 Validate that the package works as expected with the new
 dependencies\.
 .IP 4. 3
-Run \fBnpm shrinkwrap\fP, commit the new \fBnpm\-shrinkwrap\.json\fP, and
-publish your package\.
+Commit the new \fBnpm\-shrinkwrap\.json\fP, and publish your package\.
 
 .RE
 .P

@@ -107,8 +107,9 @@ function createChild (args, cb) {
     'npm_config_loglevel': 'silent'
   }
 
-  if (process.platform === 'win32')
+  if (process.platform === 'win32') {
     env.npm_config_cache = '%APPDATA%\\npm-cache'
+  }
 
   return common.npm(args, {
     cwd: pkg,
