@@ -77,7 +77,7 @@ The `module_name` needs to match the filename of the final binary (minus the
 The source code needs to be built into `addon.node`, the binary Addon. To
 do this we create a file called `binding.gyp` which describes the configuration
 to build your module in a JSON-like format. This file gets compiled by
-[node-gyp](https://github.com/TooTallNate/node-gyp).
+[node-gyp](https://github.com/nodejs/node-gyp).
 
     {
       "targets": [
