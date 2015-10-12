@@ -367,9 +367,20 @@ a.throws(makeBlock(a.deepEqual, Error('a'), Error('b')),
   a.AssertionError);
 
 // https://github.com/nodejs/node/pull/3124#issuecomment-147416176
+// argh! this const/var blizzard due to current eslint we're using flagging
+//   computed properties as a lint error.
+// Change to computed properties after https://github.com/nodejs/node/pull/2286
+//   lands.
 const symbol = Symbol();
-a.doesNotThrow(makeBlock(a.deepEqual, {[symbol]: 1}, {[symbol]: 1}));
-a.throws(makeBlock(a.deepEqual, {[Symbol('foo')]: 1}, {[Symbol('foo')]: 1}),
+const symbol2 = Symbol();
+var obj1 = {};
+var obj2 = {};
+var obj3 = {};
+obj1[symbol] = 1;
+obj2[symbol] = 1;
+obj3[symbol2] = 1;
+a.doesNotThrow(makeBlock(a.deepEqual, obj1, obj2));
+a.throws(makeBlock(a.deepEqual, obj1, obj3),
   a.AssertionError);
 
 
