@@ -32,8 +32,9 @@ comparison operator ( `==` ).
 
 This only considers enumerable properties. It does not test object prototypes,
 attached symbols, or non-enumerable properties. This can lead to some
-potentially surprising results. For this does not throw an `AssertionError`
-because the properties on the `Error` object are non-enumerable:
+potentially surprising results. For example, this does not throw an
+`AssertionError` because the properties on the `Error` object are
+non-enumerable:
 
     // WARNING: This probably does not do what you expect!
     assert.deepEqual(Error('a'), Error('b'));
