@@ -148,11 +148,14 @@ void CallbackInfo::WeakCallback(
 
 
 void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
-  SPREAD_ARG(object, obj);
-  CHECK_EQ(obj_offset, 0);
-  CHECK_EQ(obj_c.ByteLength(), obj_length);
+  CHECK(object->IsArrayBuffer());
+  Local<ArrayBuffer> buf = object.As<ArrayBuffer>();
+  ArrayBuffer::Contents obj_c = buf->GetContents();
+  char* const obj_data = static_cast<char*>(obj_c.Data());
+  if (buf->ByteLength() != 0)
+    CHECK_NE(obj_data, nullptr);
 
-  obj->Buffer()->Neuter();
+  buf->Neuter();
   callback_(obj_data, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);

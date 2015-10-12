@@ -16,7 +16,7 @@ void Alloc(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(node::Buffer::New(
         isolate,
         buf,
-        sizeof(buf),
+        args[0]->IntegerValue(),
         FreeCallback,
         nullptr).ToLocalChecked());
 }
