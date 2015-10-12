@@ -8,3 +8,7 @@ var buf = binding.alloc();
 var slice = buf.slice(32);
 buf = null;
 binding.check(slice);
+slice = null;
+gc();
+gc();
+gc();
