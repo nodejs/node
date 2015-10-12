@@ -1310,6 +1310,8 @@ def BuildOptions():
   result.add_option("-r", "--run",
       help="Divide the tests in m groups (interleaved) and run tests from group n (--run=n,m with n < m)",
       default="")
+  result.add_option('--temp-dir',
+      help='Optional path to change directory used for tests', default=False)
   return result
 
 
@@ -1537,6 +1539,16 @@ def Main():
   if options.warn_unused:
     for rule in globally_unused_rules:
       print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
+
+  tempdir = os.environ.get('NODE_TEST_DIR') or options.temp_dir
+  if tempdir:
+    try:
+      os.makedirs(tempdir)
+      os.environ['NODE_TEST_DIR'] = tempdir
+    except OSError as exception:
+      if exception.errno != errno.EEXIST:
+        print "Could not create the temporary directory", options.temp_dir
+        sys.exit(1)
 
   if options.report:
     PrintReport(all_cases)
