@@ -363,7 +363,15 @@ try {
 }
 
 // https://github.com/nodejs/node/issues/3122
-a.throws(makeBlock(a.deepEqual, Error('a'), Error('b')));
+a.throws(makeBlock(a.deepEqual, Error('a'), Error('b')),
+  a.AssertionError);
+
+// https://github.com/nodejs/node/pull/3124#issuecomment-147416176
+const symbol = Symbol();
+a.doesNotThrow(makeBlock(a.deepEqual, {[symbol]: 1}, {[symbol]: 1}));
+a.throws(makeBlock(a.deepEqual, {[Symbol('foo')]: 1}, {[Symbol('foo')]: 1}),
+  a.AssertionError);
+
 
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
 var args = (function() { return arguments; })();
