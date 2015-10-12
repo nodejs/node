@@ -1388,6 +1388,68 @@ TEST(ScopePositions) {
 }
 
 
+TEST(DiscardFunctionBody) {
+  // Test that inner function bodies are discarded if possible.
+  // See comments in ParseFunctionLiteral in parser.cc.
+  const char* discard_sources[] = {
+      "(function f() { function g() { var a; } })();",
+      /* TODO(conradw): In future it may be possible to apply this optimisation
+       * to these productions.
+      "(function f() { 0, function g() { var a; } })();",
+      "(function f() { 0, { g() { var a; } } })();",
+      "(function f() { 0, class c { g() { var a; } } })();", */
+      NULL
+  };
+
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  v8::HandleScope handles(CcTest::isolate());
+  i::FunctionLiteral* function;
+
+  for (int i = 0; discard_sources[i]; i++) {
+    const char* source = discard_sources[i];
+    i::Handle<i::String> source_code =
+        factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
+    i::Handle<i::Script> script = factory->NewScript(source_code);
+    i::Zone zone;
+    i::ParseInfo info(&zone, script);
+    info.set_allow_lazy_parsing();
+    i::Parser parser(&info);
+    parser.set_allow_harmony_sloppy(true);
+    parser.Parse(&info);
+    function = info.literal();
+    CHECK_NOT_NULL(function);
+    CHECK_NOT_NULL(function->body());
+    CHECK_EQ(1, function->body()->length());
+    i::FunctionLiteral* inner =
+        function->body()->first()->AsExpressionStatement()->expression()->
+        AsCall()->expression()->AsFunctionLiteral();
+    i::Scope* inner_scope = inner->scope();
+    i::FunctionLiteral* fun = nullptr;
+    if (inner_scope->declarations()->length() > 1) {
+      fun = inner_scope->declarations()->at(1)->AsFunctionDeclaration()->fun();
+    } else {
+      // TODO(conradw): This path won't be hit until the other test cases can be
+      // uncommented.
+      CHECK_NOT_NULL(inner->body());
+      CHECK_GE(2, inner->body()->length());
+      i::Expression* exp = inner->body()->at(1)->AsExpressionStatement()->
+                           expression()->AsBinaryOperation()->right();
+      if (exp->IsFunctionLiteral()) {
+        fun = exp->AsFunctionLiteral();
+      } else if (exp->IsObjectLiteral()) {
+        fun = exp->AsObjectLiteral()->properties()->at(0)->value()->
+              AsFunctionLiteral();
+      } else {
+        fun = exp->AsClassLiteral()->properties()->at(0)->value()->
+              AsFunctionLiteral();
+      }
+    }
+    CHECK_NULL(fun->body());
+  }
+}
+
+
 const char* ReadString(unsigned* start) {
   int length = start[0];
   char* result = i::NewArray<char>(length + 1);

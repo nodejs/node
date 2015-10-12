@@ -3271,14 +3271,15 @@ class AstVisitor BASE_EMBEDDED {
 class AstNodeFactory final BASE_EMBEDDED {
  public:
   explicit AstNodeFactory(AstValueFactory* ast_value_factory)
-      : zone_(ast_value_factory->zone()),
+      : local_zone_(ast_value_factory->zone()),
+        parser_zone_(ast_value_factory->zone()),
         ast_value_factory_(ast_value_factory) {}
 
   VariableDeclaration* NewVariableDeclaration(
       VariableProxy* proxy, VariableMode mode, Scope* scope, int pos,
       bool is_class_declaration = false, int declaration_group_start = -1) {
-    return new (zone_)
-        VariableDeclaration(zone_, proxy, mode, scope, pos,
+    return new (parser_zone_)
+        VariableDeclaration(parser_zone_, proxy, mode, scope, pos,
                             is_class_declaration, declaration_group_start);
   }
 
@@ -3287,32 +3288,34 @@ class AstNodeFactory final BASE_EMBEDDED {
                                               FunctionLiteral* fun,
                                               Scope* scope,
                                               int pos) {
-    return new (zone_) FunctionDeclaration(zone_, proxy, mode, fun, scope, pos);
+    return new (parser_zone_)
+        FunctionDeclaration(parser_zone_, proxy, mode, fun, scope, pos);
   }
 
   ImportDeclaration* NewImportDeclaration(VariableProxy* proxy,
                                           const AstRawString* import_name,
                                           const AstRawString* module_specifier,
                                           Scope* scope, int pos) {
-    return new (zone_) ImportDeclaration(zone_, proxy, import_name,
-                                         module_specifier, scope, pos);
+    return new (parser_zone_) ImportDeclaration(
+        parser_zone_, proxy, import_name, module_specifier, scope, pos);
   }
 
   ExportDeclaration* NewExportDeclaration(VariableProxy* proxy,
                                           Scope* scope,
                                           int pos) {
-    return new (zone_) ExportDeclaration(zone_, proxy, scope, pos);
+    return new (parser_zone_)
+        ExportDeclaration(parser_zone_, proxy, scope, pos);
   }
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
                   bool ignore_completion_value, int pos) {
-    return new (zone_)
-        Block(zone_, labels, capacity, ignore_completion_value, pos);
+    return new (local_zone_)
+        Block(local_zone_, labels, capacity, ignore_completion_value, pos);
   }
 
 #define STATEMENT_WITH_LABELS(NodeType)                                     \
   NodeType* New##NodeType(ZoneList<const AstRawString*>* labels, int pos) { \
-    return new (zone_) NodeType(zone_, labels, pos);                        \
+    return new (local_zone_) NodeType(local_zone_, labels, pos);            \
   }
   STATEMENT_WITH_LABELS(DoWhileStatement)
   STATEMENT_WITH_LABELS(WhileStatement)
@@ -3325,10 +3328,10 @@ class AstNodeFactory final BASE_EMBEDDED {
                                         int pos) {
     switch (visit_mode) {
       case ForEachStatement::ENUMERATE: {
-        return new (zone_) ForInStatement(zone_, labels, pos);
+        return new (local_zone_) ForInStatement(local_zone_, labels, pos);
       }
       case ForEachStatement::ITERATE: {
-        return new (zone_) ForOfStatement(zone_, labels, pos);
+        return new (local_zone_) ForOfStatement(local_zone_, labels, pos);
       }
     }
     UNREACHABLE();
@@ -3336,95 +3339,102 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   ExpressionStatement* NewExpressionStatement(Expression* expression, int pos) {
-    return new (zone_) ExpressionStatement(zone_, expression, pos);
+    return new (local_zone_) ExpressionStatement(local_zone_, expression, pos);
   }
 
   ContinueStatement* NewContinueStatement(IterationStatement* target, int pos) {
-    return new (zone_) ContinueStatement(zone_, target, pos);
+    return new (local_zone_) ContinueStatement(local_zone_, target, pos);
   }
 
   BreakStatement* NewBreakStatement(BreakableStatement* target, int pos) {
-    return new (zone_) BreakStatement(zone_, target, pos);
+    return new (local_zone_) BreakStatement(local_zone_, target, pos);
   }
 
   ReturnStatement* NewReturnStatement(Expression* expression, int pos) {
-    return new (zone_) ReturnStatement(zone_, expression, pos);
+    return new (local_zone_) ReturnStatement(local_zone_, expression, pos);
   }
 
   WithStatement* NewWithStatement(Scope* scope,
                                   Expression* expression,
                                   Statement* statement,
                                   int pos) {
-    return new (zone_) WithStatement(zone_, scope, expression, statement, pos);
+    return new (local_zone_)
+        WithStatement(local_zone_, scope, expression, statement, pos);
   }
 
   IfStatement* NewIfStatement(Expression* condition,
                               Statement* then_statement,
                               Statement* else_statement,
                               int pos) {
-    return new (zone_)
-        IfStatement(zone_, condition, then_statement, else_statement, pos);
+    return new (local_zone_) IfStatement(local_zone_, condition, then_statement,
+                                         else_statement, pos);
   }
 
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
                                           Variable* variable,
                                           Block* catch_block, int pos) {
-    return new (zone_)
-        TryCatchStatement(zone_, try_block, scope, variable, catch_block, pos);
+    return new (local_zone_) TryCatchStatement(local_zone_, try_block, scope,
+                                               variable, catch_block, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,
                                               Block* finally_block, int pos) {
-    return new (zone_)
-        TryFinallyStatement(zone_, try_block, finally_block, pos);
+    return new (local_zone_)
+        TryFinallyStatement(local_zone_, try_block, finally_block, pos);
   }
 
   DebuggerStatement* NewDebuggerStatement(int pos) {
-    return new (zone_) DebuggerStatement(zone_, pos);
+    return new (local_zone_) DebuggerStatement(local_zone_, pos);
   }
 
   EmptyStatement* NewEmptyStatement(int pos) {
-    return new(zone_) EmptyStatement(zone_, pos);
+    return new (local_zone_) EmptyStatement(local_zone_, pos);
   }
 
   CaseClause* NewCaseClause(
       Expression* label, ZoneList<Statement*>* statements, int pos) {
-    return new (zone_) CaseClause(zone_, label, statements, pos);
+    return new (local_zone_) CaseClause(local_zone_, label, statements, pos);
   }
 
   Literal* NewStringLiteral(const AstRawString* string, int pos) {
-    return new (zone_)
-        Literal(zone_, ast_value_factory_->NewString(string), pos);
+    return new (local_zone_)
+        Literal(local_zone_, ast_value_factory_->NewString(string), pos);
   }
 
   // A JavaScript symbol (ECMA-262 edition 6).
   Literal* NewSymbolLiteral(const char* name, int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewSymbol(name), pos);
+    return new (local_zone_)
+        Literal(local_zone_, ast_value_factory_->NewSymbol(name), pos);
   }
 
   Literal* NewNumberLiteral(double number, int pos, bool with_dot = false) {
-    return new (zone_)
-        Literal(zone_, ast_value_factory_->NewNumber(number, with_dot), pos);
+    return new (local_zone_) Literal(
+        local_zone_, ast_value_factory_->NewNumber(number, with_dot), pos);
   }
 
   Literal* NewSmiLiteral(int number, int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewSmi(number), pos);
+    return new (local_zone_)
+        Literal(local_zone_, ast_value_factory_->NewSmi(number), pos);
   }
 
   Literal* NewBooleanLiteral(bool b, int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewBoolean(b), pos);
+    return new (local_zone_)
+        Literal(local_zone_, ast_value_factory_->NewBoolean(b), pos);
   }
 
   Literal* NewNullLiteral(int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewNull(), pos);
+    return new (local_zone_)
+        Literal(local_zone_, ast_value_factory_->NewNull(), pos);
   }
 
   Literal* NewUndefinedLiteral(int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewUndefined(), pos);
+    return new (local_zone_)
+        Literal(local_zone_, ast_value_factory_->NewUndefined(), pos);
   }
 
   Literal* NewTheHoleLiteral(int pos) {
-    return new (zone_) Literal(zone_, ast_value_factory_->NewTheHole(), pos);
+    return new (local_zone_)
+        Literal(local_zone_, ast_value_factory_->NewTheHole(), pos);
   }
 
   ObjectLiteral* NewObjectLiteral(
@@ -3434,15 +3444,15 @@ class AstNodeFactory final BASE_EMBEDDED {
       bool has_function,
       bool is_strong,
       int pos) {
-    return new (zone_) ObjectLiteral(zone_, properties, literal_index,
-                                     boilerplate_properties, has_function,
-                                     is_strong, pos);
+    return new (local_zone_)
+        ObjectLiteral(local_zone_, properties, literal_index,
+                      boilerplate_properties, has_function, is_strong, pos);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
       Expression* key, Expression* value, ObjectLiteralProperty::Kind kind,
       bool is_static, bool is_computed_name) {
-    return new (zone_)
+    return new (local_zone_)
         ObjectLiteral::Property(key, value, kind, is_static, is_computed_name);
   }
 
@@ -3450,8 +3460,8 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                     Expression* value,
                                                     bool is_static,
                                                     bool is_computed_name) {
-    return new (zone_) ObjectLiteral::Property(ast_value_factory_, key, value,
-                                               is_static, is_computed_name);
+    return new (local_zone_) ObjectLiteral::Property(
+        ast_value_factory_, key, value, is_static, is_computed_name);
   }
 
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern,
@@ -3459,29 +3469,30 @@ class AstNodeFactory final BASE_EMBEDDED {
                                   int literal_index,
                                   bool is_strong,
                                   int pos) {
-    return new (zone_) RegExpLiteral(zone_, pattern, flags, literal_index,
-                                     is_strong, pos);
+    return new (local_zone_) RegExpLiteral(local_zone_, pattern, flags,
+                                           literal_index, is_strong, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
                                 int literal_index,
                                 bool is_strong,
                                 int pos) {
-    return new (zone_)
-        ArrayLiteral(zone_, values, -1, literal_index, is_strong, pos);
+    return new (local_zone_)
+        ArrayLiteral(local_zone_, values, -1, literal_index, is_strong, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
                                 int first_spread_index, int literal_index,
                                 bool is_strong, int pos) {
-    return new (zone_) ArrayLiteral(zone_, values, first_spread_index,
-                                    literal_index, is_strong, pos);
+    return new (local_zone_) ArrayLiteral(
+        local_zone_, values, first_spread_index, literal_index, is_strong, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,
                                   int start_position = RelocInfo::kNoPosition,
                                   int end_position = RelocInfo::kNoPosition) {
-    return new (zone_) VariableProxy(zone_, var, start_position, end_position);
+    return new (parser_zone_)
+        VariableProxy(parser_zone_, var, start_position, end_position);
   }
 
   VariableProxy* NewVariableProxy(const AstRawString* name,
@@ -3489,70 +3500,73 @@ class AstNodeFactory final BASE_EMBEDDED {
                                   int start_position = RelocInfo::kNoPosition,
                                   int end_position = RelocInfo::kNoPosition) {
     DCHECK_NOT_NULL(name);
-    return new (zone_)
-        VariableProxy(zone_, name, variable_kind, start_position, end_position);
+    return new (parser_zone_) VariableProxy(parser_zone_, name, variable_kind,
+                                            start_position, end_position);
   }
 
   Property* NewProperty(Expression* obj, Expression* key, int pos) {
-    return new (zone_) Property(zone_, obj, key, pos);
+    return new (local_zone_) Property(local_zone_, obj, key, pos);
   }
 
   Call* NewCall(Expression* expression,
                 ZoneList<Expression*>* arguments,
                 int pos) {
-    return new (zone_) Call(zone_, expression, arguments, pos);
+    return new (local_zone_) Call(local_zone_, expression, arguments, pos);
   }
 
   CallNew* NewCallNew(Expression* expression,
                       ZoneList<Expression*>* arguments,
                       int pos) {
-    return new (zone_) CallNew(zone_, expression, arguments, pos);
+    return new (local_zone_) CallNew(local_zone_, expression, arguments, pos);
   }
 
   CallRuntime* NewCallRuntime(const AstRawString* name,
                               const Runtime::Function* function,
                               ZoneList<Expression*>* arguments,
                               int pos) {
-    return new (zone_) CallRuntime(zone_, name, function, arguments, pos);
+    return new (local_zone_)
+        CallRuntime(local_zone_, name, function, arguments, pos);
   }
 
   UnaryOperation* NewUnaryOperation(Token::Value op,
                                     Expression* expression,
                                     int pos) {
-    return new (zone_) UnaryOperation(zone_, op, expression, pos);
+    return new (local_zone_) UnaryOperation(local_zone_, op, expression, pos);
   }
 
   BinaryOperation* NewBinaryOperation(Token::Value op,
                                       Expression* left,
                                       Expression* right,
                                       int pos) {
-    return new (zone_) BinaryOperation(zone_, op, left, right, pos);
+    return new (local_zone_) BinaryOperation(local_zone_, op, left, right, pos);
   }
 
   CountOperation* NewCountOperation(Token::Value op,
                                     bool is_prefix,
                                     Expression* expr,
                                     int pos) {
-    return new (zone_) CountOperation(zone_, op, is_prefix, expr, pos);
+    return new (local_zone_)
+        CountOperation(local_zone_, op, is_prefix, expr, pos);
   }
 
   CompareOperation* NewCompareOperation(Token::Value op,
                                         Expression* left,
                                         Expression* right,
                                         int pos) {
-    return new (zone_) CompareOperation(zone_, op, left, right, pos);
+    return new (local_zone_)
+        CompareOperation(local_zone_, op, left, right, pos);
   }
 
   Spread* NewSpread(Expression* expression, int pos) {
-    return new (zone_) Spread(zone_, expression, pos);
+    return new (local_zone_) Spread(local_zone_, expression, pos);
   }
 
   Conditional* NewConditional(Expression* condition,
                               Expression* then_expression,
                               Expression* else_expression,
                               int position) {
-    return new (zone_) Conditional(zone_, condition, then_expression,
-                                   else_expression, position);
+    return new (local_zone_) Conditional(
+        local_zone_, condition, then_expression, else_expression, position);
   }
 
   Assignment* NewAssignment(Token::Value op,
@@ -3560,7 +3574,8 @@ class AstNodeFactory final BASE_EMBEDDED {
                             Expression* value,
                             int pos) {
     DCHECK(Token::IsAssignmentOp(op));
-    Assignment* assign = new (zone_) Assignment(zone_, op, target, value, pos);
+    Assignment* assign =
+        new (local_zone_) Assignment(local_zone_, op, target, value, pos);
     if (assign->is_compound()) {
       DCHECK(Token::IsAssignmentOp(op));
       assign->binary_operation_ =
@@ -3574,12 +3589,12 @@ class AstNodeFactory final BASE_EMBEDDED {
                   Yield::Kind yield_kind,
                   int pos) {
     if (!expression) expression = NewUndefinedLiteral(pos);
-    return new (zone_)
-        Yield(zone_, generator_object, expression, yield_kind, pos);
+    return new (local_zone_)
+        Yield(local_zone_, generator_object, expression, yield_kind, pos);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {
-    return new (zone_) Throw(zone_, exception, pos);
+    return new (local_zone_) Throw(local_zone_, exception, pos);
   }
 
   FunctionLiteral* NewFunctionLiteral(
@@ -3591,11 +3606,11 @@ class AstNodeFactory final BASE_EMBEDDED {
       FunctionLiteral::IsFunctionFlag is_function,
       FunctionLiteral::EagerCompileHint eager_compile_hint, FunctionKind kind,
       int position) {
-    return new (zone_) FunctionLiteral(
-        zone_, name, ast_value_factory, scope, body, materialized_literal_count,
-        expected_property_count, parameter_count, function_type,
-        has_duplicate_parameters, is_function, eager_compile_hint, kind,
-        position);
+    return new (parser_zone_) FunctionLiteral(
+        parser_zone_, name, ast_value_factory, scope, body,
+        materialized_literal_count, expected_property_count, parameter_count,
+        function_type, has_duplicate_parameters, is_function,
+        eager_compile_hint, kind, position);
   }
 
   ClassLiteral* NewClassLiteral(const AstRawString* name, Scope* scope,
@@ -3603,38 +3618,65 @@ class AstNodeFactory final BASE_EMBEDDED {
                                 FunctionLiteral* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
                                 int start_position, int end_position) {
-    return new (zone_)
-        ClassLiteral(zone_, name, scope, proxy, extends, constructor,
+    return new (parser_zone_)
+        ClassLiteral(parser_zone_, name, scope, proxy, extends, constructor,
                      properties, start_position, end_position);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,
                                                   v8::Extension* extension,
                                                   int pos) {
-    return new (zone_) NativeFunctionLiteral(zone_, name, extension, pos);
+    return new (parser_zone_)
+        NativeFunctionLiteral(parser_zone_, name, extension, pos);
   }
 
   ThisFunction* NewThisFunction(int pos) {
-    return new (zone_) ThisFunction(zone_, pos);
+    return new (local_zone_) ThisFunction(local_zone_, pos);
   }
 
   SuperPropertyReference* NewSuperPropertyReference(VariableProxy* this_var,
                                                     Expression* home_object,
                                                     int pos) {
-    return new (zone_)
-        SuperPropertyReference(zone_, this_var, home_object, pos);
+    return new (parser_zone_)
+        SuperPropertyReference(parser_zone_, this_var, home_object, pos);
   }
 
   SuperCallReference* NewSuperCallReference(VariableProxy* this_var,
                                             VariableProxy* new_target_var,
                                             VariableProxy* this_function_var,
                                             int pos) {
-    return new (zone_) SuperCallReference(zone_, this_var, new_target_var,
-                                          this_function_var, pos);
+    return new (parser_zone_) SuperCallReference(
+        parser_zone_, this_var, new_target_var, this_function_var, pos);
   }
 
+  Zone* zone() const { return local_zone_; }
+
+  // Handles use of temporary zones when parsing inner function bodies.
+  class BodyScope {
+   public:
+    BodyScope(AstNodeFactory* factory, Zone* temp_zone, bool use_temp_zone)
+        : factory_(factory), prev_zone_(factory->local_zone_) {
+      if (use_temp_zone) {
+        factory->local_zone_ = temp_zone;
+      }
+    }
+
+    ~BodyScope() { factory_->local_zone_ = prev_zone_; }
+
+   private:
+    AstNodeFactory* factory_;
+    Zone* prev_zone_;
+  };
+
  private:
-  Zone* zone_;
+  // This zone may be deallocated upon returning from parsing a function body
+  // which we can guarantee is not going to be compiled or have its AST
+  // inspected.
+  // See ParseFunctionLiteral in parser.cc for preconditions.
+  Zone* local_zone_;
+  // ZoneObjects which need to persist until scope analysis must be allocated in
+  // the parser-level zone.
+  Zone* parser_zone_;
   AstValueFactory* ast_value_factory_;
 };
 
