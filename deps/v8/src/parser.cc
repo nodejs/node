@@ -4135,10 +4135,44 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
     }
     if (!is_lazily_parsed) {
-      body = ParseEagerFunctionBody(function_name, pos, formals, kind,
-                                    function_type, CHECK_OK);
+      // Determine whether the function body can be discarded after parsing.
+      // The preconditions are:
+      // - Lazy compilation has to be enabled.
+      // - Neither V8 natives nor native function declarations can be allowed,
+      //   since parsing one would retroactively force the function to be
+      //   eagerly compiled.
+      // - The invoker of this parser can't depend on the AST being eagerly
+      //   built (either because the function is about to be compiled, or
+      //   because the AST is going to be inspected for some reason).
+      // - Because of the above, we can't be attempting to parse a
+      //   FunctionExpression; even without enclosing parentheses it might be
+      //   immediately invoked.
+      // - The function literal shouldn't be hinted to eagerly compile.
+      bool use_temp_zone =
+          FLAG_lazy && !allow_natives() && extension_ == NULL && allow_lazy() &&
+          function_type == FunctionLiteral::DECLARATION &&
+          eager_compile_hint != FunctionLiteral::kShouldEagerCompile;
+      // Open a new BodyScope, which sets our AstNodeFactory to allocate in the
+      // new temporary zone if the preconditions are satisfied, and ensures that
+      // the previous zone is always restored after parsing the body.
+      // For the purpose of scope analysis, some ZoneObjects allocated by the
+      // factory must persist after the function body is thrown away and
+      // temp_zone is deallocated. These objects are instead allocated in a
+      // parser-persistent zone (see parser_zone_ in AstNodeFactory).
+      {
+        Zone temp_zone;
+        AstNodeFactory::BodyScope inner(factory(), &temp_zone, use_temp_zone);
+
+        body = ParseEagerFunctionBody(function_name, pos, formals, kind,
+                                      function_type, CHECK_OK);
+      }
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
+      if (use_temp_zone) {
+        // If the preconditions are correct the function body should never be
+        // accessed, but do this anyway for better behaviour if they're wrong.
+        body = NULL;
+      }
     }
 
     // Parsing the body may change the language mode in our scope.
