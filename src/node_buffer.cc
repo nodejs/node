@@ -152,7 +152,8 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
   Local<ArrayBuffer> buf = object.As<ArrayBuffer>();
   ArrayBuffer::Contents obj_c = buf->GetContents();
   char* const obj_data = static_cast<char*>(obj_c.Data());
-  CHECK_NE(obj_data, nullptr);
+  if (buf->ByteLength() != 0)
+    CHECK_NE(obj_data, nullptr);
 
   buf->Neuter();
   callback_(obj_data, hint_);
