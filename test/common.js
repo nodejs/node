@@ -5,7 +5,6 @@ var fs = require('fs');
 var assert = require('assert');
 var os = require('os');
 var child_process = require('child_process');
-var util = require('util');
 
 
 exports.testDir = path.dirname(__filename);
@@ -405,15 +404,9 @@ exports.getServiceName = function getServiceName(port, protocol) {
   var serviceName = port.toString();
 
   try {
-    /*
-     * I'm not a big fan of readFileSync, but reading /etc/services
-     * asynchronously here would require implementing a simple line parser,
-     * which seems overkill for a simple utility function that is not running
-     * concurrently with any other one.
-     */
     var servicesContent = fs.readFileSync(etcServicesFileName,
       { encoding: 'utf8'});
-    var regexp = util.format('^(\\w+)\\s+\\s%d/%s\\s', port, protocol);
+    var regexp = `^(\\w+)\\s+\\s${port}/${protocol}\\s`;
     var re = new RegExp(regexp, 'm');
 
     var matches = re.exec(servicesContent);
