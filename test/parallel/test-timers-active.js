@@ -22,7 +22,8 @@ legitTimers.forEach(function(legit) {
 
 // active() should not create a timer for these
 var bogusTimers = [
-  { _idleTimeout: -1 }
+  { _idleTimeout: -1 },
+  { _idleTimeout: undefined }
 ];
 
 bogusTimers.forEach(function(bogus) {
