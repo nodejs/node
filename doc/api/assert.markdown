@@ -2,8 +2,9 @@
 
     Stability: 2 - Stable
 
-This module is used for writing assertion tests. You can access it with
-`require('assert')`.
+This module is used so that Node.js can test itself. You can access it with
+`require('assert')`. However, it is recommended that you use a userland
+assertion library instead.
 
 ## assert.fail(actual, expected, message, operator)
 
@@ -26,8 +27,16 @@ Tests shallow, coercive inequality with the not equal comparison operator
 
 ## assert.deepEqual(actual, expected[, message])
 
-Tests for deep equality. Primitive values are compared with the equal comparison
-operator ( `==` ). Doesn't take object prototypes into account.
+Tests for deep equality. Primitive values are compared with the equal
+comparison operator ( `==` ).
+
+This only considers enumerable properties. It does not test object prototypes,
+attached symbols, or non-enumerable properties. This can lead to some
+potentially surprising results. For this does not throw an `AssertionError`
+because the properties on the `Error` object are non-enumerable:
+
+    // WARNING: This probably does not do what you expect!
+    assert.deepEqual(Error('a'), Error('b'));
 
 ## assert.notDeepEqual(actual, expected[, message])
 
