@@ -205,6 +205,24 @@ Their responsibilities are:
 The current members can be found in their
 [README](https://github.com/nodejs/nan#collaborators).
 
+### [Smoke Test](https://github.com/nodejs/smoke-test)
+
+The Smoke Test Working Group is responsible for making sure releases of Node.js
+and io.js do not break community modules. Smoke test will build the tooling and
+maintaining the infrastructure to achieve this.
+
+Their responsibilities are:
+
+* Building and maintaining [CITGM](https://github.com/nodejs/citgm) GitHub
+  repository, including code, issues and documentation.
+* Building and maintaining the infrastructure to run the tests. This is still
+  being defined.
+* Generating a list of negatively impacted modules by a given release or pull
+  request.
+
+The current members can be found in their
+[README](https://github.com/nodejs/smoke-test#collaborators).
+
 ## Starting a WG
 
 A Working Group is established by first defining a charter  that can be
