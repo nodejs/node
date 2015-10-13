@@ -1,9 +1,8 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    spawn = require('child_process').spawn,
-    os = require('os'),
-    util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const os = require('os');
 
 var args = [
   '-e',
@@ -19,7 +18,7 @@ child.stdout.setEncoding('utf8');
 var data = '';
 child.stdout.on('data', function(d) { data += d; });
 
-child.stdin.end(util.format("e.setPrompt('%s');%s", p, os.EOL));
+child.stdin.end(`e.setPrompt("${p}");${os.EOL}`);
 
 child.on('close', function(code, signal) {
   assert.strictEqual(code, 0);
