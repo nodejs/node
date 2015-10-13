@@ -51,6 +51,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <vector>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -154,6 +155,38 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Isolate* node_isolate = nullptr;
 static v8::Platform* default_platform;
+
+
+static void PrintErrorString(const char* format, ...) {
+  va_list ap;
+  va_start(ap, format);
+#ifdef _WIN32
+  HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
+
+  // Check if stderr is something other than a tty/console
+  if (stderr_handle == INVALID_HANDLE_VALUE ||
+      stderr_handle == nullptr ||
+      uv_guess_handle(_fileno(stderr)) != UV_TTY) {
+    vfprintf(stderr, format, ap);
+    return;
+  }
+
+  // Fill in any placeholders
+  int n = _vscprintf(format, ap);
+  std::vector<char> out(n + 1);
+  vsprintf(out.data(), format, ap);
+
+  // Get required wide buffer size
+  n = MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, nullptr, 0);
+
+  std::vector<wchar_t> wbuf(n);
+  MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, wbuf.data(), n);
+  WriteConsoleW(stderr_handle, wbuf.data(), n, nullptr, nullptr);
+#else
+  vfprintf(stderr, format, ap);
+#endif
+  va_end(ap);
+}
 
 
 static void CheckImmediate(uv_check_t* handle) {
@@ -1404,7 +1437,7 @@ void AppendExceptionLine(Environment* env,
     return;
   env->set_printed_error(true);
   uv_tty_reset_mode();
-  fprintf(stderr, "\n%s", arrow);
+  PrintErrorString("\n%s", arrow);
 }
 
 
@@ -1432,10 +1465,10 @@ static void ReportException(Environment* env,
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
     if (arrow.IsEmpty() || !arrow->IsString()) {
-      fprintf(stderr, "%s\n", *trace);
+      PrintErrorString("%s\n", *trace);
     } else {
       node::Utf8Value arrow_string(env->isolate(), arrow);
-      fprintf(stderr, "%s\n%s\n", *arrow_string, *trace);
+      PrintErrorString("%s\n%s\n", *arrow_string, *trace);
     }
   } else {
     // this really only happens for RangeErrors, since they're the only
@@ -1456,20 +1489,19 @@ static void ReportException(Environment* env,
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
       node::Utf8Value message(env->isolate(), er);
-      fprintf(stderr, "%s\n", *message);
+      PrintErrorString("%s\n", *message);
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
 
       if (arrow.IsEmpty() || !arrow->IsString()) {
-        fprintf(stderr, "%s: %s\n", *name_string, *message_string);
+        PrintErrorString("%s: %s\n", *name_string, *message_string);
       } else {
         node::Utf8Value arrow_string(env->isolate(), arrow);
-        fprintf(stderr,
-                "%s\n%s: %s\n",
-                *arrow_string,
-                *name_string,
-                *message_string);
+        PrintErrorString("%s\n%s: %s\n",
+                         *arrow_string,
+                         *name_string,
+                         *message_string);
       }
     }
   }
@@ -2164,9 +2196,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
 static void OnFatalError(const char* location, const char* message) {
   if (location) {
-    fprintf(stderr, "FATAL ERROR: %s %s\n", location, message);
+    PrintErrorString("FATAL ERROR: %s %s\n", location, message);
   } else {
-    fprintf(stderr, "FATAL ERROR: %s\n", message);
+    PrintErrorString("FATAL ERROR: %s\n", message);
   }
   fflush(stderr);
   ABORT();
@@ -2985,7 +3017,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   node::Utf8Value message(args.GetIsolate(), args[0]);
-  fprintf(stderr, "%s\n", *message);
+  PrintErrorString("%s\n", *message);
   fflush(stderr);
 }
 
