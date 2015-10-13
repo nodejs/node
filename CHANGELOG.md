@@ -1,6 +1,28 @@
 
 # Node.js ChangeLog
 
+## 2015-10-13, Version 4.2.1 'Argon' (Stable), @jasnell
+
+### Notable changes
+
+* Includes fixes for two regressions
+  - Assertion error in WeakCallback  - see [#3329](https://github.com/nodejs/node/pull/3329)
+  - Undefined timeout regression - see [#3331](https://github.com/nodejs/node/pull/3331)
+
+### Known issues
+
+* When a server queues a large amount of data to send to a client over a pipelined HTTP connection, the underlying socket may be destroyed. See [#3332](https://github.com/nodejs/node/issues/3332) and [#3342](https://github.com/nodejs/node/pull/3342).
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/node/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/node/issues/690)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/node/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
+
+### Commits
+
+* [[`b3cbd13340`](https://github.com/nodejs/node/commit/b3cbd13340)] - **buffer**: fix assertion error in WeakCallback (Fedor Indutny) [#3329](https://github.com/nodejs/node/pull/3329)
+* [[`102cb7288c`](https://github.com/nodejs/node/commit/102cb7288c)] - **doc**: label v4.2.0 as LTS in changelog heading (Rod Vagg) [#3343](https://github.com/nodejs/node/pull/3343)
+* [[`c245a199a7`](https://github.com/nodejs/node/commit/c245a199a7)] - **lib**: fix undefined timeout regression (Ryan Graham) [#3331](https://github.com/nodejs/node/pull/3331
+
 ## 2015-10-07, Version 4.2.0 'Argon' (LTS), @jasnell
 
 ### Notable changes
