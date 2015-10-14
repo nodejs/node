@@ -44,7 +44,7 @@ import time
 from testrunner.local import execution
 from testrunner.local import progress
 from testrunner.local import testsuite
-from testrunner.local.testsuite import VARIANT_FLAGS
+from testrunner.local.testsuite import ALL_VARIANTS
 from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.network import network_execution
@@ -52,13 +52,6 @@ from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = [
-  "mjsunit",
-  "unittests",
-  "cctest",
-  "message",
-  "preparser",
-]
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
@@ -69,11 +62,14 @@ TEST_MAP = {
     "cctest",
     "message",
     "preparser",
+    "intl",
+    "unittests",
   ],
   "optimize_for_size": [
     "mjsunit",
     "cctest",
     "webkit",
+    "intl",
   ],
   "unittests": [
     "unittests",
@@ -146,6 +142,7 @@ SUPPORTED_ARCHS = ["android_arm",
                    "x87",
                    "mips",
                    "mipsel",
+                   "mips64",
                    "mips64el",
                    "nacl_ia32",
                    "nacl_x64",
@@ -162,6 +159,7 @@ SLOW_ARCHS = ["android_arm",
               "arm",
               "mips",
               "mipsel",
+              "mips64",
               "mips64el",
               "nacl_ia32",
               "nacl_x64",
@@ -171,9 +169,11 @@ SLOW_ARCHS = ["android_arm",
 
 def BuildOptions():
   result = optparse.OptionParser()
+  result.usage = '%prog [options] [tests]'
+  result.description = """TESTS: %s""" % (TEST_MAP["default"])
   result.add_option("--arch",
                     help=("The architecture to run tests for, "
-                          "'auto' or 'native' for auto-detect"),
+                          "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS),
                     default="ia32,x64,arm")
   result.add_option("--arch-and-mode",
                     help="Architecture and mode in the format 'arch.mode'",
@@ -220,7 +220,8 @@ def BuildOptions():
   result.add_option("-j", help="The number of parallel tasks to run",
                     default=0, type="int")
   result.add_option("-m", "--mode",
-                    help="The test modes in which to run (comma-separated)",
+                    help="The test modes in which to run (comma-separated,"
+                    " uppercase for ninja and buildbot builds): %s" % MODES.keys(),
                     default="release,debug")
   result.add_option("--no-harness", "--noharness",
                     help="Run without test harness of a given suite",
@@ -248,7 +249,7 @@ def BuildOptions():
                     help="Don't run any testing variants",
                     default=False, dest="no_variants", action="store_true")
   result.add_option("--variants",
-                    help="Comma-separated list of testing variants")
+                    help="Comma-separated list of testing variants: %s" % VARIANTS)
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
   result.add_option("--predictable",
@@ -322,8 +323,17 @@ def RandomSeed():
   return seed
 
 
+def BuildbotToV8Mode(config):
+  """Convert buildbot build configs to configs understood by the v8 runner.
+
+  V8 configs are always lower case and without the additional _x64 suffix for
+  64 bit builds on windows with ninja.
+  """
+  mode = config[:-4] if config.endswith('_x64') else config
+  return mode.lower()
+
 def ProcessOptions(options):
-  global VARIANT_FLAGS
+  global ALL_VARIANTS
   global VARIANTS
 
   # Architecture and mode related stuff.
@@ -334,7 +344,7 @@ def ProcessOptions(options):
     options.mode = ",".join([tokens[1] for tokens in options.arch_and_mode])
   options.mode = options.mode.split(",")
   for mode in options.mode:
-    if not mode.lower() in MODES:
+    if not BuildbotToV8Mode(mode) in MODES:
       print "Unknown mode %s" % mode
       return False
   if options.arch in ["auto", "native"]:
@@ -414,8 +424,8 @@ def ProcessOptions(options):
     VARIANTS = ["stress"]
   if options.variants:
     VARIANTS = options.variants.split(",")
-    if not set(VARIANTS).issubset(VARIANT_FLAGS.keys()):
-      print "All variants must be in %s" % str(VARIANT_FLAGS.keys())
+    if not set(VARIANTS).issubset(ALL_VARIANTS):
+      print "All variants must be in %s" % str(ALL_VARIANTS)
       return False
   if options.predictable:
     VARIANTS = ["default"]
@@ -443,8 +453,8 @@ def ProcessOptions(options):
     return False
   if not CheckTestMode("pass|fail test", options.pass_fail_tests):
     return False
-  if not options.no_i18n:
-    DEFAULT_TESTS.append("intl")
+  if options.no_i18n:
+    TEST_MAP["default"].remove("intl")
   return True
 
 
@@ -480,6 +490,10 @@ def Main():
 
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
 
+  # Use default tests if no test configuration was provided at the cmd line.
+  if len(args) == 0:
+    args = ["default"]
+
   # Expand arguments with grouped tests. The args should reflect the list of
   # suites as otherwise filters would break.
   def ExpandTestGroups(name):
@@ -491,13 +505,10 @@ def Main():
          [ExpandTestGroups(arg) for arg in args],
          [])
 
-  if len(args) == 0:
-    suite_paths = [ s for s in DEFAULT_TESTS if s in suite_paths ]
-  else:
-    args_suites = OrderedDict() # Used as set
-    for arg in args:
-      args_suites[arg.split(os.path.sep)[0]] = True
-    suite_paths = [ s for s in args_suites if s in suite_paths ]
+  args_suites = OrderedDict() # Used as set
+  for arg in args:
+    args_suites[arg.split('/')[0]] = True
+  suite_paths = [ s for s in args_suites if s in suite_paths ]
 
   suites = []
   for root in suite_paths:
@@ -531,7 +542,7 @@ def Execute(arch, mode, args, options, suites, workspace):
       # TODO(machenbach): Get rid of different output folder location on
       # buildbot. Currently this is capitalized Release and Debug.
       shell_dir = os.path.join(workspace, options.outdir, mode)
-      mode = mode.lower()
+      mode = BuildbotToV8Mode(mode)
     else:
       shell_dir = os.path.join(
           workspace,
@@ -539,6 +550,8 @@ def Execute(arch, mode, args, options, suites, workspace):
           "%s.%s" % (arch, MODES[mode]["output_folder"]),
       )
   shell_dir = os.path.relpath(shell_dir)
+  if not os.path.exists(shell_dir):
+      raise Exception('Could not find shell_dir: "%s"' % shell_dir)
 
   # Populate context object.
   mode_flags = MODES[mode]["flags"]
@@ -577,7 +590,7 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
-      arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64el', \
+      arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', \
                'ppc', 'ppc64'] and \
       ARCH_GUESS and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
@@ -597,6 +610,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "msan": options.msan,
     "dcheck_always_on": options.dcheck_always_on,
     "novfp3": options.novfp3,
+    "predictable": options.predictable,
     "byteorder": sys.byteorder,
   }
   all_tests = []
@@ -612,10 +626,11 @@ def Execute(arch, mode, args, options, suites, workspace):
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
-    variant_flags = [VARIANT_FLAGS[var] for var in VARIANTS]
-    variant_tests = [ t.CopyAddingFlags(v)
+    variant_gen = s.CreateVariantGenerator(VARIANTS)
+    variant_tests = [ t.CopyAddingFlags(v, flags)
                       for t in s.tests
-                      for v in s.VariantFlags(t, variant_flags) ]
+                      for v in variant_gen.FilterVariantsByTest(t)
+                      for flags in variant_gen.GetFlagSets(t, v) ]
 
     if options.random_seed_stress_count > 1:
       # Duplicate test for random seed stress mode.
@@ -628,9 +643,9 @@ def Execute(arch, mode, args, options, suites, workspace):
           else:
             yield ["--random-seed=%d" % RandomSeed()]
       s.tests = [
-        t.CopyAddingFlags(v)
+        t.CopyAddingFlags(t.variant, flags)
         for t in variant_tests
-        for v in iter_seed_flags()
+        for flags in iter_seed_flags()
       ]
     else:
       s.tests = variant_tests
@@ -653,11 +668,13 @@ def Execute(arch, mode, args, options, suites, workspace):
         options.junitout, options.junittestsuite))
   if options.json_test_results:
     progress_indicator.Register(progress.JsonTestProgressIndicator(
-        options.json_test_results, arch, MODES[mode]["execution_mode"]))
+        options.json_test_results, arch, MODES[mode]["execution_mode"],
+        ctx.random_seed))
 
   run_networked = not options.no_network
   if not run_networked:
-    print("Network distribution disabled, running tests locally.")
+    if verbose_output:
+      print("Network distribution disabled, running tests locally.")
   elif utils.GuessOS() != "linux":
     print("Network distribution is only supported on Linux, sorry!")
     run_networked = False
@@ -685,6 +702,10 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   if options.time:
     verbose.PrintTestDurations(suites, overall_duration)
+
+  if num_tests == 0:
+    print("Warning: no tests were run!")
+
   return exit_code
 
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100 --harmony --harmony-reflect --harmony-arrays
-// Flags: --harmony-regexps --strong-mode
+// Flags: --stack-size=100 --harmony --harmony-reflect --harmony-regexps
+// Flags: --harmony-simd --strong-mode
 
 function test(f, expected, type) {
   try {
@@ -308,11 +308,6 @@ test(function() {
   "a" + 1;
 }, "In strong mode, implicit conversions are deprecated", TypeError);
 
-// kSymbolToPrimitive
-test(function() {
-  1 + Object(Symbol());
-}, "Cannot convert a Symbol wrapper object to a primitive value", TypeError);
-
 // kSymbolToString
 test(function() {
   "" + Symbol();
@@ -322,6 +317,11 @@ test(function() {
 test(function() {
   1 + Symbol();
 }, "Cannot convert a Symbol value to a number", TypeError);
+
+// kSimdToNumber
+test(function() {
+  1 + SIMD.Float32x4(1, 2, 3, 4);
+}, "Cannot convert a SIMD value to a number", TypeError);
 
 // kUndefinedOrNullToObject
 test(function() {

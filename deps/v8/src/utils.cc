@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/utils.h"
+
 #include <stdarg.h>
 #include <sys/stat.h>
-
-#include "src/v8.h"
 
 #include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

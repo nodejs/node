@@ -10,10 +10,6 @@ namespace internal {
 
 static bool IsUnsignedLoad(HLoadKeyed* instr) {
   switch (instr->elements_kind()) {
-    case EXTERNAL_UINT8_ELEMENTS:
-    case EXTERNAL_UINT16_ELEMENTS:
-    case EXTERNAL_UINT32_ELEMENTS:
-    case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
     case UINT8_ELEMENTS:
     case UINT16_ELEMENTS:
     case UINT32_ELEMENTS:
@@ -50,14 +46,14 @@ bool HUint32AnalysisPhase::IsSafeUint32Use(HValue* val, HValue* use) {
     return true;
   } else if (use->IsStoreKeyed()) {
     HStoreKeyed* store = HStoreKeyed::cast(use);
-    if (store->is_external()) {
+    if (store->is_fixed_typed_array()) {
       // Storing a value into an external integer array is a bit level
       // operation.
       if (store->value() == val) {
         // Clamping or a conversion to double should have beed inserted.
-        DCHECK(store->elements_kind() != EXTERNAL_UINT8_CLAMPED_ELEMENTS);
-        DCHECK(store->elements_kind() != EXTERNAL_FLOAT32_ELEMENTS);
-        DCHECK(store->elements_kind() != EXTERNAL_FLOAT64_ELEMENTS);
+        DCHECK(store->elements_kind() != UINT8_CLAMPED_ELEMENTS);
+        DCHECK(store->elements_kind() != FLOAT32_ELEMENTS);
+        DCHECK(store->elements_kind() != FLOAT64_ELEMENTS);
         return true;
       }
     }

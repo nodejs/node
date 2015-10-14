@@ -32,9 +32,6 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/base/bits.h"
@@ -665,7 +662,7 @@ int Assembler::target_at(int pos, bool is_internal) {
   // Check we have a branch or jump instruction.
   DCHECK(IsBranch(instr) || IsLui(instr));
   // Do NOT change this to <<2. We rely on arithmetic shifts here, assuming
-  // the compiler uses arithmectic shifts for signed integers.
+  // the compiler uses arithmetic shifts for signed integers.
   if (IsBranch(instr)) {
     int32_t imm18 = ((instr & static_cast<int32_t>(kImm16Mask)) << 16) >> 14;
 
@@ -1406,11 +1403,11 @@ void Assembler::j(int32_t target) {
 #if DEBUG
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
-                  (kImm26Bits + kImmFieldShift)) == 0;
+  bool in_range = ((ipc ^ static_cast<uint32_t>(target)) >>
+                   (kImm26Bits + kImmFieldShift)) == 0;
   DCHECK(in_range && ((target & 3) == 0));
 #endif
-  GenInstrJump(J, target >> 2);
+  GenInstrJump(J, (target >> 2) & kImm26Mask);
 }
 
 
@@ -1432,12 +1429,12 @@ void Assembler::jal(int32_t target) {
 #ifdef DEBUG
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
-                  (kImm26Bits + kImmFieldShift)) == 0;
+  bool in_range = ((ipc ^ static_cast<uint32_t>(target)) >>
+                   (kImm26Bits + kImmFieldShift)) == 0;
   DCHECK(in_range && ((target & 3) == 0));
 #endif
   positions_recorder()->WriteRecordedPositions();
-  GenInstrJump(JAL, target >> 2);
+  GenInstrJump(JAL, (target >> 2) & kImm26Mask);
 }
 
 
@@ -2826,10 +2823,10 @@ void Assembler::emit_code_stub_address(Code* stub) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(pc_, rmode, data, NULL);
-  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
+  if (rmode >= RelocInfo::COMMENT &&
+      rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsPosition(rmode));
     // These modes do not need an entry in the constant pool.

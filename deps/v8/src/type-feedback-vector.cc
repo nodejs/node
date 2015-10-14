@@ -24,10 +24,8 @@ TypeFeedbackVector::VectorICKind TypeFeedbackVector::FromCodeKind(
     case Code::KEYED_LOAD_IC:
       return KindKeyedLoadIC;
     case Code::STORE_IC:
-      DCHECK(FLAG_vector_stores);
       return KindStoreIC;
     case Code::KEYED_STORE_IC:
-      DCHECK(FLAG_vector_stores);
       return KindKeyedStoreIC;
     default:
       // Shouldn't get here.
@@ -128,6 +126,26 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
 
 
 // static
+int TypeFeedbackVector::PushAppliedArgumentsIndex() {
+  const int index_count = VectorICComputer::word_count(1);
+  return kReservedIndexCount + index_count;
+}
+
+
+// static
+Handle<TypeFeedbackVector> TypeFeedbackVector::CreatePushAppliedArgumentsVector(
+    Isolate* isolate) {
+  Code::Kind kinds[] = {Code::KEYED_LOAD_IC};
+  FeedbackVectorSpec spec(0, 1, kinds);
+  Handle<TypeFeedbackVector> feedback_vector =
+      isolate->factory()->NewTypeFeedbackVector(&spec);
+  DCHECK(PushAppliedArgumentsIndex() ==
+         feedback_vector->GetIndex(FeedbackVectorICSlot(0)));
+  return feedback_vector;
+}
+
+
+// static
 Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
     Isolate* isolate, Handle<TypeFeedbackVector> vector) {
   Handle<TypeFeedbackVector> result;
@@ -222,6 +240,12 @@ void TypeFeedbackVector::ClearICSlotsImpl(SharedFunctionInfo* shared,
       }
     }
   }
+}
+
+
+// static
+Handle<TypeFeedbackVector> TypeFeedbackVector::DummyVector(Isolate* isolate) {
+  return Handle<TypeFeedbackVector>::cast(isolate->factory()->dummy_vector());
 }
 
 

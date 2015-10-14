@@ -9,7 +9,7 @@
 #include "src/allocation-tracker.h"
 #include "src/code-stubs.h"
 #include "src/conversions.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/heap-profiler.h"
 #include "src/types.h"
 
@@ -856,14 +856,12 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     return AddEntry(object, HeapEntry::kHidden, "system / NativeContext");
   } else if (object->IsContext()) {
     return AddEntry(object, HeapEntry::kObject, "system / Context");
-  } else if (object->IsFixedArray() ||
-             object->IsFixedDoubleArray() ||
-             object->IsByteArray() ||
-             object->IsExternalArray()) {
+  } else if (object->IsFixedArray() || object->IsFixedDoubleArray() ||
+             object->IsByteArray()) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object->IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");
-  } else if (object->IsFloat32x4()) {
+  } else if (object->IsSimd128Value()) {
     return AddEntry(object, HeapEntry::kSimdValue, "simd");
   }
   return AddEntry(object, HeapEntry::kHidden, GetSystemEntryName(object));
@@ -1265,8 +1263,6 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
   EXTRACT_CONTEXT_FIELD(EXTENSION_INDEX, Object, extension);
   EXTRACT_CONTEXT_FIELD(GLOBAL_OBJECT_INDEX, GlobalObject, global);
   if (context->IsNativeContext()) {
-    TagObject(context->jsfunction_result_caches(),
-              "(context func. result caches)");
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
     TagObject(context->runtime_context(), "(runtime context)");
     TagObject(context->embedder_data(), "(context data)");
@@ -1894,18 +1890,17 @@ bool V8HeapExplorer::IterateAndExtractSinglePass() {
 
 
 bool V8HeapExplorer::IsEssentialObject(Object* object) {
-  return object->IsHeapObject()
-      && !object->IsOddball()
-      && object != heap_->empty_byte_array()
-      && object != heap_->empty_fixed_array()
-      && object != heap_->empty_descriptor_array()
-      && object != heap_->fixed_array_map()
-      && object != heap_->cell_map()
-      && object != heap_->global_property_cell_map()
-      && object != heap_->shared_function_info_map()
-      && object != heap_->free_space_map()
-      && object != heap_->one_pointer_filler_map()
-      && object != heap_->two_pointer_filler_map();
+  return object->IsHeapObject() && !object->IsOddball() &&
+         object != heap_->empty_byte_array() &&
+         object != heap_->empty_bytecode_array() &&
+         object != heap_->empty_fixed_array() &&
+         object != heap_->empty_descriptor_array() &&
+         object != heap_->fixed_array_map() && object != heap_->cell_map() &&
+         object != heap_->global_property_cell_map() &&
+         object != heap_->shared_function_info_map() &&
+         object != heap_->free_space_map() &&
+         object != heap_->one_pointer_filler_map() &&
+         object != heap_->two_pointer_filler_map();
 }
 
 

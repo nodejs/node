@@ -5,6 +5,12 @@
 #ifndef V8_ARM_CONSTANTS_ARM_H_
 #define V8_ARM_CONSTANTS_ARM_H_
 
+#include <stdint.h>
+
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/globals.h"
+
 // ARM EABI is required.
 #if defined(__arm__) && !defined(__ARM_EABI__)
 #error ARM EABI support is required.

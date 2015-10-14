@@ -29,7 +29,7 @@
 #include "test/cctest/cctest.h"
 
 #include "include/libplatform/libplatform.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
 #include "test/cctest/trace-extension.h"
@@ -93,6 +93,12 @@ void CcTest::Run() {
   }
   callback_();
   if (initialize_) {
+    if (v8::Locker::IsActive()) {
+      v8::Locker locker(isolate_);
+      EmptyMessageQueues(isolate_);
+    } else {
+      EmptyMessageQueues(isolate_);
+    }
     isolate_->Exit();
   }
 }
@@ -132,7 +138,10 @@ static void PrintTestList(CcTest* current) {
 
 
 class CcTestArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
-  virtual void* Allocate(size_t length) { return malloc(length); }
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
   virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
   virtual void Free(void* data, size_t length) { free(data); }
   // TODO(dslomov): Remove when v8:2823 is fixed.

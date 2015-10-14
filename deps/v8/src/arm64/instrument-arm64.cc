@@ -364,12 +364,6 @@ void Instrument::VisitLoadStorePairPreIndex(Instruction* instr) {
 }
 
 
-void Instrument::VisitLoadStorePairNonTemporal(Instruction* instr) {
-  Update();
-  InstrumentLoadStorePair(instr);
-}
-
-
 void Instrument::VisitLoadLiteral(Instruction* instr) {
   Update();
   static Counter* counter = GetCounter("Load Literal");

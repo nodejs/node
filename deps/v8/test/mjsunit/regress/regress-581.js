@@ -36,7 +36,6 @@ assertThrows(function() { a.concat(a); }, RangeError);
 
 var b = [];
 b[pow31 - 3] = 32;
-b[pow31 - 2] = "out_of_bounds";
 var ab = a.concat(b);
 assertEquals(2 * pow31 - 1, ab.length);
 assertEquals(31, ab[pow31]);

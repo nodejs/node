@@ -8,7 +8,7 @@
 #include <ostream>  // NOLINT(readability/streams)
 
 #include "src/base/functional.h"
-#include "src/handles-inl.h"  // TODO(everyone): Fix our inl.h crap
+#include "src/handles.h"
 #include "src/objects-inl.h"  // TODO(everyone): Fix our inl.h crap
 #include "src/utils.h"
 #include "src/zone.h"

@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/codegen.h"
 
 #if defined(V8_OS_AIX)
 #include <fenv.h>
 #endif
 #include "src/bootstrapper.h"
-#include "src/codegen.h"
 #include "src/compiler.h"
 #include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"
 #include "src/rewriter.h"
@@ -129,7 +128,7 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
       PrintF("%s", name == NULL ? "<unknown>" : name);
     } else {
       AllowDeferredHandleDereference allow_deference_for_trace;
-      PrintF("%s", info->function()->debug_name()->ToCString().get());
+      PrintF("%s", info->literal()->debug_name()->ToCString().get());
     }
     PrintF("]\n");
   }
@@ -138,12 +137,12 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
   if (info->parse_info() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
            PrettyPrinter(info->isolate(), info->zone())
-               .PrintProgram(info->function()));
+               .PrintProgram(info->literal()));
   }
 
   if (info->parse_info() && print_ast) {
     PrintF("--- AST ---\n%s\n", AstPrinter(info->isolate(), info->zone())
-                                    .PrintProgram(info->function()));
+                                    .PrintProgram(info->literal()));
   }
 #endif  // DEBUG
 }
@@ -183,13 +182,12 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
          (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
     const char* debug_name;
-    SmartArrayPointer<char> debug_name_holder;
+    base::SmartArrayPointer<char> debug_name_holder;
     if (info->IsStub()) {
       CodeStub::Major major_key = info->code_stub()->MajorKey();
       debug_name = CodeStub::MajorName(major_key, false);
     } else {
-      debug_name_holder =
-          info->parse_info()->function()->debug_name()->ToCString();
+      debug_name_holder = info->literal()->debug_name()->ToCString();
       debug_name = debug_name_holder.get();
     }
 
@@ -197,21 +195,20 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     OFStream os(tracing_scope.file());
 
     // Print the source code if available.
-    FunctionLiteral* function = nullptr;
     bool print_source =
         info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION ||
                                code->kind() == Code::FUNCTION);
     if (print_source) {
-      function = info->function();
+      FunctionLiteral* literal = info->literal();
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(String::cast(script->source()),
-                                     function->start_position());
+                                     literal->start_position());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
         int source_len =
-            function->end_position() - function->start_position() + 1;
+            literal->end_position() - literal->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
           if (stream.HasMore()) {
             os << AsReversiblyEscapedUC16(stream.GetNext());
@@ -231,7 +228,8 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       os << "--- Code ---\n";
     }
     if (print_source) {
-      os << "source_position = " << function->start_position() << "\n";
+      FunctionLiteral* literal = info->literal();
+      os << "source_position = " << literal->start_position() << "\n";
     }
     code->Disassemble(debug_name, os);
     os << "--- End code ---\n";

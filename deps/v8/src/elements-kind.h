@@ -5,6 +5,7 @@
 #ifndef V8_ELEMENTS_KIND_H_
 #define V8_ELEMENTS_KIND_H_
 
+#include "src/base/macros.h"
 #include "src/checks.h"
 
 namespace v8 {
@@ -32,17 +33,6 @@ enum ElementsKind {
   FAST_SLOPPY_ARGUMENTS_ELEMENTS,
   SLOW_SLOPPY_ARGUMENTS_ELEMENTS,
 
-  // The "fast" kind for external arrays
-  EXTERNAL_INT8_ELEMENTS,
-  EXTERNAL_UINT8_ELEMENTS,
-  EXTERNAL_INT16_ELEMENTS,
-  EXTERNAL_UINT16_ELEMENTS,
-  EXTERNAL_INT32_ELEMENTS,
-  EXTERNAL_UINT32_ELEMENTS,
-  EXTERNAL_FLOAT32_ELEMENTS,
-  EXTERNAL_FLOAT64_ELEMENTS,
-  EXTERNAL_UINT8_CLAMPED_ELEMENTS,
-
   // Fixed typed arrays
   UINT8_ELEMENTS,
   INT8_ELEMENTS,
@@ -59,8 +49,6 @@ enum ElementsKind {
   LAST_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   FIRST_FAST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
   LAST_FAST_ELEMENTS_KIND = FAST_HOLEY_DOUBLE_ELEMENTS,
-  FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_INT8_ELEMENTS,
-  LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_UINT8_CLAMPED_ELEMENTS,
   FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
   LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = FAST_HOLEY_ELEMENTS
@@ -96,26 +84,20 @@ inline bool IsSloppyArgumentsElements(ElementsKind kind) {
 }
 
 
-inline bool IsExternalArrayElementsKind(ElementsKind kind) {
-  return kind >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
-      kind <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;
+inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
+  return kind >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
+         kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
 }
 
 
 inline bool IsTerminalElementsKind(ElementsKind kind) {
   return kind == TERMINAL_FAST_ELEMENTS_KIND ||
-      IsExternalArrayElementsKind(kind);
-}
-
-
-inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
-  return kind >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
-      kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+         IsFixedTypedArrayElementsKind(kind);
 }
 
 
 inline bool IsFastElementsKind(ElementsKind kind) {
-  DCHECK(FIRST_FAST_ELEMENTS_KIND == 0);
+  STATIC_ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
   return kind <= FAST_HOLEY_DOUBLE_ELEMENTS;
 }
 
@@ -132,21 +114,13 @@ inline bool IsFastDoubleElementsKind(ElementsKind kind) {
 }
 
 
-inline bool IsExternalFloatOrDoubleElementsKind(ElementsKind kind) {
-  return kind == EXTERNAL_FLOAT64_ELEMENTS ||
-      kind == EXTERNAL_FLOAT32_ELEMENTS;
-}
-
-
 inline bool IsFixedFloatElementsKind(ElementsKind kind) {
   return kind == FLOAT32_ELEMENTS || kind == FLOAT64_ELEMENTS;
 }
 
 
 inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
-  return IsFastDoubleElementsKind(kind) ||
-      IsExternalFloatOrDoubleElementsKind(kind) ||
-      IsFixedFloatElementsKind(kind);
+  return IsFastDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
 }
 
 

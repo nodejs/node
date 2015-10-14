@@ -509,6 +509,10 @@ template <class T> class PersistentBase {
   V8_INLINE bool IsEmpty() const { return val_ == NULL; }
   V8_INLINE void Empty() { val_ = 0; }
 
+  V8_INLINE Local<T> Get(Isolate* isolate) const {
+    return Local<T>::New(isolate, *this);
+  }
+
   template <class S>
   V8_INLINE bool operator==(const PersistentBase<S>& that) const {
     internal::Object** a = reinterpret_cast<internal::Object**>(this->val_);
@@ -634,8 +638,8 @@ template <class T> class PersistentBase {
   friend class Object;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
-  PersistentBase(PersistentBase& other) = delete;  // NOLINT
-  void operator=(PersistentBase&) = delete;
+  PersistentBase(const PersistentBase& other) = delete;  // NOLINT
+  void operator=(const PersistentBase&) = delete;
   V8_INLINE static T* New(Isolate* isolate, T* that);
 
   T* val_;
@@ -841,8 +845,8 @@ class Global : public PersistentBase<T> {
  private:
   template <class F>
   friend class ReturnValue;
-  Global(Global&) = delete;
-  void operator=(Global&) = delete;
+  Global(const Global&) = delete;
+  void operator=(const Global&) = delete;
   V8_INLINE T* operator*() const { return this->val_; }
 };
 
@@ -1110,11 +1114,6 @@ class V8_EXPORT Script {
    * Returns the corresponding context-unbound script.
    */
   Local<UnboundScript> GetUnboundScript();
-
-  V8_DEPRECATED("Use GetUnboundScript()->GetId()",
-                int GetId()) {
-    return GetUnboundScript()->GetId();
-  }
 };
 
 
@@ -1386,15 +1385,13 @@ class V8_EXPORT ScriptCompiler {
   /**
    * Compile an ES6 module.
    *
-   * This is an experimental feature.
+   * This is an unfinished experimental feature, and is only exposed
+   * here for internal testing purposes.
+   * Only parsing works at the moment. Do not use.
    *
    * TODO(adamk): Script is likely the wrong return value for this;
    * should return some new Module type.
    */
-  static V8_DEPRECATE_SOON(
-      "Use maybe version",
-      Local<Script> CompileModule(Isolate* isolate, Source* source,
-                                  CompileOptions options = kNoCompileOptions));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Script> CompileModule(
       Local<Context> context, Source* source,
       CompileOptions options = kNoCompileOptions);
@@ -3004,8 +3001,9 @@ class V8_EXPORT Map : public Object {
    * in the same manner as the array returned from AsArray().
    * Guaranteed to be side-effect free if the array contains no holes.
    */
-  static V8_WARN_UNUSED_RESULT MaybeLocal<Map> FromArray(Local<Context> context,
-                                                         Local<Array> array);
+  static V8_WARN_UNUSED_RESULT V8_DEPRECATED(
+      "Use mutation methods instead",
+      MaybeLocal<Map> FromArray(Local<Context> context, Local<Array> array));
 
   V8_INLINE static Map* Cast(Value* obj);
 
@@ -3043,8 +3041,9 @@ class V8_EXPORT Set : public Object {
    * Creates a new Set containing the items in array.
    * Guaranteed to be side-effect free if the array contains no holes.
    */
-  static V8_WARN_UNUSED_RESULT MaybeLocal<Set> FromArray(Local<Context> context,
-                                                         Local<Array> array);
+  static V8_WARN_UNUSED_RESULT V8_DEPRECATED(
+      "Use mutation methods instead",
+      MaybeLocal<Set> FromArray(Local<Context> context, Local<Array> array));
 
   V8_INLINE static Set* Cast(Value* obj);
 
@@ -4804,12 +4803,6 @@ class V8_EXPORT ResourceConstraints {
   void ConfigureDefaults(uint64_t physical_memory,
                          uint64_t virtual_memory_limit);
 
-  // Deprecated, will be removed soon.
-  V8_DEPRECATED("Use two-args version instead",
-                void ConfigureDefaults(uint64_t physical_memory,
-                                       uint64_t virtual_memory_limit,
-                                       uint32_t number_of_processors));
-
   int max_semi_space_size() const { return max_semi_space_size_; }
   void set_max_semi_space_size(int value) { max_semi_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
@@ -4819,14 +4812,6 @@ class V8_EXPORT ResourceConstraints {
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
-  V8_DEPRECATED("Unused, will be removed", int max_available_threads() const) {
-    return max_available_threads_;
-  }
-  // Set the number of threads available to V8, assuming at least 1.
-  V8_DEPRECATED("Unused, will be removed",
-                void set_max_available_threads(int value)) {
-    max_available_threads_ = value;
-  }
   size_t code_range_size() const { return code_range_size_; }
   void set_code_range_size(size_t value) {
     code_range_size_ = value;
@@ -4837,7 +4822,6 @@ class V8_EXPORT ResourceConstraints {
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
-  int max_available_threads_;
   size_t code_range_size_;
 };
 
@@ -4967,27 +4951,35 @@ typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
 // --- Garbage Collection Callbacks ---
 
 /**
- * Applications can register callback functions which will be called
- * before and after a garbage collection.  Allocations are not
- * allowed in the callback functions, you therefore cannot manipulate
- * objects (set or delete properties for example) since it is possible
- * such operations will result in the allocation of objects.
+ * Applications can register callback functions which will be called before and
+ * after certain garbage collection operations.  Allocations are not allowed in
+ * the callback functions, you therefore cannot manipulate objects (set or
+ * delete properties for example) since it is possible such operations will
+ * result in the allocation of objects.
  */
 enum GCType {
   kGCTypeScavenge = 1 << 0,
   kGCTypeMarkSweepCompact = 1 << 1,
-  kGCTypeAll = kGCTypeScavenge | kGCTypeMarkSweepCompact
+  kGCTypeIncrementalMarking = 1 << 2,
+  kGCTypeProcessWeakCallbacks = 1 << 3,
+  kGCTypeAll = kGCTypeScavenge | kGCTypeMarkSweepCompact |
+               kGCTypeIncrementalMarking | kGCTypeProcessWeakCallbacks
 };
 
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
-  kGCCallbackFlagCompacted = 1 << 0,
   kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1,
-  kGCCallbackFlagForced = 1 << 2
+  kGCCallbackFlagForced = 1 << 2,
+  kGCCallbackFlagSynchronousPhantomCallbackProcessing = 1 << 3
 };
 
-typedef void (*GCPrologueCallback)(GCType type, GCCallbackFlags flags);
-typedef void (*GCEpilogueCallback)(GCType type, GCCallbackFlags flags);
+V8_DEPRECATE_SOON("Use GCCallBack instead",
+                  typedef void (*GCPrologueCallback)(GCType type,
+                                                     GCCallbackFlags flags));
+V8_DEPRECATE_SOON("Use GCCallBack instead",
+                  typedef void (*GCEpilogueCallback)(GCType type,
+                                                     GCCallbackFlags flags));
+typedef void (*GCCallback)(GCType type, GCCallbackFlags flags);
 
 typedef void (*InterruptCallback)(Isolate* isolate, void* data);
 
@@ -5370,8 +5362,6 @@ class V8_EXPORT Isolate {
    */
   static Isolate* New(const CreateParams& params);
 
-  static V8_DEPRECATED("Always pass CreateParams", Isolate* New());
-
   /**
    * Returns the entered isolate for the current thread or NULL in
    * case there is no current isolate.
@@ -5578,12 +5568,16 @@ class V8_EXPORT Isolate {
   template<typename T, typename S>
   void SetReference(const Persistent<T>& parent, const Persistent<S>& child);
 
-  typedef void (*GCPrologueCallback)(Isolate* isolate,
-                                     GCType type,
-                                     GCCallbackFlags flags);
-  typedef void (*GCEpilogueCallback)(Isolate* isolate,
-                                     GCType type,
-                                     GCCallbackFlags flags);
+  V8_DEPRECATE_SOON("Use GCCallBack instead",
+                    typedef void (*GCPrologueCallback)(Isolate* isolate,
+                                                       GCType type,
+                                                       GCCallbackFlags flags));
+  V8_DEPRECATE_SOON("Use GCCallBack instead",
+                    typedef void (*GCEpilogueCallback)(Isolate* isolate,
+                                                       GCType type,
+                                                       GCCallbackFlags flags));
+  typedef void (*GCCallback)(Isolate* isolate, GCType type,
+                             GCCallbackFlags flags);
 
   /**
    * Enables the host application to receive a notification before a
@@ -5594,14 +5588,14 @@ class V8_EXPORT Isolate {
    * not possible to register the same callback function two times with
    * different GCType filters.
    */
-  void AddGCPrologueCallback(
-      GCPrologueCallback callback, GCType gc_type_filter = kGCTypeAll);
+  void AddGCPrologueCallback(GCCallback callback,
+                             GCType gc_type_filter = kGCTypeAll);
 
   /**
    * This function removes callback which was installed by
    * AddGCPrologueCallback function.
    */
-  void RemoveGCPrologueCallback(GCPrologueCallback callback);
+  void RemoveGCPrologueCallback(GCCallback callback);
 
   /**
    * Enables the host application to receive a notification after a
@@ -5612,15 +5606,14 @@ class V8_EXPORT Isolate {
    * not possible to register the same callback function two times with
    * different GCType filters.
    */
-  void AddGCEpilogueCallback(
-      GCEpilogueCallback callback, GCType gc_type_filter = kGCTypeAll);
+  void AddGCEpilogueCallback(GCCallback callback,
+                             GCType gc_type_filter = kGCTypeAll);
 
   /**
    * This function removes callback which was installed by
    * AddGCEpilogueCallback function.
    */
-  void RemoveGCEpilogueCallback(GCEpilogueCallback callback);
-
+  void RemoveGCEpilogueCallback(GCCallback callback);
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
@@ -5985,16 +5978,6 @@ class V8_EXPORT V8 {
                                  AllowCodeGenerationFromStringsCallback that));
 
   /**
-   * Set allocator to use for ArrayBuffer memory.
-   * The allocator should be set only once. The allocator should be set
-   * before any code tha uses ArrayBuffers is executed.
-   * This allocator is used in all isolates.
-   */
-  static V8_DEPRECATE_SOON(
-      "Use isolate version",
-      void SetArrayBufferAllocator(ArrayBuffer::Allocator* allocator));
-
-  /**
   * Check if V8 is dead and therefore unusable.  This is the case after
   * fatal errors such as out-of-memory situations.
   */
@@ -6087,7 +6070,7 @@ class V8_EXPORT V8 {
    */
   static V8_DEPRECATE_SOON(
       "Use isolate version",
-      void AddGCPrologueCallback(GCPrologueCallback callback,
+      void AddGCPrologueCallback(GCCallback callback,
                                  GCType gc_type_filter = kGCTypeAll));
 
   /**
@@ -6096,7 +6079,7 @@ class V8_EXPORT V8 {
    */
   V8_INLINE static V8_DEPRECATE_SOON(
       "Use isolate version",
-      void RemoveGCPrologueCallback(GCPrologueCallback callback));
+      void RemoveGCPrologueCallback(GCCallback callback));
 
   /**
    * Enables the host application to receive a notification after a
@@ -6110,7 +6093,7 @@ class V8_EXPORT V8 {
    */
   static V8_DEPRECATE_SOON(
       "Use isolate version",
-      void AddGCEpilogueCallback(GCEpilogueCallback callback,
+      void AddGCEpilogueCallback(GCCallback callback,
                                  GCType gc_type_filter = kGCTypeAll));
 
   /**
@@ -6119,7 +6102,7 @@ class V8_EXPORT V8 {
    */
   V8_INLINE static V8_DEPRECATE_SOON(
       "Use isolate version",
-      void RemoveGCEpilogueCallback(GCEpilogueCallback callback));
+      void RemoveGCEpilogueCallback(GCCallback callback));
 
   /**
    * Enables the host application to provide a mechanism to be notified
@@ -6664,10 +6647,12 @@ class V8_EXPORT Context {
   V8_INLINE Local<Value> GetEmbedderData(int index);
 
   /**
-   * Gets the exports object used by V8 extras. Extra natives get a reference
-   * to this object and can use it to export functionality.
+   * Gets the binding object used by V8 extras. Extra natives get a reference
+   * to this object and can use it to "export" functionality by adding
+   * properties. Extra natives can also "import" functionality by accessing
+   * properties added by the embedder using the V8 API.
    */
-  Local<Object> GetExtrasExportsObject();
+  Local<Object> GetExtrasBindingObject();
 
   /**
    * Sets the embedder data with the given index, growing the data as
@@ -6718,6 +6703,11 @@ class V8_EXPORT Context {
    * constructor are called.
    */
   void SetErrorMessageForCodeGenerationFromStrings(Local<String> message);
+
+  /**
+   * Estimate the memory in bytes retained by this context.
+   */
+  size_t EstimatedSize();
 
   /**
    * Stack-allocated class which sets the execution context for all
@@ -6966,12 +6956,12 @@ class Internals {
       1 * kApiPointerSize + kApiIntSize;
   static const int kStringResourceOffset = 3 * kApiPointerSize;
 
-  static const int kOddballKindOffset = 3 * kApiPointerSize;
+  static const int kOddballKindOffset = 4 * kApiPointerSize;
   static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 81;
+  static const int kContextEmbedderDataIndex = 27;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -7004,7 +6994,7 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsPartiallyDependentShift = 4;
 
-  static const int kJSObjectType = 0xbe;
+  static const int kJSObjectType = 0xb6;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;
@@ -8291,17 +8281,17 @@ void V8::SetFatalErrorHandler(FatalErrorCallback callback) {
 }
 
 
-void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
+void V8::RemoveGCPrologueCallback(GCCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();
   isolate->RemoveGCPrologueCallback(
-      reinterpret_cast<v8::Isolate::GCPrologueCallback>(callback));
+      reinterpret_cast<v8::Isolate::GCCallback>(callback));
 }
 
 
-void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
+void V8::RemoveGCEpilogueCallback(GCCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();
   isolate->RemoveGCEpilogueCallback(
-      reinterpret_cast<v8::Isolate::GCEpilogueCallback>(callback));
+      reinterpret_cast<v8::Isolate::GCCallback>(callback));
 }
 
 

@@ -8,7 +8,7 @@
 #include "src/ic/ic.h"
 
 #include "src/compiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/macro-assembler.h"
 #include "src/prototype.h"
 
@@ -18,56 +18,15 @@ namespace internal {
 
 Address IC::address() const {
   // Get the address of the call.
-  Address result = Assembler::target_address_from_return_address(pc());
-
-  Debug* debug = isolate()->debug();
-  // First check if any break points are active if not just return the address
-  // of the call.
-  if (!debug->has_break_points()) return result;
-
-  // At least one break point is active perform additional test to ensure that
-  // break point locations are updated correctly.
-  if (debug->IsDebugBreak(
-          Assembler::target_address_at(result, raw_constant_pool()))) {
-    // If the call site is a call to debug break then return the address in
-    // the original code instead of the address in the running code. This will
-    // cause the original code to be updated and keeps the breakpoint active in
-    // the running code.
-    Code* code = GetCode();
-    Code* original_code = GetOriginalCode();
-    intptr_t delta =
-        original_code->instruction_start() - code->instruction_start();
-    // Return the address in the original code. This is the place where
-    // the call which has been overwritten by the DebugBreakXXX resides
-    // and the place where the inline cache system should look.
-    return result + delta;
-  } else {
-    // No break point here just return the address of the call.
-    return result;
-  }
+  return Assembler::target_address_from_return_address(pc());
 }
 
 
 Address IC::constant_pool() const {
-  if (!FLAG_enable_embedded_constant_pool) {
-    return NULL;
+  if (FLAG_enable_embedded_constant_pool) {
+    return raw_constant_pool();
   } else {
-    Address constant_pool = raw_constant_pool();
-    Debug* debug = isolate()->debug();
-    // First check if any break points are active if not just return the
-    // original constant pool.
-    if (!debug->has_break_points()) return constant_pool;
-
-    // At least one break point is active perform additional test to ensure that
-    // break point locations are updated correctly.
-    Address target = Assembler::target_address_from_return_address(pc());
-    if (debug->IsDebugBreak(
-            Assembler::target_address_at(target, constant_pool))) {
-      // If the call site is a call to debug break then we want to return the
-      // constant pool for the original code instead of the breakpointed code.
-      return GetOriginalCode()->constant_pool();
-    }
-    return constant_pool;
+    return NULL;
   }
 }
 
@@ -134,8 +93,8 @@ void IC::set_target(Code* code) {
 
 void LoadIC::set_target(Code* code) {
   // The contextual mode must be preserved across IC patching.
-  DCHECK(LoadICState::GetContextualMode(code->extra_ic_state()) ==
-         LoadICState::GetContextualMode(target()->extra_ic_state()));
+  DCHECK(LoadICState::GetTypeofMode(code->extra_ic_state()) ==
+         LoadICState::GetTypeofMode(target()->extra_ic_state()));
   // Strongness must be preserved across IC patching.
   DCHECK(LoadICState::GetLanguageMode(code->extra_ic_state()) ==
          LoadICState::GetLanguageMode(target()->extra_ic_state()));
@@ -168,18 +127,15 @@ void IC::UpdateTarget() { target_ = handle(raw_target(), isolate_); }
 
 
 JSFunction* IC::GetRootConstructor(Map* receiver_map, Context* native_context) {
-  Isolate* isolate = receiver_map->GetIsolate();
-  if (receiver_map == isolate->heap()->boolean_map()) {
-    return native_context->boolean_function();
-  } else if (receiver_map->instance_type() == HEAP_NUMBER_TYPE) {
-    return native_context->number_function();
-  } else if (receiver_map->instance_type() < FIRST_NONSTRING_TYPE) {
-    return native_context->string_function();
-  } else if (receiver_map->instance_type() == SYMBOL_TYPE) {
-    return native_context->symbol_function();
-  } else {
-    return NULL;
+  DisallowHeapAllocation no_alloc;
+  if (receiver_map->IsPrimitiveMap()) {
+    int constructor_function_index =
+        receiver_map->GetConstructorFunctionIndex();
+    if (constructor_function_index != Map::kNoConstructorFunctionIndex) {
+      return JSFunction::cast(native_context->get(constructor_function_index));
+    }
   }
+  return nullptr;
 }
 
 

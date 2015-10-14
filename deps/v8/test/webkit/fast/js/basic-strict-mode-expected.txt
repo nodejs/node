@@ -69,8 +69,8 @@ PASS (function (){'use strict'; try{}catch(eval){}}) threw exception SyntaxError
 PASS (function(){(function (){'use strict'; try{}catch(eval){}})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
 PASS (function (){'use strict'; try{}catch(arguments){}}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
 PASS (function(){(function (){'use strict'; try{}catch(arguments){}})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
-PASS (function (a, a){'use strict';}) threw exception SyntaxError: Strict mode function may not have duplicate parameter names.
-PASS (function(){(function (a, a){'use strict';})}) threw exception SyntaxError: Strict mode function may not have duplicate parameter names.
+PASS (function (a, a){'use strict';}) threw exception SyntaxError: Duplicate parameter name not allowed in this context.
+PASS (function(){(function (a, a){'use strict';})}) threw exception SyntaxError: Duplicate parameter name not allowed in this context.
 PASS (function (a){'use strict'; delete a;})() threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
 PASS (function(){(function (a){'use strict'; delete a;})()}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
 PASS (function (){'use strict'; var a; delete a;})() threw exception SyntaxError: Delete of an unqualified identifier in strict mode..

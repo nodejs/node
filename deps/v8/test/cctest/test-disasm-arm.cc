@@ -30,7 +30,7 @@
 
 #include "src/v8.h"
 
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"

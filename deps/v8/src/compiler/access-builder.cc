@@ -11,50 +11,58 @@ namespace compiler {
 
 // static
 FieldAccess AccessBuilder::ForMap() {
-  return {kTaggedBase, HeapObject::kMapOffset, MaybeHandle<Name>(), Type::Any(),
-          kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, HeapObject::kMapOffset,
+                        MaybeHandle<Name>(), Type::Any(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSObjectProperties() {
-  return {kTaggedBase, JSObject::kPropertiesOffset, MaybeHandle<Name>(),
-          Type::Any(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, JSObject::kPropertiesOffset,
+                        MaybeHandle<Name>(), Type::Any(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSObjectElements() {
-  return {kTaggedBase, JSObject::kElementsOffset, MaybeHandle<Name>(),
-          Type::Internal(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, JSObject::kElementsOffset,
+                        MaybeHandle<Name>(), Type::Internal(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSFunctionContext() {
-  return {kTaggedBase, JSFunction::kContextOffset, MaybeHandle<Name>(),
-          Type::Internal(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, JSFunction::kContextOffset,
+                        MaybeHandle<Name>(), Type::Internal(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
-  return {kTaggedBase, JSFunction::kSharedFunctionInfoOffset, Handle<Name>(),
-          Type::Any(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, JSFunction::kSharedFunctionInfoOffset,
+                        Handle<Name>(), Type::Any(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
-  return {kTaggedBase, JSArrayBuffer::kBackingStoreOffset, MaybeHandle<Name>(),
-          Type::UntaggedPointer(), kMachPtr};
+  FieldAccess access = {kTaggedBase, JSArrayBuffer::kBackingStoreOffset,
+                        MaybeHandle<Name>(), Type::UntaggedPointer(), kMachPtr};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
-  return {kTaggedBase, JSDate::kValueOffset + index * kPointerSize,
-          MaybeHandle<Name>(), Type::Number(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase,
+                        JSDate::kValueOffset + index * kPointerSize,
+                        MaybeHandle<Name>(), Type::Number(), kMachAnyTagged};
+  return access;
 }
 
 
@@ -64,65 +72,71 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
   // field, although it's not the best. If we had a Zone we could create an
   // appropriate range type instead.
   STATIC_ASSERT(FixedArray::kMaxLength <= 1 << 30);
-  return {kTaggedBase, FixedArray::kLengthOffset, MaybeHandle<Name>(),
-          Type::Intersect(Type::Unsigned30(), Type::TaggedSigned()),
-          kMachAnyTagged};
-}
-
-
-// static
-FieldAccess AccessBuilder::ForExternalArrayPointer() {
-  return {kTaggedBase, ExternalArray::kExternalPointerOffset,
-          MaybeHandle<Name>(), Type::UntaggedPointer(), kMachPtr};
+  FieldAccess access = {
+      kTaggedBase, FixedArray::kLengthOffset, MaybeHandle<Name>(),
+      Type::Intersect(Type::Unsigned30(), Type::TaggedSigned()),
+      kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {
-  return {kTaggedBase, DescriptorArray::kEnumCacheOffset, Handle<Name>(),
-          Type::TaggedPointer(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, DescriptorArray::kEnumCacheOffset,
+                        Handle<Name>(), Type::TaggedPointer(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache() {
-  return {kTaggedBase, DescriptorArray::kEnumCacheBridgeCacheOffset,
-          Handle<Name>(), Type::TaggedPointer(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase,
+                        DescriptorArray::kEnumCacheBridgeCacheOffset,
+                        Handle<Name>(), Type::TaggedPointer(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForMapBitField3() {
-  return {kTaggedBase, Map::kBitField3Offset, Handle<Name>(),
-          Type::UntaggedUnsigned32(), kMachUint32};
+  FieldAccess access = {kTaggedBase, Map::kBitField3Offset, Handle<Name>(),
+                        Type::UntaggedUnsigned32(), kMachUint32};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForMapDescriptors() {
-  return {kTaggedBase, Map::kDescriptorsOffset, Handle<Name>(),
-          Type::TaggedPointer(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, Map::kDescriptorsOffset, Handle<Name>(),
+                        Type::TaggedPointer(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForMapInstanceType() {
-  return {kTaggedBase, Map::kInstanceTypeOffset, Handle<Name>(),
-          Type::UntaggedUnsigned8(), kMachUint8};
+  FieldAccess access = {kTaggedBase, Map::kInstanceTypeOffset, Handle<Name>(),
+                        Type::UntaggedUnsigned8(), kMachUint8};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForStringLength(Zone* zone) {
-  return {kTaggedBase, String::kLengthOffset, Handle<Name>(),
-          Type::Range(0, String::kMaxLength, zone), kMachAnyTagged};
+  FieldAccess access = {
+      kTaggedBase, String::kLengthOffset, Handle<Name>(),
+      Type::Intersect(Type::Range(0, String::kMaxLength, zone),
+                      Type::TaggedSigned(), zone),
+      kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForValue() {
-  return {kTaggedBase, JSValue::kValueOffset, Handle<Name>(), Type::Any(),
-          kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, JSValue::kValueOffset, Handle<Name>(),
+                        Type::Any(), kMachAnyTagged};
+  return access;
 }
 
 
@@ -131,27 +145,33 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
   int offset = Context::kHeaderSize + static_cast<int>(index) * kPointerSize;
   DCHECK_EQ(offset,
             Context::SlotOffset(static_cast<int>(index)) + kHeapObjectTag);
-  return {kTaggedBase, offset, Handle<Name>(), Type::Any(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
+                        kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForPropertyCellValue() {
-  return {kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(), Type::Any(),
-          kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(),
+                        Type::Any(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForSharedFunctionInfoTypeFeedbackVector() {
-  return {kTaggedBase, SharedFunctionInfo::kFeedbackVectorOffset,
-          Handle<Name>(), Type::Any(), kMachAnyTagged};
+  FieldAccess access = {kTaggedBase, SharedFunctionInfo::kFeedbackVectorOffset,
+                        Handle<Name>(), Type::Any(), kMachAnyTagged};
+  return access;
 }
 
 
 // static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
-  return {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged};
+  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
+                          kMachAnyTagged};
+  return access;
 }
 
 
@@ -161,61 +181,95 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
   BaseTaggedness taggedness = is_external ? kUntaggedBase : kTaggedBase;
   int header_size = is_external ? 0 : FixedTypedArrayBase::kDataOffset;
   switch (type) {
-    case kExternalInt8Array:
-      return {taggedness, header_size, Type::Signed32(), kMachInt8};
+    case kExternalInt8Array: {
+      ElementAccess access = {taggedness, header_size, Type::Signed32(),
+                              kMachInt8};
+      return access;
+    }
     case kExternalUint8Array:
-    case kExternalUint8ClampedArray:
-      return {taggedness, header_size, Type::Unsigned32(), kMachUint8};
-    case kExternalInt16Array:
-      return {taggedness, header_size, Type::Signed32(), kMachInt16};
-    case kExternalUint16Array:
-      return {taggedness, header_size, Type::Unsigned32(), kMachUint16};
-    case kExternalInt32Array:
-      return {taggedness, header_size, Type::Signed32(), kMachInt32};
-    case kExternalUint32Array:
-      return {taggedness, header_size, Type::Unsigned32(), kMachUint32};
-    case kExternalFloat32Array:
-      return {taggedness, header_size, Type::Number(), kMachFloat32};
-    case kExternalFloat64Array:
-      return {taggedness, header_size, Type::Number(), kMachFloat64};
+    case kExternalUint8ClampedArray: {
+      ElementAccess access = {taggedness, header_size, Type::Unsigned32(),
+                              kMachUint8};
+      return access;
+    }
+    case kExternalInt16Array: {
+      ElementAccess access = {taggedness, header_size, Type::Signed32(),
+                              kMachInt16};
+      return access;
+    }
+    case kExternalUint16Array: {
+      ElementAccess access = {taggedness, header_size, Type::Unsigned32(),
+                              kMachUint16};
+      return access;
+    }
+    case kExternalInt32Array: {
+      ElementAccess access = {taggedness, header_size, Type::Signed32(),
+                              kMachInt32};
+      return access;
+    }
+    case kExternalUint32Array: {
+      ElementAccess access = {taggedness, header_size, Type::Unsigned32(),
+                              kMachUint32};
+      return access;
+    }
+    case kExternalFloat32Array: {
+      ElementAccess access = {taggedness, header_size, Type::Number(),
+                              kMachFloat32};
+      return access;
+    }
+    case kExternalFloat64Array: {
+      ElementAccess access = {taggedness, header_size, Type::Number(),
+                              kMachFloat64};
+      return access;
+    }
   }
   UNREACHABLE();
-  return {kUntaggedBase, 0, Type::None(), kMachNone};
+  ElementAccess access = {kUntaggedBase, 0, Type::None(), kMachNone};
+  return access;
 }
 
 
 // static
 ElementAccess AccessBuilder::ForSeqStringChar(String::Encoding encoding) {
   switch (encoding) {
-    case String::ONE_BYTE_ENCODING:
-      return {kTaggedBase, SeqString::kHeaderSize, Type::Unsigned32(),
-              kMachUint8};
-    case String::TWO_BYTE_ENCODING:
-      return {kTaggedBase, SeqString::kHeaderSize, Type::Unsigned32(),
-              kMachUint16};
+    case String::ONE_BYTE_ENCODING: {
+      ElementAccess access = {kTaggedBase, SeqString::kHeaderSize,
+                              Type::Unsigned32(), kMachUint8};
+      return access;
+    }
+    case String::TWO_BYTE_ENCODING: {
+      ElementAccess access = {kTaggedBase, SeqString::kHeaderSize,
+                              Type::Unsigned32(), kMachUint16};
+      return access;
+    }
   }
   UNREACHABLE();
-  return {kUntaggedBase, 0, Type::None(), kMachNone};
+  ElementAccess access = {kUntaggedBase, 0, Type::None(), kMachNone};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForStatsCounter() {
-  return {kUntaggedBase, 0, MaybeHandle<Name>(), Type::Signed32(), kMachInt32};
+  FieldAccess access = {kUntaggedBase, 0, MaybeHandle<Name>(), Type::Signed32(),
+                        kMachInt32};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForFrameCallerFramePtr() {
-  return {kUntaggedBase, StandardFrameConstants::kCallerFPOffset,
-          MaybeHandle<Name>(), Type::Internal(), kMachPtr};
+  FieldAccess access = {kUntaggedBase, StandardFrameConstants::kCallerFPOffset,
+                        MaybeHandle<Name>(), Type::Internal(), kMachPtr};
+  return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForFrameMarker() {
-  return {kUntaggedBase, StandardFrameConstants::kMarkerOffset,
-          MaybeHandle<Name>(), Type::Tagged(), kMachAnyTagged};
+  FieldAccess access = {kUntaggedBase, StandardFrameConstants::kMarkerOffset,
+                        MaybeHandle<Name>(), Type::Tagged(), kMachAnyTagged};
+  return access;
 }
 
 }  // namespace compiler

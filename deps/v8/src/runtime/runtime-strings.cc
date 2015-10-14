@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/jsregexp-inl.h"
-#include "src/jsregexp.h"
-#include "src/runtime/runtime-utils.h"
+#include "src/conversions-inl.h"
+#include "src/regexp/jsregexp-inl.h"
+#include "src/regexp/jsregexp.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
 
@@ -281,7 +281,7 @@ RUNTIME_FUNCTION(Runtime_StringLocaleCompare) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SubStringRT) {
+RUNTIME_FUNCTION(Runtime_SubString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
 
@@ -309,13 +309,7 @@ RUNTIME_FUNCTION(Runtime_SubStringRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SubString) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_SubStringRT(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(Runtime_StringAddRT) {
+RUNTIME_FUNCTION(Runtime_StringAdd) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
@@ -325,12 +319,6 @@ RUNTIME_FUNCTION(Runtime_StringAddRT) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewConsString(str1, str2));
   return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_StringAdd) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_StringAddRT(args, isolate);
 }
 
 
@@ -428,7 +416,7 @@ RUNTIME_FUNCTION(Runtime_CharFromCode) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_StringCompareRT) {
+RUNTIME_FUNCTION(Runtime_StringCompare) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 2);
 
@@ -494,12 +482,6 @@ RUNTIME_FUNCTION(Runtime_StringCompareRT) {
     result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
   }
   return result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_StringCompare) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_StringCompareRT(args, isolate);
 }
 
 

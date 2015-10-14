@@ -6,8 +6,8 @@
 #define V8_TYPES_H_
 
 #include "src/conversions.h"
-#include "src/factory.h"
 #include "src/handles.h"
+#include "src/objects.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -1003,7 +1003,7 @@ struct ZoneTypeConfig {
 
   static const int kRangeStructTag = 0x1000;
 
-  template<class T> static inline T* null_handle();
+  template<class T> static inline T* null_handle() { return nullptr; }
   template<class T> static inline T* handle(T* type);
   template<class T> static inline T* cast(Type* type);
 
@@ -1058,7 +1058,9 @@ struct HeapTypeConfig {
 
   static const int kRangeStructTag = 0xffff;
 
-  template<class T> static inline i::Handle<T> null_handle();
+  template<class T> static inline i::Handle<T> null_handle() {
+    return i::Handle<T>();
+  }
   template<class T> static inline i::Handle<T> handle(T* type);
   template<class T> static inline i::Handle<T> cast(i::Handle<Type> type);
 

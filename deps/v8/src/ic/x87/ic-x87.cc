@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X87
 
 #include "src/codegen.h"
@@ -157,10 +155,9 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   __ test_b(FieldOperand(map, Map::kBitFieldOffset),
             (1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit));
   __ j(not_zero, slow);
-  // Check that the object is some kind of JS object EXCEPT JS Value type.
-  // In the case that the object is a value-wrapper object,
-  // we enter the runtime system to make sure that indexing
-  // into string objects works as intended.
+  // Check that the object is some kind of JS object EXCEPT JS Value type. In
+  // the case that the object is a value-wrapper object, we enter the runtime
+  // system to make sure that indexing into string objects works as intended.
   DCHECK(JS_OBJECT_TYPE > JS_VALUE_TYPE);
 
   __ CmpInstanceType(map, JS_OBJECT_TYPE);
@@ -341,16 +338,17 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
 
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
-  Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
-      isolate->factory()->keyed_load_dummy_vector());
-  int slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+  Handle<TypeFeedbackVector> dummy_vector =
+      TypeFeedbackVector::DummyVector(isolate);
+  int slot = dummy_vector->GetIndex(
+      FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
   __ push(Immediate(Smi::FromInt(slot)));
   __ push(Immediate(dummy_vector));
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
-                                               false, receiver, key, ebx, edi);
+                                               receiver, key, ebx, edi);
 
   __ pop(LoadWithVectorDescriptor::VectorRegister());
   __ pop(LoadDescriptor::SlotRegister());
@@ -539,8 +537,11 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfNotSmi(key, &maybe_name_key);
   __ CmpInstanceType(edi, JS_ARRAY_TYPE);
   __ j(equal, &array);
-  // Check that the object is some kind of JSObject.
-  __ CmpInstanceType(edi, FIRST_JS_OBJECT_TYPE);
+  // Check that the object is some kind of JS object EXCEPT JS Value type. In
+  // the case that the object is a value-wrapper object, we enter the runtime
+  // system to make sure that indexing into string objects works as intended.
+  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
+  __ CmpInstanceType(edi, JS_OBJECT_TYPE);
   __ j(below, &slow);
 
   // Object case: Check key against length in the elements array.
@@ -565,17 +566,18 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   if (FLAG_vector_stores) {
     // The handlers in the stub cache expect a vector and slot. Since we won't
     // change the IC from any downstream misses, a dummy vector can be used.
-    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
-        masm->isolate()->factory()->keyed_store_dummy_vector());
-    int slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+    Handle<TypeFeedbackVector> dummy_vector =
+        TypeFeedbackVector::DummyVector(masm->isolate());
+    int slot = dummy_vector->GetIndex(
+        FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
     __ push(Immediate(Smi::FromInt(slot)));
     __ push(Immediate(dummy_vector));
   }
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::STORE_IC, flags, false, receiver, key, ebx, no_reg);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
+                                               receiver, key, ebx, no_reg);
 
   if (FLAG_vector_stores) {
     __ pop(VectorStoreICDescriptor::VectorRegister());
@@ -676,10 +678,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kLoadIC_Miss), masm->isolate());
   int arg_count = 4;
-  __ TailCallExternalReference(ref, arg_count, 1);
+  __ TailCallRuntime(Runtime::kLoadIC_Miss, arg_count, 1);
 }
 
 
@@ -709,10 +709,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
   int arg_count = 4;
-  __ TailCallExternalReference(ref, arg_count, 1);
+  __ TailCallRuntime(Runtime::kKeyedLoadIC_Miss, arg_count, 1);
 }
 
 
@@ -740,7 +738,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::STORE_IC, flags, false, StoreDescriptor::ReceiverRegister(),
+      masm, Code::STORE_IC, flags, StoreDescriptor::ReceiverRegister(),
       StoreDescriptor::NameRegister(), ebx, no_reg);
 
   // Cache miss: Jump to runtime.
@@ -753,13 +751,24 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
 
-  DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
+  if (FLAG_vector_stores) {
+    Register slot = VectorStoreICDescriptor::SlotRegister();
+    Register vector = VectorStoreICDescriptor::VectorRegister();
 
-  __ pop(ebx);
-  __ push(receiver);
-  __ push(name);
-  __ push(value);
-  __ push(ebx);
+    __ xchg(receiver, Operand(esp, 0));
+    __ push(name);
+    __ push(value);
+    __ push(slot);
+    __ push(vector);
+    __ push(receiver);  // Contains the return address.
+  } else {
+    DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
+    __ pop(ebx);
+    __ push(receiver);
+    __ push(name);
+    __ push(value);
+    __ push(ebx);
+  }
 }
 
 
@@ -768,9 +777,8 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Perform tail call to the entry.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kStoreIC_Miss), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
+  int args = FLAG_vector_stores ? 5 : 3;
+  __ TailCallRuntime(Runtime::kStoreIC_Miss, args, 1);
 }
 
 
@@ -806,9 +814,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Do tail-call to runtime routine.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
+  int args = FLAG_vector_stores ? 5 : 3;
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss, args, 1);
 }
 
 

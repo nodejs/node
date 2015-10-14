@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/contexts.h"
 
 #include "src/bootstrapper.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/scopeinfo.h"
 
 namespace v8 {
@@ -20,8 +20,11 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   CHECK(used >= 0 && length > 0 && used < length);
   if (used + 1 == length) {
     CHECK(length < Smi::kMaxValue / 2);
-    result = Handle<ScriptContextTable>::cast(
-        FixedArray::CopySize(table, length * 2));
+    Isolate* isolate = table->GetIsolate();
+    Handle<FixedArray> copy =
+        isolate->factory()->CopyFixedArrayAndGrow(table, length);
+    copy->set_map(isolate->heap()->script_context_table_map());
+    result = Handle<ScriptContextTable>::cast(copy);
   } else {
     result = table;
   }
@@ -140,7 +143,6 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
                                          PropertyAttributes* attributes,
                                          BindingFlags* binding_flags) {
   switch (mode) {
-    case INTERNAL:  // Fall through.
     case VAR:
       *attributes = NONE;
       *binding_flags = MUTABLE_IS_INITIALIZED;
@@ -366,8 +368,6 @@ void Context::InitializeGlobalSlots() {
     int context_locals = scope_info->ContextLocalCount();
     int index = Context::MIN_CONTEXT_SLOTS + context_locals;
     for (int i = 0; i < context_globals; i++) {
-      // Clear both read and write slots.
-      set(index++, empty_cell);
       set(index++, empty_cell);
     }
   }

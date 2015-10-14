@@ -155,7 +155,7 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
     int vreg = unallocated->virtual_register();
     constraint->virtual_register_ = vreg;
     if (unallocated->basic_policy() == UnallocatedOperand::FIXED_SLOT) {
-      constraint->type_ = kFixedSlot;
+      constraint->type_ = sequence()->IsFloat(vreg) ? kDoubleSlot : kSlot;
       constraint->value_ = unallocated->fixed_slot_index();
     } else {
       switch (unallocated->extended_policy()) {
@@ -185,11 +185,7 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
           }
           break;
         case UnallocatedOperand::MUST_HAVE_SLOT:
-          if (sequence()->IsFloat(vreg)) {
-            constraint->type_ = kDoubleSlot;
-          } else {
-            constraint->type_ = kSlot;
-          }
+          constraint->type_ = sequence()->IsFloat(vreg) ? kDoubleSlot : kSlot;
           break;
         case UnallocatedOperand::SAME_AS_FIRST_INPUT:
           constraint->type_ = kSameAsFirst;

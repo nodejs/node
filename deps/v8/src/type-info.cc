@@ -82,7 +82,8 @@ Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorICSlot slot) {
     obj = cell->value();
   }
 
-  if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol()) {
+  if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol() ||
+      obj->IsSimd128Value()) {
     return Handle<Object>(obj, isolate());
   }
 
@@ -105,13 +106,15 @@ InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(TypeFeedbackId id) {
 
 InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(
     FeedbackVectorICSlot slot) {
-  Code::Kind kind = feedback_vector_->GetKind(slot);
-  if (kind == Code::LOAD_IC) {
-    LoadICNexus nexus(feedback_vector_, slot);
-    return nexus.StateFromFeedback();
-  } else if (kind == Code::KEYED_LOAD_IC) {
-    KeyedLoadICNexus nexus(feedback_vector_, slot);
-    return nexus.StateFromFeedback();
+  if (!slot.IsInvalid()) {
+    Code::Kind kind = feedback_vector_->GetKind(slot);
+    if (kind == Code::LOAD_IC) {
+      LoadICNexus nexus(feedback_vector_, slot);
+      return nexus.StateFromFeedback();
+    } else if (kind == Code::KEYED_LOAD_IC) {
+      KeyedLoadICNexus nexus(feedback_vector_, slot);
+      return nexus.StateFromFeedback();
+    }
   }
 
   // If we can't find an IC, assume we've seen *something*, but we don't know
@@ -330,9 +333,11 @@ void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorICSlot slot,
                                                Handle<Name> name,
                                                SmallMapList* receiver_types) {
   receiver_types->Clear();
-  LoadICNexus nexus(feedback_vector_, slot);
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
-  CollectReceiverTypes(&nexus, name, flags, receiver_types);
+  if (!slot.IsInvalid()) {
+    LoadICNexus nexus(feedback_vector_, slot);
+    Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
+    CollectReceiverTypes(&nexus, name, flags, receiver_types);
+  }
 }
 
 
@@ -340,10 +345,15 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
     FeedbackVectorICSlot slot, SmallMapList* receiver_types, bool* is_string,
     IcCheckType* key_type) {
   receiver_types->Clear();
-  KeyedLoadICNexus nexus(feedback_vector_, slot);
-  CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
-  *is_string = HasOnlyStringMaps(receiver_types);
-  *key_type = nexus.FindFirstName() != NULL ? PROPERTY : ELEMENT;
+  if (slot.IsInvalid()) {
+    *is_string = false;
+    *key_type = ELEMENT;
+  } else {
+    KeyedLoadICNexus nexus(feedback_vector_, slot);
+    CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
+    *is_string = HasOnlyStringMaps(receiver_types);
+    *key_type = nexus.FindFirstName() != NULL ? PROPERTY : ELEMENT;
+  }
 }
 
 

@@ -2,11 +2,23 @@ include_rules = [
   "+src",
   "-src/compiler",
   "+src/compiler/pipeline.h",
+  "-src/heap",
+  "+src/heap/heap.h",
+  "+src/heap/heap-inl.h",
+  "-src/interpreter",
+  "+src/interpreter/bytecodes.h",
+  "+src/interpreter/interpreter.h",
   "-src/libplatform",
   "-include/libplatform"
 ]
 
 specific_include_rules = {
+  ".*\.h": [
+    # Note that src/v8.h is the top header for some .cc files, it shouldn't be
+    # included in any .h files though. In the long run we should make src/v8.h
+    # act like any normal header file, instead of a grab-bag include.
+    "-src/v8.h",
+  ],
   "d8\.cc": [
     "+include/libplatform/libplatform.h",
   ],

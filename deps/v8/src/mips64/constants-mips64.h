@@ -5,6 +5,10 @@
 #ifndef  V8_MIPS_CONSTANTS_H_
 #define  V8_MIPS_CONSTANTS_H_
 
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/globals.h"
+
 // UNIMPLEMENTED_ macro for MIPS.
 #ifdef DEBUG
 #define UNIMPLEMENTED_MIPS()                                                  \
@@ -282,6 +286,8 @@ const int  kJumpAddrMask = (1 << (kImm26Bits + kImmFieldShift)) - 1;
 const int64_t  kHi16MaskOf64 =   (int64_t)0xffff << 48;
 const int64_t  kSe16MaskOf64 =   (int64_t)0xffff << 32;
 const int64_t  kTh16MaskOf64 =   (int64_t)0xffff << 16;
+const int32_t kJalRawMark = 0x00000000;
+const int32_t kJRawMark = 0xf0000000;
 
 // ----- MIPS Opcodes and Function Fields.
 // We use this presentation to stay close to the table representation in

@@ -5,13 +5,14 @@
 #ifndef V8_JSON_PARSER_H_
 #define V8_JSON_PARSER_H_
 
-#include "src/v8.h"
-
-#include "src/char-predicates-inl.h"
+#include "src/char-predicates.h"
 #include "src/conversions.h"
-#include "src/heap/spaces-inl.h"
+#include "src/factory.h"
 #include "src/messages.h"
+#include "src/scanner.h"
 #include "src/token.h"
+#include "src/transitions.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {

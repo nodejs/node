@@ -124,9 +124,7 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
   V8_INLINE bool GetIndexes(int field_index, int* layout_word_index,
                             int* layout_bit_index);
 
-  V8_INLINE MUST_USE_RESULT LayoutDescriptor* SetRawData(int field_index) {
-    return SetTagged(field_index, false);
-  }
+  V8_INLINE MUST_USE_RESULT LayoutDescriptor* SetRawData(int field_index);
 
   V8_INLINE MUST_USE_RESULT LayoutDescriptor* SetTagged(int field_index,
                                                         bool tagged);

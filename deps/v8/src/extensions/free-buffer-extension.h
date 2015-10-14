@@ -5,7 +5,7 @@
 #ifndef V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_
 #define V8_EXTENSIONS_FREE_BUFFER_EXTENSION_H_
 
-#include "src/v8.h"
+#include "include/v8.h"
 
 namespace v8 {
 namespace internal {

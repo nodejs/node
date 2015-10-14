@@ -120,8 +120,13 @@ class StandardFrameConstants : public AllStatic {
   static const int kCPSlotSize =
       FLAG_enable_embedded_constant_pool ? kPointerSize : 0;
   static const int kFixedFrameSizeFromFp =  2 * kPointerSize + kCPSlotSize;
+  static const int kFixedFrameSizeAboveFp = kPCOnStackSize + kFPOnStackSize;
   static const int kFixedFrameSize =
-      kPCOnStackSize + kFPOnStackSize + kFixedFrameSizeFromFp;
+      kFixedFrameSizeAboveFp + kFixedFrameSizeFromFp;
+  static const int kFixedSlotCountAboveFp =
+      kFixedFrameSizeAboveFp / kPointerSize;
+  static const int kFixedSlotCount = kFixedFrameSize / kPointerSize;
+  static const int kCPSlotCount = kCPSlotSize / kPointerSize;
   static const int kExpressionsOffset = -3 * kPointerSize - kCPSlotSize;
   static const int kMarkerOffset = -2 * kPointerSize - kCPSlotSize;
   static const int kContextOffset = -1 * kPointerSize - kCPSlotSize;
@@ -155,16 +160,18 @@ class ConstructFrameConstants : public AllStatic {
  public:
   // FP-relative.
   static const int kImplicitReceiverOffset =
-      StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
+      StandardFrameConstants::kExpressionsOffset - 4 * kPointerSize;
   static const int kOriginalConstructorOffset =
-      StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
+      StandardFrameConstants::kExpressionsOffset - 3 * kPointerSize;
   static const int kLengthOffset =
+      StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
+  static const int kAllocationSiteOffset =
       StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
   static const int kCodeOffset =
       StandardFrameConstants::kExpressionsOffset - 0 * kPointerSize;
 
   static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSize + 5 * kPointerSize;
 };
 
 
@@ -675,6 +682,8 @@ class OptimizedFrame : public JavaScriptFrame {
       int* stack_slots, HandlerTable::CatchPrediction* prediction);
 
   DeoptimizationInputData* GetDeoptimizationData(int* deopt_index);
+
+  static int StackSlotOffsetRelativeToFp(int slot_index);
 
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);

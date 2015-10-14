@@ -313,10 +313,11 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
 class JsonTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, json_test_results, arch, mode):
+  def __init__(self, json_test_results, arch, mode, random_seed):
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
+    self.random_seed = random_seed
     self.results = []
     self.tests = []
 
@@ -370,6 +371,11 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "result": test.suite.GetOutcome(test),
       "expected": list(test.outcomes or ["PASS"]),
       "duration": test.duration,
+
+      # TODO(machenbach): This stores only the global random seed from the
+      # context and not possible overrides when using random-seed stress.
+      "random_seed": self.random_seed,
+      "variant": test.variant,
     })
 
 

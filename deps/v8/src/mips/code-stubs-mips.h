@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MIPS_CODE_STUBS_ARM_H_
-#define V8_MIPS_CODE_STUBS_ARM_H_
+#ifndef V8_MIPS_CODE_STUBS_MIPS_H_
+#define V8_MIPS_CODE_STUBS_MIPS_H_
+
+#include "src/mips/frames-mips.h"
 
 namespace v8 {
 namespace internal {
@@ -343,4 +345,4 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
 } }  // namespace v8::internal
 
-#endif  // V8_MIPS_CODE_STUBS_ARM_H_
+#endif  // V8_MIPS_CODE_STUBS_MIPS_H_
