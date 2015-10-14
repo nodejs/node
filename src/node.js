@@ -22,6 +22,8 @@
 
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
 
+    startup.setupProcessObject();
+
     // do this good and early, since it handles errors.
     startup.processFatal();
 
@@ -172,6 +174,15 @@
       }
     }
   }
+
+  startup.setupProcessObject = function() {
+    process._setupProcessObject(setPropByIndex);
+
+    function setPropByIndex() {
+      for (var i = 0; i < arguments.length; i++)
+        this.push(arguments[i]);
+    }
+  };
 
   startup.globalVariables = function() {
     global.process = process;
