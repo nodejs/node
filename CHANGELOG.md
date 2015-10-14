@@ -1,6 +1,6 @@
 # Node.js ChangeLog
 
-## 2015-10-13, Version 4.2.1 'Argon' (Stable), @jasnell
+## 2015-10-13, Version 4.2.1 'Argon' (LTS), @jasnell
 
 ### Notable changes
 
