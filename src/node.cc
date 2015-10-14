@@ -1009,6 +1009,17 @@ void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsFunction());
+
+  env->set_add_properties_by_index_function(args[0].As<Function>());
+  env->process_object()->Delete(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject"));
+}
+
+
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1546,11 +1557,30 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(args.GetIsolate());
-  int i = 0;
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->add_properties_by_index_function();
+  static const size_t argc = 8;
+  Local<Value> argv[argc];
+  size_t i = 0;
 
-  for (auto w : *env->req_wrap_queue())
-    if (w->persistent().IsEmpty() == false)
-      ary->Set(i++, w->object());
+  for (auto w : *env->req_wrap_queue()) {
+    if (w->persistent().IsEmpty() == false) {
+      argv[i++ % argc] = w->object();
+      if ((i % argc) == 0) {
+        HandleScope scope(env->isolate());
+        fn->Call(ctx, ary, argc, argv).ToLocalChecked();
+        for (auto&& arg : argv) {
+          arg = Local<Value>();
+        }
+      }
+    }
+  }
+
+  const size_t remainder = i % argc;
+  if (remainder > 0) {
+    HandleScope scope(env->isolate());
+    fn->Call(ctx, ary, remainder, argv).ToLocalChecked();
+  }
 
   args.GetReturnValue().Set(ary);
 }
@@ -2979,6 +3009,7 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "binding", Binding);
   env->SetMethod(process, "_linkedBinding", LinkedBinding);
 
+  env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
