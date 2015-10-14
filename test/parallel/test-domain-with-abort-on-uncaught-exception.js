@@ -135,20 +135,16 @@ if (process.argv[2] === 'child') {
             // --abort_on_uncaught_exception is passed on the command line,
             // the process must abort.
             //
-            // We use an array of values since the actual exit code can differ
-            // across compilers.
             // Depending on the compiler used, node will exit with either
-            // exit code 132 (SIGILL) or 134 (SIGABRT).
-            expectedExitCodes = [132, 134];
+            // exit code 132 (SIGILL), 133 (SIGTRAP) or 134 (SIGABRT).
+            expectedExitCodes = [132, 133, 134];
 
-            // On platforms using a non-GNU compiler, base::OS::Abort raises
-            // an illegal instruction signal.
-            // On platforms using a GNU compiler but with KSH being the
-            // default shell (like SmartOS), when a process aborts, KSH exits
-            // with an exit code that is greater than 256, and thus the exit
-            // code emitted with the 'exit' event is null and the signal is
-            // set to either SIGABRT or SIGILL.
-            expectedSignals = ['SIGABRT', 'SIGILL'];
+            // On platforms using KSH as the default shell (like SmartOS),
+            // when a process aborts, KSH exits with an exit code that is
+            // greater than 256, and thus the exit code emitted with the 'exit'
+            // event is null and the signal is set to either SIGILL, SIGTRAP,
+            // or SIGABRT (depending on the compiler).
+            expectedSignals = ['SIGILL', 'SIGTRAP', 'SIGABRT'];
 
             // On Windows, v8's base::OS::Abort triggers an access violation,
             // which corresponds to exit code 3221225477 (0xC0000005)
