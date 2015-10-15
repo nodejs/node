@@ -40,7 +40,7 @@ function runTest(pattern, code) {
     return /^isolate-/.test(file);
   });
   if (matches.length != 1) {
-    assert.fail('There should be a single log file.');
+    assert.fail(null, null, 'There should be a single log file.');
   }
   var log = matches[0];
   var out = cp.execSync(process.execPath + ' ' + processor +
