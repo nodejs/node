@@ -27,7 +27,7 @@ var server = http.createServer(function(req, res) {
       res.writeHead(200, { b: header });
       break;
     default:
-      assert.fail('unreachable');
+      assert.fail(null, null, 'unreachable');
     }
     res.write(responseBody);
     if (testIndex % 8 < 4) {

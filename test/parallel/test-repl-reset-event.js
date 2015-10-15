@@ -45,7 +45,7 @@ function testResetGlobal(cb) {
 }
 
 var timeout = setTimeout(function() {
-  assert.fail('Timeout, REPL did not emit reset events');
+  assert.fail(null, null, 'Timeout, REPL did not emit reset events');
 }, 5000);
 
 testReset(function() {
