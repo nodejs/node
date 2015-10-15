@@ -141,6 +141,16 @@ for (const o of vals) {
 
 assert.strictEqual(util.inspect(valsOutput), '[ [ 1, 2 ] ]');
 
+// test for other constructors in different context
+var obj = require('vm').runInNewContext('(function(){return {}})()', {});
+assert.strictEqual(util.inspect(obj), '{}');
+obj = require('vm').runInNewContext('var m=new Map();m.set(1,2);m', {});
+assert.strictEqual(util.inspect(obj), 'Map { 1 => 2 }');
+obj = require('vm').runInNewContext('var s=new Set();s.add(1);s.add(2);s', {});
+assert.strictEqual(util.inspect(obj), 'Set { 1, 2 }');
+obj = require('vm').runInNewContext('fn=function(){};new Promise(fn,fn)', {});
+assert.strictEqual(util.inspect(obj), 'Promise { <pending> }');
+
 // test for property descriptors
 var getter = Object.create(null, {
   a: {
