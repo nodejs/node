@@ -90,7 +90,8 @@ parser.add_option("--link-module",
     action="append",
     dest="linked_module",
     help="Path to a JS file to be bundled in the binary as a builtin."
-         "This module will be referenced by basename without extension."
+         "This module will be referenced by path without extension."
+         "e.g. /root/x/y.js will be referenced via require('root/x/y')."
          "Can be used multiple times")
 
 parser.add_option("--openssl-no-asm",
