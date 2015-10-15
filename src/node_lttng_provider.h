@@ -59,13 +59,16 @@ void NODE_GC_START(v8::GCType type,
   }
   if (flags == v8::GCCallbackFlags::kNoGCCallbackFlags) {
     flagsStr = "kNoGCCallbackFlags";
-  } else if (flags == v8::GCCallbackFlags::kGCCallbackFlagCompacted) {
-    flagsStr = "kGCCallbackFlagCompacted";
+  } else if (flags == v8::GCCallbackFlags::kGCCallbackFlagConstructRetainedObjectInfos) {
+    flagsStr = "kGCCallbackFlagConstructRetainedObjectInfos";
+  } else if (flags == v8::GCCallbackFlags::kGCCallbackFlagForced) {
+    flagsStr = "kGCCallbackFlagForced";
+  } else if (flags == v8::GCCallbackFlags::kGCCallbackFlagSynchronousPhantomCallbackProcessing) {
+    flagsStr = "kGCCallbackFlagSynchronousPhantomCallbackProcessing";
   }
 
   tracepoint(node, gc_start, typeStr, flagsStr);
 }
-
 
 void NODE_GC_DONE(v8::GCType type,
                   v8::GCCallbackFlags flags,
@@ -81,8 +84,12 @@ void NODE_GC_DONE(v8::GCType type,
   }
   if (flags == v8::GCCallbackFlags::kNoGCCallbackFlags) {
     flagsStr = "kNoGCCallbackFlags";
-  } else if (flags == v8::GCCallbackFlags::kGCCallbackFlagCompacted) {
-    flagsStr = "kGCCallbackFlagCompacted";
+  } else if (flags == v8::GCCallbackFlags::kGCCallbackFlagConstructRetainedObjectInfos) {
+    flagsStr = "kGCCallbackFlagConstructRetainedObjectInfos";
+  } else if (flags == v8::GCCallbackFlags::kGCCallbackFlagForced) {
+    flagsStr = "kGCCallbackFlagForced";
+  } else if (flags == v8::GCCallbackFlags::kGCCallbackFlagSynchronousPhantomCallbackProcessing) {
+    flagsStr = "kGCCallbackFlagSynchronousPhantomCallbackProcessing";
   }
 
   tracepoint(node, gc_done, typeStr, flagsStr);
