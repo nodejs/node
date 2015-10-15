@@ -24,7 +24,7 @@ common.refreshTmpDir();
   var stream = fs.createWriteStream(file);
 
   stream.on('drain', function() {
-    assert.fail('\'drain\' event must not be emitted before ' +
+    assert.fail(null, null, '\'drain\' event must not be emitted before ' +
                 'stream.write() has been called at least once.');
   });
   stream.destroy();

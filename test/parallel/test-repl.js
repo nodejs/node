@@ -389,5 +389,5 @@ function unix_test() {
 unix_test();
 
 timer = setTimeout(function() {
-  assert.fail('Timeout');
+  assert.fail(null, null, 'Timeout');
 }, 5000);
