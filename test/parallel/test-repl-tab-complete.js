@@ -258,6 +258,7 @@ var array_elements = [ [
   'ary.find',
   'ary.findIndex',
   'ary.forEach',
+  'ary.includes',
   'ary.indexOf',
   'ary.join',
   'ary.keys',
