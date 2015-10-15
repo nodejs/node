@@ -11,5 +11,5 @@ net.createServer(function(conn) {
 net.connect(common.PORT, 'localhost').pause();
 
 setTimeout(function() {
-  assert.fail('expected to exit');
+  assert.fail(null, null, 'expected to exit');
 }, 1000).unref();
