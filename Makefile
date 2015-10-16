@@ -70,6 +70,7 @@ clean:
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs rm -rf; fi
 	-rm -rf node_modules
 	@if [ -d deps/icu ]; then echo deleting deps/icu; rm -rf deps/icu; fi
+	-rm -rf out/Release/obj/gen/noderestmp
 	-rm -f test.tap
 
 distclean:
