@@ -156,7 +156,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   };
 
   if (filename != nullptr) {
-    argv[2] = OneByteString(env->isolate(), filename);
+    argv[2] = String::NewFromUtf8(env->isolate(), filename);
   }
 
   wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
