@@ -1,6 +1,6 @@
 # Assert
 
-    Stability: 2 - Stable
+    Stability: 3 - Locked
 
 This module is used so that Node.js can test itself. You can access it with
 `require('assert')`. However, it is recommended that you use a userland
