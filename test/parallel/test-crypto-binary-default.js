@@ -627,12 +627,14 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
 function testPBKDF2(password, salt, iterations, keylen, expected) {
-  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen);
+  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen, 'sha1');
   assert.equal(actual, expected);
 
-  crypto.pbkdf2(password, salt, iterations, keylen, function(err, actual) {
+  function assertCb(err, actual) {
     assert.equal(actual, expected);
-  });
+  }
+
+  crypto.pbkdf2(password, salt, iterations, keylen, 'sha1', assertCb);
 }
 
 

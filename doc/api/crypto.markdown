@@ -618,11 +618,11 @@ Example (obtaining a shared secret):
     /* alice_secret and bob_secret should be the same */
     console.log(alice_secret == bob_secret);
 
-## crypto.pbkdf2(password, salt, iterations, keylen[, digest], callback)
+## crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)
 
-Asynchronous PBKDF2 function.  Applies the selected HMAC digest function
-(default: SHA1) to derive a key of the requested length from the password,
-salt and number of iterations.  The callback gets two arguments:
+Asynchronous PBKDF2 function.  Applies the selected HMAC digest function to
+derive a key of the requested length from the password, salt and number of
+iterations.  The callback gets two arguments:
 `(err, derivedKey)`.
 
 Example:

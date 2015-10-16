@@ -4876,7 +4876,8 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (digest == nullptr) {
-    digest = EVP_sha1();
+    type_error = "Bad digest name";
+    goto err;
   }
 
   obj = env->NewInternalFieldObject();

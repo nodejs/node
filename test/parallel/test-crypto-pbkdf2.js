@@ -12,12 +12,14 @@ var crypto = require('crypto');
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
 function testPBKDF2(password, salt, iterations, keylen, expected) {
-  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen);
+  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen, 'sha1');
   assert.equal(actual.toString('binary'), expected);
 
-  crypto.pbkdf2(password, salt, iterations, keylen, function(err, actual) {
+  function assertCb(err, actual) {
     assert.equal(actual.toString('binary'), expected);
-  });
+  }
+
+  crypto.pbkdf2(password, salt, iterations, keylen, 'sha1', assertCb);
 }
 
 
@@ -62,28 +64,28 @@ assert.throws(function() {
 
 // Should not work with Infinity key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, Infinity, assert.fail);
+  crypto.pbkdf2('password', 'salt', 1, Infinity, 'sha1', assert.fail);
 }, function(err) {
   return err instanceof Error && err.message === 'Bad key length';
 });
 
 // Should not work with negative Infinity key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, -Infinity, assert.fail);
+  crypto.pbkdf2('password', 'salt', 1, -Infinity, 'sha1', assert.fail);
 }, function(err) {
   return err instanceof Error && err.message === 'Bad key length';
 });
 
 // Should not work with NaN key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, NaN, assert.fail);
+  crypto.pbkdf2('password', 'salt', 1, NaN, 'sha1', assert.fail);
 }, function(err) {
   return err instanceof Error && err.message === 'Bad key length';
 });
 
 // Should not work with negative key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, -1, assert.fail);
+  crypto.pbkdf2('password', 'salt', 1, -1, 'sha1', assert.fail);
 }, function(err) {
   return err instanceof Error && err.message === 'Bad key length';
 });
