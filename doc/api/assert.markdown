@@ -2,9 +2,9 @@
 
     Stability: 3 - Locked
 
-This module is used so that Node.js can test itself. You can access it with
-`require('assert')`. However, it is recommended that you use a userland
-assertion library instead.
+This module is used so that Node.js can test itself. It can be accessed with
+`require('assert')`. However, it is recommended that a userland assertion
+library be used instead.
 
 ## assert.fail(actual, expected, message, operator)
 
@@ -36,7 +36,7 @@ potentially surprising results. For example, this does not throw an
 `AssertionError` because the properties on the `Error` object are
 non-enumerable:
 
-    // WARNING: This probably does not do what you expect!
+    // WARNING: This does not throw an AssertionError!
     assert.deepEqual(Error('a'), Error('b'));
 
 ## assert.notDeepEqual(actual, expected[, message])
