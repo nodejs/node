@@ -15,8 +15,6 @@ if /i "%1"=="/?" goto help
 set config=Release
 set target=Build
 set target_arch=x86
-set debug_arg=
-set snapshot_arg=
 set noprojgen=
 set nobuild=
 set nosign=
@@ -28,15 +26,14 @@ set licensertf=
 set jslint=
 set buildnodeweak=
 set noetw=
-set noetw_arg=
 set noetw_msi_arg=
 set noperfctr=
-set noperfctr_arg=
 set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
 set release_urls_arg=
 set build_release=
+set configure_flags=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -62,7 +59,6 @@ if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
-@rem Include small-icu support with MSI installer
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
@@ -89,15 +85,18 @@ if defined build_release (
   set i18n_arg=small-icu
 )
 
-if "%config%"=="Debug" set debug_arg=--debug
-if defined nosnapshot set snapshot_arg=--without-snapshot
-if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
-if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
-if defined RELEASE_URLBASE set release_urlbase_arg=--release-urlbase=%RELEASE_URLBASE%
+if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
+if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
+if defined noetw set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
+if defined noperfctr set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
+if defined release_urlbase set release_urlbase_arg=--release-urlbase=%release_urlbase%
+if defined download_arg set configure_flags=%configure_flags% %download_arg%
 
-if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
-if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu
-if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
+if "%i18n_arg%"=="full-icu" set configure_flags=%configure_flags% --with-intl=full-icu
+if "%i18n_arg%"=="small-icu" set configure_flags=%configure_flags% --with-intl=small-icu
+if "%i18n_arg%"=="intl-none" set configure_flags=%configure_flags% --with-intl=none
+
+if defined config_flags set configure_flags=%configure_flags% %config_flags%
 
 if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
@@ -168,7 +167,8 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+echo configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
+python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
