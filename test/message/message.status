@@ -9,7 +9,6 @@ prefix message
 [$system==win32]
 
 [$system==linux]
-eval_messages                      : PASS,FLAKY
 
 [$system==macos]
 
