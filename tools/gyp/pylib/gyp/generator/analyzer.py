@@ -338,7 +338,7 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files,
       sources = _ExtractSources(target_name, target_dicts[target_name],
                                 toplevel_dir)
       for source in sources:
-        if source in files:
+        if _ToGypPath(os.path.normpath(source)) in files:
           print 'target', target_name, 'matches', source
           target.match_status = MATCH_STATUS_MATCHES
           matching_targets.append(target)
@@ -498,7 +498,7 @@ def _WasGypIncludeFileModified(params, files):
   files."""
   if params['options'].includes:
     for include in params['options'].includes:
-      if _ToGypPath(include) in files:
+      if _ToGypPath(os.path.normpath(include)) in files:
         print 'Include file modified, assuming all changed', include
         return True
   return False
