@@ -87,6 +87,8 @@ generator_additional_non_configuration_keys = [
     'msvs_requires_importlibrary',
     'msvs_enable_winphone',
     'msvs_application_type_revision',
+    'msvs_target_platform_version',
+    'msvs_target_platform_minversion',
 ]
 
 
@@ -2644,6 +2646,17 @@ def _GetMSBuildGlobalProperties(spec, guid, gyp_file_name):
     else:
       properties[0].append(['ApplicationTypeRevision', '8.1'])
 
+    if spec.get('msvs_target_platform_version'):
+      target_platform_version = spec.get('msvs_target_platform_version')
+      properties[0].append(['WindowsTargetPlatformVersion',
+                            target_platform_version])
+      if spec.get('msvs_target_platform_minversion'):
+        target_platform_minversion = spec.get('msvs_target_platform_minversion')
+        properties[0].append(['WindowsTargetPlatformMinVersion',
+                              target_platform_minversion])
+      else:
+        properties[0].append(['WindowsTargetPlatformMinVersion',
+                              target_platform_version])
     if spec.get('msvs_enable_winphone'):
       properties[0].append(['ApplicationType', 'Windows Phone'])
     else:

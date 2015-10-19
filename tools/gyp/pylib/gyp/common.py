@@ -131,13 +131,20 @@ def QualifiedTarget(build_file, target, toolset):
 
 
 @memoize
-def RelativePath(path, relative_to):
+def RelativePath(path, relative_to, follow_path_symlink=True):
   # Assuming both |path| and |relative_to| are relative to the current
   # directory, returns a relative path that identifies path relative to
   # relative_to.
+  # If |follow_symlink_path| is true (default) and |path| is a symlink, then
+  # this method returns a path to the real file represented by |path|. If it is
+  # false, this method returns a path to the symlink. If |path| is not a
+  # symlink, this option has no effect.
 
   # Convert to normalized (and therefore absolute paths).
-  path = os.path.realpath(path)
+  if follow_path_symlink:
+    path = os.path.realpath(path)
+  else:
+    path = os.path.abspath(path)
   relative_to = os.path.realpath(relative_to)
 
   # On Windows, we can't create a relative path to a different drive, so just
