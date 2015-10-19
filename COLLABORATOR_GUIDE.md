@@ -8,6 +8,7 @@
 * [Landing Pull Requests](#landing-pull-requests)
  - [Technical HOWTO](#technical-howto)
  - [I Just Made a Mistake](#i-just-made-a-mistake)
+ - [Long Term Support](#long-term-support)
 
 This document contains information for Collaborators of the Node.js
 project regarding maintaining the code, documentation and issues.
@@ -227,3 +228,41 @@ messages. However, you are only allowed to force push to any Node.js
 branch within 10 minutes from your original push. If someone else
 pushes to the branch or the 10 minute period passes, consider the
 commit final.
+
+### Long Term Support
+
+#### What is LTS?
+
+Long Term Support (often referred to as *LTS*) guarantees application developers
+a 30 month support cycle with specific versions of Node.js.
+
+You can find more information [in the full LTS plan](https://github.com/nodejs/lts#lts-plan).
+
+#### How does LTS work?
+
+Once a stable branch enters LTS, no new features may be added to that release. Changes are
+limited to bug fixes, security updates, possible npm updates, documentation updates, and certain
+performance improvements that can be demonstrated to not break existing applications.
+Semver-minor changes are only permitted if required for bug fixes. Semver-major changes are only
+permitted if required for critical security and bug fixes.
+
+Once a stable branch moves into Maintenance mode, only **critical** bugs, **critical** security fixes,
+and documentation updates will be permitted.
+
+#### How can I help?
+
+When you send your pull request, consider including information about
+whether your change is breaking. If you think your patch can be backported,
+please feel free to include that information in the PR thread.
+
+#### Who is doing the backporting?
+
+The current plan is for commits to cherry pick into a staging branch (e.g. v4.x-staging),
+which can be done by anyone. The preference would be for the individual landing the commit
+on master to backport to staging branches if it is appropriate.
+
+#### How is an LTS release cut?
+
+When the LTS working group determines that a new LTS release is required, selected commits
+will be picked from the staging branch to be included in the release. This process of making
+a release will be a collaboration between the LTS working group and the Release team.
