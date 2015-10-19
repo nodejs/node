@@ -708,10 +708,7 @@ _MSVSOnly(_compile, 'UseUnicodeResponseFiles', _boolean)
 _MSBuildOnly(_compile, 'BuildingInIDE', _boolean)
 _MSBuildOnly(_compile, 'CompileAsManaged',
              _Enumeration([], new=['false',
-                                   'true',  # /clr
-                                   'Pure',  # /clr:pure
-                                   'Safe',  # /clr:safe
-                                   'OldSyntax']))  # /clr:oldSyntax
+                                   'true']))  # /clr
 _MSBuildOnly(_compile, 'CreateHotpatchableImage', _boolean)  # /hotpatch
 _MSBuildOnly(_compile, 'MultiProcessorCompilation', _boolean)  # /MP
 _MSBuildOnly(_compile, 'PreprocessOutputPath', _string)  # /Fi
