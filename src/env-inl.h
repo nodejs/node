@@ -210,6 +210,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
+      async_wrap_uid_(0),
       debugger_agent_(this),
       http_parser_buffer_(nullptr),
       context_(context->GetIsolate(), context) {
@@ -357,6 +358,10 @@ inline void Environment::set_printed_error(bool value) {
 
 inline void Environment::set_trace_sync_io(bool value) {
   trace_sync_io_ = value;
+}
+
+inline int64_t Environment::get_async_wrap_uid() {
+  return ++async_wrap_uid_;
 }
 
 inline uint32_t* Environment::heap_statistics_buffer() const {
