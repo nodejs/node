@@ -446,6 +446,8 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
+  inline int64_t get_async_wrap_uid();
+
   bool KickNextTick();
 
   inline uint32_t* heap_statistics_buffer() const;
@@ -541,6 +543,7 @@ class Environment {
   bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;
+  int64_t async_wrap_uid_;
   debugger::Agent debugger_agent_;
 
   HandleWrapQueue handle_wrap_queue_;
