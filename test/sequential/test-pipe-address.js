@@ -9,6 +9,8 @@ var server = net.createServer(function() {
   assert(false); // should not be called
 });
 
+common.refreshTmpDir();
+
 server.listen(common.PIPE, function() {
   address = server.address();
   server.close();

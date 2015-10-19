@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function (global, exports) {
+(function (global, binding) {
   'use strict';
-  exports.testExtraShouldReturnFive = function () {
+  binding.testExtraShouldReturnFive = function () {
     return 5;
   };
 
-  exports.testExtraShouldCallToRuntime = function() {
-    return exports.runtime(3);
+  binding.testExtraShouldCallToRuntime = function() {
+    return binding.runtime(3);
   };
 })

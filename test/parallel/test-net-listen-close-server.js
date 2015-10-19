@@ -10,7 +10,7 @@ server.listen(common.PORT, function() {
   assert(false);
 });
 server.on('error', function(error) {
-  common.debug(error);
+  console.error(error);
   assert(false);
 });
 server.close();

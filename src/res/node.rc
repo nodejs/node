@@ -32,8 +32,8 @@ BEGIN
             VALUE "CompanyName", "Node.js"
             VALUE "ProductName", "Node.js"
             VALUE "FileDescription", "Node.js: Server-side JavaScript"
-            VALUE "FileVersion", "NODE_VERSION_STRING"
-            VALUE "ProductVersion", "NODE_VERSION_STRING"
+            VALUE "FileVersion", NODE_EXE_VERSION
+            VALUE "ProductVersion", NODE_EXE_VERSION
             VALUE "OriginalFilename", "node.exe"
             VALUE "InternalName", "node"
             VALUE "LegalCopyright", "Copyright Node.js contributors. MIT license."

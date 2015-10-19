@@ -4,13 +4,12 @@
 
 #include "src/v8.h"
 
+#include "src/frames-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
-
-#if V8_TURBOFAN_TARGET
 
 static void IsOptimized(const v8::FunctionCallbackInfo<v8::Value>& args) {
   JavaScriptFrameIterator it(CcTest::i_isolate());
@@ -103,7 +102,6 @@ TEST(DeoptExceptionHandlerFinally) {
 #endif
 }
 
-#endif
 
 TEST(DeoptTrivial) {
   FLAG_allow_natives_syntax = true;

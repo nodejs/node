@@ -12,6 +12,14 @@ var interval_fired = false,
 var LONG_TIME = 10 * 1000;
 var SHORT_TIME = 100;
 
+assert.doesNotThrow(function() {
+  setTimeout(function() {}, 10).unref().ref().unref();
+}, 'ref and unref are chainable');
+
+assert.doesNotThrow(function() {
+  setInterval(function() {}, 10).unref().ref().unref();
+}, 'ref and unref are chainable');
+
 setInterval(function() {
   interval_fired = true;
 }, LONG_TIME).unref();

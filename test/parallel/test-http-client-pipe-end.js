@@ -14,6 +14,8 @@ var server = http.createServer(function(req, res) {
   });
 });
 
+common.refreshTmpDir();
+
 server.listen(common.PIPE, function() {
   var req = http.request({
     socketPath: common.PIPE,

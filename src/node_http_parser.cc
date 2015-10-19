@@ -366,7 +366,9 @@ class Parser : public BaseObject {
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
     Parser* parser = Unwrap<Parser>(args.Holder());
-    delete parser;
+
+    if (--parser->refcount_ == 0)
+      delete parser;
   }
 
 
@@ -482,13 +484,18 @@ class Parser : public BaseObject {
     if (parser->prev_alloc_cb_.is_empty())
       return;
 
-    CHECK(args[0]->IsExternal());
-    Local<External> stream_obj = args[0].As<External>();
-    StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
-    CHECK_NE(stream, nullptr);
+    // Restore stream's callbacks
+    if (args.Length() == 1 && args[0]->IsExternal()) {
+      Local<External> stream_obj = args[0].As<External>();
+      StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
+      CHECK_NE(stream, nullptr);
 
-    stream->set_alloc_cb(parser->prev_alloc_cb_);
-    stream->set_read_cb(parser->prev_read_cb_);
+      stream->set_alloc_cb(parser->prev_alloc_cb_);
+      stream->set_read_cb(parser->prev_read_cb_);
+    }
+
+    parser->prev_alloc_cb_.clear();
+    parser->prev_read_cb_.clear();
   }
 
 
@@ -504,6 +511,22 @@ class Parser : public BaseObject {
   }
 
  protected:
+  class ScopedRetainParser {
+   public:
+    explicit ScopedRetainParser(Parser* p) : p_(p) {
+      CHECK_GT(p_->refcount_, 0);
+      p_->refcount_++;
+    }
+
+    ~ScopedRetainParser() {
+      if (0 == --p_->refcount_)
+        delete p_;
+    }
+
+   private:
+    Parser* const p_;
+  };
+
   static const size_t kAllocBufferSize = 64 * 1024;
 
   static void OnAllocImpl(size_t suggested_size, uv_buf_t* buf, void* ctx) {
@@ -539,6 +562,8 @@ class Parser : public BaseObject {
     // Ignore, empty reads have special meaning in http parser
     if (nread == 0)
       return;
+
+    ScopedRetainParser retain(parser);
 
     parser->current_buffer_.Clear();
     Local<Value> ret = parser->Execute(buf->base, nread);
@@ -668,7 +693,10 @@ class Parser : public BaseObject {
   char* current_buffer_data_;
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
   StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
+  int refcount_ = 1;
   static const struct http_parser_settings settings;
+
+  friend class ScopedRetainParser;
 };
 
 

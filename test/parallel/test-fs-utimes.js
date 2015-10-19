@@ -30,7 +30,7 @@ function expect_errno(syscall, resource, err, errno) {
   if (err && (err.code === errno || err.code === 'ENOSYS')) {
     tests_ok++;
   } else {
-    console.log('FAILED:', arguments.callee.name, util.inspect(arguments));
+    console.log('FAILED:', 'expect_errno', util.inspect(arguments));
   }
 }
 
@@ -39,7 +39,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
       err && err.code === 'ENOSYS') {
     tests_ok++;
   } else {
-    console.log('FAILED:', arguments.callee.name, util.inspect(arguments));
+    console.log('FAILED:', 'expect_ok', util.inspect(arguments));
   }
 }
 
@@ -122,15 +122,21 @@ function runTest(atime, mtime, callback) {
 
 var stats = fs.statSync(__filename);
 
+// run tests
 runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTest(new Date(), new Date(), function() {
     runTest(123456.789, 123456.789, function() {
       runTest(stats.mtime, stats.mtime, function() {
-        // done
+        runTest(NaN, Infinity, function() {
+          runTest('123456', -1, function() {
+            // done
+          });
+        });
       });
     });
   });
 });
+
 
 process.on('exit', function() {
   console.log('Tests run / ok:', tests_run, '/', tests_ok);

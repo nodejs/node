@@ -2,6 +2,7 @@
 
 // Flags: --expose-internals
 
+require('../common');
 const assert = require('assert');
 const freelist = require('freelist');
 const internalFreelist = require('internal/freelist');

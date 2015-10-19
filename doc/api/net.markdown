@@ -8,7 +8,7 @@ this module with `require('net');`.
 
 ## net.createServer([options][, connectionListener])
 
-Creates a new TCP server. The `connectionListener` argument is
+Creates a new server. The `connectionListener` argument is
 automatically set as a listener for the ['connection'][] event.
 
 `options` is an object with the following defaults:
@@ -171,7 +171,7 @@ refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
 but the latter may do some processing of pipe names, such as resolving `..`
 sequences. Despite appearances, the pipe name space is flat.  Pipes will *not
 persist*, they are removed when the last reference to them is closed. Do not
-forget javascript string escaping requires paths to be specified with
+forget JavaScript string escaping requires paths to be specified with
 double-backslashes, such as:
 
     net.createServer().listen(

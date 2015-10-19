@@ -228,18 +228,18 @@ NODE_DEPRECATED("Use ThrowUVException(isolate)",
   return ThrowUVException(isolate, errorno, syscall, message, path);
 })
 
-struct ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
-  virtual void* Allocate(size_t size) {
-    return calloc(size, 1);
-  }
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  ArrayBufferAllocator() : env_(nullptr) { }
 
-  virtual void* AllocateUninitialized(size_t size) {
-    return malloc(size);
-  }
+  inline void set_env(Environment* env) { env_ = env; }
 
-  virtual void Free(void* data, size_t) {
-    free(data);
-  }
+  virtual void* Allocate(size_t size);  // Defined in src/node.cc
+  virtual void* AllocateUninitialized(size_t size) { return malloc(size); }
+  virtual void Free(void* data, size_t) { free(data); }
+
+ private:
+  Environment* env_;
 };
 
 enum NodeInstanceType { MAIN, WORKER };

@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
 var net = require('net');

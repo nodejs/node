@@ -18,6 +18,8 @@ var server = http.createServer(function(req, res) {
   res.end();
 });
 
+common.refreshTmpDir();
+
 server.listen(common.PIPE, function() {
 
   var options = {

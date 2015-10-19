@@ -277,5 +277,6 @@ and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
     > obj
     { bar: 'baz' }
 
+[Readline Interface]: readline.html#readline_class_interface
 [util.inspect()]: util.html#util_util_inspect_object_options
 [here]: util.html#util_custom_inspect_function_on_objects

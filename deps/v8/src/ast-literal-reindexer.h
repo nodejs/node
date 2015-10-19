@@ -5,8 +5,6 @@
 #ifndef V8_AST_LITERAL_REINDEXER
 #define V8_AST_LITERAL_REINDEXER
 
-#include "src/v8.h"
-
 #include "src/ast.h"
 #include "src/scopes.h"
 

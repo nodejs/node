@@ -19,6 +19,7 @@
 #include "CNNICHashWhitelist.inc"
 
 #include <errno.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -182,7 +183,7 @@ static void crypto_lock_init(void) {
 
   for (i = 0; i < n; i++)
     if (uv_mutex_init(locks + i))
-      abort();
+      ABORT();
 }
 
 
@@ -807,12 +808,12 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   if (dh == nullptr)
     return;
 
-  const int keylen = BN_num_bits(dh->p);
-  if (keylen < 1024) {
-    DH_free(dh);
+  const int size = BN_num_bits(dh->p);
+  if (size < 1024) {
     return env->ThrowError("DH parameter is less than 1024 bits");
-  } else if (keylen < 2048) {
-    fprintf(stderr, "WARNING: DH parameter is less than 2048 bits\n");
+  } else if (size < 2048) {
+    args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
+        env->isolate(), "WARNING: DH parameter is less than 2048 bits"));
   }
 
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_DH_USE);
@@ -1144,6 +1145,7 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
   env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
   env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
+  env->SetProtoMethod(t, "getEphemeralKeyInfo", GetEphemeralKeyInfo);
 
 #ifdef SSL_set_max_send_fragment
   env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
@@ -1751,6 +1753,50 @@ void SSLWrap<Base>::RequestOCSP(
 
   SSL_set_tlsext_status_type(w->ssl_, TLSEXT_STATUSTYPE_ocsp);
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
+}
+
+
+template <class Base>
+void SSLWrap<Base>::GetEphemeralKeyInfo(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Base* w = Unwrap<Base>(args.Holder());
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_NE(w->ssl_, nullptr);
+
+  // tmp key is available on only client
+  if (w->is_server())
+    return args.GetReturnValue().SetNull();
+
+  Local<Object> info = Object::New(env->isolate());
+
+  EVP_PKEY* key;
+
+  if (SSL_get_server_tmp_key(w->ssl_, &key)) {
+    switch (EVP_PKEY_id(key)) {
+      case EVP_PKEY_DH:
+        info->Set(env->type_string(),
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "DH"));
+        info->Set(env->size_string(),
+                  Integer::New(env->isolate(), EVP_PKEY_bits(key)));
+        break;
+      case EVP_PKEY_EC:
+        {
+          EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
+          int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
+          EC_KEY_free(ec);
+          info->Set(env->type_string(),
+                    FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"));
+          info->Set(env->name_string(),
+                    OneByteString(args.GetIsolate(), OBJ_nid2sn(nid)));
+          info->Set(env->size_string(),
+                    Integer::New(env->isolate(), EVP_PKEY_bits(key)));
+        }
+    }
+    EVP_PKEY_free(key);
+  }
+
+  return args.GetReturnValue().Set(info);
 }
 
 
@@ -3477,7 +3523,7 @@ void SignBase::CheckThrow(SignBase::Error error) {
           case kSignPublicKey:
             return env()->ThrowError("PEM_read_bio_PUBKEY failed");
           default:
-            abort();
+            ABORT();
         }
       }
 
@@ -4634,6 +4680,7 @@ class PBKDF2Request : public AsyncWrap {
         iter_(iter) {
     if (key() == nullptr)
       FatalError("node::PBKDF2Request()", "Out of Memory");
+    Wrap(object, this);
   }
 
   ~PBKDF2Request() override {
@@ -4771,7 +4818,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   char* salt = nullptr;
   ssize_t passlen = -1;
   ssize_t saltlen = -1;
-  ssize_t keylen = -1;
+  double keylen = -1;
   ssize_t iter = -1;
   PBKDF2Request* req = nullptr;
   Local<Object> obj;
@@ -4824,8 +4871,8 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  keylen = args[3]->Int32Value();
-  if (keylen < 0) {
+  keylen = args[3]->NumberValue();
+  if (keylen < 0 || isnan(keylen) || isinf(keylen)) {
     type_error = "Bad key length";
     goto err;
   }
@@ -4843,7 +4890,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     digest = EVP_sha1();
   }
 
-  obj = Object::New(env->isolate());
+  obj = env->NewInternalFieldObject();
   req = new PBKDF2Request(env,
                           obj,
                           digest,
@@ -4852,7 +4899,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
                           saltlen,
                           salt,
                           iter,
-                          keylen);
+                          static_cast<ssize_t>(keylen));
 
   if (args[5]->IsFunction()) {
     obj->Set(env->ondone_string(), args[5]);
@@ -4895,6 +4942,7 @@ class RandomBytesRequest : public AsyncWrap {
         data_(static_cast<char*>(malloc(size))) {
     if (data() == nullptr)
       FatalError("node::RandomBytesRequest()", "Out of Memory");
+    Wrap(object, this);
   }
 
   ~RandomBytesRequest() override {
@@ -5011,7 +5059,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   if (size < 0 || size > Buffer::kMaxLength)
     return env->ThrowRangeError("size is not a valid Smi");
 
-  Local<Object> obj = Object::New(env->isolate());
+  Local<Object> obj = env->NewInternalFieldObject();
   RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
 
   if (args[1]->IsFunction()) {
@@ -5331,13 +5379,13 @@ void InitCryptoOnce() {
   CRYPTO_set_locking_callback(crypto_lock_cb);
   CRYPTO_THREADID_set_callback(crypto_threadid_cb);
 
-#ifdef OPENSSL_FIPS
+#ifdef NODE_FIPS_MODE
   if (!FIPS_mode_set(1)) {
     int err = ERR_get_error();
     fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
     UNREACHABLE();
   }
-#endif  // OPENSSL_FIPS
+#endif  // NODE_FIPS_MODE
 
 
   // Turn off compression. Saves memory and protects against CRIME attacks.

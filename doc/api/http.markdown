@@ -364,6 +364,9 @@ or
 
     response.setHeader("Set-Cookie", ["type=ninja", "language=javascript"]);
 
+Attempting to set a header field name that contains invalid characters will
+result in a `TypeError` being thrown.
+
 ### response.headersSent
 
 Boolean (read-only). True if headers were sent, false otherwise.
@@ -439,6 +442,8 @@ emit trailers, with a list of the header fields in its value. E.g.,
     response.addTrailers({'Content-MD5': "7895bf4b8828b55ceaf47747b4bca667"});
     response.end();
 
+Attempting to set a trailer field name that contains invalid characters will
+result in a `TypeError` being thrown.
 
 ### response.end([data][, encoding][, callback])
 

@@ -485,7 +485,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   r = uv_run(uv_loop_, UV_RUN_DEFAULT);
   if (r < 0)
     // We can't handle uv_run failure.
-    abort();
+    ABORT();
 
   // If we get here the process should have exited.
   CHECK_GE(exit_status_, 0);
@@ -508,7 +508,7 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     // callbacks called.
     int r = uv_run(uv_loop_, UV_RUN_DEFAULT);
     if (r < 0)
-      abort();
+      ABORT();
 
     CHECK_EQ(uv_loop_close(uv_loop_), 0);
     delete uv_loop_;

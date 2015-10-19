@@ -13,8 +13,6 @@
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-#if V8_TURBOFAN_TARGET
-
 using namespace v8::base;
 using namespace v8::internal;
 using namespace v8::internal::compiler;
@@ -82,7 +80,14 @@ TEST(CodeGenInt32Binop) {
 }
 
 
-#if V8_TURBOFAN_BACKEND_64
+TEST(CodeGenNop) {
+  RawMachineAssemblerTester<void> m;
+  m.Return(m.Int32Constant(0));
+  m.GenerateCode();
+}
+
+
+#if V8_TARGET_ARCH_64_BIT
 static Node* Int64Input(RawMachineAssemblerTester<int64_t>* m, int index) {
   switch (index) {
     case 0:
@@ -136,7 +141,7 @@ TEST(CodeGenInt64Binop) {
 
 
 // TODO(titzer): add tests that run 64-bit integer operations.
-#endif  // V8_TURBOFAN_BACKEND_64
+#endif  // V8_TARGET_ARCH_64_BIT
 
 
 TEST(RunGoto) {
@@ -5274,5 +5279,3 @@ TEST(RunCallCFunction8) {
 }
 
 #endif  // USE_SIMULATOR
-
-#endif  // V8_TURBOFAN_TARGET

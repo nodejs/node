@@ -52,7 +52,7 @@ PipelineStatistics::PipelineStatistics(CompilationInfo* info,
       phase_name_(NULL) {
   if (info->has_shared_info()) {
     source_size_ = static_cast<size_t>(info->shared_info()->SourceSize());
-    SmartArrayPointer<char> name =
+    base::SmartArrayPointer<char> name =
         info->shared_info()->DebugName()->ToCString();
     function_name_ = name.get();
   }

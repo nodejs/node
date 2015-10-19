@@ -51,6 +51,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <vector>
+
+#if defined(NODE_HAVE_I18N_SUPPORT)
+#include <unicode/uvernum.h>
+#endif
 
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
@@ -117,9 +122,9 @@ using v8::Value;
 
 static bool print_eval = false;
 static bool force_repl = false;
+static bool syntax_check_only = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
-static bool abort_on_uncaught_exception = false;
 static bool trace_sync_io = false;
 static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
@@ -150,6 +155,38 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Isolate* node_isolate = nullptr;
 static v8::Platform* default_platform;
+
+
+static void PrintErrorString(const char* format, ...) {
+  va_list ap;
+  va_start(ap, format);
+#ifdef _WIN32
+  HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
+
+  // Check if stderr is something other than a tty/console
+  if (stderr_handle == INVALID_HANDLE_VALUE ||
+      stderr_handle == nullptr ||
+      uv_guess_handle(_fileno(stderr)) != UV_TTY) {
+    vfprintf(stderr, format, ap);
+    return;
+  }
+
+  // Fill in any placeholders
+  int n = _vscprintf(format, ap);
+  std::vector<char> out(n + 1);
+  vsprintf(out.data(), format, ap);
+
+  // Get required wide buffer size
+  n = MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, nullptr, 0);
+
+  std::vector<wchar_t> wbuf(n);
+  MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, wbuf.data(), n);
+  WriteConsoleW(stderr_handle, wbuf.data(), n, nullptr, nullptr);
+#else
+  vfprintf(stderr, format, ap);
+#endif
+  va_end(ap);
+}
 
 
 static void CheckImmediate(uv_check_t* handle) {
@@ -402,7 +439,9 @@ static inline const char *errno_string(int errorno) {
 #endif
 
 #ifdef ENOTEMPTY
+# if ENOTEMPTY != EEXIST
   ERRNO_CASE(ENOTEMPTY);
+# endif
 #endif
 
 #ifdef ENOTSOCK
@@ -625,7 +664,9 @@ const char *signo_string(int signo) {
 #endif
 
 #ifdef SIGLOST
+# if SIGLOST != SIGABRT
   SIGNO_CASE(SIGLOST);
+# endif
 #endif
 
 #ifdef SIGPWR
@@ -890,6 +931,41 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 #endif
 
 
+void* ArrayBufferAllocator::Allocate(size_t size) {
+  if (env_ == nullptr || !env_->array_buffer_allocator_info()->no_zero_fill())
+    return calloc(size, 1);
+  env_->array_buffer_allocator_info()->reset_fill_flag();
+  return malloc(size);
+}
+
+
+static bool IsDomainActive(const Environment* env) {
+  if (!env->using_domains())
+    return false;
+
+  Local<Array> domain_array = env->domain_array().As<Array>();
+  if (domain_array->Length() == 0)
+    return false;
+
+  Local<Value> domain_v = domain_array->Get(0);
+  return !domain_v->IsNull();
+}
+
+
+static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
+  HandleScope scope(isolate);
+
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Object> process_object = env->process_object();
+  Local<String> emitting_top_level_domain_error_key =
+    env->emitting_top_level_domain_error_string();
+  bool isEmittingTopLevelDomainError =
+      process_object->Get(emitting_top_level_domain_error_key)->BooleanValue();
+
+  return !IsDomainActive(env) || isEmittingTopLevelDomainError;
+}
+
+
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -906,7 +982,7 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
 
   if (!tick_callback_function->IsFunction()) {
     fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
-    abort();
+    ABORT();
   }
 
   process_object->Set(env->tick_callback_string(), tick_callback_function);
@@ -997,15 +1073,19 @@ Local<Value> MakeCallback(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
+  Local<Function> pre_fn = env->async_hooks_pre_function();
+  Local<Function> post_fn = env->async_hooks_post_function();
   Local<Object> object, domain;
-  bool has_async_queue = false;
+  bool ran_init_callback = false;
   bool has_domain = false;
 
+  // TODO(trevnorris): Adding "_asyncQueue" to the "this" in the init callback
+  // is a horrible way to detect usage. Rethink how detection should happen.
   if (recv->IsObject()) {
     object = recv.As<Object>();
     Local<Value> async_queue_v = object->Get(env->async_queue_string());
     if (async_queue_v->IsObject())
-      has_async_queue = true;
+      ran_init_callback = true;
   }
 
   if (env->using_domains()) {
@@ -1031,9 +1111,9 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
-  if (has_async_queue) {
+  if (ran_init_callback && !pre_fn.IsEmpty()) {
     try_catch.SetVerbose(false);
-    env->async_hooks_pre_function()->Call(object, 0, nullptr);
+    pre_fn->Call(object, 0, nullptr);
     if (try_catch.HasCaught())
       FatalError("node::MakeCallback", "pre hook threw");
     try_catch.SetVerbose(true);
@@ -1041,9 +1121,9 @@ Local<Value> MakeCallback(Environment* env,
 
   Local<Value> ret = callback->Call(recv, argc, argv);
 
-  if (has_async_queue) {
+  if (ran_init_callback && !post_fn.IsEmpty()) {
     try_catch.SetVerbose(false);
-    env->async_hooks_post_function()->Call(object, 0, nullptr);
+    post_fn->Call(object, 0, nullptr);
     if (try_catch.HasCaught())
       FatalError("node::MakeCallback", "post hook threw");
     try_catch.SetVerbose(true);
@@ -1205,18 +1285,6 @@ enum encoding ParseEncoding(const char* encoding,
     return BUFFER;
   } else if (strcasecmp(encoding, "hex") == 0) {
     return HEX;
-  } else if (strcasecmp(encoding, "raw") == 0) {
-    if (!no_deprecation) {
-      fprintf(stderr, "'raw' (array of integers) has been removed. "
-                      "Use 'binary'.\n");
-    }
-    return BINARY;
-  } else if (strcasecmp(encoding, "raws") == 0) {
-    if (!no_deprecation) {
-      fprintf(stderr, "'raws' encoding has been renamed to 'binary'. "
-                      "Please update your code.\n");
-    }
-    return BINARY;
   } else {
     return default_encoding;
   }
@@ -1369,7 +1437,7 @@ void AppendExceptionLine(Environment* env,
     return;
   env->set_printed_error(true);
   uv_tty_reset_mode();
-  fprintf(stderr, "\n%s", arrow);
+  PrintErrorString("\n%s", arrow);
 }
 
 
@@ -1397,10 +1465,10 @@ static void ReportException(Environment* env,
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
     if (arrow.IsEmpty() || !arrow->IsString()) {
-      fprintf(stderr, "%s\n", *trace);
+      PrintErrorString("%s\n", *trace);
     } else {
       node::Utf8Value arrow_string(env->isolate(), arrow);
-      fprintf(stderr, "%s\n%s\n", *arrow_string, *trace);
+      PrintErrorString("%s\n%s\n", *arrow_string, *trace);
     }
   } else {
     // this really only happens for RangeErrors, since they're the only
@@ -1421,20 +1489,19 @@ static void ReportException(Environment* env,
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
       node::Utf8Value message(env->isolate(), er);
-      fprintf(stderr, "%s\n", *message);
+      PrintErrorString("%s\n", *message);
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
 
       if (arrow.IsEmpty() || !arrow->IsString()) {
-        fprintf(stderr, "%s: %s\n", *name_string, *message_string);
+        PrintErrorString("%s: %s\n", *name_string, *message_string);
       } else {
         node::Utf8Value arrow_string(env->isolate(), arrow);
-        fprintf(stderr,
-                "%s\n%s: %s\n",
-                *arrow_string,
-                *name_string,
-                *message_string);
+        PrintErrorString("%s\n%s: %s\n",
+                         *arrow_string,
+                         *name_string,
+                         *message_string);
       }
     }
   }
@@ -1514,7 +1581,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 
 
 static void Abort(const FunctionCallbackInfo<Value>& args) {
-  abort();
+  ABORT();
 }
 
 
@@ -2129,19 +2196,19 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
 static void OnFatalError(const char* location, const char* message) {
   if (location) {
-    fprintf(stderr, "FATAL ERROR: %s %s\n", location, message);
+    PrintErrorString("FATAL ERROR: %s %s\n", location, message);
   } else {
-    fprintf(stderr, "FATAL ERROR: %s\n", message);
+    PrintErrorString("FATAL ERROR: %s\n", message);
   }
   fflush(stderr);
-  abort();
+  ABORT();
 }
 
 
 NO_RETURN void FatalError(const char* location, const char* message) {
   OnFatalError(location, message);
   // to suppress compiler warning
-  abort();
+  ABORT();
 }
 
 
@@ -2665,6 +2732,12 @@ void SetupProcessObject(Environment* env,
                     "ares",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
 
+#if defined(NODE_HAVE_I18N_SUPPORT) && defined(U_ICU_VERSION)
+  READONLY_PROPERTY(versions,
+                    "icu",
+                    OneByteString(env->isolate(), U_ICU_VERSION));
+#endif
+
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
   READONLY_PROPERTY(
       versions,
@@ -2795,6 +2868,11 @@ void SetupProcessObject(Environment* env,
   // -p, --print
   if (print_eval) {
     READONLY_PROPERTY(process, "_print_eval", True(env->isolate()));
+  }
+
+  // -c, --check
+  if (syntax_check_only) {
+    READONLY_PROPERTY(process, "_syntax_check_only", True(env->isolate()));
   }
 
   // -i, --interactive
@@ -2939,7 +3017,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   node::Utf8Value message(args.GetIsolate(), args[0]);
-  fprintf(stderr, "%s\n", *message);
+  PrintErrorString("%s\n", *message);
   fflush(stderr);
 }
 
@@ -2951,7 +3029,7 @@ void LoadEnvironment(Environment* env) {
   env->isolate()->AddMessageListener(OnMessage);
 
   // Compile, execute the src/node.js file. (Which was included as static C
-  // string in node_natives.h. 'natve_node' is the string containing that
+  // string in node_natives.h. 'native_node' is the string containing that
   // source code.)
 
   // The node.js file returns a function 'f'
@@ -3053,6 +3131,7 @@ static void PrintHelp() {
          "  -v, --version         print Node.js version\n"
          "  -e, --eval script     evaluate script\n"
          "  -p, --print           evaluate script and print result\n"
+         "  -c, --check           syntax check script without executing\n"
          "  -i, --interactive     always enter the REPL even if stdin\n"
          "                        does not appear to be a terminal\n"
          "  -r, --require         module to preload (option can be repeated)\n"
@@ -3185,6 +3264,8 @@ static void ParseArgs(int* argc,
       }
       args_consumed += 1;
       local_preload_modules[preload_module_count++] = module;
+    } else if (strcmp(arg, "--check") == 0 || strcmp(arg, "-c") == 0) {
+      syntax_check_only = true;
     } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
       force_repl = true;
     } else if (strcmp(arg, "--no-deprecation") == 0) {
@@ -3197,9 +3278,6 @@ static void ParseArgs(int* argc,
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
-    } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
-               strcmp(arg, "--abort_on_uncaught_exception") == 0) {
-      abort_on_uncaught_exception = true;
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
@@ -3563,9 +3641,9 @@ inline void PlatformInit() {
     // Anything but EBADF means something is seriously wrong.  We don't
     // have to special-case EINTR, fstat() is not interruptible.
     if (errno != EBADF)
-      abort();
+      ABORT();
     if (fd != open("/dev/null", O_RDWR))
-      abort();
+      ABORT();
   }
 
   CHECK_EQ(err, 0);
@@ -3586,10 +3664,6 @@ inline void PlatformInit() {
 
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
-
-  // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
-  // performance penalty of frequent EINTR wakeups when the profiler is running.
-  uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
 
   // Raise the open file descriptor limit.
   struct rlimit lim;
@@ -3630,7 +3704,6 @@ void Init(int* argc,
   uv_async_init(uv_default_loop(),
                 &dispatch_debug_messages_async,
                 DispatchDebugMessagesAsyncCallback);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
 
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
@@ -3654,6 +3727,15 @@ void Init(int* argc,
       break;
     }
   }
+
+#ifdef __POSIX__
+  // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
+  // performance penalty of frequent EINTR wakeups when the profiler is running.
+  // Only do this for v8.log profiling, as it breaks v8::CpuProfiler users.
+  if (v8_is_profiling) {
+    uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
+  }
+#endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
   if (icu_data_dir == nullptr) {
@@ -3687,6 +3769,12 @@ void Init(int* argc,
     const char expose_debug_as[] = "--expose_debug_as=v8debug";
     V8::SetFlagsFromString(expose_debug_as, sizeof(expose_debug_as) - 1);
   }
+
+  // Unconditionally force typed arrays to allocate outside the v8 heap. This
+  // is to prevent memory pointers from being moved around that are returned by
+  // Buffer::Data().
+  const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
+  V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
 
   if (!use_debug_agent) {
     RegisterDebugSignalHandler();
@@ -3890,8 +3978,8 @@ Environment* CreateEnvironment(Isolate* isolate,
 static void StartNodeInstance(void* arg) {
   NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
   Isolate::CreateParams params;
-  ArrayBufferAllocator array_buffer_allocator;
-  params.array_buffer_allocator = &array_buffer_allocator;
+  ArrayBufferAllocator* array_buffer_allocator = new ArrayBufferAllocator();
+  params.array_buffer_allocator = array_buffer_allocator;
   Isolate* isolate = Isolate::New(params);
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
@@ -3907,9 +3995,12 @@ static void StartNodeInstance(void* arg) {
     HandleScope handle_scope(isolate);
     Local<Context> context = Context::New(isolate);
     Environment* env = CreateEnvironment(isolate, context, instance_data);
+    array_buffer_allocator->set_env(env);
     Context::Scope context_scope(context);
-    if (instance_data->is_main())
-      env->set_using_abort_on_uncaught_exc(abort_on_uncaught_exception);
+
+    node_isolate->SetAbortOnUncaughtExceptionCallback(
+        ShouldAbortOnUncaughtException);
+
     // Start debug agent when argv has --debug
     if (instance_data->use_debug_agent())
       StartDebug(env, debug_wait_connect);
@@ -3919,8 +4010,11 @@ static void StartNodeInstance(void* arg) {
     env->set_trace_sync_io(trace_sync_io);
 
     // Enable debugger
-    if (instance_data->use_debug_agent())
+    if (instance_data->use_debug_agent()) {
       EnableDebug(env);
+    } else {
+      uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
+    }
 
     {
       SealHandleScope seal(isolate);
@@ -3953,6 +4047,7 @@ static void StartNodeInstance(void* arg) {
     __lsan_do_leak_check();
 #endif
 
+    array_buffer_allocator->set_env(nullptr);
     env->Dispose();
     env = nullptr;
   }
@@ -3960,6 +4055,7 @@ static void StartNodeInstance(void* arg) {
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
   isolate = nullptr;
+  delete array_buffer_allocator;
   if (instance_data->is_main())
     node_isolate = nullptr;
 }

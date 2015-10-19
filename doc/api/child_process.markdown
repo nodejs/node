@@ -222,7 +222,7 @@ See `kill(2)`
 * `callback` {Function}
 * Return: Boolean
 
-When using `child_process.fork()` you can write to the child using
+When using [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options) you can write to the child using
 `child.send(message[, sendHandle][, callback])` and messages are received by
 a `'message'` event on the child.
 
@@ -366,7 +366,8 @@ callback or returning an EventEmitter).
   * `env` {Object} Environment key-value pairs
   * `stdio` {Array|String} Child's stdio configuration. (See
     [below](#child_process_options_stdio))
-  * `detached` {Boolean} The child will be a process group leader.  (See
+  * `detached` {Boolean} Prepare child to run independently of its parent
+    process. Specific behavior depends on the platform, see
     [below](#child_process_options_detached))
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -505,9 +506,14 @@ Example:
 
 #### options.detached
 
-If the `detached` option is set, the child process will be made the leader of a
-new process group.  This makes it possible for the child to continue running
-after the parent exits.
+On Windows, this makes it possible for the child to continue running after the
+parent exits. The child will have a new console window (this cannot be
+disabled).
+
+On non-Windows, if the `detached` option is set, the child process will be made
+the leader of a new process group and session. Note that child processes may
+continue running after the parent exits whether they are detached or not.  See
+`setsid(2)` for more information.
 
 By default, the parent will wait for the detached child to exit.  To prevent
 the parent from waiting for a given `child`, use the `child.unref()` method,
@@ -533,7 +539,7 @@ will not stay running in the background unless it is provided with a `stdio`
 configuration that is not connected to the parent.  If the parent's `stdio` is
 inherited, the child will remain attached to the controlling terminal.
 
-See also: `child_process.exec()` and `child_process.fork()`
+See also: [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) and [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options)
 
 ### child_process.exec(command[, options], callback)
 
@@ -616,9 +622,9 @@ the existing process and uses a shell to execute the command.*
   * `stderr` {Buffer}
 * Return: ChildProcess object
 
-This is similar to `child_process.exec()` except it does not execute a
+This is similar to [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) except it does not execute a
 subshell but rather the specified file directly. This makes it slightly
-leaner than `child_process.exec`. It has the same options.
+leaner than [`child_process.exec()`](#child_process_child_process_exec_command_options_callback). It has the same options.
 
 
 ### child_process.fork(modulePath[, args][, options])
@@ -639,10 +645,10 @@ leaner than `child_process.exec`. It has the same options.
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: ChildProcess object
 
-This is a special case of the `spawn()` functionality for spawning Node.js
+This is a special case of the [`child_process.spawn()`](#child_process_child_process_spawn_command_args_options) functionality for spawning Node.js
 processes. In addition to having all the methods in a normal ChildProcess
 instance, the returned object has a communication channel built-in. See
-`child.send(message, [sendHandle])` for details.
+[`child.send(message, [sendHandle])`](#child_process_child_send_message_sendhandle_callback) for details.
 
 These child Node.js processes are still whole new instances of V8. Assume at
 least 30ms startup and 10mb memory for each new Node.js. That is, you cannot
@@ -698,38 +704,6 @@ until the process has completely exited. That is to say, if the process handles
 the `SIGTERM` signal and doesn't exit, your process will wait until the child
 process has exited.
 
-### child_process.execFileSync(command[, args][, options])
-
-* `command` {String} The command to run
-* `args` {Array} List of string arguments
-* `options` {Object}
-  * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
-    - supplying this value will override `stdio[0]`
-  * `stdio` {Array} Child's stdio configuration. (Default: 'pipe')
-    - `stderr` by default will be output to the parent process' stderr unless
-      `stdio` is specified
-  * `env` {Object} Environment key-value pairs
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-  * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
-  * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
-  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
-    stderr - if exceeded child process is killed
-  * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
-* return: {Buffer|String} The stdout from the command
-
-`execFileSync` will not return until the child process has fully closed. When a
-timeout has been encountered and `killSignal` is sent, the method won't return
-until the process has completely exited. That is to say, if the process handles
-the `SIGTERM` signal and doesn't exit, your process will wait until the child
-process has exited.
-
-If the process times out, or has a non-zero exit code, this method ***will***
-throw.  The `Error` object will contain the entire result from
-[`child_process.spawnSync`](#child_process_child_process_spawnsync_command_args_options)
-
-
 ### child_process.execSync(command[, options])
 
 * `command` {String} The command to run
@@ -758,7 +732,38 @@ process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The `Error` object will contain the entire result from
-[`child_process.spawnSync`](#child_process_child_process_spawnsync_command_args_options)
+[`child_process.spawnSync()`](#child_process_child_process_spawnsync_command_args_options)
+
+### child_process.execFileSync(file[, args][, options])
+
+* `file` {String} The filename of the program to run
+* `args` {Array} List of string arguments
+* `options` {Object}
+  * `cwd` {String} Current working directory of the child process
+  * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
+    - supplying this value will override `stdio[0]`
+  * `stdio` {Array} Child's stdio configuration. (Default: 'pipe')
+    - `stderr` by default will be output to the parent process' stderr unless
+      `stdio` is specified
+  * `env` {Object} Environment key-value pairs
+  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
+  * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
+  * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
+  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
+    stderr - if exceeded child process is killed
+  * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
+* return: {Buffer|String} The stdout from the command
+
+`execFileSync` will not return until the child process has fully closed. When a
+timeout has been encountered and `killSignal` is sent, the method won't return
+until the process has completely exited. That is to say, if the process handles
+the `SIGTERM` signal and doesn't exit, your process will wait until the child
+process has exited.
+
+If the process times out, or has a non-zero exit code, this method ***will***
+throw.  The `Error` object will contain the entire result from
+[`child_process.spawnSync()`](#child_process_child_process_spawnsync_command_args_options)
 
 [EventEmitter]: events.html#events_class_events_eventemitter
 [net.Server]: net.html#net_class_net_server

@@ -15,6 +15,7 @@
  * it 100%.
  */
 
+require('../common');
 var assert = require('assert');
 
 var TIMEOUT_DELAY = 1.1;

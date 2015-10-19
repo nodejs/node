@@ -797,6 +797,27 @@ Reduction JSTypedLowering::ReduceJSLoadGlobal(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Type* receiver_type = NodeProperties::GetBounds(receiver).upper;
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Handle<Name> name = LoadNamedParametersOf(node->op()).name().handle();
+  // Optimize "length" property of strings.
+  if (name.is_identical_to(factory()->length_string()) &&
+      receiver_type->Is(Type::String())) {
+    Node* value = effect =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForStringLength(graph()->zone())),
+                         receiver, effect, control);
+    ReplaceWithValue(node, value, effect);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Node* key = NodeProperties::GetValueInput(node, 1);
   Node* base = NodeProperties::GetValueInput(node, 0);
@@ -811,11 +832,10 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
       size_t const k = ElementSizeLog2Of(access.machine_type());
       double const byte_length = array->byte_length()->Number();
       CHECK_LT(k, arraysize(shifted_int32_ranges_));
-      if (IsExternalArrayElementsKind(array->map()->elements_kind()) &&
-          key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
+      if (key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
         // JSLoadProperty(typed-array, int32)
-        Handle<ExternalArray> elements =
-            Handle<ExternalArray>::cast(handle(array->elements()));
+        Handle<FixedTypedArrayBase> elements =
+            Handle<FixedTypedArrayBase>::cast(handle(array->elements()));
         Node* buffer = jsgraph()->PointerConstant(elements->external_pointer());
         Node* length = jsgraph()->Constant(byte_length);
         Node* effect = NodeProperties::GetEffectInput(node);
@@ -858,12 +878,11 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
       size_t const k = ElementSizeLog2Of(access.machine_type());
       double const byte_length = array->byte_length()->Number();
       CHECK_LT(k, arraysize(shifted_int32_ranges_));
-      if (IsExternalArrayElementsKind(array->map()->elements_kind()) &&
-          access.external_array_type() != kExternalUint8ClampedArray &&
+      if (access.external_array_type() != kExternalUint8ClampedArray &&
           key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
         // JSLoadProperty(typed-array, int32)
-        Handle<ExternalArray> elements =
-            Handle<ExternalArray>::cast(handle(array->elements()));
+        Handle<FixedTypedArrayBase> elements =
+            Handle<FixedTypedArrayBase>::cast(handle(array->elements()));
         Node* buffer = jsgraph()->PointerConstant(elements->external_pointer());
         Node* length = jsgraph()->Constant(byte_length);
         Node* context = NodeProperties::GetContextInput(node);
@@ -1002,14 +1021,14 @@ Reduction JSTypedLowering::ReduceJSLoadDynamicGlobal(Node* node) {
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true), context,
       context, effect);
   Node* fast = graph()->NewNode(
-      javascript()->LoadGlobal(name, access.feedback(), access.mode()), global,
-      vector, context, state1, state2, global, check_true);
+      javascript()->LoadGlobal(name, access.feedback(), access.typeof_mode()),
+      context, global, vector, context, state1, state2, global, check_true);
 
   // Slow case, because variable potentially shadowed. Perform dynamic lookup.
   uint32_t check_bitset = DynamicGlobalAccess::kFullCheckRequired;
   Node* slow = graph()->NewNode(
       javascript()->LoadDynamicGlobal(access.name(), check_bitset,
-                                      access.feedback(), access.mode()),
+                                      access.feedback(), access.typeof_mode()),
       vector, context, context, state1, state2, effect, check_false);
 
   // Replace value, effect and control uses accordingly.
@@ -1621,6 +1640,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToString(node);
     case IrOpcode::kJSLoadGlobal:
       return ReduceJSLoadGlobal(node);
+    case IrOpcode::kJSLoadNamed:
+      return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadProperty:
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:

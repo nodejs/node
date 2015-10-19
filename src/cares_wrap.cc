@@ -85,6 +85,11 @@ static void NewGetNameInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void NewQueryReqWrap(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+}
+
+
 static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
   if (a->sock < b->sock)
     return -1;
@@ -1067,7 +1072,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     break;
   default:
     CHECK(0 && "bad address family");
-    abort();
+    ABORT();
   }
 
   GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj);
@@ -1193,7 +1198,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
         break;
       default:
         CHECK(0 && "Bad address family.");
-        abort();
+        ABORT();
     }
 
     if (err)
@@ -1312,6 +1317,14 @@ static void Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"),
               niw->GetFunction());
+
+  Local<FunctionTemplate> qrw =
+      FunctionTemplate::New(env->isolate(), NewQueryReqWrap);
+  qrw->InstanceTemplate()->SetInternalFieldCount(1);
+  qrw->SetClassName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"),
+              qrw->GetFunction());
 }
 
 }  // namespace cares_wrap

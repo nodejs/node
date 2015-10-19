@@ -1,3 +1,266 @@
+### v2.14.7 (2015-10-01):
+
+#### MORE RELEASE STAGGERING?!
+
+Hi all, and greetings from [Open Source & Feelings](http://osfeels.com)!
+
+So we're switching gears a little with how we handle our weekly releases: from
+now on, we're going to stagger release weeks between dependency bumps and
+regular patches. So, this week, aside from a doc change, we'll be doing only
+version bumps. Expect actual patches next week!
+
+#### TOTALLY FOLLOWING THE RULES ALREADY
+
+So I snuck this in, because it's our own [@snopeks](https://github.com/snopeks)'
+first contribution to the main `npm` repo. She's been helping with building
+support documents for Orgs, and contributed her general intro guide to the new
+feature so you can read it with `npm help orgs` right in your terminal!
+
+* [`8324ea0`](https://github.com/npm/npm/commit/8324ea023ace4e08b6b8959ad199e2457af9f9cf)
+  [#9761](https://github.com/npm/npm/pull/9761) Added general user guide for
+  Orgs.
+  ([@snopeks](https://github.com/snopeks))
+
+#### JUST. ONE. MORE.
+
+* [`9a502ca`](https://github.com/npm/npm/commit/9a502ca96e2d43ec75a8f684c9ca33af7e910f0a)
+  Use unique package name in tests to work around weird test-state-based
+  failures.
+  ([@iarna](https://github.com/iarna))
+
+#### OKAY ACTUALLY THE THING I WAS SUPPOSED TO DO
+
+Anyway -- here's your version bump! :)
+
+* [`4aeb94c`](https://github.com/npm/npm/commit/4aeb94c9f0df3f41802cf2e0397a998f3b527c25)
+  `request@2.64.0`: No longer defaulting to `application/json` for `json`
+  requests. Also some minor doc and packaging patches.
+  ([@simov](https://github.com/simov))
+  `minimatch@3.0.0`: No longer packaging browser modules.
+  ([@isaacs](https://github.com/isaacs))
+* [`a18b213`](https://github.com/npm/npm/commit/a18b213e6945a8f5faf882927829ac95f844e2aa)
+  `glob@5.0.15`: Upgraded `minimatch` dependency.
+  ([@isaacs](https://github.com/isaacs))
+* [`9eb64d4`](https://github.com/npm/npm/commit/9eb64e44509519ca9d788502edb2eba4cea5c86b)
+  `nock@2.13.0`
+  ([@pgte](https://github.com/pgte))
+
+### v2.14.6 (2015-09-24):
+
+#### `¯\_(ツ)_/¯`
+
+Since `2.x` is LTS now, you can expect a slowdown in overall release sizes. On
+top of that, we had our all-company-npm-internal-conf thing on Monday and
+Tuesday so there wasn't really time to do much at all.
+
+Still, we're bringing you a couple of tiny little changes this week!
+
+* [`7b7da13`](https://github.com/npm/npm/commit/7b7da13c6cdf5eae53c20d5c69afc4c16e6f715d)
+  [#9471](https://github.com/npm/npm/pull/9471) When the port for a tarball is
+  different than the registry it's in, but the hostname is the same, the
+  protocol is now allowed to change, too.
+  ([@fastest963](https://github.com/fastest963))
+* [`6643ada`](https://github.com/npm/npm/commit/6643adaf9f37f08893e3ad28b797c55a36b2a152)
+  `request@2.63.0`: Use `application/json` as the default content type when
+  making `json` requests.
+  ([@simov](https://github.com/simov))
+
+### v2.14.5 (2015-09-17):
+
+#### NPM IS DEAD. LONG LIVE NPM
+
+That's right folks. As of this week, `npm@latest` is `npm@3`! There's some
+really great shiny new things over there, and you should really take a look.
+
+Many kudos to [@iarna](https://github.com/iarna) for her hard work on `npm@3`!
+
+Don't worry, we'll keep `2.x` around for a while (as LTS), but you won't see
+many, if any, new features on this end. From now on, we're going to use
+`latest-2` and `next-2` as the dist tags for the `npm@2` branch.
+
+#### OKAY THAT'S FINE CAN I DEPRECATE THINGS NOW?
+
+Yes! Specially if you're using scoped packages. Apparently, deprecating them
+never worked, but that should be better now. :)
+
+* [`eca7b24`](https://github.com/npm/npm/commit/eca7b24de9a0090da02a93a69726f5e70ab80543)
+  [#9558](https://github.com/npm/npm/issues/9558) Add tests for npm deprecate.
+  ([@zkat](https://github.com/zkat))
+* [`648fe16`](https://github.com/npm/npm/commit/648fe16157ef0db22395ae056d1dd4b4c1605bf4)
+  [#9558](https://github.com/npm/npm/issues/9558) `npm-registry-client@7.0.7`:
+  Fixes `npm deprecate` so you can actually deprecate scoped modules now (it
+  never worked).
+  ([@zkat](https://github.com/zkat))
+
+#### WTF IS `node-waf`
+
+idk. Some old thing. We don't talk about it anymore.
+
+* [`cf1b39f`](https://github.com/npm/npm/commit/cf1b39fc95a9ffad7fba4c2fee705c53b19d1d16)
+  [#9584](https://github.com/npm/npm/issues/9584) Fix ancient references to
+  `node-waf` in the docs to refer to the `node-gyp` version of things.
+  ([@KenanY](https://github.com/KenanY))
+
+#### THE `graceful-fs` AND `node-gyp` SAGA CONTINUES
+
+Last week had some sweeping `graceful-fs` upgrades, and this takes care of one
+of the stragglers, as well as bumping `node-gyp`. `node@4` users might be
+excited about this, or even `node@<4` users who previously had to cherry-pick a
+bunch of patches to get the latest npm working.
+
+* [`e07354f`](https://github.com/npm/npm/commit/e07354f3ff3a6be568fe950f1f825897f72912d8)
+  `sha@2.0.1`: Upgraded graceful-fs!
+  ([@ForbesLindesay](https://github.com/ForbesLindesay))
+* [`83cb6ee`](https://github.com/npm/npm/commit/83cb6ee4045b85e565e9678ca1878877e1dc75bd)
+  `node-gyp@3.0.3`
+  ([@rvagg](https://github.com/rvagg))
+
+#### DEPS! DEPS! MORE DEPS! OK STOP DEPS
+
+* [`0d60888`](https://github.com/npm/npm/commit/0d608889615a1cb63f5f852337e955053f201aeb)
+  `normalize-package-data@2.3.4`: Use an external package to check for built-in
+  node modules.
+  ([@sindresorhus](https://github.com/sindresorhus))
+* [`79b4dac`](https://github.com/npm/npm/commit/79b4dac11f1c2d8ad5489fc3104734e1c10d4793)
+  `retry@0.8.0`
+  ([@tim-kos](https://github.com/tim-kos))
+* [`c164941`](https://github.com/npm/npm/commit/c164941d3c792904d5b126a4fd36eefbe0699f52)
+  `request@2.62.0`: node 4 added to build targets. Option initialization issues
+  fixed.
+  ([@simov](https://github.com/simov))
+* [`0fd878a`](https://github.com/npm/npm/commit/0fd878a44d5ae303325808d1f00df4dce7549d50)
+  `lru-cache@2.7.0`: Cache serialization support and fixes a cache length bug.
+  ([@isaacs](https://github.com/isaacs))
+* [`6a7a114`](https://github.com/npm/npm/commit/6a7a114a45b4699995d6e09164fdfd0fa1274591)
+  `nock@2.12.0`
+  ([@pgte](https://github.com/pgte))
+* [`6b25e6d`](https://github.com/npm/npm/commit/6b25e6d2235c11f4444104db4545cb42a0267666)
+  `semver@5.0.3`: Removed uglify-js dead code.
+  ([@isaacs](https://github.com/isaacs))
+
+### v2.14.4 (2015-09-10):
+
+#### THE GREAT NODEv4 SAGA
+
+So [Node 4 is out now](https://nodejs.org/en/blog/release/v4.0.0/) and that's
+going to involve a number of things over in npm land. Most importantly, it's the
+last major release that will include the `2.x` branch of npm. That also means
+that `2.x` is going to go into LTS mode in the coming weeks -- once `npm@3`
+becomes our official `latest` release. You can most likely expect Node 5 to
+include `npm@3` by default, whenever that happens. We'll go into more detail
+about LTS at that point, as well, so keep your eyes peeled for announcements!
+
+#### NODE IS DEAD. LONG LIVE NODE!
+
+Node 4 being released means that a few things that used to be floating patches
+are finally making it right into npm proper. This week, we've got two such
+updates, both to dependencies:
+
+* [`505d9e4`](https://github.com/npm/npm/commit/505d9e40c13b8b0bb3f70ee9886f7b73ba569407)
+  `node-gyp@3.0.1`: Support for node nightlies and compilation for both node and
+  io.js without extra patching
+  ([@rvagg](https://github.com/rvagg))
+
+[@thefourtheye](https://github.com/thefourtheye) was kind enough to submit a
+*bunch* of PRs to npm's dependencies updating them to `graceful-fs@4.1.2`, which
+mainly makes it so we're no longer monkey-patching `fs`. The following are all
+updates related to this:
+
+* [`10cb189`](https://github.com/npm/npm/commit/10cb189c773fef804214018d57509cc7a943184b)
+  `write-file-atomic@1.1.3`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`edfb80b`](https://github.com/npm/npm/commit/edfb80b39f8cfce9a993f139eb98248001198e09)
+  `tar@2.2.1`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`aa6e1ee`](https://github.com/npm/npm/commit/aa6e1eede7d71fa69d7256afdfbaa3406bc39a5b)
+  `read-package-json@2.0.1`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`18971a3`](https://github.com/npm/npm/commit/18971a361635ed3958ecd39b63930ae1e56f8612)
+  `read-installed@4.0.3`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`a4cba71`](https://github.com/npm/npm/commit/a4cba71bd2532236fda7385bf55e8790cafd4f0a)
+  `fstream@1.0.8`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`70a38e2`](https://github.com/npm/npm/commit/70a38e29418951ac61ab6cf269d188074fe8ac3a)
+  `fs-write-stream-atomic@1.0.4`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`9cbd20f`](https://github.com/npm/npm/commit/9cbd20f691e37960e4ba12d401abd1069657cb47)
+  `fs-vacuum@1.2.7`
+  ([@thefourtheye](https://github.com/thefourtheye))
+
+#### OTHER PATCHES
+
+* [`c4dd521`](https://github.com/npm/npm/commit/c4dd5213b2f3283ea0392845e5f78cac4573529e)
+  [#9506](https://github.com/npm/npm/issues/9506) Make `npm link` work on
+  Windows when using node pre-release/RC releases.
+  ([@jon-hall](https://github.com/jon-hall))
+* [`b6bc29c`](https://github.com/npm/npm/commit/b6bc29c1401b3d6b570c09cbef1866bdb0436b59)
+  [#9544](https://github.com/npm/npm/issues/9549) `process.binding` is being
+  deprecated, so our only direct usage has been removed.
+  ([@ChALkeR](https://github.com/ChALkeR))
+
+#### MORE DEPENDENCIES!
+
+* [`d940594`](https://github.com/npm/npm/commit/d940594e479a7f012b6dd6952e8ef985ba2a6216)
+  `tap@1.4.1`
+  ([@isaacs](https://github.com/isaacs))
+* [`ee38486`](https://github.com/npm/npm/commit/ee3848669331fd98879a3175789d963543f67ce3)
+  `which@1.1.2`: Added tests for Windows-related dead code that was previously
+  helping a silent failure happen.  Travis stuff, too.
+  ([@isaacs](https://github.com/isaacs))
+
+#### DOC UPDATES
+
+* [`475daf5`](https://github.com/npm/npm/commit/475daf54ad07777938d1d7ee1a3e576961e84510)
+  [#9492](https://github.com/npm/npm/issues/9492) Clarify how `.npmignore` and
+  `.gitignore` are found and used by npm.
+  ([@addaleax](https://github.com/addaleax))
+* [`b2c391d`](https://github.com/npm/npm/commit/b2c391d7833249626a6d7650363a83bcc778717a)
+  `nopt@3.0.4`: Minor clarifications to docs about how array and errors work.
+  ([@zkat](https://github.com/zkat))
+
+### v2.14.3 (2015-09-03):
+
+#### TEAMS AND ORGS STILL BETA. CLI CODE STILL SOLID.
+
+Our closed beta for Teens and Orcs is happening! The web team is hard at work
+making sure everything looks pretty and usable and such. Once we fix things
+stemming from that beta, you can expect the feature to be available publicly.
+Some time after that, it'll even be available for free for FOSS orgs. It'll Be
+Done When It's Done™.
+
+#### OH GOOD, I CAN ACTUALLY UPSTREAM NOW
+
+Looks like last week's release foiled our own test suite when trying to upstream
+it to Node! Just a friendly reminder that no, `.npmrc` is no longer included
+then you pack/release a package! [@othiym23](https://github.com/othiym23) and
+[@isaacs](https://github.com/isaacs) managed to suss the really strange test
+failures resulting from that, and we've patched it in this release.
+
+* [`01a3428`](https://github.com/npm/npm/commit/01a3428534b754dca89a56fd1e49f55cb22f6f25)
+  [#9476](https://github.com/npm/npm/issues/9476) test: Recreate missing
+  `.npmrc` files when missing so downstream packagers can run tests on packed
+  npm.
+  ([@othiym23](https://github.com/othiym23))
+
+#### TALKING ABOUT THE CHANGELOG IN THE CHANGELOG IS LIKE, POMO OR SOMETHING
+
+* [`c1e7a83`](https://github.com/npm/npm/commit/c1e7a83c0ae7aadf01aecc57cf8a0ae2009d4da8)
+  [#9431](https://github.com/npm/npm/issues/9431) CHANGELOG: clarify
+  windows-related nature of patch
+  ([@saper](https://github.com/saper))
+
+#### devDependencies UPDATED
+
+No actual dep updates this week, but we're bumping a couple of devDeps:
+
+* [`8454835`](https://github.com/npm/npm/commit/84548351bfd63e3e305d195abbcad24c6b7c3e8e)
+  `tap@1.4.0`: Add `t.contains()` as alias to `t.match()`
+  ([@isaacs](https://github.com/isaacs))
+* [`13d2216`](https://github.com/npm/npm/commit/13d22161bcdeb6e1ed095d5ba2f77e6abfffa5eb)
+  `deep-equal@1.0.1`: Make `null == undefined` in non-strict mode
+  ([@isaacs](https://github.com/isaacs))
+
 ### v2.14.2 (2015-08-27):
 
 #### GETTING THAT PESKY `preferGlobal` WARNING RIGHT
@@ -6,7 +269,8 @@ So apparently the `preferGlobal` option hasn't quite been warning correctly for
 some time. But now it should be all better! tl;dr: if you try and install a
 dependency with `preferGlobal: true`, and it's _not already_ in your
 `package.json`, you'll get a warning that the author would really rather you
-install it with `--global`. :)
+install it with `--global`. This should prevent Windows PowerShell from thinking
+npm has failed just because of a benign warning.
 
 * [`bbb25f3`](https://github.com/npm/npm/commit/bbb25f30d582f8979168c79233a9f8f840974f90)
   [#8841](https://github.com/npm/npm/issues/8841)

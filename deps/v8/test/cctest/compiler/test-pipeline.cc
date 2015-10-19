@@ -21,13 +21,8 @@ static void RunPipeline(Zone* zone, const char* source) {
   CompilationInfo info(&parse_info);
 
   Pipeline pipeline(&info);
-#if V8_TURBOFAN_TARGET
   Handle<Code> code = pipeline.GenerateCode();
-  CHECK(Pipeline::SupportedTarget());
   CHECK(!code.is_null());
-#else
-  USE(pipeline);
-#endif
 }
 
 

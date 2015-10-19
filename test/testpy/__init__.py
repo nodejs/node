@@ -40,16 +40,19 @@ FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 
 class SimpleTestCase(test.TestCase):
 
-  def __init__(self, path, file, arch, mode, context, config, additional=[]):
+  def __init__(self, path, file, arch, mode, context, config, additional=None):
     super(SimpleTestCase, self).__init__(context, path, arch, mode)
     self.file = file
     self.config = config
     self.arch = arch
     self.mode = mode
     self.tmpdir = join(dirname(self.config.root), 'tmp')
-    self.additional_flags = additional
+    if additional is not None:
+      self.additional_flags = additional
+    else:
+      self.additional_flags = []
 
-  
+
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 
@@ -81,10 +84,13 @@ class SimpleTestCase(test.TestCase):
 
 class SimpleTestConfiguration(test.TestConfiguration):
 
-  def __init__(self, context, root, section, additional=[]):
+  def __init__(self, context, root, section, additional=None):
     super(SimpleTestConfiguration, self).__init__(context, root)
     self.section = section
-    self.additional_flags = additional
+    if additional is not None:
+      self.additional_flags = additional
+    else:
+      self.additional_flags = []
 
   def Ls(self, path):
     def SelectTest(name):
@@ -110,7 +116,7 @@ class SimpleTestConfiguration(test.TestConfiguration):
       test.ReadConfigurationInto(status_file, sections, defs)
 
 class ParallelTestConfiguration(SimpleTestConfiguration):
-  def __init__(self, context, root, section, additional=[]):
+  def __init__(self, context, root, section, additional=None):
     super(ParallelTestConfiguration, self).__init__(context, root, section,
                                                     additional)
 
@@ -122,8 +128,8 @@ class ParallelTestConfiguration(SimpleTestConfiguration):
     return result
 
 class AddonTestConfiguration(SimpleTestConfiguration):
-  def __init__(self, context, root, section, additional=[]):
-    super(AddonTestConfiguration, self).__init__(context, root, section)
+  def __init__(self, context, root, section, additional=None):
+    super(AddonTestConfiguration, self).__init__(context, root, section, additional)
 
   def Ls(self, path):
     def SelectTest(name):

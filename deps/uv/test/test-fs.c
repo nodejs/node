@@ -427,6 +427,28 @@ static void rmdir_cb(uv_fs_t* req) {
 }
 
 
+static void assert_is_file_type(uv_dirent_t dent) {
+#ifdef HAVE_DIRENT_TYPES
+  /*
+   * For Apple and Windows, we know getdents is expected to work but for other
+   * environments, the filesystem dictates whether or not getdents supports
+   * returning the file type.
+   *
+   *   See:
+   *     http://man7.org/linux/man-pages/man2/getdents.2.html
+   *     https://github.com/libuv/libuv/issues/501
+   */
+  #if defined(__APPLE__) || defined(_WIN32)
+    ASSERT(dent.type == UV_DIRENT_FILE);
+  #else
+    ASSERT(dent.type == UV_DIRENT_FILE || dent.type == UV_DIRENT_UNKNOWN);
+  #endif
+#else
+  ASSERT(dent.type == UV_DIRENT_UNKNOWN);
+#endif
+}
+
+
 static void scandir_cb(uv_fs_t* req) {
   uv_dirent_t dent;
   ASSERT(req == &scandir_req);
@@ -436,11 +458,7 @@ static void scandir_cb(uv_fs_t* req) {
 
   while (UV_EOF != uv_fs_scandir_next(req, &dent)) {
     ASSERT(strcmp(dent.name, "file1") == 0 || strcmp(dent.name, "file2") == 0);
-#ifdef HAVE_DIRENT_TYPES
-    ASSERT(dent.type == UV_DIRENT_FILE);
-#else
-    ASSERT(dent.type == UV_DIRENT_UNKNOWN);
-#endif
+    assert_is_file_type(dent);
   }
   scandir_cb_count++;
   ASSERT(req->path);
@@ -878,11 +896,7 @@ TEST_IMPL(fs_async_dir) {
   ASSERT(scandir_req.ptr);
   while (UV_EOF != uv_fs_scandir_next(&scandir_req, &dent)) {
     ASSERT(strcmp(dent.name, "file1") == 0 || strcmp(dent.name, "file2") == 0);
-#ifdef HAVE_DIRENT_TYPES
-    ASSERT(dent.type == UV_DIRENT_FILE);
-#else
-    ASSERT(dent.type == UV_DIRENT_UNKNOWN);
-#endif
+    assert_is_file_type(dent);
   }
   uv_fs_req_cleanup(&scandir_req);
   ASSERT(!scandir_req.ptr);
@@ -1724,6 +1738,7 @@ TEST_IMPL(fs_symlink_dir) {
 
   r = uv_fs_symlink(NULL, &req, test_dir, "test_dir_symlink",
     UV_FS_SYMLINK_JUNCTION, NULL);
+  fprintf(stderr, "r == %i\n", r);
   ASSERT(r == 0);
   ASSERT(req.result == 0);
   uv_fs_req_cleanup(&req);
@@ -1774,11 +1789,7 @@ TEST_IMPL(fs_symlink_dir) {
   ASSERT(scandir_req.ptr);
   while (UV_EOF != uv_fs_scandir_next(&scandir_req, &dent)) {
     ASSERT(strcmp(dent.name, "file1") == 0 || strcmp(dent.name, "file2") == 0);
-#ifdef HAVE_DIRENT_TYPES
-    ASSERT(dent.type == UV_DIRENT_FILE);
-#else
-    ASSERT(dent.type == UV_DIRENT_UNKNOWN);
-#endif
+    assert_is_file_type(dent);
   }
   uv_fs_req_cleanup(&scandir_req);
   ASSERT(!scandir_req.ptr);
@@ -1798,11 +1809,7 @@ TEST_IMPL(fs_symlink_dir) {
   ASSERT(scandir_req.ptr);
   while (UV_EOF != uv_fs_scandir_next(&scandir_req, &dent)) {
     ASSERT(strcmp(dent.name, "file1") == 0 || strcmp(dent.name, "file2") == 0);
-#ifdef HAVE_DIRENT_TYPES
-    ASSERT(dent.type == UV_DIRENT_FILE);
-#else
-    ASSERT(dent.type == UV_DIRENT_UNKNOWN);
-#endif
+    assert_is_file_type(dent);
   }
   uv_fs_req_cleanup(&scandir_req);
   ASSERT(!scandir_req.ptr);

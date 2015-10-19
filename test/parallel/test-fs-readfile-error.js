@@ -16,7 +16,7 @@ var callbacks = 0;
 function test(env, cb) {
   var filename = path.join(common.fixturesDir, 'test-fs-readfile-error.js');
   var execPath = '"' + process.execPath + '" "' + filename + '"';
-  var options = { env: env || {} };
+  var options = { env: Object.assign(process.env, env) };
   exec(execPath, options, function(err, stdout, stderr) {
     assert(err);
     assert.equal(stdout, '');

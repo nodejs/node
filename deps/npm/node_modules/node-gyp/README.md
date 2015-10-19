@@ -187,6 +187,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 [windows-python]: http://www.python.org/getit/windows
 [windows-python-v2.7.3]: http://www.python.org/download/releases/2.7.3#download
-[msvc2013]: http://www.visualstudio.com/en-us/downloads/download-visual-studio-vs
+[msvc2013]: http://www.microsoft.com/en-gb/download/details.aspx?id=44914
 [win7sdk]: http://www.microsoft.com/en-us/download/details.aspx?id=8279
 [compiler update for the Windows SDK 7.1]: http://www.microsoft.com/en-us/download/details.aspx?id=4422

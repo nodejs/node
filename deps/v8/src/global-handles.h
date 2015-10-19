@@ -181,7 +181,8 @@ class GlobalHandles {
 
   // Process pending weak handles.
   // Returns the number of freed nodes.
-  int PostGarbageCollectionProcessing(GarbageCollector collector);
+  int PostGarbageCollectionProcessing(
+      GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags);
 
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);
@@ -287,17 +288,21 @@ class GlobalHandles {
   // don't assign any initial capacity.
   static const int kObjectGroupConnectionsCapacity = 20;
 
+  class PendingPhantomCallback;
+
   // Helpers for PostGarbageCollectionProcessing.
+  static void InvokeSecondPassPhantomCallbacks(
+      List<PendingPhantomCallback>* callbacks, Isolate* isolate);
   int PostScavengeProcessing(int initial_post_gc_processing_count);
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
-  int DispatchPendingPhantomCallbacks();
+  int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
   void UpdateListOfNewSpaceNodes();
 
   // Internal node structures.
   class Node;
   class NodeBlock;
   class NodeIterator;
-  class PendingPhantomCallback;
+  class PendingPhantomCallbacksSecondPassTask;
 
   Isolate* isolate_;
 

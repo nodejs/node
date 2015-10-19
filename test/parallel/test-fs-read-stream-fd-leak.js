@@ -10,6 +10,7 @@ var _fsopen = fs.open;
 var _fsclose = fs.close;
 
 var loopCount = 50;
+var totalCheck = 50;
 var emptyTxt = path.join(common.fixturesDir, 'empty.txt');
 
 fs.open = function() {
@@ -26,6 +27,19 @@ function testLeak(endFn, callback) {
   console.log('testing for leaks from fs.createReadStream().%s()...', endFn);
 
   var i = 0;
+  var check = 0;
+
+  var checkFunction = function() {
+    if (openCount != 0 && check < totalCheck) {
+      check++;
+      setTimeout(checkFunction, 100);
+      return;
+    }
+    assert.equal(0, openCount, 'no leaked file descriptors using ' +
+                 endFn + '() (got ' + openCount + ')');
+    openCount = 0;
+    callback && setTimeout(callback, 100);
+  };
 
   setInterval(function() {
     var s = fs.createReadStream(emptyTxt);
@@ -33,12 +47,7 @@ function testLeak(endFn, callback) {
 
     if (++i === loopCount) {
       clearTimeout(this);
-      setTimeout(function() {
-        assert.equal(0, openCount, 'no leaked file descriptors using ' +
-                     endFn + '() (got ' + openCount + ')');
-        openCount = 0;
-        callback && setTimeout(callback, 100);
-      }, 100);
+      setTimeout(checkFunction, 100);
     }
   }, 2);
 }

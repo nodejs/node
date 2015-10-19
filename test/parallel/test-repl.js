@@ -3,6 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 common.globalCheck = false;
+common.refreshTmpDir();
 
 var net = require('net'),
     repl = require('repl'),
@@ -148,7 +149,7 @@ function error_test() {
     { client: client_unix, send: '(function() { "use strict"; return 0755; })()',
       expect: /^SyntaxError: Octal literals are not allowed in strict mode/ },
     { client: client_unix, send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
-      expect: /^SyntaxError: Strict mode function may not have duplicate parameter names/ },
+      expect: /^SyntaxError: Duplicate parameter name not allowed in this context/ },
     { client: client_unix, send: '(function() { "use strict"; with (this) {} })()',
       expect: /^SyntaxError: Strict mode code may not include a with statement/ },
     { client: client_unix, send: '(function() { "use strict"; var x; delete x; })()',
@@ -242,6 +243,13 @@ function error_test() {
             'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
       expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
                '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
+    // regression tests for https://github.com/nodejs/node/issues/2749
+    { client: client_unix, send: 'function x() {\nreturn \'\\n\';\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {\nreturn \'\\\\\';\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
   ]);
 }
 
@@ -381,5 +389,5 @@ function unix_test() {
 unix_test();
 
 timer = setTimeout(function() {
-  assert.fail('Timeout');
+  assert.fail(null, null, 'Timeout');
 }, 5000);

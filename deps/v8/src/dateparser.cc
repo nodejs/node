@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/dateparser.h"
+
+#include "src/char-predicates-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -80,7 +81,12 @@ bool DateParser::TimeComposer::Write(FixedArray* output) {
   }
 
   if (!IsHour(hour) || !IsMinute(minute) ||
-      !IsSecond(second) || !IsMillisecond(millisecond)) return false;
+      !IsSecond(second) || !IsMillisecond(millisecond)) {
+    // A 24th hour is allowed if minutes, seconds, and milliseconds are 0
+    if (hour != 24 || minute != 0 || second != 0 || millisecond != 0) {
+      return false;
+    }
+  }
 
   output->set(HOUR, Smi::FromInt(hour));
   output->set(MINUTE, Smi::FromInt(minute));

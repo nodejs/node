@@ -45,8 +45,9 @@
 
 
 v8::Local<v8::Context> CreateShellContext(v8::Isolate* isolate);
-void RunShell(v8::Local<v8::Context> context);
-int RunMain(v8::Isolate* isolate, int argc, char* argv[]);
+void RunShell(v8::Local<v8::Context> context, v8::Platform* platform);
+int RunMain(v8::Isolate* isolate, v8::Platform* platform, int argc,
+            char* argv[]);
 bool ExecuteString(v8::Isolate* isolate, v8::Local<v8::String> source,
                    v8::Local<v8::Value> name, bool print_result,
                    bool report_exceptions);
@@ -95,8 +96,8 @@ int main(int argc, char* argv[]) {
       return 1;
     }
     v8::Context::Scope context_scope(context);
-    result = RunMain(isolate, argc, argv);
-    if (run_shell) RunShell(context);
+    result = RunMain(isolate, platform, argc, argv);
+    if (run_shell) RunShell(context, platform);
   }
   isolate->Dispose();
   v8::V8::Dispose();
@@ -270,7 +271,8 @@ v8::MaybeLocal<v8::String> ReadFile(v8::Isolate* isolate, const char* name) {
 
 
 // Process remaining command line arguments and execute files
-int RunMain(v8::Isolate* isolate, int argc, char* argv[]) {
+int RunMain(v8::Isolate* isolate, v8::Platform* platform, int argc,
+            char* argv[]) {
   for (int i = 1; i < argc; i++) {
     const char* str = argv[i];
     if (strcmp(str, "--shell") == 0) {
@@ -293,7 +295,9 @@ int RunMain(v8::Isolate* isolate, int argc, char* argv[]) {
                .ToLocal(&source)) {
         return 1;
       }
-      if (!ExecuteString(isolate, source, file_name, false, true)) return 1;
+      bool success = ExecuteString(isolate, source, file_name, false, true);
+      while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
+      if (!success) return 1;
     } else {
       // Use all other arguments as names of files to load and run.
       v8::Local<v8::String> file_name =
@@ -304,7 +308,9 @@ int RunMain(v8::Isolate* isolate, int argc, char* argv[]) {
         fprintf(stderr, "Error reading '%s'\n", str);
         continue;
       }
-      if (!ExecuteString(isolate, source, file_name, false, true)) return 1;
+      bool success = ExecuteString(isolate, source, file_name, false, true);
+      while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
+      if (!success) return 1;
     }
   }
   return 0;
@@ -312,7 +318,7 @@ int RunMain(v8::Isolate* isolate, int argc, char* argv[]) {
 
 
 // The read-eval-execute loop of the shell.
-void RunShell(v8::Local<v8::Context> context) {
+void RunShell(v8::Local<v8::Context> context, v8::Platform* platform) {
   fprintf(stderr, "V8 version %s [sample shell]\n", v8::V8::GetVersion());
   static const int kBufferSize = 256;
   // Enter the execution environment before evaluating any code.
@@ -331,6 +337,8 @@ void RunShell(v8::Local<v8::Context> context) {
         v8::String::NewFromUtf8(context->GetIsolate(), str,
                                 v8::NewStringType::kNormal).ToLocalChecked(),
         name, true, true);
+    while (v8::platform::PumpMessageLoop(platform, context->GetIsolate()))
+      continue;
   }
   fprintf(stderr, "\n");
 }

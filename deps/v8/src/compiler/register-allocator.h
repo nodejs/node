@@ -140,6 +140,10 @@ class LifetimePosition final {
     return LifetimePosition(kMaxInt);
   }
 
+  static inline LifetimePosition FromInt(int value) {
+    return LifetimePosition(value);
+  }
+
  private:
   static const int kHalfStep = 2;
   static const int kStep = 2 * kHalfStep;
@@ -330,6 +334,9 @@ class LiveRange final : public ZoneObject {
   // range and which follows both start and last processed use position
   UsePosition* NextRegisterPosition(LifetimePosition start) const;
 
+  // Returns the first use position requiring stack slot, or nullptr.
+  UsePosition* NextSlotPosition(LifetimePosition start) const;
+
   // Returns use position for which register is beneficial in this live
   // range and which follows both start and last processed use position
   UsePosition* NextUsePositionRegisterIsBeneficial(
@@ -397,6 +404,16 @@ class LiveRange final : public ZoneObject {
   void CommitSpillsAtDefinition(InstructionSequence* sequence,
                                 const InstructionOperand& operand,
                                 bool might_be_duplicated);
+  // This must be applied on top level ranges.
+  // If all the children of this range are spilled in deferred blocks, and if
+  // for any non-spilled child with a use position requiring a slot, that range
+  // is contained in a deferred block, mark the range as
+  // IsSpilledOnlyInDeferredBlocks, so that we avoid spilling at definition,
+  // and instead let the LiveRangeConnector perform the spills within the
+  // deferred blocks. If so, we insert here spills for non-spilled ranges
+  // with slot use positions.
+  bool TryCommitSpillInDeferredBlock(InstructionSequence* code,
+                                     const InstructionOperand& spill_operand);
 
   void SetSpillStartIndex(int start) {
     spill_start_index_ = Min(start, spill_start_index_);
@@ -432,6 +449,10 @@ class LiveRange final : public ZoneObject {
   unsigned GetSize();
   float weight() const { return weight_; }
   void set_weight(float weight) { weight_ = weight; }
+
+  bool IsSpilledOnlyInDeferredBlocks() const {
+    return spilled_in_deferred_block_;
+  }
 
   static const int kInvalidSize = -1;
   static const float kInvalidWeight;
@@ -485,6 +506,10 @@ class LiveRange final : public ZoneObject {
   // greedy: a metric for resolving conflicts between ranges with an assigned
   // register and ranges that intersect them and need a register.
   float weight_;
+
+  // TODO(mtrofin): generalize spilling after definition, currently specialized
+  // just for spill in a single deferred block.
+  bool spilled_in_deferred_block_;
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
 
@@ -625,6 +650,12 @@ class RegisterAllocationData final : public ZoneObject {
                                 PhiInstruction* phi);
   PhiMapValue* GetPhiMapValueFor(int virtual_register);
   bool IsBlockBoundary(LifetimePosition pos) const;
+
+  void Print(const InstructionSequence* instructionSequence);
+  void Print(const Instruction* instruction);
+  void Print(const LiveRange* range, bool with_children = false);
+  void Print(const InstructionOperand& op);
+  void Print(const MoveOperands* move);
 
  private:
   Zone* const allocation_zone_;
@@ -912,14 +943,24 @@ class ReferenceMapPopulator final : public ZoneObject {
 };
 
 
+// Insert moves of the form
+//
+//          Operand(child_(k+1)) = Operand(child_k)
+//
+// where child_k and child_(k+1) are consecutive children of a range (so
+// child_k->next() == child_(k+1)), and Operand(...) refers to the
+// assigned operand, be it a register or a slot.
 class LiveRangeConnector final : public ZoneObject {
  public:
   explicit LiveRangeConnector(RegisterAllocationData* data);
 
-  // Phase 8: reconnect split ranges with moves.
+  // Phase 8: reconnect split ranges with moves, when the control flow
+  // between the ranges is trivial (no branches).
   void ConnectRanges(Zone* local_zone);
 
-  // Phase 9: insert moves to connect ranges across basic blocks.
+  // Phase 9: insert moves to connect ranges across basic blocks, when the
+  // control flow between them cannot be trivially resolved, such as joining
+  // branches.
   void ResolveControlFlow(Zone* local_zone);
 
  private:
@@ -928,6 +969,7 @@ class LiveRangeConnector final : public ZoneObject {
   Zone* code_zone() const { return code()->zone(); }
 
   bool CanEagerlyResolveControlFlow(const InstructionBlock* block) const;
+
   void ResolveControlFlow(const InstructionBlock* block,
                           const InstructionOperand& cur_op,
                           const InstructionBlock* pred,

@@ -259,10 +259,14 @@ class TapProgressIndicator(SimpleProgressIndicator):
     self._done += 1
     command = basename(output.command[-1])
     if output.UnexpectedOutput():
-      status_line = 'not ok %i - %s' % (self._done, command)
+      status_line = 'not ok %i %s' % (self._done, command)
       if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
         status_line = status_line + ' # TODO : Fix flaky test'
       logger.info(status_line)
+
+      if output.HasTimedOut():
+        logger.info('# TIMEOUT')
+
       for l in output.output.stderr.splitlines():
         logger.info('#' + l)
       for l in output.output.stdout.splitlines():
@@ -271,9 +275,9 @@ class TapProgressIndicator(SimpleProgressIndicator):
       skip = skip_regex.search(output.output.stdout)
       if skip:
         logger.info(
-          'ok %i - %s # skip %s' % (self._done, command, skip.group(1)))
+          'ok %i %s # skip %s' % (self._done, command, skip.group(1)))
       else:
-        status_line = 'ok %i - %s' % (self._done, command)
+        status_line = 'ok %i %s' % (self._done, command)
         if FLAKY in output.test.outcomes:
           status_line = status_line + ' # TODO : Fix flaky test'
         logger.info(status_line)
@@ -1418,7 +1422,7 @@ def Main():
   logger.addHandler(ch)
   logger.setLevel(logging.INFO)
   if options.logfile:
-    fh = logging.FileHandler(options.logfile)
+    fh = logging.FileHandler(options.logfile, mode='wb')
     logger.addHandler(fh)
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))

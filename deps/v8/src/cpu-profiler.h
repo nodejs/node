@@ -11,7 +11,7 @@
 #include "src/circular-queue.h"
 #include "src/compiler.h"
 #include "src/sampler.h"
-#include "src/unbound-queue-inl.h"
+#include "src/unbound-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -129,7 +129,7 @@ class ProfilerEventsProcessor : public base::Thread {
   ProfilerEventsProcessor(ProfileGenerator* generator,
                           Sampler* sampler,
                           base::TimeDelta period);
-  virtual ~ProfilerEventsProcessor() {}
+  virtual ~ProfilerEventsProcessor();
 
   // Thread control.
   virtual void Run();

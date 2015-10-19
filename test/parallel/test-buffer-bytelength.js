@@ -5,9 +5,9 @@ var assert = require('assert');
 var Buffer = require('buffer').Buffer;
 
 // coerce values to string
-assert.equal(Buffer.byteLength(32, 'raw'), 2);
+assert.equal(Buffer.byteLength(32, 'binary'), 2);
 assert.equal(Buffer.byteLength(NaN, 'utf8'), 3);
-assert.equal(Buffer.byteLength({}, 'raws'), 15);
+assert.equal(Buffer.byteLength({}, 'binary'), 15);
 assert.equal(Buffer.byteLength(), 9);
 
 // special case: zero length string

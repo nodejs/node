@@ -48,7 +48,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
 
  protected:
   virtual HValue* BuildCodeStub() = 0;
-  int GetParameterCount() const {
+  int GetParameterCount() const { return descriptor_.GetParameterCount(); }
+  int GetRegisterParameterCount() const {
     return descriptor_.GetRegisterParameterCount();
   }
   HParameter* GetParameter(int parameter) {
@@ -118,7 +119,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HValue* BuildArrayNArgumentsConstructor(JSArrayBuilder* builder,
                                           ElementsKind kind);
 
-  SmartArrayPointer<HParameter*> parameters_;
+  base::SmartArrayPointer<HParameter*> parameters_;
   HValue* arguments_length_;
   CompilationInfo* info_;
   CodeStubDescriptor descriptor_;
@@ -138,6 +139,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   }
 
   int param_count = GetParameterCount();
+  int register_param_count = GetRegisterParameterCount();
   HEnvironment* start_environment = graph()->start_environment();
   HBasicBlock* next_block = CreateBasicBlock(start_environment);
   Goto(next_block);
@@ -148,11 +150,16 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
     Representation r = GetParameterRepresentation(i);
-    HParameter* param = Add<HParameter>(i,
-                                        HParameter::REGISTER_PARAMETER, r);
+    HParameter* param;
+    if (i >= register_param_count) {
+      param = Add<HParameter>(i - register_param_count,
+                              HParameter::STACK_PARAMETER, r);
+    } else {
+      param = Add<HParameter>(i, HParameter::REGISTER_PARAMETER, r);
+    }
     start_environment->Bind(i, param);
     parameters_[i] = param;
-    if (IsParameterCountRegister(i)) {
+    if (i < register_param_count && IsParameterCountRegister(i)) {
       param->set_type(HType::Smi());
       stack_parameter_count = param;
       arguments_length_ = stack_parameter_count;
@@ -161,7 +168,9 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 
   DCHECK(!runtime_stack_params || arguments_length_ != NULL);
   if (!runtime_stack_params) {
-    stack_parameter_count = graph()->GetConstantMinus1();
+    stack_parameter_count =
+        Add<HConstant>(param_count - register_param_count - 1);
+    // graph()->GetConstantMinus1();
     arguments_length_ = graph()->GetConstant0();
   }
 
@@ -313,7 +322,6 @@ Handle<Code> NumberToStringStub::GenerateCode() {
 
 
 // Returns the type string of a value; see ECMA-262, 11.4.3 (p 47).
-// Possible optimizations: put the type string into the oddballs.
 template <>
 HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
@@ -332,7 +340,6 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
     { Push(number_string); }
     is_number.Else();
     {
-      HConstant* undefined_string = Add<HConstant>(factory->undefined_string());
       HValue* map = AddLoadMap(object, smi_check);
       HValue* instance_type = Add<HLoadNamedField>(
           map, nullptr, HObjectAccess::ForMapInstanceType());
@@ -349,24 +356,8 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
             instance_type, Add<HConstant>(ODDBALL_TYPE), Token::EQ);
         is_oddball.Then();
         {
-          IfBuilder is_true_or_false(this);
-          is_true_or_false.If<HCompareObjectEqAndBranch>(
-              object, graph()->GetConstantTrue());
-          is_true_or_false.OrIf<HCompareObjectEqAndBranch>(
-              object, graph()->GetConstantFalse());
-          is_true_or_false.Then();
-          { Push(Add<HConstant>(factory->boolean_string())); }
-          is_true_or_false.Else();
-          {
-            IfBuilder is_null(this);
-            is_null.If<HCompareObjectEqAndBranch>(object,
-                                                  graph()->GetConstantNull());
-            is_null.Then();
-            { Push(object_string); }
-            is_null.Else();
-            { Push(undefined_string); }
-          }
-          is_true_or_false.End();
+          Push(Add<HLoadNamedField>(object, nullptr,
+                                    HObjectAccess::ForOddballTypeOf()));
         }
         is_oddball.Else();
         {
@@ -389,13 +380,22 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
             { Push(Add<HConstant>(factory->function_string())); }
             is_function.Else();
             {
+#define SIMD128_BUILDER_OPEN(TYPE, Type, type, lane_count, lane_type) \
+  IfBuilder is_##type(this);                                          \
+  is_##type.If<HCompareObjectEqAndBranch>(                            \
+      map, Add<HConstant>(factory->type##_map()));                    \
+  is_##type.Then();                                                   \
+  { Push(Add<HConstant>(factory->type##_string())); }                 \
+  is_##type.Else(); {
+              SIMD128_TYPES(SIMD128_BUILDER_OPEN)
+#undef SIMD128_BUILDER_OPEN
               // Is it an undetectable object?
               IfBuilder is_undetectable(this);
               is_undetectable.If<HIsUndetectableAndBranch>(object);
               is_undetectable.Then();
               {
                 // typeof an undetectable object is 'undefined'.
-                Push(undefined_string);
+                Push(Add<HConstant>(factory->undefined_string()));
               }
               is_undetectable.Else();
               {
@@ -403,6 +403,9 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
                 // host objects gives that it is okay to return "object".
                 Push(object_string);
               }
+#define SIMD128_BUILDER_CLOSE(TYPE, Type, type, lane_count, lane_type) }
+              SIMD128_TYPES(SIMD128_BUILDER_CLOSE)
+#undef SIMD128_BUILDER_CLOSE
             }
             is_function.End();
           }
@@ -1605,12 +1608,12 @@ Handle<Code> StoreGlobalStub::GenerateCode() {
 }
 
 
-template<>
+template <>
 HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
-  HValue* value = GetParameter(ElementsTransitionAndStoreStub::kValueIndex);
-  HValue* map = GetParameter(ElementsTransitionAndStoreStub::kMapIndex);
-  HValue* key = GetParameter(ElementsTransitionAndStoreStub::kKeyIndex);
-  HValue* object = GetParameter(ElementsTransitionAndStoreStub::kObjectIndex);
+  HValue* object = GetParameter(StoreTransitionDescriptor::kReceiverIndex);
+  HValue* key = GetParameter(StoreTransitionDescriptor::kNameIndex);
+  HValue* value = GetParameter(StoreTransitionDescriptor::kValueIndex);
+  HValue* map = GetParameter(StoreTransitionDescriptor::kMapIndex);
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
@@ -1638,6 +1641,16 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
   return DoGenerateCode(this);
 }
+
+
+template <>
+HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(ToObjectDescriptor::kReceiverIndex);
+  return BuildToObject(receiver);
+}
+
+
+Handle<Code> ToObjectStub::GenerateCode() { return DoGenerateCode(this); }
 
 
 void CodeStubGraphBuilderBase::BuildCheckAndInstallOptimizedCode(
@@ -1743,71 +1756,59 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
   is_optimized.Else();
   {
     AddIncrementCounter(counters->fast_new_closure_try_optimized());
-    // optimized_map points to fixed array of 3-element entries
-    // (native context, optimized code, literals).
-    // Map must never be empty, so check the first elements.
+    // The {optimized_map} points to fixed array of 4-element entries:
+    //   (native context, optimized code, literals, ast-id).
+    // Iterate through the {optimized_map} backwards. After the loop, if no
+    // matching optimized code was found, install unoptimized code.
+    //   for(i = map.length() - SharedFunctionInfo::kEntryLength;
+    //       i >= SharedFunctionInfo::kEntriesStart;
+    //       i -= SharedFunctionInfo::kEntryLength) { ... }
     HValue* first_entry_index =
         Add<HConstant>(SharedFunctionInfo::kEntriesStart);
-    IfBuilder already_in(this);
-    BuildCheckAndInstallOptimizedCode(js_function, native_context, &already_in,
-                                      optimized_map, first_entry_index);
-    already_in.Else();
+    HValue* shared_function_entry_length =
+        Add<HConstant>(SharedFunctionInfo::kEntryLength);
+    LoopBuilder loop_builder(this, context(), LoopBuilder::kPostDecrement,
+                             shared_function_entry_length);
+    HValue* array_length = Add<HLoadNamedField>(
+        optimized_map, nullptr, HObjectAccess::ForFixedArrayLength());
+    HValue* start_pos =
+        AddUncasted<HSub>(array_length, shared_function_entry_length);
+    HValue* slot_iterator =
+        loop_builder.BeginBody(start_pos, first_entry_index, Token::GTE);
     {
-      // Iterate through the rest of map backwards. Do not double check first
-      // entry. After the loop, if no matching optimized code was found,
-      // install unoptimized code.
-      // for(i = map.length() - SharedFunctionInfo::kEntryLength;
-      //     i > SharedFunctionInfo::kEntriesStart;
-      //     i -= SharedFunctionInfo::kEntryLength) { .. }
-      HValue* shared_function_entry_length =
-          Add<HConstant>(SharedFunctionInfo::kEntryLength);
-      LoopBuilder loop_builder(this,
-                               context(),
-                               LoopBuilder::kPostDecrement,
-                               shared_function_entry_length);
-      HValue* array_length = Add<HLoadNamedField>(
-          optimized_map, nullptr, HObjectAccess::ForFixedArrayLength());
-      HValue* start_pos = AddUncasted<HSub>(array_length,
-                                            shared_function_entry_length);
-      HValue* slot_iterator = loop_builder.BeginBody(start_pos,
-                                                     first_entry_index,
-                                                     Token::GT);
-      {
-        IfBuilder done_check(this);
-        BuildCheckAndInstallOptimizedCode(js_function, native_context,
-                                          &done_check,
-                                          optimized_map,
-                                          slot_iterator);
-        // Fall out of the loop
-        loop_builder.Break();
-      }
-      loop_builder.EndBody();
+      IfBuilder done_check(this);
+      BuildCheckAndInstallOptimizedCode(js_function, native_context,
+                                        &done_check, optimized_map,
+                                        slot_iterator);
+      // Fall out of the loop
+      loop_builder.Break();
+    }
+    loop_builder.EndBody();
 
-      // If slot_iterator equals first entry index, then we failed to find a
-      // context-dependent code and try context-independent code next.
-      IfBuilder no_optimized_code_check(this);
-      no_optimized_code_check.If<HCompareNumericAndBranch>(
-          slot_iterator, first_entry_index, Token::EQ);
-      no_optimized_code_check.Then();
+    // If {slot_iterator} is less than the first entry index, then we failed to
+    // find a context-dependent code and try context-independent code next.
+    IfBuilder no_optimized_code_check(this);
+    no_optimized_code_check.If<HCompareNumericAndBranch>(
+        slot_iterator, first_entry_index, Token::LT);
+    no_optimized_code_check.Then();
+    {
+      IfBuilder shared_code_check(this);
+      HValue* shared_code =
+          Add<HLoadNamedField>(optimized_map, nullptr,
+                               HObjectAccess::ForOptimizedCodeMapSharedCode());
+      shared_code_check.IfNot<HCompareObjectEqAndBranch>(
+          shared_code, graph()->GetConstantUndefined());
+      shared_code_check.Then();
       {
-        IfBuilder shared_code_check(this);
-        HValue* shared_code = Add<HLoadNamedField>(
-            optimized_map, nullptr,
-            HObjectAccess::ForOptimizedCodeMapSharedCode());
-        shared_code_check.IfNot<HCompareObjectEqAndBranch>(
-            shared_code, graph()->GetConstantUndefined());
-        shared_code_check.Then();
-        {
-          // Store the context-independent optimized code.
-          HValue* literals = Add<HConstant>(factory->empty_fixed_array());
-          BuildInstallOptimizedCode(js_function, native_context, shared_code,
-                                    literals);
-        }
-        shared_code_check.Else();
-        {
-          // Store the unoptimized code.
-          BuildInstallCode(js_function, shared_info);
-        }
+        // Store the context-independent optimized code.
+        HValue* literals = Add<HConstant>(factory->empty_fixed_array());
+        BuildInstallOptimizedCode(js_function, native_context, shared_code,
+                                  literals);
+      }
+      shared_code_check.Else();
+      {
+        // Store the unoptimized code.
+        BuildInstallCode(js_function, shared_info);
       }
     }
   }
@@ -1982,13 +1983,6 @@ class CodeStubGraphBuilder<KeyedLoadGenericStub>
                             HValue* bit_field2,
                             ElementsKind kind);
 
-  void BuildExternalElementLoad(HGraphBuilder::IfBuilder* if_builder,
-                                HValue* receiver,
-                                HValue* key,
-                                HValue* instance_type,
-                                HValue* bit_field2,
-                                ElementsKind kind);
-
   KeyedLoadGenericStub* casted_stub() {
     return static_cast<KeyedLoadGenericStub*>(stub());
   }
@@ -2010,8 +2004,6 @@ void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildElementsKindLimitCheck(
 void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
     HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
     HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
-  DCHECK(!IsExternalArrayElementsKind(kind));
-
   BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
 
   IfBuilder js_array_check(this);
@@ -2028,20 +2020,6 @@ void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
                                               LOAD, NEVER_RETURN_HOLE,
                                               STANDARD_STORE));
   js_array_check.End();
-}
-
-
-void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildExternalElementLoad(
-    HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
-    HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
-  DCHECK(IsExternalArrayElementsKind(kind));
-
-  BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
-
-  Push(BuildUncheckedMonomorphicElementAccess(receiver, key, NULL,
-                                              false, kind,
-                                              LOAD, NEVER_RETURN_HOLE,
-                                              STANDARD_STORE));
 }
 
 
@@ -2105,42 +2083,6 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
     Add<HDeoptimize>(Deoptimizer::kNonStrictElementsInKeyedLoadGenericStub,
                      Deoptimizer::EAGER);
     Push(graph()->GetConstant0());
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_INT8_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_UINT8_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_INT16_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_UINT16_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_INT32_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_UINT32_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_FLOAT32_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_FLOAT64_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_UINT8_CLAMPED_ELEMENTS);
 
     kind_if.ElseDeopt(
         Deoptimizer::kElementsKindUnhandledInKeyedLoadGenericStub);
@@ -2229,7 +2171,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
             index->ClearFlag(HValue::kCanOverflow);
             HValue* property_index =
                 Add<HLoadKeyed>(cache_field_offsets, index, nullptr,
-                                EXTERNAL_INT32_ELEMENTS, NEVER_RETURN_HOLE, 0);
+                                INT32_ELEMENTS, NEVER_RETURN_HOLE, 0);
             Push(property_index);
           }
           lookup_if->Else();

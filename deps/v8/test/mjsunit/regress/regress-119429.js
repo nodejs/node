@@ -30,7 +30,7 @@
 var d = 0;
 function recurse() {
   if (++d == 25135) { // A magic number just below stack overflow  on ia32
-    %DebugBreak();
+    %HandleDebuggerStatement();
   }
   recurse();
 }

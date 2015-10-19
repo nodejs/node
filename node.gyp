@@ -17,7 +17,6 @@
       'src/node.js',
       'lib/_debug_agent.js',
       'lib/_debugger.js',
-      'lib/_linklist.js',
       'lib/assert.js',
       'lib/buffer.js',
       'lib/child_process.js',
@@ -39,6 +38,7 @@
       'lib/_http_outgoing.js',
       'lib/_http_server.js',
       'lib/https.js',
+      'lib/_linklist.js',
       'lib/module.js',
       'lib/net.js',
       'lib/os.js',
@@ -70,9 +70,12 @@
       'lib/zlib.js',
       'lib/internal/child_process.js',
       'lib/internal/freelist.js',
-      'lib/internal/socket_list.js',
+      'lib/internal/linkedlist.js',
+      'lib/internal/module.js',
       'lib/internal/repl.js',
+      'lib/internal/socket_list.js',
       'lib/internal/util.js',
+      'lib/internal/streams/lazy_transform.js',
     ],
   },
 
@@ -113,6 +116,7 @@
         'src/node_javascript.cc',
         'src/node_main.cc',
         'src/node_os.cc',
+        'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_stat_watcher.cc',
         'src/node_watchdog.cc',
@@ -166,6 +170,7 @@
         'src/util.h',
         'src/util-inl.h',
         'src/util.cc',
+        'src/string_search.cc',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',
@@ -227,6 +232,9 @@
             'src/tls_wrap.h'
           ],
           'conditions': [
+            ['openssl_fips != ""', {
+              'defines': [ 'NODE_FIPS_MODE' ],
+            }],
             [ 'node_shared_openssl=="false"', {
               'dependencies': [
                 './deps/openssl/openssl.gyp:openssl',
@@ -387,6 +395,11 @@
           'libraries': [
             '-lutil',
             '-lkvm',
+          ],
+        }],
+        [ 'OS=="aix"', {
+          'defines': [
+            '_LINUX_SOURCE_COMPAT',
           ],
         }],
         [ 'OS=="solaris"', {

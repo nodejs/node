@@ -32,8 +32,14 @@ Data types
 
     Callback called when data was read on a stream.
 
-    `nread` is > 0 if there is data available, 0 if libuv is done reading for
-    now, or < 0 on error.
+    `nread` is > 0 if there is data available or < 0 on error. When we've
+    reached EOF, `nread` will be set to ``UV_EOF``. When `nread` < 0,
+    the `buf` parameter might not point to a valid buffer; in that case
+    `buf.len` and `buf.base` are both set to 0.
+
+    .. note::
+        `nread` might be 0, which does *not* indicate an error or EOF. This
+        is equivalent to ``EAGAIN`` or ``EWOULDBLOCK`` under ``read(2)``.
 
     The callee is responsible for stopping closing the stream when an error happens
     by calling :c:func:`uv_read_stop` or :c:func:`uv_close`. Trying to read
@@ -125,17 +131,9 @@ API
 
 .. c:function:: int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
 
-    Read data from an incoming stream. The callback will be made several
-    times until there is no more data to read or :c:func:`uv_read_stop` is called.
-    When we've reached EOF `nread` will be set to ``UV_EOF``.
-
-    When `nread` < 0, the `buf` parameter might not point to a valid buffer;
-    in that case `buf.len` and `buf.base` are both set to 0.
-
-    .. note::
-        `nread` might also be 0, which does *not* indicate an error or EOF, it happens when
-        libuv requested a buffer through the alloc callback but then decided that it didn't
-        need that buffer.
+    Read data from an incoming stream. The :c:type:`uv_read_cb` callback will
+    be made several times until there is no more data to read or
+    :c:func:`uv_read_stop` is called.
 
 .. c:function:: int uv_read_stop(uv_stream_t*)
 

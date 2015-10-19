@@ -711,7 +711,7 @@ TEST(DontLeakContextOnObserve) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(2);
 }
 
 
@@ -732,7 +732,7 @@ TEST(DontLeakContextOnGetNotifier) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(2);
 }
 
 
@@ -759,7 +759,7 @@ TEST(DontLeakContextOnNotifierPerformChange) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(2);
 }
 
 
@@ -884,4 +884,40 @@ TEST(UseCountObjectGetNotifier) {
   CompileRun("var obj = {}");
   CompileRun("Object.getNotifier(obj)");
   CHECK_EQ(1, use_counts[v8::Isolate::kObjectObserve]);
+}
+
+
+static bool NamedAccessCheckAlwaysAllow(Local<v8::Object> global,
+                                        Local<v8::Value> name,
+                                        v8::AccessType type,
+                                        Local<Value> data) {
+  return true;
+}
+
+
+TEST(DisallowObserveAccessCheckedObject) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCheckAlwaysAllow, NULL);
+  env->Global()->Set(v8_str("obj"), object_template->NewInstance());
+  v8::TryCatch try_catch(isolate);
+  CompileRun("Object.observe(obj, function(){})");
+  CHECK(try_catch.HasCaught());
+}
+
+
+TEST(DisallowGetNotifierAccessCheckedObject) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCheckAlwaysAllow, NULL);
+  env->Global()->Set(v8_str("obj"), object_template->NewInstance());
+  v8::TryCatch try_catch(isolate);
+  CompileRun("Object.getNotifier(obj)");
+  CHECK(try_catch.HasCaught());
 }

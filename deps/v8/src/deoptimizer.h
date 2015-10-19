@@ -5,8 +5,6 @@
 #ifndef V8_DEOPTIMIZER_H_
 #define V8_DEOPTIMIZER_H_
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/macro-assembler.h"
 
@@ -278,8 +276,6 @@ class TranslatedState {
   Handle<Object> MaterializeObjectAt(int object_index);
   bool GetAdaptedArguments(Handle<JSObject>* result, int frame_index);
 
-  static int SlotOffsetFp(int slot_index);
-  static Address SlotAddress(Address fp, int slot_index);
   static uint32_t GetUInt32Slot(Address fp, int slot_index);
 
   std::vector<TranslatedFrame> frames_;
@@ -385,7 +381,8 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kValueMismatch, "value mismatch")                                          \
   V(kWrongInstanceType, "wrong instance type")                                 \
   V(kWrongMap, "wrong map")                                                    \
-  V(kUndefinedOrNullInForIn, "null or undefined in for-in")
+  V(kUndefinedOrNullInForIn, "null or undefined in for-in")                    \
+  V(kUndefinedOrNullInToObject, "null or undefined in ToObject")
 
 
 class Deoptimizer : public Malloced {
@@ -615,7 +612,7 @@ class Deoptimizer : public Malloced {
   unsigned ComputeFixedSize(JSFunction* function) const;
 
   unsigned ComputeIncomingArgumentSize(JSFunction* function) const;
-  unsigned ComputeOutgoingArgumentSize() const;
+  static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
 
   Object* ComputeLiteral(int index) const;
 

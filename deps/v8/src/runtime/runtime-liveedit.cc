@@ -2,42 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/debug.h"
-#include "src/liveedit.h"
+#include "src/debug/debug.h"
+#include "src/debug/debug-frames.h"
+#include "src/debug/liveedit.h"
+#include "src/frames-inl.h"
 #include "src/runtime/runtime.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
-
-
-static int FindSharedFunctionInfosForScript(HeapIterator* iterator,
-                                            Script* script,
-                                            FixedArray* buffer) {
-  DisallowHeapAllocation no_allocation;
-  int counter = 0;
-  int buffer_size = buffer->length();
-  for (HeapObject* obj = iterator->next(); obj != NULL;
-       obj = iterator->next()) {
-    DCHECK(obj != NULL);
-    if (!obj->IsSharedFunctionInfo()) {
-      continue;
-    }
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-    if (shared->script() != script) {
-      continue;
-    }
-    if (counter < buffer_size) {
-      buffer->set(counter, shared);
-    }
-    counter++;
-  }
-  return counter;
-}
-
 
 // For a script finds all SharedFunctionInfo's in the heap that points
 // to this script. Returns JSArray of SharedFunctionInfo wrapped
@@ -51,32 +26,29 @@ RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
   RUNTIME_ASSERT(script_value->value()->IsScript());
   Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
 
-  const int kBufferSize = 32;
-
-  Handle<FixedArray> array;
-  array = isolate->factory()->NewFixedArray(kBufferSize);
-  int number;
+  List<Handle<SharedFunctionInfo> > found;
   Heap* heap = isolate->heap();
   {
-    HeapIterator heap_iterator(heap);
-    Script* scr = *script;
-    FixedArray* arr = *array;
-    number = FindSharedFunctionInfosForScript(&heap_iterator, scr, arr);
-  }
-  if (number > kBufferSize) {
-    array = isolate->factory()->NewFixedArray(number);
-    HeapIterator heap_iterator(heap);
-    Script* scr = *script;
-    FixedArray* arr = *array;
-    FindSharedFunctionInfosForScript(&heap_iterator, scr, arr);
+    HeapIterator iterator(heap);
+    HeapObject* heap_obj;
+    while ((heap_obj = iterator.next())) {
+      if (!heap_obj->IsSharedFunctionInfo()) continue;
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(heap_obj);
+      if (shared->script() != *script) continue;
+      found.Add(Handle<SharedFunctionInfo>(shared));
+    }
   }
 
-  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(array);
-  result->set_length(Smi::FromInt(number));
-
-  LiveEdit::WrapSharedFunctionInfos(result);
-
-  return *result;
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(found.length());
+  for (int i = 0; i < found.length(); ++i) {
+    Handle<SharedFunctionInfo> shared = found[i];
+    SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create(isolate);
+    Handle<String> name(String::cast(shared->name()));
+    info_wrapper.SetProperties(name, shared->start_position(),
+                               shared->end_position(), shared);
+    result->set(i, *info_wrapper.GetJSArray());
+  }
+  return *isolate->factory()->NewJSArrayWithElements(result);
 }
 
 
@@ -280,7 +252,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
   }
 
   JavaScriptFrameIterator it(isolate, id);
-  int inlined_jsframe_index = Runtime::FindIndexedNonNativeFrame(&it, index);
+  int inlined_jsframe_index =
+      DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
   if (inlined_jsframe_index == -1) return heap->undefined_value();
   // We don't really care what the inlined frame index is, since we are
   // throwing away the entire frame anyways.

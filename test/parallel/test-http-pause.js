@@ -9,17 +9,17 @@ var expectedClient = 'Response Body from Server';
 var resultClient = '';
 
 var server = http.createServer(function(req, res) {
-  common.debug('pause server request');
+  console.error('pause server request');
   req.pause();
   setTimeout(function() {
-    common.debug('resume server request');
+    console.error('resume server request');
     req.resume();
     req.setEncoding('utf8');
     req.on('data', function(chunk) {
       resultServer += chunk;
     });
     req.on('end', function() {
-      common.debug(resultServer);
+      console.error(resultServer);
       res.writeHead(200);
       res.end(expectedClient);
     });
@@ -32,16 +32,16 @@ server.listen(common.PORT, function() {
     path: '/',
     method: 'POST'
   }, function(res) {
-    common.debug('pause client response');
+    console.error('pause client response');
     res.pause();
     setTimeout(function() {
-      common.debug('resume client response');
+      console.error('resume client response');
       res.resume();
       res.on('data', function(chunk) {
         resultClient += chunk;
       });
       res.on('end', function() {
-        common.debug(resultClient);
+        console.error(resultClient);
         server.close();
       });
     }, 100);

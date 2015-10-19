@@ -93,7 +93,9 @@ more info.</p>
 no <code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code> file, then npm will
 ignore the stuff matched by the <code>.gitignore</code> file.  If you <em>want</em> to
 include something that is excluded by your <code>.gitignore</code> file, you can
-create an empty <code>.npmignore</code> file to override it.</p>
+create an empty <code>.npmignore</code> file to override it. Like <code>git</code>, <code>npm</code> looks
+for <code>.npmignore</code> and <code>.gitignore</code> files in all subdirectories of your
+package, not only the root directory.</p>
 <p><code>.npmignore</code> files follow the <a href="http://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files">same pattern rules</a>
 as <code>.gitignore</code> files:</p>
 <ul>
@@ -193,5 +195,5 @@ from a fresh checkout.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-developers &mdash; npm@2.14.2</p>
+<p id="footer">npm-developers &mdash; npm@2.14.7</p>
 

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/ic/access-compiler.h"
@@ -33,7 +31,7 @@ Register* PropertyAccessCompiler::store_calling_convention() {
   // receiver, name, scratch1, scratch2, scratch3.
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
-  DCHECK(a3.is(ElementTransitionAndStoreDescriptor::MapRegister()));
+  DCHECK(a3.is(StoreTransitionDescriptor::MapRegister()));
   static Register registers[] = {receiver, name, a3, a4, a5};
   return registers;
 }

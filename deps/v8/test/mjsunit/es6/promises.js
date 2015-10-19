@@ -29,7 +29,6 @@
 
 // Make sure we don't rely on functions patchable by monkeys.
 var call = Function.prototype.call.call.bind(Function.prototype.call)
-var observe = Object.observe;
 var getOwnPropertyNames = Object.getOwnPropertyNames;
 var defineProperty = Object.defineProperty;
 var numberPrototype = Number.prototype;
@@ -87,19 +86,15 @@ function assertAsync(b, s) {
 }
 
 function assertAsyncDone(iteration) {
-  var iteration = iteration || 0
-  var dummy = {}
-  observe(dummy,
-    function() {
-      if (asyncAssertsExpected === 0)
-        assertAsync(true, "all")
-      else if (iteration > 10)  // Shouldn't take more.
-        assertAsync(false, "all")
-      else
-        assertAsyncDone(iteration + 1)
-    }
-  )
-  dummy.dummy = dummy
+  var iteration = iteration || 0;
+  %EnqueueMicrotask(function() {
+    if (asyncAssertsExpected === 0)
+      assertAsync(true, "all")
+    else if (iteration > 10)  // Shouldn't take more.
+      assertAsync(false, "all")
+    else
+      assertAsyncDone(iteration + 1)
+  });
 }
 
 

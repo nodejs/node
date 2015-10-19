@@ -5,8 +5,6 @@
 #ifndef V8_X64_LITHIUM_GAP_RESOLVER_X64_H_
 #define V8_X64_LITHIUM_GAP_RESOLVER_X64_H_
 
-#include "src/v8.h"
-
 #include "src/lithium.h"
 
 namespace v8 {

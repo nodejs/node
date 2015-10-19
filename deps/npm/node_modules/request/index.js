@@ -105,6 +105,8 @@ function wrapRequestMethod (method, options, requester, verb) {
 request.defaults = function (options, requester) {
   var self = this
 
+  options = options || {}
+
   if (typeof options === 'function') {
     requester = options
     options = {}

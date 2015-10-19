@@ -30,7 +30,7 @@
 
 #include "src/v8.h"
 
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
@@ -98,7 +98,7 @@ if (failure) { \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, progcounter + 4 + (offset << 2));                 \
+             compare_string, progcounter + 4 + (offset * 4));                  \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
@@ -110,7 +110,7 @@ if (failure) { \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
     snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, progcounter + (offset << 2));                     \
+             compare_string, progcounter + (offset * 4));                      \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
@@ -121,13 +121,22 @@ if (failure) { \
     int pc_offset = assm.pc_offset();                                          \
     byte *progcounter = &buffer[pc_offset];                                    \
     char str_with_address[100];                                                \
-    int instr_index = target >> 2;                                             \
-    snprintf(str_with_address, sizeof(str_with_address), "%s -> %p",           \
-             compare_string, reinterpret_cast<byte *>(                         \
-                                 ((uint32_t)(progcounter + 1) & ~0xfffffff) |  \
+    int instr_index = (target >> 2) & kImm26Mask;                              \
+    snprintf(                                                                  \
+        str_with_address, sizeof(str_with_address), "%s %p -> %p",             \
+        compare_string, reinterpret_cast<byte *>(target),                      \
+        reinterpret_cast<byte *>(((uint32_t)(progcounter + 4) & ~0xfffffff) |  \
                                  (instr_index << 2)));                         \
     assm.asm_;                                                                 \
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
+  }
+
+
+#define GET_PC_REGION(pc_region)                                         \
+  {                                                                      \
+    int pc_offset = assm.pc_offset();                                    \
+    byte *progcounter = &buffer[pc_offset];                              \
+    pc_region = reinterpret_cast<int32_t>(progcounter + 4) & ~0xfffffff; \
   }
 
 
@@ -466,12 +475,18 @@ TEST(Type0) {
   COMPARE_PC_REL_COMPACT(bgtz(a0, 32767), "1c807fff       bgtz    a0, 32767",
                          32767);
 
-  COMPARE_PC_JUMP(j(0x4), "08000001       j       0x4", 0x4);
-  COMPARE_PC_JUMP(j(0xffffffc), "0bffffff       j       0xffffffc", 0xffffffc);
+  int32_t pc_region;
+  GET_PC_REGION(pc_region);
 
-  COMPARE_PC_JUMP(jal(0x4), "0c000001       jal     0x4", 0x4);
-  COMPARE_PC_JUMP(jal(0xffffffc), "0fffffff       jal     0xffffffc",
-                  0xffffffc);
+  int32_t target = pc_region | 0x4;
+  COMPARE_PC_JUMP(j(target), "08000001       j      ", target);
+  target = pc_region | 0xffffffc;
+  COMPARE_PC_JUMP(j(target), "0bffffff       j      ", target);
+
+  target = pc_region | 0x4;
+  COMPARE_PC_JUMP(jal(target), "0c000001       jal    ", target);
+  target = pc_region | 0xffffffc;
+  COMPARE_PC_JUMP(jal(target), "0fffffff       jal    ", target);
 
   COMPARE(addiu(a0, a1, 0x0),
           "24a40000       addiu   a0, a1, 0");

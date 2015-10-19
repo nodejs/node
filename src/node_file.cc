@@ -273,8 +273,10 @@ struct fs_req_wrap {
     uv_req->result = err;                                                     \
     uv_req->path = nullptr;                                                   \
     After(uv_req);                                                            \
-  }                                                                           \
-  args.GetReturnValue().Set(req_wrap->persistent());
+    req_wrap = nullptr;                                                       \
+  } else {                                                                    \
+    args.GetReturnValue().Set(req_wrap->persistent());                        \
+  }
 
 #define ASYNC_CALL(func, req, ...)                                            \
   ASYNC_DEST_CALL(func, req, nullptr, __VA_ARGS__)                            \
@@ -907,6 +909,60 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+// Wrapper for writev(2).
+//
+// bytesWritten = writev(fd, chunks, position, callback)
+// 0 fd        integer. file descriptor
+// 1 chunks    array of buffers to write
+// 2 position  if integer, position to write at in the file.
+//             if null, write from the current position
+static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsArray());
+
+  int fd = args[0]->Int32Value();
+  Local<Array> chunks = args[1].As<Array>();
+  int64_t pos = GET_OFFSET(args[2]);
+  Local<Value> req = args[3];
+
+  uint32_t chunkCount = chunks->Length();
+
+  uv_buf_t s_iovs[1024];  // use stack allocation when possible
+  uv_buf_t* iovs;
+
+  if (chunkCount > ARRAY_SIZE(s_iovs))
+    iovs = new uv_buf_t[chunkCount];
+  else
+    iovs = s_iovs;
+
+  for (uint32_t i = 0; i < chunkCount; i++) {
+    Local<Value> chunk = chunks->Get(i);
+
+    if (!Buffer::HasInstance(chunk)) {
+      if (iovs != s_iovs)
+        delete[] iovs;
+      return env->ThrowTypeError("Array elements all need to be buffers");
+    }
+
+    iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
+  }
+
+  if (req->IsObject()) {
+    ASYNC_CALL(write, req, fd, iovs, chunkCount, pos)
+    if (iovs != s_iovs)
+      delete[] iovs;
+    return;
+  }
+
+  SYNC_CALL(write, nullptr, fd, iovs, chunkCount, pos)
+  if (iovs != s_iovs)
+    delete[] iovs;
+  args.GetReturnValue().Set(SYNC_RESULT);
+}
+
+
 // Wrapper for write(2).
 //
 // bytesWritten = write(fd, string, position, enc, callback)
@@ -974,6 +1030,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     uv_req->result = err;
     uv_req->path = nullptr;
     After(uv_req);
+    return;
   }
 
   return args.GetReturnValue().Set(req_wrap->persistent());
@@ -1248,6 +1305,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "readlink", ReadLink);
   env->SetMethod(target, "unlink", Unlink);
   env->SetMethod(target, "writeBuffer", WriteBuffer);
+  env->SetMethod(target, "writeBuffers", WriteBuffers);
   env->SetMethod(target, "writeString", WriteString);
 
   env->SetMethod(target, "chmod", Chmod);

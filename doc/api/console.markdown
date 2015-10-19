@@ -72,18 +72,18 @@ object. This is useful for inspecting large complicated objects. Defaults to
 - `colors` - if `true`, then the output will be styled with ANSI color codes.
 Defaults to `false`. Colors are customizable, see below.
 
-### console.time(label)
+### console.time(timerName)
 
-Used to calculate the duration of a specific operation. To start a timer, call
-the `console.time()` method, giving it a name as only parameter. To stop the
-timer, and to get the elapsed time in milliseconds, just call the
-[`console.timeEnd()`](#console_console_timeend_label) method, again passing the
-timer's name as the parameter.
+Starts a timer that can be used to compute the duration of an operation. Timers
+are identified by a unique name. Use the same name when you call
+[`console.timeEnd()`](#console_console_timeend_timername) to stop the timer and
+output the elapsed time in milliseconds. Timer durations are accurate to the
+sub-millisecond.
 
-### console.timeEnd(label)
+### console.timeEnd(timerName)
 
 Stops a timer that was previously started by calling
-[`console.time()`](#console_console_time_label) and print the result to the
+[`console.time()`](#console_console_time_timername) and prints the result to the
 console.
 
 Example:
@@ -93,7 +93,7 @@ Example:
       ;
     }
     console.timeEnd('100-elements');
-    // prints 100-elements: 262ms
+    // prints 100-elements: 225.438ms
 
 ### console.trace(message[, ...])
 

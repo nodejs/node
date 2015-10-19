@@ -1440,8 +1440,8 @@ var transform = new stream.Transform({
 <!--type=misc-->
 
 Both Writable and Readable streams will buffer data on an internal
-object called `_writableState.buffer` or `_readableState.buffer`,
-respectively.
+object which can be retrieved from `_writableState.getBuffer()` or 
+`_readableState.buffer`, respectively.
 
 The amount of data that will potentially be buffered depends on the
 `highWaterMark` option which is passed into the constructor.

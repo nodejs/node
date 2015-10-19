@@ -139,17 +139,17 @@ class PerfTest(unittest.TestCase):
     all_args += args
     return run_perf.Main(all_args)
 
-  def _LoadResults(self):
-    with open(self._test_output) as f:
+  def _LoadResults(self, file_name=None):
+    with open(file_name or self._test_output) as f:
       return json.load(f)
 
-  def _VerifyResults(self, suite, units, traces):
+  def _VerifyResults(self, suite, units, traces, file_name=None):
     self.assertEquals([
       {"units": units,
        "graphs": [suite, trace["name"]],
        "results": trace["results"],
        "stddev": trace["stddev"]} for trace in traces],
-      self._LoadResults()["traces"])
+      self._LoadResults(file_name)["traces"])
 
   def _VerifyErrors(self, errors):
     self.assertEquals(errors, self._LoadResults()["errors"])
@@ -402,17 +402,56 @@ class PerfTest(unittest.TestCase):
   # require lots of complicated mocks for the android tools.
   def testAndroid(self):
     self._WriteTestInput(V8_JSON)
-    platform = run_perf.Platform
+    # FIXME(machenbach): This is not test-local!
+    platform = run_perf.AndroidPlatform
     platform.PreExecution = MagicMock(return_value=None)
     platform.PostExecution = MagicMock(return_value=None)
     platform.PreTests = MagicMock(return_value=None)
     platform.Run = MagicMock(
-        return_value="Richards: 1.234\nDeltaBlue: 10657567\n")
+        return_value=("Richards: 1.234\nDeltaBlue: 10657567\n", None))
     run_perf.AndroidPlatform = MagicMock(return_value=platform)
     self.assertEquals(
         0, self._CallMain("--android-build-tools", "/some/dir",
-                          "--arch", "android_arm"))
+                          "--arch", "arm"))
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["1.234"], "stddev": ""},
       {"name": "DeltaBlue", "results": ["10657567.0"], "stddev": ""},
     ])
+
+  def testTwoRuns_Trybot(self):
+    test_input = dict(V8_JSON)
+    test_input["run_count"] = 2
+    self._WriteTestInput(test_input)
+    self._MockCommand([".", ".", ".", "."],
+                      ["Richards: 100\nDeltaBlue: 200\n",
+                       "Richards: 200\nDeltaBlue: 20\n",
+                       "Richards: 50\nDeltaBlue: 200\n",
+                       "Richards: 100\nDeltaBlue: 20\n"])
+    test_output_no_patch = path.join(TEST_WORKSPACE, "results_no_patch.json")
+    self.assertEquals(0, self._CallMain(
+        "--outdir-no-patch", "out-no-patch",
+        "--json-test-results-no-patch", test_output_no_patch,
+    ))
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": ["100.0", "200.0"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["20.0", "20.0"], "stddev": ""},
+    ])
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": ["50.0", "100.0"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["200.0", "200.0"], "stddev": ""},
+    ], test_output_no_patch)
+    self._VerifyErrors([])
+    self._VerifyMockMultiple(
+        (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out-no-patch", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
+        (path.join("out-no-patch", "x64.release", "d7"), "--flag", "run.js"),
+    )
+
+  def testUnzip(self):
+    def Gen():
+      for i in [1, 2, 3]:
+        yield i, i + 1
+    l, r = run_perf.Unzip(Gen())
+    self.assertEquals([1, 2, 3], list(l()))
+    self.assertEquals([2, 3, 4], list(r()))

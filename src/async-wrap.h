@@ -12,8 +12,6 @@ namespace node {
 
 #define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
   V(NONE)                                                                     \
-  V(CARES)                                                                    \
-  V(CONNECTWRAP)                                                              \
   V(CRYPTO)                                                                   \
   V(FSEVENTWRAP)                                                              \
   V(FSREQWRAP)                                                                \
@@ -21,17 +19,19 @@ namespace node {
   V(GETNAMEINFOREQWRAP)                                                       \
   V(JSSTREAM)                                                                 \
   V(PIPEWRAP)                                                                 \
+  V(PIPECONNECTWRAP)                                                          \
   V(PROCESSWRAP)                                                              \
   V(QUERYWRAP)                                                                \
-  V(REQWRAP)                                                                  \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \
   V(TCPWRAP)                                                                  \
+  V(TCPCONNECTWRAP)                                                           \
   V(TIMERWRAP)                                                                \
   V(TLSWRAP)                                                                  \
   V(TTYWRAP)                                                                  \
   V(UDPWRAP)                                                                  \
+  V(UDPSENDWRAP)                                                              \
   V(WRITEWRAP)                                                                \
   V(ZLIB)
 
@@ -70,7 +70,7 @@ class AsyncWrap : public BaseObject {
 
  private:
   inline AsyncWrap();
-  inline bool has_async_queue() const;
+  inline bool ran_init_callback() const;
 
   // When the async hooks init JS function is called from the constructor it is
   // expected the context object will receive a _asyncQueue object property

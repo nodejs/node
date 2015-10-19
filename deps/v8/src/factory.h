@@ -16,9 +16,8 @@ class FeedbackVectorSpec;
 // Interface for handle based allocation.
 class Factory final {
  public:
-  Handle<Oddball> NewOddball(Handle<Map> map,
-                             const char* to_string,
-                             Handle<Object> to_number,
+  Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
+                             Handle<Object> to_number, const char* type_of,
                              byte kind);
 
   // Allocates a fixed array initialized with undefined values.
@@ -283,10 +282,11 @@ class Factory final {
   Handle<ByteArray> NewByteArray(int length,
                                  PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<ExternalArray> NewExternalArray(
-      int length,
-      ExternalArrayType array_type,
-      void* external_pointer,
+  Handle<BytecodeArray> NewBytecodeArray(int length, const byte* raw_bytecodes,
+                                         int frame_size);
+
+  Handle<FixedTypedArrayBase> NewFixedTypedArrayWithExternalPointer(
+      int length, ExternalArrayType array_type, void* external_pointer,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<FixedTypedArrayBase> NewFixedTypedArray(
@@ -321,6 +321,10 @@ class Factory final {
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
 
+  Handle<FixedArray> CopyFixedArrayAndGrow(
+      Handle<FixedArray> array, int grow_by,
+      PretenureFlag pretenure = NOT_TENURED);
+
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   // This method expects a COW array in new space, and creates a copy
@@ -350,8 +354,12 @@ class Factory final {
   Handle<HeapNumber> NewHeapNumber(double value,
                                    MutableMode mode = IMMUTABLE,
                                    PretenureFlag pretenure = NOT_TENURED);
-  Handle<Float32x4> NewFloat32x4(float w, float x, float y, float z,
-                                 PretenureFlag pretenure = NOT_TENURED);
+
+#define SIMD128_NEW_DECL(TYPE, Type, type, lane_count, lane_type) \
+  Handle<Type> New##Type(lane_type lanes[lane_count],             \
+                         PretenureFlag pretenure = NOT_TENURED);
+  SIMD128_TYPES(SIMD128_NEW_DECL)
+#undef SIMD128_NEW_DECL
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.
@@ -379,7 +387,6 @@ class Factory final {
   Handle<JSObject> NewJSObjectFromMap(
       Handle<Map> map,
       PretenureFlag pretenure = NOT_TENURED,
-      bool allocate_properties = true,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
 
   // JS modules are pretenured.
@@ -531,52 +538,35 @@ class Factory final {
   Handle<Code> CopyCode(Handle<Code> code, Vector<byte> reloc_info);
 
   // Interface for creating error objects.
-
-  Handle<Object> NewError(const char* maker, const char* message,
-                          Handle<JSArray> args);
-  Handle<String> EmergencyNewError(const char* message, Handle<JSArray> args);
-
-  Handle<Object> NewError(const char* constructor, Handle<String> message);
+  Handle<Object> NewError(Handle<JSFunction> constructor,
+                          Handle<String> message);
 
   Handle<Object> NewInvalidStringLengthError() {
     return NewRangeError(MessageTemplate::kInvalidStringLength);
   }
 
-  Handle<Object> NewError(const char* maker,
+  Handle<Object> NewError(Handle<JSFunction> constructor,
                           MessageTemplate::Template template_index,
                           Handle<Object> arg0 = Handle<Object>(),
                           Handle<Object> arg1 = Handle<Object>(),
                           Handle<Object> arg2 = Handle<Object>());
 
-  Handle<Object> NewError(MessageTemplate::Template template_index,
-                          Handle<Object> arg0 = Handle<Object>(),
-                          Handle<Object> arg1 = Handle<Object>(),
-                          Handle<Object> arg2 = Handle<Object>());
+#define DEFINE_ERROR(NAME, name)                                              \
+  Handle<Object> New##NAME(MessageTemplate::Template template_index,          \
+                           Handle<Object> arg0 = Handle<Object>(),            \
+                           Handle<Object> arg1 = Handle<Object>(),            \
+                           Handle<Object> arg2 = Handle<Object>()) {          \
+    return NewError(isolate()->name##_function(), template_index, arg0, arg1, \
+                    arg2);                                                    \
+  }
 
-  Handle<Object> NewTypeError(MessageTemplate::Template template_index,
-                              Handle<Object> arg0 = Handle<Object>(),
-                              Handle<Object> arg1 = Handle<Object>(),
-                              Handle<Object> arg2 = Handle<Object>());
-
-  Handle<Object> NewSyntaxError(MessageTemplate::Template template_index,
-                                Handle<Object> arg0 = Handle<Object>(),
-                                Handle<Object> arg1 = Handle<Object>(),
-                                Handle<Object> arg2 = Handle<Object>());
-
-  Handle<Object> NewReferenceError(MessageTemplate::Template template_index,
-                                   Handle<Object> arg0 = Handle<Object>(),
-                                   Handle<Object> arg1 = Handle<Object>(),
-                                   Handle<Object> arg2 = Handle<Object>());
-
-  Handle<Object> NewRangeError(MessageTemplate::Template template_index,
-                               Handle<Object> arg0 = Handle<Object>(),
-                               Handle<Object> arg1 = Handle<Object>(),
-                               Handle<Object> arg2 = Handle<Object>());
-
-  Handle<Object> NewEvalError(MessageTemplate::Template template_index,
-                              Handle<Object> arg0 = Handle<Object>(),
-                              Handle<Object> arg1 = Handle<Object>(),
-                              Handle<Object> arg2 = Handle<Object>());
+  DEFINE_ERROR(Error, error)
+  DEFINE_ERROR(EvalError, eval_error)
+  DEFINE_ERROR(RangeError, range_error)
+  DEFINE_ERROR(ReferenceError, reference_error)
+  DEFINE_ERROR(SyntaxError, syntax_error)
+  DEFINE_ERROR(TypeError, type_error)
+#undef DEFINE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);

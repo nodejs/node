@@ -17,6 +17,7 @@
 #include <ostream>
 
 #if V8_OS_WIN
+#include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif
@@ -111,7 +112,7 @@ TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
 struct mach_timespec TimeDelta::ToMachTimespec() const {
   struct mach_timespec ts;
   DCHECK(delta_ >= 0);
-  ts.tv_sec = delta_ / Time::kMicrosecondsPerSecond;
+  ts.tv_sec = static_cast<unsigned>(delta_ / Time::kMicrosecondsPerSecond);
   ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
       Time::kNanosecondsPerMicrosecond;
   return ts;
@@ -434,36 +435,35 @@ class HighResolutionTickClock final : public TickClock {
 
 class RolloverProtectedTickClock final : public TickClock {
  public:
-  // We initialize rollover_ms_ to 1 to ensure that we will never
-  // return 0 from TimeTicks::HighResolutionNow() and TimeTicks::Now() below.
-  RolloverProtectedTickClock() : last_seen_now_(0), rollover_ms_(1) {}
+  RolloverProtectedTickClock() : rollover_(0) {}
   virtual ~RolloverProtectedTickClock() {}
 
   int64_t Now() override {
-    LockGuard<Mutex> lock_guard(&mutex_);
     // We use timeGetTime() to implement TimeTicks::Now(), which rolls over
     // every ~49.7 days. We try to track rollover ourselves, which works if
-    // TimeTicks::Now() is called at least every 49 days.
+    // TimeTicks::Now() is called at least every 24 days.
     // Note that we do not use GetTickCount() here, since timeGetTime() gives
     // more predictable delta values, as described here:
     // http://blogs.msdn.com/b/larryosterman/archive/2009/09/02/what-s-the-difference-between-gettickcount-and-timegettime.aspx
     // timeGetTime() provides 1ms granularity when combined with
     // timeBeginPeriod(). If the host application for V8 wants fast timers, it
     // can use timeBeginPeriod() to increase the resolution.
-    DWORD now = timeGetTime();
-    if (now < last_seen_now_) {
-      rollover_ms_ += V8_INT64_C(0x100000000);  // ~49.7 days.
+    // We use a lock-free version because the sampler thread calls it
+    // while having the rest of the world stopped, that could cause a deadlock.
+    base::Atomic32 rollover = base::Acquire_Load(&rollover_);
+    uint32_t now = static_cast<uint32_t>(timeGetTime());
+    if ((now >> 31) != static_cast<uint32_t>(rollover & 1)) {
+      base::Release_CompareAndSwap(&rollover_, rollover, rollover + 1);
+      ++rollover;
     }
-    last_seen_now_ = now;
-    return (now + rollover_ms_) * Time::kMicrosecondsPerMillisecond;
+    uint64_t ms = (static_cast<uint64_t>(rollover) << 31) | now;
+    return static_cast<int64_t>(ms * Time::kMicrosecondsPerMillisecond);
   }
 
   bool IsHighResolution() override { return false; }
 
  private:
-  Mutex mutex_;
-  DWORD last_seen_now_;
-  int64_t rollover_ms_;
+  base::Atomic32 rollover_;
 };
 
 

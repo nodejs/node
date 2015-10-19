@@ -27,8 +27,10 @@ proc.on('error', common.mustCall(function(err) {
   assert(err.code === 'EMFILE' || err.code === 'ENFILE');
 }));
 
-// 'exit' should not be emitted, the process was never spawned.
-proc.on('exit', assert.fail);
+proc.on('exit', function() {
+  const msg = '"exit" should not be emitted (the process never spawned!)';
+  assert.fail(null, null, msg);
+});
 
 // close one fd for LSan
 if (openFds.length >= 1) {

@@ -159,7 +159,7 @@ $ make
 
 ### `Intl` (ECMA-402) support:
 
-[Intl](https://github.com/joyent/node/wiki/Intl) support is not
+[Intl](https://github.com/nodejs/node/wiki/Intl) support is not
 enabled by default.
 
 #### "small" (English only) support
@@ -184,7 +184,7 @@ The `small-icu` mode builds with English-only data. You can add full
 data at runtime.
 
 *Note:* more docs are on
-[the joyent/node wiki](https://github.com/joyent/node/wiki/Intl).
+[the node wiki](https://github.com/nodejs/node/wiki/Intl).
 
 #### Build with full ICU support (all locales supported by ICU):
 
@@ -282,7 +282,7 @@ Instructions:
 1. Obtain a copy of openssl-fips-x.x.x.tar.gz.
    To comply with the security policy you must ensure the path
    through which you get the file complies with the requirements
-   for a "secure intallation" as described in section 6.6 in
+   for a "secure installation" as described in section 6.6 in
    the [user guide] (https://openssl.org/docs/fips/UserGuide-2.0.pdf).
    For evaluation/experimentation you can simply download and verify
    `openssl-fips-x.x.x.tar.gz` from https://www.openssl.org/source/
@@ -337,14 +337,12 @@ information about the governance of the Node.js project, see
 * [fishrock123](https://github.com/fishrock123) - **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;
 * [indutny](https://github.com/indutny) - **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
 * [jasnell](https://github.com/jasnell) - **James M Snell** &lt;jasnell@gmail.com&gt;
-* [mhdawson](https://github.com/mhdawson) - **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt;
 * [misterdjules](https://github.com/misterdjules) - **Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mscdex](https://github.com/mscdex) - **Brian White** &lt;mscdex@mscdex.net&gt;
 * [orangemocha](https://github.com/orangemocha) - **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [piscisaureus](https://github.com/piscisaureus) - **Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [rvagg](https://github.com/rvagg) - **Rod Vagg** &lt;rod@vagg.org&gt;
 * [shigeki](https://github.com/shigeki) - **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt;
-* [srl295](https://github.com/srl295) - **Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
 * [trevnorris](https://github.com/trevnorris) - **Trevor Norris** &lt;trev.norris@gmail.com&gt;
 
 ### Collaborators
@@ -359,6 +357,7 @@ information about the governance of the Node.js project, see
 * [joaocgreis](https://github.com/joaocgreis) - **João Reis** &lt;reis@janeasystems.com&gt;
 * [julianduque](https://github.com/julianduque) - **Julian Duque** &lt;julianduquej@gmail.com&gt;
 * [lxe](https://github.com/lxe) - **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
+* [mhdawson](https://github.com/mhdawson) - **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt;
 * [micnic](https://github.com/micnic) - **Nicu Micleușanu** &lt;micnic90@gmail.com&gt;
 * [mikeal](https://github.com/mikeal) - **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [monsanto](https://github.com/monsanto) - **Christopher Monsanto** &lt;chris@monsan.to&gt;
@@ -371,11 +370,13 @@ information about the governance of the Node.js project, see
 * [sam-github](https://github.com/sam-github) - **Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [seishun](https://github.com/seishun) - **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt;
 * [silverwind](https://github.com/silverwind) - **Roman Reiss** &lt;me@silverwind.io&gt;
+* [srl295](https://github.com/srl295) - **Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
 * [targos](https://github.com/targos) - **Michaël Zasso** &lt;mic.besace@gmail.com&gt;
 * [tellnes](https://github.com/tellnes) - **Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [thefourtheye](https://github.com/thefourtheye) - **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt;
 * [thlorenz](https://github.com/thlorenz) - **Thorsten Lorenz** &lt;thlorenz@gmx.de&gt;
 * [Trott](https://github.com/Trott) - **Rich Trott** &lt;rtrott@gmail.com&gt;
+* [tunniclm](https://github.com/tunniclm) - **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vkurchatkin](https://github.com/vkurchatkin) - **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) - **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
 
@@ -405,7 +406,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273
 ```
 
 See the section above on [Verifying Binaries](#verifying-binaries) for
-details on what to do with these keys to verify a downloaded file is official.
+details on what to do with these keys to verify that a downloaded file is official.
 
 Previous releases of Node.js have been signed with one of the following GPG
 keys:

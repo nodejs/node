@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "September 2015" "" ""
+.TH "NPM\-SCRIPTS" "7" "October 2015" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -91,9 +91,9 @@ npm will default some script values based on package contents\.
 If there is a \fBserver\.js\fP file in the root of your package, then npm
 will default the \fBstart\fP command to \fBnode server\.js\fP\|\.
 .IP \(bu 2
-\fB"preinstall": "node\-waf clean || true; node\-waf configure build"\fP:
-If there is a \fBwscript\fP file in the root of your package, npm will
-default the \fBpreinstall\fP command to compile using node\-waf\.
+\fB"install": "node\-gyp rebuild"\fP:
+If there is a \fBbindings\.gyp\fP file in the root of your package, npm will
+default the \fBinstall\fP command to compile using node\-gyp\.
 
 .RE
 .SH USER

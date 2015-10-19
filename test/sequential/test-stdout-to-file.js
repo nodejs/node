@@ -24,7 +24,7 @@ function test(size, useBuffer, cb) {
     fs.unlinkSync(tmpFile);
   } catch (e) {}
 
-  common.print(size + ' chars to ' + tmpFile + '...');
+  console.log(size + ' chars to ' + tmpFile + '...');
 
   childProcess.exec(cmd, function(err) {
     if (err) throw err;

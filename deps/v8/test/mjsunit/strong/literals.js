@@ -310,8 +310,8 @@ let GeneratorPrototype = (function*(){}).__proto__;
   'use strong';
   function assertStrongClass(x) {
     assertTrue(%IsStrong(x));
-    // TODO(rossberg): strongify class prototype and instance
-    // assertTrue(%IsStrong(x.prototype));
+    assertTrue(%IsStrong(x.prototype));
+    // TODO(rossberg): strongify class instance
     // assertTrue(%IsStrong(new x));
   }
   class C {};

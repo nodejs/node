@@ -39,7 +39,7 @@ namespace node {
 #endif
 
 // Strings are per-isolate primitives but Environment proxies them
-// for the sake of convenience.
+// for the sake of convenience.  Strings should be ASCII-only.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
@@ -69,7 +69,7 @@ namespace node {
   V(dev_string, "dev")                                                        \
   V(disposed_string, "_disposed")                                             \
   V(domain_string, "domain")                                                  \
-  V(domain_abort_uncaught_exc_string, "_makeCallbackAbortOnUncaught")         \
+  V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
   V(exchange_string, "exchange")                                              \
   V(idle_string, "idle")                                                      \
   V(irq_string, "irq")                                                        \
@@ -237,6 +237,7 @@ namespace node {
   V(context, v8::Context)                                                     \
   V(domain_array, v8::Array)                                                  \
   V(fs_stats_constructor_function, v8::Function)                              \
+  V(generic_internal_field_template, v8::ObjectTemplate)                      \
   V(jsstream_constructor_template, v8::FunctionTemplate)                      \
   V(module_load_list_array, v8::Array)                                        \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
@@ -339,6 +340,27 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
+  class ArrayBufferAllocatorInfo {
+   public:
+    inline uint32_t* fields();
+    inline int fields_count() const;
+    inline bool no_zero_fill() const;
+    inline void reset_fill_flag();
+
+   private:
+    friend class Environment;  // So we can call the constructor.
+    inline ArrayBufferAllocatorInfo();
+
+    enum Fields {
+      kNoZeroFill,
+      kFieldsCount
+    };
+
+    uint32_t fields_[kFieldsCount];
+
+    DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocatorInfo);
+  };
+
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
                                   void* arg);
@@ -401,6 +423,7 @@ class Environment {
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
+  inline ArrayBufferAllocatorInfo* array_buffer_allocator_info();
   inline uint64_t timer_base() const;
 
   static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
@@ -409,14 +432,8 @@ class Environment {
   inline ares_channel* cares_channel_ptr();
   inline ares_task_list* cares_task_list();
 
-  inline bool using_abort_on_uncaught_exc() const;
-  inline void set_using_abort_on_uncaught_exc(bool value);
-
   inline bool using_domains() const;
   inline void set_using_domains(bool value);
-
-  inline bool using_asyncwrap() const;
-  inline void set_using_asyncwrap(bool value);
 
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
@@ -466,6 +483,7 @@ class Environment {
                                 const char* name,
                                 v8::FunctionCallback callback);
 
+  inline v8::Local<v8::Object> NewInternalFieldObject();
 
   // Strings are shared across shared contexts. The getters simply proxy to
   // the per-isolate primitive.
@@ -510,13 +528,12 @@ class Environment {
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
+  ArrayBufferAllocatorInfo array_buffer_allocator_info_;
   const uint64_t timer_base_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
   ares_task_list cares_task_list_;
   bool using_domains_;
-  bool using_abort_on_uncaught_exc_;
-  bool using_asyncwrap_;
   bool printed_error_;
   bool trace_sync_io_;
   debugger::Agent debugger_agent_;
