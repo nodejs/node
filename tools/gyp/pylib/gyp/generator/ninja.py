@@ -921,6 +921,11 @@ class NinjaWriter(object):
                   os.environ.get('CFLAGS', '').split() + cflags_c)
       cflags_cc = (os.environ.get('CPPFLAGS', '').split() +
                    os.environ.get('CXXFLAGS', '').split() + cflags_cc)
+    elif self.toolset == 'host':
+      cflags_c = (os.environ.get('CPPFLAGS_host', '').split() +
+                  os.environ.get('CFLAGS_host', '').split() + cflags_c)
+      cflags_cc = (os.environ.get('CPPFLAGS_host', '').split() +
+                   os.environ.get('CXXFLAGS_host', '').split() + cflags_cc)
 
     defines = config.get('defines', []) + extra_defines
     self.WriteVariableList(ninja_file, 'defines',
@@ -1672,7 +1677,7 @@ def CommandWithWrapper(cmd, wrappers, prog):
 
 def GetDefaultConcurrentLinks():
   """Returns a best-guess for a number of concurrent links."""
-  pool_size = int(os.getenv('GYP_LINK_CONCURRENCY', 0))
+  pool_size = int(os.environ.get('GYP_LINK_CONCURRENCY', 0))
   if pool_size:
     return pool_size
 
@@ -1696,8 +1701,10 @@ def GetDefaultConcurrentLinks():
     stat.dwLength = ctypes.sizeof(stat)
     ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
 
-    mem_limit = max(1, stat.ullTotalPhys / (4 * (2 ** 30)))  # total / 4GB
-    hard_cap = max(1, int(os.getenv('GYP_LINK_CONCURRENCY_MAX', 2**32)))
+    # VS 2015 uses 20% more working set than VS 2013 and can consume all RAM
+    # on a 64 GB machine.
+    mem_limit = max(1, stat.ullTotalPhys / (5 * (2 ** 30)))  # total / 5GB
+    hard_cap = max(1, int(os.environ.get('GYP_LINK_CONCURRENCY_MAX', 2**32)))
     return min(mem_limit, hard_cap)
   elif sys.platform.startswith('linux'):
     if os.path.exists("/proc/meminfo"):
@@ -2275,7 +2282,11 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     if flavor == 'mac':
       gyp.xcode_emulation.MergeGlobalXcodeSettingsToSpec(data[build_file], spec)
 
-    build_file = gyp.common.RelativePath(build_file, options.toplevel_dir)
+    # If build_file is a symlink, we must not follow it because there's a chance
+    # it could point to a path above toplevel_dir, and we cannot correctly deal
+    # with that case at the moment.
+    build_file = gyp.common.RelativePath(build_file, options.toplevel_dir,
+                                         False)
 
     qualified_target_for_hash = gyp.common.QualifiedTarget(build_file, name,
                                                            toolset)
