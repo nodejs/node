@@ -12,6 +12,11 @@ var expected = 0,
     running = false,
     queue = [];
 
+if (!common.hasIPv6) {
+  console.log('1..0 # Skipped: this test, no IPv6 support');
+  return;
+}
+
 function TEST(f) {
   function next() {
     var f = queue.shift();
