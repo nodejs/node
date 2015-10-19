@@ -716,6 +716,10 @@ process has exited.
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
+  * `shell` {String} Shell to execute the command with
+    (Default: '/bin/sh' on UNIX, 'cmd.exe' on Windows,  The shell should
+     understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
+     command line parsing should be compatible with `cmd.exe`.)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
