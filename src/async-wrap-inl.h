@@ -17,7 +17,8 @@ inline AsyncWrap::AsyncWrap(Environment* env,
                             v8::Local<v8::Object> object,
                             ProviderType provider,
                             AsyncWrap* parent)
-    : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1) {
+    : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1),
+      uid_(env->get_async_wrap_uid()) {
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
 
@@ -63,6 +64,11 @@ inline bool AsyncWrap::ran_init_callback() const {
 
 inline AsyncWrap::ProviderType AsyncWrap::provider_type() const {
   return static_cast<ProviderType>(bits_ >> 1);
+}
+
+
+inline int64_t AsyncWrap::get_uid() const {
+  return uid_;
 }
 
 
