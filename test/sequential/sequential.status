@@ -5,7 +5,6 @@ prefix sequential
 # sample-test                       : PASS,FLAKY
 
 [true] # This section applies to all platforms
-test-repl-persistent-history                    : PASS,FLAKY
 
 [$system==win32]
 
