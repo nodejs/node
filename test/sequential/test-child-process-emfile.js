@@ -31,9 +31,6 @@ for (;;) {
   try {
     openFds.push(fs.openSync(__filename, 'r'));
   } catch (err) {
-    if (err.code === 'ENFILE') {
-      continue;
-    }
     assert(err.code === 'EMFILE');
     break;
   }
