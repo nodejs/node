@@ -30,10 +30,9 @@ encoding method.  Here are the different string encodings.
 
 * `'base64'` - Base64 string encoding.
 
-* `'binary'` - A way of encoding raw binary data into strings by using only
-  the first 8 bits of each character. This encoding method is deprecated and
-  should be avoided in favor of `Buffer` objects where possible. This encoding
-  will be removed in future versions of Node.js.
+* `'binary'` - A way of encoding the buffer into a one-byte (i.e. `latin-1`)
+  encoded string. The string `'latin-1'` is not supported. Instead simply pass
+  `'binary'` to use `'latin-1'` encoding.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
