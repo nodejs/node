@@ -68,7 +68,7 @@ if (!id) {
 else if (id === 'one') {
   if (cluster.isMaster) return startWorker();
 
-  var server = http.createServer(assert.fail).listen(common.PORT, function() {
+  var server = http.createServer(common.fail).listen(common.PORT, function() {
     process.send('READY');
   });
 
@@ -84,12 +84,12 @@ else if (id === 'two') {
     assert(ok);
   });
 
-  var server = http.createServer(assert.fail);
+  var server = http.createServer(common.fail);
   process.on('message', function(m) {
     if (typeof m === 'object') return; // ignore system messages
     if (m === 'QUIT') process.exit();
     assert.equal(m, 'START');
-    server.listen(common.PORT, assert.fail);
+    server.listen(common.PORT, common.fail);
     server.on('error', function(e) {
       assert.equal(e.code, 'EADDRINUSE');
       process.send(e.code);
