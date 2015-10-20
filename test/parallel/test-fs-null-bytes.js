@@ -43,10 +43,10 @@ check(fs.symlink,     fs.symlinkSync,     'foo\u0000bar', 'foobar');
 check(fs.symlink,     fs.symlinkSync,     'foobar', 'foo\u0000bar');
 check(fs.truncate,    fs.truncateSync,    'foo\u0000bar');
 check(fs.unlink,      fs.unlinkSync,      'foo\u0000bar');
-check(null,           fs.unwatchFile,     'foo\u0000bar', assert.fail);
+check(null,           fs.unwatchFile,     'foo\u0000bar', common.fail);
 check(fs.utimes,      fs.utimesSync,      'foo\u0000bar', 0, 0);
-check(null,           fs.watch,           'foo\u0000bar', assert.fail);
-check(null,           fs.watchFile,       'foo\u0000bar', assert.fail);
+check(null,           fs.watch,           'foo\u0000bar', common.fail);
+check(null,           fs.watchFile,       'foo\u0000bar', common.fail);
 check(fs.writeFile,   fs.writeFileSync,   'foo\u0000bar');
 
 // an 'error' for exists means that it doesn't exist.

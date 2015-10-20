@@ -12,7 +12,7 @@ var net = require('net');
 var id = '' + process.argv[2];
 
 if (id === 'undefined') {
-  var server = net.createServer(assert.fail);
+  var server = net.createServer(common.fail);
   server.listen(common.PORT, function() {
     var worker = fork(__filename, ['worker']);
     worker.on('message', function(msg) {
@@ -24,14 +24,14 @@ if (id === 'undefined') {
   });
 }
 else if (id === 'worker') {
-  var server = net.createServer(assert.fail);
-  server.listen(common.PORT, assert.fail);
+  var server = net.createServer(common.fail);
+  server.listen(common.PORT, common.fail);
   server.on('error', common.mustCall(function(e) {
     assert(e.code, 'EADDRINUSE');
     process.send('stop-listening');
     process.once('message', function(msg) {
       if (msg !== 'stopped-listening') return;
-      server = net.createServer(assert.fail);
+      server = net.createServer(common.fail);
       server.listen(common.PORT, common.mustCall(function() {
         server.close();
       }));

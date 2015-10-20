@@ -19,22 +19,22 @@ socket.send(buf, 3, 1, common.PORT, '127.0.0.1', ok);
 socket.send(buf, 4, 0, common.PORT, '127.0.0.1', ok);
 
 assert.throws(function() {
-  socket.send(buf, 0, 5, common.PORT, '127.0.0.1', assert.fail);
+  socket.send(buf, 0, 5, common.PORT, '127.0.0.1', common.fail);
 });
 assert.throws(function() {
-  socket.send(buf, 2, 3, common.PORT, '127.0.0.1', assert.fail);
+  socket.send(buf, 2, 3, common.PORT, '127.0.0.1', common.fail);
 });
 assert.throws(function() {
-  socket.send(buf, 4, 4, common.PORT, '127.0.0.1', assert.fail);
+  socket.send(buf, 4, 4, common.PORT, '127.0.0.1', common.fail);
 });
 assert.throws(function() {
-  socket.send('abc', 4, 1, common.PORT, '127.0.0.1', assert.fail);
+  socket.send('abc', 4, 1, common.PORT, '127.0.0.1', common.fail);
 });
 assert.throws(function() {
-  socket.send('abc', 0, 4, common.PORT, '127.0.0.1', assert.fail);
+  socket.send('abc', 0, 4, common.PORT, '127.0.0.1', common.fail);
 });
 assert.throws(function() {
-  socket.send('abc', -1, 2, common.PORT, '127.0.0.1', assert.fail);
+  socket.send('abc', -1, 2, common.PORT, '127.0.0.1', common.fail);
 });
 
 socket.close(); // FIXME should not be necessary

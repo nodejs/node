@@ -23,7 +23,7 @@ var options = {
   handshakeTimeout: 50
 };
 
-var server = tls.createServer(options, assert.fail);
+var server = tls.createServer(options, common.fail);
 
 server.on('clientError', function(err, conn) {
   conn.destroy();
