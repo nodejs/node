@@ -10,7 +10,7 @@ if (common.isWindows) {
 }
 
 const ulimit = Number(child_process.execSync('ulimit -n'));
-if (ulimit > 64) {
+if (ulimit > 64 || Number.isNaN(ulimit)) {
   // Sorry about this nonsense. It can be replaced if
   // https://github.com/nodejs/node-v0.x-archive/pull/2143#issuecomment-2847886
   // ever happens.
