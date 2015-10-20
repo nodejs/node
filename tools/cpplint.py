@@ -1,4 +1,4 @@
-#!/usr/bin/python2.4
+#!/usr/bin/env python
 #
 # Copyright (c) 2009 Google Inc. All rights reserved.
 #
@@ -88,7 +88,8 @@ import sre_compile
 import string
 import sys
 import unicodedata
-
+import logging
+logger = logging.getLogger('testrunner')
 
 _USAGE = """
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
@@ -139,6 +140,9 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
       the top-level categories like 'build' and 'whitespace' will
       also be printed. If 'detailed' is provided, then a count
       is provided for each category like 'build/class'.
+
+    logfile=filename
+      Write TAP output to a logfile.
 """
 
 # We categorize each error message we print.  Here are the categories.
@@ -541,6 +545,11 @@ class _CppLintState(object):
         raise ValueError('Every filter in --filters must start with + or -'
                          ' (%s does not)' % filt)
 
+  def setOutputFile(self, filename):
+    """attempts to create a file which we write output to."""
+    fh = logging.FileHandler(filename, mode='wb')
+    logger.addHandler(fh)
+
   def ResetErrorCounts(self):
     """Sets the module's error statistic back to zero."""
     self.error_count = 0
@@ -558,10 +567,11 @@ class _CppLintState(object):
 
   def PrintErrorCounts(self):
     """Print a summary of errors by category, and the total."""
-    for category, count in self.errors_by_category.iteritems():
-      sys.stderr.write('Category \'%s\' errors found: %d\n' %
-                       (category, count))
-    sys.stderr.write('Total errors found: %d\n' % self.error_count)
+    if not _cpplint_state.output_format == 'tap':
+      for category, count in self.errors_by_category.iteritems():
+        sys.stderr.write('Category \'%s\' errors found: %d\n' %
+                         (category, count))
+      sys.stderr.write('Total errors found: %d\n' % self.error_count)
 
 _cpplint_state = _CppLintState()
 
@@ -607,6 +617,9 @@ def _SetFilters(filters):
              Each filter should start with + or -; else we die.
   """
   _cpplint_state.SetFilters(filters)
+
+def _setOutputFile(filename):
+  _cpplint_state.setOutputFile(filename)
 
 
 class _FunctionState(object):
@@ -786,6 +799,15 @@ def Error(filename, linenum, category, confidence, message):
     if _cpplint_state.output_format == 'vs7':
       sys.stderr.write('%s(%s):  %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
+    elif _cpplint_state.output_format == 'tap':
+      template = ('not ok %s\n'
+        '  ---\n'
+        '  message: %s\n'
+        '  data:\n'
+        '    line: %d\n'
+        '    ruleId: %s\n'
+        '  ...')
+      logger.info(template % (filename, message, linenum, category))
     else:
       sys.stderr.write('%s:%s:  %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
@@ -2069,7 +2091,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, error):
     initial_spaces += 1
   if line and line[-1].isspace():
     error(filename, linenum, 'whitespace/end_of_line', 4,
-          'Line ends in whitespace.  Consider deleting these extra spaces.')
+          'Line ends in whitespace. Consider deleting these extra spaces.')
   # There are certain situations we allow one space, notably for labels
   elif ((initial_spaces == 1 or initial_spaces == 3) and
         not Match(r'\s*\w+\s*:\s*$', cleansed_line)):
@@ -3002,7 +3024,8 @@ def ProcessFile(filename, vlevel):
             'One or more unexpected \\r (^M) found;'
             'better to use only a \\n')
 
-  sys.stderr.write('Done processing %s\n' % filename)
+  if not _cpplint_state.output_format == 'tap':
+    sys.stderr.write('Done processing %s\n' % filename)
 
 
 def PrintUsage(message):
@@ -3041,7 +3064,8 @@ def ParseArguments(args):
   try:
     (opts, filenames) = getopt.getopt(args, '', ['help', 'output=', 'verbose=',
                                                  'counting=',
-                                                 'filter='])
+                                                 'filter=',
+                                                 'logfile='])
   except getopt.GetoptError:
     PrintUsage('Invalid arguments.')
 
@@ -3049,13 +3073,14 @@ def ParseArguments(args):
   output_format = _OutputFormat()
   filters = ''
   counting_style = ''
+  output_filename = ''
 
   for (opt, val) in opts:
     if opt == '--help':
       PrintUsage(None)
     elif opt == '--output':
-      if not val in ('emacs', 'vs7'):
-        PrintUsage('The only allowed output formats are emacs and vs7.')
+      if not val in ('emacs', 'vs7', 'tap'):
+        PrintUsage('The only allowed output formats are emacs, vs7 and tap.')
       output_format = val
     elif opt == '--verbose':
       verbosity = int(val)
@@ -3067,6 +3092,8 @@ def ParseArguments(args):
       if val not in ('total', 'toplevel', 'detailed'):
         PrintUsage('Valid counting options are total, toplevel, and detailed')
       counting_style = val
+    elif opt == '--logfile':
+      output_filename = val
 
   if not filenames:
     PrintUsage('No files were specified.')
@@ -3075,6 +3102,8 @@ def ParseArguments(args):
   _SetVerboseLevel(verbosity)
   _SetFilters(filters)
   _SetCountingStyle(counting_style)
+  if output_filename:
+    _setOutputFile(output_filename)
 
   return filenames
 
@@ -3088,6 +3117,14 @@ def main():
                                          codecs.getreader('utf8'),
                                          codecs.getwriter('utf8'),
                                          'replace')
+
+
+  ch = logging.StreamHandler(sys.stdout)
+  logger.addHandler(ch)
+  logger.setLevel(logging.INFO)
+
+  if _cpplint_state.output_format == 'tap':
+    logger.info('TAP version 13')
 
   _cpplint_state.ResetErrorCounts()
   for filename in filenames:
