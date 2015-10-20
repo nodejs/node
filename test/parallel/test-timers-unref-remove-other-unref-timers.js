@@ -11,7 +11,7 @@ const assert = require('assert');
 const timers = require('timers');
 
 const foo = {
-  _onTimeout: assert.fail
+  _onTimeout: common.fail
 };
 
 const bar = {
