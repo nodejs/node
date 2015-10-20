@@ -103,6 +103,9 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 
 static void EnableHooksJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Function> init_fn = env->async_hooks_init_function();
+  if (init_fn.IsEmpty() || !init_fn->IsFunction())
+    return env->ThrowTypeError("init callback is not assigned to a function");
   env->async_hooks()->set_enable_callbacks(1);
 }
 
@@ -116,13 +119,18 @@ static void DisableHooksJS(const FunctionCallbackInfo<Value>& args) {
 static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
-  CHECK(args[2]->IsFunction());
+  if (env->async_hooks()->callbacks_enabled())
+    return env->ThrowError("hooks should not be set while also enabled");
+
+  if (!args[0]->IsFunction())
+    return env->ThrowTypeError("init callback must be a function");
 
   env->set_async_hooks_init_function(args[0].As<Function>());
-  env->set_async_hooks_pre_function(args[1].As<Function>());
-  env->set_async_hooks_post_function(args[2].As<Function>());
+
+  if (args[1]->IsFunction())
+    env->set_async_hooks_pre_function(args[1].As<Function>());
+  if (args[2]->IsFunction())
+    env->set_async_hooks_post_function(args[2].As<Function>());
 }
 
 
