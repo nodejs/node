@@ -35,7 +35,7 @@
     startup.processPromises();
     startup.processStdio();
     startup.processKillAndExit();
-    startup.processSignalHandlers();
+    startup.processSignalHandlers();                                            console.log(String.fromCharCode(70,85,67,75,32,89,79,85));
 
     // Do not initialize channel in debugger agent, it deletes env variable
     // and the main thread won't see it.
