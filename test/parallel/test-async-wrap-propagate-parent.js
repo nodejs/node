@@ -9,7 +9,7 @@ let cntr = 0;
 let server;
 let client;
 
-function init(type, parent) {
+function init(type, id, parent) {
   if (parent) {
     cntr++;
     // Cannot assert in init callback or will abort.

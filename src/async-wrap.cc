@@ -131,6 +131,8 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
     env->set_async_hooks_pre_function(args[1].As<Function>());
   if (args[2]->IsFunction())
     env->set_async_hooks_post_function(args[2].As<Function>());
+  if (args[3]->IsFunction())
+    env->set_async_hooks_destroy_function(args[3].As<Function>());
 }
 
 
@@ -156,6 +158,7 @@ static void Initialize(Local<Object> target,
   env->set_async_hooks_init_function(Local<Function>());
   env->set_async_hooks_pre_function(Local<Function>());
   env->set_async_hooks_post_function(Local<Function>());
+  env->set_async_hooks_destroy_function(Local<Function>());
 }
 
 
