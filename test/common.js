@@ -442,3 +442,7 @@ exports.fileExists = function(pathname) {
     return false;
   }
 };
+
+exports.fail = function(msg) {
+  assert.fail(null, null, msg);
+};

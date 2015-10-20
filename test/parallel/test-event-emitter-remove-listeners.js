@@ -39,7 +39,7 @@ assert.deepEqual([], e1.listeners('hello'));
 
 var e2 = new events.EventEmitter();
 e2.on('hello', listener1);
-e2.on('removeListener', assert.fail);
+e2.on('removeListener', common.fail);
 e2.removeListener('hello', listener2);
 assert.deepEqual([listener1], e2.listeners('hello'));
 

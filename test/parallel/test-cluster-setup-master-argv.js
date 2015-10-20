@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
 
-setTimeout(assert.fail.bind(assert, 'setup not emitted'), 1000).unref();
+setTimeout(common.fail.bind(assert, 'setup not emitted'), 1000).unref();
 
 cluster.on('setup', function() {
   var clusterArgs = cluster.settings.args;
