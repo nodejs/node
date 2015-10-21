@@ -1,5 +1,30 @@
 # io.js ChangeLog
 
+## 2015-10-21, Version 3.3.2, @rvagg
+
+Security release for v3.x, likely the final v3.x release for io.js. Please migrate to Node.js v4+.
+
+* http:
+  - Fix out-of-order 'finish' event bug in pipelining that can abort execution, fixes DoS vulnerability CVE-2015-7384 (Fedor Indutny) #3128
+  - Account for pending response data instead of just the data on the current request to decide whether pause the socket or not (Fedor Indutny) #3128
+
+### Known issues
+
+See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some uses of computed object shorthand properties are not handled correctly by the current version of V8. e.g. `[{ [prop]: val }]` evaluates to `[{}]`. [#2507](https://github.com/nodejs/node/issues/2507)
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760).
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/io.js/issues/1435).
+
+### Commits
+
+* [[`eb0d901cb9`](https://github.com/nodejs/node/commit/eb0d901cb9)] - **http**: fix out-of-order 'finish' bug in pipelining (Fedor Indutny) [#3128](https://github.com/nodejs/node/pull/3128)
+* [[`006484857d`](https://github.com/nodejs/node/commit/006484857d)] - **http_server**: pause socket properly (Fedor Indutny) [#3128](https://github.com/nodejs/node/pull/3128)
+* [[`8b54f401ad`](https://github.com/nodejs/node/commit/8b54f401ad)] - **stream_wrap**: support empty `TryWrite`s (Fedor Indutny) [#3128](https://github.com/nodejs/node/pull/3128)
+
 ## 2015-09-15, Version 3.3.1, @rvagg
 
 ### Notable changes
