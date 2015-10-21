@@ -92,6 +92,14 @@ parser.add_option("--partly-static",
     help="Generate an executable with libgcc and libstdc++ libraries. This "
          "will not work on OSX when using the default compilation environment")
 
+parser.add_option("--enable-vtune-profiling",
+    action="store_true",
+    dest="enable_vtune_profiling",
+    help="Enable profiling support for Intel Vtune profiler to profile"
+         "JavaScript code executed in nodejs. This feature is only available "
+         "for ia32, x32 or x64 platform.")
+
+
 parser.add_option("--link-module",
     action="append",
     dest="linked_module",
@@ -685,6 +693,15 @@ def configure_node(o):
   if flavor == 'aix':
     o['variables']['node_core_target_name'] = 'node_base'
     o['variables']['node_target_type'] = 'static_library'
+
+  if target_arch in ('x86', 'x64', 'ia32', 'x32'):
+    o['variables']['node_enable_v8_vtunejit'] = b(options.enable_vtune_profiling)
+  elif options.enable_vtune_profiling:
+    raise Exception(
+       'vtune profiler for JavaScript is only supported on x86, x32 or x64 '
+       'platform.')
+  else:
+    o['variables']['node_enable_v8_vtunejit'] = 'false'
 
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace
