@@ -1430,6 +1430,9 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
 #ifdef DEBUG
   // We can generate a lot of debug code on Arm64.
   const size_t buffer_size = 32*KB;
+#elif V8_TARGET_ARCH_PPC64
+  // 8 KB is insufficient on PPC64 when FLAG_debug_code is on.
+  const size_t buffer_size = 10 * KB;
 #else
   const size_t buffer_size = 8*KB;
 #endif
