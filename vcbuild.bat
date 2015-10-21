@@ -37,6 +37,7 @@ set i18n_arg=
 set download_arg=
 set release_urls_arg=
 set build_release=
+set enable_vtune_profiling=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -71,6 +72,7 @@ if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
+if /i "%1"=="enable-vtune"  set enable_vtune_profiling="--enable-vtune-profiling"&goto arg-ok
 
 echo Warning: ignoring invalid command line option `%1`.
 
@@ -168,7 +170,7 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% %enable_vtune_profiling% --dest-cpu=%target_arch% --tag=%TAG%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -259,13 +261,14 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [download-all]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [download-all] [enable-vtune]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
 echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
+echo   vcbuild.bat enable-vtune   : builds nodejs with Intel Vtune profiling support to profile JavaScript
 goto exit
 
 :exit
