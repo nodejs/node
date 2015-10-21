@@ -48,6 +48,10 @@ is used on each argument.  See [util.format()][] for more information.
 
 Same as `console.log`.
 
+### console.debug([data][, ...])
+
+Same as `console.log`.
+
 ### console.error([data][, ...])
 
 Same as `console.log` but prints to stderr.
@@ -55,6 +59,10 @@ Same as `console.log` but prints to stderr.
 ### console.warn([data][, ...])
 
 Same as `console.error`.
+
+### console.exception([data][, ...])
+
+Same as `console.error`
 
 ### console.dir(obj[, options])
 
