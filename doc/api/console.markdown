@@ -105,6 +105,24 @@ to the current position.
 Similar to [assert.ok()][], but the error message is formatted as
 `util.format(message...)`.
 
+### Compatibility functions
+
+NOTE: The following functions are defined for compatibility purpose, and are not expected to do anything
+
+* `console.group`
+* `console.groupCollapsed`
+* `console.groupEnd`
+* `console.clear`
+* `console.count`
+* `console.dirxml`
+* `console.isIndependentlyComposed`
+* `console.table`
+* `console.profile`
+* `console.profileEnd`
+* `console.timeline`
+* `console.timelineEnd`
+* `console.timeStamp`
+
 ## Class: Console
 
 <!--type=class-->
