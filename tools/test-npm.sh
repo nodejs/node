@@ -29,10 +29,10 @@ export npm_config_prefix="$(pwd)/npm-prefix"
 export npm_config_tmp="$(pwd)/npm-tmp"
 
 # install npm devDependencies and run npm's tests
-
-../$NODE cli.js install --ignore-scripts
-../$NODE cli.js run-script test-legacy
-../$NODE cli.js run-script test
+NODEPATH="$(../$NODE -p 'require("path").resolve("..")')"
+PATH="$NODEPATH:$PATH" ../$NODE cli.js install --ignore-scripts
+PATH="$NODEPATH:$PATH" ../$NODE test/run.js
+PATH="$NODEPATH:$PATH" ../$NODE cli.js run-script tap -- "test/tap/*.js"
 
 # clean up everything one single shot
 cd .. && rm -rf test-npm
