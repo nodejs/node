@@ -3,9 +3,8 @@ npm-rm(1) -- Remove a package
 
 ## SYNOPSIS
 
-    npm uninstall [<@scope>/]<pkg>[@<version>]... [--save|--save-dev|--save-optional]
-
-    aliases: remove, rm, r, un, unlink
+    npm uninstall [@<scope>/]<package> [--save|--save-dev|--save-optional]
+    npm rm (with any of the previous argument usage)
 
 ## DESCRIPTION
 
@@ -27,9 +26,6 @@ the package version in your main package.json:
 * `--save-dev`: Package will be removed from your `devDependencies`.
 
 * `--save-optional`: Package will be removed from your `optionalDependencies`.
-
-Further, if you have an `npm-shrinkwrap.json` then it will be updated as
-well.
 
 Scope is optional and follows the usual rules for `npm-scope(7)`.
 

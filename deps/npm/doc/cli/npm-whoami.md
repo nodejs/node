@@ -3,7 +3,7 @@ npm-whoami(1) -- Display npm username
 
 ## SYNOPSIS
 
-    npm whoami [--registry <registry>]
+    npm whoami
 
 ## DESCRIPTION
 

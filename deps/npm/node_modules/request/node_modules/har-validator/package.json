@@ -1,0 +1,87 @@
+{
+  "version": "1.8.0",
+  "name": "har-validator",
+  "description": "Extremely fast HTTP Archive (HAR) validator using JSON Schema",
+  "author": {
+    "name": "Ahmad Nassri",
+    "email": "ahmad@ahmadnassri.com",
+    "url": "https://www.ahmadnassri.com/"
+  },
+  "homepage": "https://github.com/ahmadnassri/har-validator",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadnassri/har-validator.git"
+  },
+  "license": "ISC",
+  "main": "lib/index",
+  "bin": {
+    "har-validator": "bin/har-validator"
+  },
+  "keywords": [
+    "har",
+    "http",
+    "archive",
+    "validate",
+    "validator"
+  ],
+  "engines": {
+    "node": ">=0.10"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "bugs": {
+    "url": "https://github.com/ahmadnassri/har-validator/issues"
+  },
+  "scripts": {
+    "pretest": "standard && echint",
+    "test": "mocha",
+    "posttest": "npm run coverage",
+    "coverage": "istanbul cover --dir coverage _mocha -- -R dot",
+    "codeclimate": "codeclimate < coverage/lcov.info"
+  },
+  "echint": {
+    "ignore": [
+      "coverage/**"
+    ]
+  },
+  "devDependencies": {
+    "codeclimate-test-reporter": "0.0.4",
+    "echint": "^1.3.0",
+    "istanbul": "^0.3.15",
+    "mocha": "^2.2.5",
+    "require-directory": "^2.1.1",
+    "should": "^7.0.1",
+    "standard": "^4.3.1"
+  },
+  "dependencies": {
+    "bluebird": "^2.9.30",
+    "chalk": "^1.0.0",
+    "commander": "^2.8.1",
+    "is-my-json-valid": "^2.12.0"
+  },
+  "gitHead": "8fd21c30edb23a1fed2d50b934d055d1be3dd7c9",
+  "_id": "har-validator@1.8.0",
+  "_shasum": "d83842b0eb4c435960aeb108a067a3aa94c0eeb2",
+  "_from": "har-validator@>=1.6.1 <2.0.0",
+  "_npmVersion": "2.11.2",
+  "_nodeVersion": "0.12.2",
+  "_npmUser": {
+    "name": "ahmadnassri",
+    "email": "ahmad@ahmadnassri.com"
+  },
+  "maintainers": [
+    {
+      "name": "ahmadnassri",
+      "email": "ahmad@ahmadnassri.com"
+    }
+  ],
+  "dist": {
+    "shasum": "d83842b0eb4c435960aeb108a067a3aa94c0eeb2",
+    "tarball": "http://registry.npmjs.org/har-validator/-/har-validator-1.8.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/har-validator/-/har-validator-1.8.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

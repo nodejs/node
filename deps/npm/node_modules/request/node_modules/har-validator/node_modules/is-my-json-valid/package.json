@@ -1,0 +1,67 @@
+{
+  "name": "is-my-json-valid",
+  "version": "2.12.2",
+  "description": "A JSONSchema validator that uses code generation to be extremely fast",
+  "main": "index.js",
+  "dependencies": {
+    "generate-function": "^2.0.0",
+    "generate-object-property": "^1.1.0",
+    "jsonpointer": "2.0.0",
+    "xtend": "^4.0.0"
+  },
+  "devDependencies": {
+    "tape": "^2.13.4"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mafintosh/is-my-json-valid.git"
+  },
+  "keywords": [
+    "json",
+    "schema",
+    "orderly",
+    "jsonschema"
+  ],
+  "author": {
+    "name": "Mathias Buus"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mafintosh/is-my-json-valid/issues"
+  },
+  "homepage": "https://github.com/mafintosh/is-my-json-valid",
+  "gitHead": "48040cf001f661bcaa31f09bdc7fe3939ac2253b",
+  "_id": "is-my-json-valid@2.12.2",
+  "_shasum": "0d65859318c846ce3a134402fd3fbc504272ccc9",
+  "_from": "is-my-json-valid@>=2.12.0 <3.0.0",
+  "_npmVersion": "2.13.4",
+  "_nodeVersion": "2.5.0",
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "dist": {
+    "shasum": "0d65859318c846ce3a134402fd3fbc504272ccc9",
+    "tarball": "http://registry.npmjs.org/is-my-json-valid/-/is-my-json-valid-2.12.2.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    },
+    {
+      "name": "watson",
+      "email": "w@tson.dk"
+    },
+    {
+      "name": "freeall",
+      "email": "freeall@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/is-my-json-valid/-/is-my-json-valid-2.12.2.tgz",
+  "readme": "ERROR: No README data found!"
+}

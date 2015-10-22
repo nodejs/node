@@ -3,7 +3,7 @@ npm-help-search(1) -- Search npm help documentation
 
 ## SYNOPSIS
 
-    npm help-search <text>
+    npm help-search some search terms
 
 ## DESCRIPTION
 

@@ -3,10 +3,9 @@ npm-link(1) -- Symlink a package folder
 
 ## SYNOPSIS
 
-    npm link (in package dir)
-    npm link [<@scope>/]<pkg>[@<version>]
-
-    alias: npm ln
+    npm link (in package folder)
+    npm link [@<scope>/]<pkgname>
+    npm ln (with any of the previous argument usage)
 
 ## DESCRIPTION
 

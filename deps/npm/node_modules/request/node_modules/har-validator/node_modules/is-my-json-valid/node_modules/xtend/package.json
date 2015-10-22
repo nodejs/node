@@ -1,0 +1,88 @@
+{
+  "name": "xtend",
+  "version": "4.0.0",
+  "description": "extend like a boss",
+  "keywords": [
+    "extend",
+    "merge",
+    "options",
+    "opts",
+    "object",
+    "array"
+  ],
+  "author": {
+    "name": "Raynos",
+    "email": "raynos2@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Raynos/xtend.git"
+  },
+  "main": "immutable",
+  "scripts": {
+    "test": "node test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tape": "~1.1.0"
+  },
+  "homepage": "https://github.com/Raynos/xtend",
+  "contributors": [
+    {
+      "name": "Jake Verbaten"
+    },
+    {
+      "name": "Matt Esch"
+    }
+  ],
+  "bugs": {
+    "url": "https://github.com/Raynos/xtend/issues",
+    "email": "raynos2@gmail.com"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://github.com/raynos/xtend/raw/master/LICENSE"
+    }
+  ],
+  "testling": {
+    "files": "test.js",
+    "browsers": [
+      "ie/7..latest",
+      "firefox/16..latest",
+      "firefox/nightly",
+      "chrome/22..latest",
+      "chrome/canary",
+      "opera/12..latest",
+      "opera/next",
+      "safari/5.1..latest",
+      "ipad/6.0..latest",
+      "iphone/6.0..latest"
+    ]
+  },
+  "engines": {
+    "node": ">=0.4"
+  },
+  "gitHead": "94a95d76154103290533b2c55ffa0fe4be16bfef",
+  "_id": "xtend@4.0.0",
+  "_shasum": "8bc36ff87aedbe7ce9eaf0bca36b2354a743840f",
+  "_from": "xtend@>=4.0.0 <5.0.0",
+  "_npmVersion": "1.4.15",
+  "_npmUser": {
+    "name": "raynos",
+    "email": "raynos2@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "raynos",
+      "email": "raynos2@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "8bc36ff87aedbe7ce9eaf0bca36b2354a743840f",
+    "tarball": "http://registry.npmjs.org/xtend/-/xtend-4.0.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/xtend/-/xtend-4.0.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

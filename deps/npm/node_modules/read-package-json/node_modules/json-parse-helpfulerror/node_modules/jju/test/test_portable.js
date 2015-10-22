@@ -1,0 +1,60 @@
+var assert = require('assert')
+var FS = require('fs')
+var YAML = require('js-yaml')
+var jju = require('../')
+
+function addTest(name, fn) {
+  if (typeof(describe) === 'function') {
+    it(name, fn)
+  } else {
+    fn()
+  }
+}
+
+var schema = YAML.Schema.create([
+  new YAML.Type('!error', {
+    kind: 'scalar',
+    resolve: function (state) {
+      //state.result = null
+      return true
+    },
+  })
+])
+
+var tests = YAML.safeLoad(FS.readFileSync(__dirname + '/portable-json5-tests.yaml', 'utf8'), {
+  schema: schema
+})
+
+if (!Object.is) {
+  Object.defineProperty(Object, 'is', {
+    value: function(x, y) {
+      if (x === y) {
+        return x !== 0 || 1 / x === 1 / y;
+      }
+      return x !== x && y !== y;
+    },
+    configurable: true,
+    enumerable: false,
+    writable: true,
+  })
+}
+
+for (var k in tests) {
+  ;(function(k) {
+    addTest(k, function() {
+      try {
+        var result = jju.parse(tests[k].input)
+      } catch(err) {
+        result = null
+      }
+
+      // need deepStrictEqual
+      if (typeof(result) === 'object') {
+        assert.deepEqual(result, tests[k].output)
+      } else {
+        assert(Object.is(result, tests[k].output), String(result) + ' == ' + tests[k].output)
+      }
+    })
+  })(k)
+}
+

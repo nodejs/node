@@ -1,0 +1,45 @@
+{
+  "author": {
+    "name": "Mark Cavage",
+    "email": "mcavage@gmail.com"
+  },
+  "name": "assert-plus",
+  "description": "Extra assertions on top of node's assert module",
+  "version": "0.1.5",
+  "main": "./assert.js",
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcavage/node-assert-plus.git"
+  },
+  "engines": {
+    "node": ">=0.8"
+  },
+  "bugs": {
+    "url": "https://github.com/mcavage/node-assert-plus/issues"
+  },
+  "dependencies": {},
+  "_id": "assert-plus@0.1.5",
+  "dist": {
+    "shasum": "ee74009413002d84cec7219c6ac811812e723160",
+    "tarball": "http://registry.npmjs.org/assert-plus/-/assert-plus-0.1.5.tgz"
+  },
+  "_from": "assert-plus@>=0.1.5 <0.2.0",
+  "_npmVersion": "1.3.11",
+  "_npmUser": {
+    "name": "mcavage",
+    "email": "mcavage@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "mcavage",
+      "email": "mcavage@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_shasum": "ee74009413002d84cec7219c6ac811812e723160",
+  "_resolved": "https://registry.npmjs.org/assert-plus/-/assert-plus-0.1.5.tgz",
+  "readme": "ERROR: No README data found!",
+  "homepage": "https://github.com/mcavage/node-assert-plus#readme"
+}

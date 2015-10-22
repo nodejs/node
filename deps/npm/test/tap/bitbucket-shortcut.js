@@ -24,8 +24,8 @@ test('setup', function (t) {
 
 test('bitbucket-shortcut', function (t) {
   var cloneUrls = [
-    ['https://bitbucket.org/foo/private.git', 'Bitbucket shortcuts try HTTPS URLs first'],
-    ['git@bitbucket.org:foo/private.git', 'Bitbucket shortcuts try SSH second']
+    ['git@bitbucket.org:foo/private.git', 'Bitbucket shortcuts try SSH first'],
+    ['https://bitbucket.org/foo/private.git', 'Bitbucket shortcuts try HTTPS URLs second']
   ]
 
   var npm = requireInject.installGlobally('../../lib/npm.js', {
@@ -39,7 +39,7 @@ test('bitbucket-shortcut', function (t) {
           } else {
             t.fail('too many attempts to clone')
           }
-          cb(new Error('execFile mock fails on purpose'))
+          cb(new Error())
         })
       }
     }

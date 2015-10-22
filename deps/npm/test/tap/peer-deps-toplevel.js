@@ -15,10 +15,6 @@ var pkg = path.resolve(__dirname, 'peer-deps-toplevel')
 var expected = {
   name: 'npm-test-peer-deps-toplevel',
   version: '0.0.0',
-  problems: [
-    'peer dep missing: mkdirp@*, required by npm-test-peer-deps-toplevel@0.0.0',
-    'peer dep missing: request@0.9.x, required by npm-test-peer-deps@0.0.0'
-  ],
   dependencies: {
     'npm-test-peer-deps': {
       version: '0.0.0',
@@ -33,28 +29,14 @@ var expected = {
       }
     },
     mkdirp: {
-      peerMissing: true,
-      required: {
-        _id: 'mkdirp@*',
-        name: 'mkdirp',
-        version: '*',
-        peerMissing: [
-          {requiredBy: 'npm-test-peer-deps-toplevel@0.0.0', requires: 'mkdirp@*'}
-        ],
-        dependencies: {}
-      }
+      version: '0.3.5',
+      from: 'mkdirp@*',
+      resolved: common.registry + '/mkdirp/-/mkdirp-0.3.5.tgz'
     },
     request: {
-      peerMissing: true,
-      required: {
-        _id: 'request@0.9.x',
-        dependencies: {},
-        name: 'request',
-        peerMissing: [
-          {requiredBy: 'npm-test-peer-deps@0.0.0', requires: 'request@0.9.x'}
-        ],
-        version: '0.9.x'
-      }
+      version: '0.9.5',
+      from: 'request@>=0.9.0 <0.10.0',
+      resolved: common.registry + '/request/-/request-0.9.5.tgz'
     }
   }
 }

@@ -12,7 +12,6 @@ var npm = require('./npm.js')
 var git = require('./utils/git.js')
 var assert = require('assert')
 var lifecycle = require('./utils/lifecycle.js')
-var parseJSON = require('./utils/parse-json.js')
 
 version.usage = 'npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]' +
                 '\n(run in package dir)\n' +
@@ -33,7 +32,7 @@ function version (args, silent, cb_) {
   fs.readFile(packagePath, function (er, data) {
     if (data) data = data.toString()
     try {
-      data = parseJSON(data)
+      data = JSON.parse(data)
     } catch (e) {
       er = e
       data = null
@@ -108,7 +107,7 @@ function updateShrinkwrap (newVersion, cb) {
 
     try {
       data = data.toString()
-      data = parseJSON(data)
+      data = JSON.parse(data)
     } catch (er) {
       log.error('version', 'Bad npm-shrinkwrap.json data')
       return cb(er)

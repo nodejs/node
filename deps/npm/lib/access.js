@@ -35,7 +35,6 @@ access.completion = function (opts, cb) {
       } else {
         return cb(null, [])
       }
-      break
     case 'public':
     case 'restricted':
     case 'ls-packages':

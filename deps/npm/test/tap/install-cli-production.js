@@ -47,9 +47,9 @@ test('setup', function (t) {
     JSON.stringify(dependency, null, 2)
   )
 
-  mkdirp.sync(path.join(pkg, 'dev-dependency'))
+  mkdirp.sync(path.join(pkg, 'devDependency'))
   fs.writeFileSync(
-    path.join(pkg, 'dev-dependency', 'package.json'),
+    path.join(pkg, 'devDependency', 'package.json'),
     JSON.stringify(devDependency, null, 2)
   )
 

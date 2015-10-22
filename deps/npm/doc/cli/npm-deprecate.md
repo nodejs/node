@@ -3,7 +3,7 @@ npm-deprecate(1) -- Deprecate a version of a package
 
 ## SYNOPSIS
 
-    npm deprecate <pkg>[@<version>] <message>
+    npm deprecate <name>[@<version>] <message>
 
 ## DESCRIPTION
 

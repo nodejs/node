@@ -38,7 +38,7 @@ test('bitbucket-https-url-with-creds', function (t) {
           } else {
             t.fail('too many attempts to clone')
           }
-          cb(new Error('execFile mock fails on purpose'))
+          cb(new Error())
         })
       }
     }

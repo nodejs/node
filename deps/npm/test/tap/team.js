@@ -1,3 +1,6 @@
+var fs = require('fs')
+var path = require('path')
+var rimraf = require('rimraf')
 var mr = require('npm-registry-mock')
 
 var test = require('tap').test

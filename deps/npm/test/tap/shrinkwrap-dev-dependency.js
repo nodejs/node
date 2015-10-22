@@ -77,7 +77,9 @@ function setup (cb) {
 
   var opts = {
     cache: path.resolve(pkg, 'cache'),
-    registry: common.registry
+    registry: common.registry,
+    // important to make sure devDependencies don't get stripped
+    dev: true
   }
   npm.load(opts, cb)
 }

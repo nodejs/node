@@ -1,0 +1,48 @@
+{
+  "name": "proto-list",
+  "version": "1.2.4",
+  "description": "A utility for managing a prototype chain",
+  "main": "./proto-list.js",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/proto-list.git"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "tap": "0"
+  },
+  "gitHead": "9e4af12d4dddee2fd531f0fe0c21c9cfacb78ac0",
+  "bugs": {
+    "url": "https://github.com/isaacs/proto-list/issues"
+  },
+  "homepage": "https://github.com/isaacs/proto-list#readme",
+  "_id": "proto-list@1.2.4",
+  "_shasum": "212d5bfe1318306a420f6402b8e26ff39647a849",
+  "_from": "proto-list@>=1.2.1 <1.3.0",
+  "_npmVersion": "2.10.0",
+  "_nodeVersion": "2.0.1",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "isaacs@npmjs.com"
+  },
+  "dist": {
+    "shasum": "212d5bfe1318306a420f6402b8e26ff39647a849",
+    "tarball": "http://registry.npmjs.org/proto-list/-/proto-list-1.2.4.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/proto-list/-/proto-list-1.2.4.tgz"
+}

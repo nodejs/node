@@ -51,7 +51,8 @@ test('returns a list of removed items', function (t) {
           t.same(
             {
               'name': 'shrinkwrap-empty-deps',
-              'version': '0.0.0'
+              'version': '0.0.0',
+              'dependencies': {}
             },
             JSON.parse(desired),
             'shrinkwrap handled empty deps without exploding'
