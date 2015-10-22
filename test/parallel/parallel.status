@@ -7,7 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-tls-ticket-cluster           : PASS,FLAKY
 
 [$system==linux]
 test-cluster-worker-forced-exit   : PASS,FLAKY
