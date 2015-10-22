@@ -295,6 +295,9 @@
   'built-ins/Symbol/species/builtin-getter-name': [FAIL],
   'built-ins/Symbol/species/subclassing': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=4242
+  'built-ins/Date/15.9.1.15-1': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=4004
   'built-ins/Date/prototype/setFullYear/15.9.5.40_1': [FAIL],
 
