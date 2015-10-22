@@ -262,8 +262,10 @@ the following values:
    have ANSI/VT100 escape codes written to it. Defaults to checking `isTTY`
    on the `output` stream upon instantiation.
 
- - `eval` - function that will be used to eval each given line. Defaults to
-   an async wrapper for `eval()`. See below for an example of a custom `eval`.
+ - `eval` - a function that will be used to eval each given line. Defaults to
+   an async wrapper for `eval()`. An `eval` function can error with
+   `repl.Recoverable` to indicate the code was incomplete and prompt for more
+   lines. See below for an example of a custom `eval`.
 
  - `useColors` - a boolean which specifies whether or not the `writer` function
    should output colors. If a different `writer` function is set then this does
@@ -287,11 +289,28 @@ the following values:
   * `repl.REPL_MODE_MAGIC` - attempt to run commands in default mode. If they
   fail to parse, re-try in strict mode.
 
-You can use your own `eval` function if it has following signature:
+It is possible to use a custom `eval` function as illustrated below:
 
-    function eval(cmd, context, filename, callback) {
-      callback(null, result);
+```js
+function eval(cmd, context, filename, callback) {
+  var result;
+  try {
+    result = vm.runInThisContext(cmd);
+  } catch (e) {
+    if (isRecoverableError(e)) {
+      return callback(new repl.Recoverable(e));
     }
+  }
+  callback(null, result);
+}
+
+function isRecoverableError(error) {
+  if (error.name === 'SyntaxError') {
+    return /^(Unexpected end of input|Unexpected token)/.test(error.message);
+  }
+  return false;
+}
+```
 
 On tab completion, `eval` will be called with `.scope` as an input string. It
 is expected to return an array of scope names to be used for the auto-completion.
