@@ -516,10 +516,10 @@ supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
 `'modp15'`, `'modp16'`, `'modp17'`, `'modp18'` (defined in
 [RFC 3526][]).  The returned object mimics the interface of objects
 created by [crypto.createDiffieHellman()][] above, but will not allow
-to change the keys (with [diffieHellman.setPublicKey()][] for
-example).  The advantage of using this routine is that the parties do
-not have to generate nor exchange group modulus beforehand, saving
-both processor and communication time.
+changing the keys (with [diffieHellman.setPublicKey()][] for example).
+The advantage of using this routine is that the parties do not have to
+generate nor exchange group modulus beforehand, saving both processor
+and communication time.
 
 Example (obtaining a shared secret):
 
@@ -771,14 +771,13 @@ temporary measure.
 ## Caveats
 
 The crypto module still supports some algorithms which are already
-compromised. And the API also allows to use ciphers and hashes with a
-small key size that are considered to be too weak for safe use.
+compromised. And the API also allows the use of ciphers and hashes
+with a small key size that are considered to be too weak for safe use.
 
 Users should take full responsibility for selecting the crypto
 algorithm and key size according to their security requirements.
 
-The following descriptions only show some recommendations to use
-crypto module. See [NIST SP 800-131A] for details.
+Based on the recommendations of [NIST SP 800-131A]:
 
 - MD5 and SHA-1 are no longer acceptable where collision resistance is
   required such as digital signatures.
@@ -787,6 +786,8 @@ crypto module. See [NIST SP 800-131A] for details.
   224 bits, to be safe to use for several years.
 - The DH groups of `modp1`, `modp2` and `modp5` have a key size
   smaller than 2048 bits and are not recommended.
+
+See the reference for other recommendations and details.
 
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
