@@ -13,6 +13,11 @@ exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
 exports.isAix = process.platform === 'aix';
+exports.isLinuxPPCBE = (process.platform === 'linux') &&
+                       (process.arch === 'ppc64') &&
+                       (os.endianness() === 'BE');
+exports.isSunOS = process.platform === 'sunos';
+exports.isFreeBSD = process.platform === 'freebsd';
 
 function rimrafSync(p) {
   try {

@@ -20,9 +20,11 @@ runTest(/LazyCompile.*\[eval\]:1|.*%  UNKNOWN/,
    };
    setTimeout(function() { process.exit(0); }, 2000);
    f();`);
-if (process.platform === 'win32' ||
-    process.platform === 'sunos' ||
-    process.platform === 'freebsd') {
+if (common.isWindows ||
+    common.isSunOS ||
+    common.isAix ||
+    common.isLinuxPPCBE ||
+    common.isFreeBSD) {
   console.log('1..0 # Skipped: C++ symbols are not mapped for this os.');
   return;
 }
