@@ -772,12 +772,12 @@ temporary measure.
 
 The crypto module still supports some algorithms which are already
 compromised. And the API also allows to use ciphers and hashes with a
-small key size that are consider to be weak for a safe use.
+small key size that are considered to be too weak for safe use.
 
 Users should take full responsibility for selecting the crypto
-algorithm and its key size according to their security requirements.
+algorithm and key size according to their security requirements.
 
-The following descriptions only show some of recommendations to use
+The following descriptions only show some recommendations to use
 crypto module. See [NIST SP 800-131A] for details.
 
 - MD5 and SHA-1 are no longer acceptable where collision resistance is
