@@ -56,8 +56,8 @@ test('returns a list of removed items', function (t) {
           function (err, code, stdout, stderr) {
             t.ifError(err, 'uninstall ran without issue')
             t.notOk(code, 'uninstall ran without raising error code')
-            t.has(stdout, /unbuild underscore@1.3.3/, 'underscore uninstalled')
-            t.has(stdout, /unbuild request@0.9.5/, 'request uninstalled')
+            t.has(stdout, /- underscore@1.3.3/, 'underscore uninstalled')
+            t.has(stdout, /- request@0.9.5/, 'request uninstalled')
 
             s.close()
             t.end()

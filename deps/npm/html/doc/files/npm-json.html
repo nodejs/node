@@ -473,15 +473,9 @@ are capable of properly installing your program.  For example:</p>
 </code></pre><p>Note that, unless the user has set the <code>engine-strict</code> config flag, this
 field is advisory only.</p>
 <h2 id="enginestrict">engineStrict</h2>
-<p><strong>NOTE: This feature is deprecated and will be removed in npm 3.0.0.</strong></p>
-<p>If you are sure that your module will <em>definitely not</em> run properly on
-versions of Node/npm other than those specified in the <code>engines</code> object,
-then you can set <code>&quot;engineStrict&quot;: true</code> in your package.json file.
-This will override the user&#39;s <code>engine-strict</code> config setting.</p>
-<p>Please do not do this unless you are really very very sure.  If your
-engines object is something overly restrictive, you can quite easily and
-inadvertently lock yourself into obscurity and prevent your users from
-updating to new versions of Node.  Consider this choice carefully.</p>
+<p><strong>This feature was deprecated with npm 3.0.0</strong></p>
+<p>Prior to npm 3.0.0, this feature was used to treat this package as if the
+user had set <code>engine-strict</code>.</p>
 <h2 id="os">os</h2>
 <p>You can specify which operating systems your
 module will run on:</p>
@@ -565,5 +559,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@2.14.7</p>
+<p id="footer">package.json &mdash; npm@3.3.6</p>
 

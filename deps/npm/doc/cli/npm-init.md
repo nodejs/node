@@ -3,7 +3,7 @@ npm-init(1) -- Interactively create a package.json file
 
 ## SYNOPSIS
 
-    npm init [-f|--force|-y|--yes]
+    npm init [--force|-f|--yes|-y]
 
 ## DESCRIPTION
 

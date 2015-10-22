@@ -10,6 +10,8 @@ var log = require('npmlog')
 var cacheFile = require('npm-cache-filename')
 var getCacheStat = require('./get-stat.js')
 var mapToRegistry = require('../utils/map-to-registry.js')
+var pulseTillDone = require('../utils/pulse-till-done.js')
+var parseJSON = require('../utils/parse-json.js')
 
 /* /-/all is special.
  * It uses timestamp-based caching and partial updates,
@@ -46,9 +48,8 @@ function updateIndex (staleness, cb) {
           chownr(made || cachePath, st.uid, st.gid, function (er) {
             if (er) return cb(er)
 
-            try {
-              data = JSON.parse(data)
-            } catch (ex) {
+            data = parseJSON.noExceptions(data)
+            if (!data) {
               fs.writeFile(cachePath, '{}', function (er) {
                 if (er) return cb(new Error('Broken cache.'))
 
@@ -80,7 +81,7 @@ function updateIndex (staleness, cb) {
 
 function updateIndex_ (all, params, data, cachePath, cb) {
   log.silly('update-index', 'fetching', all)
-  npm.registry.request(all, params, function (er, updates, _, res) {
+  npm.registry.request(all, params, pulseTillDone('updateIndex', function (er, updates, _, res) {
     if (er) return cb(er, data)
 
     var headers = res.headers
@@ -100,5 +101,5 @@ function updateIndex_ (all, params, data, cachePath, cb) {
         })
       })
     })
-  })
+  }))
 }

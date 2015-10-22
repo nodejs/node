@@ -6,16 +6,15 @@ help.completion = function (opts, cb) {
   getSections(cb)
 }
 
-var path = require("path")
-  , spawn = require("./utils/spawn")
-  , npm = require("./npm.js")
-  , log = require("npmlog")
-  , opener = require("opener")
-  , glob = require("glob")
+var path = require('path')
+var spawn = require('./utils/spawn')
+var npm = require('./npm.js')
+var log = require('npmlog')
+var opener = require('opener')
+var glob = require('glob')
 
 function help (args, cb) {
-  npm.spinner.stop()
-  var argv = npm.config.get("argv").cooked
+  var argv = npm.config.get('argv').cooked
 
   var argnum = 0
   if (args.length === 2 && ~~args[0]) {
@@ -24,54 +23,53 @@ function help (args, cb) {
 
   // npm help foo bar baz: search topics
   if (args.length > 1 && args[0]) {
-    return npm.commands["help-search"](args, argnum, cb)
+    return npm.commands['help-search'](args, argnum, cb)
   }
 
   var section = npm.deref(args[0]) || args[0]
 
   // npm help <noargs>:  show basic usage
   if (!section) {
-    var valid = argv[0] === "help" ? 0 : 1
+    var valid = argv[0] === 'help' ? 0 : 1
     return npmUsage(valid, cb)
   }
 
-
   // npm <cmd> -h: show command usage
-  if ( npm.config.get("usage")
-    && npm.commands[section]
-    && npm.commands[section].usage
-  ) {
-    npm.config.set("loglevel", "silent")
-    log.level = "silent"
+  if (npm.config.get('usage') &&
+      npm.commands[section] &&
+      npm.commands[section].usage) {
+    npm.config.set('loglevel', 'silent')
+    log.level = 'silent'
     console.log(npm.commands[section].usage)
     return cb()
   }
 
   // npm apihelp <section>: Prefer section 3 over section 1
-  var apihelp = argv.length && -1 !== argv[0].indexOf("api")
+  var apihelp = argv.length && argv[0].indexOf('api') !== -1
   var pref = apihelp ? [3, 1, 5, 7] : [1, 3, 5, 7]
-  if (argnum)
+  if (argnum) {
     pref = [ argnum ].concat(pref.filter(function (n) {
       return n !== argnum
     }))
+  }
 
   // npm help <section>: Try to find the path
-  var manroot = path.resolve(__dirname, "..", "man")
+  var manroot = path.resolve(__dirname, '..', 'man')
 
   // legacy
-  if (section === "global") section = "folders"
-  else if (section === "json") section = "package.json"
+  if (section === 'global') section = 'folders'
+  else if (section === 'json') section = 'package.json'
 
   // find either /section.n or /npm-section.n
   // The glob is used in the glob.  The regexp is used much
   // further down.  Globs and regexps are different
-  var compextglob = ".+(gz|bz2|lzma|[FYzZ]|xz)"
-  var compextre = "\\.(gz|bz2|lzma|[FYzZ]|xz)$"
-  var f = "+(npm-" + section + "|" + section + ").[0-9]?(" + compextglob + ")"
-  return glob(manroot + "/*/" + f, function (er, mans) {
+  var compextglob = '.+(gz|bz2|lzma|[FYzZ]|xz)'
+  var compextre = '\\.(gz|bz2|lzma|[FYzZ]|xz)$'
+  var f = '+(npm-' + section + '|' + section + ').[0-9]?(' + compextglob + ')'
+  return glob(manroot + '/*/' + f, function (er, mans) {
     if (er) return cb(er)
 
-    if (!mans.length) return npm.commands["help-search"](args, cb)
+    if (!mans.length) return npm.commands['help-search'](args, cb)
 
     mans = mans.map(function (man) {
       var ext = path.extname(man)
@@ -103,83 +101,83 @@ function pickMan (mans, pref_) {
 function viewMan (man, cb) {
   var nre = /([0-9]+)$/
   var num = man.match(nre)[1]
-  var section = path.basename(man, "." + num)
+  var section = path.basename(man, '.' + num)
 
   // at this point, we know that the specified man page exists
-  var manpath = path.join(__dirname, "..", "man")
-    , env = {}
+  var manpath = path.join(__dirname, '..', 'man')
+  var env = {}
   Object.keys(process.env).forEach(function (i) {
     env[i] = process.env[i]
   })
   env.MANPATH = manpath
-  var viewer = npm.config.get("viewer")
+  var viewer = npm.config.get('viewer')
 
   var conf
   switch (viewer) {
-    case "woman":
-      var a = ["-e", "(woman-find-file \"" + man + "\")"]
-      conf = { env: env, stdio: "inherit" }
-      var woman = spawn("emacsclient", a, conf)
-      woman.on("close", cb)
+    case 'woman':
+      var a = ['-e', '(woman-find-file \'' + man + '\')']
+      conf = { env: env, stdio: 'inherit' }
+      var woman = spawn('emacsclient', a, conf)
+      woman.on('close', cb)
       break
 
-    case "browser":
-      opener(htmlMan(man), { command: npm.config.get("browser") }, cb)
+    case 'browser':
+      opener(htmlMan(man), { command: npm.config.get('browser') }, cb)
       break
 
     default:
-      conf = { env: env, stdio: "inherit" }
-      var manProcess = spawn("man", [num, section], conf)
-      manProcess.on("close", cb)
+      conf = { env: env, stdio: 'inherit' }
+      var manProcess = spawn('man', [num, section], conf)
+      manProcess.on('close', cb)
       break
   }
 }
 
 function htmlMan (man) {
   var sect = +man.match(/([0-9]+)$/)[1]
-  var f = path.basename(man).replace(/([0-9]+)$/, "html")
+  var f = path.basename(man).replace(/([0-9]+)$/, 'html')
   switch (sect) {
     case 1:
-      sect = "cli"
+      sect = 'cli'
       break
     case 3:
-      sect = "api"
+      sect = 'api'
       break
     case 5:
-      sect = "files"
+      sect = 'files'
       break
     case 7:
-      sect = "misc"
+      sect = 'misc'
       break
     default:
-      throw new Error("invalid man section: " + sect)
+      throw new Error('invalid man section: ' + sect)
   }
-  return path.resolve(__dirname, "..", "html", "doc", sect, f)
+  return path.resolve(__dirname, '..', 'html', 'doc', sect, f)
 }
 
 function npmUsage (valid, cb) {
-  npm.config.set("loglevel", "silent")
-  log.level = "silent"
-  console.log(
-    [ "\nUsage: npm <command>"
-      , ""
-      , "where <command> is one of:"
-      , npm.config.get("long") ? usages()
-        : "    " + wrap(Object.keys(npm.commands))
-      , ""
-      , "npm <cmd> -h     quick help on <cmd>"
-      , "npm -l           display full usage info"
-      , "npm faq          commonly asked questions"
-      , "npm help <term>  search for help on <term>"
-      , "npm help npm     involved overview"
-      , ""
-      , "Specify configs in the ini-formatted file:"
-      , "    " + npm.config.get("userconfig")
-      , "or on the command line via: npm <command> --key value"
-      , "Config info can be viewed via: npm help config"
-      , ""
-      , "npm@" + npm.version + " " + path.dirname(__dirname)
-      ].join("\n"))
+  npm.config.set('loglevel', 'silent')
+  log.level = 'silent'
+  console.log([
+    '\nUsage: npm <command>',
+    '',
+    'where <command> is one of:',
+    npm.config.get('long') ? usages()
+        : '    ' + wrap(Object.keys(npm.commands)),
+    '',
+    'npm <cmd> -h     quick help on <cmd>',
+    'npm -l           display full usage info',
+    'npm faq          commonly asked questions',
+    'npm help <term>  search for help on <term>',
+    'npm help npm     involved overview',
+    '',
+    'Specify configs in the ini-formatted file:',
+    '    ' + npm.config.get('userconfig'),
+    'or on the command line via: npm <command> --key value',
+    'Config info can be viewed via: npm help config',
+    '',
+    'npm@' + npm.version + ' ' + path.dirname(__dirname)
+  ].join('\n'))
   cb(valid)
 }
 
@@ -189,50 +187,50 @@ function usages () {
   return Object.keys(npm.commands).filter(function (c) {
     return c === npm.deref(c)
   }).reduce(function (set, c) {
-    set.push([c, npm.commands[c].usage || ""])
+    set.push([c, npm.commands[c].usage || ''])
     maxLen = Math.max(maxLen, c.length)
     return set
   }, []).map(function (item) {
     var c = item[0]
-      , usage = item[1]
-    return "\n    " + c + (new Array(maxLen - c.length + 2).join(" "))
-         + (usage.split("\n")
-            .join("\n" + (new Array(maxLen + 6).join(" "))))
-  }).join("\n")
+    var usage = item[1]
+    return '\n    ' +
+      c + (new Array(maxLen - c.length + 2).join(' ')) +
+      (usage.split('\n').join('\n' + (new Array(maxLen + 6).join(' '))))
+  }).join('\n')
 }
 
-
 function wrap (arr) {
-  var out = [""]
-    , l = 0
-    , line
+  var out = ['']
+  var l = 0
+  var line
 
   line = process.stdout.columns
-  if (!line)
+  if (!line) {
     line = 60
-  else
+  } else {
     line = Math.min(60, Math.max(line - 16, 24))
+  }
 
-  arr.sort(function (a,b) { return a<b?-1:1 })
+  arr.sort(function (a, b) { return a < b ? -1 : 1 })
     .forEach(function (c) {
       if (out[l].length + c.length + 2 < line) {
-        out[l] += ", "+c
+        out[l] += ', ' + c
       } else {
-        out[l++] += ","
+        out[l++] += ','
         out[l] = c
       }
     })
-  return out.join("\n    ").substr(2)
+  return out.join('\n    ').substr(2)
 }
 
 function getSections (cb) {
-  var g = path.resolve(__dirname, "../man/man[0-9]/*.[0-9]")
+  var g = path.resolve(__dirname, '../man/man[0-9]/*.[0-9]')
   glob(g, function (er, files) {
-    if (er)
-      return cb(er)
+    if (er) return cb(er)
+
     cb(null, Object.keys(files.reduce(function (acc, file) {
-      file = path.basename(file).replace(/\.[0-9]+$/, "")
-      file = file.replace(/^npm-/, "")
+      file = path.basename(file).replace(/\.[0-9]+$/, '')
+      file = file.replace(/^npm-/, '')
       acc[file] = true
       return acc
     }, { help: true })))

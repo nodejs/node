@@ -3,7 +3,7 @@ npm-edit(1) -- Edit an installed package
 
 ## SYNOPSIS
 
-    npm edit <name>[@<version>]
+    npm edit <pkg>[@<version>]
 
 ## DESCRIPTION
 
