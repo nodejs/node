@@ -211,18 +211,30 @@ MaybeLocal<Object> New(Isolate* isolate,
                        enum encoding enc) {
   EscapableHandleScope scope(isolate);
 
-  size_t length = StringBytes::Size(isolate, string, enc);
-  char* data = static_cast<char*>(malloc(length));
+  const size_t length = StringBytes::Size(isolate, string, enc);
+  size_t actual = 0;
+  char* data = nullptr;
 
-  if (data == nullptr)
-    return Local<Object>();
+  // malloc(0) and realloc(ptr, 0) have implementation-defined behavior in
+  // that the standard allows them to either return a unique pointer or a
+  // nullptr for zero-sized allocation requests.  Normalize by always using
+  // a nullptr.
+  if (length > 0) {
+    data = static_cast<char*>(malloc(length));
 
-  size_t actual = StringBytes::Write(isolate, data, length, string, enc);
-  CHECK(actual <= length);
+    if (data == nullptr)
+      return Local<Object>();
 
-  if (actual < length) {
-    data = static_cast<char*>(realloc(data, actual));
-    CHECK_NE(data, nullptr);
+    actual = StringBytes::Write(isolate, data, length, string, enc);
+    CHECK(actual <= length);
+
+    if (actual == 0) {
+      free(data);
+      data = nullptr;
+    } else if (actual < length) {
+      data = static_cast<char*>(realloc(data, actual));
+      CHECK_NE(data, nullptr);
+    }
   }
 
   Local<Object> buf;
