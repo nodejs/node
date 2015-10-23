@@ -442,3 +442,9 @@ exports.fileExists = function(pathname) {
     return false;
   }
 };
+
+exports.busyLoop = function busyLoop(time) {
+  var startTime = Date.now();
+  var stopTime =  startTime + time;
+  while (Date.now() < stopTime);
+};
