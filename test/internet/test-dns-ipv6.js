@@ -165,7 +165,8 @@ TEST(function test_lookup_all_ipv6(done) {
     assert.ok(ips.length > 0);
 
     ips.forEach(function(ip) {
-      assert.ok(isIPv6(ip.address));
+      assert.ok(isIPv6(ip.address),
+                'Invalid IPv6: ' + ip.address.toString());
       assert.strictEqual(ip.family, 6);
     });
 
