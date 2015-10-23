@@ -64,6 +64,13 @@ function regRequest (uri, params, cb_) {
   var self = this
   this.attempt(function (operation) {
     makeRequest.call(self, uri, params, function (er, parsed, raw, response) {
+      if (response) {
+        self.log.verbose('headers', response.headers)
+        if (response.headers['npm-notice']) {
+          self.log.warn('notice', response.headers['npm-notice'])
+        }
+      }
+
       if (!er || (er.message && er.message.match(/^SSL Error/))) {
         if (er) er.code = 'ESSL'
         return cb(er, parsed, raw, response)
@@ -78,12 +85,6 @@ function regRequest (uri, params, cb_) {
       if (er && statusRetry && operation.retry(er)) {
         self.log.info('retry', 'will retry, error on last attempt: ' + er)
         return undefined
-      }
-      if (response) {
-        self.log.verbose('headers', response.headers)
-        if (response.headers['npm-notice']) {
-          self.log.warn('notice', response.headers['npm-notice'])
-        }
       }
       cb.apply(null, arguments)
     })

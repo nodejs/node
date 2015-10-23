@@ -44,7 +44,7 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
 SendWrap::SendWrap(Environment* env,
                    Local<Object> req_wrap_obj,
                    bool have_callback)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPWRAP),
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPSENDWRAP),
       have_callback_(have_callback) {
   Wrap(req_wrap_obj, this);
 }
@@ -166,7 +166,7 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
     break;
   default:
     CHECK(0 && "unexpected address family");
-    abort();
+    ABORT();
   }
 
   if (err == 0) {
@@ -278,7 +278,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
     break;
   default:
     CHECK(0 && "unexpected address family");
-    abort();
+    ABORT();
   }
 
   if (err == 0) {

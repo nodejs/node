@@ -154,7 +154,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
     // Write string
     offset = ROUND_UP(offset, WriteWrap::kAlignSize);
-    CHECK_LT(offset, storage_size);
+    CHECK_LE(offset, storage_size);
     char* str_storage = req_wrap->Extra(offset);
     size_t str_size = storage_size - offset;
 

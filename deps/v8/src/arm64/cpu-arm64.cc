@@ -4,12 +4,11 @@
 
 // CPU specific code for arm independent of OS goes here.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/arm64/utils-arm64.h"
 #include "src/assembler.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 
 namespace v8 {
 namespace internal {

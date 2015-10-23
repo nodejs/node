@@ -1,7 +1,7 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
-#define NODE_MAJOR_VERSION 5
+#define NODE_MAJOR_VERSION 6
 #define NODE_MINOR_VERSION 0
 #define NODE_PATCH_VERSION 0
 
@@ -18,12 +18,21 @@
 # else
 #  define NODE_TAG "-pre"
 # endif
+#else
+// NODE_TAG is passed without quotes when rc.exe is run from msbuild
+# define NODE_EXE_VERSION NODE_STRINGIFY(NODE_MAJOR_VERSION) "." \
+                          NODE_STRINGIFY(NODE_MINOR_VERSION) "." \
+                          NODE_STRINGIFY(NODE_PATCH_VERSION)     \
+                          NODE_STRINGIFY(NODE_TAG)
 #endif
 
 # define NODE_VERSION_STRING  NODE_STRINGIFY(NODE_MAJOR_VERSION) "." \
                               NODE_STRINGIFY(NODE_MINOR_VERSION) "." \
                               NODE_STRINGIFY(NODE_PATCH_VERSION)     \
                               NODE_TAG
+#ifndef NODE_EXE_VERSION
+# define NODE_EXE_VERSION NODE_VERSION_STRING
+#endif
 
 #define NODE_VERSION "v" NODE_VERSION_STRING
 
@@ -40,6 +49,6 @@
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
  */
-#define NODE_MODULE_VERSION 46 /* Node.js v4.0.0 */
+#define NODE_MODULE_VERSION 47 /* Node.js v5.0.0 */
 
 #endif  /* SRC_NODE_VERSION_H_ */

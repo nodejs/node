@@ -9,7 +9,6 @@
 
 #include "src/factory.h"
 #include "src/field-index.h"
-#include "src/field-index-inl.h"
 #include "src/isolate.h"
 #include "src/types.h"
 

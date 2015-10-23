@@ -78,3 +78,8 @@ test('basic request', function (t) {
     t.deepEqual(data, usroot)
   })
 })
+
+test('cleanup', function (t) {
+  server.close()
+  t.end()
+})

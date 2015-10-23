@@ -1,5 +1,5 @@
+/* eslint-disable required-modules */
 'use strict';
-//console.log('puts before');
 
 Object.prototype.xadsadsdasasdxx = function() {
 };

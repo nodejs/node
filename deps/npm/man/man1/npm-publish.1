@@ -1,12 +1,14 @@
-.TH "NPM\-PUBLISH" "1" "September 2015" "" ""
+.TH "NPM\-PUBLISH" "1" "October 2015" "" ""
 .SH "NAME"
 \fBnpm-publish\fR \- Publish a package
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm publish <tarball> [\-\-tag <tag>] [\-\-access <public|restricted>]
-npm publish <folder> [\-\-tag <tag>] [\-\-access <public|restricted>]
+npm publish [<tarball>|<folder>] [\-\-tag <tag>] [\-\-access <public|restricted>]
+
+Publishes '\.' if no argument supplied
+Sets tag 'latest' if no \-\-tag specified
 .fi
 .RE
 .SH DESCRIPTION

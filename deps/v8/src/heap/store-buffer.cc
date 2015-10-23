@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <algorithm>
+#include "src/heap/store-buffer.h"
 
-#include "src/v8.h"
+#include <algorithm>
 
 #include "src/counters.h"
 #include "src/heap/store-buffer-inl.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -92,9 +93,6 @@ void StoreBuffer::SetUp() {
   hash_sets_are_empty_ = false;
 
   ClearFilteringHashSets();
-
-  heap_->isolate()->set_store_buffer_hash_set_1_address(hash_set_1_);
-  heap_->isolate()->set_store_buffer_hash_set_2_address(hash_set_2_);
 }
 
 
@@ -455,7 +453,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
           PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
           if (owner == heap_->map_space()) {
             DCHECK(page->WasSwept());
-            HeapObjectIterator iterator(page, NULL);
+            HeapObjectIterator iterator(page);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We skip free space objects.
@@ -468,18 +466,9 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
               }
             }
           } else {
-            if (!page->SweepingCompleted()) {
-              heap_->mark_compact_collector()->SweepInParallel(page, owner);
-              if (!page->SweepingCompleted()) {
-                // We were not able to sweep that page, i.e., a concurrent
-                // sweeper thread currently owns this page.
-                // TODO(hpayer): This may introduce a huge pause here. We
-                // just care about finish sweeping of the scan on scavenge page.
-                heap_->mark_compact_collector()->EnsureSweepingCompleted();
-              }
-            }
-            CHECK(page->owner() == heap_->old_space());
-            HeapObjectIterator iterator(page, NULL);
+            heap_->mark_compact_collector()->SweepOrWaitUntilSweepingCompleted(
+                page);
+            HeapObjectIterator iterator(page);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We iterate over objects that contain new space pointers only.
@@ -549,9 +538,6 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
 
 
 void StoreBuffer::Compact() {
-  CHECK(hash_set_1_ == heap_->isolate()->store_buffer_hash_set_1_address());
-  CHECK(hash_set_2_ == heap_->isolate()->store_buffer_hash_set_2_address());
-
   Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
 
   if (top == start_) return;

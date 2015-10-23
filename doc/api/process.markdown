@@ -59,8 +59,8 @@ finished running the process will exit. Therefore you **must** only perform
 checks on the module's state (like for unit tests). The callback takes one
 argument, the code the process is exiting with.
 
-This event may not be fired if the process terminates due to signals like
-`SIGINT`, `SIGTERM`, `SIGKILL`, and `SIGHUP`.
+This event is only emitted when node exits explicitly by process.exit() or
+implicitly by the event loop draining.
 
 Example of listening for `exit`:
 
@@ -159,39 +159,62 @@ event:
       return reportToUser(JSON.pasre(res)); // note the typo
     }); // no `.catch` or `.then`
 
+Here is an example of a coding pattern that will also trigger
+`'unhandledRejection'`:
+
+    function SomeResource() {
+      // Initially set the loaded status to a rejected promise
+      this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
+    }
+
+    var resource = new SomeResource();
+    // no .catch or .then on resource.loaded for at least a turn
+
+In cases like this, you may not want to track the rejection as a developer
+error like you would for other `'unhandledRejection'` events. To address
+this, you can either attach a dummy `.catch(function() { })` handler to
+`resource.loaded`, preventing the `'unhandledRejection'` event from being
+emitted, or you can use the `'rejectionHandled'` event. Below is an
+explanation of how to do that.
+
 ## Event: 'rejectionHandled'
 
 Emitted whenever a Promise was rejected and an error handler was attached to it
 (for example with `.catch()`) later than after an event loop turn. This event
 is emitted with the following arguments:
 
- - `p` the promise that was previously emitted in an 'unhandledRejection'
+ - `p` the promise that was previously emitted in an `'unhandledRejection'`
  event, but which has now gained a rejection handler.
 
 There is no notion of a top level for a promise chain at which rejections can
 always be handled. Being inherently asynchronous in nature, a promise rejection
 can be be handled at a future point in time — possibly much later than the
-event loop turn it takes for the 'unhandledRejection' event to be emitted.
+event loop turn it takes for the `'unhandledRejection'` event to be emitted.
 
 Another way of stating this is that, unlike in synchronous code where there is
 an ever-growing list of unhandled exceptions, with promises there is a
 growing-and-shrinking list of unhandled rejections. In synchronous code, the
 'uncaughtException' event tells you when the list of unhandled exceptions
-grows. And in asynchronous code, the 'unhandledRejection' event tells you
+grows. And in asynchronous code, the `'unhandledRejection'` event tells you
 when the list of unhandled rejections grows, while the 'rejectionHandled'
 event tells you when the list of unhandled rejections shrinks.
 
-For example using the rejection detection hooks in order to keep a list of all
-the rejected promises at a given time:
+For example using the rejection detection hooks in order to keep a map of all
+the rejected promise reasons at a given time:
 
-    var unhandledRejections = [];
+    var unhandledRejections = new Map();
     process.on('unhandledRejection', function(reason, p) {
-        unhandledRejections.push(p);
+      unhandledRejections.set(p, reason);
     });
     process.on('rejectionHandled', function(p) {
-        var index = unhandledRejections.indexOf(p);
-        unhandledRejections.splice(index, 1);
+      unhandledRejections.delete(p);
     });
+
+This map will grow and shrink over time, reflecting rejections that start
+unhandled and then become handled. You could record the errors in some error
+log, either periodically (probably best for long-running programs, allowing
+you to clear the map, which in the case of a very buggy program could grow
+indefinitely) or upon process exit (more convenient for scripts).
 
 ## Signal Events
 
@@ -240,12 +263,12 @@ Note:
 - `SIGKILL` cannot have a listener installed, it will unconditionally terminate
   Node.js on all platforms.
 - `SIGSTOP` cannot have a listener installed.
-- Sending `SIGINT`, `SIGTERM`, and `SIGKILL` cause the unconditional exit of the
-  target process.
 
 Note that Windows does not support sending Signals, but Node.js offers some
 emulation with `process.kill()`, and `child_process.kill()`. Sending signal `0`
-can be used to test for the existence of a process
+can be used to test for the existence of a process. Sending `SIGINT`,
+`SIGTERM`, and `SIGKILL` cause the unconditional termination of the target
+process.
 
 ## process.stdout
 
@@ -648,6 +671,7 @@ Will print something like:
       zlib: '1.2.8',
       ares: '1.10.0-DEV',
       modules: '43',
+      icu: '55.1',
       openssl: '1.0.1k' }
 
 ## process.config

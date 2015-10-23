@@ -8,7 +8,7 @@ var common = require('../common');
 common.refreshTmpDir();
 process.chdir(common.tmpDir);
 var processor =
-    path.join(common.testDir, '..', 'tools', 'v8-prof', getScriptName());
+    path.join(common.testDir, '..', 'tools', 'v8-prof', 'tick-processor.js');
 // Unknown checked for to prevent flakiness, if pattern is not found,
 // then a large number of unknown ticks should be present
 runTest(/LazyCompile.*\[eval\]:1|.*%  UNKNOWN/,
@@ -40,22 +40,12 @@ function runTest(pattern, code) {
     return /^isolate-/.test(file);
   });
   if (matches.length != 1) {
-    assert.fail('There should be a single log file.');
+    assert.fail(null, null, 'There should be a single log file.');
   }
   var log = matches[0];
-  var out = cp.execSync(processor + ' --call-graph-size=10 ' + log,
+  var out = cp.execSync(process.execPath + ' ' + processor +
+                        ' --call-graph-size=10 ' + log,
                         {encoding: 'utf8'});
   assert(out.match(pattern));
   fs.unlinkSync(log);
-}
-
-function getScriptName() {
-  switch (process.platform) {
-    case 'darwin':
-      return 'mac-tick-processor';
-    case 'win32':
-      return 'windows-tick-processor.bat';
-    default:
-      return 'linux-tick-processor';
-  }
 }

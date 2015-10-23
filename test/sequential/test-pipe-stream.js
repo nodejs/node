@@ -3,6 +3,8 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
+common.refreshTmpDir();
+
 function test(clazz, cb) {
   var have_ping = false;
   var have_pong = false;

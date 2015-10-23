@@ -5,8 +5,6 @@
 #ifndef V8_EFFECTS_H_
 #define V8_EFFECTS_H_
 
-#include "src/v8.h"
-
 #include "src/types.h"
 
 namespace v8 {

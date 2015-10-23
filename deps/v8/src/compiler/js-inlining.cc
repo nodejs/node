@@ -13,7 +13,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
@@ -214,7 +214,8 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(
   const FrameStateFunctionInfo* state_info =
       jsgraph_->common()->CreateFrameStateFunctionInfo(
           FrameStateType::kArgumentsAdaptor,
-          static_cast<int>(call->formal_arguments()) + 1, 0, shared_info);
+          static_cast<int>(call->formal_arguments()) + 1, 0, shared_info,
+          CALL_MAINTAINS_NATIVE_CONTEXT);
 
   const Operator* op = jsgraph_->common()->FrameState(
       BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
@@ -246,6 +247,14 @@ Reduction JSInliner::Reduce(Node* node) {
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(match.Value().handle());
   if (mode_ == kRestrictedInlining && !function->shared()->force_inline()) {
+    return NoChange();
+  }
+
+  if (function->shared()->HasDebugInfo()) {
+    // Function contains break points.
+    TRACE("Not inlining %s into %s because callee may contain break points\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
   }
 

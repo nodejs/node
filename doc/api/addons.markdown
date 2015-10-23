@@ -44,7 +44,6 @@ First we create a file `hello.cc`:
     namespace demo {
 
     using v8::FunctionCallbackInfo;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Object;
@@ -78,7 +77,7 @@ The `module_name` needs to match the filename of the final binary (minus the
 The source code needs to be built into `addon.node`, the binary Addon. To
 do this we create a file called `binding.gyp` which describes the configuration
 to build your module in a JSON-like format. This file gets compiled by
-[node-gyp](https://github.com/TooTallNate/node-gyp).
+[node-gyp](https://github.com/nodejs/node-gyp).
 
     {
       "targets": [
@@ -155,7 +154,6 @@ function calls and return a result. This is the main and only needed source
 
     using v8::Exception;
     using v8::FunctionCallbackInfo;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Number;
@@ -212,7 +210,6 @@ there. Here's `addon.cc`:
 
     using v8::Function;
     using v8::FunctionCallbackInfo;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Null;
@@ -263,7 +260,6 @@ the string passed to `createObject()`:
     namespace demo {
 
     using v8::FunctionCallbackInfo;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Object;
@@ -310,7 +306,6 @@ wraps a C++ function:
     using v8::Function;
     using v8::FunctionCallbackInfo;
     using v8::FunctionTemplate;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Object;
@@ -415,7 +410,6 @@ prototype:
     using v8::Function;
     using v8::FunctionCallbackInfo;
     using v8::FunctionTemplate;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Number;
@@ -505,7 +499,6 @@ Let's register our `createObject` method in `addon.cc`:
     namespace demo {
 
     using v8::FunctionCallbackInfo;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Object;
@@ -568,7 +561,6 @@ The implementation is similar to the above in `myobject.cc`:
     using v8::Function;
     using v8::FunctionCallbackInfo;
     using v8::FunctionTemplate;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Number;
@@ -668,7 +660,6 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
     namespace demo {
 
     using v8::FunctionCallbackInfo;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Number;
@@ -745,7 +736,6 @@ The implementation of `myobject.cc` is similar as before:
     using v8::Function;
     using v8::FunctionCallbackInfo;
     using v8::FunctionTemplate;
-    using v8::HandleScope;
     using v8::Isolate;
     using v8::Local;
     using v8::Object;

@@ -1,27 +1,27 @@
 
 module.exports = rebuild
 
-var readInstalled = require("read-installed")
-  , semver = require("semver")
-  , log = require("npmlog")
-  , npm = require("./npm.js")
-  , npa = require("npm-package-arg")
+var readInstalled = require('read-installed')
+var semver = require('semver')
+var log = require('npmlog')
+var npm = require('./npm.js')
+var npa = require('npm-package-arg')
 
-rebuild.usage = "npm rebuild [<name>[@<version>] [name[@<version>] ...]]"
+rebuild.usage = 'npm rebuild [[<@scope>/<name>]...]'
 
-rebuild.completion = require("./utils/completion/installed-deep.js")
+rebuild.completion = require('./utils/completion/installed-deep.js')
 
 function rebuild (args, cb) {
-  var opt = { depth: npm.config.get("depth"), dev: true }
+  var opt = { depth: npm.config.get('depth'), dev: true }
   readInstalled(npm.prefix, opt, function (er, data) {
-    log.info("readInstalled", typeof data)
+    log.info('readInstalled', typeof data)
     if (er) return cb(er)
     var set = filter(data, args)
-      , folders = Object.keys(set).filter(function (f) {
-          return f !== npm.prefix
-        })
+    var folders = Object.keys(set).filter(function (f) {
+      return f !== npm.prefix
+    })
     if (!folders.length) return cb()
-    log.silly("rebuild set", folders)
+    log.silly('rebuild set', folders)
     cleanBuild(folders, set, cb)
   })
 }
@@ -29,9 +29,11 @@ function rebuild (args, cb) {
 function cleanBuild (folders, set, cb) {
   npm.commands.build(folders, function (er) {
     if (er) return cb(er)
+    log.clearProgress()
     console.log(folders.map(function (f) {
-      return set[f] + " " + f
-    }).join("\n"))
+      return set[f] + ' ' + f
+    }).join('\n'))
+    log.showProgress()
     cb()
   })
 }
@@ -45,11 +47,11 @@ function filter (data, args, set, seen) {
   var pass
   if (!args.length) pass = true // rebuild everything
   else if (data.name && data._id) {
-    for (var i = 0, l = args.length; i < l; i ++) {
+    for (var i = 0, l = args.length; i < l; i++) {
       var arg = args[i]
-        , nv = npa(arg)
-        , n = nv.name
-        , v = nv.rawSpec
+      var nv = npa(arg)
+      var n = nv.name
+      var v = nv.rawSpec
       if (n !== data.name) continue
       if (!semver.satisfies(data.version, v, true)) continue
       pass = true
@@ -57,7 +59,7 @@ function filter (data, args, set, seen) {
     }
   }
   if (pass && data._id) {
-    log.verbose("rebuild", "path, id", [data.path, data._id])
+    log.verbose('rebuild', 'path, id', [data.path, data._id])
     set[data.path] = data._id
   }
   // need to also dive through kids, always.
@@ -66,7 +68,7 @@ function filter (data, args, set, seen) {
   Object.keys(data.dependencies || {}).forEach(function (d) {
     // return
     var dep = data.dependencies[d]
-    if (typeof dep === "string") return
+    if (typeof dep === 'string') return
     filter(dep, args, set, seen)
   })
   return set

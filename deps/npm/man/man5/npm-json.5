@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "September 2015" "" ""
+.TH "PACKAGE\.JSON" "5" "October 2015" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -217,10 +217,10 @@ The "files" field is an array of files to include in your project\.  If
 you name a folder in the array, then it will also include the files
 inside that folder\. (Unless they would be ignored by another rule\.)
 .P
-You can also provide a "\.npmignore" file in the root of your package,
-which will keep files from being included, even if they would be picked
-up by the files array\.  The "\.npmignore" file works just like a
-"\.gitignore"\.
+You can also provide a "\.npmignore" file in the root of your package or
+in subdirectories, which will keep files from being included, even
+if they would be picked up by the files array\.  The \fB\|\.npmignore\fP file
+works just like a \fB\|\.gitignore\fP\|\.
 .P
 Certain files are always included, regardless of settings:
 .RS 0
@@ -758,17 +758,10 @@ Note that, unless the user has set the \fBengine\-strict\fP config flag, this
 field is advisory only\.
 .SH engineStrict
 .P
-\fBNOTE: This feature is deprecated and will be removed in npm 3\.0\.0\.\fR
+\fBThis feature was deprecated with npm 3\.0\.0\fR
 .P
-If you are sure that your module will \fIdefinitely not\fR run properly on
-versions of Node/npm other than those specified in the \fBengines\fP object,
-then you can set \fB"engineStrict": true\fP in your package\.json file\.
-This will override the user's \fBengine\-strict\fP config setting\.
-.P
-Please do not do this unless you are really very very sure\.  If your
-engines object is something overly restrictive, you can quite easily and
-inadvertently lock yourself into obscurity and prevent your users from
-updating to new versions of Node\.  Consider this choice carefully\.
+Prior to npm 3\.0\.0, this feature was used to treat this package as if the
+user had set \fBengine\-strict\fP\|\.
 .SH os
 .P
 You can specify which operating systems your

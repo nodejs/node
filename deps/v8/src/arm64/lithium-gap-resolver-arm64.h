@@ -5,8 +5,6 @@
 #ifndef V8_ARM64_LITHIUM_GAP_RESOLVER_ARM64_H_
 #define V8_ARM64_LITHIUM_GAP_RESOLVER_ARM64_H_
 
-#include "src/v8.h"
-
 #include "src/arm64/delayed-masm-arm64.h"
 #include "src/lithium.h"
 

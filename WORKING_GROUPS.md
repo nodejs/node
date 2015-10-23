@@ -27,8 +27,11 @@ back in to the TSC.
 * [Roadmap](#roadmap)
 * [Docker](#docker)
 * [Addon API](#addon-api)
+* [Benchmarking](#benchmarking)
+* [Post-mortem](#post-mortem)
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
+* [Intl](#Intl)
 
 ### [Website](https://github.com/nodejs/website)
 
@@ -103,6 +106,8 @@ to date and of high quality.
 * Promotion of Node.js speakers for meetups and conferences in their
 language.
 
+Note that the i18n working groups are distinct from the [Intl](#Intl) working group.
+
 Each language community maintains its own membership.
 
 * [iojs-ar - Arabic (اللغة العربية)](https://github.com/nodejs/iojs-ar)
@@ -140,6 +145,17 @@ Each language community maintains its own membership.
 * [iojs-uk - Ukrainian (Українська)](https://github.com/nodejs/iojs-uk)
 * [iojs-vi - Vietnamese (Tiếng Việtnam)](https://github.com/nodejs/iojs-vi)
 
+### [Intl](https://github.com/nodejs/Intl)
+
+The Intl Working Group is dedicated to support and improvement of
+Internationalization (i18n) and Localization (l10n) in Node. Its responsibilities are:
+
+1. Functionality & compliance (standards: ECMA, Unicode…)
+2. Support for Globalization and Internationalization issues that come up in the tracker
+3. Guidance and Best Practices
+4. Refinement of existing `Intl` implementation
+
+The Intl WG is not responsible for translation of content. That is the responsibility of the specific [i18n](#i18n) group for each language.
 
 ### [Evangelism](https://github.com/nodejs/evangelism)
 
@@ -204,6 +220,38 @@ Their responsibilities are:
 
 The current members can be found in their
 [README](https://github.com/nodejs/nan#collaborators).
+
+### [Benchmarking](https://github.com/nodejs/benchmarking)
+
+The purpose of the Benchmark working group is to gain consensus
+for an agreed set of benchmarks that can be used to:
+
++ track and evangelize performance gains made between Node releases
++ avoid performance regressions between releases
+
+Its responsibilities are:
+
++ Identify 1 or more benchmarks that reflect customer usage.
+   Likely need more than one to cover typical Node use cases
+   including low-latency and high concurrency
++ Work to get community consensus on the list chosen
++ Add regular execution of chosen benchmarks to Node builds
++ Track/publicize performance between builds/releases
+
+### [Post-mortem](https://github.com/nodejs/post-mortem)
+
+The Post-mortem Diagnostics working group is dedicated to the support
+and improvement of postmortem debugging for Node.js. It seeks to
+elevate the role of postmortem debugging for Node, to assist in the
+development of techniques and tools, and to make techniques and tools
+known and available to Node.js users.
+
+Its responsibilities are:
+
++ Defining and adding interfaces/APIs in order to allow dumps
+  to be generated when needed
++ Defining and adding common structures to the dumps generated
+  in order to support tools that want to introspect those dumps
 
 ## Starting a WG
 

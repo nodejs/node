@@ -61,3 +61,62 @@ TEST_IMPL(thread_rwlock) {
 
   return 0;
 }
+
+
+TEST_IMPL(thread_rwlock_trylock) {
+  uv_rwlock_t rwlock;
+  int r;
+
+  r = uv_rwlock_init(&rwlock);
+  ASSERT(r == 0);
+
+  /* No locks held. */
+
+  r = uv_rwlock_trywrlock(&rwlock);
+  ASSERT(r == 0);
+
+  /* Write lock held. */
+
+  r = uv_rwlock_tryrdlock(&rwlock);
+  ASSERT(r == UV_EBUSY);
+  r = uv_rwlock_trywrlock(&rwlock);
+  ASSERT(r == UV_EBUSY);
+
+  uv_rwlock_wrunlock(&rwlock);
+
+  /* No locks held. */
+
+  r = uv_rwlock_tryrdlock(&rwlock);
+  ASSERT(r == 0);
+
+  /* One read lock held. */
+
+  r = uv_rwlock_tryrdlock(&rwlock);
+  ASSERT(r == 0);
+
+  /* Two read locks held. */
+
+  r = uv_rwlock_trywrlock(&rwlock);
+  ASSERT(r == UV_EBUSY);
+
+  uv_rwlock_rdunlock(&rwlock);
+
+  /* One read lock held. */
+
+  uv_rwlock_rdunlock(&rwlock);
+
+  /* No read locks held. */
+
+  r = uv_rwlock_trywrlock(&rwlock);
+  ASSERT(r == 0);
+
+  /* Write lock held. */
+
+  uv_rwlock_wrunlock(&rwlock);
+
+  /* No locks held. */
+
+  uv_rwlock_destroy(&rwlock);
+
+  return 0;
+}

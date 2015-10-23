@@ -1,9 +1,11 @@
+/* eslint-disable required-modules */
 'use strict';
 var path = require('path');
 var fs = require('fs');
 var assert = require('assert');
 var os = require('os');
 var child_process = require('child_process');
+
 
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
@@ -30,7 +32,7 @@ function rimrafSync(p) {
     if (e.code === 'ENOENT')
       return;
     if (e.code === 'EPERM')
-      return rmdirSync(p, er);
+      return rmdirSync(p, e);
     if (e.code !== 'EISDIR')
       throw e;
     rmdirSync(p, e);
@@ -164,10 +166,6 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
     return info.family === 'IPv6';
   });
 });
-
-var util = require('util');
-for (var i in util) exports[i] = util[i];
-//for (var i in exports) global[i] = exports[i];
 
 function protoCtrChain(o) {
   var result = [];
@@ -406,15 +404,9 @@ exports.getServiceName = function getServiceName(port, protocol) {
   var serviceName = port.toString();
 
   try {
-    /*
-     * I'm not a big fan of readFileSync, but reading /etc/services
-     * asynchronously here would require implementing a simple line parser,
-     * which seems overkill for a simple utility function that is not running
-     * concurrently with any other one.
-     */
     var servicesContent = fs.readFileSync(etcServicesFileName,
       { encoding: 'utf8'});
-    var regexp = util.format('^(\\w+)\\s+\\s%d/%s\\s', port, protocol);
+    var regexp = `^(\\w+)\\s+\\s${port}/${protocol}\\s`;
     var re = new RegExp(regexp, 'm');
 
     var matches = re.exec(servicesContent);

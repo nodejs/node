@@ -2,7 +2,7 @@
 var common = require('../common');
 var assert = require('assert');
 
-common.debug('load test-module-loading-error.js');
+console.error('load test-module-loading-error.js');
 
 var error_desc = {
   win32: '%1 is not a valid Win32 application',

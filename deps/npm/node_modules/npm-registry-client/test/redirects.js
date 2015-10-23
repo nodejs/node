@@ -1,4 +1,4 @@
-var tap = require('tap')
+var test = require('tap').test
 
 var server = require('./lib/server.js')
 var common = require('./lib/common.js')
@@ -10,7 +10,7 @@ var pkg = {
   version: '1.2.3'
 }
 
-tap.test('basic request', function (t) {
+test('basic request', function (t) {
   // Expect one request for { follow : false }
   server.expect('/-/some-package/1.2.3', function (req, res) {
     res.writeHead(301, {
@@ -48,4 +48,9 @@ tap.test('basic request', function (t) {
       t.deepEqual(data, pkg)
     }
   )
+})
+
+test('cleanup', function (t) {
+  server.close()
+  t.end()
 })

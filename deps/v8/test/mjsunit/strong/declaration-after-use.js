@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --strong-mode --harmony-rest-parameters --harmony-arrow-functions
-// Flags: --harmony-computed-property-names
 
 // Note that it's essential for these tests that the reference is inside dead
 // code (because we already produce ReferenceErrors for run-time unresolved

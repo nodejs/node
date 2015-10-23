@@ -43,9 +43,6 @@ class AccessBuilder final : public AllStatic {
   // Provides access to FixedArray::length() field.
   static FieldAccess ForFixedArrayLength();
 
-  // Provides access to ExternalArray::external_pointer() field.
-  static FieldAccess ForExternalArrayPointer();
-
   // Provides access to DescriptorArray::enum_cache() field.
   static FieldAccess ForDescriptorArrayEnumCache();
 

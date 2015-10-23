@@ -36,6 +36,7 @@ if (cluster.isMaster) {
   });
 
 } else {
+  common.refreshTmpDir();
   var cp = fork(common.fixturesDir + '/listen-on-socket-and-exit.js',
                 { stdio: 'inherit' });
 

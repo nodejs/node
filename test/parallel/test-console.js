@@ -68,8 +68,8 @@ assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
 assert.equal(-1, strings.shift().indexOf('baz'));
 assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
              strings.shift().split('\n').shift());
-assert.ok(/^label: \d+ms$/.test(strings.shift().trim()));
-assert.ok(/^__proto__: \d+ms$/.test(strings.shift().trim()));
-assert.ok(/^constructor: \d+ms$/.test(strings.shift().trim()));
-assert.ok(/^hasOwnProperty: \d+ms$/.test(strings.shift().trim()));
+assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.equal(strings.length, 0);

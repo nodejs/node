@@ -54,6 +54,7 @@ tap.test("fetch accepts github api's json", function (t) {
 
       var sink = cat(function (data) {
         t.deepEqual(data, readFileSync(tgz))
+        server.close()
         t.end()
       })
 

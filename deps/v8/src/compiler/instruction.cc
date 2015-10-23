@@ -566,9 +566,12 @@ InstructionBlock* InstructionSequence::GetInstructionBlock(
     int instruction_index) const {
   DCHECK(instruction_blocks_->size() == block_starts_.size());
   auto begin = block_starts_.begin();
-  auto end = std::lower_bound(begin, block_starts_.end(), instruction_index,
-                              std::less_equal<int>());
-  size_t index = std::distance(begin, end) - 1;
+  auto end = std::lower_bound(begin, block_starts_.end(), instruction_index);
+  // Post condition of std::lower_bound:
+  DCHECK(end == block_starts_.end() || *end >= instruction_index);
+  if (end == block_starts_.end() || *end > instruction_index) --end;
+  DCHECK(*end <= instruction_index);
+  size_t index = std::distance(begin, end);
   auto block = instruction_blocks_->at(index);
   DCHECK(block->code_start() <= instruction_index &&
          instruction_index < block->code_end());

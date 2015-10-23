@@ -216,8 +216,9 @@ class ContextifyContext {
     object_template->SetHandler(config);
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
-    if (!ctx.IsEmpty())
-      ctx->SetSecurityToken(env->context()->GetSecurityToken());
+
+    CHECK(!ctx.IsEmpty());
+    ctx->SetSecurityToken(env->context()->GetSecurityToken());
 
     env->AssignToContext(ctx);
 
@@ -692,7 +693,7 @@ class ContextifyScript : public BaseObject {
 
     Local<Value> result;
     if (timeout != -1) {
-      Watchdog wd(env, timeout);
+      Watchdog wd(env->isolate(), timeout);
       result = script->Run();
     } else {
       result = script->Run();

@@ -81,25 +81,30 @@ enum BindingFlags {
   V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
+  V(FLOAT32X4_FUNCTION_INDEX, JSFunction, float32x4_function)                  \
+  V(INT32X4_FUNCTION_INDEX, JSFunction, int32x4_function)                      \
+  V(BOOL32X4_FUNCTION_INDEX, JSFunction, bool32x4_function)                    \
+  V(INT16X8_FUNCTION_INDEX, JSFunction, int16x8_function)                      \
+  V(BOOL16X8_FUNCTION_INDEX, JSFunction, bool16x8_function)                    \
+  V(INT8X16_FUNCTION_INDEX, JSFunction, int8x16_function)                      \
+  V(BOOL8X16_FUNCTION_INDEX, JSFunction, bool8x16_function)                    \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
   V(JS_OBJECT_STRONG_MAP_INDEX, Map, js_object_strong_map)                     \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
   V(JS_ARRAY_MAPS_INDEX, Object, js_array_maps)                                \
   V(JS_ARRAY_STRONG_MAPS_INDEX, Object, js_array_strong_maps)                  \
-  V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
-  V(JSON_OBJECT_INDEX, JSObject, json_object)                                  \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
   V(INITIAL_OBJECT_PROTOTYPE_INDEX, JSObject, initial_object_prototype)        \
   V(INITIAL_ARRAY_PROTOTYPE_INDEX, JSObject, initial_array_prototype)          \
+  V(EMBEDDER_DATA_INDEX, FixedArray, embedder_data)                            \
   V(CREATE_DATE_FUN_INDEX, JSFunction, create_date_fun)                        \
   V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)                            \
   V(TO_STRING_FUN_INDEX, JSFunction, to_string_fun)                            \
   V(TO_DETAIL_STRING_FUN_INDEX, JSFunction, to_detail_string_fun)              \
-  V(TO_OBJECT_FUN_INDEX, JSFunction, to_object_fun)                            \
+  V(NO_SIDE_EFFECT_TO_STRING_FUN_INDEX, JSFunction,                            \
+    no_side_effect_to_string_fun)                                              \
   V(TO_INTEGER_FUN_INDEX, JSFunction, to_integer_fun)                          \
-  V(TO_UINT32_FUN_INDEX, JSFunction, to_uint32_fun)                            \
-  V(TO_INT32_FUN_INDEX, JSFunction, to_int32_fun)                              \
   V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                            \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
@@ -114,16 +119,6 @@ enum BindingFlags {
   V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun)                    \
   V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun)                    \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
-  V(INT8_ARRAY_EXTERNAL_MAP_INDEX, Map, int8_array_external_map)               \
-  V(UINT8_ARRAY_EXTERNAL_MAP_INDEX, Map, uint8_array_external_map)             \
-  V(INT16_ARRAY_EXTERNAL_MAP_INDEX, Map, int16_array_external_map)             \
-  V(UINT16_ARRAY_EXTERNAL_MAP_INDEX, Map, uint16_array_external_map)           \
-  V(INT32_ARRAY_EXTERNAL_MAP_INDEX, Map, int32_array_external_map)             \
-  V(UINT32_ARRAY_EXTERNAL_MAP_INDEX, Map, uint32_array_external_map)           \
-  V(FLOAT32_ARRAY_EXTERNAL_MAP_INDEX, Map, float32_array_external_map)         \
-  V(FLOAT64_ARRAY_EXTERNAL_MAP_INDEX, Map, float64_array_external_map)         \
-  V(UINT8_CLAMPED_ARRAY_EXTERNAL_MAP_INDEX, Map,                               \
-    uint8_clamped_array_external_map)                                          \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map)                       \
   V(SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
@@ -142,11 +137,8 @@ enum BindingFlags {
   V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners)                      \
-  V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun)                      \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)          \
-  V(CONFIGURE_GLOBAL_INDEX, JSFunction, configure_global_fun)                  \
   V(FUNCTION_CACHE_INDEX, ObjectHashTable, function_cache)                     \
-  V(JSFUNCTION_RESULT_CACHES_INDEX, FixedArray, jsfunction_result_caches)      \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(RUNTIME_CONTEXT_INDEX, Context, runtime_context)                           \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
@@ -157,10 +149,17 @@ enum BindingFlags {
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(STRONG_MAP_CACHE_INDEX, Object, strong_map_cache)                          \
-  V(EMBEDDER_DATA_INDEX, FixedArray, embedder_data)                            \
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings)    \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
+  V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                          \
+  V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)                \
+  V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)              \
+  V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)      \
+  V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)            \
+  V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)                \
+  V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                  \
+  V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)                \
   V(PROMISE_STATUS_INDEX, Symbol, promise_status)                              \
   V(PROMISE_VALUE_INDEX, Symbol, promise_value)                                \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                          \
@@ -169,8 +168,18 @@ enum BindingFlags {
   V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain)                            \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                            \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                              \
+  V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,                 \
+    promise_has_user_defined_reject_handler)                                   \
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction,                         \
     to_complete_property_descriptor)                                           \
+  V(OBJECT_DEFINE_OWN_PROPERTY_INDEX, JSFunction, object_define_own_property)  \
+  V(OBJECT_GET_OWN_PROPERTY_DESCROPTOR_INDEX, JSFunction,                      \
+    object_get_own_property_descriptor)                                        \
+  V(MESSAGE_GET_LINE_NUMBER_INDEX, JSFunction, message_get_line_number)        \
+  V(MESSAGE_GET_COLUMN_NUMBER_INDEX, JSFunction, message_get_column_number)    \
+  V(MESSAGE_GET_SOURCE_LINE_INDEX, JSFunction, message_get_source_line)        \
+  V(STACK_OVERFLOW_BOILERPLATE_INDEX, JSObject, stack_overflow_boilerplate)    \
+  V(JSON_SERIALIZE_ADAPTER_INDEX, JSFunction, json_serialize_adapter)          \
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap)                      \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                      \
   V(DERIVED_SET_TRAP_INDEX, JSFunction, derived_set_trap)                      \
@@ -206,7 +215,7 @@ enum BindingFlags {
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(NATIVES_UTILS_OBJECT_INDEX, Object, natives_utils_object)                  \
-  V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_exports_object)
+  V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_binding_object)
 
 
 // A table of all script contexts. Every loaded top-level script with top-level
@@ -330,141 +339,11 @@ class Context: public FixedArray {
     // scope info (block contexts), or the module instance (module contexts).
     EXTENSION_INDEX,
     GLOBAL_OBJECT_INDEX,
-    MIN_CONTEXT_SLOTS,
-
-    // This slot holds the thrown value in catch contexts.
-    THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
 
     // These slots are only in native contexts.
-    GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
-    SECURITY_TOKEN_INDEX,
-    SLOPPY_ARGUMENTS_MAP_INDEX,
-    FAST_ALIASED_ARGUMENTS_MAP_INDEX,
-    SLOW_ALIASED_ARGUMENTS_MAP_INDEX,
-    STRICT_ARGUMENTS_MAP_INDEX,
-    REGEXP_RESULT_MAP_INDEX,
-    SLOPPY_FUNCTION_MAP_INDEX,
-    SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX,
-    STRICT_FUNCTION_MAP_INDEX,
-    STRONG_FUNCTION_MAP_INDEX,
-    SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
-    STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
-    STRONG_CONSTRUCTOR_MAP_INDEX,
-    BOUND_FUNCTION_MAP_INDEX,
-    INITIAL_OBJECT_PROTOTYPE_INDEX,
-    INITIAL_ARRAY_PROTOTYPE_INDEX,
-    BOOLEAN_FUNCTION_INDEX,
-    NUMBER_FUNCTION_INDEX,
-    STRING_FUNCTION_INDEX,
-    STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
-    SYMBOL_FUNCTION_INDEX,
-    OBJECT_FUNCTION_INDEX,
-    JS_OBJECT_STRONG_MAP_INDEX,
-    INTERNAL_ARRAY_FUNCTION_INDEX,
-    ARRAY_FUNCTION_INDEX,
-    JS_ARRAY_MAPS_INDEX,
-    JS_ARRAY_STRONG_MAPS_INDEX,
-    DATE_FUNCTION_INDEX,
-    JSON_OBJECT_INDEX,
-    REGEXP_FUNCTION_INDEX,
-    CREATE_DATE_FUN_INDEX,
-    TO_NUMBER_FUN_INDEX,
-    TO_STRING_FUN_INDEX,
-    TO_DETAIL_STRING_FUN_INDEX,
-    TO_OBJECT_FUN_INDEX,
-    TO_INTEGER_FUN_INDEX,
-    TO_UINT32_FUN_INDEX,
-    TO_INT32_FUN_INDEX,
-    TO_BOOLEAN_FUN_INDEX,
-    GLOBAL_EVAL_FUN_INDEX,
-    ARRAY_BUFFER_FUN_INDEX,
-    ARRAY_BUFFER_MAP_INDEX,
-    UINT8_ARRAY_FUN_INDEX,
-    INT8_ARRAY_FUN_INDEX,
-    UINT16_ARRAY_FUN_INDEX,
-    INT16_ARRAY_FUN_INDEX,
-    UINT32_ARRAY_FUN_INDEX,
-    INT32_ARRAY_FUN_INDEX,
-    FLOAT32_ARRAY_FUN_INDEX,
-    FLOAT64_ARRAY_FUN_INDEX,
-    UINT8_CLAMPED_ARRAY_FUN_INDEX,
-    INT8_ARRAY_EXTERNAL_MAP_INDEX,
-    UINT8_ARRAY_EXTERNAL_MAP_INDEX,
-    INT16_ARRAY_EXTERNAL_MAP_INDEX,
-    UINT16_ARRAY_EXTERNAL_MAP_INDEX,
-    INT32_ARRAY_EXTERNAL_MAP_INDEX,
-    UINT32_ARRAY_EXTERNAL_MAP_INDEX,
-    FLOAT32_ARRAY_EXTERNAL_MAP_INDEX,
-    FLOAT64_ARRAY_EXTERNAL_MAP_INDEX,
-    UINT8_CLAMPED_ARRAY_EXTERNAL_MAP_INDEX,
-    DATA_VIEW_FUN_INDEX,
-    SHARED_ARRAY_BUFFER_FUN_INDEX,
-    MESSAGE_LISTENERS_INDEX,
-    MAKE_MESSAGE_FUN_INDEX,
-    GET_STACK_TRACE_LINE_INDEX,
-    CONFIGURE_GLOBAL_INDEX,
-    FUNCTION_CACHE_INDEX,
-    JSFUNCTION_RESULT_CACHES_INDEX,
-    NORMALIZED_MAP_CACHE_INDEX,
-    RUNTIME_CONTEXT_INDEX,
-    CALL_AS_FUNCTION_DELEGATE_INDEX,
-    CALL_AS_CONSTRUCTOR_DELEGATE_INDEX,
-    SCRIPT_FUNCTION_INDEX,
-    OPAQUE_REFERENCE_FUNCTION_INDEX,
-    CONTEXT_EXTENSION_FUNCTION_INDEX,
-    OUT_OF_MEMORY_INDEX,
-    EMBEDDER_DATA_INDEX,
-    ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
-    ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX,
-    RUN_MICROTASKS_INDEX,
-    ENQUEUE_MICROTASK_INDEX,
-    PROMISE_STATUS_INDEX,
-    PROMISE_VALUE_INDEX,
-    PROMISE_CREATE_INDEX,
-    PROMISE_RESOLVE_INDEX,
-    PROMISE_REJECT_INDEX,
-    PROMISE_CHAIN_INDEX,
-    PROMISE_CATCH_INDEX,
-    PROMISE_THEN_INDEX,
-    TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX,
-    DERIVED_HAS_TRAP_INDEX,
-    DERIVED_GET_TRAP_INDEX,
-    DERIVED_SET_TRAP_INDEX,
-    PROXY_ENUMERATE_INDEX,
-    OBSERVERS_NOTIFY_CHANGE_INDEX,
-    OBSERVERS_ENQUEUE_SPLICE_INDEX,
-    OBSERVERS_BEGIN_SPLICE_INDEX,
-    OBSERVERS_END_SPLICE_INDEX,
-    NATIVE_OBJECT_OBSERVE_INDEX,
-    NATIVE_OBJECT_GET_NOTIFIER_INDEX,
-    NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE,
-    SLOPPY_GENERATOR_FUNCTION_MAP_INDEX,
-    STRICT_GENERATOR_FUNCTION_MAP_INDEX,
-    STRONG_GENERATOR_FUNCTION_MAP_INDEX,
-    GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
-    ITERATOR_RESULT_MAP_INDEX,
-    JS_MAP_FUN_INDEX,
-    JS_MAP_MAP_INDEX,
-    JS_SET_FUN_INDEX,
-    JS_SET_MAP_INDEX,
-    MAP_GET_METHOD_INDEX,
-    MAP_SET_METHOD_INDEX,
-    MAP_HAS_METHOD_INDEX,
-    MAP_DELETE_METHOD_INDEX,
-    SET_ADD_METHOD_INDEX,
-    SET_HAS_METHOD_INDEX,
-    SET_DELETE_METHOD_INDEX,
-    MAP_FROM_ARRAY_INDEX,
-    SET_FROM_ARRAY_INDEX,
-    MAP_ITERATOR_MAP_INDEX,
-    SET_ITERATOR_MAP_INDEX,
-    ARRAY_VALUES_ITERATOR_INDEX,
-    SCRIPT_CONTEXT_TABLE_INDEX,
-    MAP_CACHE_INDEX,
-    STRONG_MAP_CACHE_INDEX,
-    TO_LENGTH_FUN_INDEX,
-    NATIVES_UTILS_OBJECT_INDEX,
-    EXTRAS_EXPORTS_OBJECT_INDEX,
+#define NATIVE_CONTEXT_SLOT(index, type, name) index,
+    NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_SLOT)
+#undef NATIVE_CONTEXT_SLOT
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
@@ -475,7 +354,11 @@ class Context: public FixedArray {
 
     // Total number of slots.
     NATIVE_CONTEXT_SLOTS,
-    FIRST_WEAK_SLOT = OPTIMIZED_FUNCTIONS_LIST
+    FIRST_WEAK_SLOT = OPTIMIZED_FUNCTIONS_LIST,
+
+    MIN_CONTEXT_SLOTS = GLOBAL_PROXY_INDEX,
+    // This slot holds the thrown value in catch contexts.
+    THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
   };
 
   // Direct slot access.

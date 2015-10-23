@@ -7,5 +7,6 @@
   },
   "version": "0.0.1",
   "readme": "hello world",
-  "bin": {}
+  "bin": {},
+  "license": "ISC"
 }

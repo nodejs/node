@@ -1,8 +1,9 @@
 // Hello, and welcome to hacking node.js!
 //
-// This file is invoked by node::Load in src/node.cc, and responsible for
-// bootstrapping the node.js core. Special caution is given to the performance
-// of the startup process, so many dependencies are invoked lazily.
+// This file is invoked by node::LoadEnvironment in src/node.cc, and is
+// responsible for bootstrapping the node.js core. As special caution is given
+// to the performance of the startup process, many dependencies are invoked
+// lazily.
 
 'use strict';
 
@@ -10,7 +11,7 @@
   this.global = this;
 
   function startup() {
-    var EventEmitter = NativeModule.require('events').EventEmitter;
+    var EventEmitter = NativeModule.require('events');
 
     process.__proto__ = Object.create(EventEmitter.prototype, {
       constructor: {
@@ -20,6 +21,8 @@
     EventEmitter.call(process);
 
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
+
+    startup.setupProcessObject();
 
     // do this good and early, since it handles errors.
     startup.processFatal();
@@ -92,6 +95,22 @@
         process.argv[1] = path.resolve(process.argv[1]);
 
         var Module = NativeModule.require('module');
+
+        // check if user passed `-c` or `--check` arguments to Node.
+        if (process._syntax_check_only != null) {
+          var vm = NativeModule.require('vm');
+          var fs = NativeModule.require('fs');
+          var internalModule = NativeModule.require('internal/module');
+          // read the source
+          var filename = Module._resolveFilename(process.argv[1]);
+          var source = fs.readFileSync(filename, 'utf-8');
+          // remove shebang and BOM
+          source = internalModule.stripBOM(source.replace(/^\#\!.*/, ''));
+          // compile the script, this will throw if it fails
+          new vm.Script(source, {filename: filename, displayErrors: true});
+          process.exit(0);
+        }
+
         startup.preloadModules();
         if (global.v8debug &&
             process.execArgv.some(function(arg) {
@@ -156,6 +175,15 @@
     }
   }
 
+  startup.setupProcessObject = function() {
+    process._setupProcessObject(setPropByIndex);
+
+    function setPropByIndex() {
+      for (var i = 0; i < arguments.length; i++)
+        this.push(arguments[i]);
+    }
+  };
+
   startup.globalVariables = function() {
     global.process = process;
     global.global = global;
@@ -193,13 +221,6 @@
   };
 
   startup.processFatal = function() {
-    process._makeCallbackAbortOnUncaught = function() {
-      try {
-        return this[1].apply(this[0], arguments);
-      } catch (err) {
-        process._fatalException(err);
-      }
-    };
 
     process._fatalException = function(er) {
       var caught;

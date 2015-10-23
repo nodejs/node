@@ -5,6 +5,8 @@
 #ifndef V8_ARM_CODE_STUBS_ARM_H_
 #define V8_ARM_CODE_STUBS_ARM_H_
 
+#include "src/arm/frames-arm.h"
+
 namespace v8 {
 namespace internal {
 

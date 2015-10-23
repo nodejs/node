@@ -24,7 +24,7 @@ server.on('listening', function() {
   var client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
   client.on('data', function(d) {
-    common.print(d);
+    console.log(d);
     recv += d;
   });
 
@@ -65,5 +65,5 @@ server.listen(common.PORT);
 
 process.on('exit', function() {
   assert.equal(N, recv.length);
-  common.debug('Exit');
+  console.error('Exit');
 });

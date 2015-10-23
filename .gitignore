@@ -25,6 +25,7 @@ icu_config.gypi
 # various stuff that VC++ produces/uses
 Debug/
 !node_modules/debug/
+!deps/v8/src/debug/
 Release/
 !doc/blog/**
 *.sln
@@ -70,6 +71,9 @@ deps/openssl/openssl.xml
 /*.host.mk
 deps/openssl/openssl.target.mk
 deps/zlib/zlib.target.mk
+
+# not needed and causes issues for distro packagers
+deps/npm/node_modules/.bin/
 
 # build/release artifacts
 /*.tar.*

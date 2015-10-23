@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
-#include "src/arguments.h"
 #include "src/runtime/runtime-utils.h"
 
+#include "src/arguments.h"
+#include "src/conversions-inl.h"
+#include "src/factory.h"
 
 namespace v8 {
 namespace internal {
@@ -299,7 +299,7 @@ RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
 
 void Runtime::WeakCollectionInitialize(
     Isolate* isolate, Handle<JSWeakCollection> weak_collection) {
-  DCHECK(weak_collection->map()->inobject_properties() == 0);
+  DCHECK_EQ(0, weak_collection->map()->GetInObjectProperties());
   Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 0);
   weak_collection->set_table(*table);
 }

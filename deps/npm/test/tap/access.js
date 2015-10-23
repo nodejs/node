@@ -15,10 +15,6 @@ var scoped = {
   version: '1.1.1'
 }
 
-var body = {
-  access: 'public'
-}
-
 test('setup', function (t) {
   mkdirp(pkg, function (er) {
     t.ifError(er, pkg + ' made successfully')
@@ -384,7 +380,6 @@ test('npm access ls-collaborators on current w/user filter', function (t) {
     }
   )
 })
-
 
 test('npm access edit', function (t) {
   common.npm(

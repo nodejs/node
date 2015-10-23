@@ -4,6 +4,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "string_bytes.h"
+#include "string_search.h"
 #include "util.h"
 #include "util-inl.h"
 #include "v8-profiler.h"
@@ -147,11 +148,14 @@ void CallbackInfo::WeakCallback(
 
 
 void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
-  SPREAD_ARG(object, obj);
-  CHECK_EQ(obj_offset, 0);
-  CHECK_EQ(obj_c.ByteLength(), obj_length);
+  CHECK(object->IsArrayBuffer());
+  Local<ArrayBuffer> buf = object.As<ArrayBuffer>();
+  ArrayBuffer::Contents obj_c = buf->GetContents();
+  char* const obj_data = static_cast<char*>(obj_c.Data());
+  if (buf->ByteLength() != 0)
+    CHECK_NE(obj_data, nullptr);
 
-  obj->Buffer()->Neuter();
+  buf->Neuter();
   callback_(obj_data, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
@@ -163,24 +167,20 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
 // Buffer methods
 
 bool HasInstance(Local<Value> val) {
-  return val->IsObject() && HasInstance(val.As<Object>());
+  return val->IsUint8Array();
 }
 
 
 bool HasInstance(Local<Object> obj) {
-  if (!obj->IsUint8Array())
-    return false;
-  Local<Uint8Array> array = obj.As<Uint8Array>();
-  Environment* env = Environment::GetCurrent(array->GetIsolate());
-  return array->GetPrototype()->StrictEquals(env->buffer_prototype_object());
+  return obj->IsUint8Array();
 }
 
 
 char* Data(Local<Value> val) {
-  CHECK(val->IsObject());
-  // Use a fully qualified name here to work around a bug in gcc 4.2.
-  // It mistakes an unadorned call to Data() for the v8::String::Data type.
-  return node::Buffer::Data(val.As<Object>());
+  CHECK(val->IsUint8Array());
+  Local<Uint8Array> ui = val.As<Uint8Array>();
+  ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
+  return static_cast<char*>(ab_c.Data()) + ui->ByteOffset();
 }
 
 
@@ -193,8 +193,9 @@ char* Data(Local<Object> obj) {
 
 
 size_t Length(Local<Value> val) {
-  CHECK(val->IsObject());
-  return Length(val.As<Object>());
+  CHECK(val->IsUint8Array());
+  Local<Uint8Array> ui = val.As<Uint8Array>();
+  return ui->ByteLength();
 }
 
 
@@ -356,7 +357,7 @@ MaybeLocal<Object> New(Environment* env,
   if (!mb.FromMaybe(false))
     return Local<Object>();
 
-  CallbackInfo::New(env->isolate(), ui, callback, hint);
+  CallbackInfo::New(env->isolate(), ab, callback, hint);
   return scope.Escape(ui);
 }
 
@@ -795,87 +796,172 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 }
 
 
-int32_t IndexOf(const char* haystack,
-                size_t h_length,
-                const char* needle,
-                size_t n_length) {
-  CHECK_GE(h_length, n_length);
-  // TODO(trevnorris): Implement Boyer-Moore string search algorithm.
-  for (size_t i = 0; i < h_length - n_length + 1; i++) {
-    if (haystack[i] == needle[0]) {
-      if (memcmp(haystack + i, needle, n_length) == 0)
-        return i;
-    }
-  }
-  return -1;
-}
-
-
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   ASSERT(args[1]->IsString());
   ASSERT(args[2]->IsNumber());
 
+  enum encoding enc = ParseEncoding(args.GetIsolate(),
+                                    args[3],
+                                    UTF8);
+
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
-  node::Utf8Value str(args.GetIsolate(), args[1]);
-  int32_t offset_i32 = args[2]->Int32Value();
-  uint32_t offset;
+  Local<String> needle = args[1].As<String>();
+  const char* haystack = ts_obj_data;
+  const size_t haystack_length = ts_obj_length;
+  const size_t needle_length = needle->Utf8Length();
 
-  if (offset_i32 < 0) {
-    if (offset_i32 + static_cast<int32_t>(ts_obj_length) < 0)
-      offset = 0;
-    else
-      offset = static_cast<uint32_t>(ts_obj_length + offset_i32);
-  } else {
-    offset = static_cast<uint32_t>(offset_i32);
+
+  if (needle_length == 0 || haystack_length == 0) {
+    return args.GetReturnValue().Set(-1);
   }
 
-  if (str.length() == 0 ||
-      ts_obj_length == 0 ||
-      (offset != 0 && str.length() + offset <= str.length()) ||
-      str.length() + offset > ts_obj_length)
+  int64_t offset_i64 = args[2]->IntegerValue();
+  size_t offset = 0;
+
+  if (offset_i64 < 0) {
+    if (offset_i64 + static_cast<int64_t>(haystack_length) < 0) {
+      offset = 0;
+    } else {
+      offset = static_cast<size_t>(haystack_length + offset_i64);
+    }
+  } else {
+    offset = static_cast<size_t>(offset_i64);
+  }
+
+  if (haystack_length < offset || needle_length + offset > haystack_length) {
     return args.GetReturnValue().Set(-1);
+  }
 
-  int32_t r =
-      IndexOf(ts_obj_data + offset, ts_obj_length - offset, *str, str.length());
-  args.GetReturnValue().Set(r == -1 ? -1 : static_cast<int32_t>(r + offset));
+  size_t result = haystack_length;
+
+  if (enc == UCS2) {
+    String::Value needle_value(needle);
+    if (*needle_value == nullptr)
+      return args.GetReturnValue().Set(-1);
+
+    if (haystack_length < 2 || needle_value.length() < 1) {
+      return args.GetReturnValue().Set(-1);
+    }
+
+    if (IsBigEndian()) {
+      StringBytes::InlineDecoder decoder;
+      decoder.Decode(Environment::GetCurrent(args), needle, args[3], UCS2);
+      const uint16_t* decoded_string =
+          reinterpret_cast<const uint16_t*>(decoder.out());
+
+      if (decoded_string == nullptr)
+        return args.GetReturnValue().Set(-1);
+
+      result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                            haystack_length / 2,
+                            decoded_string,
+                            decoder.size() / 2,
+                            offset / 2);
+    } else {
+      result = SearchString(reinterpret_cast<const uint16_t*>(haystack),
+                            haystack_length / 2,
+                            reinterpret_cast<const uint16_t*>(*needle_value),
+                            needle_value.length(),
+                            offset / 2);
+    }
+    result *= 2;
+  } else if (enc == UTF8) {
+    String::Utf8Value needle_value(needle);
+    if (*needle_value == nullptr)
+      return args.GetReturnValue().Set(-1);
+
+    result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                          haystack_length,
+                          reinterpret_cast<const uint8_t*>(*needle_value),
+                          needle_length,
+                          offset);
+  } else if (enc == BINARY) {
+    uint8_t* needle_data = static_cast<uint8_t*>(malloc(needle_length));
+    if (needle_data == nullptr) {
+      return args.GetReturnValue().Set(-1);
+    }
+    needle->WriteOneByte(
+        needle_data, 0, needle_length, String::NO_NULL_TERMINATION);
+
+    result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                          haystack_length,
+                          needle_data,
+                          needle_length,
+                          offset);
+    free(needle_data);
+  }
+
+  args.GetReturnValue().Set(
+      result == haystack_length ? -1 : static_cast<int>(result));
 }
-
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   ASSERT(args[1]->IsObject());
   ASSERT(args[2]->IsNumber());
 
+  enum encoding enc = ParseEncoding(args.GetIsolate(),
+                                    args[3],
+                                    UTF8);
+
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
   SPREAD_ARG(args[1], buf);
-  const int32_t offset_i32 = args[2]->Int32Value();
-  uint32_t offset;
 
   if (buf_length > 0)
     CHECK_NE(buf_data, nullptr);
 
-  if (offset_i32 < 0) {
-    if (offset_i32 + static_cast<int32_t>(ts_obj_length) < 0)
-      offset = 0;
-    else
-      offset = static_cast<uint32_t>(ts_obj_length + offset_i32);
-  } else {
-    offset = static_cast<uint32_t>(offset_i32);
+  const char* haystack = ts_obj_data;
+  const size_t haystack_length = ts_obj_length;
+  const char* needle = buf_data;
+  const size_t needle_length = buf_length;
+
+  if (needle_length == 0 || haystack_length == 0) {
+    return args.GetReturnValue().Set(-1);
   }
 
-  if (buf_length == 0 ||
-      ts_obj_length == 0 ||
-      (offset != 0 && buf_length + offset <= buf_length) ||
-      buf_length + offset > ts_obj_length)
+  int64_t offset_i64 = args[2]->IntegerValue();
+  size_t offset = 0;
+
+  if (offset_i64 < 0) {
+    if (offset_i64 + static_cast<int64_t>(haystack_length) < 0)
+      offset = 0;
+    else
+      offset = static_cast<size_t>(haystack_length + offset_i64);
+  } else {
+    offset = static_cast<size_t>(offset_i64);
+  }
+
+  if (haystack_length < offset || needle_length + offset > haystack_length) {
     return args.GetReturnValue().Set(-1);
+  }
 
-  int32_t r =
-    IndexOf(ts_obj_data + offset, ts_obj_length - offset, buf_data, buf_length);
-  args.GetReturnValue().Set(r == -1 ? -1 : static_cast<int32_t>(r + offset));
+  size_t result = haystack_length;
+
+  if (enc == UCS2) {
+    if (haystack_length < 2 || needle_length < 2) {
+      return args.GetReturnValue().Set(-1);
+    }
+    result = SearchString(
+        reinterpret_cast<const uint16_t*>(haystack),
+        haystack_length / 2,
+        reinterpret_cast<const uint16_t*>(needle),
+        needle_length / 2,
+        offset / 2);
+    result *= 2;
+  } else {
+    result = SearchString(
+        reinterpret_cast<const uint8_t*>(haystack),
+        haystack_length,
+        reinterpret_cast<const uint8_t*>(needle),
+        needle_length,
+        offset);
+  }
+
+  args.GetReturnValue().Set(
+      result == haystack_length ? -1 : static_cast<int>(result));
 }
-
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   ASSERT(args[1]->IsNumber());
@@ -885,16 +971,16 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   SPREAD_ARG(args[0], ts_obj);
 
   uint32_t needle = args[1]->Uint32Value();
-  int32_t offset_i32 = args[2]->Int32Value();
-  uint32_t offset;
+  int64_t offset_i64 = args[2]->IntegerValue();
+  size_t offset;
 
-  if (offset_i32 < 0) {
-    if (offset_i32 + static_cast<int32_t>(ts_obj_length) < 0)
+  if (offset_i64 < 0) {
+    if (offset_i64 + static_cast<int64_t>(ts_obj_length) < 0)
       offset = 0;
     else
-      offset = static_cast<uint32_t>(ts_obj_length + offset_i32);
+      offset = static_cast<size_t>(ts_obj_length + offset_i64);
   } else {
-    offset = static_cast<uint32_t>(offset_i32);
+    offset = static_cast<size_t>(offset_i64);
   }
 
   if (ts_obj_length == 0 || offset + 1 > ts_obj_length)
@@ -902,8 +988,8 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
 
   void* ptr = memchr(ts_obj_data + offset, needle, ts_obj_length - offset);
   char* ptr_char = static_cast<char*>(ptr);
-  args.GetReturnValue().Set(
-      ptr ? static_cast<int32_t>(ptr_char - ts_obj_data) : -1);
+  args.GetReturnValue().Set(ptr ? static_cast<int>(ptr_char - ts_obj_data)
+                                : -1);
 }
 
 

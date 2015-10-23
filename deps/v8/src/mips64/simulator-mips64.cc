@@ -7,8 +7,6 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/assembler.h"
@@ -1802,9 +1800,15 @@ void Simulator::WriteB(int64_t addr, int8_t value) {
 
 
 // Returns the limit of the stack area to enable checking for stack overflows.
-uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
-  // pushing values.
+uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
+  // The simulator uses a separate JS stack. If we have exhausted the C stack,
+  // we also drop down the JS limit to reflect the exhaustion on the JS stack.
+  if (GetCurrentStackPosition() < c_limit) {
+    return reinterpret_cast<uintptr_t>(get_sp());
+  }
+
+  // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
+  // to prevent overrunning the stack when pushing values.
   return reinterpret_cast<uintptr_t>(stack_) + 1024;
 }
 
@@ -3791,17 +3795,20 @@ void Simulator::DecodeTypeRegisterSPECIAL(
       break;
     case DSLL:
       set_register(rd_reg, alu_out);
+      TraceRegWr(alu_out);
       break;
     case DIV:
-    case DDIV:
+    case DDIV: {
+      const int64_t int_min_value =
+          instr->FunctionFieldRaw() == DIV ? INT_MIN : LONG_MIN;
       switch (kArchVariant) {
         case kMips64r2:
           // Divide by zero and overflow was not checked in the
           // configuration step - div and divu do not raise exceptions. On
           // division by 0 the result will be UNPREDICTABLE. On overflow
           // (INT_MIN/-1), return INT_MIN which is what the hardware does.
-          if (rs == INT_MIN && rt == -1) {
-            set_register(LO, INT_MIN);
+          if (rs == int_min_value && rt == -1) {
+            set_register(LO, int_min_value);
             set_register(HI, 0);
           } else if (rt != 0) {
             set_register(LO, rs / rt);
@@ -3811,14 +3818,14 @@ void Simulator::DecodeTypeRegisterSPECIAL(
         case kMips64r6:
           switch (instr->SaValue()) {
             case DIV_OP:
-              if (rs == INT_MIN && rt == -1) {
-                set_register(rd_reg, INT_MIN);
+              if (rs == int_min_value && rt == -1) {
+                set_register(rd_reg, int_min_value);
               } else if (rt != 0) {
                 set_register(rd_reg, rs / rt);
               }
               break;
             case MOD_OP:
-              if (rs == INT_MIN && rt == -1) {
+              if (rs == int_min_value && rt == -1) {
                 set_register(rd_reg, 0);
               } else if (rt != 0) {
                 set_register(rd_reg, rs % rt);
@@ -3833,6 +3840,7 @@ void Simulator::DecodeTypeRegisterSPECIAL(
           break;
       }
       break;
+    }
     case DIVU:
       if (rt_u != 0) {
         set_register(LO, rs_u / rt_u);
@@ -4412,7 +4420,6 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       UNREACHABLE();
   }
 
-
   // ---------- Raise exceptions triggered.
   SignalExceptions();
 
@@ -4619,6 +4626,9 @@ void Simulator::Execute() {
 
 
 void Simulator::CallInternal(byte* entry) {
+  // Adjust JS-based stack limit to C-based stack limit.
+  isolate_->stack_guard()->AdjustStackLimitForSimulator();
+
   // Prepare to execute the code at entry.
   set_register(pc, reinterpret_cast<int64_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation

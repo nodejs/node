@@ -136,6 +136,7 @@ function f() {
 function g() {
   var a = 2;
   f();
+  return a;  // Use the value to prevent it being removed by DCE.
 };
 
 a = 1;

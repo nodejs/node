@@ -4,6 +4,7 @@
 #include "v8.h"
 
 #include <assert.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -18,11 +19,18 @@ namespace node {
   TypeName(const TypeName&) = delete;                                         \
   TypeName(TypeName&&) = delete
 
+// Windows 8+ does not like abort() in Release mode
+#ifdef _WIN32
+#define ABORT() raise(SIGABRT)
+#else
+#define ABORT() abort()
+#endif
+
 #if defined(NDEBUG)
 # define ASSERT(expression)
 # define CHECK(expression)                                                    \
   do {                                                                        \
-    if (!(expression)) abort();                                               \
+    if (!(expression)) ABORT();                                               \
   } while (0)
 #else
 # define ASSERT(expression)  assert(expression)
@@ -43,7 +51,7 @@ namespace node {
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_NE(a, b) CHECK((a) != (b))
 
-#define UNREACHABLE() abort()
+#define UNREACHABLE() ABORT()
 
 // TAILQ-style intrusive list node.
 template <typename T>

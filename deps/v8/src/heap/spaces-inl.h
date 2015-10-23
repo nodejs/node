@@ -28,7 +28,6 @@ void Bitmap::Clear(MemoryChunk* chunk) {
 // -----------------------------------------------------------------------------
 // PageIterator
 
-
 PageIterator::PageIterator(PagedSpace* space)
     : space_(space),
       prev_page_(&space->anchor_),
@@ -47,8 +46,31 @@ Page* PageIterator::next() {
 
 
 // -----------------------------------------------------------------------------
-// NewSpacePageIterator
+// SemiSpaceIterator
 
+HeapObject* SemiSpaceIterator::Next() {
+  if (current_ == limit_) return NULL;
+  if (NewSpacePage::IsAtEnd(current_)) {
+    NewSpacePage* page = NewSpacePage::FromLimit(current_);
+    page = page->next_page();
+    DCHECK(!page->is_anchor());
+    current_ = page->area_start();
+    if (current_ == limit_) return NULL;
+  }
+
+  HeapObject* object = HeapObject::FromAddress(current_);
+  int size = object->Size();
+
+  current_ += size;
+  return object;
+}
+
+
+HeapObject* SemiSpaceIterator::next_object() { return Next(); }
+
+
+// -----------------------------------------------------------------------------
+// NewSpacePageIterator
 
 NewSpacePageIterator::NewSpacePageIterator(NewSpace* space)
     : prev_page_(NewSpacePage::FromAddress(space->ToSpaceStart())->prev_page()),
@@ -81,6 +103,19 @@ NewSpacePage* NewSpacePageIterator::next() {
 
 // -----------------------------------------------------------------------------
 // HeapObjectIterator
+
+HeapObject* HeapObjectIterator::Next() {
+  do {
+    HeapObject* next_obj = FromCurrentPage();
+    if (next_obj != NULL) return next_obj;
+  } while (AdvanceToNextPage());
+  return NULL;
+}
+
+
+HeapObject* HeapObjectIterator::next_object() { return Next(); }
+
+
 HeapObject* HeapObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
     if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
@@ -88,7 +123,7 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
       continue;
     }
     HeapObject* obj = HeapObject::FromAddress(cur_addr_);
-    int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
+    int obj_size = obj->Size();
     cur_addr_ += obj_size;
     DCHECK(cur_addr_ <= cur_end_);
     // TODO(hpayer): Remove the debugging code.
@@ -138,10 +173,21 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 
 
 // --------------------------------------------------------------------------
+// AllocationResult
+
+AllocationSpace AllocationResult::RetrySpace() {
+  DCHECK(IsRetry());
+  return static_cast<AllocationSpace>(Smi::cast(object_)->value());
+}
+
+
+// --------------------------------------------------------------------------
 // PagedSpace
+
 Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
+  page->mutex_ = new base::Mutex();
   DCHECK(page->area_size() <= kMaxRegularHeapObjectSize);
   DCHECK(chunk->owner() == owner);
   owner->IncreaseCapacity(page->area_size());
@@ -158,6 +204,9 @@ bool PagedSpace::Contains(Address addr) {
   if (!p->is_valid()) return false;
   return p->owner() == this;
 }
+
+
+bool PagedSpace::Contains(HeapObject* o) { return Contains(o->address()); }
 
 
 void MemoryChunk::set_scan_on_scavenge(bool scan) {
@@ -192,19 +241,6 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
 }
 
 
-void MemoryChunk::UpdateHighWaterMark(Address mark) {
-  if (mark == NULL) return;
-  // Need to subtract one from the mark because when a chunk is full the
-  // top points to the next address after the chunk, which effectively belongs
-  // to another chunk. See the comment to Page::FromAllocationTop.
-  MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
-  int new_mark = static_cast<int>(mark - chunk->address());
-  if (new_mark > chunk->high_water_mark_) {
-    chunk->high_water_mark_ = new_mark;
-  }
-}
-
-
 PointerChunkIterator::PointerChunkIterator(Heap* heap)
     : state_(kOldSpaceState),
       old_iterator_(heap->old_space()),
@@ -212,15 +248,43 @@ PointerChunkIterator::PointerChunkIterator(Heap* heap)
       lo_iterator_(heap->lo_space()) {}
 
 
-Page* Page::next_page() {
-  DCHECK(next_chunk()->owner() == owner());
-  return static_cast<Page*>(next_chunk());
-}
-
-
-Page* Page::prev_page() {
-  DCHECK(prev_chunk()->owner() == owner());
-  return static_cast<Page*>(prev_chunk());
+MemoryChunk* PointerChunkIterator::next() {
+  switch (state_) {
+    case kOldSpaceState: {
+      if (old_iterator_.has_next()) {
+        return old_iterator_.next();
+      }
+      state_ = kMapState;
+      // Fall through.
+    }
+    case kMapState: {
+      if (map_iterator_.has_next()) {
+        return map_iterator_.next();
+      }
+      state_ = kLargeObjectState;
+      // Fall through.
+    }
+    case kLargeObjectState: {
+      HeapObject* heap_object;
+      do {
+        heap_object = lo_iterator_.Next();
+        if (heap_object == NULL) {
+          state_ = kFinishedState;
+          return NULL;
+        }
+        // Fixed arrays are the only pointer-containing objects in large
+        // object space.
+      } while (!heap_object->IsFixedArray());
+      MemoryChunk* answer = MemoryChunk::FromAddress(heap_object->address());
+      return answer;
+    }
+    case kFinishedState:
+      return NULL;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -344,23 +408,29 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
 
 AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
                                               AllocationAlignment alignment) {
-  Address old_top = allocation_info_.top();
-  int filler_size = Heap::GetFillToAlign(old_top, alignment);
+  Address top = allocation_info_.top();
+  int filler_size = Heap::GetFillToAlign(top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
-  if (allocation_info_.limit() - old_top < aligned_size_in_bytes) {
-    return SlowAllocateRaw(size_in_bytes, alignment);
+  if (allocation_info_.limit() - top < aligned_size_in_bytes) {
+    // See if we can create room.
+    if (!EnsureAllocation(size_in_bytes, alignment)) {
+      return AllocationResult::Retry();
+    }
+
+    top = allocation_info_.top();
+    filler_size = Heap::GetFillToAlign(top, alignment);
+    aligned_size_in_bytes = size_in_bytes + filler_size;
   }
 
-  HeapObject* obj = HeapObject::FromAddress(old_top);
-  allocation_info_.set_top(allocation_info_.top() + aligned_size_in_bytes);
+  HeapObject* obj = HeapObject::FromAddress(top);
+  allocation_info_.set_top(top + aligned_size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   if (filler_size > 0) {
     obj = heap()->PrecedeWithFiller(obj, filler_size);
   }
 
-  // The slow path above ultimately goes through AllocateRaw, so this suffices.
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
 
   return obj;
@@ -368,17 +438,20 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
 
 
 AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes) {
-  Address old_top = allocation_info_.top();
+  Address top = allocation_info_.top();
+  if (allocation_info_.limit() - top < size_in_bytes) {
+    // See if we can create room.
+    if (!EnsureAllocation(size_in_bytes, kWordAligned)) {
+      return AllocationResult::Retry();
+    }
 
-  if (allocation_info_.limit() - old_top < size_in_bytes) {
-    return SlowAllocateRaw(size_in_bytes, kWordAligned);
+    top = allocation_info_.top();
   }
 
-  HeapObject* obj = HeapObject::FromAddress(old_top);
-  allocation_info_.set_top(allocation_info_.top() + size_in_bytes);
+  HeapObject* obj = HeapObject::FromAddress(top);
+  allocation_info_.set_top(top + size_in_bytes);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
-  // The slow path above ultimately goes through AllocateRaw, so this suffices.
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
 
   return obj;

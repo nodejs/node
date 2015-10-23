@@ -7,7 +7,10 @@
 
 {
   'variables': {
-    'icu_src_derb': [ '../../deps/icu/source/tools/genrb/derb.c' ],
+    'icu_src_derb': [
+      '../../deps/icu/source/tools/genrb/derb.c',
+      '../../deps/icu/source/tools/genrb/derb.cpp'
+    ],
   },
   'includes': [ '../../icu_config.gypi' ],
   'targets': [
@@ -29,9 +32,17 @@
       'type': 'none',
       'toolsets': [ 'host', 'target' ],
       'direct_dependent_settings': {
+        'conditions': [
+          [ 'icu_endianness == "l"', {
+             'defines': [
+                # ICU cannot swap the initial data without this.
+                # http://bugs.icu-project.org/trac/ticket/11046
+                'UCONFIG_NO_LEGACY_CONVERSION=1',
+                'UCONFIG_NO_IDNA=1',
+             ],
+          }],
+        ],
         'defines': [
-          'UCONFIG_NO_LEGACY_CONVERSION=1',
-          'UCONFIG_NO_IDNA=1',
           'UCONFIG_NO_TRANSLITERATION=1',
           'UCONFIG_NO_SERVICE=1',
           'UCONFIG_NO_REGULAR_EXPRESSIONS=1',
@@ -388,6 +399,7 @@
           '../../deps/icu/source/common/ushape.cpp',
           '../../deps/icu/source/common/usprep.cpp',
           '../../deps/icu/source/common/uts46.cpp',
+          '../../deps/icu/source/common/uidna.cpp',
         ]}],
         [ 'OS == "solaris"', { 'defines': [
           '_XOPEN_SOURCE_EXTENDED=0',

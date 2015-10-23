@@ -171,7 +171,7 @@ refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
 but the latter may do some processing of pipe names, such as resolving `..`
 sequences. Despite appearances, the pipe name space is flat.  Pipes will *not
 persist*, they are removed when the last reference to them is closed. Do not
-forget javascript string escaping requires paths to be specified with
+forget JavaScript string escaping requires paths to be specified with
 double-backslashes, such as:
 
     net.createServer().listen(

@@ -46,9 +46,6 @@ class Pipeline {
                                           InstructionSequence* sequence,
                                           bool run_verifier);
 
-  static inline bool SupportedBackend() { return V8_TURBOFAN_BACKEND != 0; }
-  static inline bool SupportedTarget() { return V8_TURBOFAN_TARGET != 0; }
-
  private:
   static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
                                              CallDescriptor* call_descriptor,
@@ -70,7 +67,7 @@ class Pipeline {
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
-                         bool run_verifier);
+                         CallDescriptor* descriptor, bool run_verifier);
 };
 
 }  // namespace compiler

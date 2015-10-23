@@ -7,6 +7,7 @@
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
+#include "src/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
@@ -111,9 +112,8 @@ class MemoryReducer {
   };
 
   explicit MemoryReducer(Heap* heap)
-      : heap_(heap), state_(kDone, 0, 0.0, 0.0), pending_task_(nullptr) {}
+      : heap_(heap), state_(kDone, 0, 0.0, 0.0) {}
   // Callbacks.
-  void NotifyTimer(const Event& event);
   void NotifyMarkCompact(const Event& event);
   void NotifyContextDisposed(const Event& event);
   void NotifyBackgroundIdleNotification(const Event& event);
@@ -123,10 +123,6 @@ class MemoryReducer {
   // Posts a timer task that will call NotifyTimer after the given delay.
   void ScheduleTimer(double delay_ms);
   void TearDown();
-  void ClearTask(v8::Task* task);
-
-  static bool WatchdogGC(const State& state, const Event& event);
-
   static const int kLongDelayMs;
   static const int kShortDelayMs;
   static const int kWatchdogDelayMs;
@@ -139,28 +135,23 @@ class MemoryReducer {
   }
 
  private:
-  class TimerTask : public v8::Task {
+  class TimerTask : public v8::internal::CancelableTask {
    public:
-    explicit TimerTask(MemoryReducer* memory_reducer)
-        : memory_reducer_(memory_reducer), heap_is_torn_down_(false) {}
-    virtual ~TimerTask() {
-      if (!heap_is_torn_down_) {
-        memory_reducer_->ClearTask(this);
-      }
-    }
-    void NotifyHeapTearDown() { heap_is_torn_down_ = true; }
+    explicit TimerTask(MemoryReducer* memory_reducer);
 
    private:
-    // v8::Task overrides.
-    void Run() override;
+    // v8::internal::CancelableTask overrides.
+    void RunInternal() override;
     MemoryReducer* memory_reducer_;
-    bool heap_is_torn_down_;
     DISALLOW_COPY_AND_ASSIGN(TimerTask);
   };
+
+  void NotifyTimer(const Event& event);
+
+  static bool WatchdogGC(const State& state, const Event& event);
+
   Heap* heap_;
   State state_;
-  TimerTask* pending_task_;
-
   DISALLOW_COPY_AND_ASSIGN(MemoryReducer);
 };
 

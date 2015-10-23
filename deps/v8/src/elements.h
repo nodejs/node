@@ -38,17 +38,8 @@ class ElementsAccessor {
     return HasElement(holder, index, handle(holder->elements()));
   }
 
-  // Returns the element with the specified index or undefined if there is no
-  // such element. This method doesn't iterate up the prototype chain.  The
-  // caller can optionally pass in the backing store to use for the check, which
-  // must be compatible with the ElementsKind of the ElementsAccessor. If
-  // backing_store is NULL, the holder->elements() is used as the backing store.
-  virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t index,
-                             Handle<FixedArrayBase> backing_store) = 0;
-
-  inline Handle<Object> Get(Handle<JSObject> holder, uint32_t index) {
-    return Get(holder, index, handle(holder->elements()));
-  }
+  virtual Handle<Object> Get(Handle<FixedArrayBase> backing_store,
+                             uint32_t entry) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
@@ -68,6 +59,9 @@ class ElementsAccessor {
   // destination array, padding any remaining uninitialized elements in the
   // destination array with the hole.
   static const int kCopyToEndAndInitializeToHole = -2;
+
+  static const int kDirectionForward = 1;
+  static const int kDirectionReverse = -1;
 
   // Copy elements from one backing store to another. Typically, callers specify
   // the source JSObject or JSArray in source_holder. If the holder's backing
@@ -119,15 +113,23 @@ class ElementsAccessor {
   static void InitializeOncePerProcess();
   static void TearDown();
 
-  virtual void Set(FixedArrayBase* backing_store, uint32_t index,
+  virtual void Set(FixedArrayBase* backing_store, uint32_t entry,
                    Object* value) = 0;
+
   virtual void Reconfigure(Handle<JSObject> object,
                            Handle<FixedArrayBase> backing_store, uint32_t entry,
                            Handle<Object> value,
                            PropertyAttributes attributes) = 0;
-  virtual void Add(Handle<JSObject> object, uint32_t entry,
+
+  virtual void Add(Handle<JSObject> object, uint32_t index,
                    Handle<Object> value, PropertyAttributes attributes,
                    uint32_t new_capacity) = 0;
+
+  // TODO(cbruni): Consider passing Arguments* instead of Object** depending on
+  // the requirements of future callers.
+  virtual uint32_t Push(Handle<JSArray> receiver,
+                        Handle<FixedArrayBase> backing_store, Object** objects,
+                        uint32_t start, int direction) = 0;
 
  protected:
   friend class LookupIterator;

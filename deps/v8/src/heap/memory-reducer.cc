@@ -17,9 +17,12 @@ const int MemoryReducer::kShortDelayMs = 500;
 const int MemoryReducer::kWatchdogDelayMs = 100000;
 const int MemoryReducer::kMaxNumberOfGCs = 3;
 
+MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
+    : CancelableTask(memory_reducer->heap()->isolate()),
+      memory_reducer_(memory_reducer) {}
 
-void MemoryReducer::TimerTask::Run() {
-  if (heap_is_torn_down_) return;
+
+void MemoryReducer::TimerTask::RunInternal() {
   Heap* heap = memory_reducer_->heap();
   Event event;
   double time_ms = heap->MonotonicallyIncreasingTimeInMs();
@@ -36,10 +39,8 @@ void MemoryReducer::TimerTask::Run() {
 
 
 void MemoryReducer::NotifyTimer(const Event& event) {
-  DCHECK(nullptr != pending_task_);
   DCHECK_EQ(kTimer, event.type);
   DCHECK_EQ(kWait, state_.action);
-  pending_task_ = nullptr;
   state_ = Step(state_, event);
   if (state_.action == kRun) {
     DCHECK(heap()->incremental_marking()->IsStopped());
@@ -192,27 +193,13 @@ void MemoryReducer::ScheduleTimer(double delay_ms) {
   // Leave some room for precision error in task scheduler.
   const double kSlackMs = 100;
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap()->isolate());
-  DCHECK(nullptr == pending_task_);
-  pending_task_ = new MemoryReducer::TimerTask(this);
+  auto timer_task = new MemoryReducer::TimerTask(this);
   V8::GetCurrentPlatform()->CallDelayedOnForegroundThread(
-      isolate, pending_task_, (delay_ms + kSlackMs) / 1000.0);
+      isolate, timer_task, (delay_ms + kSlackMs) / 1000.0);
 }
 
 
-void MemoryReducer::ClearTask(v8::Task* task) {
-  if (pending_task_ == task) {
-    pending_task_ = nullptr;
-  }
-}
-
-
-void MemoryReducer::TearDown() {
-  if (pending_task_ != nullptr) {
-    pending_task_->NotifyHeapTearDown();
-    pending_task_ = nullptr;
-  }
-  state_ = State(kDone, 0, 0, 0.0);
-}
+void MemoryReducer::TearDown() { state_ = State(kDone, 0, 0, 0.0); }
 
 }  // internal
 }  // v8

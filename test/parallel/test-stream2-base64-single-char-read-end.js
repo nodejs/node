@@ -33,5 +33,5 @@ src.on('end', function() {
 src.pipe(dst);
 
 timeout = setTimeout(function() {
-  assert.fail('timed out waiting for _write');
+  assert.fail(null, null, 'timed out waiting for _write');
 }, 100);

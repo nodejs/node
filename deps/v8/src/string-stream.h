@@ -5,10 +5,16 @@
 #ifndef V8_STRING_STREAM_H_
 #define V8_STRING_STREAM_H_
 
+#include "src/allocation.h"
+#include "src/base/smart-pointers.h"
 #include "src/handles.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ByteArray;
 
 class StringAllocator {
  public:
@@ -129,7 +135,7 @@ class StringStream final {
   void OutputToStdOut() { OutputToFile(stdout); }
   void Log(Isolate* isolate);
   Handle<String> ToString(Isolate* isolate);
-  SmartArrayPointer<const char> ToCString() const;
+  base::SmartArrayPointer<const char> ToCString() const;
   int length() const { return length_; }
 
   // Object printing support.

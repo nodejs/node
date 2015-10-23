@@ -1,8 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var L = require('_linklist');
 
+// Flags: --expose-internals
+
+const common = require('../common');
+const assert = require('assert');
+const L = require('_linklist');
+const internalL = require('internal/linkedlist');
+
+assert.strictEqual(L, internalL);
 
 var list = { name: 'list' };
 var A = { name: 'A' };

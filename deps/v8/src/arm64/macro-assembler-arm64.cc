@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
 
+#include "src/arm64/frames-arm64.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -903,6 +902,25 @@ void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
   int size = dst0.SizeInBytes();
 
   PopHelper(count, size, dst0, dst1, dst2, dst3);
+  PopPostamble(count, size);
+}
+
+
+void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
+                         const CPURegister& dst2, const CPURegister& dst3,
+                         const CPURegister& dst4, const CPURegister& dst5,
+                         const CPURegister& dst6, const CPURegister& dst7) {
+  // It is not valid to pop into the same register more than once in one
+  // instruction, not even into the zero register.
+  DCHECK(!AreAliased(dst0, dst1, dst2, dst3, dst4, dst5, dst6, dst7));
+  DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3, dst4, dst5, dst6, dst7));
+  DCHECK(dst0.IsValid());
+
+  int count = 5 + dst5.IsValid() + dst6.IsValid() + dst7.IsValid();
+  int size = dst0.SizeInBytes();
+
+  PopHelper(4, size, dst0, dst1, dst2, dst3);
+  PopHelper(count - 4, size, dst4, dst5, dst6, dst7);
   PopPostamble(count, size);
 }
 
@@ -3030,10 +3048,10 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 
 void MacroAssembler::DebugBreak() {
   Mov(x0, 0);
-  Mov(x1, ExternalReference(Runtime::kDebugBreak, isolate()));
+  Mov(x1, ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
   CEntryStub ces(isolate(), 1);
   DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
+  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
 
@@ -3220,26 +3238,6 @@ void MacroAssembler::Allocate(Register object_size,
   if ((flags & TAG_OBJECT) != 0) {
     ObjectTag(result, result);
   }
-}
-
-
-void MacroAssembler::UndoAllocationInNewSpace(Register object,
-                                              Register scratch) {
-  ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address(isolate());
-
-  // Make sure the object has no tag before resetting top.
-  Bic(object, object, kHeapObjectTagMask);
-#ifdef DEBUG
-  // Check that the object un-allocated is below the current top.
-  Mov(scratch, new_space_allocation_top);
-  Ldr(scratch, MemOperand(scratch));
-  Cmp(object, scratch);
-  Check(lt, kUndoAllocationOfNonAllocatedMemory);
-#endif
-  // Write the address of the object to un-allocate as the current top.
-  Mov(scratch, new_space_allocation_top);
-  Str(object, MemOperand(scratch));
 }
 
 
@@ -4417,21 +4415,29 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
     Register scratch1,
     Label* found) {
   DCHECK(!AreAliased(object, scratch0, scratch1));
-  Factory* factory = isolate()->factory();
   Register current = scratch0;
-  Label loop_again;
+  Label loop_again, end;
 
   // Scratch contains elements pointer.
   Mov(current, object);
+  Ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  Ldr(current, FieldMemOperand(current, Map::kPrototypeOffset));
+  CompareAndBranch(current, Heap::kNullValueRootIndex, eq, &end);
 
   // Loop based on the map going up the prototype chain.
   Bind(&loop_again);
   Ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
+  STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
+  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
+  CompareInstanceType(current, scratch1, JS_OBJECT_TYPE);
+  B(lo, found);
   Ldrb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
   DecodeField<Map::ElementsKindBits>(scratch1);
   CompareAndBranch(scratch1, DICTIONARY_ELEMENTS, eq, found);
   Ldr(current, FieldMemOperand(current, Map::kPrototypeOffset));
-  CompareAndBranch(current, Operand(factory->null_value()), ne, &loop_again);
+  CompareAndBranch(current, Heap::kNullValueRootIndex, ne, &loop_again);
+
+  Bind(&end);
 }
 
 

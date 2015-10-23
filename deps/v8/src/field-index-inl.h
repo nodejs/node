@@ -16,7 +16,7 @@ inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Map* map) {
   int index = offset / kPointerSize;
   DCHECK(map == NULL ||
          index < (map->GetInObjectPropertyOffset(0) / kPointerSize +
-                  map->inobject_properties()));
+                  map->GetInObjectProperties()));
   return FieldIndex(true, index, false, 0, 0, true);
 }
 
@@ -25,7 +25,7 @@ inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
                                                int property_index,
                                                bool is_double) {
   DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
-  int inobject_properties = map->inobject_properties();
+  int inobject_properties = map->GetInObjectProperties();
   bool is_inobject = property_index < inobject_properties;
   int first_inobject_offset;
   if (is_inobject) {
@@ -58,7 +58,7 @@ inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
     field_index += JSObject::kHeaderSize / kPointerSize;
   }
   FieldIndex result(is_inobject, field_index, is_double,
-                    map->inobject_properties(), first_inobject_offset);
+                    map->GetInObjectProperties(), first_inobject_offset);
   DCHECK(result.GetLoadByFieldIndex() == orig_index);
   return result;
 }

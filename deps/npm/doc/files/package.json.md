@@ -178,10 +178,10 @@ The "files" field is an array of files to include in your project.  If
 you name a folder in the array, then it will also include the files
 inside that folder. (Unless they would be ignored by another rule.)
 
-You can also provide a ".npmignore" file in the root of your package,
-which will keep files from being included, even if they would be picked
-up by the files array.  The ".npmignore" file works just like a
-".gitignore".
+You can also provide a ".npmignore" file in the root of your package or
+in subdirectories, which will keep files from being included, even
+if they would be picked up by the files array.  The `.npmignore` file
+works just like a `.gitignore`.
 
 Certain files are always included, regardless of settings:
 
@@ -626,17 +626,10 @@ field is advisory only.
 
 ## engineStrict
 
-**NOTE: This feature is deprecated and will be removed in npm 3.0.0.**
+**This feature was deprecated with npm 3.0.0**
 
-If you are sure that your module will *definitely not* run properly on
-versions of Node/npm other than those specified in the `engines` object,
-then you can set `"engineStrict": true` in your package.json file.
-This will override the user's `engine-strict` config setting.
-
-Please do not do this unless you are really very very sure.  If your
-engines object is something overly restrictive, you can quite easily and
-inadvertently lock yourself into obscurity and prevent your users from
-updating to new versions of Node.  Consider this choice carefully.
+Prior to npm 3.0.0, this feature was used to treat this package as if the
+user had set `engine-strict`.
 
 ## os
 

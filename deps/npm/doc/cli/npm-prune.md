@@ -3,8 +3,7 @@ npm-prune(1) -- Remove extraneous packages
 
 ## SYNOPSIS
 
-    npm prune [<name> [<name ...]]
-    npm prune [<name> [<name ...]] [--production]
+    npm prune [[<@scope>/]<pkg>...] [--production]
 
 ## DESCRIPTION
 

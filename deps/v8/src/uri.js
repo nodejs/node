@@ -17,6 +17,11 @@
 var GlobalObject = global.Object;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
+var ToString;
+
+utils.Import(function(from) {
+  ToString = from.ToString;
+});
 
 // -------------------------------------------------------------------
 // Define internal helper functions.
@@ -274,13 +279,13 @@ function Decode(uri, reserved) {
 
 // ECMA-262 - B.2.1.
 function URIEscapeJS(str) {
-  var s = $toString(str);
+  var s = ToString(str);
   return %URIEscape(s);
 }
 
 // ECMA-262 - B.2.2.
 function URIUnescapeJS(str) {
-  var s = $toString(str);
+  var s = ToString(str);
   return %URIUnescape(s);
 }
 
@@ -304,14 +309,14 @@ function URIDecode(uri) {
 
     return false;
   };
-  var string = $toString(uri);
+  var string = ToString(uri);
   return Decode(string, reservedPredicate);
 }
 
 // ECMA-262 - 15.1.3.2.
 function URIDecodeComponent(component) {
   var reservedPredicate = function(cc) { return false; };
-  var string = $toString(component);
+  var string = ToString(component);
   return Decode(string, reservedPredicate);
 }
 
@@ -338,7 +343,7 @@ function URIEncode(uri) {
 
     return false;
   };
-  var string = $toString(uri);
+  var string = ToString(uri);
   return Encode(string, unescapePredicate);
 }
 
@@ -359,7 +364,7 @@ function URIEncodeComponent(component) {
 
     return false;
   };
-  var string = $toString(component);
+  var string = ToString(component);
   return Encode(string, unescapePredicate);
 }
 

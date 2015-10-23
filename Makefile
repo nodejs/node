@@ -67,8 +67,9 @@ uninstall:
 
 clean:
 	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE)
-	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' | xargs rm -rf; fi
+	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs rm -rf; fi
 	-rm -rf node_modules
+	@if [ -d deps/icu ]; then echo deleting deps/icu; rm -rf deps/icu; fi
 	-rm -f test.tap
 
 distclean:
@@ -505,7 +506,8 @@ bench-idle:
 	$(NODE) benchmark/idle_clients.js &
 
 jslint:
-	$(NODE) tools/eslint/bin/eslint.js src lib test --rulesdir tools/eslint-rules --reset --quiet
+	$(NODE) tools/eslint/bin/eslint.js src lib test tools/eslint-rules \
+		--rulesdir tools/eslint-rules --reset --quiet
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc

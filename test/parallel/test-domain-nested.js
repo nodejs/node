@@ -1,6 +1,7 @@
 'use strict';
 // Make sure that the nested domains don't cause the domain stack to grow
 
+require('../common');
 var assert = require('assert');
 var domain = require('domain');
 

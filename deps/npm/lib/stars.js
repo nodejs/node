@@ -1,10 +1,10 @@
 module.exports = stars
 
-stars.usage = "npm stars [username]"
+stars.usage = 'npm stars [<user>]'
 
-var npm = require("./npm.js")
-  , log = require("npmlog")
-  , mapToRegistry = require("./utils/map-to-registry.js")
+var npm = require('./npm.js')
+var log = require('npmlog')
+var mapToRegistry = require('./utils/map-to-registry.js')
 
 function stars (args, cb) {
   npm.commands.whoami([], true, function (er, username) {
@@ -20,12 +20,12 @@ function stars (args, cb) {
       if (er.code !== 'ENEEDAUTH') return cb(er)
     }
 
-    mapToRegistry("", npm.config, function (er, uri, auth) {
+    mapToRegistry('', npm.config, function (er, uri, auth) {
       if (er) return cb(er)
 
       var params = {
-        username : name,
-        auth     : auth
+        username: name,
+        auth: auth
       }
       npm.registry.stars(uri, params, showstars)
     })
@@ -35,9 +35,9 @@ function stars (args, cb) {
     if (er) return cb(er)
 
     if (data.rows.length === 0) {
-      log.warn("stars", "user has not starred any packages.")
+      log.warn('stars', 'user has not starred any packages.')
     } else {
-      data.rows.forEach(function(a) {
+      data.rows.forEach(function (a) {
         console.log(a.value)
       })
     }
