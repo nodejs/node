@@ -31,7 +31,7 @@ var localDependency = {
 }
 
 var scopedDependency = {
-  name: '@scoped/package-scoped-dependency',
+  name: '@scoped/package',
   version: '0.0.0',
   description: 'Test for local installs'
 }
@@ -64,7 +64,6 @@ test('installing already installed local scoped package', function (t) {
   common.npm(
     [
       '--loglevel', 'silent',
-      '--parseable',
       'install'
     ],
     EXEC_OPTS,
@@ -72,13 +71,14 @@ test('installing already installed local scoped package', function (t) {
       var installed = parseNpmInstallOutput(stdout)
       t.ifError(err, 'install ran to completion without error')
       t.notOk(code, 'npm install exited with code 0')
+
       t.ok(
-        existsSync(path.join(modules, '@scoped', 'package-scoped-dependency', 'package.json')),
+        existsSync(path.join(modules, '@scoped', 'package', 'package.json')),
         'package installed'
       )
       t.ok(
-        contains(installed, 'node_modules/@scoped/package-scoped-dependency'),
-        'installed @scoped/package-scoped-dependency'
+        contains(installed, 'node_modules/@scoped/package'),
+        'installed @scoped/package'
       )
       t.ok(
         contains(installed, 'node_modules/package-local-dependency'),
@@ -88,7 +88,6 @@ test('installing already installed local scoped package', function (t) {
       common.npm(
         [
           '--loglevel', 'silent',
-          '--parseable',
           'install'
         ],
         EXEC_OPTS,
@@ -99,13 +98,13 @@ test('installing already installed local scoped package', function (t) {
           installed = parseNpmInstallOutput(stdout)
 
           t.ok(
-            existsSync(path.join(modules, '@scoped', 'package-scoped-dependency', 'package.json')),
+            existsSync(path.join(modules, '@scoped', 'package', 'package.json')),
             'package installed'
           )
 
           t.notOk(
-            contains(installed, 'node_modules/@scoped/package-scoped-dependency'),
-            'did not reinstall @scoped/package-scoped-dependency'
+            contains(installed, 'node_modules/@scoped/package'),
+            'did not reinstall @scoped/package'
           )
           t.notOk(
             contains(installed, 'node_modules/package-local-dependency'),
@@ -125,9 +124,8 @@ test('cleanup', function (t) {
 })
 
 function contains (list, element) {
-  var matcher = new RegExp(element + '$')
   for (var i = 0; i < list.length; ++i) {
-    if (matcher.test(list[i])) {
+    if (list[i] === element) {
       return true
     }
   }

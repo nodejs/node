@@ -28,7 +28,7 @@ The four relevant files are:
 
 * per-project config file (/path/to/my/project/.npmrc)
 * per-user config file (~/.npmrc)
-* global config file ($PREFIX/etc/npmrc)
+* global config file ($PREFIX/npmrc)
 * npm builtin config file (/path/to/npm/npmrc)
 
 See npmrc(5) for more details.
@@ -123,14 +123,6 @@ you want your scoped package to be publicly viewable (and installable) set
 
 Force npm to always require authentication when accessing the registry,
 even for `GET` requests.
-
-### also
-
-* Default: null
-* Type: String
-
-When "dev" or "development" and running local `npm shrinkwrap`,
-`npm outdated`, or `npm update`, is an alias for `--dev`.
 
 ### bin-links
 
@@ -275,17 +267,6 @@ Install `dev-dependencies` along with packages.
 
 Note that `dev-dependencies` are also installed if the `npat` flag is
 set.
-
-### dry-run
-
-* Default: false
-* Type: Boolean
-
-Indicates that you don't want npm to make any changes and that it should
-only report what it would have done.  This can be passed into any of the
-commands that modify your local installation, eg, `install`, `update`,
-`dedupe`, `uninstall`.  This is NOT currently honored by network related
-commands, eg `dist-tags`, `owner`, `publish`, etc.
 
 ### editor
 
@@ -580,24 +561,6 @@ Run tests on installation.
 A node module to `require()` when npm loads.  Useful for programmatic
 usage.
 
-### only
-
-* Default: null
-* Type: String
-
-When "dev" or "development" and running local `npm install` without any
-arguments, only devDependencies (and their dependencies) are installed.
-
-When "dev" or "development" and running local `npm ls`, `npm outdated`, or
-`npm update`, is an alias for `--dev`.
-
-When "prod" or "production" and running local `npm install` without any
-arguments, only non-devDependencies (and their dependencies) are
-installed.
-
-When "prod" or "production" and running local `npm ls`, `npm outdated`, or
-`npm update`, is an alias for `--production`.
-
 ### optional
 
 * Default: true
@@ -633,16 +596,6 @@ Set to true to run in "production" mode.
 1. devDependencies are not installed at the topmost level when running
    local `npm install` without any arguments.
 2. Set the NODE_ENV="production" for lifecycle scripts.
-
-### progress
-
-* Default: true
-* Type: Boolean
-
-When set to `true`, npm will display a progress bar during time intensive
-operations, if `process.stderr` is a TTY.
-
-Set to `false` to suppress the progress bar.
 
 ### proprietary-attribs
 
@@ -819,6 +772,17 @@ using `-s` to add a signature.
 Note that git requires you to have set up GPG keys in your git configs
 for this to work properly.
 
+### spin
+
+* Default: true
+* Type: Boolean or `"always"`
+
+When set to `true`, npm will display an ascii spinner while it is doing
+things, if `process.stderr` is a TTY.
+
+Set to `false` to suppress the spinner, or set to `always` to output
+the spinner even for non-TTY outputs.
+
 ### strict-ssl
 
 * Default: true
@@ -863,7 +827,7 @@ on success, but left behind on failure for forensic purposes.
 
 ### unicode
 
-* Default: true on windows and mac/unix systems with a unicode locale
+* Default: true
 * Type: Boolean
 
 When set to true, npm uses unicode characters in the tree output.  When

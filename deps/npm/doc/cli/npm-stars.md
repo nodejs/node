@@ -3,7 +3,8 @@ npm-stars(1) -- View packages marked as favorites
 
 ## SYNOPSIS
 
-    npm stars [<user>]
+    npm stars
+    npm stars [username]
 
 ## DESCRIPTION
 

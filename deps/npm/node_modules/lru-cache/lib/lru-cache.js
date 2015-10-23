@@ -137,10 +137,24 @@ LRUCache.prototype.reset = function () {
   this._itemCount = 0
 }
 
-// Provided for debugging/dev purposes only. No promises whatsoever that
-// this API stays stable.
 LRUCache.prototype.dump = function () {
-  return this._cache
+  var arr = []
+  var i = 0
+
+  for (var k = this._mru - 1; k >= 0 && i < this._itemCount; k--) if (this._lruList[k]) {
+    var hit = this._lruList[k]
+    if (!isStale(this, hit)) {
+      //Do not store staled hits
+      ++i
+      arr.push({
+        k: hit.key,
+        v: hit.value,
+        e: hit.now + (hit.maxAge || 0)
+      });
+    }
+  }
+  //arr has the most read first
+  return arr
 }
 
 LRUCache.prototype.dumpLru = function () {
@@ -150,8 +164,13 @@ LRUCache.prototype.dumpLru = function () {
 LRUCache.prototype.set = function (key, value, maxAge) {
   maxAge = maxAge || this._maxAge
   var now = maxAge ? Date.now() : 0
+  var len = this._lengthCalculator(value)
 
   if (hOP(this._cache, key)) {
+    if (len > this._max) {
+      del(this, this._cache[key])
+      return false
+    }
     // dispose of the old one before overwriting
     if (this._dispose)
       this._dispose(key, this._cache[key].value)
@@ -159,11 +178,16 @@ LRUCache.prototype.set = function (key, value, maxAge) {
     this._cache[key].now = now
     this._cache[key].maxAge = maxAge
     this._cache[key].value = value
+    this._length += (len - this._cache[key].length)
+    this._cache[key].length = len
     this.get(key)
+
+    if (this._length > this._max)
+      trim(this)
+
     return true
   }
 
-  var len = this._lengthCalculator(value)
   var hit = new Entry(key, value, this._mru++, len, now, maxAge)
 
   // oversized objects fall out of cache automatically.
@@ -207,6 +231,26 @@ LRUCache.prototype.pop = function () {
 
 LRUCache.prototype.del = function (key) {
   del(this, this._cache[key])
+}
+
+LRUCache.prototype.load = function (arr) {
+  //reset the cache
+  this.reset();
+
+  var now = Date.now()
+  //A previous serialized cache has the most recent items first
+  for (var l = arr.length - 1; l >= 0; l-- ) {
+    var hit = arr[l]
+    var expiresAt = hit.e || 0
+    if (expiresAt === 0) {
+      //the item was created without expiration in a non aged cache
+      this.set(hit.k, hit.v)
+    } else {
+      var maxAge = expiresAt - now
+      //dont add already expired items
+      if (maxAge > 0) this.set(hit.k, hit.v, maxAge)
+    }
+  }
 }
 
 function get (self, key, doUse) {

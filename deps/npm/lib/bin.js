@@ -1,22 +1,19 @@
 module.exports = bin
 
-var npm = require('./npm.js')
-var osenv = require('osenv')
+var npm = require("./npm.js")
+var osenv = require("osenv")
 
-bin.usage = 'npm bin [--global]'
+bin.usage = "npm bin\nnpm bin -g\n(just prints the bin folder)"
 
 function bin (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
-  }
+  if (typeof cb !== "function") cb = silent, silent = false
   var b = npm.bin
-  var PATH = osenv.path()
+    , PATH = osenv.path()
 
   if (!silent) console.log(b)
   process.nextTick(cb.bind(this, null, b))
 
-  if (npm.config.get('global') && PATH.indexOf(b) === -1) {
-    npm.config.get('logstream').write('(not in PATH env variable)\n')
+  if (npm.config.get("global") && PATH.indexOf(b) === -1) {
+    npm.config.get("logstream").write("(not in PATH env variable)\n")
   }
 }

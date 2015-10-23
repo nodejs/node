@@ -1,0 +1,36 @@
+{
+  "name": "github-url-from-username-repo",
+  "version": "1.0.2",
+  "description": "Create urls from username/repo",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha -R spec"
+  },
+  "devDependencies": {
+    "mocha": "~1.13.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:robertkowalski/github-url-from-username-repo.git"
+  },
+  "author": {
+    "name": "Robert Kowalski",
+    "email": "rok@kowalski.gd"
+  },
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/robertkowalski/github-url-from-username-repo/issues"
+  },
+  "keywords": [
+    "git",
+    "github",
+    "repo"
+  ],
+  "readme": "[![Build Status](https://travis-ci.org/robertkowalski/github-url-from-username-repo.png?branch=master)](https://travis-ci.org/robertkowalski/github-url-from-username-repo)\n[![Dependency Status](https://gemnasium.com/robertkowalski/github-url-from-username-repo.png)](https://gemnasium.com/robertkowalski/github-url-from-username-repo)\n\n\n# github-url-from-username-repo\n\n## API\n\n### getUrl(url, [forBrowser])\n\nGet's the url normalized for npm.\nIf `forBrowser` is true, return a GitHub url that is usable in a webbrowser.\n\n## Usage\n\n```javascript\n\nvar getUrl = require(\"github-url-from-username-repo\")\ngetUrl(\"visionmedia/express\") // https://github.com/visionmedia/express\n\n```\n",
+  "readmeFilename": "README.md",
+  "gitHead": "d404a13f7f04edaed0e2f068a43b81230b8c7aee",
+  "homepage": "https://github.com/robertkowalski/github-url-from-username-repo",
+  "_id": "github-url-from-username-repo@1.0.2",
+  "_shasum": "7dd79330d2abe69c10c2cef79714c97215791dfa",
+  "_from": "github-url-from-username-repo@>=1.0.2-0 <2.0.0-0"
+}

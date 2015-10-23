@@ -3,7 +3,7 @@ npm-unpublish(1) -- Remove a package from the registry
 
 ## SYNOPSIS
 
-    npm unpublish [<@scope>/]<pkg>[@<version>]
+    npm unpublish [@<scope>/]<name>[@<version>]
 
 ## WARNING
 

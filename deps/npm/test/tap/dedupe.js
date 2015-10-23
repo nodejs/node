@@ -24,32 +24,6 @@ var json = {
   }
 }
 
-var shrinkwrap = {
-  name: 'dedupe',
-  version: '0.0.0',
-  dependencies: {
-    clean: {
-      version: '2.1.6',
-      dependencies: {
-        checker: {
-          version: '0.5.2',
-          dependencies: {
-            async: { version: '0.2.10' }
-          }
-        },
-        minimist: { version: '0.0.5' }
-      }
-    },
-    optimist: {
-      version: '0.6.0',
-      dependencies: {
-        wordwrap: { version: '0.0.2' },
-        minimist: { version: '0.0.5' }
-      }
-    }
-  }
-}
-
 test('setup', function (t) {
   t.comment('test for https://github.com/npm/npm/issues/4675')
   setup(function () {
@@ -76,15 +50,9 @@ test('dedupe finds the common module and moves it up one level', function (t) {
         t.ifError(err, 'successfully deduped against previous install')
         t.notOk(code, 'npm dedupe exited with code')
 
-        t.ok(existsSync(path.join(pkg, 'node_modules', 'minimist')), 'minimist module exists')
-        t.notOk(
-          existsSync(path.join(pkg, 'node_modules', 'clean', 'node_modules', 'minimist')),
-          'no clean/minimist'
-        )
-        t.notOk(
-          existsSync(path.join(pkg, 'node_modules', 'optimist', 'node_modules', 'minimist')),
-          'no optmist/minimist'
-        )
+        t.ok(existsSync(path.join(pkg, 'node_modules', 'minimist')))
+        t.notOk(existsSync(path.join(pkg, 'node_modules', 'checker')))
+
         t.end()
       }
     )
@@ -104,14 +72,10 @@ function cleanup () {
 
 function setup (cb) {
   cleanup()
-  mkdirp.sync(pkg)
+  mkdirp.sync(path.join(pkg, 'node_modules'))
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
-  )
-  fs.writeFileSync(
-    path.join(pkg, 'npm-shrinkwrap.json'),
-    JSON.stringify(shrinkwrap, null, 2)
   )
   process.chdir(pkg)
 

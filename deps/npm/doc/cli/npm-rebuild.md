@@ -3,9 +3,11 @@ npm-rebuild(1) -- Rebuild a package
 
 ## SYNOPSIS
 
-    npm rebuild [[<@scope>/<name>]...]
+    npm rebuild [<name> [<name> ...]]
+    npm rb [<name> [<name> ...]]
 
-    alias: npm rb
+* `<name>`:
+  The package to rebuild
 
 ## DESCRIPTION
 

@@ -3,7 +3,7 @@ npm-update(1) -- Update a package
 
 ## SYNOPSIS
 
-    npm update [-g] [<pkg>...]
+    npm update [-g] [<name> [<name> ...]]
 
 ## DESCRIPTION
 

@@ -4,10 +4,8 @@ npm-publish(1) -- Publish a package
 
 ## SYNOPSIS
 
-    npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]
-
-    Publishes '.' if no argument supplied
-    Sets tag 'latest' if no --tag specified
+    npm publish <tarball> [--tag <tag>] [--access <public|restricted>]
+    npm publish <folder> [--tag <tag>] [--access <public|restricted>]
 
 ## DESCRIPTION
 

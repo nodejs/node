@@ -12,7 +12,29 @@ var npm = npm = require('../../')
 
 var pkg = path.resolve(__dirname, 'peer-deps')
 
-var expected = [ 'peer dep missing: request@0.9.x, required by npm-test-peer-deps@0.0.0' ]
+var expected = {
+  name: 'npm-test-peer-deps-installer',
+  version: '0.0.0',
+  dependencies: {
+    'npm-test-peer-deps': {
+      version: '0.0.0',
+      from: 'npm-test-peer-deps@*',
+      resolved: common.registry + '/npm-test-peer-deps/-/npm-test-peer-deps-0.0.0.tgz',
+      dependencies: {
+        underscore: {
+          version: '1.3.1',
+          from: 'underscore@1.3.1',
+          resolved: common.registry + '/underscore/-/underscore-1.3.1.tgz'
+        }
+      }
+    },
+    request: {
+      version: '0.9.5',
+      from: 'request@>=0.9.0 <0.10.0',
+      resolved: common.registry + '/request/-/request-0.9.5.tgz'
+    }
+  }
+}
 
 var json = {
   author: 'Domenic Denicola',
@@ -34,7 +56,7 @@ test('installs the peer dependency directory structure', function (t) {
         npm.commands.ls([], true, function (err, _, results) {
           if (err) return t.fail(err)
 
-          t.deepEqual(results.problems, expected)
+          t.deepEqual(results, expected)
           s.close()
           t.end()
         })

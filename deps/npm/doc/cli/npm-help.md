@@ -3,7 +3,8 @@ npm-help(1) -- Get help on npm
 
 ## SYNOPSIS
 
-    npm help <term> [<terms..>]
+    npm help <topic>
+    npm help some search terms
 
 ## DESCRIPTION
 

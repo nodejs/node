@@ -65,6 +65,7 @@ var pjLocalOptimistBumped = JSON.stringify({
   version: '0.5.0'
 }, null, 2) + '\n'
 
+
 function mocks (server) {
   server.get('/local-module')
     .reply(404)

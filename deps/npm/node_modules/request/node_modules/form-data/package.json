@@ -1,0 +1,85 @@
+{
+  "author": {
+    "name": "Felix Geisendörfer",
+    "email": "felix@debuggable.com",
+    "url": "http://debuggable.com/"
+  },
+  "name": "form-data",
+  "description": "A library to create readable \"multipart/form-data\" streams. Can be used to submit forms and file uploads to other web applications.",
+  "version": "1.0.0-rc3",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/form-data/form-data.git"
+  },
+  "main": "./lib/form_data",
+  "browser": "./lib/browser",
+  "scripts": {
+    "test": "./test/run.js"
+  },
+  "pre-commit": [
+    "test"
+  ],
+  "engines": {
+    "node": ">= 0.10"
+  },
+  "dependencies": {
+    "async": "^1.4.0",
+    "combined-stream": "^1.0.5",
+    "mime-types": "^2.1.3"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "fake": "^0.2.2",
+    "far": "^0.0.7",
+    "formidable": "^1.0.17",
+    "pre-commit": "^1.0.10",
+    "request": "^2.60.0"
+  },
+  "gitHead": "c174f1b7f3a78a00ec5af0360469280445e37804",
+  "bugs": {
+    "url": "https://github.com/form-data/form-data/issues"
+  },
+  "homepage": "https://github.com/form-data/form-data#readme",
+  "_id": "form-data@1.0.0-rc3",
+  "_shasum": "d35bc62e7fbc2937ae78f948aaa0d38d90607577",
+  "_from": "form-data@>=1.0.0-rc1 <1.1.0",
+  "_npmVersion": "2.11.0",
+  "_nodeVersion": "2.2.1",
+  "_npmUser": {
+    "name": "dylanpiercey",
+    "email": "pierceydylan@gmail.com"
+  },
+  "dist": {
+    "shasum": "d35bc62e7fbc2937ae78f948aaa0d38d90607577",
+    "tarball": "http://registry.npmjs.org/form-data/-/form-data-1.0.0-rc3.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "felixge",
+      "email": "felix@debuggable.com"
+    },
+    {
+      "name": "idralyuk",
+      "email": "igor@buran.us"
+    },
+    {
+      "name": "alexindigo",
+      "email": "iam@alexindigo.com"
+    },
+    {
+      "name": "mikeal",
+      "email": "mikeal.rogers@gmail.com"
+    },
+    {
+      "name": "celer",
+      "email": "dtyree77@gmail.com"
+    },
+    {
+      "name": "dylanpiercey",
+      "email": "pierceydylan@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/form-data/-/form-data-1.0.0-rc3.tgz",
+  "readme": "ERROR: No README data found!"
+}

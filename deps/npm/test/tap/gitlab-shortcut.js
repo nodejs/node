@@ -24,8 +24,8 @@ test('setup', function (t) {
 
 test('gitlab-shortcut', function (t) {
   var cloneUrls = [
-    ['https://gitlab.com/foo/private.git', 'GitLab shortcuts try HTTPS URLs second'],
-    ['git@gitlab.com:foo/private.git', 'GitLab shortcuts try SSH first']
+    ['git@gitlab.com:foo/private.git', 'GitLab shortcuts try SSH first'],
+    ['https://gitlab.com/foo/private.git', 'GitLab shortcuts try HTTPS URLs second']
   ]
   var npm = requireInject.installGlobally('../../lib/npm.js', {
     'child_process': {
@@ -38,7 +38,7 @@ test('gitlab-shortcut', function (t) {
           } else {
             t.fail('too many attempts to clone')
           }
-          cb(new Error('execFile mock fails on purpose'))
+          cb(new Error())
         })
       }
     }

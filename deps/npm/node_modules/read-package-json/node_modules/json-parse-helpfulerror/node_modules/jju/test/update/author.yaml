@@ -1,0 +1,31 @@
+input: |
+  { "name": "just-a-demo",
+    "version": "0.1.2",
+    "description": "blahblahblah",
+    "main": "test.js",
+    "scripts": { "test": "echo \"Error: no test specified\" && exit 1" },
+    "author": "John Doe <whoever@google.com>",
+    "license": "BSD-2-Clause" }
+
+output: |
+  { "name": "just-a-demo",
+    "version": "0.1.2",
+    "description": "blahblahblah",
+    "main": "test.js",
+    "scripts": { "test": "echo \"Error: no test specified\" && exit 1" },
+    "author": {
+      "name": "John Doe",
+      "email": "whoever@google.com"
+    },
+    "license": "BSD-2-Clause" }
+
+test: !!js/function |
+  function(jju, input) {
+    obj = jju.parse(input)
+    obj.author = {
+      name: 'John Doe',
+      email: 'whoever@google.com',
+    }
+    return jju.update(input, obj)
+  }
+
