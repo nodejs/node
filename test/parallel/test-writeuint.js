@@ -122,6 +122,25 @@ function test32(clazz) {
 }
 
 
+function testUint(clazz) {
+  const data = new clazz(8);
+  var val = 1;
+
+  // Test 0 to 5 bytes.
+  for (var i = 0; i <= 5; i++) {
+    const errmsg = `byteLength: ${i}`;
+    ASSERT.throws(function() {
+      data.writeUIntBE(val, 0, i);
+    }, /value is out of bounds/, errmsg);
+    ASSERT.throws(function() {
+      data.writeUIntLE(val, 0, i);
+    }, /value is out of bounds/, errmsg);
+    val *= 0x100;
+  }
+}
+
+
 test8(Buffer);
 test16(Buffer);
 test32(Buffer);
+testUint(Buffer);
