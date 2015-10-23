@@ -550,6 +550,9 @@ for (var i = 0; i < segments.length; ++i) {
 }
 assert.equal(b.toString('binary', 0, pos), 'Madness?! This is node.js!');
 
+// Regression test for https://github.com/nodejs/node/issues/3496.
+assert.equal(Buffer('=bad'.repeat(1e4), 'base64').length, 0);
+
 // Creating buffers larger than pool size.
 var l = Buffer.poolSize + 5;
 var s = '';
