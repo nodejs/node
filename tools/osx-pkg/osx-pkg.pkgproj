@@ -2147,7 +2147,7 @@
 				</dict>
 			</array>
 			<key>NAME</key>
-			<string>nodejs-__nodeversion__</string>
+			<string>node-__nodeversion__</string>
 		</dict>
 	</dict>
 	<key>TYPE</key>
