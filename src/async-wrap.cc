@@ -1,5 +1,7 @@
 #include "async-wrap.h"
 #include "async-wrap-inl.h"
+#include "base-object.h"
+#include "base-object-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
@@ -14,9 +16,11 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::HeapProfiler;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::RetainedObjectInfo;
 using v8::TryCatch;
@@ -99,6 +103,67 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 
 
 // end RetainedAsyncInfo
+
+
+void AsyncWrap::ConstructAsyncWrap(Environment* env,
+                                   Local<Object> object,
+                                   ProviderType provider,
+                                   AsyncWrap* parent) {
+  CHECK_NE(provider, PROVIDER_NONE);
+  CHECK_GE(object->InternalFieldCount(), 1);
+
+  // Shift provider value over to prevent id collision.
+  persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
+
+  Local<Function> init_fn = env->async_hooks_init_function();
+
+  // No init callback exists, no reason to go on.
+  if (init_fn.IsEmpty())
+    return;
+
+  // If async wrap callbacks are disabled and no parent was passed that has
+  // run the init callback then return.
+  if (!env->async_wrap_callbacks_enabled() &&
+      (parent == nullptr || !parent->ran_init_callback()))
+    return;
+
+  HandleScope scope(env->isolate());
+
+  Local<Value> argv[] = {
+    Int32::New(env->isolate(), provider),
+    Null(env->isolate())
+  };
+
+  if (parent != nullptr)
+    argv[1] = parent->object();
+
+  MaybeLocal<Value> ret =
+      init_fn->Call(env->context(), object, ARRAY_SIZE(argv), argv);
+
+  if (ret.IsEmpty())
+    FatalError("node::AsyncWrap::AsyncWrap", "init hook threw");
+
+  bits_ |= 1;  // ran_init_callback() is true now.
+}
+
+
+AsyncWrap::AsyncWrap(Environment* env,
+                     Local<Object> object,
+                     ProviderType provider,
+                     AsyncWrap* parent)
+    : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1) {
+  ConstructAsyncWrap(env, object, provider, parent);
+}
+
+
+AsyncWrap::AsyncWrap(Isolate* isolate,
+                     Local<Object> object,
+                     ProviderType provider,
+                     AsyncWrap* parent)
+    : BaseObject(isolate, object), bits_(static_cast<uint32_t>(provider) << 1) {
+  Environment* env = Environment::GetCurrent(isolate);
+  ConstructAsyncWrap(env, object, provider, parent);
+}
 
 
 static void EnableHooksJS(const FunctionCallbackInfo<Value>& args) {

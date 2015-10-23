@@ -2,20 +2,17 @@
 #define SRC_BASE_OBJECT_INL_H_
 
 #include "base-object.h"
-#include "env.h"
-#include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
 #include "v8.h"
 
 namespace node {
 
-inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
-    : handle_(env->isolate(), handle),
-      env_(env) {
-  CHECK_EQ(false, handle.IsEmpty());
+inline BaseObject::BaseObject(v8::Isolate* isolate,
+                              v8::Local<v8::Object> handle)
+    : handle_(isolate, handle),
+      isolate_(isolate) {
 }
-
 
 inline BaseObject::~BaseObject() {
   CHECK(handle_.IsEmpty());
@@ -28,7 +25,12 @@ inline v8::Persistent<v8::Object>& BaseObject::persistent() {
 
 
 inline v8::Local<v8::Object> BaseObject::object() {
-  return PersistentToLocal(env_->isolate(), handle_);
+  return PersistentToLocal(isolate(), handle_);
+}
+
+
+inline v8::Isolate* BaseObject::isolate() const {
+  return isolate_;
 }
 
 
@@ -48,7 +50,7 @@ inline void BaseObject::WeakCallback(
 
 template <typename Type>
 inline void BaseObject::MakeWeak(Type* ptr) {
-  v8::HandleScope scope(env_->isolate());
+  v8::HandleScope scope(isolate());
   v8::Local<v8::Object> handle = object();
   CHECK_GT(handle->InternalFieldCount(), 0);
   Wrap(handle, ptr);

@@ -10,6 +10,7 @@ class Environment;
 class BaseObject {
  public:
   BaseObject(Environment* env, v8::Local<v8::Object> handle);
+  BaseObject(v8::Isolate* isolate, v8::Local<v8::Object> handle);
   virtual ~BaseObject();
 
   // Returns the wrapped object.  Returns an empty handle when
@@ -22,6 +23,8 @@ class BaseObject {
   // Weak handles have been reset by the time the destructor runs but
   // calling .Reset() again is harmless.
   inline v8::Persistent<v8::Object>& persistent();
+
+  inline v8::Isolate* isolate() const;
 
   inline Environment* env() const;
 
@@ -43,6 +46,7 @@ class BaseObject {
       const v8::WeakCallbackData<v8::Object, Type>& data);
 
   v8::Persistent<v8::Object> handle_;
+  v8::Isolate* isolate_;
   Environment* env_;
 };
 

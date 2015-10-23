@@ -33,7 +33,8 @@ namespace node {
   V(UDPWRAP)                                                                  \
   V(UDPSENDWRAP)                                                              \
   V(WRITEWRAP)                                                                \
-  V(ZLIB)
+  V(ZLIB)                                                                     \
+  V(USER)
 
 class Environment;
 
@@ -46,10 +47,16 @@ class AsyncWrap : public BaseObject {
 #undef V
   };
 
-  inline AsyncWrap(Environment* env,
-                   v8::Local<v8::Object> object,
-                   ProviderType provider,
-                   AsyncWrap* parent = nullptr);
+  AsyncWrap(v8::Isolate* isolate,
+            v8::Local<v8::Object> object,
+            ProviderType provider,
+            AsyncWrap* parent = nullptr);
+
+  // Private API. Users don't have access to Environment.
+  AsyncWrap(Environment* env,
+            v8::Local<v8::Object> object,
+            ProviderType provider,
+            AsyncWrap* parent = nullptr);
 
   inline virtual ~AsyncWrap() override = default;
 
@@ -66,11 +73,17 @@ class AsyncWrap : public BaseObject {
                                             int argc,
                                             v8::Local<v8::Value>* argv);
 
+  inline bool ran_init_callback() const;
+
   virtual size_t self_size() const = 0;
 
  private:
   inline AsyncWrap();
-  inline bool ran_init_callback() const;
+
+  void ConstructAsyncWrap(Environment* env,
+                          v8::Local<v8::Object> object,
+                          ProviderType provider,
+                          AsyncWrap* parent);
 
   // When the async hooks init JS function is called from the constructor it is
   // expected the context object will receive a _asyncQueue object property

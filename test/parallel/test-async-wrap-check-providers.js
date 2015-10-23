@@ -14,10 +14,8 @@ const StreamWrap = require('_stream_wrap').StreamWrap;
 const async_wrap = process.binding('async_wrap');
 const pkeys = Object.keys(async_wrap.Providers);
 
-let keyList = pkeys.slice();
-// Drop NONE
-keyList.splice(0, 1);
-
+// Remove the 'NONE' and 'USER' providers.
+let keyList = pkeys.slice().filter(e => e != 'NONE' && e != 'USER');
 
 function init(id) {
   keyList = keyList.filter(e => e != pkeys[id]);
