@@ -177,7 +177,7 @@ constructor function. For example:
 
     'use strict';
     const util = require('util');
-    const EventEmitter = require('events');
+    const EventEmitter = require('events').EventEmitter;
 
     function MyEventEmitter() {
       // Initialize necessary properties from `EventEmitter` in this instance
