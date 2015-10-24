@@ -18,6 +18,8 @@ function B(value) {
 inherits(B, A);
 B.prototype.b = function() { return this._b; };
 
+assert.strictEqual(B.super_, A);
+
 const b = new B('b');
 assert.strictEqual(b.a(), 'a');
 assert.strictEqual(b.b(), 'b');
@@ -32,8 +34,11 @@ inherits(C, B);
 C.prototype.c = function() { return this._c; };
 C.prototype.getValue = function() { return this.a() + this.b() + this.c(); };
 
+assert.strictEqual(C.super_, B);
+
 const c = new C();
 assert.strictEqual(c.getValue(), 'abc');
+assert.strictEqual(c.constructor, C);
 
 // should throw with invalid arguments
 assert.throws(function() { inherits(A, {}); }, TypeError);
