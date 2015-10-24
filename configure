@@ -738,6 +738,12 @@ def configure_node(o):
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
 
+  modules = ['src/node.js']
+  o['variables']['library_files'] = modules
+  lib_dir = os.path.join(root_dir, 'lib')
+  for root, dirs, files in os.walk(lib_dir):
+    modules += map(lambda xs: os.path.join(root, xs)[2:], files)
+
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module
 
