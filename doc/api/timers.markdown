@@ -16,6 +16,8 @@ It is important to note that your callback will probably not be called in exactl
 the callback will fire, nor of the ordering things will fire in. The callback will
 be called as close as possible to the time specified.
 
+To follow browser behavior, when using delays larger than 2147483647 milliseconds (approximately 25 days), the timeout is executed immediately, as if the `delay` was set to 1.
+
 ## clearTimeout(timeoutObject)
 
 Prevents a timeout from triggering.
@@ -25,6 +27,8 @@ Prevents a timeout from triggering.
 To schedule the repeated execution of `callback` every `delay` milliseconds.
 Returns a `intervalObject` for possible use with `clearInterval()`. Optionally
 you can also pass arguments to the callback.
+
+To follow browser behavior, when using delays larger than 2147483647 milliseconds (approximately 25 days), Node.js will use 1 as the `delay`.
 
 ## clearInterval(intervalObject)
 
