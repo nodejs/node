@@ -6,4 +6,4 @@ const fork = require('child_process').fork;
 const n = fork(common.fixturesDir + '/empty.js');
 
 const rv = n.send({ hello: 'world' });
-assert.strictEqual(typeof rv, 'boolean');
+assert.strictEqual(rv, true);
