@@ -7,9 +7,9 @@
 #include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
 
 #include "src/code-stubs.h"
-#include "src/cpu-profiler.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"

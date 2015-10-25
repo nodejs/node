@@ -30,8 +30,8 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
-#include "src/cpu-profiler.h"
-#include "src/profile-generator-inl.h"
+#include "src/profiler/cpu-profiler.h"
+#include "src/profiler/profile-generator-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
 

@@ -7,6 +7,7 @@
 #include "src/allocation-site-scopes.h"
 #include "src/arguments.h"
 #include "src/ast.h"
+#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/runtime/runtime.h"
 
@@ -33,12 +34,12 @@ static Handle<Map> ComputeObjectLiteralMap(
 }
 
 MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
-    Isolate* isolate, Handle<FixedArray> literals,
+    Isolate* isolate, Handle<LiteralsArray> literals,
     Handle<FixedArray> constant_properties, bool is_strong);
 
 
 MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
-    Isolate* isolate, Handle<FixedArray> literals,
+    Isolate* isolate, Handle<LiteralsArray> literals,
     Handle<FixedArray> constant_properties, bool should_have_fast_elements,
     bool has_function_literal, bool is_strong) {
   Handle<Context> context = isolate->native_context();
@@ -138,7 +139,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
 
 
 MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
-    Isolate* isolate, Handle<FixedArray> literals,
+    Isolate* isolate, Handle<LiteralsArray> literals,
     Handle<FixedArray> elements, bool is_strong) {
   // Create the JSArray.
   Handle<JSFunction> constructor = isolate->array_function();
@@ -214,7 +215,7 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
 
 
 MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
-    Isolate* isolate, Handle<FixedArray> literals, Handle<FixedArray> array,
+    Isolate* isolate, Handle<LiteralsArray> literals, Handle<FixedArray> array,
     bool is_strong) {
   Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
   const bool kHasNoFunctionLiteral = false;
@@ -238,7 +239,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, constant_properties, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
@@ -247,10 +248,11 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
   bool is_strong = (flags & ObjectLiteral::kIsStrong) != 0;
 
-  RUNTIME_ASSERT(literals_index >= 0 && literals_index < literals->length());
+  RUNTIME_ASSERT(literals_index >= 0 &&
+                 literals_index < literals->literals_count());
 
   // Check if boilerplate exists. If not, create it first.
-  Handle<Object> literal_site(literals->get(literals_index), isolate);
+  Handle<Object> literal_site(literals->literal(literals_index), isolate);
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
   if (*literal_site == isolate->heap()->undefined_value()) {
@@ -269,7 +271,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
     creation_context.ExitScope(site, boilerplate);
 
     // Update the functions literal and return the boilerplate.
-    literals->set(literals_index, *site);
+    literals->set_literal(literals_index, *site);
   } else {
     site = Handle<AllocationSite>::cast(literal_site);
     boilerplate =
@@ -288,10 +290,10 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
 
 
 MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
-    Isolate* isolate, Handle<FixedArray> literals, int literals_index,
+    Isolate* isolate, Handle<LiteralsArray> literals, int literals_index,
     Handle<FixedArray> elements, bool is_strong) {
   // Check if boilerplate exists. If not, create it first.
-  Handle<Object> literal_site(literals->get(literals_index), isolate);
+  Handle<Object> literal_site(literals->literal(literals_index), isolate);
   Handle<AllocationSite> site;
   if (*literal_site == isolate->heap()->undefined_value()) {
     DCHECK(*elements != isolate->heap()->empty_fixed_array());
@@ -310,7 +312,7 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
     }
     creation_context.ExitScope(site, Handle<JSObject>::cast(boilerplate));
 
-    literals->set(literals_index, *site);
+    literals->set_literal(literals_index, *site);
   } else {
     site = Handle<AllocationSite>::cast(literal_site);
   }
@@ -319,13 +321,12 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
 }
 
 
-static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
-                                                    Handle<FixedArray> literals,
-                                                    int literals_index,
-                                                    Handle<FixedArray> elements,
-                                                    int flags) {
+static MaybeHandle<JSObject> CreateArrayLiteralImpl(
+    Isolate* isolate, Handle<LiteralsArray> literals, int literals_index,
+    Handle<FixedArray> elements, int flags) {
   RUNTIME_ASSERT_HANDLIFIED(
-      literals_index >= 0 && literals_index < literals->length(), JSObject);
+      literals_index >= 0 && literals_index < literals->literals_count(),
+      JSObject);
   Handle<AllocationSite> site;
   bool is_strong = (flags & ArrayLiteral::kIsStrong) != 0;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -351,7 +352,7 @@ static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
@@ -367,7 +368,7 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
@@ -386,10 +387,10 @@ RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_SMI_ARG_CHECKED(store_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 3);
+  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 3);
   CONVERT_SMI_ARG_CHECKED(literal_index, 4);
 
-  Object* raw_literal_cell = literals->get(literal_index);
+  Object* raw_literal_cell = literals->literal(literal_index);
   JSArray* boilerplate = NULL;
   if (raw_literal_cell->IsAllocationSite()) {
     AllocationSite* site = AllocationSite::cast(raw_literal_cell);
@@ -423,10 +424,8 @@ RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
                                            ? FAST_HOLEY_ELEMENTS
                                            : FAST_ELEMENTS;
       JSObject::TransitionElementsKind(object, transitioned_kind);
-      ElementsKind boilerplate_elements_kind =
-          boilerplate_object->GetElementsKind();
-      if (IsMoreGeneralElementsKindTransition(boilerplate_elements_kind,
-                                              transitioned_kind)) {
+      if (IsMoreGeneralElementsKindTransition(
+              boilerplate_object->GetElementsKind(), transitioned_kind)) {
         JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
       }
     }

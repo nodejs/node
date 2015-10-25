@@ -67,16 +67,15 @@ static void WriteLine(std::ostream& os, const char* name,
       static_cast<double>(stats.total_allocated_bytes_ * 100) /
       static_cast<double>(total_stats.total_allocated_bytes_);
   base::OS::SNPrintF(buffer, kBufferSize,
-                     "%28s %10.3f ms / %5.1f %%"
-                     "%10u total / %5.1f %% "
-                     "%10u max %10u abs_max",
+                     "%28s %10.3f (%5.1f%%)  "
+                     "%10u (%5.1f%%) %10u %10u",
                      name, ms, percent, stats.total_allocated_bytes_,
                      size_percent, stats.max_allocated_bytes_,
                      stats.absolute_max_allocated_bytes_);
 
   os << buffer;
   if (stats.function_name_.size() > 0) {
-    os << " : " << stats.function_name_.c_str();
+    os << "   " << stats.function_name_.c_str();
   }
   os << std::endl;
 }
@@ -90,7 +89,10 @@ static void WriteFullLine(std::ostream& os) {
 
 static void WriteHeader(std::ostream& os) {
   WriteFullLine(os);
-  os << "                             Turbofan timing results:\n";
+  os << "             Turbonfan phase        Time (ms)             "
+     << "          Space (bytes)             Function\n"
+     << "                                                         "
+     << "  Total          Max.     Abs. max.\n";
   WriteFullLine(os);
 }
 

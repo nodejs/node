@@ -582,7 +582,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, key, rbx, no_reg);
+                                               receiver, key, r9, no_reg);
   // Cache miss.
   __ jmp(&miss);
 
@@ -735,8 +735,13 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm,
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
-  // The return address is on the stack.
+  if (FLAG_vector_stores) {
+    // This shouldn't be called.
+    __ int3();
+    return;
+  }
 
+  // The return address is on the stack.
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
@@ -785,7 +790,10 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
-  Register dictionary = rbx;
+  Register dictionary = r11;
+  DCHECK(!FLAG_vector_stores ||
+         !AreAliased(dictionary, VectorStoreICDescriptor::VectorRegister(),
+                     VectorStoreICDescriptor::SlotRegister()));
 
   Label miss;
 

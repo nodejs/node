@@ -5,7 +5,7 @@
 // This module gets enough CPU information to optimize the
 // atomicops module on x86.
 
-#include <string.h>
+#include <string.h>  // NOLINT(build/include)
 
 #include "src/base/atomicops.h"
 

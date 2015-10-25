@@ -8,6 +8,7 @@
 #include "src/frames.h"
 #include "src/mips/assembler-mips-inl.h"
 #include "src/mips/assembler-mips.h"
+#include "src/mips/frames-mips.h"
 
 namespace v8 {
 namespace internal {

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/v8threads.h"
 
 #include "src/api.h"
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
+#include "src/isolate-inl.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 

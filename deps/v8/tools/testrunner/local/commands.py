@@ -61,12 +61,18 @@ def RunProcess(verbose, timeout, args, **rest):
     error_mode = SEM_NOGPFAULTERRORBOX
     prev_error_mode = Win32SetErrorMode(error_mode)
     Win32SetErrorMode(error_mode | prev_error_mode)
-  process = subprocess.Popen(
-    args=popen_args,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    **rest
-  )
+
+  try:
+    process = subprocess.Popen(
+      args=popen_args,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      **rest
+    )
+  except Exception as e:
+    sys.stderr.write("Error executing: %s\n" % popen_args)
+    raise e
+
   if (utils.IsWindows() and prev_error_mode != SEM_INVALID_VALUE):
     Win32SetErrorMode(prev_error_mode)
 

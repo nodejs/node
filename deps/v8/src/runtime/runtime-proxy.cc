@@ -25,7 +25,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSFunctionProxy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, call_trap, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, call_trap, 1);
   RUNTIME_ASSERT(call_trap->IsJSFunction() || call_trap->IsJSFunctionProxy());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, construct_trap, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 3);

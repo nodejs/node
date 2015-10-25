@@ -218,17 +218,16 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
   switch (function) {
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kDateField:
-    case Runtime::kFinalizeClassDefinition:        // TODO(conradw): Is it safe?
     case Runtime::kDefineClassMethod:              // TODO(jarin): Is it safe?
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
+    case Runtime::kFinalizeClassDefinition:        // TODO(conradw): Is it safe?
     case Runtime::kForInDone:
     case Runtime::kForInStep:
     case Runtime::kGetOriginalConstructor:
-    case Runtime::kNewArguments:
     case Runtime::kNewClosure:
+    case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:
-    case Runtime::kNewRestParamSlow:
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
@@ -239,12 +238,23 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kTraceExit:
       return 0;
     case Runtime::kInlineArguments:
+    case Runtime::kInlineArgumentsLength:
+    case Runtime::kInlineCall:
     case Runtime::kInlineCallFunction:
     case Runtime::kInlineDefaultConstructorCallSuper:
     case Runtime::kInlineGetCallerJSFunction:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
+    case Runtime::kInlineSubString:
+    case Runtime::kInlineToInteger:
+    case Runtime::kInlineToLength:
+    case Runtime::kInlineToName:
+    case Runtime::kInlineToNumber:
     case Runtime::kInlineToObject:
+    case Runtime::kInlineToPrimitive_Number:
+    case Runtime::kInlineToPrimitive_String:
+    case Runtime::kInlineToPrimitive:
+    case Runtime::kInlineToString:
       return 1;
     case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineThrowNotDateError:
@@ -275,7 +285,7 @@ bool CallDescriptor::UsesOnlyRegisters() const {
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Zone* zone, Runtime::FunctionId function_id, int js_parameter_count,
-    Operator::Properties properties) {
+    Operator::Properties properties, bool needs_frame_state) {
   const size_t function_count = 1;
   const size_t num_args_count = 1;
   const size_t context_count = 1;
@@ -318,9 +328,10 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   locations.AddParam(regloc(kContextRegister));
   types.AddParam(kMachAnyTagged);
 
-  CallDescriptor::Flags flags = Linkage::FrameStateInputCount(function_id) > 0
-                                    ? CallDescriptor::kNeedsFrameState
-                                    : CallDescriptor::kNoFlags;
+  CallDescriptor::Flags flags =
+      needs_frame_state && (Linkage::FrameStateInputCount(function_id) > 0)
+          ? CallDescriptor::kNeedsFrameState
+          : CallDescriptor::kNoFlags;
 
   // The target for runtime calls is a code object.
   MachineType target_type = kMachAnyTagged;
@@ -387,8 +398,8 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 
 
 CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
-  MachineSignature::Builder types(zone, 0, 5);
-  LocationSignature::Builder locations(zone, 0, 5);
+  MachineSignature::Builder types(zone, 0, 6);
+  LocationSignature::Builder locations(zone, 0, 6);
 
   // Add registers for fixed parameters passed via interpreter dispatch.
   STATIC_ASSERT(0 == Linkage::kInterpreterAccumulatorParameter);
@@ -410,6 +421,15 @@ CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
   STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
   types.AddParam(kMachPtr);
   locations.AddParam(regloc(kInterpreterDispatchTableRegister));
+
+  STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
+  types.AddParam(kMachAnyTagged);
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
+  locations.AddParam(
+      LinkageLocation::ForCallerFrameSlot(kInterpreterContextSpillSlot));
+#else
+  locations.AddParam(regloc(kContextRegister));
+#endif
 
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
   return new (zone) CallDescriptor(         // --

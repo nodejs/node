@@ -70,6 +70,10 @@ class ControlEquivalenceTest : public GraphTest {
     return Store(graph()->NewNode(common()->IfFalse(), control));
   }
 
+  Node* Merge1(Node* control) {
+    return Store(graph()->NewNode(common()->Merge(1), control));
+  }
+
   Node* Merge2(Node* control1, Node* control2) {
     return Store(graph()->NewNode(common()->Merge(2), control1, control2));
   }
@@ -107,10 +111,10 @@ TEST_F(ControlEquivalenceTest, Empty1) {
 
 TEST_F(ControlEquivalenceTest, Empty2) {
   Node* start = graph()->start();
-  Node* end = End(start);
-  ComputeEquivalence(end);
+  Node* merge1 = Merge1(start);
+  ComputeEquivalence(merge1);
 
-  ASSERT_EQUIVALENCE(start, end);
+  ASSERT_EQUIVALENCE(start, merge1);
 }
 
 

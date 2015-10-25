@@ -32,6 +32,8 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
+#include "src/mips/assembler-mips.h"
+
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/base/bits.h"
@@ -2024,6 +2026,7 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
 void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // load to two 32-bit loads.
+  DCHECK(!src.rm().is(at));
   if (IsFp64Mode()) {
     if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
       GenInstrImmediate(LWC1, src.rm(), fd,
@@ -2069,6 +2072,8 @@ void Assembler::swc1(FPURegister fd, const MemOperand& src) {
 void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // store to two 32-bit stores.
+  DCHECK(!src.rm().is(at));
+  DCHECK(!src.rm().is(t8));
   if (IsFp64Mode()) {
     if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
       GenInstrImmediate(SWC1, src.rm(), fd,
@@ -2317,12 +2322,12 @@ void Assembler::abs_d(FPURegister fd, FPURegister fs) {
 
 
 void Assembler::mov_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, f0, fs, fd, MOV_S);
+  GenInstrRegister(COP1, D, f0, fs, fd, MOV_D);
 }
 
 
 void Assembler::mov_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, f0, fs, fd, MOV_D);
+  GenInstrRegister(COP1, S, f0, fs, fd, MOV_S);
 }
 
 

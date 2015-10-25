@@ -183,7 +183,7 @@ class OperandGenerator {
       case IrOpcode::kExternalConstant:
         return Constant(OpParameter<ExternalReference>(node));
       case IrOpcode::kHeapConstant:
-        return Constant(OpParameter<Unique<HeapObject> >(node).handle());
+        return Constant(OpParameter<Handle<HeapObject>>(node));
       default:
         break;
     }
@@ -291,41 +291,7 @@ class FlagsContinuation final {
 
   void Commute() {
     DCHECK(!IsNone());
-    switch (condition_) {
-      case kEqual:
-      case kNotEqual:
-      case kOverflow:
-      case kNotOverflow:
-        return;
-      case kSignedLessThan:
-        condition_ = kSignedGreaterThan;
-        return;
-      case kSignedGreaterThanOrEqual:
-        condition_ = kSignedLessThanOrEqual;
-        return;
-      case kSignedLessThanOrEqual:
-        condition_ = kSignedGreaterThanOrEqual;
-        return;
-      case kSignedGreaterThan:
-        condition_ = kSignedLessThan;
-        return;
-      case kUnsignedLessThan:
-        condition_ = kUnsignedGreaterThan;
-        return;
-      case kUnsignedGreaterThanOrEqual:
-        condition_ = kUnsignedLessThanOrEqual;
-        return;
-      case kUnsignedLessThanOrEqual:
-        condition_ = kUnsignedGreaterThanOrEqual;
-        return;
-      case kUnsignedGreaterThan:
-        condition_ = kUnsignedLessThan;
-        return;
-      case kUnorderedEqual:
-      case kUnorderedNotEqual:
-        return;
-    }
-    UNREACHABLE();
+    condition_ = CommuteFlagsCondition(condition_);
   }
 
   void OverwriteAndNegateIfEqual(FlagsCondition condition) {

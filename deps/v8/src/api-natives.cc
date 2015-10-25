@@ -5,7 +5,7 @@
 #include "src/api-natives.h"
 
 #include "src/api.h"
-#include "src/isolate.h"
+#include "src/isolate-inl.h"
 #include "src/lookup.h"
 #include "src/messages.h"
 
@@ -37,6 +37,25 @@ MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
 }
 
 
+MaybeHandle<JSFunction> InstantiateFunctionOrMaybeDont(Isolate* isolate,
+                                                       Handle<Object> data) {
+  DCHECK(data->IsFunctionTemplateInfo() || data->IsJSFunction());
+  if (data->IsFunctionTemplateInfo()) {
+    // A function template needs to be instantiated.
+    return InstantiateFunction(isolate,
+                               Handle<FunctionTemplateInfo>::cast(data));
+#ifdef V8_JS_ACCESSORS
+  } else if (data->IsJSFunction()) {
+    // If we already have a proper function, we do not need additional work.
+    // (This should only happen for JavaScript API accessors.)
+    return Handle<JSFunction>::cast(data);
+#endif  // V8_JS_ACCESSORS
+  } else {
+    UNREACHABLE();
+    return MaybeHandle<JSFunction>();
+  }
+}
+
 MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
                                            Handle<JSObject> object,
                                            Handle<Name> name,
@@ -44,18 +63,14 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
                                            Handle<Object> setter,
                                            PropertyAttributes attributes) {
   if (!getter->IsUndefined()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, getter,
-        InstantiateFunction(isolate,
-                            Handle<FunctionTemplateInfo>::cast(getter)),
-        Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, getter,
+                               InstantiateFunctionOrMaybeDont(isolate, getter),
+                               Object);
   }
   if (!setter->IsUndefined()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, setter,
-        InstantiateFunction(isolate,
-                            Handle<FunctionTemplateInfo>::cast(setter)),
-        Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, setter,
+                               InstantiateFunctionOrMaybeDont(isolate, setter),
+                               Object);
   }
   RETURN_ON_EXCEPTION(isolate, JSObject::DefineAccessor(object, name, getter,
                                                         setter, attributes),
@@ -364,10 +379,19 @@ void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
 
 void ApiNatives::AddAccessorProperty(Isolate* isolate,
                                      Handle<TemplateInfo> info,
-                                     Handle<Name> name,
-                                     Handle<FunctionTemplateInfo> getter,
-                                     Handle<FunctionTemplateInfo> setter,
+                                     Handle<Name> name, Handle<Object> getter,
+                                     Handle<Object> setter,
                                      PropertyAttributes attributes) {
+#ifdef V8_JS_ACCESSORS
+  DCHECK(getter.is_null() || getter->IsFunctionTemplateInfo() ||
+         getter->IsJSFunction());
+  DCHECK(setter.is_null() || setter->IsFunctionTemplateInfo() ||
+         setter->IsJSFunction());
+#else
+  DCHECK(getter.is_null() || getter->IsFunctionTemplateInfo());
+  DCHECK(setter.is_null() || setter->IsFunctionTemplateInfo());
+#endif  // V8_JS_ACCESSORS
+
   const int kSize = 4;
   PropertyDetails details(attributes, ACCESSOR, 0, PropertyCellType::kNoCell);
   auto details_handle = handle(details.AsSmi(), isolate);
@@ -491,9 +515,10 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     map->set_has_indexed_interceptor();
   }
 
-  // Set instance call-as-function information in the map.
+  // Mark instance as callable in the map.
   if (!obj->instance_call_handler()->IsUndefined()) {
-    map->set_has_instance_call_handler();
+    map->set_is_callable();
+    map->set_is_constructor(true);
   }
 
   // Recursively copy parent instance templates' accessors,

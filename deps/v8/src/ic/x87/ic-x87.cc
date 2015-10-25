@@ -577,7 +577,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, key, ebx, no_reg);
+                                               receiver, key, edi, no_reg);
 
   if (FLAG_vector_stores) {
     __ pop(VectorStoreICDescriptor::VectorRegister());
@@ -734,6 +734,12 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm,
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+  if (FLAG_vector_stores) {
+    // This shouldn't be called.
+    __ int3();
+    return;
+  }
+
   // Return address is on the stack.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
@@ -787,22 +793,32 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
-  Register dictionary = ebx;
-
-  __ mov(dictionary, FieldOperand(receiver, JSObject::kPropertiesOffset));
+  Register vector = VectorStoreICDescriptor::VectorRegister();
+  Register slot = VectorStoreICDescriptor::SlotRegister();
 
   // A lot of registers are needed for storing to slow case
   // objects. Push and restore receiver but rely on
   // GenerateDictionaryStore preserving the value and name.
   __ push(receiver);
+  if (FLAG_vector_stores) {
+    __ push(vector);
+    __ push(slot);
+  }
+
+  Register dictionary = ebx;
+  __ mov(dictionary, FieldOperand(receiver, JSObject::kPropertiesOffset));
   GenerateDictionaryStore(masm, &restore_miss, dictionary, name, value,
                           receiver, edi);
-  __ Drop(1);
+  __ Drop(FLAG_vector_stores ? 3 : 1);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->store_normal_hit(), 1);
   __ ret(0);
 
   __ bind(&restore_miss);
+  if (FLAG_vector_stores) {
+    __ pop(slot);
+    __ pop(vector);
+  }
   __ pop(receiver);
   __ IncrementCounter(counters->store_normal_miss(), 1);
   GenerateMiss(masm);

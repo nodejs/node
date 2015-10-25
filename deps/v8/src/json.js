@@ -17,14 +17,13 @@ var MathMax;
 var MathMin;
 var ObjectHasOwnProperty;
 var ToNumber;
-var ToString;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
   MathMin = from.MathMin;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   ToNumber = from.ToNumber;
-  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -51,13 +50,13 @@ function Revive(holder, name, reviver) {
       }
     }
   }
-  return %_CallFunction(holder, name, val, reviver);
+  return %_Call(reviver, holder, name, val);
 }
 
 
 function JSONParse(text, reviver) {
-  var unfiltered = %ParseJson(TO_STRING_INLINE(text));
-  if (IS_SPEC_FUNCTION(reviver)) {
+  var unfiltered = %ParseJson(text);
+  if (IS_CALLABLE(reviver)) {
     return Revive({'': unfiltered}, '', reviver);
   } else {
     return unfiltered;
@@ -145,12 +144,12 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   var value = holder[key];
   if (IS_SPEC_OBJECT(value)) {
     var toJSON = value.toJSON;
-    if (IS_SPEC_FUNCTION(toJSON)) {
-      value = %_CallFunction(value, key, toJSON);
+    if (IS_CALLABLE(toJSON)) {
+      value = %_Call(toJSON, value, key);
     }
   }
-  if (IS_SPEC_FUNCTION(replacer)) {
-    value = %_CallFunction(holder, key, value, replacer);
+  if (IS_CALLABLE(replacer)) {
+    value = %_Call(replacer, holder, key, value);
   }
   if (IS_STRING(value)) {
     return %QuoteJSONString(value);
@@ -160,7 +159,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     return value ? "true" : "false";
   } else if (IS_NULL(value)) {
     return "null";
-  } else if (IS_SPEC_OBJECT(value) && !(typeof value == "function")) {
+  } else if (IS_SPEC_OBJECT(value) && !IS_CALLABLE(value)) {
     // Non-callable object. If it's a primitive wrapper, it must be unwrapped.
     if (IS_ARRAY(value)) {
       return SerializeArray(value, replacer, stack, indent, gap);
@@ -168,7 +167,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
       value = ToNumber(value);
       return JSON_NUMBER_TO_STRING(value);
     } else if (IS_STRING_WRAPPER(value)) {
-      return %QuoteJSONString(ToString(value));
+      return %QuoteJSONString(TO_STRING(value));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
       return %_ValueOf(value) ? "true" : "false";
     } else {
@@ -197,7 +196,7 @@ function JSONStringify(value, replacer, space) {
       } else if (IS_NUMBER(v)) {
         item = %_NumberToString(v);
       } else if (IS_STRING_WRAPPER(v) || IS_NUMBER_WRAPPER(v)) {
-        item = ToString(v);
+        item = TO_STRING(v);
       } else {
         continue;
       }
@@ -213,12 +212,12 @@ function JSONStringify(value, replacer, space) {
     if (IS_NUMBER_WRAPPER(space)) {
       space = ToNumber(space);
     } else if (IS_STRING_WRAPPER(space)) {
-      space = ToString(space);
+      space = TO_STRING(space);
     }
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = MathMax(0, MathMin($toInteger(space), 10));
+    space = MathMax(0, MathMin(TO_INTEGER(space), 10));
     gap = %_SubString("          ", 0, space);
   } else if (IS_STRING(space)) {
     if (space.length > 10) {
@@ -234,7 +233,7 @@ function JSONStringify(value, replacer, space) {
 
 // -------------------------------------------------------------------
 
-%AddNamedProperty(GlobalJSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
+%AddNamedProperty(GlobalJSON, toStringTagSymbol, "JSON", READ_ONLY | DONT_ENUM);
 
 // Set up non-enumerable properties of the JSON object.
 utils.InstallFunctions(GlobalJSON, DONT_ENUM, [
@@ -252,8 +251,6 @@ function JsonSerializeAdapter(key, object) {
   return JSONSerialize(key, holder, UNDEFINED, new InternalArray(), "", "");
 }
 
-utils.ExportToRuntime(function(to) {
-  to.JsonSerializeAdapter = JsonSerializeAdapter;
-});
+%InstallToContext(["json_serialize_adapter", JsonSerializeAdapter]);
 
 })

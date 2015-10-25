@@ -58,8 +58,9 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->Export();
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      code_ = Pipeline::GenerateCodeForTesting(this->isolate(), call_descriptor,
-                                               graph, schedule);
+      CompilationInfo info("testing", main_isolate(), main_zone());
+      code_ = Pipeline::GenerateCodeForTesting(&info, call_descriptor, graph,
+                                               schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }
@@ -206,7 +207,7 @@ class CompareWrapper {
   explicit CompareWrapper(IrOpcode::Value op) : opcode(op) {}
 
   Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) {
-    return m->NewNode(op(m->machine()), a, b);
+    return m->AddNode(op(m->machine()), a, b);
   }
 
   const Operator* op(MachineOperatorBuilder* machine) {

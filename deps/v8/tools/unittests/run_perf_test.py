@@ -10,7 +10,9 @@ from mock import DEFAULT
 from mock import MagicMock
 import os
 from os import path, sys
+import platform
 import shutil
+import subprocess
 import tempfile
 import unittest
 
@@ -128,6 +130,9 @@ class PerfTest(unittest.TestCase):
     def chdir(*args, **kwargs):
       self.assertEquals(dirs.pop(), args[0])
     os.chdir = MagicMock(side_effect=chdir)
+
+    subprocess.check_call = MagicMock()
+    platform.system = MagicMock(return_value='Linux')
 
   def _CallMain(self, *args):
     self._test_output = path.join(TEST_WORKSPACE, "results.json")
@@ -447,6 +452,19 @@ class PerfTest(unittest.TestCase):
         (path.join("out", "x64.release", "d7"), "--flag", "run.js"),
         (path.join("out-no-patch", "x64.release", "d7"), "--flag", "run.js"),
     )
+
+  def testWrongBinaryWithProf(self):
+    test_input = dict(V8_JSON)
+    self._WriteTestInput(test_input)
+    self._MockCommand(["."], ["x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n"])
+    self.assertEquals(0, self._CallMain("--extra-flags=--prof"))
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": ["1.234"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["10657567.0"], "stddev": ""},
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(path.join("out", "x64.release", "d7"),
+                     "--flag", "--prof", "run.js")
 
   def testUnzip(self):
     def Gen():

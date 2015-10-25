@@ -7,14 +7,15 @@
 
 #include "src/log.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
                                                   Script* script) {
-  if ((tag == FUNCTION_TAG || tag == LAZY_COMPILE_TAG || tag == SCRIPT_TAG)
-      && script->type()->value() == Script::TYPE_NATIVE) {
+  if ((tag == FUNCTION_TAG || tag == LAZY_COMPILE_TAG || tag == SCRIPT_TAG) &&
+      script->type() == Script::TYPE_NATIVE) {
     switch (tag) {
       case FUNCTION_TAG: return NATIVE_FUNCTION_TAG;
       case LAZY_COMPILE_TAG: return NATIVE_LAZY_COMPILE_TAG;
