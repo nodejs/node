@@ -428,7 +428,6 @@ exit, the master may choose not to respawn a worker based on this value.
 * `message` {Object}
 * `sendHandle` {Handle object}
 * `callback` {Function}
-* Return: Boolean
 
 Send a message to a worker or master, optionally with a handle.
 

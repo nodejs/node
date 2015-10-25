@@ -220,7 +220,6 @@ See `kill(2)`
 * `message` {Object}
 * `sendHandle` {Handle object}
 * `callback` {Function}
-* Return: Boolean
 
 When using [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options) you can write to the child using
 `child.send(message[, sendHandle][, callback])` and messages are received by
@@ -265,10 +264,6 @@ argument: `null` on success, or an `Error` object on failure.
 
 `child.send()` emits an `'error'` event if no callback was given and the message
 cannot be sent, for example because the child process has already exited.
-
-Returns `true` under normal circumstances or `false` when the backlog of
-unsent messages exceeds a threshold that makes it unwise to send more.
-Use the callback mechanism to implement flow control.
 
 #### Example: sending server object
 
