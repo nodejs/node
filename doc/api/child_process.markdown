@@ -266,9 +266,10 @@ argument: `null` on success, or an `Error` object on failure.
 `child.send()` emits an `'error'` event if no callback was given and the message
 cannot be sent, for example because the child process has already exited.
 
-Returns `true` under normal circumstances or `false` when the backlog of
+`child.send()` returns `false` if the channel has closed or when the backlog of
 unsent messages exceeds a threshold that makes it unwise to send more.
-Use the callback mechanism to implement flow control.
+Otherwise, it returns `true`. Use the callback mechanism to implement flow
+control.
 
 #### Example: sending server object
 
