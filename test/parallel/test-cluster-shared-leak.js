@@ -19,11 +19,11 @@ if (cluster.isMaster) {
       worker1.send('die');
       worker2.send('die');
     }));
-    // c.on('error', function(e) {
-    //   // ECONNRESET is OK
-    //   if (e.code !== 'ECONNRESET')
-    //     throw e;
-    // });
+    conn.on('error', function(e) {
+      // ECONNRESET is OK
+      if (e.code !== 'ECONNRESET')
+        throw e;
+    });
   }));
 
   cluster.on('exit', function(worker, exitCode, signalCode) {
