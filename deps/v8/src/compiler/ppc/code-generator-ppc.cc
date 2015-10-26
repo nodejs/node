@@ -187,8 +187,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 #else
       return ge;
 #endif
-    case kUnorderedEqual:
-    case kUnorderedNotEqual:
+    default:
       break;
   }
   UNREACHABLE();
@@ -1076,6 +1075,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 #endif
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kPPC_BitcastFloat32ToInt32:
+      __ MovFloatToInt(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kPPC_BitcastInt32ToFloat32:
+      __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
+      break;
+#if V8_TARGET_ARCH_PPC64
+    case kPPC_BitcastDoubleToInt64:
+      __ MovDoubleToInt64(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kPPC_BitcastInt64ToDouble:
+      __ MovInt64ToDouble(i.OutputDoubleRegister(), i.InputRegister(0));
+      break;
+#endif
     case kPPC_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(lbz, lbzx);
       break;
@@ -1142,6 +1155,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kCheckedLoadWord32:
       ASSEMBLE_CHECKED_LOAD_INTEGER(lwa, lwax);
       break;
+    case kCheckedLoadWord64:
+#if V8_TARGET_ARCH_PPC64
+      ASSEMBLE_CHECKED_LOAD_INTEGER(ld, ldx);
+#else
+      UNREACHABLE();
+#endif
+      break;
     case kCheckedLoadFloat32:
       ASSEMBLE_CHECKED_LOAD_FLOAT(lfs, lfsx, 32);
       break;
@@ -1156,6 +1176,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kCheckedStoreWord32:
       ASSEMBLE_CHECKED_STORE_INTEGER(stw, stwx);
+      break;
+    case kCheckedStoreWord64:
+#if V8_TARGET_ARCH_PPC64
+      ASSEMBLE_CHECKED_STORE_INTEGER(std, stdx);
+#else
+      UNREACHABLE();
+#endif
       break;
     case kCheckedStoreFloat32:
       ASSEMBLE_CHECKED_STORE_FLOAT32();
@@ -1596,18 +1623,20 @@ void CodeGenerator::AddNopForSmiCodeInlining() {
 
 
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
+  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
+    return;
+  }
+
   int space_needed = Deoptimizer::patch_size();
-  if (!info()->IsStub()) {
-    // Ensure that we have enough space after the previous lazy-bailout
-    // instruction for patching the code here.
-    int current_pc = masm()->pc_offset();
-    if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-      int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-      DCHECK_EQ(0, padding_size % v8::internal::Assembler::kInstrSize);
-      while (padding_size > 0) {
-        __ nop();
-        padding_size -= v8::internal::Assembler::kInstrSize;
-      }
+  // Ensure that we have enough space after the previous lazy-bailout
+  // instruction for patching the code here.
+  int current_pc = masm()->pc_offset();
+  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
+    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
+    DCHECK_EQ(0, padding_size % v8::internal::Assembler::kInstrSize);
+    while (padding_size > 0) {
+      __ nop();
+      padding_size -= v8::internal::Assembler::kInstrSize;
     }
   }
 }

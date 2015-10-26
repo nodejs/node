@@ -52,7 +52,7 @@ class SourceCodeCache final BASE_EMBEDDED {
     DCHECK(!str.is_null());
     cache_->set(length, *str);
     cache_->set(length + 1, *shared);
-    Script::cast(shared->script())->set_type(Smi::FromInt(type_));
+    Script::cast(shared->script())->set_type(type_);
   }
 
  private:
@@ -115,13 +115,13 @@ class Bootstrapper final {
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);
+  static bool CompileExperimentalExtraBuiltin(Isolate* isolate, int index);
   static bool CompileCodeStubBuiltin(Isolate* isolate, int index);
   static bool InstallCodeStubNatives(Isolate* isolate);
 
-  static void ImportNatives(Isolate* isolate, Handle<JSObject> container);
-  static void ImportExperimentalNatives(Isolate* isolate,
-                                        Handle<JSObject> container);
-  static bool InstallJSBuiltins(Isolate* isolate, Handle<JSObject> container);
+  static void ExportFromRuntime(Isolate* isolate, Handle<JSObject> container);
+  static void ExportExperimentalFromRuntime(Isolate* isolate,
+                                            Handle<JSObject> container);
 
  private:
   Isolate* isolate_;

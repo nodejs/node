@@ -1828,7 +1828,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                               "%08x       ",
                               instr->InstructionBits());
-  switch (instr->InstructionType()) {
+  switch (instr->InstructionType(Instruction::TypeChecks::EXTRA)) {
     case Instruction::kRegisterType: {
       return DecodeTypeRegister(instr);
     }

@@ -45,10 +45,9 @@ class ChangeLoweringTest : public TypedGraphTest {
 
   Matcher<Node*> IsAllocateHeapNumber(const Matcher<Node*>& effect_matcher,
                                       const Matcher<Node*>& control_matcher) {
-    return IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
-                         AllocateHeapNumberStub(isolate()).GetCode())),
-                  IsNumberConstant(BitEq(0.0)), effect_matcher,
-                  control_matcher);
+    return IsCall(
+        _, IsHeapConstant(AllocateHeapNumberStub(isolate()).GetCode()),
+        IsNumberConstant(BitEq(0.0)), effect_matcher, control_matcher);
   }
   Matcher<Node*> IsChangeInt32ToSmi(const Matcher<Node*>& value_matcher) {
     return Is64() ? IsWord64Shl(IsChangeInt32ToInt64(value_matcher),

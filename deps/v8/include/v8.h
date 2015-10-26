@@ -19,8 +19,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "v8-version.h"
-#include "v8config.h"
+#include "v8-version.h"  // NOLINT(build/include)
+#include "v8config.h"    // NOLINT(build/include)
 
 // We reserve the V8_* prefix for macros defined in V8 public API and
 // assume there are no name conflicts with the embedder's code.
@@ -112,8 +112,8 @@ class MaybeLocal;
 template <class T> class Eternal;
 template<class T> class NonCopyablePersistentTraits;
 template<class T> class PersistentBase;
-template<class T,
-         class M = NonCopyablePersistentTraits<T> > class Persistent;
+template <class T, class M = NonCopyablePersistentTraits<T> >
+class Persistent;
 template <class T>
 class Global;
 template<class K, class V, class T> class PersistentValueMap;
@@ -815,7 +815,7 @@ class Global : public PersistentBase<T> {
   /**
    * Move constructor.
    */
-  V8_INLINE Global(Global&& other) : PersistentBase<T>(other.val_) {
+  V8_INLINE Global(Global&& other) : PersistentBase<T>(other.val_) {  // NOLINT
     other.val_ = nullptr;
   }
   V8_INLINE ~Global() { this->Reset(); }
@@ -823,7 +823,7 @@ class Global : public PersistentBase<T> {
    * Move via assignment.
    */
   template <class S>
-  V8_INLINE Global& operator=(Global<S>&& rhs) {
+  V8_INLINE Global& operator=(Global<S>&& rhs) {  // NOLINT
     TYPE_CHECK(T, S);
     if (this != &rhs) {
       this->Reset();
@@ -835,7 +835,7 @@ class Global : public PersistentBase<T> {
   /**
    * Pass allows returning uniques from functions, etc.
    */
-  Global Pass() { return static_cast<Global&&>(*this); }
+  Global Pass() { return static_cast<Global&&>(*this); }  // NOLINT
 
   /*
    * For compatibility with Chromium's base::Bind (base::Passed).
@@ -4027,6 +4027,13 @@ class V8_EXPORT Template : public Data {
      PropertyAttribute attribute = None,
      AccessControl settings = DEFAULT);
 
+#ifdef V8_JS_ACCESSORS
+  void SetAccessorProperty(Local<Name> name,
+                           Local<Function> getter = Local<Function>(),
+                           Local<Function> setter = Local<Function>(),
+                           PropertyAttribute attribute = None);
+#endif  // V8_JS_ACCESSORS
+
   /**
    * Whenever the property with the given name is accessed on objects
    * created from this Template the getter and setter callbacks
@@ -5925,7 +5932,7 @@ class V8_EXPORT Isolate {
   void SetObjectGroupId(internal::Object** object, UniqueId id);
   void SetReferenceFromGroup(UniqueId id, internal::Object** object);
   void SetReference(internal::Object** parent, internal::Object** child);
-  void CollectAllGarbage(const char* gc_reason);
+  void ReportExternalAllocationLimitReached();
 };
 
 class V8_EXPORT StartupData {
@@ -6961,7 +6968,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 27;
+  static const int kContextEmbedderDataIndex = 5;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -6994,7 +7001,7 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsPartiallyDependentShift = 4;
 
-  static const int kJSObjectType = 0xb6;
+  static const int kJSObjectType = 0xb7;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;
@@ -8176,7 +8183,7 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   if (change_in_bytes > 0 &&
       amount - *amount_of_external_allocated_memory_at_last_global_gc >
           I::kExternalAllocationLimit) {
-    CollectAllGarbage("external memory allocation limit reached.");
+    ReportExternalAllocationLimitReached();
   }
   *amount_of_external_allocated_memory = amount;
   return *amount_of_external_allocated_memory;

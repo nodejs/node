@@ -76,7 +76,8 @@ test(function() {
 
 // kCannotConvertToPrimitive
 test(function() {
-  [].join(Object(Symbol(1)));
+  var o = { toString: function() { return this } };
+  [].join(o);
 }, "Cannot convert object to primitive value", TypeError);
 
 // kCircularStructure

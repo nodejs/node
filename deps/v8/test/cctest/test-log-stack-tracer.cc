@@ -36,7 +36,7 @@
 #include "src/disassembler.h"
 #include "src/isolate.h"
 #include "src/log.h"
-#include "src/sampler.h"
+#include "src/profiler/sampler.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/trace-extension.h"

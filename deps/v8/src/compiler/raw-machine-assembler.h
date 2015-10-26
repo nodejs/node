@@ -12,6 +12,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "src/factory.h"
 
 namespace v8 {
 namespace internal {
@@ -27,6 +28,10 @@ class Schedule;
 // In order to create a schedule on-the-fly, the assembler keeps track of basic
 // blocks by having one current basic block being populated and by referencing
 // other basic blocks through the use of labels.
+//
+// Also note that the generated graph is only valid together with the generated
+// schedule, using one without the other is invalid as the graph is inherently
+// non-schedulable due to missing control and effect dependencies.
 class RawMachineAssembler {
  public:
   class Label {
@@ -60,7 +65,6 @@ class RawMachineAssembler {
   const MachineSignature* machine_sig() const {
     return call_descriptor_->GetMachineSignature();
   }
-  BasicBlock* CurrentBlock();
 
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
@@ -72,9 +76,7 @@ class RawMachineAssembler {
   // hence will not switch the current basic block.
 
   Node* UndefinedConstant() {
-    Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
-        isolate()->factory()->undefined_value());
-    return NewNode(common()->HeapConstant(unique));
+    return HeapConstant(isolate()->factory()->undefined_value());
   }
 
   // Constants.
@@ -87,33 +89,33 @@ class RawMachineAssembler {
                              : Int32Constant(static_cast<int>(value));
   }
   Node* Int32Constant(int32_t value) {
-    return NewNode(common()->Int32Constant(value));
+    return AddNode(common()->Int32Constant(value));
   }
   Node* Int64Constant(int64_t value) {
-    return NewNode(common()->Int64Constant(value));
+    return AddNode(common()->Int64Constant(value));
   }
   Node* NumberConstant(double value) {
-    return NewNode(common()->NumberConstant(value));
+    return AddNode(common()->NumberConstant(value));
   }
   Node* Float32Constant(float value) {
-    return NewNode(common()->Float32Constant(value));
+    return AddNode(common()->Float32Constant(value));
   }
   Node* Float64Constant(double value) {
-    return NewNode(common()->Float64Constant(value));
+    return AddNode(common()->Float64Constant(value));
   }
   Node* HeapConstant(Handle<HeapObject> object) {
-    Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
-    return NewNode(common()->HeapConstant(val));
+    return AddNode(common()->HeapConstant(object));
   }
-  Node* HeapConstant(Unique<HeapObject> object) {
-    return NewNode(common()->HeapConstant(object));
+  Node* BooleanConstant(bool value) {
+    Handle<Object> object = isolate()->factory()->ToBoolean(value);
+    return HeapConstant(Handle<HeapObject>::cast(object));
   }
   Node* ExternalConstant(ExternalReference address) {
-    return NewNode(common()->ExternalConstant(address));
+    return AddNode(common()->ExternalConstant(address));
   }
 
   Node* Projection(int index, Node* a) {
-    return NewNode(common()->Projection(index), a);
+    return AddNode(common()->Projection(index), a);
   }
 
   // Memory Operations.
@@ -121,39 +123,39 @@ class RawMachineAssembler {
     return Load(rep, base, IntPtrConstant(0));
   }
   Node* Load(MachineType rep, Node* base, Node* index) {
-    return NewNode(machine()->Load(rep), base, index, graph()->start(),
+    return AddNode(machine()->Load(rep), base, index, graph()->start(),
                    graph()->start());
   }
   Node* Store(MachineType rep, Node* base, Node* value) {
     return Store(rep, base, IntPtrConstant(0), value);
   }
   Node* Store(MachineType rep, Node* base, Node* index, Node* value) {
-    return NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)),
+    return AddNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)),
                    base, index, value, graph()->start(), graph()->start());
   }
 
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
-    return NewNode(machine()->WordAnd(), a, b);
+    return AddNode(machine()->WordAnd(), a, b);
   }
-  Node* WordOr(Node* a, Node* b) { return NewNode(machine()->WordOr(), a, b); }
+  Node* WordOr(Node* a, Node* b) { return AddNode(machine()->WordOr(), a, b); }
   Node* WordXor(Node* a, Node* b) {
-    return NewNode(machine()->WordXor(), a, b);
+    return AddNode(machine()->WordXor(), a, b);
   }
   Node* WordShl(Node* a, Node* b) {
-    return NewNode(machine()->WordShl(), a, b);
+    return AddNode(machine()->WordShl(), a, b);
   }
   Node* WordShr(Node* a, Node* b) {
-    return NewNode(machine()->WordShr(), a, b);
+    return AddNode(machine()->WordShr(), a, b);
   }
   Node* WordSar(Node* a, Node* b) {
-    return NewNode(machine()->WordSar(), a, b);
+    return AddNode(machine()->WordSar(), a, b);
   }
   Node* WordRor(Node* a, Node* b) {
-    return NewNode(machine()->WordRor(), a, b);
+    return AddNode(machine()->WordRor(), a, b);
   }
   Node* WordEqual(Node* a, Node* b) {
-    return NewNode(machine()->WordEqual(), a, b);
+    return AddNode(machine()->WordEqual(), a, b);
   }
   Node* WordNotEqual(Node* a, Node* b) {
     return WordBinaryNot(WordEqual(a, b));
@@ -174,29 +176,29 @@ class RawMachineAssembler {
   }
 
   Node* Word32And(Node* a, Node* b) {
-    return NewNode(machine()->Word32And(), a, b);
+    return AddNode(machine()->Word32And(), a, b);
   }
   Node* Word32Or(Node* a, Node* b) {
-    return NewNode(machine()->Word32Or(), a, b);
+    return AddNode(machine()->Word32Or(), a, b);
   }
   Node* Word32Xor(Node* a, Node* b) {
-    return NewNode(machine()->Word32Xor(), a, b);
+    return AddNode(machine()->Word32Xor(), a, b);
   }
   Node* Word32Shl(Node* a, Node* b) {
-    return NewNode(machine()->Word32Shl(), a, b);
+    return AddNode(machine()->Word32Shl(), a, b);
   }
   Node* Word32Shr(Node* a, Node* b) {
-    return NewNode(machine()->Word32Shr(), a, b);
+    return AddNode(machine()->Word32Shr(), a, b);
   }
   Node* Word32Sar(Node* a, Node* b) {
-    return NewNode(machine()->Word32Sar(), a, b);
+    return AddNode(machine()->Word32Sar(), a, b);
   }
   Node* Word32Ror(Node* a, Node* b) {
-    return NewNode(machine()->Word32Ror(), a, b);
+    return AddNode(machine()->Word32Ror(), a, b);
   }
-  Node* Word32Clz(Node* a) { return NewNode(machine()->Word32Clz(), a); }
+  Node* Word32Clz(Node* a) { return AddNode(machine()->Word32Clz(), a); }
   Node* Word32Equal(Node* a, Node* b) {
-    return NewNode(machine()->Word32Equal(), a, b);
+    return AddNode(machine()->Word32Equal(), a, b);
   }
   Node* Word32NotEqual(Node* a, Node* b) {
     return Word32BinaryNot(Word32Equal(a, b));
@@ -205,28 +207,28 @@ class RawMachineAssembler {
   Node* Word32BinaryNot(Node* a) { return Word32Equal(a, Int32Constant(0)); }
 
   Node* Word64And(Node* a, Node* b) {
-    return NewNode(machine()->Word64And(), a, b);
+    return AddNode(machine()->Word64And(), a, b);
   }
   Node* Word64Or(Node* a, Node* b) {
-    return NewNode(machine()->Word64Or(), a, b);
+    return AddNode(machine()->Word64Or(), a, b);
   }
   Node* Word64Xor(Node* a, Node* b) {
-    return NewNode(machine()->Word64Xor(), a, b);
+    return AddNode(machine()->Word64Xor(), a, b);
   }
   Node* Word64Shl(Node* a, Node* b) {
-    return NewNode(machine()->Word64Shl(), a, b);
+    return AddNode(machine()->Word64Shl(), a, b);
   }
   Node* Word64Shr(Node* a, Node* b) {
-    return NewNode(machine()->Word64Shr(), a, b);
+    return AddNode(machine()->Word64Shr(), a, b);
   }
   Node* Word64Sar(Node* a, Node* b) {
-    return NewNode(machine()->Word64Sar(), a, b);
+    return AddNode(machine()->Word64Sar(), a, b);
   }
   Node* Word64Ror(Node* a, Node* b) {
-    return NewNode(machine()->Word64Ror(), a, b);
+    return AddNode(machine()->Word64Ror(), a, b);
   }
   Node* Word64Equal(Node* a, Node* b) {
-    return NewNode(machine()->Word64Equal(), a, b);
+    return AddNode(machine()->Word64Equal(), a, b);
   }
   Node* Word64NotEqual(Node* a, Node* b) {
     return Word64BinaryNot(Word64Equal(a, b));
@@ -235,49 +237,49 @@ class RawMachineAssembler {
   Node* Word64BinaryNot(Node* a) { return Word64Equal(a, Int64Constant(0)); }
 
   Node* Int32Add(Node* a, Node* b) {
-    return NewNode(machine()->Int32Add(), a, b);
+    return AddNode(machine()->Int32Add(), a, b);
   }
   Node* Int32AddWithOverflow(Node* a, Node* b) {
-    return NewNode(machine()->Int32AddWithOverflow(), a, b);
+    return AddNode(machine()->Int32AddWithOverflow(), a, b);
   }
   Node* Int32Sub(Node* a, Node* b) {
-    return NewNode(machine()->Int32Sub(), a, b);
+    return AddNode(machine()->Int32Sub(), a, b);
   }
   Node* Int32SubWithOverflow(Node* a, Node* b) {
-    return NewNode(machine()->Int32SubWithOverflow(), a, b);
+    return AddNode(machine()->Int32SubWithOverflow(), a, b);
   }
   Node* Int32Mul(Node* a, Node* b) {
-    return NewNode(machine()->Int32Mul(), a, b);
+    return AddNode(machine()->Int32Mul(), a, b);
   }
   Node* Int32MulHigh(Node* a, Node* b) {
-    return NewNode(machine()->Int32MulHigh(), a, b);
+    return AddNode(machine()->Int32MulHigh(), a, b);
   }
   Node* Int32Div(Node* a, Node* b) {
-    return NewNode(machine()->Int32Div(), a, b, graph()->start());
+    return AddNode(machine()->Int32Div(), a, b, graph()->start());
   }
   Node* Int32Mod(Node* a, Node* b) {
-    return NewNode(machine()->Int32Mod(), a, b, graph()->start());
+    return AddNode(machine()->Int32Mod(), a, b, graph()->start());
   }
   Node* Int32LessThan(Node* a, Node* b) {
-    return NewNode(machine()->Int32LessThan(), a, b);
+    return AddNode(machine()->Int32LessThan(), a, b);
   }
   Node* Int32LessThanOrEqual(Node* a, Node* b) {
-    return NewNode(machine()->Int32LessThanOrEqual(), a, b);
+    return AddNode(machine()->Int32LessThanOrEqual(), a, b);
   }
   Node* Uint32Div(Node* a, Node* b) {
-    return NewNode(machine()->Uint32Div(), a, b, graph()->start());
+    return AddNode(machine()->Uint32Div(), a, b, graph()->start());
   }
   Node* Uint32LessThan(Node* a, Node* b) {
-    return NewNode(machine()->Uint32LessThan(), a, b);
+    return AddNode(machine()->Uint32LessThan(), a, b);
   }
   Node* Uint32LessThanOrEqual(Node* a, Node* b) {
-    return NewNode(machine()->Uint32LessThanOrEqual(), a, b);
+    return AddNode(machine()->Uint32LessThanOrEqual(), a, b);
   }
   Node* Uint32Mod(Node* a, Node* b) {
-    return NewNode(machine()->Uint32Mod(), a, b, graph()->start());
+    return AddNode(machine()->Uint32Mod(), a, b, graph()->start());
   }
   Node* Uint32MulHigh(Node* a, Node* b) {
-    return NewNode(machine()->Uint32MulHigh(), a, b);
+    return AddNode(machine()->Uint32MulHigh(), a, b);
   }
   Node* Int32GreaterThan(Node* a, Node* b) { return Int32LessThan(b, a); }
   Node* Int32GreaterThanOrEqual(Node* a, Node* b) {
@@ -286,42 +288,42 @@ class RawMachineAssembler {
   Node* Int32Neg(Node* a) { return Int32Sub(Int32Constant(0), a); }
 
   Node* Int64Add(Node* a, Node* b) {
-    return NewNode(machine()->Int64Add(), a, b);
+    return AddNode(machine()->Int64Add(), a, b);
   }
   Node* Int64Sub(Node* a, Node* b) {
-    return NewNode(machine()->Int64Sub(), a, b);
+    return AddNode(machine()->Int64Sub(), a, b);
   }
   Node* Int64Mul(Node* a, Node* b) {
-    return NewNode(machine()->Int64Mul(), a, b);
+    return AddNode(machine()->Int64Mul(), a, b);
   }
   Node* Int64Div(Node* a, Node* b) {
-    return NewNode(machine()->Int64Div(), a, b);
+    return AddNode(machine()->Int64Div(), a, b);
   }
   Node* Int64Mod(Node* a, Node* b) {
-    return NewNode(machine()->Int64Mod(), a, b);
+    return AddNode(machine()->Int64Mod(), a, b);
   }
   Node* Int64Neg(Node* a) { return Int64Sub(Int64Constant(0), a); }
   Node* Int64LessThan(Node* a, Node* b) {
-    return NewNode(machine()->Int64LessThan(), a, b);
+    return AddNode(machine()->Int64LessThan(), a, b);
   }
   Node* Int64LessThanOrEqual(Node* a, Node* b) {
-    return NewNode(machine()->Int64LessThanOrEqual(), a, b);
+    return AddNode(machine()->Int64LessThanOrEqual(), a, b);
   }
   Node* Uint64LessThan(Node* a, Node* b) {
-    return NewNode(machine()->Uint64LessThan(), a, b);
+    return AddNode(machine()->Uint64LessThan(), a, b);
   }
   Node* Uint64LessThanOrEqual(Node* a, Node* b) {
-    return NewNode(machine()->Uint64LessThanOrEqual(), a, b);
+    return AddNode(machine()->Uint64LessThanOrEqual(), a, b);
   }
   Node* Int64GreaterThan(Node* a, Node* b) { return Int64LessThan(b, a); }
   Node* Int64GreaterThanOrEqual(Node* a, Node* b) {
     return Int64LessThanOrEqual(b, a);
   }
   Node* Uint64Div(Node* a, Node* b) {
-    return NewNode(machine()->Uint64Div(), a, b);
+    return AddNode(machine()->Uint64Div(), a, b);
   }
   Node* Uint64Mod(Node* a, Node* b) {
-    return NewNode(machine()->Uint64Mod(), a, b);
+    return AddNode(machine()->Uint64Mod(), a, b);
   }
 
 #define INTPTR_BINOP(prefix, name)                     \
@@ -342,30 +344,30 @@ class RawMachineAssembler {
 #undef INTPTR_BINOP
 
   Node* Float32Add(Node* a, Node* b) {
-    return NewNode(machine()->Float32Add(), a, b);
+    return AddNode(machine()->Float32Add(), a, b);
   }
   Node* Float32Sub(Node* a, Node* b) {
-    return NewNode(machine()->Float32Sub(), a, b);
+    return AddNode(machine()->Float32Sub(), a, b);
   }
   Node* Float32Mul(Node* a, Node* b) {
-    return NewNode(machine()->Float32Mul(), a, b);
+    return AddNode(machine()->Float32Mul(), a, b);
   }
   Node* Float32Div(Node* a, Node* b) {
-    return NewNode(machine()->Float32Div(), a, b);
+    return AddNode(machine()->Float32Div(), a, b);
   }
-  Node* Float32Abs(Node* a) { return NewNode(machine()->Float32Abs(), a); }
-  Node* Float32Sqrt(Node* a) { return NewNode(machine()->Float32Sqrt(), a); }
+  Node* Float32Abs(Node* a) { return AddNode(machine()->Float32Abs(), a); }
+  Node* Float32Sqrt(Node* a) { return AddNode(machine()->Float32Sqrt(), a); }
   Node* Float32Equal(Node* a, Node* b) {
-    return NewNode(machine()->Float32Equal(), a, b);
+    return AddNode(machine()->Float32Equal(), a, b);
   }
   Node* Float32NotEqual(Node* a, Node* b) {
     return WordBinaryNot(Float32Equal(a, b));
   }
   Node* Float32LessThan(Node* a, Node* b) {
-    return NewNode(machine()->Float32LessThan(), a, b);
+    return AddNode(machine()->Float32LessThan(), a, b);
   }
   Node* Float32LessThanOrEqual(Node* a, Node* b) {
-    return NewNode(machine()->Float32LessThanOrEqual(), a, b);
+    return AddNode(machine()->Float32LessThanOrEqual(), a, b);
   }
   Node* Float32GreaterThan(Node* a, Node* b) { return Float32LessThan(b, a); }
   Node* Float32GreaterThanOrEqual(Node* a, Node* b) {
@@ -373,33 +375,33 @@ class RawMachineAssembler {
   }
 
   Node* Float64Add(Node* a, Node* b) {
-    return NewNode(machine()->Float64Add(), a, b);
+    return AddNode(machine()->Float64Add(), a, b);
   }
   Node* Float64Sub(Node* a, Node* b) {
-    return NewNode(machine()->Float64Sub(), a, b);
+    return AddNode(machine()->Float64Sub(), a, b);
   }
   Node* Float64Mul(Node* a, Node* b) {
-    return NewNode(machine()->Float64Mul(), a, b);
+    return AddNode(machine()->Float64Mul(), a, b);
   }
   Node* Float64Div(Node* a, Node* b) {
-    return NewNode(machine()->Float64Div(), a, b);
+    return AddNode(machine()->Float64Div(), a, b);
   }
   Node* Float64Mod(Node* a, Node* b) {
-    return NewNode(machine()->Float64Mod(), a, b);
+    return AddNode(machine()->Float64Mod(), a, b);
   }
-  Node* Float64Abs(Node* a) { return NewNode(machine()->Float64Abs(), a); }
-  Node* Float64Sqrt(Node* a) { return NewNode(machine()->Float64Sqrt(), a); }
+  Node* Float64Abs(Node* a) { return AddNode(machine()->Float64Abs(), a); }
+  Node* Float64Sqrt(Node* a) { return AddNode(machine()->Float64Sqrt(), a); }
   Node* Float64Equal(Node* a, Node* b) {
-    return NewNode(machine()->Float64Equal(), a, b);
+    return AddNode(machine()->Float64Equal(), a, b);
   }
   Node* Float64NotEqual(Node* a, Node* b) {
     return WordBinaryNot(Float64Equal(a, b));
   }
   Node* Float64LessThan(Node* a, Node* b) {
-    return NewNode(machine()->Float64LessThan(), a, b);
+    return AddNode(machine()->Float64LessThan(), a, b);
   }
   Node* Float64LessThanOrEqual(Node* a, Node* b) {
-    return NewNode(machine()->Float64LessThanOrEqual(), a, b);
+    return AddNode(machine()->Float64LessThanOrEqual(), a, b);
   }
   Node* Float64GreaterThan(Node* a, Node* b) { return Float64LessThan(b, a); }
   Node* Float64GreaterThanOrEqual(Node* a, Node* b) {
@@ -408,62 +410,74 @@ class RawMachineAssembler {
 
   // Conversions.
   Node* ChangeFloat32ToFloat64(Node* a) {
-    return NewNode(machine()->ChangeFloat32ToFloat64(), a);
+    return AddNode(machine()->ChangeFloat32ToFloat64(), a);
   }
   Node* ChangeInt32ToFloat64(Node* a) {
-    return NewNode(machine()->ChangeInt32ToFloat64(), a);
+    return AddNode(machine()->ChangeInt32ToFloat64(), a);
   }
   Node* ChangeUint32ToFloat64(Node* a) {
-    return NewNode(machine()->ChangeUint32ToFloat64(), a);
+    return AddNode(machine()->ChangeUint32ToFloat64(), a);
   }
   Node* ChangeFloat64ToInt32(Node* a) {
-    return NewNode(machine()->ChangeFloat64ToInt32(), a);
+    return AddNode(machine()->ChangeFloat64ToInt32(), a);
   }
   Node* ChangeFloat64ToUint32(Node* a) {
-    return NewNode(machine()->ChangeFloat64ToUint32(), a);
+    return AddNode(machine()->ChangeFloat64ToUint32(), a);
   }
   Node* ChangeInt32ToInt64(Node* a) {
-    return NewNode(machine()->ChangeInt32ToInt64(), a);
+    return AddNode(machine()->ChangeInt32ToInt64(), a);
   }
   Node* ChangeUint32ToUint64(Node* a) {
-    return NewNode(machine()->ChangeUint32ToUint64(), a);
+    return AddNode(machine()->ChangeUint32ToUint64(), a);
   }
   Node* TruncateFloat64ToFloat32(Node* a) {
-    return NewNode(machine()->TruncateFloat64ToFloat32(), a);
+    return AddNode(machine()->TruncateFloat64ToFloat32(), a);
   }
   Node* TruncateFloat64ToInt32(TruncationMode mode, Node* a) {
-    return NewNode(machine()->TruncateFloat64ToInt32(mode), a);
+    return AddNode(machine()->TruncateFloat64ToInt32(mode), a);
   }
   Node* TruncateInt64ToInt32(Node* a) {
-    return NewNode(machine()->TruncateInt64ToInt32(), a);
+    return AddNode(machine()->TruncateInt64ToInt32(), a);
+  }
+  Node* BitcastFloat32ToInt32(Node* a) {
+    return AddNode(machine()->BitcastFloat32ToInt32(), a);
+  }
+  Node* BitcastFloat64ToInt64(Node* a) {
+    return AddNode(machine()->BitcastFloat64ToInt64(), a);
+  }
+  Node* BitcastInt32ToFloat32(Node* a) {
+    return AddNode(machine()->BitcastInt32ToFloat32(), a);
+  }
+  Node* BitcastInt64ToFloat64(Node* a) {
+    return AddNode(machine()->BitcastInt64ToFloat64(), a);
   }
   Node* Float64RoundDown(Node* a) {
-    return NewNode(machine()->Float64RoundDown().op(), a);
+    return AddNode(machine()->Float64RoundDown().op(), a);
   }
   Node* Float64RoundTruncate(Node* a) {
-    return NewNode(machine()->Float64RoundTruncate().op(), a);
+    return AddNode(machine()->Float64RoundTruncate().op(), a);
   }
   Node* Float64RoundTiesAway(Node* a) {
-    return NewNode(machine()->Float64RoundTiesAway().op(), a);
+    return AddNode(machine()->Float64RoundTiesAway().op(), a);
   }
 
   // Float64 bit operations.
   Node* Float64ExtractLowWord32(Node* a) {
-    return NewNode(machine()->Float64ExtractLowWord32(), a);
+    return AddNode(machine()->Float64ExtractLowWord32(), a);
   }
   Node* Float64ExtractHighWord32(Node* a) {
-    return NewNode(machine()->Float64ExtractHighWord32(), a);
+    return AddNode(machine()->Float64ExtractHighWord32(), a);
   }
   Node* Float64InsertLowWord32(Node* a, Node* b) {
-    return NewNode(machine()->Float64InsertLowWord32(), a, b);
+    return AddNode(machine()->Float64InsertLowWord32(), a, b);
   }
   Node* Float64InsertHighWord32(Node* a, Node* b) {
-    return NewNode(machine()->Float64InsertHighWord32(), a, b);
+    return AddNode(machine()->Float64InsertHighWord32(), a, b);
   }
 
   // Stack operations.
-  Node* LoadStackPointer() { return NewNode(machine()->LoadStackPointer()); }
-  Node* LoadFramePointer() { return NewNode(machine()->LoadFramePointer()); }
+  Node* LoadStackPointer() { return AddNode(machine()->LoadStackPointer()); }
+  Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }
 
   // Parameters.
   Node* Parameter(size_t index);
@@ -481,16 +495,19 @@ class RawMachineAssembler {
 
   // Call a given call descriptor and the given arguments.
   Node* CallN(CallDescriptor* desc, Node* function, Node** args);
-
+  // Call a given call descriptor and the given arguments and frame-state.
+  Node* CallNWithFrameState(CallDescriptor* desc, Node* function, Node** args,
+                            Node* frame_state);
+  // Tail call the given call descriptor and the given arguments.
+  Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
   // Call through CallFunctionStub with lazy deopt and frame-state.
   Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
                           Node* frame_state, CallFunctionFlags flags);
-  // Call to a JS function with zero arguments.
-  Node* CallJS0(Node* function, Node* receiver, Node* context,
-                Node* frame_state);
-  // Call to a runtime function with zero arguments.
-  Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context,
-                     Node* frame_state);
+  // Call to a runtime function with one arguments.
+  Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context);
+  // Call to a runtime function with two arguments.
+  Node* CallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                     Node* context);
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.
@@ -508,9 +525,6 @@ class RawMachineAssembler {
                        MachineType arg7_type, Node* function, Node* arg0,
                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                        Node* arg5, Node* arg6, Node* arg7);
-  Node* TailCallInterpreterDispatch(const CallDescriptor* call_descriptor,
-                                    Node* target, Node* arg1, Node* arg2,
-                                    Node* arg3, Node* arg4, Node* arg5);
 
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch
@@ -527,13 +541,13 @@ class RawMachineAssembler {
 
   // Variables.
   Node* Phi(MachineType type, Node* n1, Node* n2) {
-    return NewNode(common()->Phi(type, 2), n1, n2);
+    return AddNode(common()->Phi(type, 2), n1, n2);
   }
   Node* Phi(MachineType type, Node* n1, Node* n2, Node* n3) {
-    return NewNode(common()->Phi(type, 3), n1, n2, n3);
+    return AddNode(common()->Phi(type, 3), n1, n2, n3);
   }
   Node* Phi(MachineType type, Node* n1, Node* n2, Node* n3, Node* n4) {
-    return NewNode(common()->Phi(type, 4), n1, n2, n3, n4);
+    return AddNode(common()->Phi(type, 4), n1, n2, n3, n4);
   }
 
   // ===========================================================================
@@ -541,48 +555,23 @@ class RawMachineAssembler {
   // are not covered by the above utility methods. There should rarely be a need
   // to do that outside of testing though.
 
-  Node* NewNode(const Operator* op) {
-    return MakeNode(op, 0, static_cast<Node**>(NULL));
+  Node* AddNode(const Operator* op, int input_count, Node** inputs);
+
+  Node* AddNode(const Operator* op) {
+    return AddNode(op, 0, static_cast<Node**>(nullptr));
   }
 
-  Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
-    Node* buffer[] = {n1, n2};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
-    Node* buffer[] = {n1, n2, n3};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
-    Node* buffer[] = {n1, n2, n3, n4};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5) {
-    Node* buffer[] = {n1, n2, n3, n4, n5};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
-    return MakeNode(op, arraysize(nodes), nodes);
-  }
-
-  Node* NewNode(const Operator* op, int value_input_count,
-                Node** value_inputs) {
-    return MakeNode(op, value_input_count, value_inputs);
+  template <class... TArgs>
+  Node* AddNode(const Operator* op, Node* n1, TArgs... args) {
+    Node* buffer[] = {n1, args...};
+    return AddNode(op, sizeof...(args) + 1, buffer);
   }
 
  private:
   Node* MakeNode(const Operator* op, int input_count, Node** inputs);
   BasicBlock* Use(Label* label);
   BasicBlock* EnsureBlock(Label* label);
+  BasicBlock* CurrentBlock();
 
   Isolate* isolate_;
   Graph* graph_;

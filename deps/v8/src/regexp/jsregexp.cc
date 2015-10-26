@@ -10,6 +10,7 @@
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/ostreams.h"
 #include "src/parser.h"
@@ -6406,5 +6407,98 @@ bool RegExpEngine::TooMuchRegExpCode(Handle<String> pattern) {
   }
   return too_much;
 }
+
+
+Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
+                                   Object* key_pattern, ResultsCacheType type) {
+  FixedArray* cache;
+  if (!key_string->IsInternalizedString()) return Smi::FromInt(0);
+  if (type == STRING_SPLIT_SUBSTRINGS) {
+    DCHECK(key_pattern->IsString());
+    if (!key_pattern->IsInternalizedString()) return Smi::FromInt(0);
+    cache = heap->string_split_cache();
+  } else {
+    DCHECK(type == REGEXP_MULTIPLE_INDICES);
+    DCHECK(key_pattern->IsFixedArray());
+    cache = heap->regexp_multiple_cache();
+  }
+
+  uint32_t hash = key_string->Hash();
+  uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
+                    ~(kArrayEntriesPerCacheEntry - 1));
+  if (cache->get(index + kStringOffset) == key_string &&
+      cache->get(index + kPatternOffset) == key_pattern) {
+    return cache->get(index + kArrayOffset);
+  }
+  index =
+      ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
+  if (cache->get(index + kStringOffset) == key_string &&
+      cache->get(index + kPatternOffset) == key_pattern) {
+    return cache->get(index + kArrayOffset);
+  }
+  return Smi::FromInt(0);
+}
+
+
+void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
+                               Handle<Object> key_pattern,
+                               Handle<FixedArray> value_array,
+                               ResultsCacheType type) {
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> cache;
+  if (!key_string->IsInternalizedString()) return;
+  if (type == STRING_SPLIT_SUBSTRINGS) {
+    DCHECK(key_pattern->IsString());
+    if (!key_pattern->IsInternalizedString()) return;
+    cache = factory->string_split_cache();
+  } else {
+    DCHECK(type == REGEXP_MULTIPLE_INDICES);
+    DCHECK(key_pattern->IsFixedArray());
+    cache = factory->regexp_multiple_cache();
+  }
+
+  uint32_t hash = key_string->Hash();
+  uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
+                    ~(kArrayEntriesPerCacheEntry - 1));
+  if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
+    cache->set(index + kStringOffset, *key_string);
+    cache->set(index + kPatternOffset, *key_pattern);
+    cache->set(index + kArrayOffset, *value_array);
+  } else {
+    uint32_t index2 =
+        ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
+    if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
+      cache->set(index2 + kStringOffset, *key_string);
+      cache->set(index2 + kPatternOffset, *key_pattern);
+      cache->set(index2 + kArrayOffset, *value_array);
+    } else {
+      cache->set(index2 + kStringOffset, Smi::FromInt(0));
+      cache->set(index2 + kPatternOffset, Smi::FromInt(0));
+      cache->set(index2 + kArrayOffset, Smi::FromInt(0));
+      cache->set(index + kStringOffset, *key_string);
+      cache->set(index + kPatternOffset, *key_pattern);
+      cache->set(index + kArrayOffset, *value_array);
+    }
+  }
+  // If the array is a reasonably short list of substrings, convert it into a
+  // list of internalized strings.
+  if (type == STRING_SPLIT_SUBSTRINGS && value_array->length() < 100) {
+    for (int i = 0; i < value_array->length(); i++) {
+      Handle<String> str(String::cast(value_array->get(i)), isolate);
+      Handle<String> internalized_str = factory->InternalizeString(str);
+      value_array->set(i, *internalized_str);
+    }
+  }
+  // Convert backing store to a copy-on-write array.
+  value_array->set_map_no_write_barrier(*factory->fixed_cow_array_map());
+}
+
+
+void RegExpResultsCache::Clear(FixedArray* cache) {
+  for (int i = 0; i < kRegExpResultsCacheSize; i++) {
+    cache->set(i, Smi::FromInt(0));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

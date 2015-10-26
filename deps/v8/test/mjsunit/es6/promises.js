@@ -62,7 +62,15 @@ function clearProp(o, name) {
 
 // Find intrinsics and null them out.
 var globals = Object.getOwnPropertyNames(this)
-var whitelist = {Promise: true, TypeError: true}
+var whitelist = {
+  Promise: true,
+  TypeError: true,
+  String: true,
+  JSON: true,
+  Error: true,
+  MjsUnitAssertionError: true
+};
+
 for (var i in globals) {
   var name = globals[i]
   if (name in whitelist || name[0] === name[0].toLowerCase()) delete globals[i]
@@ -96,7 +104,6 @@ function assertAsyncDone(iteration) {
       assertAsyncDone(iteration + 1)
   });
 }
-
 
 (function() {
   assertThrows(function() { Promise(function() {}) }, TypeError)

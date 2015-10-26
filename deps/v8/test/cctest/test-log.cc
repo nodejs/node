@@ -36,9 +36,9 @@
 
 #include "src/v8.h"
 
-#include "src/cpu-profiler.h"
 #include "src/log.h"
 #include "src/log-utils.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
 #include "src/v8threads.h"

@@ -164,7 +164,6 @@ class SimplifiedOperatorBuilder final {
   const Operator* ChangeBitToBool();
 
   const Operator* ObjectIsSmi();
-  const Operator* ObjectIsNonNegativeSmi();
 
   const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
 

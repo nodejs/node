@@ -127,8 +127,9 @@ function f() {
 }
 f();
 
-// Test that a function declaration introduces a block scoped variable.
-TestAll('{ function k() { return 0; } }; k(); ');
+// Test that a function declaration introduces a block scoped variable
+// and no function hoisting if there is a conflict.
+TestFunctionLocal('{ function k() { return 0; } }; k(); let k;');
 
 // Test that a function declaration sees the scope it resides in.
 function f2() {

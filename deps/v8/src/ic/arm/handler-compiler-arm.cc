@@ -7,6 +7,7 @@
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -305,25 +306,35 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 }
 
 
+static void StoreIC_PushArgs(MacroAssembler* masm) {
+  if (FLAG_vector_stores) {
+    __ Push(StoreDescriptor::ReceiverRegister(),
+            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister(),
+            VectorStoreICDescriptor::SlotRegister(),
+            VectorStoreICDescriptor::VectorRegister());
+  } else {
+    __ Push(StoreDescriptor::ReceiverRegister(),
+            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister());
+  }
+}
+
+
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
-  // Push receiver, key and value for runtime call.
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
+  StoreIC_PushArgs(masm);
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow, 3, 1);
+  __ TailCallRuntime(Runtime::kStoreIC_Slow, FLAG_vector_stores ? 5 : 3, 1);
 }
 
 
 void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
-  // Push receiver, key and value for runtime call.
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
+  StoreIC_PushArgs(masm);
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, 3, 1);
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, FLAG_vector_stores ? 5 : 3,
+                     1);
 }
 
 
@@ -566,6 +577,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ b(&success);
     GenerateRestoreName(miss, name);
+    if (IC::ICUseVector(kind())) PopVectorAndSlot();
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }

@@ -65,21 +65,8 @@ class AstNumberingVisitor final : public AstVisitor {
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
-    FeedbackVectorRequirements reqs =
-        node->ComputeFeedbackRequirements(isolate(), &ic_slot_cache_);
-    if (reqs.slots() > 0) {
-      node->SetFirstFeedbackSlot(FeedbackVectorSlot(properties_.slots()));
-      properties_.increase_slots(reqs.slots());
-    }
-    if (reqs.ic_slots() > 0) {
-      int ic_slots = properties_.ic_slots();
-      node->SetFirstFeedbackICSlot(FeedbackVectorICSlot(ic_slots),
-                                   &ic_slot_cache_);
-      properties_.increase_ic_slots(reqs.ic_slots());
-      for (int i = 0; i < reqs.ic_slots(); i++) {
-        properties_.SetKind(ic_slots + i, node->FeedbackICSlotKind(i));
-      }
-    }
+    node->AssignFeedbackVectorSlots(isolate(), properties_.get_spec(),
+                                    &ic_slot_cache_);
   }
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
@@ -110,6 +97,13 @@ void AstNumberingVisitor::VisitExportDeclaration(ExportDeclaration* node) {
 
 void AstNumberingVisitor::VisitEmptyStatement(EmptyStatement* node) {
   IncrementNodeCount();
+}
+
+
+void AstNumberingVisitor::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* node) {
+  IncrementNodeCount();
+  Visit(node->statement());
 }
 
 
@@ -371,6 +365,11 @@ void AstNumberingVisitor::VisitSpread(Spread* node) {
 }
 
 
+void AstNumberingVisitor::VisitEmptyParentheses(EmptyParentheses* node) {
+  UNREACHABLE();
+}
+
+
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
@@ -553,7 +552,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   Scope* scope = node->scope();
 
   if (scope->HasIllegalRedeclaration()) {
-    scope->VisitIllegalRedeclaration(this);
+    Visit(scope->GetIllegalRedeclaration());
     DisableOptimization(kFunctionWithIllegalRedeclaration);
     return Finish(node);
   }
