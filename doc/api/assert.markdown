@@ -14,7 +14,7 @@ separated by the provided operator.
 ## assert(value[, message]), assert.ok(value[, message])
 
 Tests if value is truthy. It is equivalent to
-`assert.equal(true, !!value, message)`.
+`assert.equal(!!value, true, message)`.
 
 ## assert.equal(actual, expected[, message])
 
