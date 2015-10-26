@@ -193,10 +193,6 @@ class SSLWrap {
       next_sess_ = nullptr;
     }
 
-#ifdef OPENSSL_NPN_NEGOTIATED
-    npn_protos_.Reset();
-    selected_npn_proto_.Reset();
-#endif
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
     sni_context_.Reset();
 #endif
@@ -312,11 +308,6 @@ class SSLWrap {
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
   v8::Persistent<v8::Object> ocsp_response_;
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-  v8::Persistent<v8::Object> npn_protos_;
-  v8::Persistent<v8::Value> selected_npn_proto_;
-#endif  // OPENSSL_NPN_NEGOTIATED
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   v8::Persistent<v8::Value> sni_context_;
