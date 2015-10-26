@@ -1960,14 +1960,17 @@ int SSLWrap<Base>::AdvertiseNextProtoCallback(SSL* s,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  if (w->npn_protos_.IsEmpty()) {
+  Local<Value> npn_buffer =
+      w->object()->GetHiddenValue(env->npn_buffer_string());
+
+  if (npn_buffer.IsEmpty()) {
     // No initialization - no NPN protocols
     *data = reinterpret_cast<const unsigned char*>("");
     *len = 0;
   } else {
-    Local<Object> obj = PersistentToLocal(env->isolate(), w->npn_protos_);
-    *data = reinterpret_cast<const unsigned char*>(Buffer::Data(obj));
-    *len = Buffer::Length(obj);
+    CHECK(Buffer::HasInstance(npn_buffer));
+    *data = reinterpret_cast<const unsigned char*>(Buffer::Data(npn_buffer));
+    *len = Buffer::Length(npn_buffer);
   }
 
   return SSL_TLSEXT_ERR_OK;
@@ -1986,25 +1989,27 @@ int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  // Release old protocol handler if present
-  w->selected_npn_proto_.Reset();
+  Local<Value> npn_buffer =
+      w->object()->GetHiddenValue(env->npn_buffer_string());
 
-  if (w->npn_protos_.IsEmpty()) {
+  if (npn_buffer.IsEmpty()) {
     // We should at least select one protocol
     // If server is using NPN
     *out = reinterpret_cast<unsigned char*>(const_cast<char*>("http/1.1"));
     *outlen = 8;
 
     // set status: unsupported
-    w->selected_npn_proto_.Reset(env->isolate(), False(env->isolate()));
+    bool r = w->object()->SetHiddenValue(env->selected_npn_buffer_string(),
+                                         False(env->isolate()));
+    CHECK(r);
 
     return SSL_TLSEXT_ERR_OK;
   }
 
-  Local<Object> obj = PersistentToLocal(env->isolate(), w->npn_protos_);
+  CHECK(Buffer::HasInstance(npn_buffer));
   const unsigned char* npn_protos =
-      reinterpret_cast<const unsigned char*>(Buffer::Data(obj));
-  size_t len = Buffer::Length(obj);
+      reinterpret_cast<const unsigned char*>(Buffer::Data(npn_buffer));
+  size_t len = Buffer::Length(npn_buffer);
 
   int status = SSL_select_next_proto(out, outlen, in, inlen, npn_protos, len);
   Local<Value> result;
@@ -2022,8 +2027,9 @@ int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
       break;
   }
 
-  if (!result.IsEmpty())
-    w->selected_npn_proto_.Reset(env->isolate(), result);
+  bool r = w->object()->SetHiddenValue(env->selected_npn_buffer_string(),
+                                       result);
+  CHECK(r);
 
   return SSL_TLSEXT_ERR_OK;
 }
@@ -2036,9 +2042,12 @@ void SSLWrap<Base>::GetNegotiatedProto(
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
 
   if (w->is_client()) {
-    if (w->selected_npn_proto_.IsEmpty() == false) {
-      args.GetReturnValue().Set(w->selected_npn_proto_);
-    }
+    Local<Value> selected_npn_buffer =
+        w->object()->GetHiddenValue(w->env()->selected_npn_buffer_string());
+
+    if (selected_npn_buffer.IsEmpty() == false)
+      args.GetReturnValue().Set(selected_npn_buffer);
+
     return;
   }
 
@@ -2062,9 +2071,11 @@ void SSLWrap<Base>::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
   Environment* env = w->ssl_env();
 
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
-    return w->env()->ThrowTypeError("Must give a Buffer as first argument");
+    return env->ThrowTypeError("Must give a Buffer as first argument");
 
-  w->npn_protos_.Reset(args.GetIsolate(), args[0].As<Object>());
+  Local<Value> npn_buffer =  Local<Value>::New(env->isolate(), args[0]);
+  bool r = w->object()->SetHiddenValue(env->npn_buffer_string(), npn_buffer);
+  CHECK(r);
 }
 #endif  // OPENSSL_NPN_NEGOTIATED
 
