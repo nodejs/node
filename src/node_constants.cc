@@ -935,6 +935,11 @@ void DefineOpenSSLConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
 #endif
 
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+#define ALPN_ENABLED 1
+    NODE_DEFINE_CONSTANT(target, ALPN_ENABLED);
+#endif
+
 #ifdef RSA_PKCS1_PADDING
     NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PADDING);
 #endif
