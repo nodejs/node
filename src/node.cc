@@ -86,6 +86,14 @@ typedef int mode_t;
 extern char **environ;
 #endif
 
+#ifdef __APPLE__
+#include "atomic-polyfill.h"  // NOLINT(build/include_order)
+namespace node { template <typename T> using atomic = nonstd::atomic<T>; }
+#else
+#include <atomic>
+namespace node { template <typename T> using atomic = std::atomic<T>; }
+#endif
+
 namespace node {
 
 using v8::Array;
@@ -153,7 +161,7 @@ static double prog_start_time;
 static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
 
-static Isolate* node_isolate = nullptr;
+static node::atomic<Isolate*> node_isolate;
 static v8::Platform* default_platform;
 
 
@@ -3389,28 +3397,46 @@ static void EnableDebug(Environment* env) {
 }
 
 
+// Called from an arbitrary thread.
+static void TryStartDebugger() {
+  // Call only async signal-safe functions here!  Don't retry the exchange,
+  // it will deadlock when the thread is interrupted inside a critical section.
+  if (auto isolate = node_isolate.exchange(nullptr)) {
+    v8::Debug::DebugBreak(isolate);
+    uv_async_send(&dispatch_debug_messages_async);
+    CHECK_EQ(nullptr, node_isolate.exchange(isolate));
+  }
+}
+
+
 // Called from the main thread.
 static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
+  // Synchronize with signal handler, see TryStartDebugger.
+  Isolate* isolate;
+  do {
+    isolate = node_isolate.exchange(nullptr);
+  } while (isolate == nullptr);
+
   if (debugger_running == false) {
     fprintf(stderr, "Starting debugger agent.\n");
 
-    HandleScope scope(node_isolate);
-    Environment* env = Environment::GetCurrent(node_isolate);
+    HandleScope scope(isolate);
+    Environment* env = Environment::GetCurrent(isolate);
     Context::Scope context_scope(env->context());
 
     StartDebug(env, false);
     EnableDebug(env);
   }
-  Isolate::Scope isolate_scope(node_isolate);
+
+  Isolate::Scope isolate_scope(isolate);
   v8::Debug::ProcessDebugMessages();
+  CHECK_EQ(nullptr, node_isolate.exchange(isolate));
 }
 
 
 #ifdef __POSIX__
 static void EnableDebugSignalHandler(int signo) {
-  // Call only async signal-safe functions here!
-  v8::Debug::DebugBreak(*static_cast<Isolate* volatile*>(&node_isolate));
-  uv_async_send(&dispatch_debug_messages_async);
+  TryStartDebugger();
 }
 
 
@@ -3464,8 +3490,7 @@ static int RegisterDebugSignalHandler() {
 
 #ifdef _WIN32
 DWORD WINAPI EnableDebugThreadProc(void* arg) {
-  v8::Debug::DebugBreak(*static_cast<Isolate* volatile*>(&node_isolate));
-  uv_async_send(&dispatch_debug_messages_async);
+  TryStartDebugger();
   return 0;
 }
 
@@ -3985,7 +4010,8 @@ static void StartNodeInstance(void* arg) {
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
   if (instance_data->is_main())
-    node_isolate = isolate;
+    CHECK_EQ(nullptr, node_isolate.exchange(isolate));
+
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
@@ -3995,7 +4021,7 @@ static void StartNodeInstance(void* arg) {
     array_buffer_allocator->set_env(env);
     Context::Scope context_scope(context);
 
-    node_isolate->SetAbortOnUncaughtExceptionCallback(
+    isolate->SetAbortOnUncaughtExceptionCallback(
         ShouldAbortOnUncaughtException);
 
     // Start debug agent when argv has --debug
@@ -4049,12 +4075,15 @@ static void StartNodeInstance(void* arg) {
     env = nullptr;
   }
 
+  if (instance_data->is_main()) {
+    // Synchronize with signal handler, see TryStartDebugger.
+    while (isolate != node_isolate.exchange(nullptr));  // NOLINT
+  }
+
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
   isolate = nullptr;
   delete array_buffer_allocator;
-  if (instance_data->is_main())
-    node_isolate = nullptr;
 }
 
 int Start(int argc, char** argv) {
