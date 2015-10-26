@@ -26,6 +26,8 @@ function loadPEM(n) {
 var serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
+  requestCert: true,
+  rejectUnauthorized: false,
   SNICallback: function(servername, callback) {
     var context = SNIContexts[servername];
 
@@ -46,7 +48,8 @@ var serverOptions = {
 var SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
-    cert: loadPEM('agent1-cert')
+    cert: loadPEM('agent1-cert'),
+    ca: [ loadPEM('ca2-cert') ]
   },
   'b.example.com': {
     key: loadPEM('agent3-key'),
@@ -63,6 +66,13 @@ var clientsOptions = [{
   port: serverPort,
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
+  ca: [loadPEM('ca1-cert')],
+  servername: 'a.example.com',
+  rejectUnauthorized: false
+}, {
+  port: serverPort,
+  key: loadPEM('agent4-key'),
+  cert: loadPEM('agent4-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
@@ -97,7 +107,7 @@ var serverResults = [],
     clientError;
 
 var server = tls.createServer(serverOptions, function(c) {
-  serverResults.push(c.servername);
+  serverResults.push({ sni: c.servername, authorized: c.authorized });
 });
 
 server.on('clientError', function(err) {
@@ -144,9 +154,16 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, ['a.example.com', 'b.example.com',
-                                   'c.wrong.com', null]);
-  assert.deepEqual(clientResults, [true, true, false, false]);
-  assert.deepEqual(clientErrors, [null, null, null, 'socket hang up']);
-  assert.deepEqual(serverErrors, [null, null, null, 'Invalid SNI context']);
+  assert.deepEqual(serverResults, [
+    { sni: 'a.example.com', authorized: false },
+    { sni: 'a.example.com', authorized: true },
+    { sni: 'b.example.com', authorized: false },
+    { sni: 'c.wrong.com', authorized: false },
+    null
+  ]);
+  assert.deepEqual(clientResults, [true, true, true, false, false]);
+  assert.deepEqual(clientErrors, [null, null, null, null, 'socket hang up']);
+  assert.deepEqual(serverErrors, [
+    null, null, null, null, 'Invalid SNI context'
+  ]);
 });
