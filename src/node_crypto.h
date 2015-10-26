@@ -271,6 +271,8 @@ class SSLWrap {
 
   void DestroySSL();
   void WaitForCertCb(CertCb cb, void* arg);
+  void SetSNIContext(SecureContext* sc);
+  int SetCACerts(SecureContext* sc);
 
   inline Environment* ssl_env() const {
     return env_;
