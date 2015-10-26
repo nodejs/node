@@ -857,8 +857,7 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->sni_context_.Reset(env->isolate(), ctx);
 
   SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
-  InitNPN(sc);
-  SSL_set_SSL_CTX(s, sc->ctx_);
+  p->SetSNIContext(sc);
   return SSL_TLSEXT_ERR_OK;
 }
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB

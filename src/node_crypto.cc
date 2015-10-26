@@ -137,6 +137,8 @@ template class SSLWrap<TLSWrap>;
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
                                            Local<FunctionTemplate> t);
 template void SSLWrap<TLSWrap>::InitNPN(SecureContext* sc);
+template void SSLWrap<TLSWrap>::SetSNIContext(SecureContext* sc);
+template int SSLWrap<TLSWrap>::SetCACerts(SecureContext* sc);
 template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
     SSL* s,
     unsigned char* key,
@@ -2264,6 +2266,8 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
       rv = SSL_use_PrivateKey(w->ssl_, pkey);
     if (rv && chain != nullptr)
       rv = SSL_set1_chain(w->ssl_, chain);
+    if (rv)
+      rv = w->SetCACerts(sc);
     if (!rv) {
       unsigned long err = ERR_get_error();
       if (!err)
@@ -2311,6 +2315,28 @@ void SSLWrap<Base>::DestroySSL() {
   SSL_free(ssl_);
   env_->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
   ssl_ = nullptr;
+}
+
+
+template <class Base>
+void SSLWrap<Base>::SetSNIContext(SecureContext* sc) {
+  InitNPN(sc);
+  SSL_set_SSL_CTX(ssl_, sc->ctx_);
+
+  SetCACerts(sc);
+}
+
+
+template <class Base>
+int SSLWrap<Base>::SetCACerts(SecureContext* sc) {
+  int err = SSL_set1_verify_cert_store(ssl_, SSL_CTX_get_cert_store(sc->ctx_));
+  if (err != 1)
+    return err;
+
+  STACK_OF(X509_NAME)* list = SSL_dup_CA_list(
+      SSL_CTX_get_client_CA_list(sc->ctx_));
+  SSL_set_client_CA_list(ssl_, list);
+  return 1;
 }
 
 
@@ -2627,8 +2653,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
       if (secure_context_constructor_template->HasInstance(ret)) {
         conn->sni_context_.Reset(env->isolate(), ret);
         SecureContext* sc = Unwrap<SecureContext>(ret.As<Object>());
-        InitNPN(sc);
-        SSL_set_SSL_CTX(s, sc->ctx_);
+        conn->SetSNIContext(sc);
       } else {
         return SSL_TLSEXT_ERR_NOACK;
       }
