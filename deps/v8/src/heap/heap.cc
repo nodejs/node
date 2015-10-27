@@ -1876,42 +1876,8 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         // for pointers to from semispace instead of looking for pointers
         // to new space.
         DCHECK(!target->IsMap());
-        Address obj_address = target->address();
 
-        // We are not collecting slots on new space objects during mutation
-        // thus we have to scan for pointers to evacuation candidates when we
-        // promote objects. But we should not record any slots in non-black
-        // objects. Grey object's slots would be rescanned.
-        // White object might not survive until the end of collection
-        // it would be a violation of the invariant to record it's slots.
-        bool record_slots = false;
-        if (incremental_marking()->IsCompacting()) {
-          MarkBit mark_bit = Marking::MarkBitFrom(target);
-          record_slots = Marking::IsBlack(mark_bit);
-        }
-#if V8_DOUBLE_FIELDS_UNBOXING
-        LayoutDescriptorHelper helper(target->map());
-        bool has_only_tagged_fields = helper.all_fields_tagged();
-
-        if (!has_only_tagged_fields) {
-          for (int offset = 0; offset < size;) {
-            int end_of_region_offset;
-            if (helper.IsTagged(offset, size, &end_of_region_offset)) {
-              IterateAndMarkPointersToFromSpace(
-                  target, obj_address + offset,
-                  obj_address + end_of_region_offset, record_slots,
-                  &Scavenger::ScavengeObject);
-            }
-            offset = end_of_region_offset;
-          }
-        } else {
-#endif
-          IterateAndMarkPointersToFromSpace(target, obj_address,
-                                            obj_address + size, record_slots,
-                                            &Scavenger::ScavengeObject);
-#if V8_DOUBLE_FIELDS_UNBOXING
-        }
-#endif
+        IteratePointersToFromSpace(target, size, &Scavenger::ScavengeObject);
       }
     }
 
@@ -4434,6 +4400,72 @@ void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
       }
     }
     slot_address += kPointerSize;
+  }
+}
+
+
+void Heap::IteratePointersToFromSpace(HeapObject* target, int size,
+                                      ObjectSlotCallback callback) {
+  Address obj_address = target->address();
+
+  // We are not collecting slots on new space objects during mutation
+  // thus we have to scan for pointers to evacuation candidates when we
+  // promote objects. But we should not record any slots in non-black
+  // objects. Grey object's slots would be rescanned.
+  // White object might not survive until the end of collection
+  // it would be a violation of the invariant to record it's slots.
+  bool record_slots = false;
+  if (incremental_marking()->IsCompacting()) {
+    MarkBit mark_bit = Marking::MarkBitFrom(target);
+    record_slots = Marking::IsBlack(mark_bit);
+  }
+
+  // Do not scavenge JSArrayBuffer's contents
+  switch (target->ContentType()) {
+    case HeapObjectContents::kTaggedValues: {
+      IterateAndMarkPointersToFromSpace(target, obj_address, obj_address + size,
+                                        record_slots, callback);
+      break;
+    }
+    case HeapObjectContents::kMixedValues: {
+      if (target->IsFixedTypedArrayBase()) {
+        IterateAndMarkPointersToFromSpace(
+            target, obj_address + FixedTypedArrayBase::kBasePointerOffset,
+            obj_address + FixedTypedArrayBase::kHeaderSize, record_slots,
+            callback);
+      } else if (target->IsBytecodeArray()) {
+        IterateAndMarkPointersToFromSpace(
+            target, obj_address + BytecodeArray::kConstantPoolOffset,
+            obj_address + BytecodeArray::kHeaderSize, record_slots, callback);
+      } else if (target->IsJSArrayBuffer()) {
+        IterateAndMarkPointersToFromSpace(
+            target, obj_address,
+            obj_address + JSArrayBuffer::kByteLengthOffset + kPointerSize,
+            record_slots, callback);
+        IterateAndMarkPointersToFromSpace(
+            target, obj_address + JSArrayBuffer::kSize, obj_address + size,
+            record_slots, callback);
+#if V8_DOUBLE_FIELDS_UNBOXING
+      } else if (FLAG_unbox_double_fields) {
+        LayoutDescriptorHelper helper(target->map());
+        DCHECK(!helper.all_fields_tagged());
+
+        for (int offset = 0; offset < size;) {
+          int end_of_region_offset;
+          if (helper.IsTagged(offset, size, &end_of_region_offset)) {
+            IterateAndMarkPointersToFromSpace(
+                target, obj_address + offset,
+                obj_address + end_of_region_offset, record_slots, callback);
+          }
+          offset = end_of_region_offset;
+        }
+#endif
+      }
+      break;
+    }
+    case HeapObjectContents::kRawValues: {
+      break;
+    }
   }
 }
 

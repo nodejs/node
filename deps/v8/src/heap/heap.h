@@ -1237,6 +1237,9 @@ class Heap {
 
   // Iterate pointers to from semispace of new space found in memory interval
   // from start to end within |object|.
+  void IteratePointersToFromSpace(HeapObject* target, int size,
+                                  ObjectSlotCallback callback);
+
   void IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
                                          Address end, bool record_slots,
                                          ObjectSlotCallback callback);
