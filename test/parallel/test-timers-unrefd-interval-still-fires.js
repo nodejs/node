@@ -15,6 +15,14 @@ var timer = setInterval(function() {
 
 timer.unref();
 
-setTimeout(function onTimeout() {
-  assert.strictEqual(nbIntervalFired, N);
-}, 100);
+var checkInterval = 100;
+var maxNbChecks = 5;
+var nbChecks = 1;
+setTimeout(function check() {
+  if (nbChecks >= maxNbChecks || nbIntervalFired == N) {
+    assert.strictEqual(nbIntervalFired, N);
+    return;
+  }
+  ++nbChecks;
+  setTimeout(check, checkInterval);
+}, checkInterval);
