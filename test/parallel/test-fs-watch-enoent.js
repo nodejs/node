@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 assert.throws(function() {
   fs.watch('non-existent-file');
@@ -12,7 +12,7 @@ assert.throws(function() {
   return true;
 });
 
-var watcher = fs.watch(__filename);
+const watcher = fs.watch(__filename);
 watcher.on('error', common.mustCall(function(err) {
   assert(err);
   assert(/non-existent-file/.test(err));
