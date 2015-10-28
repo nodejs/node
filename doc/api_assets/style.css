@@ -339,6 +339,8 @@ p code,
 li code {
   font-size: 0.9em;
   color: #040404;
+  background-color: #f2f5f0;
+  padding: 0.2em 0.4em;
 }
 
 span.type {
