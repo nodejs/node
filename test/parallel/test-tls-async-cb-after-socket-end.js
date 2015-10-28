@@ -36,9 +36,9 @@ server.on('resumeSession', function(id, cb) {
   next();
 });
 
-server.listen(1443, function() {
+server.listen(common.PORT, function() {
   var clientOpts = {
-    port: 1443,
+    port: common.PORT,
     rejectUnauthorized: false,
     session: false
   };
