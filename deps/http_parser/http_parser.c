@@ -400,6 +400,8 @@ enum http_host_state
   , s_http_host
   , s_http_host_v6
   , s_http_host_v6_end
+  , s_http_host_v6_zone_start
+  , s_http_host_v6_zone
   , s_http_host_port_start
   , s_http_host_port
 };
@@ -957,21 +959,23 @@ reexecute:
         parser->method = (enum http_method) 0;
         parser->index = 1;
         switch (ch) {
+          case 'A': parser->method = HTTP_ACL; break;
+          case 'B': parser->method = HTTP_BIND; break;
           case 'C': parser->method = HTTP_CONNECT; /* or COPY, CHECKOUT */ break;
           case 'D': parser->method = HTTP_DELETE; break;
           case 'G': parser->method = HTTP_GET; break;
           case 'H': parser->method = HTTP_HEAD; break;
-          case 'L': parser->method = HTTP_LOCK; break;
+          case 'L': parser->method = HTTP_LOCK; /* or LINK */ break;
           case 'M': parser->method = HTTP_MKCOL; /* or MOVE, MKACTIVITY, MERGE, M-SEARCH, MKCALENDAR */ break;
           case 'N': parser->method = HTTP_NOTIFY; break;
           case 'O': parser->method = HTTP_OPTIONS; break;
           case 'P': parser->method = HTTP_POST;
             /* or PROPFIND|PROPPATCH|PUT|PATCH|PURGE */
             break;
-          case 'R': parser->method = HTTP_REPORT; break;
+          case 'R': parser->method = HTTP_REPORT; /* or REBIND */ break;
           case 'S': parser->method = HTTP_SUBSCRIBE; /* or SEARCH */ break;
           case 'T': parser->method = HTTP_TRACE; break;
-          case 'U': parser->method = HTTP_UNLOCK; /* or UNSUBSCRIBE */ break;
+          case 'U': parser->method = HTTP_UNLOCK; /* or UNSUBSCRIBE, UNBIND, UNLINK */ break;
           default:
             SET_ERRNO(HPE_INVALID_METHOD);
             goto error;
@@ -1027,16 +1031,32 @@ reexecute:
             SET_ERRNO(HPE_INVALID_METHOD);
             goto error;
           }
-        } else if (parser->index == 1 && parser->method == HTTP_POST) {
-          if (ch == 'R') {
-            parser->method = HTTP_PROPFIND; /* or HTTP_PROPPATCH */
-          } else if (ch == 'U') {
-            parser->method = HTTP_PUT; /* or HTTP_PURGE */
-          } else if (ch == 'A') {
-            parser->method = HTTP_PATCH;
-          } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            goto error;
+        } else if (parser->method == HTTP_REPORT) {
+            if (parser->index == 2 && ch == 'B') {
+              parser->method = HTTP_REBIND;
+            } else {
+              SET_ERRNO(HPE_INVALID_METHOD);
+              goto error;
+            }
+        } else if (parser->index == 1) {
+          if (parser->method == HTTP_POST) {
+            if (ch == 'R') {
+              parser->method = HTTP_PROPFIND; /* or HTTP_PROPPATCH */
+            } else if (ch == 'U') {
+              parser->method = HTTP_PUT; /* or HTTP_PURGE */
+            } else if (ch == 'A') {
+              parser->method = HTTP_PATCH;
+            } else {
+              SET_ERRNO(HPE_INVALID_METHOD);
+              goto error;
+            }
+          } else if (parser->method == HTTP_LOCK) {
+            if (ch == 'I') {
+              parser->method = HTTP_LINK;
+            } else {
+              SET_ERRNO(HPE_INVALID_METHOD);
+              goto error;
+            }
           }
         } else if (parser->index == 2) {
           if (parser->method == HTTP_PUT) {
@@ -1049,6 +1069,8 @@ reexecute:
           } else if (parser->method == HTTP_UNLOCK) {
             if (ch == 'S') {
               parser->method = HTTP_UNSUBSCRIBE;
+            } else if(ch == 'B') {
+              parser->method = HTTP_UNBIND;
             } else {
               SET_ERRNO(HPE_INVALID_METHOD);
               goto error;
@@ -1059,6 +1081,8 @@ reexecute:
           }
         } else if (parser->index == 4 && parser->method == HTTP_PROPFIND && ch == 'P') {
           parser->method = HTTP_PROPPATCH;
+        } else if (parser->index == 3 && parser->method == HTTP_UNLOCK && ch == 'I') {
+          parser->method = HTTP_UNLINK;
         } else {
           SET_ERRNO(HPE_INVALID_METHOD);
           goto error;
@@ -1828,11 +1852,12 @@ reexecute:
 
       case s_headers_done:
       {
+        int hasBody;
         STRICT_CHECK(ch != LF);
 
         parser->nread = 0;
 
-        int hasBody = parser->flags & F_CHUNKED ||
+        hasBody = parser->flags & F_CHUNKED ||
           (parser->content_length > 0 && parser->content_length != ULLONG_MAX);
         if (parser->upgrade && (parser->method == HTTP_CONNECT ||
                                 (parser->flags & F_SKIPBODY) || !hasBody)) {
@@ -1857,8 +1882,7 @@ reexecute:
             /* Content-Length header given and non-zero */
             UPDATE_STATE(s_body_identity);
           } else {
-            if (parser->type == HTTP_REQUEST ||
-                !http_message_needs_eof(parser)) {
+            if (!http_message_needs_eof(parser)) {
               /* Assume content-length 0 - read the next */
               UPDATE_STATE(NEW_MESSAGE());
               CALLBACK_NOTIFY(message_complete);
@@ -2153,15 +2177,13 @@ http_parser_settings_init(http_parser_settings *settings)
 
 const char *
 http_errno_name(enum http_errno err) {
-  assert(((size_t) err) <
-      (sizeof(http_strerror_tab) / sizeof(http_strerror_tab[0])));
+  assert(((size_t) err) < ARRAY_SIZE(http_strerror_tab));
   return http_strerror_tab[err].name;
 }
 
 const char *
 http_errno_description(enum http_errno err) {
-  assert(((size_t) err) <
-      (sizeof(http_strerror_tab) / sizeof(http_strerror_tab[0])));
+  assert(((size_t) err) < ARRAY_SIZE(http_strerror_tab));
   return http_strerror_tab[err].description;
 }
 
@@ -2214,6 +2236,23 @@ http_parse_host_char(enum http_host_state s, const char ch) {
         return s_http_host_v6;
       }
 
+      if (s == s_http_host_v6 && ch == '%') {
+        return s_http_host_v6_zone_start;
+      }
+      break;
+
+    case s_http_host_v6_zone:
+      if (ch == ']') {
+        return s_http_host_v6_end;
+      }
+
+    /* FALLTHROUGH */
+    case s_http_host_v6_zone_start:
+      /* RFC 6874 Zone ID consists of 1*( unreserved / pct-encoded) */
+      if (IS_ALPHANUM(ch) || ch == '%' || ch == '.' || ch == '-' || ch == '_' ||
+          ch == '~') {
+        return s_http_host_v6_zone;
+      }
       break;
 
     case s_http_host_port:
@@ -2232,6 +2271,7 @@ http_parse_host_char(enum http_host_state s, const char ch) {
 
 static int
 http_parse_host(const char * buf, struct http_parser_url *u, int found_at) {
+  assert(u->field_set & (1 << UF_HOST));
   enum http_host_state s;
 
   const char *p;
@@ -2260,6 +2300,11 @@ http_parse_host(const char * buf, struct http_parser_url *u, int found_at) {
         if (s != s_http_host_v6) {
           u->field_data[UF_HOST].off = p - buf;
         }
+        u->field_data[UF_HOST].len++;
+        break;
+
+      case s_http_host_v6_zone_start:
+      case s_http_host_v6_zone:
         u->field_data[UF_HOST].len++;
         break;
 
@@ -2292,6 +2337,8 @@ http_parse_host(const char * buf, struct http_parser_url *u, int found_at) {
     case s_http_host_start:
     case s_http_host_v6_start:
     case s_http_host_v6:
+    case s_http_host_v6_zone_start:
+    case s_http_host_v6_zone:
     case s_http_host_port_start:
     case s_http_userinfo:
     case s_http_userinfo_start:
@@ -2301,6 +2348,11 @@ http_parse_host(const char * buf, struct http_parser_url *u, int found_at) {
   }
 
   return 0;
+}
+
+void
+http_parser_url_init(struct http_parser_url *u) {
+  memset(u, 0, sizeof(*u));
 }
 
 int
@@ -2376,7 +2428,12 @@ http_parser_parse_url(const char *buf, size_t buflen, int is_connect,
 
   /* host must be present if there is a schema */
   /* parsing http:///toto will fail */
-  if ((u->field_set & ((1 << UF_SCHEMA) | (1 << UF_HOST))) != 0) {
+  if ((u->field_set & (1 << UF_SCHEMA)) &&
+      (u->field_set & (1 << UF_HOST)) == 0) {
+    return 1;
+  }
+
+  if (u->field_set & (1 << UF_HOST)) {
     if (http_parse_host(buf, u, found_at) != 0) {
       return 1;
     }
