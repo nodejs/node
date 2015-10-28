@@ -358,6 +358,8 @@ if the target memory region overlaps with the source. If `undefined` the
 `targetStart` and `sourceStart` parameters default to `0` while `sourceEnd`
 defaults to `buffer.length`.
 
+Returns the number of bytes copied.
+
 Example: build two Buffers, then copy `buf1` from byte 16 through byte 19
 into `buf2`, starting at the 8th byte in `buf2`.
 
