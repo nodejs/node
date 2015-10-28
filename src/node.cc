@@ -176,6 +176,7 @@ static void PrintErrorString(const char* format, ...) {
       stderr_handle == nullptr ||
       uv_guess_handle(_fileno(stderr)) != UV_TTY) {
     vfprintf(stderr, format, ap);
+    va_end(ap);
     return;
   }
 
