@@ -1,8 +1,9 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
-var Process = process.binding('process_wrap').Process;
-var Pipe = process.binding('pipe_wrap').Pipe;
+var Process = require('binding/process_wrap').Process;
+var Pipe = require('binding/pipe_wrap').Pipe;
 var pipe = new Pipe();
 var p = new Process();
 

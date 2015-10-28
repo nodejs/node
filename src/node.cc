@@ -3021,7 +3021,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "uptime", Uptime);
   env->SetMethod(process, "memoryUsage", MemoryUsage);
 
-  env->SetMethod(process, "binding", Binding);
   env->SetMethod(process, "_linkedBinding", LinkedBinding);
 
   env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
@@ -3130,8 +3129,9 @@ void LoadEnvironment(Environment* env) {
 
   env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
 
-  Local<Value> arg = env->process_object();
-  f->Call(global, 1, &arg);
+  Local<Function> binding = env->NewFunctionTemplate(Binding)->GetFunction();
+  Local<Value> args[] = { env->process_object(), binding };
+  f->Call(global, ARRAY_SIZE(args), args);
 }
 
 static void PrintHelp();

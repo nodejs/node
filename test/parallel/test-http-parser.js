@@ -1,8 +1,9 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
 
-var HTTPParser = process.binding('http_parser').HTTPParser;
+var HTTPParser = require('binding/http_parser').HTTPParser;
 
 var CRLF = '\r\n';
 var REQUEST = HTTPParser.REQUEST;

@@ -1,9 +1,10 @@
 'use strict';
+// Flags: --expose_internals
 // FaketimeFlags: --exclude-monotonic -f '2014-07-21 09:00:00'
 
 var common = require('../common');
 
-var Timer  = process.binding('timer_wrap').Timer;
+var Timer  = require('binding/timer_wrap').Timer;
 var assert = require('assert');
 
 var timerFired    = false;

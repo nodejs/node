@@ -1,7 +1,8 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
-var Timer = process.binding('timer_wrap').Timer;
+var Timer = require('binding/timer_wrap').Timer;
 
 var i;
 

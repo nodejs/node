@@ -1,5 +1,5 @@
 'use strict';
-
+// Flags: --expose_internals
 const common = require('../common');
 const assert = require('assert');
 const crypto = require('crypto');
@@ -11,7 +11,7 @@ const tls = require('tls');
 const zlib = require('zlib');
 const ChildProcess = require('child_process').ChildProcess;
 const StreamWrap = require('_stream_wrap').StreamWrap;
-const async_wrap = process.binding('async_wrap');
+const async_wrap = require('binding/async_wrap');
 const pkeys = Object.keys(async_wrap.Providers);
 
 let keyList = pkeys.slice();
@@ -43,7 +43,7 @@ dns.resolve('localhost', noop);
 
 new StreamWrap(new net.Socket());
 
-new (process.binding('tty_wrap').TTY)();
+new (require('binding/tty_wrap').TTY)();
 
 crypto.randomBytes(1, noop);
 

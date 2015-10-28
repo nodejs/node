@@ -1,8 +1,9 @@
 'use strict';
+// Flags: --expose_internals
 require('../common');
 var assert = require('assert');
 
-var t = new (process.binding('timer_wrap').Timer);
+var t = new (require('binding/timer_wrap').Timer);
 var called = 0;
 function onclose() {
   called++;

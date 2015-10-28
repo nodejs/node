@@ -7,11 +7,13 @@
 
 'use strict';
 
-(function(process) {
+(function(process, getBinding) {
   this.global = this;
 
   function startup() {
     var EventEmitter = NativeModule.require('events');
+    process.binding = NativeModule.require('internal/util')
+      .deprecate(getBinding, 'process.binding is deprecated');
 
     process.__proto__ = Object.create(EventEmitter.prototype, {
       constructor: {
@@ -215,7 +217,7 @@
 
   startup.lazyConstants = function() {
     if (!startup._lazyConstants) {
-      startup._lazyConstants = process.binding('constants');
+      startup._lazyConstants = getBinding('constants');
     }
     return startup._lazyConstants;
   };
@@ -591,7 +593,7 @@
 
   function createWritableStdioStream(fd) {
     var stream;
-    var tty_wrap = process.binding('tty_wrap');
+    var tty_wrap = getBinding('tty_wrap');
 
     // Note stream._type is used for test-module-load-list.js
 
@@ -668,7 +670,7 @@
     process.__defineGetter__('stdin', function() {
       if (stdin) return stdin;
 
-      var tty_wrap = process.binding('tty_wrap');
+      var tty_wrap = getBinding('tty_wrap');
       var fd = 0;
 
       switch (tty_wrap.guessHandleType(fd)) {
@@ -803,7 +805,7 @@
     process.on('newListener', function(type, listener) {
       if (isSignal(type) &&
           !signalWraps.hasOwnProperty(type)) {
-        var Signal = process.binding('signal_wrap').Signal;
+        var Signal = getBinding('signal_wrap').Signal;
         var wrap = new Signal();
 
         wrap.unref();
@@ -846,7 +848,7 @@
       // Load tcp_wrap to avoid situation where we might immediately receive
       // a message.
       // FIXME is this really necessary?
-      process.binding('tcp_wrap');
+      getBinding('tcp_wrap');
 
       cp._forkChild(fd);
       assert(process.send);
@@ -873,7 +875,7 @@
   // core modules found in lib/*.js. All core modules are compiled into the
   // node binary, so they can be loaded faster.
 
-  var ContextifyScript = process.binding('contextify').ContextifyScript;
+  var ContextifyScript = getBinding('contextify').ContextifyScript;
   function runInThisContext(code, options) {
     var script = new ContextifyScript(code, options);
     return script.runInThisContext();
@@ -886,12 +888,16 @@
     this.loaded = false;
   }
 
-  NativeModule._source = process.binding('natives');
+  NativeModule._source = getBinding('natives');
   NativeModule._cache = {};
 
   NativeModule.require = function(id) {
     if (id == 'native_module') {
       return NativeModule;
+    }
+
+    if (id.startsWith('binding/')) {
+      return getBinding(id.slice(8));
     }
 
     var cached = NativeModule.getCached(id);
@@ -918,7 +924,7 @@
   };
 
   NativeModule.exists = function(id) {
-    return NativeModule._source.hasOwnProperty(id);
+    return NativeModule._source.hasOwnProperty(id) || id.startsWith('binding/');
   };
 
   const EXPOSE_INTERNALS = process.execArgv.some(function(arg) {
@@ -937,7 +943,7 @@
     };
 
     NativeModule.isInternal = function(id) {
-      return id.startsWith('internal/');
+      return id.startsWith('internal/') || id.startsWith('binding/');
     };
   }
 

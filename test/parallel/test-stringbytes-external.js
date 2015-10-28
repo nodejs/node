@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
 // minimum string size to overflow into external string space
