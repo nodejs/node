@@ -26,11 +26,12 @@ extern "C" {
 
 /* Also update SONAME in the Makefile whenever you change these. */
 #define HTTP_PARSER_VERSION_MAJOR 2
-#define HTTP_PARSER_VERSION_MINOR 5
+#define HTTP_PARSER_VERSION_MINOR 6
 #define HTTP_PARSER_VERSION_PATCH 0
 
 #include <sys/types.h>
-#if defined(_WIN32) && !defined(__MINGW32__) && (!defined(_MSC_VER) || _MSC_VER<1600)
+#if defined(_WIN32) && !defined(__MINGW32__) && \
+  (!defined(_MSC_VER) || _MSC_VER<1600) && !defined(__WINE__)
 #include <BaseTsd.h>
 #include <stddef.h>
 typedef __int8 int8_t;
@@ -95,7 +96,7 @@ typedef int (*http_cb) (http_parser*);
   XX(5,  CONNECT,     CONNECT)      \
   XX(6,  OPTIONS,     OPTIONS)      \
   XX(7,  TRACE,       TRACE)        \
-  /* webdav */                      \
+  /* WebDAV */                      \
   XX(8,  COPY,        COPY)         \
   XX(9,  LOCK,        LOCK)         \
   XX(10, MKCOL,       MKCOL)        \
@@ -104,21 +105,28 @@ typedef int (*http_cb) (http_parser*);
   XX(13, PROPPATCH,   PROPPATCH)    \
   XX(14, SEARCH,      SEARCH)       \
   XX(15, UNLOCK,      UNLOCK)       \
+  XX(16, BIND,        BIND)         \
+  XX(17, REBIND,      REBIND)       \
+  XX(18, UNBIND,      UNBIND)       \
+  XX(19, ACL,         ACL)          \
   /* subversion */                  \
-  XX(16, REPORT,      REPORT)       \
-  XX(17, MKACTIVITY,  MKACTIVITY)   \
-  XX(18, CHECKOUT,    CHECKOUT)     \
-  XX(19, MERGE,       MERGE)        \
+  XX(20, REPORT,      REPORT)       \
+  XX(21, MKACTIVITY,  MKACTIVITY)   \
+  XX(22, CHECKOUT,    CHECKOUT)     \
+  XX(23, MERGE,       MERGE)        \
   /* upnp */                        \
-  XX(20, MSEARCH,     M-SEARCH)     \
-  XX(21, NOTIFY,      NOTIFY)       \
-  XX(22, SUBSCRIBE,   SUBSCRIBE)    \
-  XX(23, UNSUBSCRIBE, UNSUBSCRIBE)  \
+  XX(24, MSEARCH,     M-SEARCH)     \
+  XX(25, NOTIFY,      NOTIFY)       \
+  XX(26, SUBSCRIBE,   SUBSCRIBE)    \
+  XX(27, UNSUBSCRIBE, UNSUBSCRIBE)  \
   /* RFC-5789 */                    \
-  XX(24, PATCH,       PATCH)        \
-  XX(25, PURGE,       PURGE)        \
+  XX(28, PATCH,       PATCH)        \
+  XX(29, PURGE,       PURGE)        \
   /* CalDAV */                      \
-  XX(26, MKCALENDAR,  MKCALENDAR)   \
+  XX(30, MKCALENDAR,  MKCALENDAR)   \
+  /* RFC-2068, section 19.6.1.2 */  \
+  XX(31, LINK,        LINK)         \
+  XX(32, UNLINK,      UNLINK)       \
 
 enum http_method
   {
@@ -144,7 +152,7 @@ enum flags
 
 
 /* Map for errno-related constants
- * 
+ *
  * The provided argument should be a macro that takes 2 arguments.
  */
 #define HTTP_ERRNO_MAP(XX)                                           \
@@ -324,6 +332,9 @@ const char *http_errno_name(enum http_errno err);
 
 /* Return a string description of the given error */
 const char *http_errno_description(enum http_errno err);
+
+/* Initialize all http_parser_url members to 0 */
+void http_parser_url_init(struct http_parser_url *u);
 
 /* Parse a URL; return nonzero on failure */
 int http_parser_parse_url(const char *buf, size_t buflen,

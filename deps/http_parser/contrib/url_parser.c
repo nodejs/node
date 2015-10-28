@@ -35,6 +35,7 @@ int main(int argc, char ** argv) {
   connect = strcmp("connect", argv[1]) == 0 ? 1 : 0;
   printf("Parsing %s, connect %d\n", argv[2], connect);
 
+  http_parser_url_init(&u);
   result = http_parser_parse_url(argv[2], len, connect, &u);
   if (result != 0) {
     printf("Parse error : %d\n", result);
