@@ -24,7 +24,7 @@ icu_config.gypi
 
 # various stuff that VC++ produces/uses
 Debug/
-!node_modules/debug/
+!deps/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/debug
 !deps/v8/src/debug/
 Release/
 !doc/blog/**
