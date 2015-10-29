@@ -8,35 +8,35 @@ var realizePackageSpecifier = requireInject('realize-package-specifier', {
     stat: function (file, cb) {
       process.nextTick(function () {
         switch (file) {
-        case path.resolve('named'):
-          cb(new Error('ENOENT'))
-          break
-        case path.resolve('file.tgz'):
-          cb(null, { isDirectory: function () { return false } })
-          break
-        case path.resolve('dir-no-package'):
-          cb(null, { isDirectory: function () { return true } })
-          break
-        case path.resolve('dir-no-package/package.json'):
-          cb(new Error('ENOENT'))
-          break
-        case path.resolve('dir-with-package'):
-          cb(null, { isDirectory: function () { return true } })
-          break
-        case path.resolve('dir-with-package/package.json'):
-          cb(null, {})
-          break
-        case path.resolve(__dirname, 'dir-with-package'):
-          cb(null, { isDirectory: function () { return true } })
-          break
-        case path.join(__dirname, 'dir-with-package', 'package.json'):
-          cb(null, {})
-          break
-        case path.resolve(__dirname, 'file.tgz'):
-          cb(null, { isDirectory: function () { return false } })
-          break
-        default:
-          throw new Error('Unknown test file passed to stat: ' + file)
+          case path.resolve('named'):
+            cb(new Error('ENOENT'))
+            break
+          case path.resolve('file.tgz'):
+            cb(null, { isDirectory: function () { return false } })
+            break
+          case path.resolve('dir-no-package'):
+            cb(null, { isDirectory: function () { return true } })
+            break
+          case path.resolve('dir-no-package/package.json'):
+            cb(new Error('ENOENT'))
+            break
+          case path.resolve('dir-with-package'):
+            cb(null, { isDirectory: function () { return true } })
+            break
+          case path.resolve('dir-with-package/package.json'):
+            cb(null, {})
+            break
+          case path.resolve(__dirname, 'dir-with-package'):
+            cb(null, { isDirectory: function () { return true } })
+            break
+          case path.join(__dirname, 'dir-with-package', 'package.json'):
+            cb(null, {})
+            break
+          case path.resolve(__dirname, 'file.tgz'):
+            cb(null, { isDirectory: function () { return false } })
+            break
+          default:
+            throw new Error('Unknown test file passed to stat: ' + file)
         }
       })
     }

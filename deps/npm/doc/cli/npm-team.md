@@ -18,7 +18,7 @@ npm-team(1) -- Manage organization teams and team memberships
 Used to manage teams in organizations, and change team memberships. Does not
 handle permissions for packages.
 
-Teams must always be fully qualified with the organization/scope they belond to
+Teams must always be fully qualified with the organization/scope they belong to
 when operating on them, separated by a colon (`:`). That is, if you have a
 `developers` team on a `foo` organization, you must always refer to that team as
 `developers:foo` in these commands.
@@ -52,4 +52,4 @@ use the `npm access` command to grant or revoke the appropriate permissions.
 ## SEE ALSO
 
 * npm-access(1)
-* npm-registr(7)
+* npm-registry(7)

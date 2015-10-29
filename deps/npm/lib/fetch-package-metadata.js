@@ -141,7 +141,7 @@ function fetchNamedPackageData (dep, next) {
 
       // And failing that, we error out
       var targets = versions.length
-                  ? 'Valid install targets:\n' + JSON.stringify(versions) + '\n'
+                  ? 'Valid install targets:\n' + versions.join(', ') + '\n'
                   : 'No valid targets found.'
       var er = new Error('No compatible version found: ' +
                          dep.raw + '\n' + targets)
@@ -283,7 +283,8 @@ function untarStream (tarball, cb) {
     } else if (hasTarHeader(c)) {
       doUntar()
     } else {
-      file.close()
+      if (file.close) file.close()
+      if (file.destroy) file.destroy()
       var er = new Error('Non-gzip/tarball ' + tarball)
       er.code = 'ENOTTARBALL'
       return cb(er)

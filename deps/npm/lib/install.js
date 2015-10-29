@@ -132,7 +132,8 @@ var doSerialActions = require('./install/actions.js').doSerial
 var doReverseSerialActions = require('./install/actions.js').doReverseSerial
 var doParallelActions = require('./install/actions.js').doParallel
 var doOneAction = require('./install/actions.js').doOne
-var getPackageId = require('./install/get-package-id.js')
+var packageId = require('./utils/package-id.js')
+var moduleName = require('./utils/module-name.js')
 
 function unlockCB (lockPath, name, cb) {
   validate('SSF', arguments)
@@ -201,7 +202,7 @@ function Installer (where, dryrun, args) {
   this.noPackageJsonOk = !!args.length
   this.topLevelLifecycles = !args.length
   this.npat = npm.config.get('npat')
-  this.dev = npm.config.get('dev') || (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production'))
+  this.dev = npm.config.get('dev') || (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) || /^dev(elopment)?$/.test(npm.config.get('only'))
   this.prod = !/^dev(elopment)?$/.test(npm.config.get('only'))
   this.rollback = npm.config.get('rollback')
   this.link = npm.config.get('link')
@@ -350,9 +351,9 @@ Installer.prototype.loadIdealTree = function (cb) {
     [this, this.loadAllDepsIntoIdealTree],
     [this, this.finishTracker, 'loadAllDepsIntoIdealTree'],
 
-    [this, function (next) { recalculateMetadata(this.idealTree, log, next) } ],
+    [this, function (next) { recalculateMetadata(this.idealTree, log, next) }],
     [this, this.debugTree, 'idealTree:prePrune', 'idealTree'],
-    [this, function (next) { next(pruneTree(this.idealTree)) } ]
+    [this, function (next) { next(pruneTree(this.idealTree)) }]
   ], cb)
 }
 
@@ -428,7 +429,7 @@ Installer.prototype.computeLinked = function (cb) {
 }
 
 function isLinkable (pkg, cb) {
-  var globalPackage = path.resolve(npm.globalPrefix, 'lib', 'node_modules', pkg.package.name)
+  var globalPackage = path.resolve(npm.globalPrefix, 'lib', 'node_modules', moduleName(pkg))
   var globalPackageJson = path.resolve(globalPackage, 'package.json')
   fs.stat(globalPackage, function (er) {
     if (er) return cb(true, true)
@@ -649,7 +650,7 @@ Installer.prototype.printInstalled = function (cb) {
   this.differences.forEach(function (action) {
     var mutation = action[0]
     var child = action[1]
-    var name = getPackageId(child)
+    var name = packageId(child)
     var where = path.relative(self.where, child.path)
     if (mutation === 'remove') {
       console.log('- ' + name + ' ' + where)
@@ -664,7 +665,7 @@ Installer.prototype.printInstalled = function (cb) {
     return !child.failed && (mutation === 'add' || mutation === 'update')
   }).map(function (action) {
     var child = action[1]
-    return getPackageId(child)
+    return packageId(child)
   })
   log.showProgress()
   if (!addedOrMoved.length) return cb()
@@ -683,7 +684,7 @@ Installer.prototype.debugActions = function (name, actionListName, cb) {
   log.silly(name, 'action count', actionsToLog.length)
   actionsToLog.forEach(function (action) {
     log.silly(name, action.map(function (value) {
-      return (value && value.package) ? getPackageId(value) : value
+      return (value && value.package) ? packageId(value) : value
     }).join(' '))
   })
   cb()
@@ -701,12 +702,12 @@ Installer.prototype.prettify = function (tree) {
   validate('O', arguments)
   var seen = {}
   function byName (aa, bb) {
-    return getPackageId(aa).localeCompare(getPackageId(bb))
+    return packageId(aa).localeCompare(packageId(bb))
   }
   function expandTree (tree) {
     seen[tree.path] = true
     return {
-      label: getPackageId(tree),
+      label: packageId(tree),
       nodes: tree.children.filter(function (tree) { return !seen[tree.path] }).sort(byName).map(expandTree)
     }
   }

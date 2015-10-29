@@ -189,7 +189,6 @@ function runCmd (note, cmd, pkg, env, stage, wd, unsafe, cb) {
 }
 
 function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
-
   function cb (er) {
     cb_.apply(null, arguments)
     log.resume()
@@ -237,7 +236,7 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
 
   function procError (er) {
     if (progressEnabled) log.enableProgress()
-    if (er && !npm.ROLLBACK) {
+    if (er) {
       log.info('lifecycle', logid(pkg, stage), 'Failed to exec ' + stage + ' script')
       er.message = pkg._id + ' ' + stage + ': `' + cmd + '`\n' +
                    er.message
@@ -248,13 +247,8 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
       er.stage = stage
       er.script = cmd
       er.pkgname = pkg.name
-      return cb(er)
-    } else if (er) {
-      log.error('lifecycle', logid(pkg, stage), er)
-      log.error('lifecycle', logid(pkg, stage), 'continuing anyway')
-      return cb()
     }
-    cb(er)
+    return cb(er)
   }
 }
 
@@ -285,7 +279,6 @@ function makeEnv (data, prefix, env) {
 
     // express and others respect the NODE_ENV value.
     if (npm.config.get('production')) env.NODE_ENV = 'production'
-
   } else if (!data.hasOwnProperty('_lifecycleEnv')) {
     Object.defineProperty(data, '_lifecycleEnv',
       {
@@ -317,11 +310,10 @@ function makeEnv (data, prefix, env) {
       }
     } else {
       env[envKey] = String(data[i])
-      env[envKey] = env[envKey].indexOf('\n') !== -1 ?
-                      JSON.stringify(env[envKey]) :
-                      env[envKey]
+      env[envKey] = env[envKey].indexOf('\n') !== -1
+                      ? JSON.stringify(env[envKey])
+                      : env[envKey]
     }
-
   }
 
   if (prefix !== 'npm_package_') return env

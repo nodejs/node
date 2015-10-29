@@ -14,7 +14,7 @@ var cache = path.resolve(pkg, 'cache')
 
 test('npm version <semver> without git tag', function (t) {
   setup()
-  npm.load({ cache: cache, registry: common.registry}, function () {
+  npm.load({ cache: cache, registry: common.registry }, function () {
     which('git', function (err, git) {
       t.ifError(err, 'git found on system')
       function tagExists (tag, _cb) {

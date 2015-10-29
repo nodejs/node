@@ -49,7 +49,7 @@ while (foo) {
 <li><code>for (;;)</code> loops.  They&#39;re actually required.</li>
 <li>null loops like: <code>while (something) ;</code> (But you&#39;d better have a good
 reason for doing that.)</li>
-<li><code>case &quot;foo&quot;: doSomething(); break</code></li>
+<li><code>case &#39;foo&#39;: doSomething(); break</code></li>
 <li>In front of a leading <code>(</code> or <code>[</code> at the start of the line.
 This prevents the expression from being interpreted
 as a function call or property access, respectively.</li>
@@ -59,9 +59,9 @@ as a function call or property access, respectively.</li>
 ;[a, b, c].forEach(doSomething)
 for (var i = 0; i &lt; 10; i ++) {
   switch (state) {
-    case &quot;begin&quot;: start(); continue
-    case &quot;end&quot;: finish(); break
-    default: throw new Error(&quot;unknown state&quot;)
+    case &#39;begin&#39;: start(); continue
+    case &#39;end&#39;: finish(); break
+    default: throw new Error(&#39;unknown state&#39;)
   }
   end()
 }
@@ -72,17 +72,24 @@ with a semicolon, but this is much less common.</p>
 across multiple lines, put the comma at the start of the next
 line, directly below the token that starts the list.  Put the
 final token in the list on a line by itself.  For example:</p>
-<pre><code>var magicWords = [ &quot;abracadabra&quot;
-                 , &quot;gesundheit&quot;
-                 , &quot;ventrilo&quot;
+<pre><code>var magicWords = [ &#39;abracadabra&#39;
+                 , &#39;gesundheit&#39;
+                 , &#39;ventrilo&#39;
                  ]
-  , spells = { &quot;fireball&quot; : function () { setOnFire() }
-             , &quot;water&quot; : function () { putOut() }
+  , spells = { &#39;fireball&#39; : function () { setOnFire() }
+             , &#39;water&#39; : function () { putOut() }
              }
   , a = 1
-  , b = &quot;abc&quot;
+  , b = &#39;abc&#39;
   , etc
   , somethingElse
+</code></pre><h2 id="quotes">Quotes</h2>
+<p>Use single quotes for strings except to avoid escaping.</p>
+<p>Bad:</p>
+<pre><code>var notOk = &quot;Just double quotes&quot;
+</code></pre><p>Good:</p>
+<pre><code>var ok = &#39;String contains &quot;double&quot; quotes&#39;
+var alsoOk = &quot;String contains &#39;single&#39; quotes or apostrophe&quot;
 </code></pre><h2 id="whitespace">Whitespace</h2>
 <p>Put a single space in front of ( for anything other than a function call.
 Also use a single space wherever it makes things more readable.</p>
@@ -147,5 +154,5 @@ set to anything.&quot;</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-coding-style &mdash; npm@3.3.6</p>
+<p id="footer">npm-coding-style &mdash; npm@3.3.10</p>
 

@@ -180,97 +180,97 @@ function stringifyUpdated (time) {
 var allMock = {
   '_updated': timeMock.all,
   'generator-frontcow': {
-      'name': 'generator-frontcow',
-      'description': 'f36b6a6123da50959741e2ce4d634f96ec668c56 This is a fake description to ensure we do not accidentally search the real npm registry or use some kind of cache',
-      'dist-tags': {
-          'latest': '0.1.19'
-      },
-      'maintainers': [
-          {
-              'name': 'bcabanes',
-              'email': 'contact@benjamincabanes.com'
-          }
-      ],
-      'homepage': 'https://github.com/bcabanes/generator-frontcow',
-      'keywords': [
-          'sass',
-          'frontend',
-          'yeoman-generator',
-          'atomic',
-          'design',
-          'sass',
-          'foundation',
-          'foundation5',
-          'atomic design',
-          'bourbon',
-          'polyfill',
-          'font awesome'
-      ],
-      'repository': {
-          'type': 'git',
-          'url': 'https://github.com/bcabanes/generator-frontcow'
-      },
-      'author': {
-          'name': 'ben',
-          'email': 'contact@benjamincabanes.com',
-          'url': 'https://github.com/bcabanes'
-      },
-      'bugs': {
-          'url': 'https://github.com/bcabanes/generator-frontcow/issues'
-      },
-      'license': 'MIT',
-      'readmeFilename': 'README.md',
-      'time': {
-          'modified': '2014-10-03T02:26:18.406Z'
-      },
-      'versions': {
-          '0.1.19': 'latest'
+    'name': 'generator-frontcow',
+    'description': 'f36b6a6123da50959741e2ce4d634f96ec668c56 This is a fake description to ensure we do not accidentally search the real npm registry or use some kind of cache',
+    'dist-tags': {
+      'latest': '0.1.19'
+    },
+    'maintainers': [
+      {
+        'name': 'bcabanes',
+        'email': 'contact@benjamincabanes.com'
       }
+    ],
+    'homepage': 'https://github.com/bcabanes/generator-frontcow',
+    'keywords': [
+      'sass',
+      'frontend',
+      'yeoman-generator',
+      'atomic',
+      'design',
+      'sass',
+      'foundation',
+      'foundation5',
+      'atomic design',
+      'bourbon',
+      'polyfill',
+      'font awesome'
+    ],
+    'repository': {
+      'type': 'git',
+      'url': 'https://github.com/bcabanes/generator-frontcow'
+    },
+    'author': {
+      'name': 'ben',
+      'email': 'contact@benjamincabanes.com',
+      'url': 'https://github.com/bcabanes'
+    },
+    'bugs': {
+      'url': 'https://github.com/bcabanes/generator-frontcow/issues'
+    },
+    'license': 'MIT',
+    'readmeFilename': 'README.md',
+    'time': {
+      'modified': '2014-10-03T02:26:18.406Z'
+    },
+    'versions': {
+      '0.1.19': 'latest'
+    }
   },
   'marko': {
-      'name': 'marko',
-      'description': 'Marko is an extensible, streaming, asynchronous, high performance, HTML-based templating language that can be used in Node.js or in the browser.',
-      'dist-tags': {
-          'latest': '1.2.16'
+    'name': 'marko',
+    'description': 'Marko is an extensible, streaming, asynchronous, high performance, HTML-based templating language that can be used in Node.js or in the browser.',
+    'dist-tags': {
+      'latest': '1.2.16'
+    },
+    'maintainers': [
+      {
+        'name': 'pnidem',
+        'email': 'pnidem@gmail.com'
       },
-      'maintainers': [
-          {
-              'name': 'pnidem',
-              'email': 'pnidem@gmail.com'
-          },
-          {
-              'name': 'philidem',
-              'email': 'phillip.idem@gmail.com'
-          }
-      ],
-      'homepage': 'https://github.com/raptorjs/marko',
-      'keywords': [
-          'templating',
-          'template',
-          'async',
-          'streaming'
-      ],
-      'repository': {
-          'type': 'git',
-          'url': 'https://github.com/raptorjs/marko.git'
-      },
-      'author': {
-          'name': 'Patrick Steele-Idem',
-          'email': 'pnidem@gmail.com'
-      },
-      'bugs': {
-          'url': 'https://github.com/raptorjs/marko/issues'
-      },
-      'license': 'Apache License v2.0',
-      'readmeFilename': 'README.md',
-      'users': {
-          'pnidem': true
-      },
-      'time': {
-          'modified': '2014-10-03T02:27:31.775Z'
-      },
-      'versions': {
-          '1.2.16': 'latest'
+      {
+        'name': 'philidem',
+        'email': 'phillip.idem@gmail.com'
       }
+    ],
+    'homepage': 'https://github.com/raptorjs/marko',
+    'keywords': [
+      'templating',
+      'template',
+      'async',
+      'streaming'
+    ],
+    'repository': {
+      'type': 'git',
+      'url': 'https://github.com/raptorjs/marko.git'
+    },
+    'author': {
+      'name': 'Patrick Steele-Idem',
+      'email': 'pnidem@gmail.com'
+    },
+    'bugs': {
+      'url': 'https://github.com/raptorjs/marko/issues'
+    },
+    'license': 'Apache License v2.0',
+    'readmeFilename': 'README.md',
+    'users': {
+      'pnidem': true
+    },
+    'time': {
+      'modified': '2014-10-03T02:27:31.775Z'
+    },
+    'versions': {
+      '1.2.16': 'latest'
+    }
   }
 }

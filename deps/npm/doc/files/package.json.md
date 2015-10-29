@@ -468,8 +468,8 @@ included.  For example:
 ## Local Paths
 
 As of version 2.0.0 you can provide a path to a local directory that contains a
-package. Local paths can be saved using `npm install --save`, using any of
-these forms:
+package. Local paths can be saved using `npm install -S` or
+`npm install --save`, using any of these forms:
 
     ../foo/bar
     ~/foo/bar

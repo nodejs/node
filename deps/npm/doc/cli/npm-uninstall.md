@@ -3,7 +3,7 @@ npm-rm(1) -- Remove a package
 
 ## SYNOPSIS
 
-    npm uninstall [<@scope>/]<pkg>[@<version>]... [--save|--save-dev|--save-optional]
+    npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|-D|--save-dev|-O|--save-optional]
 
     aliases: remove, rm, r, un, unlink
 
@@ -22,11 +22,11 @@ it uninstalls the current package context as a global package.
 `npm uninstall` takes 3 exclusive, optional flags which save or update
 the package version in your main package.json:
 
-* `--save`: Package will be removed from your `dependencies`.
+* `-S, --save`: Package will be removed from your `dependencies`.
 
-* `--save-dev`: Package will be removed from your `devDependencies`.
+* `-D, --save-dev`: Package will be removed from your `devDependencies`.
 
-* `--save-optional`: Package will be removed from your `optionalDependencies`.
+* `-O, --save-optional`: Package will be removed from your `optionalDependencies`.
 
 Further, if you have an `npm-shrinkwrap.json` then it will be updated as
 well.

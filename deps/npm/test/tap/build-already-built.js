@@ -36,7 +36,6 @@ test("issue #6735 build 'already built' message", function (t) {
     })
 
     t.test('pin previous behavior', function (t) {
-
       build([fakePkg], global, false, false, function (err) {
         t.ok(err, 'build failed as expected')
         t.similar(err.message, /package.json/, 'missing package.json as expected')
@@ -47,7 +46,6 @@ test("issue #6735 build 'already built' message", function (t) {
     })
 
     t.test('simulate rebuild of bundledDependency', function (t) {
-
       log = ''
 
       build._didBuild[folder] = true

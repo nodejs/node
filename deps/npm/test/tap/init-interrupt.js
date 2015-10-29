@@ -18,7 +18,6 @@ test('setup', function (t) {
 })
 
 test('issue #6684 remove confusing message', function (t) {
-
   var initJsonMock = function (dir, input, config, cb) {
     process.nextTick(function () {
       cb({ message: 'canceled' })

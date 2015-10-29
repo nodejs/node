@@ -12,9 +12,9 @@ var npmcli = path.resolve(npmpkg, 'bin', 'npm-cli.js')
 var temp = process.env.TMPDIR ||
            process.env.TMP ||
            process.env.TEMP ||
-           (process.platform === 'win32' ?
-              'c:\\windows\\temp' :
-              '/tmp')
+           (process.platform === 'win32'
+              ? 'c:\\windows\\temp'
+              : '/tmp')
 
 temp = path.resolve(temp, 'npm-test-' + process.pid)
 
@@ -49,6 +49,7 @@ env.npm_config_npat = 'false'
 env.PATH = pathEnv.join(pathEnvSplit)
 env.NODE_PATH = path.join(root, 'node_modules')
 env.npm_config_cache = cache
+env.npm_config_user_agent = ''
 
 function cleanup (cb) {
   if (failures !== 0) return
@@ -169,15 +170,15 @@ function main (cb) {
 
   function installAndTestEach (cb) {
     var thingsToChain = [
-        setup,
-        [execChain, flatten(packages.map(function (p) {
-          return [
-            ['npm install packages/' + p, testdir],
-            ['npm test', path.resolve(base, p)],
-            ['npm rm ' + p, root]
-          ]
-        }))]
-      ]
+      setup,
+      [execChain, flatten(packages.map(function (p) {
+        return [
+          ['npm install packages/' + p, testdir],
+          ['npm test', path.resolve(base, p)],
+          ['npm rm ' + p, root]
+        ]
+      }))]
+    ]
     if (process.platform !== 'win32') {
       // Windows can't handle npm rm npm due to file-in-use issues.
       thingsToChain.push([exec, 'npm rm npm', testdir])

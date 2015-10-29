@@ -1,5 +1,4 @@
 'use strict'
-var path = require('path')
 var url = require('url')
 var asyncMap = require('slide').asyncMap
 var validate = require('aproba')
@@ -10,12 +9,14 @@ var addBundled = require('../fetch-package-metadata.js').addBundled
 var inflateBundled = require('./inflate-bundled.js')
 var npm = require('../npm.js')
 var createChild = require('./node.js').create
+var moduleName = require('../utils/module-name.js')
+var childPath = require('../utils/child-path.js')
 
 var inflateShrinkwrap = module.exports = function (tree, swdeps, finishInflating) {
   validate('OOF', arguments)
   if (!npm.config.get('shrinkwrap')) return finishInflating()
   var onDisk = {}
-  tree.children.forEach(function (child) { onDisk[child.package.name] = child })
+  tree.children.forEach(function (child) { onDisk[moduleName(child)] = child })
   tree.children = []
   asyncMap(Object.keys(swdeps), function (name, next) {
     var sw = swdeps[name]
@@ -42,8 +43,8 @@ var inflateShrinkwrap = module.exports = function (tree, swdeps, finishInflating
             loaded: false,
             parent: tree,
             fromShrinkwrap: spec,
-            path: path.join(tree.path, 'node_modules', pkg.name),
-            realpath: path.resolve(tree.realpath, 'node_modules', pkg.name),
+            path: childPath(tree.path, pkg),
+            realpath: childPath(tree.realpath, pkg),
             children: pkg._bundled || []
           })
           tree.children.push(child)

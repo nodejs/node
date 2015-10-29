@@ -59,7 +59,9 @@ test('outdated depth deep (9999)', function (t) {
     function () {
       npm.install('.', function (er) {
         if (er) throw new Error(er)
-        npm.explore('npm-test-peer-deps', 'npm', 'install', 'underscore', function (er) {
+        var nodepath = process.env.npm_node_execpath || process.env.NODE || process.execPath
+        var clibin = path.resolve(__dirname, '../../bin/npm-cli.js')
+        npm.explore('npm-test-peer-deps', nodepath, clibin, 'install', 'underscore', function (er) {
           if (er) throw new Error(er)
           npm.outdated(function (err, d) {
             if (err) throw new Error(err)

@@ -25,49 +25,48 @@ test('npm version <semver> with message config', function (t) {
     var git = require('../../lib/utils/git.js')
 
     common.makeGitRepo({ path: pkg }, function (er) {
-        t.ifErr(er, 'git bootstrap ran without error')
+      t.ifErr(er, 'git bootstrap ran without error')
 
-        common.npm(
-          [
-            '--userconfig', npmrc,
-            'config',
-            'set',
-            'tag-version-prefix',
-            'q'
-          ],
-          { cwd: pkg, env: { PATH: process.env.PATH } },
-          function (err, code, stdout, stderr) {
-            t.ifError(err, 'npm config ran without issue')
-            t.notOk(code, 'exited with a non-error code')
-            t.notOk(stderr, 'no error output')
+      common.npm(
+        [
+          '--userconfig', npmrc,
+          'config',
+          'set',
+          'tag-version-prefix',
+          'q'
+        ],
+        { cwd: pkg, env: { PATH: process.env.PATH } },
+        function (err, code, stdout, stderr) {
+          t.ifError(err, 'npm config ran without issue')
+          t.notOk(code, 'exited with a non-error code')
+          t.notOk(stderr, 'no error output')
 
-            common.npm(
-              [
-                'version',
-                'patch',
-                '--loglevel', 'silent'
-                // package config is picked up from env
-              ],
-              { cwd: pkg, env: { PATH: process.env.PATH } },
-              function (err, code, stdout, stderr) {
-                t.ifError(err, 'npm version ran without issue')
-                t.notOk(code, 'exited with a non-error code')
-                t.notOk(stderr, 'no error output')
+          common.npm(
+            [
+              'version',
+              'patch',
+              '--loglevel', 'silent'
+              // package config is picked up from env
+            ],
+            { cwd: pkg, env: { PATH: process.env.PATH } },
+            function (err, code, stdout, stderr) {
+              t.ifError(err, 'npm version ran without issue')
+              t.notOk(code, 'exited with a non-error code')
+              t.notOk(stderr, 'no error output')
 
-                git.whichAndExec(
-                  ['tag'],
-                  { cwd: pkg, env: process.env },
-                  function (er, tags, stderr) {
-                    t.ok(tags.match(/q0\.1\.3/g), 'tag was created by version' + tags)
-                    t.end()
-                  }
-                )
-              }
-            )
-          }
-        )
-      }
-    )
+              git.whichAndExec(
+                ['tag'],
+                { cwd: pkg, env: process.env },
+                function (er, tags, stderr) {
+                  t.ok(tags.match(/q0\.1\.3/g), 'tag was created by version' + tags)
+                  t.end()
+                }
+              )
+            }
+          )
+        }
+      )
+    })
   })
 })
 
