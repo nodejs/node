@@ -51,20 +51,21 @@ and built upon.
 The rules for the master branch are less strict; consult the
 [stability index](./doc/api/documentation.markdown#stability-index) for details.
 
-In a nutshell, modules are at varying levels of API stability.  Bug fixes are
+In a nutshell, modules are at varying levels of API stability. Bug fixes are
 always welcome but API or behavioral changes to modules at stability level 3
 (Locked) are off-limits.
 
 #### Dependencies
 
 Node.js has several bundled dependencies in the *deps/* and the *tools/*
-directories that are not part of the project proper.  Any changes to files
+directories that are not part of the project proper. Any changes to files
 in those directories or its subdirectories should be sent to their respective
-projects.  Do not send your patch to us, we cannot accept it.
+projects. Do not send your patch to us, we cannot accept it.
 
 In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
 [project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
+
 Especially do so if you plan to work on something big. Nothing is more
 frustrating than seeing your hard work go to waste because your vision
 does not align with the project team. Node.js has two IRC channels,
@@ -89,8 +90,8 @@ $ git config --global user.name "J. Random User"
 $ git config --global user.email "j.random.user@example.com"
 ```
 
-Writing good commit logs is important.  A commit log should describe what
-changed and why.  Follow these guidelines when writing one:
+Writing good commit logs is important. A commit log should describe what
+changed and why. Follow these guidelines when writing one:
 
 1. The first line should be 50 characters or less and contain a short
    description of the change prefixed with the name of the changed
@@ -132,15 +133,15 @@ $ git rebase upstream/master
 
 ### Step 5: Test
 
-Bug fixes and features **should come with tests**.  Add your tests in the
-test/parallel/ directory.  Look at other tests to see how they should be
+Bug fixes and features **should come with tests**. Add your tests in the
+test/parallel/ directory. Look at other tests to see how they should be
 structured (license boilerplate, common includes, etc.).
 
 ```text
 $ ./configure && make -j8 test
 ```
 
-Make sure the linter is happy and that all tests pass.  Please, do not submit
+Make sure the linter is happy and that all tests pass. Please, do not submit
 patches that fail either check.
 
 If you are updating tests and just want to run a single test to check it, you
@@ -168,9 +169,9 @@ $ git push origin my-feature-branch
 Go to https://github.com/yourusername/node and select your feature branch.
 Click the 'Pull Request' button and fill out the form.
 
-Pull requests are usually reviewed within a few days.  If there are comments
+Pull requests are usually reviewed within a few days. If there are comments
 to address, apply your changes in a separate commit and push that to your
-feature branch.  Post a comment in the pull request afterwards; GitHub does
+feature branch. Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
 
