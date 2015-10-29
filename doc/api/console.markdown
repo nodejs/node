@@ -32,7 +32,7 @@ In daily use, the blocking/non-blocking dichotomy is not something you
 should worry about unless you log huge amounts of data.
 
 
-### console.log([data][, ...])
+### console.log(object [, object, ...])
 
 Prints to stdout with newline. This function can take multiple arguments in a
 `printf()`-like way. Example:
@@ -44,15 +44,15 @@ Prints to stdout with newline. This function can take multiple arguments in a
 If formatting elements are not found in the first string then `util.inspect`
 is used on each argument.  See [util.format()][] for more information.
 
-### console.info([data][, ...])
+### console.info(object [, object, ...])
 
 Same as `console.log`.
 
-### console.error([data][, ...])
+### console.error(object [, object, ...])
 
 Same as `console.log` but prints to stderr.
 
-### console.warn([data][, ...])
+### console.warn(object [, object, ...])
 
 Same as `console.error`.
 
@@ -72,15 +72,15 @@ object. This is useful for inspecting large complicated objects. Defaults to
 - `colors` - if `true`, then the output will be styled with ANSI color codes.
 Defaults to `false`. Colors are customizable, see below.
 
-### console.time(timerName)
+### console.time(label)
 
 Starts a timer that can be used to compute the duration of an operation. Timers
-are identified by a unique name. Use the same name when you call
+are identified by a unique label. Use the same label when you call
 [`console.timeEnd()`](#console_console_timeend_timername) to stop the timer and
 output the elapsed time in milliseconds. Timer durations are accurate to the
 sub-millisecond.
 
-### console.timeEnd(timerName)
+### console.timeEnd(label)
 
 Stops a timer that was previously started by calling
 [`console.time()`](#console_console_time_timername) and prints the result to the
