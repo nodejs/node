@@ -32,7 +32,7 @@ In daily use, the blocking/non-blocking dichotomy is not something you
 should worry about unless you log huge amounts of data.
 
 
-### console.log([data][, ...])
+### console.log(object [, object, ...])
 
 Prints to stdout with newline. This function can take multiple arguments in a
 `printf()`-like way. Example:
@@ -44,15 +44,15 @@ Prints to stdout with newline. This function can take multiple arguments in a
 If formatting elements are not found in the first string then `util.inspect`
 is used on each argument.  See [util.format()][] for more information.
 
-### console.info([data][, ...])
+### console.info(object [, object, ...])
 
 Same as `console.log`.
 
-### console.error([data][, ...])
+### console.error(object [, object, ...])
 
 Same as `console.log` but prints to stderr.
 
-### console.warn([data][, ...])
+### console.warn(object [, object, ...])
 
 Same as `console.error`.
 
