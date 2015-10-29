@@ -11,16 +11,17 @@ npm config set viewer browser
 .fi
 .RE
 .P
-to open these documents in your default web browser rather than \fBman\fP\|\.
+This command will set the npm docs to open in your default web browser rather than \fBman\fP\|\.
 .SH It didn't work\.
 .P
-That's not really a question\.
+Please provide a little more detail, search for the error via Google \fIhttps://google\.com\fR or StackOverflow npm \fIhttp://stackoverflow\.com/search?q=npm\fR to see if another developer has encountered a similar problem\.
 .SH Why didn't it work?
 .P
 I don't know yet\.
 .P
-Read the error output, and if you can't figure out what it means,
-do what it says and post a bug with all the information it asks for\.
+Try reading the error output first, ensure this is a true npm issue and not a package issue\. If you are having an issue with a package dependency, please submit your error to that particular package maintainer\.
+.P
+For any npm issues, try following the instructions, or even retracing your steps\. If the issue continues to persist, submit a bug with the steps to reproduce, please include the operating system you are working on, along with the error you recieve\.
 .SH Where does npm put stuff?
 .P
 See npm help 5 \fBnpm\-folders\fP
@@ -31,7 +32,7 @@ tl;dr:
 Use the \fBnpm root\fP command to see where modules go, and the \fBnpm bin\fP
 command to see where executables go
 .IP \(bu 2
-Global installs are different from local installs\.  If you install
+Global installs are different from local installs\. If you install
 something with the \fB\-g\fP flag, then its executables go in \fBnpm bin \-g\fP
 and its modules go in \fBnpm root \-g\fP\|\.
 

@@ -3,7 +3,7 @@ npm-search(1) -- Search for packages
 
 ## SYNOPSIS
 
-    npm search [--long] [search terms ...]
+    npm search [-l|--long] [search terms ...]
 
     aliases: s, se
 

@@ -257,6 +257,10 @@ Frequently Asked Questions
 
 Index of all npm documentation
 
+### npm-orgs(7)
+
+Working with Teams & Orgs
+
 ### npm-registry(7)
 
 The JavaScript Package Registry

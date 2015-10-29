@@ -114,7 +114,8 @@ version that satisfies `^0.4.0` (`>= 0.4.0 <0.5.0`)
 
 When you want to update a package and save the new version as
 the minimum required dependency in `package.json`, you can use
-`npm update --save`.  For example if `package.json` contains
+`npm update -S` or `npm update --save`.  For example if
+`package.json` contains:
 
 ```
 dependencies: {

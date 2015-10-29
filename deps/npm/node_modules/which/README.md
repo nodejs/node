@@ -31,4 +31,10 @@ which('node', { path: someOtherPath }, function (er, resolved) {
 
 ## OPTIONS
 
-If you pass in options, then `path` and `pathExt` are relevant.
+You may pass an options object as the second argument.
+
+- `path`: Use instead of the `PATH` environment variable.
+- `pathExt`: Use instead of the `PATHEXT` environment variable.
+- `all`: Return all matches, instead of just the first one.  Note that
+  this means the function returns an array of strings instead of a
+  single string.

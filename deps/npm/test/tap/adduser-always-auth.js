@@ -27,12 +27,12 @@ function mocks (server) {
 test('npm login', function (t) {
   mr({ port: common.port, plugin: mocks }, function (er, s) {
     var runner = common.npm(
-    [
-      'login',
-      '--registry', common.registry,
-      '--loglevel', 'silent',
-      '--userconfig', outfile
-    ],
+      [
+        'login',
+        '--registry', common.registry,
+        '--loglevel', 'silent',
+        '--userconfig', outfile
+      ],
     opts,
     function (err, code) {
       t.notOk(code, 'exited OK')
@@ -65,13 +65,13 @@ test('npm login', function (t) {
 test('npm login --always-auth', function (t) {
   mr({ port: common.port, plugin: mocks }, function (er, s) {
     var runner = common.npm(
-    [
-      'login',
-      '--registry', common.registry,
-      '--loglevel', 'silent',
-      '--userconfig', outfile,
-      '--always-auth'
-    ],
+      [
+        'login',
+        '--registry', common.registry,
+        '--loglevel', 'silent',
+        '--userconfig', outfile,
+        '--always-auth'
+      ],
     opts,
     function (err, code) {
       t.notOk(code, 'exited OK')
@@ -104,13 +104,13 @@ test('npm login --always-auth', function (t) {
 test('npm login --no-always-auth', function (t) {
   mr({ port: common.port, plugin: mocks }, function (er, s) {
     var runner = common.npm(
-    [
-      'login',
-      '--registry', common.registry,
-      '--loglevel', 'silent',
-      '--userconfig', outfile,
-      '--no-always-auth'
-    ],
+      [
+        'login',
+        '--registry', common.registry,
+        '--loglevel', 'silent',
+        '--userconfig', outfile,
+        '--no-always-auth'
+      ],
     opts,
     function (err, code) {
       t.notOk(code, 'exited OK')

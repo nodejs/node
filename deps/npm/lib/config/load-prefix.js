@@ -7,7 +7,8 @@ function loadPrefix (cb) {
   var cli = this.list[0]
 
   Object.defineProperty(this, 'prefix',
-    { set: function (prefix) {
+    {
+      set: function (prefix) {
         var g = this.get('global')
         this[g ? 'globalPrefix' : 'localPrefix'] = prefix
       }.bind(this),
@@ -19,7 +20,8 @@ function loadPrefix (cb) {
     })
 
   Object.defineProperty(this, 'globalPrefix',
-    { set: function (prefix) {
+    {
+      set: function (prefix) {
         this.set('prefix', prefix)
       }.bind(this),
       get: function () {

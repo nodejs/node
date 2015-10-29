@@ -13,7 +13,7 @@ var addRemoteTarball = require('./add-remote-tarball.js')
 var cachedPackageRoot = require('./cached-package-root.js')
 var mapToRegistry = require('../utils/map-to-registry.js')
 var pulseTillDone = require('../utils/pulse-till-done.js')
-var getPackageId = require('../install/get-package-id.js')
+var packageId = require('../utils/package-id.js')
 
 module.exports = addNamed
 
@@ -148,11 +148,11 @@ function addNameVersion (name, v, data, cb) {
     deprCheck(data)
     var dist = data.dist
 
-    if (!dist) return cb(new Error('No dist in ' + getPackageId(data) + ' package'))
+    if (!dist) return cb(new Error('No dist in ' + packageId(data) + ' package'))
 
     if (!dist.tarball) {
       return cb(new Error(
-      'No dist.tarball in ' + getPackageId(data) + ' package'
+      'No dist.tarball in ' + packageId(data) + ' package'
       ))
     }
 
@@ -210,7 +210,7 @@ function addNameVersion (name, v, data, cb) {
         // Only add non-shasum'ed packages if --forced. Only ancient things
         // would lack this for good reasons nowadays.
         if (!dist.shasum && !npm.config.get('force')) {
-          return cb(new Error('package lacks shasum: ' + getPackageId(data)))
+          return cb(new Error('package lacks shasum: ' + packageId(data)))
         }
 
         addRemoteTarball(tb, data, dist.shasum, auth, cb)
@@ -285,7 +285,7 @@ function installTargetsError (requested, data) {
   requested = data.name + (requested ? "@'" + requested + "'" : '')
 
   targets = targets.length
-          ? 'Valid install targets:\n' + JSON.stringify(targets) + '\n'
+          ? 'Valid install targets:\n' + targets.join(', ') + '\n'
           : 'No valid targets found.\n' +
             'Perhaps not compatible with your version of node?'
 

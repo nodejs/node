@@ -84,7 +84,7 @@ test('npm view . with no package.json', function (t) {
 
 test('npm view . with no published package', function (t) {
   process.chdir(t3dir)
-  mr({ port: common.port, plugin: plugin}, function (er, s) {
+  mr({ port: common.port, plugin: plugin }, function (er, s) {
     common.npm([
       'view',
       '.',
@@ -280,9 +280,9 @@ test('npm view with invalid package name', function (t) {
 
 test('npm view with valid but non existent package name', function (t) {
   mr({ port: common.port, mocks: {
-      'get': {
-          '/valid-but-non-existent-package': [404, {'error': 'not found'}]
-      }
+    'get': {
+      '/valid-but-non-existent-package': [404, {'error': 'not found'}]
+    }
   }}, function (er, s) {
     common.npm([
       'view',

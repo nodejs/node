@@ -14,7 +14,8 @@ var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var validatePeerDeps = require('./install/deps.js').validatePeerDeps
 var isExtraneous = require('./install/is-extraneous.js')
 var isOnlyDev = require('./install/is-dev.js').isOnlyDev
-var getPackageId = require('./install/get-package-id.js')
+var packageId = require('./utils/package-id.js')
+var moduleName = require('./utils/module-name.js')
 
 shrinkwrap.usage = 'npm shrinkwrap'
 
@@ -64,21 +65,21 @@ function shrinkwrapDeps (dev, problems, deps, tree, seen) {
   if (seen[tree.path]) return
   seen[tree.path] = true
   Object.keys(tree.missingDeps).forEach(function (name) {
-    var invalid = tree.children.filter(function (dep) { return dep.package.name === name })[0]
+    var invalid = tree.children.filter(function (dep) { return moduleName(dep) === name })[0]
     if (invalid) {
       problems.push('invalid: have ' + invalid.package._id + ' (expected: ' + tree.missingDeps[name] + ') ' + invalid.path)
-    } else {
-      var topname = getPackageId(tree)
+    } else if (!tree.package.optionalDependencies || !tree.package.optionalDependencies[name]) {
+      var topname = packageId(tree)
       problems.push('missing: ' + name + '@' + tree.package.dependencies[name] +
         (topname ? ', required by ' + topname : ''))
     }
   })
-  tree.children.sort(function (aa, bb) { return aa.package.name.localeCompare(bb.package.name) }).forEach(function (child) {
+  tree.children.sort(function (aa, bb) { return moduleName(aa).localeCompare(moduleName(bb)) }).forEach(function (child) {
     if (!dev && isOnlyDev(child)) {
-      log.warn('shrinkwrap', 'Excluding devDependency: %s', child.package.name, child.parent.package.dependencies)
+      log.warn('shrinkwrap', 'Excluding devDependency: %s', packageId(child), child.parent.package.dependencies)
       return
     }
-    var pkginfo = deps[child.package.name] = {}
+    var pkginfo = deps[moduleName(child)] = {}
     pkginfo.version = child.package.version
     pkginfo.from = child.package._from
     pkginfo.resolved = child.package._resolved

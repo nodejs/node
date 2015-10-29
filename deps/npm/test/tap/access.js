@@ -41,20 +41,22 @@ test('npm access public on current package', function (t) {
   })).reply(200, {
     accessChanged: true
   })
-  common.npm([
-    'access',
-    'public',
-    '--registry', common.registry,
-    '--loglevel', 'silent'
-  ], {
-    cwd: pkg
-  },
-  function (er, code, stdout, stderr) {
-    t.ifError(er, 'npm access')
-    t.equal(code, 0, 'exited OK')
-    t.equal(stderr, '', 'no error output')
-    t.end()
-  })
+  common.npm(
+    [
+      'access',
+      'public',
+      '--registry', common.registry,
+      '--loglevel', 'silent'
+    ], {
+      cwd: pkg
+    },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access')
+      t.equal(code, 0, 'exited OK')
+      t.equal(stderr, '', 'no error output')
+      t.end()
+    }
+  )
 })
 
 test('npm access restricted on current package', function (t) {
@@ -63,20 +65,22 @@ test('npm access restricted on current package', function (t) {
   })).reply(200, {
     accessChanged: true
   })
-  common.npm([
-    'access',
-    'restricted',
-    '--registry', common.registry,
-    '--loglevel', 'silent'
-  ], {
-    cwd: pkg
-  },
-  function (er, code, stdout, stderr) {
-    t.ifError(er, 'npm access')
-    t.equal(code, 0, 'exited OK')
-    t.equal(stderr, '', 'no error output')
-    t.end()
-  })
+  common.npm(
+    [
+      'access',
+      'restricted',
+      '--registry', common.registry,
+      '--loglevel', 'silent'
+    ], {
+      cwd: pkg
+    },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access')
+      t.equal(code, 0, 'exited OK')
+      t.equal(stderr, '', 'no error output')
+      t.end()
+    }
+  )
 })
 
 test('npm access on named package', function (t) {

@@ -11,6 +11,7 @@ var without = require('lodash.without')
 var npm = require('../npm.js')
 var deepSortObject = require('../utils/deep-sort-object.js')
 var parseJSON = require('../utils/parse-json.js')
+var moduleName = require('../utils/module-name.js')
 
 // if the -S|--save option is specified, then write installed packages
 // as dependencies to a package.json file.
@@ -45,9 +46,28 @@ function saveShrinkwrap (tree, next) {
     var save = npm.config.get('save')
     var saveDev = npm.config.get('save-dev')
     var saveOptional = npm.config.get('save-optional')
-    if (!saveOptional && saveDev) return next()
+
+    var shrinkwrap = tree.package._shrinkwrap || {dependencies: {}}
+    var hasDevOnlyDeps = tree.requires.filter(function (dep) {
+      var devReqs = dep.package._requiredBy.filter(function (name) { return name.substr(0, 4) === '#DEV' })
+      return devReqs.length === dep.package._requiredBy.length
+    }).some(function (dep) {
+      return shrinkwrap.dependencies[dep.package.name] != null
+    })
+
+    if (!saveOptional && saveDev && !hasDevOnlyDeps) return next()
     if (saveOptional || !save) return next()
-    npm.commands.shrinkwrap([], true, next)
+
+    if (hasDevOnlyDeps) {
+      var dev = npm.config.get('dev')
+      npm.config.set('dev', true)
+      npm.commands.shrinkwrap([], true, function () {
+        npm.config.set('dev', dev)
+        next.apply(this, arguments)
+      })
+    } else {
+      npm.commands.shrinkwrap([], true, next)
+    }
   })
 }
 
@@ -171,7 +191,7 @@ function getThingsToSave (tree) {
     return child.save
   }).map(function (child) {
     return {
-      name: child.package.name,
+      name: moduleName(child),
       spec: computeVersionSpec(child),
       save: child.save
     }
@@ -184,7 +204,7 @@ function getThingsToRemove (args, tree) {
   if (!tree.removed) return []
   var toRemove = tree.removed.map(function (child) {
     return {
-      name: child.package.name,
+      name: moduleName(child),
       save: child.save
     }
   })

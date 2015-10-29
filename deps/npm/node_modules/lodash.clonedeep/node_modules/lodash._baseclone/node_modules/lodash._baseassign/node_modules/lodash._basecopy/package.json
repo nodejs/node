@@ -1,0 +1,56 @@
+{
+  "name": "lodash._basecopy",
+  "version": "3.0.1",
+  "description": "The modern build of lodash’s internal `baseCopy` as a module.",
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Benjamin Tan",
+      "email": "demoneaux@gmail.com",
+      "url": "https://d10.github.io/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine@iceddev.com",
+      "url": "http://www.iceddev.com/"
+    },
+    {
+      "name": "Kit Cambridge",
+      "email": "github@kitcambridge.be",
+      "url": "http://kitcambridge.be/"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "readme": "# lodash._basecopy v3.0.1\n\nThe [modern build](https://github.com/lodash/lodash/wiki/Build-Differences) of [lodash’s](https://lodash.com/) internal `baseCopy` exported as a [Node.js](http://nodejs.org/)/[io.js](https://iojs.org/) module.\n\n## Installation\n\nUsing npm:\n\n```bash\n$ {sudo -H} npm i -g npm\n$ npm i --save lodash._basecopy\n```\n\nIn Node.js/io.js:\n\n```js\nvar baseCopy = require('lodash._basecopy');\n```\n\nSee the [package source](https://github.com/lodash/lodash/blob/3.0.1-npm-packages/lodash._basecopy) for more details.\n",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "_id": "lodash._basecopy@3.0.1",
+  "_shasum": "8da0e6a876cf344c0ad8a54882111dd3c5c7ca36",
+  "_resolved": "https://registry.npmjs.org/lodash._basecopy/-/lodash._basecopy-3.0.1.tgz",
+  "_from": "lodash._basecopy@>=3.0.0 <4.0.0"
+}

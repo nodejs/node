@@ -73,8 +73,8 @@ function edit (cb) {
       if (er) data = ''
       data = [
         ';;;;',
-        '; npm ' + (npm.config.get('global') ?
-                  'globalconfig' : 'userconfig') + ' file',
+        '; npm ' + (npm.config.get('global')
+                  ? 'globalconfig' : 'userconfig') + ' file',
         '; this is a simple ini-formatted file',
         '; lines that start with semi-colons are comments.',
         '; read `npm help config` for help on the various options',
@@ -86,18 +86,18 @@ function edit (cb) {
         '; all options with default values',
         ';;;;'
       ]).concat(Object.keys(npmconf.defaults).reduce(function (arr, key) {
-                var obj = {}
-                obj[key] = npmconf.defaults[key]
-                if (key === 'logstream') return arr
-                return arr.concat(
-                  ini.stringify(obj)
-                    .replace(/\n$/m, '')
-                    .replace(/^/g, '; ')
-                    .replace(/\n/g, '\n; ')
-                    .split('\n'))
-              }, []))
-              .concat([''])
-              .join(os.EOL)
+        var obj = {}
+        obj[key] = npmconf.defaults[key]
+        if (key === 'logstream') return arr
+        return arr.concat(
+          ini.stringify(obj)
+            .replace(/\n$/m, '')
+            .replace(/^/g, '; ')
+            .replace(/\n/g, '\n; ')
+            .split('\n'))
+      }, []))
+      .concat([''])
+      .join(os.EOL)
       writeFileAtomic(
         f,
         data,

@@ -83,7 +83,6 @@ test('add-remote-git#get-resolved HTTPS', function (t) {
 })
 
 test('add-remote-git#get-resolved edge cases', function (t) {
-
   t.equal(
     tryGetResolved('git+ssh://user@bananaboat.com:galbi/blah.git', 'decadacefadabade'),
     'git+ssh://user@bananaboat.com:galbi/blah.git#decadacefadabade',

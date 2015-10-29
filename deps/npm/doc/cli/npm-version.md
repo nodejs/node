@@ -5,7 +5,7 @@ npm-version(1) -- Bump a package version
 
     npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]
 
-    'npm -v' or 'npm --version' to print npm version
+    'npm [-v | --version]' to print npm version
     'npm view <pkg> version' to view a package's published version
     'npm ls' to inspect current package/dependency versions
 
@@ -22,10 +22,10 @@ the existing version will be incremented by 1 in the specified field.
 If run in a git repo, it will also create a version commit and tag.
 This behavior is controlled by `git-tag-version` (see below), and can
 be disabled on the command line by running `npm --no-git-tag-version version`.
-It will fail if the working directory is not clean, unless the `--force`
-flag is set.
+It will fail if the working directory is not clean, unless the `-f` or
+`--force` flag is set.
 
-If supplied with `--message` (shorthand: `-m`) config option, npm will
+If supplied with `-m` or `--message` config option, npm will
 use it as a commit message when creating a version commit.  If the
 `message` config contains `%s` then that will be replaced with the
 resulting version number.  For example:

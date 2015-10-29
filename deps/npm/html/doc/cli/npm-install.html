@@ -21,7 +21,7 @@ npm install &lt;tarball url&gt;
 npm install &lt;folder&gt;
 
 alias: npm i
-common options: [--save|--save-dev|--save-optional] [--save-exact] [--dry-run]
+common options: [-S|--save|-D|--save-dev|-O|--save-optional] [-E|--save-exact] [--dry-run]
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command installs a package, and any packages that it depends on. If the
 package has a shrinkwrap file, the installation of dependencies will be driven
@@ -67,7 +67,7 @@ after packing it up into a tarball (b).</p>
 <p>  Example:</p>
 <pre><code>    npm install https://github.com/indexzero/forever/tarball/v0.5.6
 </code></pre></li>
-<li><p><code>npm install [&lt;@scope&gt;/]&lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p>
+<li><p><code>npm install [&lt;@scope&gt;/]&lt;name&gt; [-S|--save|-D|--save-dev|-O|--save-optional]</code>:</p>
 <p>  Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the &quot;tag&quot; config. (See
   <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.)</p>
 <p>  In most cases, this will install the latest version
@@ -77,15 +77,15 @@ after packing it up into a tarball (b).</p>
 </code></pre><p>  <code>npm install</code> takes 3 exclusive, optional flags which save or update
   the package version in your main package.json:</p>
 <ul>
-<li><p><code>--save</code>: Package will appear in your <code>dependencies</code>.</p>
+<li><p><code>-S, --save</code>: Package will appear in your <code>dependencies</code>.</p>
 </li>
-<li><p><code>--save-dev</code>: Package will appear in your <code>devDependencies</code>.</p>
+<li><p><code>-D, --save-dev</code>: Package will appear in your <code>devDependencies</code>.</p>
 </li>
-<li><p><code>--save-optional</code>: Package will appear in your <code>optionalDependencies</code>.</p>
+<li><p><code>-O, --save-optional</code>: Package will appear in your <code>optionalDependencies</code>.</p>
 <p>When using any of the above options to save dependencies to your
 package.json, there is an additional, optional flag:</p>
 </li>
-<li><p><code>--save-exact</code>: Saved dependencies will be configured with an
+<li><p><code>-E, --save-exact</code>: Saved dependencies will be configured with an
 exact version rather than using npm&#39;s default semver range
 operator.</p>
 <p>Further, if you have an <code>npm-shrinkwrap.json</code> then it will be updated as
@@ -173,7 +173,7 @@ GIT_SSH_COMMAND=&#39;ssh -i ~/.ssh/custom_ident&#39; npm install git+ssh://git@g
 <li><p><code>npm install gist:[&lt;githubname&gt;/]&lt;gistID&gt;[#&lt;commit-ish&gt;]</code>:</p>
 <p>  Install the package at <code>https://gist.github.com/gistID</code> by attempting to
   clone it using <code>git</code>. The GitHub username associated with the gist is
-  optional and will not be saved in <code>package.json</code> if <code>--save</code> is used.</p>
+  optional and will not be saved in <code>package.json</code> if <code>-S</code> or <code>--save</code> is used.</p>
 <p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
 <p>  Example:</p>
 <pre><code>    npm install gist:101a11beef
@@ -201,10 +201,10 @@ tag with the given name exists, the tagged version is preferred over newer
 versions.</p>
 <p>The <code>--dry-run</code> argument will report in the usual way what the install would
 have done without actually installing anything.</p>
-<p>The <code>--force</code> argument will force npm to fetch remote resources even if a
+<p>The <code>-f</code> or <code>--force</code> argument will force npm to fetch remote resources even if a
 local copy exists on disk.</p>
 <pre><code>npm install sax --force
-</code></pre><p>The <code>--global</code> argument will cause npm to install the package globally
+</code></pre><p>The <code>-g</code> or <code>--global</code> argument will cause npm to install the package globally
 rather than locally.  See <code><a href="../files/npm-folders.html">npm-folders(5)</a></code>.</p>
 <p>The <code>--link</code> argument will cause npm to link global installs into the
 local space in some cases.</p>
@@ -217,7 +217,7 @@ shrinkwrap file and use the package.json instead.</p>
 <p>The <code>--nodedir=/path/to/node/source</code> argument will allow npm to find the
 node source code so that npm can compile native modules.</p>
 <p>The <code>--only={prod[uction]|dev[elopment]}</code> argument will cause either only
-<code>devDependencies</code> or only non-<code>devDependencies</code> to be installed.</p>
+<code>devDependencies</code> or only non-<code>devDependencies</code> to be installed regardless of the <code>NODE_ENV</code>.</p>
 <p>See <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.  Many of the configuration params have some
 effect on installation, since that&#39;s most of what npm does.</p>
 <h2 id="algorithm">ALGORITHM</h2>
@@ -247,7 +247,7 @@ at the top level because nothing conflicts with it.</p>
 +-- C
    `-- D@2
 +-- D@1
-</code></pre><p>Because B&#39;s D@1 will be installed in the top leve, C now has to install D@2
+</code></pre><p>Because B&#39;s D@1 will be installed in the top level, C now has to install D@2
 privately for itself.</p>
 <p>See <a href="../files/npm-folders.html">npm-folders(5)</a> for a more detailed description of the specific
 folder structures that npm creates.</p>
@@ -295,5 +295,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@3.3.6</p>
+<p id="footer">npm-install &mdash; npm@3.3.10</p>
 

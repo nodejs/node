@@ -38,25 +38,8 @@ var devDependency = {
 }
 
 test('setup', function (t) {
-  mkdirp.sync(path.join(pkg, 'dependency'))
-  fs.writeFileSync(
-    path.join(pkg, 'dependency', 'package.json'),
-    JSON.stringify(dependency, null, 2)
-  )
-
-  mkdirp.sync(path.join(pkg, 'dev-dependency'))
-  fs.writeFileSync(
-    path.join(pkg, 'dev-dependency', 'package.json'),
-    JSON.stringify(devDependency, null, 2)
-  )
-
-  mkdirp.sync(path.join(pkg, 'node_modules'))
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-
-  process.chdir(pkg)
+  setup()
+  t.pass('setup ran')
   t.end()
 })
 
@@ -78,8 +61,55 @@ test('\'npm install --only=development\' should only install devDependencies', f
   })
 })
 
+test('\'npm install --only=development\' should only install devDependencies regardless of npm.config.get(\'production\')', function (t) {
+  cleanup()
+  setup()
+
+  common.npm(['install', '--only=development', '--production'], EXEC_OPTS, function (err, code) {
+    t.ifError(err, 'install development successful')
+    t.equal(code, 0, 'npm install did not raise error code')
+    t.ok(
+      JSON.parse(fs.readFileSync(
+        path.resolve(pkg, 'node_modules/dev-dependency/package.json'), 'utf8')
+      ),
+      'devDependency was installed'
+    )
+    t.notOk(
+      existsSync(path.resolve(pkg, 'node_modules/dependency/package.json')),
+      'dependency was NOT installed'
+    )
+    t.end()
+  })
+})
+
 test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
+  cleanup()
+  t.pass('cleaned up')
   t.end()
 })
+
+function setup () {
+  mkdirp.sync(path.join(pkg, 'dependency'))
+  fs.writeFileSync(
+    path.join(pkg, 'dependency', 'package.json'),
+    JSON.stringify(dependency, null, 2)
+  )
+
+  mkdirp.sync(path.join(pkg, 'dev-dependency'))
+  fs.writeFileSync(
+    path.join(pkg, 'dev-dependency', 'package.json'),
+    JSON.stringify(devDependency, null, 2)
+  )
+
+  mkdirp.sync(path.join(pkg, 'node_modules'))
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  process.chdir(pkg)
+}
+
+function cleanup () {
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(pkg)
+}

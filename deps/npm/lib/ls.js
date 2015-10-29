@@ -18,7 +18,7 @@ var iferr = require('iferr')
 var npm = require('./npm.js')
 var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
-var getPackageId = require('./install/get-package-id.js')
+var packageId = require('./utils/package-id.js')
 
 ls.usage = 'npm ls [[<@scope>/]<pkg> ...]' +
     '\n\naliases: list, la, ll'
@@ -151,7 +151,7 @@ function getLite (data, noname) {
   if (data.extraneous) {
     lite.extraneous = true
     lite.problems = lite.problems || []
-    lite.problems.push('extraneous: ' + getPackageId(data) + ' ' + (data.path || ''))
+    lite.problems.push('extraneous: ' + packageId(data) + ' ' + (data.path || ''))
   }
 
   if (data.error && data.path !== path.resolve(npm.globalDir, '..') &&
@@ -174,7 +174,7 @@ function getLite (data, noname) {
     lite.invalid = true
     lite.problems = lite.problems || []
     lite.problems.push('invalid: ' +
-                       getPackageId(data) +
+                       packageId(data) +
                        ' ' + (data.path || ''))
   }
 
@@ -182,7 +182,7 @@ function getLite (data, noname) {
     lite.peerInvalid = true
     lite.problems = lite.problems || []
     lite.problems.push('peer dep not met: ' +
-                       getPackageId(data) +
+                       packageId(data) +
                        ' ' + (data.path || ''))
   }
 
@@ -200,7 +200,7 @@ function getLite (data, noname) {
         }
         p += d + '@' + dep.requiredBy +
             ', required by ' +
-            getPackageId(data)
+            packageId(data)
         lite.problems.push(p)
         return [d, { required: dep.requiredBy, missing: true }]
       } else if (dep.peerMissing) {

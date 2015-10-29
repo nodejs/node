@@ -11,7 +11,6 @@ runScript.usage = 'npm run-script <command> [-- <args>...]' +
                   '\n\nalias: npm run'
 
 runScript.completion = function (opts, cb) {
-
   // see if there's already a package specified.
   var argv = opts.conf.argv.remain
 

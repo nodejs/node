@@ -16,6 +16,9 @@ var loadExtraneous = require('./install/deps.js').loadExtraneous
 var filterInvalidActions = require('./install/filter-invalid-actions.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var sortActions = require('./install/diff-trees.js').sortActions
+var moduleName = require('./utils/module-name.js')
+var packageId = require('./utils/package-id.js')
+var childPath = require('./utils/child-path.js')
 
 module.exports = dedupe
 module.exports.Deduper = Deduper
@@ -48,7 +51,7 @@ Deduper.prototype.normalizeTree = function (log, cb) {
   if (npm.config.get('global')) {
     var args = this.args
     this.currentTree.children = this.currentTree.children.filter(function (child) {
-      return args.filter(function (arg) { return arg === child.package.name }).length
+      return args.filter(function (arg) { return arg === moduleName(child) }).length
     })
   }
   Installer.prototype.normalizeTree.call(this, log, cb)
@@ -65,9 +68,9 @@ Deduper.prototype.loadIdealTree = function (cb) {
     [this, this.finishTracker, 'cloneCurrentTree'],
 
     [this.newTracker(this.progress.loadIdealTree, 'loadAllDepsIntoIdealTree', 10)],
-    [function (next) {
+    [ function (next) {
       loadExtraneous(self.idealTree, self.progress.loadAllDepsIntoIdealTree, next)
-    }],
+    } ],
     [this, this.finishTracker, 'loadAllDepsIntoIdealTree'],
 
     [this, function (next) { recalculateMetadata(this.idealTree, log, next) }]
@@ -97,7 +100,7 @@ function move (node, hoistTo, diff) {
   node.parent.children = without(node.parent.children, node)
   hoistTo.children.push(node)
   node.fromPath = node.path
-  node.path = path.resolve(hoistTo.path, 'node_modules', node.package.name)
+  node.path = childPath(hoistTo.path, node)
   node.parent = hoistTo
   if (!diff.filter(function (action) { return action[0] === 'move' && action[1] === node }).length) {
     diff.push(['move', node])
@@ -135,7 +138,7 @@ function hoistChildren_ (tree, diff, seen, next) {
   seen[tree.path] = true
   asyncMap(tree.children, function (child, done) {
     if (!tree.parent) return hoistChildren_(child, diff, seen, done)
-    var better = findRequirement(tree.parent, child.package.name, child.package._requested || npa(child.package.name + '@' + child.package.version))
+    var better = findRequirement(tree.parent, moduleName(child), child.package._requested || npa(packageId(child)))
     if (better) {
       return chain([
         [remove, child, diff],
@@ -148,10 +151,10 @@ function hoistChildren_ (tree, diff, seen, next) {
       chain([
         [recalculateMetadata, hoistTo, log],
         [hoistChildren_, child, diff, seen],
-        [function (next) {
+        [ function (next) {
           moveRemainingChildren(child, diff)
           next()
-        }]
+        } ]
       ], done)
     } else {
       done()

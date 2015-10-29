@@ -58,8 +58,7 @@ test('setup', function (t) {
 })
 
 test('dedupe finds the common module and moves it up one level', function (t) {
-  common.npm(
-  [
+  common.npm([
     '--registry', common.registry,
     'install', '.'
   ],

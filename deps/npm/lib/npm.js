@@ -162,8 +162,8 @@
   ]
   var littleGuys = [ 'isntall' ]
   var fullList = cmdList.concat(aliasNames).filter(function (c) {
-        return plumbing.indexOf(c) === -1
-      })
+    return plumbing.indexOf(c) === -1
+  })
   var abbrevs = abbrev(fullList)
 
   // we have our reasons
@@ -387,7 +387,8 @@
   }
 
   Object.defineProperty(npm, 'prefix',
-    { get: function () {
+    {
+      get: function () {
         return npm.config.get('global') ? npm.globalPrefix : npm.localPrefix
       },
       set: function (r) {
@@ -399,7 +400,8 @@
     })
 
   Object.defineProperty(npm, 'bin',
-    { get: function () {
+    {
+      get: function () {
         if (npm.config.get('global')) return npm.globalBin
         return path.resolve(npm.root, '.bin')
       },
@@ -407,7 +409,8 @@
     })
 
   Object.defineProperty(npm, 'globalBin',
-    { get: function () {
+    {
+      get: function () {
         var b = npm.globalPrefix
         if (process.platform !== 'win32') b = path.resolve(b, 'bin')
         return b
@@ -415,7 +418,8 @@
     })
 
   Object.defineProperty(npm, 'dir',
-    { get: function () {
+    {
+      get: function () {
         if (npm.config.get('global')) return npm.globalDir
         return path.resolve(npm.prefix, 'node_modules')
       },
@@ -423,7 +427,8 @@
     })
 
   Object.defineProperty(npm, 'globalDir',
-    { get: function () {
+    {
+      get: function () {
         return (process.platform !== 'win32')
              ? path.resolve(npm.globalPrefix, 'lib', 'node_modules')
              : path.resolve(npm.globalPrefix, 'node_modules')
@@ -443,7 +448,8 @@
   var tmpFolder
   var rand = require('crypto').randomBytes(4).toString('hex')
   Object.defineProperty(npm, 'tmp',
-    { get: function () {
+    {
+      get: function () {
         if (!tmpFolder) tmpFolder = 'npm-' + process.pid + '-' + rand
         return path.resolve(npm.config.get('tmp'), tmpFolder)
       },

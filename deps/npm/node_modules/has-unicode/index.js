@@ -1,6 +1,5 @@
 "use strict"
 var os = require("os")
-var child_process = require("child_process")
 
 var hasUnicode = module.exports = function () {
   // Supported Win32 platforms (>XP) support unicode in the console, though
