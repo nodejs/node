@@ -55,7 +55,6 @@ test('tarball paths should update port if updating protocol', function (t) {
       t.end()
     })
   })
-
 })
 
 test('tarball paths should NOT update if different hostname', function (t) {
@@ -77,5 +76,4 @@ test('tarball paths should NOT update if different hostname', function (t) {
       t.end()
     })
   })
-
 })

@@ -123,47 +123,47 @@ function setup (cb) {
     prefix: pkg,
     loglevel: 'silent'
   }, function () {
-      git = require('../../lib/utils/git.js')
+    git = require('../../lib/utils/git.js')
 
-      function startDaemon (cb) {
-        // start git server
-        var d = git.spawn(
-          [
-            'daemon',
-            '--verbose',
-            '--listen=localhost',
-            '--export-all',
-            '--base-path=.',
-            '--port=1234'
-          ],
-          {
-            cwd: pkg,
-            env: process.env,
-            stdio: ['pipe', 'pipe', 'pipe']
-          }
-        )
-        d.stderr.on('data', childFinder)
+    function startDaemon (cb) {
+      // start git server
+      var d = git.spawn(
+        [
+          'daemon',
+          '--verbose',
+          '--listen=localhost',
+          '--export-all',
+          '--base-path=.',
+          '--port=1234'
+        ],
+        {
+          cwd: pkg,
+          env: process.env,
+          stdio: ['pipe', 'pipe', 'pipe']
+        }
+      )
+      d.stderr.on('data', childFinder)
 
-        function childFinder (c) {
-          var cpid = c.toString().match(/^\[(\d+)\]/)
-          if (cpid[1]) {
-            this.removeListener('data', childFinder)
-            cb(null, [d, cpid[1]])
-          }
+      function childFinder (c) {
+        var cpid = c.toString().match(/^\[(\d+)\]/)
+        if (cpid[1]) {
+          this.removeListener('data', childFinder)
+          cb(null, [d, cpid[1]])
         }
       }
+    }
 
-      common.makeGitRepo({
-        path: repo,
-        commands: [
-          git.chainableExec(
-            ['clone', '--bare', repo, 'child.git'],
-            { cwd: pkg, env: process.env }
-          ),
-          startDaemon
-        ]
-      }, cb)
-    })
+    common.makeGitRepo({
+      path: repo,
+      commands: [
+        git.chainableExec(
+          ['clone', '--bare', repo, 'child.git'],
+          { cwd: pkg, env: process.env }
+        ),
+        startDaemon
+      ]
+    }, cb)
+  })
 }
 
 function cleanup () {

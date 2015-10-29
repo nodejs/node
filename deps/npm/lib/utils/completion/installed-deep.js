@@ -49,6 +49,4 @@ function installedDeep (opts, cb) {
     var names = local.concat(global)
     return cb(null, names)
   }
-
 }
-

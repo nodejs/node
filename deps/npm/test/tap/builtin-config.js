@@ -54,10 +54,10 @@ test('write npmrc file', function (t) {
              ],
              {'stdio': 'inherit'},
              function (er, code) {
-    if (er) throw er
-    t.equal(code, 0)
-    t.end()
-  })
+               if (er) throw er
+               t.equal(code, 0)
+               t.end()
+             })
 })
 
 test('use first npm to install second npm', function (t) {
@@ -104,26 +104,28 @@ test('verify that the builtin config matches', function (t) {
                '--prefix=' + folder + '/first',
                '--cache=' + folder + '/cache',
                '--tmp=' + folder + '/tmp'
-             ], {}, function (er, code, so) {
-    if (er) throw er
-    t.equal(code, 0)
-    var firstRoot = so.trim()
-    common.npm([ 'root', '-g',
-                 '--prefix=' + folder + '/second',
-                 '--cache=' + folder + '/cache',
-                 '--tmp=' + folder + '/tmp'
-               ], {}, function (er, code, so) {
-      if (er) throw er
-      t.equal(code, 0)
-      var secondRoot = so.trim()
-      var firstRc = path.resolve(firstRoot, 'npm', 'npmrc')
-      var secondRc = path.resolve(secondRoot, 'npm', 'npmrc')
-      var firstData = fs.readFileSync(firstRc, 'utf8')
-      var secondData = fs.readFileSync(secondRc, 'utf8')
-      t.equal(firstData, secondData)
-      t.end()
-    })
-  })
+             ], {},
+             function (er, code, so) {
+               if (er) throw er
+               t.equal(code, 0)
+               var firstRoot = so.trim()
+               common.npm([ 'root', '-g',
+                            '--prefix=' + folder + '/second',
+                            '--cache=' + folder + '/cache',
+                            '--tmp=' + folder + '/tmp'
+                          ], {},
+                          function (er, code, so) {
+                            if (er) throw er
+                            t.equal(code, 0)
+                            var secondRoot = so.trim()
+                            var firstRc = path.resolve(firstRoot, 'npm', 'npmrc')
+                            var secondRc = path.resolve(secondRoot, 'npm', 'npmrc')
+                            var firstData = fs.readFileSync(firstRc, 'utf8')
+                            var secondData = fs.readFileSync(secondRc, 'utf8')
+                            t.equal(firstData, secondData)
+                            t.end()
+                          })
+             })
 })
 
 test('clean', function (t) {

@@ -107,7 +107,7 @@ reproducing the structure described in the file, using the specific files
 referenced in "resolved" if available, falling back to normal package
 resolution using "version" if one isn't.
 
-2. The tree is walked and any missing dependencies are installed in the usual fasion.
+2. The tree is walked and any missing dependencies are installed in the usual fashion.
 
 ### Using shrinkwrapped packages
 

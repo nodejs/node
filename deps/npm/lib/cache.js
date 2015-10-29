@@ -92,7 +92,6 @@ cache.usage = 'npm cache add <tarball file>' +
               '\nnpm cache clean [<pkg>[@<version>]]'
 
 cache.completion = function (opts, cb) {
-
   var argv = opts.conf.argv.remain
   if (argv.length === 2) {
     return cb(null, ['add', 'ls', 'clean'])

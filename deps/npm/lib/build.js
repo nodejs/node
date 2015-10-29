@@ -21,7 +21,7 @@ var cmdShimIfExists = cmdShim.ifExists
 var asyncMap = require('slide').asyncMap
 var ini = require('ini')
 var writeFile = require('write-file-atomic')
-var getPackageId = require('./install/get-package-id.js')
+var packageId = require('./utils/package-id.js')
 
 module.exports = build
 build.usage = 'npm build [<folder>]'
@@ -101,18 +101,18 @@ var linkStuff = build.linkStuff = function (pkg, folder, global, didRB, cb) {
   var gnm = global && npm.globalDir
   var gtop = parent === gnm
 
-  log.info('linkStuff', getPackageId(pkg))
-  log.silly('linkStuff', getPackageId(pkg), 'has', parent, 'as its parent node_modules')
-  if (global) log.silly('linkStuff', getPackageId(pkg), 'is part of a global install')
-  if (gnm) log.silly('linkStuff', getPackageId(pkg), 'is installed into a global node_modules')
-  if (gtop) log.silly('linkStuff', getPackageId(pkg), 'is installed into the top-level global node_modules')
+  log.info('linkStuff', packageId(pkg))
+  log.silly('linkStuff', packageId(pkg), 'has', parent, 'as its parent node_modules')
+  if (global) log.silly('linkStuff', packageId(pkg), 'is part of a global install')
+  if (gnm) log.silly('linkStuff', packageId(pkg), 'is installed into a global node_modules')
+  if (gtop) log.silly('linkStuff', packageId(pkg), 'is installed into the top-level global node_modules')
 
   shouldWarn(pkg, folder, global, function () {
     asyncMap(
       [linkBins, linkMans, !didRB && rebuildBundles],
       function (fn, cb) {
         if (!fn) return cb()
-        log.verbose(fn.name, getPackageId(pkg))
+        log.verbose(fn.name, packageId(pkg))
         fn(pkg, folder, parent, gtop, cb)
       },
       cb
@@ -133,14 +133,12 @@ function shouldWarn (pkg, folder, global, cb) {
 
     // current searched package is the linked package on first call
     if (linkedPkg !== currentPkg) {
-
       // don't generate a warning if it's listed in dependencies
       if (Object.keys(topPkg.dependencies || {})
           .concat(Object.keys(topPkg.devDependencies || {}))
           .indexOf(currentPkg) === -1) {
-
         if (top && pkg.preferGlobal && !global) {
-          log.warn('prefer global', getPackageId(pkg) + ' should be installed with -g')
+          log.warn('prefer global', packageId(pkg) + ' should be installed with -g')
         }
       }
     }

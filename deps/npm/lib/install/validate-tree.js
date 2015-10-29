@@ -11,7 +11,7 @@ var npm = require('../npm.js')
 var andFinishTracker = require('./and-finish-tracker.js')
 var flattenTree = require('./flatten-tree.js')
 var validateAllPeerDeps = require('./deps.js').validateAllPeerDeps
-var getPackageId = require('./get-package-id.js')
+var packageId = require('../utils/package-id.js')
 
 module.exports = function (idealTree, log, next) {
   validate('OOF', arguments)
@@ -38,7 +38,7 @@ function checkErrors (mod, idealTree, next) {
 function thenValidateAllPeerDeps (idealTree, next) {
   validate('OF', arguments)
   validateAllPeerDeps(idealTree, function (tree, pkgname, version) {
-    var warn = new Error(getPackageId(tree) + ' requires a peer of ' + pkgname + '@' +
+    var warn = new Error(packageId(tree) + ' requires a peer of ' + pkgname + '@' +
       version + ' but none was installed.')
     warn.code = 'EPEERINVALID'
     idealTree.warnings.push(warn)
@@ -57,7 +57,7 @@ function thenCheckTop (idealTree, next) {
   var pkg = clone(idealTree.package)
   try {
     normalizePackageData(pkg, function (warn) {
-      var warnObj = new Error(getPackageId(idealTree) + ' ' + warn)
+      var warnObj = new Error(packageId(idealTree) + ' ' + warn)
       warnObj.code = 'EPACKAGEJSON'
       idealTree.warnings.push(warnObj)
     }, false)

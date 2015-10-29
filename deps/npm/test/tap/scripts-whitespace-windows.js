@@ -99,4 +99,3 @@ function cleanup () {
   process.chdir(osenv.tmpdir())
   rimraf.sync(pkg)
 }
-

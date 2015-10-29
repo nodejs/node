@@ -5,7 +5,8 @@ var validate = require('aproba')
 var flattenTree = require('./flatten-tree.js')
 var isExtraneous = require('./is-extraneous.js')
 var validateAllPeerDeps = require('./deps.js').validateAllPeerDeps
-var getPackageId = require('./get-package-id.js')
+var packageId = require('../utils/package-id.js')
+var moduleName = require('../utils/module-name.js')
 
 var mutateIntoLogicalTree = module.exports = function (tree) {
   validate('O', arguments)
@@ -18,9 +19,9 @@ var mutateIntoLogicalTree = module.exports = function (tree) {
   var flat = flattenTree(tree)
 
   function getNode (flatname) {
-    return flatname.substr(0, 5) === '#DEV:' ?
-           flat[flatname.substr(5)] :
-           flat[flatname]
+    return flatname.substr(0, 5) === '#DEV:'
+           ? flat[flatname.substr(5)]
+           : flat[flatname]
   }
 
   Object.keys(flat).sort().forEach(function (flatname) {
@@ -29,8 +30,8 @@ var mutateIntoLogicalTree = module.exports = function (tree) {
     var requiredByNames = requiredBy.filter(function (parentFlatname) {
       var parentNode = getNode(parentFlatname)
       if (!parentNode) return false
-      return parentNode.package.dependencies[node.package.name] ||
-             (parentNode.package.devDependencies && parentNode.package.devDependencies[node.package.name])
+      return parentNode.package.dependencies[moduleName(node)] ||
+             (parentNode.package.devDependencies && parentNode.package.devDependencies[moduleName(node)])
     })
     requiredBy = requiredByNames.map(getNode)
 
@@ -67,7 +68,7 @@ function translateTree_ (tree, seen) {
   pkg._dependencies = pkg.dependencies
   pkg.dependencies = {}
   tree.children.forEach(function (child) {
-    pkg.dependencies[child.package.name] = translateTree_(child, seen)
+    pkg.dependencies[moduleName(child)] = translateTree_(child, seen)
   })
   Object.keys(tree.missingDeps).forEach(function (name) {
     if (pkg.dependencies[name]) {
@@ -98,7 +99,7 @@ function translateTree_ (tree, seen) {
       }
       if (!peerPkg.peerMissing) peerPkg.peerMissing = []
       peerPkg.peerMissing.push({
-        requiredBy: getPackageId(child),
+        requiredBy: packageId(child),
         requires: pkgname + '@' + version
       })
     })

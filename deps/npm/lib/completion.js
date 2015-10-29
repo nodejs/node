@@ -9,9 +9,8 @@ var configDefs = npmconf.defs
 var configTypes = configDefs.types
 var shorthands = configDefs.shorthands
 var nopt = require('nopt')
-var configNames = Object.keys(configTypes).filter(function (e) {
-      return e.charAt(0) !== '_'
-    })
+var configNames = Object.keys(configTypes)
+  .filter(function (e) { return e.charAt(0) !== '_' })
 var shorthandNames = Object.keys(shorthands)
 var allConfs = configNames.concat(shorthandNames)
 var once = require('once')
@@ -167,7 +166,6 @@ function dumpScript (cb) {
       if (er.errno === 'EPIPE') er = null
       cb(er)
     })
-
   })
 }
 

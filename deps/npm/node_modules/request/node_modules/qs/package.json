@@ -1,0 +1,59 @@
+{
+  "name": "qs",
+  "description": "A querystring parser that supports nesting and arrays, with a depth limit",
+  "homepage": "https://github.com/hapijs/qs",
+  "version": "5.2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hapijs/qs.git"
+  },
+  "main": "lib/index.js",
+  "keywords": [
+    "querystring",
+    "qs"
+  ],
+  "engines": ">=0.10.40",
+  "dependencies": {},
+  "devDependencies": {
+    "browserify": "^10.2.1",
+    "code": "1.x.x",
+    "lab": "5.x.x"
+  },
+  "scripts": {
+    "test": "lab -a code -t 100 -L",
+    "test-tap": "lab -a code -r tap -o tests.tap",
+    "test-cov-html": "lab -a code -r html -o coverage.html",
+    "dist": "browserify --standalone Qs lib/index.js > dist/qs.js"
+  },
+  "license": "BSD-3-Clause",
+  "gitHead": "a341cdf2fadba5ede1ce6c95c7051f6f31f37b81",
+  "bugs": {
+    "url": "https://github.com/hapijs/qs/issues"
+  },
+  "_id": "qs@5.2.0",
+  "_shasum": "a9f31142af468cb72b25b30136ba2456834916be",
+  "_from": "qs@>=5.2.0 <5.3.0",
+  "_npmVersion": "3.3.5",
+  "_nodeVersion": "0.10.40",
+  "_npmUser": {
+    "name": "nlf",
+    "email": "quitlahok@gmail.com"
+  },
+  "dist": {
+    "shasum": "a9f31142af468cb72b25b30136ba2456834916be",
+    "tarball": "http://registry.npmjs.org/qs/-/qs-5.2.0.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "nlf",
+      "email": "quitlahok@gmail.com"
+    },
+    {
+      "name": "hueniverse",
+      "email": "eran@hueniverse.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/qs/-/qs-5.2.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

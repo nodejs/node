@@ -297,7 +297,6 @@ Conf.prototype.save = function (where, cb) {
       fs.writeFile(target.path, data, 'utf8', function (er) {
         if (er) return then(er)
         if (where === 'user' && myUid && myGid) {
-
           fs.chown(target.path, +myUid, +myGid, then)
         } else {
           then()

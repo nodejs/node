@@ -61,7 +61,7 @@ In particular, npm has two modes of operation:
   defaults to the current working directory.  Packages are installed to
   `./node_modules`, and bins are installed to `./node_modules/.bin`.
 
-Local mode is the default.  Use `--global` or `-g` on any command to
+Local mode is the default.  Use `-g` or `--global` on any command to
 operate in global mode instead.
 
 ## DEVELOPER USAGE

@@ -3,7 +3,7 @@ npm-bin(1) -- Display npm bin folder
 
 ## SYNOPSIS
 
-    npm bin [--global]
+    npm bin [-g|--global]
 
 ## DESCRIPTION
 

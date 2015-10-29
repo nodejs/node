@@ -31,7 +31,7 @@ inherits(CachingRegistryClient, RegistryClient)
 
 CachingRegistryClient.prototype._invalidatingRequest = function (uri, params, cb) {
   var client = this
-  this._request.call(this, uri, params, function () {
+  this._request(uri, params, function () {
     var args = arguments
 
     var method = params.method

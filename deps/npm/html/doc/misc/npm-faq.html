@@ -13,20 +13,20 @@
 <h2 id="where-can-i-find-these-docs-in-html-">Where can I find these docs in HTML?</h2>
 <p><a href="https://docs.npmjs.com/">https://docs.npmjs.com/</a>, or run:</p>
 <pre><code>npm config set viewer browser
-</code></pre><p>to open these documents in your default web browser rather than <code>man</code>.</p>
+</code></pre><p>This command will set the npm docs to open in your default web browser rather than <code>man</code>.</p>
 <h2 id="it-didn-t-work-">It didn&#39;t work.</h2>
-<p>That&#39;s not really a question.</p>
+<p>Please provide a little more detail, search for the error via <a href="https://google.com">Google</a> or <a href="http://stackoverflow.com/search?q=npm">StackOverflow npm</a> to see if another developer has encountered a similar problem.</p>
 <h2 id="why-didn-t-it-work-">Why didn&#39;t it work?</h2>
 <p>I don&#39;t know yet.</p>
-<p>Read the error output, and if you can&#39;t figure out what it means,
-do what it says and post a bug with all the information it asks for.</p>
+<p>Try reading the error output first, ensure this is a true npm issue and not a package issue. If you are having an issue with a package dependency, please submit your error to that particular package maintainer.</p>
+<p>For any npm issues, try following the instructions, or even retracing your steps. If the issue continues to persist, submit a bug with the steps to reproduce, please include the operating system you are working on, along with the error you recieve.</p>
 <h2 id="where-does-npm-put-stuff-">Where does npm put stuff?</h2>
 <p>See <code><a href="../files/npm-folders.html">npm-folders(5)</a></code></p>
 <p>tl;dr:</p>
 <ul>
 <li>Use the <code>npm root</code> command to see where modules go, and the <code>npm bin</code>
 command to see where executables go</li>
-<li>Global installs are different from local installs.  If you install
+<li>Global installs are different from local installs. If you install
 something with the <code>-g</code> flag, then its executables go in <code>npm bin -g</code>
 and its modules go in <code>npm root -g</code>.</li>
 </ul>
@@ -237,7 +237,7 @@ that has a package.json in its root, or a git url.
 <p>To check if the registry is down, open up
 <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a> in a web browser.  This will also tell
 you if you are just unable to access the internet for some reason.</p>
-<p>If the registry IS down, let us know by emailing <a href="&#x6d;&#x61;&#x69;&#x6c;&#116;&#111;&#58;&#115;&#x75;&#112;&#x70;&#111;&#114;&#x74;&#64;&#x6e;&#x70;&#x6d;&#106;&#x73;&#x2e;&#x63;&#x6f;&#x6d;">&#115;&#x75;&#112;&#x70;&#111;&#114;&#x74;&#64;&#x6e;&#x70;&#x6d;&#106;&#x73;&#x2e;&#x63;&#x6f;&#x6d;</a>
+<p>If the registry IS down, let us know by emailing <a href="&#x6d;&#x61;&#x69;&#x6c;&#116;&#x6f;&#58;&#x73;&#x75;&#x70;&#112;&#x6f;&#114;&#116;&#x40;&#x6e;&#112;&#x6d;&#x6a;&#115;&#x2e;&#x63;&#x6f;&#109;">&#x73;&#x75;&#x70;&#112;&#x6f;&#114;&#116;&#x40;&#x6e;&#112;&#x6d;&#x6a;&#115;&#x2e;&#x63;&#x6f;&#109;</a>
 or posting an issue at <a href="https://github.com/npm/npm/issues">https://github.com/npm/npm/issues</a>.  If it&#39;s
 down for the world (and not just on your local network) then we&#39;re
 probably already being pinged about it.</p>
@@ -308,5 +308,5 @@ good folks at <a href="http://www.npmjs.com">npm, Inc.</a></p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-faq &mdash; npm@3.3.6</p>
+<p id="footer">npm-faq &mdash; npm@3.3.10</p>
 

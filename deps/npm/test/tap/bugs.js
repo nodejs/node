@@ -26,121 +26,145 @@ test('setup', function (t) {
 
 test('npm bugs underscore', function (t) {
   mr({ port: common.port }, function (er, s) {
-    common.npm([
-      'bugs', 'underscore',
-      '--registry=' + common.registry,
-      '--loglevel=silent',
-      '--browser=' + join(__dirname, '/_script.sh')
-    ], opts, function (err, code, stdout, stderr) {
-      t.ifError(err, 'bugs ran without issue')
-      t.notOk(stderr, 'should have no stderr')
-      t.equal(code, 0, 'exit ok')
-      var res = fs.readFileSync(outFile, 'ascii')
-      s.close()
-      t.equal(res, 'https://github.com/jashkenas/underscore/issues\n')
-      rimraf.sync(outFile)
-      t.end()
-    })
+    common.npm(
+      [
+        'bugs', 'underscore',
+        '--registry=' + common.registry,
+        '--loglevel=silent',
+        '--browser=' + join(__dirname, '/_script.sh')
+      ],
+      opts,
+      function (err, code, stdout, stderr) {
+        t.ifError(err, 'bugs ran without issue')
+        t.notOk(stderr, 'should have no stderr')
+        t.equal(code, 0, 'exit ok')
+        var res = fs.readFileSync(outFile, 'ascii')
+        s.close()
+        t.equal(res, 'https://github.com/jashkenas/underscore/issues\n')
+        rimraf.sync(outFile)
+        t.end()
+      }
+    )
   })
 })
 
 test('npm bugs optimist - github (https://)', function (t) {
   mr({ port: common.port }, function (er, s) {
-    common.npm([
-      'bugs', 'optimist',
-      '--registry=' + common.registry,
-      '--loglevel=silent',
-      '--browser=' + join(__dirname, '/_script.sh')
-    ], opts, function (err, code, stdout, stderr) {
-      t.ifError(err, 'bugs ran without issue')
-      t.notOk(stderr, 'should have no stderr')
-      t.equal(code, 0, 'exit ok')
-      var res = fs.readFileSync(outFile, 'ascii')
-      s.close()
-      t.equal(res, 'https://github.com/substack/node-optimist/issues\n')
-      rimraf.sync(outFile)
-      t.end()
-    })
+    common.npm(
+      [
+        'bugs', 'optimist',
+        '--registry=' + common.registry,
+        '--loglevel=silent',
+        '--browser=' + join(__dirname, '/_script.sh')
+      ],
+      opts,
+      function (err, code, stdout, stderr) {
+        t.ifError(err, 'bugs ran without issue')
+        t.notOk(stderr, 'should have no stderr')
+        t.equal(code, 0, 'exit ok')
+        var res = fs.readFileSync(outFile, 'ascii')
+        s.close()
+        t.equal(res, 'https://github.com/substack/node-optimist/issues\n')
+        rimraf.sync(outFile)
+        t.end()
+      }
+    )
   })
 })
 
 test('npm bugs npm-test-peer-deps - no repo', function (t) {
   mr({ port: common.port }, function (er, s) {
-    common.npm([
-      'bugs', 'npm-test-peer-deps',
-      '--registry=' + common.registry,
-      '--loglevel=silent',
-      '--browser=' + join(__dirname, '/_script.sh')
-    ], opts, function (err, code, stdout, stderr) {
-      t.ifError(err, 'bugs ran without issue')
-      t.notOk(stderr, 'should have no stderr')
-      t.equal(code, 0, 'exit ok')
-      var res = fs.readFileSync(outFile, 'ascii')
-      s.close()
-      t.equal(res, 'https://www.npmjs.org/package/npm-test-peer-deps\n')
-      rimraf.sync(outFile)
-      t.end()
-    })
+    common.npm(
+      [
+        'bugs', 'npm-test-peer-deps',
+        '--registry=' + common.registry,
+        '--loglevel=silent',
+        '--browser=' + join(__dirname, '/_script.sh')
+      ],
+      opts,
+      function (err, code, stdout, stderr) {
+        t.ifError(err, 'bugs ran without issue')
+        t.notOk(stderr, 'should have no stderr')
+        t.equal(code, 0, 'exit ok')
+        var res = fs.readFileSync(outFile, 'ascii')
+        s.close()
+        t.equal(res, 'https://www.npmjs.org/package/npm-test-peer-deps\n')
+        rimraf.sync(outFile)
+        t.end()
+      }
+    )
   })
 })
 
 test('npm bugs test-repo-url-http - non-github (http://)', function (t) {
   mr({ port: common.port }, function (er, s) {
-    common.npm([
-      'bugs', 'test-repo-url-http',
-      '--registry=' + common.registry,
-      '--loglevel=silent',
-      '--browser=' + join(__dirname, '/_script.sh')
-    ], opts, function (err, code, stdout, stderr) {
-      t.ifError(err, 'bugs ran without issue')
-      t.notOk(stderr, 'should have no stderr')
-      t.equal(code, 0, 'exit ok')
-      var res = fs.readFileSync(outFile, 'ascii')
-      s.close()
-      t.equal(res, 'https://www.npmjs.org/package/test-repo-url-http\n')
-      rimraf.sync(outFile)
-      t.end()
-    })
+    common.npm(
+      [
+        'bugs', 'test-repo-url-http',
+        '--registry=' + common.registry,
+        '--loglevel=silent',
+        '--browser=' + join(__dirname, '/_script.sh')
+      ],
+      opts,
+      function (err, code, stdout, stderr) {
+        t.ifError(err, 'bugs ran without issue')
+        t.notOk(stderr, 'should have no stderr')
+        t.equal(code, 0, 'exit ok')
+        var res = fs.readFileSync(outFile, 'ascii')
+        s.close()
+        t.equal(res, 'https://www.npmjs.org/package/test-repo-url-http\n')
+        rimraf.sync(outFile)
+        t.end()
+      }
+    )
   })
 })
 
 test('npm bugs test-repo-url-https - non-github (https://)', function (t) {
   mr({ port: common.port }, function (er, s) {
-    common.npm([
-      'bugs', 'test-repo-url-https',
-      '--registry=' + common.registry,
-      '--loglevel=silent',
-      '--browser=' + join(__dirname, '/_script.sh')
-    ], opts, function (err, code, stdout, stderr) {
-      t.ifError(err, 'bugs ran without issue')
-      t.notOk(stderr, 'should have no stderr')
-      t.equal(code, 0, 'exit ok')
-      var res = fs.readFileSync(outFile, 'ascii')
-      s.close()
-      t.equal(res, 'https://www.npmjs.org/package/test-repo-url-https\n')
-      rimraf.sync(outFile)
-      t.end()
-    })
+    common.npm(
+      [
+        'bugs', 'test-repo-url-https',
+        '--registry=' + common.registry,
+        '--loglevel=silent',
+        '--browser=' + join(__dirname, '/_script.sh')
+      ],
+      opts,
+      function (err, code, stdout, stderr) {
+        t.ifError(err, 'bugs ran without issue')
+        t.notOk(stderr, 'should have no stderr')
+        t.equal(code, 0, 'exit ok')
+        var res = fs.readFileSync(outFile, 'ascii')
+        s.close()
+        t.equal(res, 'https://www.npmjs.org/package/test-repo-url-https\n')
+        rimraf.sync(outFile)
+        t.end()
+      }
+    )
   })
 })
 
 test('npm bugs test-repo-url-ssh - non-github (ssh://)', function (t) {
   mr({ port: common.port }, function (er, s) {
-    common.npm([
-      'bugs', 'test-repo-url-ssh',
-      '--registry=' + common.registry,
-      '--loglevel=silent',
-      '--browser=' + join(__dirname, '/_script.sh')
-    ], opts, function (err, code, stdout, stderr) {
-      t.ifError(err, 'bugs ran without issue')
-      t.notOk(stderr, 'should have no stderr')
-      t.equal(code, 0, 'exit ok')
-      var res = fs.readFileSync(outFile, 'ascii')
-      s.close()
-      t.equal(res, 'https://www.npmjs.org/package/test-repo-url-ssh\n')
-      rimraf.sync(outFile)
-      t.end()
-    })
+    common.npm(
+      [
+        'bugs', 'test-repo-url-ssh',
+        '--registry=' + common.registry,
+        '--loglevel=silent',
+        '--browser=' + join(__dirname, '/_script.sh')
+      ],
+      opts,
+      function (err, code, stdout, stderr) {
+        t.ifError(err, 'bugs ran without issue')
+        t.notOk(stderr, 'should have no stderr')
+        t.equal(code, 0, 'exit ok')
+        var res = fs.readFileSync(outFile, 'ascii')
+        s.close()
+        t.equal(res, 'https://www.npmjs.org/package/test-repo-url-ssh\n')
+        rimraf.sync(outFile)
+        t.end()
+      }
+    )
   })
 })
 

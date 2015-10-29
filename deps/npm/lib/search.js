@@ -196,16 +196,16 @@ function prettify (data, args) {
   var output = columnify(
     lines,
     {
-        include: columns,
-        truncate: truncate,
-        config: {
-          name: { maxWidth: 40, truncate: false, truncateMarker: '' },
-          description: { maxWidth: 60 },
-          author: { maxWidth: 20 },
-          date: { maxWidth: 11 },
-          version: { maxWidth: 11 },
-          keywords: { maxWidth: Infinity }
-        }
+      include: columns,
+      truncate: truncate,
+      config: {
+        name: { maxWidth: 40, truncate: false, truncateMarker: '' },
+        description: { maxWidth: 60 },
+        author: { maxWidth: 20 },
+        date: { maxWidth: 11 },
+        version: { maxWidth: 11 },
+        keywords: { maxWidth: Infinity }
+      }
     }
   )
   output = trimToMaxWidth(output)
@@ -214,7 +214,7 @@ function prettify (data, args) {
   return output
 }
 
-var colors = [31, 33, 32, 36, 34, 35 ]
+var colors = [31, 33, 32, 36, 34, 35]
 var cl = colors.length
 
 function addColorMarker (str, arg, i) {

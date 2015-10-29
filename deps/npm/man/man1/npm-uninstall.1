@@ -5,7 +5,7 @@
 .P
 .RS 2
 .nf
-npm uninstall [<@scope>/]<pkg>[@<version>]\.\.\. [\-\-save|\-\-save\-dev|\-\-save\-optional]
+npm uninstall [<@scope>/]<pkg>[@<version>]\.\.\. [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional]
 
 aliases: remove, rm, r, un, unlink
 .fi
@@ -30,11 +30,11 @@ it uninstalls the current package context as a global package\.
 the package version in your main package\.json:
 .RS 0
 .IP \(bu 2
-\fB\-\-save\fP: Package will be removed from your \fBdependencies\fP\|\.
+\fB\-S, \-\-save\fP: Package will be removed from your \fBdependencies\fP\|\.
 .IP \(bu 2
-\fB\-\-save\-dev\fP: Package will be removed from your \fBdevDependencies\fP\|\.
+\fB\-D, \-\-save\-dev\fP: Package will be removed from your \fBdevDependencies\fP\|\.
 .IP \(bu 2
-\fB\-\-save\-optional\fP: Package will be removed from your \fBoptionalDependencies\fP\|\.
+\fB\-O, \-\-save\-optional\fP: Package will be removed from your \fBoptionalDependencies\fP\|\.
 
 .RE
 .P

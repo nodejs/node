@@ -20,7 +20,6 @@ test('setup', function (t) {
 })
 
 test('git-cache-no-hooks: install a git dependency', function (t) {
-
   // disable git integration tests on Travis.
   if (process.env.TRAVIS) return t.end()
 

@@ -7,7 +7,7 @@
 .nf
 npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]
 
-\|'npm \-v' or 'npm \-\-version' to print npm version
+\|'npm [\-v | \-\-version]' to print npm version
 \|'npm view <pkg> version' to view a package's published version
 \|'npm ls' to inspect current package/dependency versions
 .fi
@@ -25,10 +25,10 @@ the existing version will be incremented by 1 in the specified field\.
 If run in a git repo, it will also create a version commit and tag\.
 This behavior is controlled by \fBgit\-tag\-version\fP (see below), and can
 be disabled on the command line by running \fBnpm \-\-no\-git\-tag\-version version\fP\|\.
-It will fail if the working directory is not clean, unless the \fB\-\-force\fP
-flag is set\.
+It will fail if the working directory is not clean, unless the \fB\-f\fP or
+\fB\-\-force\fP flag is set\.
 .P
-If supplied with \fB\-\-message\fP (shorthand: \fB\-m\fP) config option, npm will
+If supplied with \fB\-m\fP or \fB\-\-message\fP config option, npm will
 use it as a commit message when creating a version commit\.  If the
 \fBmessage\fP config contains \fB%s\fP then that will be replaced with the
 resulting version number\.  For example:

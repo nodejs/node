@@ -33,22 +33,23 @@ test('npm logout', function (t) {
     if (err) throw err
 
     common.npm(
-    [
-      'logout',
-      '--registry', common.registry,
-      '--loglevel', 'silent',
-      '--userconfig', outfile
-    ],
-    opts,
-    function (err, code) {
-      t.ifError(err, 'no error output')
-      t.notOk(code, 'exited OK')
+      [
+        'logout',
+        '--registry', common.registry,
+        '--loglevel', 'silent',
+        '--userconfig', outfile
+      ],
+      opts,
+      function (err, code) {
+        t.ifError(err, 'no error output')
+        t.notOk(code, 'exited OK')
 
-      var config = fs.readFileSync(outfile, 'utf8')
-      t.equal(config, 'foo=boo\n', 'creds gone')
-      s.close()
-      t.end()
-    })
+        var config = fs.readFileSync(outfile, 'utf8')
+        t.equal(config, 'foo=boo\n', 'creds gone')
+        s.close()
+        t.end()
+      }
+    )
   })
 })
 

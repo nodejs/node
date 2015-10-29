@@ -208,7 +208,7 @@ Any data published to The npm Registry (including user account
 information) may be removed or modified at the sole discretion of the
 npm server administrators.
 
-### In plainer english
+### In plainer English
 
 npm is the property of npm, Inc.
 

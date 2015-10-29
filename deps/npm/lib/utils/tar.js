@@ -21,6 +21,8 @@ var myGid = process.getgid && process.getgid()
 var readPackageTree = require('read-package-tree')
 var union = require('lodash.union')
 var flattenTree = require('../install/flatten-tree.js')
+var moduleName = require('./module-name.js')
+var packageId = require('./package-id.js')
 
 if (process.env.SUDO_UID && myUid === 0) {
   if (!isNaN(process.env.SUDO_UID)) myUid = +process.env.SUDO_UID
@@ -133,7 +135,7 @@ BundledPacker.prototype.applyIgnores = function (entry, partial, entryObj) {
   return Packer.prototype.applyIgnores.call(this, entry, partial, entryObj)
 }
 
-function nameMatch (name) { return function (other) { return name === other.package.name } }
+function nameMatch (name) { return function (other) { return name === moduleName(other) } }
 
 function pack_ (tarball, folder, tree, flatTree, pkg, cb) {
   function InstancePacker (props) {
@@ -145,7 +147,7 @@ function pack_ (tarball, folder, tree, flatTree, pkg, cb) {
     if (!bd) return false
 
     if (!Array.isArray(bd)) {
-      throw new Error(this.package.name + '\'s `bundledDependencies` should ' +
+      throw new Error(packageId(this) + '\'s `bundledDependencies` should ' +
                       'be an array')
     }
     if (!tree) return false
@@ -161,7 +163,7 @@ function pack_ (tarball, folder, tree, flatTree, pkg, cb) {
       seen[req] = true
       var reqPkg = flatTree[req]
       if (!reqPkg) continue
-      if (reqPkg.parent === tree && bd.indexOf(reqPkg.package.name) !== -1) {
+      if (reqPkg.parent === tree && bd.indexOf(moduleName(reqPkg)) !== -1) {
         return true
       }
       requiredBy = union(requiredBy, reqPkg.package._requiredBy)
@@ -233,9 +235,9 @@ function unpack_ (tarball, unpackTarget, dMode, fMode, uid, gid, cb) {
                 dMode, fMode,
                 uid, gid,
                 function (er, folder) {
-      if (er) return cb(er)
-      readJson(path.resolve(folder, 'package.json'), cb)
-    })
+                  if (er) return cb(er)
+                  readJson(path.resolve(folder, 'package.json'), cb)
+                })
   })
 }
 

@@ -161,11 +161,12 @@ function formatResults (args, results, cb) {
 
   var out = results.map(function (res) {
     var out = res.cmd
-    var r = Object.keys(res.hits).map(function (k) {
-          return k + ':' + res.hits[k]
-        }).sort(function (a, b) {
-          return a > b ? 1 : -1
-        }).join(' ')
+    var r = Object.keys(res.hits)
+      .map(function (k) {
+        return k + ':' + res.hits[k]
+      }).sort(function (a, b) {
+        return a > b ? 1 : -1
+      }).join(' ')
 
     out += ((new Array(Math.max(1, cols - out.length - r.length)))
              .join(' ')) + r
@@ -175,25 +176,25 @@ function formatResults (args, results, cb) {
     out = '\n\n' + out + '\n' +
       (new Array(cols)).join('—') + '\n' +
       res.lines.map(function (line, i) {
-      if (line === null || i > 3) return ''
-      for (var out = line, a = 0, l = args.length; a < l; a++) {
-        var finder = out.toLowerCase().split(args[a].toLowerCase())
-        var newOut = ''
-        var p = 0
+        if (line === null || i > 3) return ''
+        for (var out = line, a = 0, l = args.length; a < l; a++) {
+          var finder = out.toLowerCase().split(args[a].toLowerCase())
+          var newOut = ''
+          var p = 0
 
-        finder.forEach(function (f) {
-          newOut += out.substr(p, f.length)
+          finder.forEach(function (f) {
+            newOut += out.substr(p, f.length)
 
-          var hilit = out.substr(p + f.length, args[a].length)
-          if (npm.color) hilit = color.bgBlack(color.red(hilit))
-          newOut += hilit
+            var hilit = out.substr(p + f.length, args[a].length)
+            if (npm.color) hilit = color.bgBlack(color.red(hilit))
+            newOut += hilit
 
-          p += f.length + args[a].length
-        })
-      }
+            p += f.length + args[a].length
+          })
+        }
 
-      return newOut
-    }).join('\n').trim()
+        return newOut
+      }).join('\n').trim()
     return out
   }).join('\n')
 

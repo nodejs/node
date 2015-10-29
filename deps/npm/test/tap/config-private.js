@@ -15,7 +15,8 @@ test('setup', function (t) {
 })
 
 test('config get private var (old auth)', function (t) {
-  common.npm([
+  common.npm(
+    [
       'config',
       'get',
       '_auth'
@@ -32,7 +33,8 @@ test('config get private var (old auth)', function (t) {
 })
 
 test('config get private var (new auth)', function (t) {
-  common.npm([
+  common.npm(
+    [
       'config',
       'get',
       '//registry.npmjs.org/:_password'
