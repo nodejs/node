@@ -340,7 +340,7 @@ For the current list of Collaborators, see the project
 
 ### WG Membership
 
-WG seats are not time-limited.  There is no fixed size of the WG.
+WG seats are not time-limited. There is no fixed size of the WG.
 However, the expected target is between 6 and 12, to ensure adequate
 coverage of important areas of expertise, balanced with the ability to
 make decisions efficiently.
@@ -358,14 +358,14 @@ suggested as any other agenda item (see "WG Meetings" below).
 
 If an addition or removal is proposed during a meeting, and the full
 WG is not in attendance to participate, then the addition or removal
-is added to the agenda for the subsequent meeting.  This is to ensure
+is added to the agenda for the subsequent meeting. This is to ensure
 that all members are given the opportunity to participate in all
-membership decisions.  If a WG member is unable to attend a meeting
+membership decisions. If a WG member is unable to attend a meeting
 where a planned membership decision is being made, then their consent
 is assumed.
 
 No more than 1/3 of the WG members may be affiliated with the same
-employer.  If removal or resignation of a WG member, or a change of
+employer. If removal or resignation of a WG member, or a change of
 employment by a WG member, creates a situation where more than 1/3 of
 the WG membership shares an employer, then the situation must be
 immediately remedied by the resignation or removal of one or more WG
@@ -416,7 +416,7 @@ either a closing vote or a vote to table the issue to the next
 meeting. The call for a vote must be seconded by a majority of the WG
 or else the discussion will continue. Simple majority wins.
 
-Note that changes to WG membership require unanimous consensus.  See
+Note that changes to WG membership require unanimous consensus. See
 "WG Membership" above.
 
 ### Developer's Certificate of Origin 1.0
@@ -454,7 +454,7 @@ CoC](https://github.com/rust-lang/rust/wiki/Note-development-policy#conduct).
 * Please keep unstructured critique to a minimum. If you have solid
   ideas you want to experiment with, make a fork and see how it works.
 * We will exclude you from interaction if you insult, demean or harass
-  anyone.  That is not welcome behaviour. We interpret the term
+  anyone. That is not welcome behaviour. We interpret the term
   "harassment" as including the definition in the [Citizen Code of
   Conduct](http://citizencodeofconduct.org/); if you have any lack of
   clarity about what might be included in that concept, please read
@@ -464,7 +464,7 @@ CoC](https://github.com/rust-lang/rust/wiki/Note-development-policy#conduct).
   you feel you have been or are being harassed or made uncomfortable
   by a community member, please contact one of the channel ops or any
   of the TC members immediately with a capture (log, photo, email) of
-  the harassment if possible.  Whether you're a regular contributor or
+  the harassment if possible. Whether you're a regular contributor or
   a newcomer, we care about making this community a safe place for you
   and we've got your back.
 * Likewise any spamming, trolling, flaming, baiting or other

@@ -1838,7 +1838,7 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/nodej
   This prevents a situation in which parsing the version number can use
   exponentially more time and memory to parse, leading to a potential denial of
   service. Thanks to Adam Baldwin at Lift Security for bringing this to our
-  attention.  ([@isaacs](https://github.com/isaacs))
+  attention. ([@isaacs](https://github.com/isaacs))
   * [`eab6184`](https://github.com/npm/npm/commit/eab618425c51e3aa4416da28dcd8ca4ba63aec41)
   [#7766](https://github.com/npm/npm/issues/7766) One last tweak to ensure that
   GitHub shortcuts work with private repositories.
@@ -2215,7 +2215,7 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/nodej
     [#1999](https://github.com/npm/npm/issues/1999) Only run `stop` and `start`
     scripts (plus their pre- and post- scripts) when there's no `restart` script
     defined. This makes it easier to support graceful restarts of services
-    managed by npm.  ([@watilde](https://github.com/watilde) /
+    managed by npm. ([@watilde](https://github.com/watilde) /
     [@scien](https://github.com/scien))
   * [`448efd0`](https://github.com/npm/npm/commit/448efd0eaa6f97af0889bf47efc543a1ea2f8d7e)
     [#2853](https://github.com/npm/npm/issues/2853) Add support for `--dev` and
@@ -2977,7 +2977,7 @@ https://iojs.org/api/http.html
 - Added `request.flush` method.
 - Added `response.getHeader('header')` method that may be used before headers are flushed.
 - Added `response.statusMessage` property.
-- Added Client Keep-Alive behavior.  Set `keepAlive:true` in request options to reuse connections indefinitely.
+- Added Client Keep-Alive behavior. Set `keepAlive:true` in request options to reuse connections indefinitely.
 - Added `rawHeaders` and `rawTrailers` members on incoming message.
 - Removed default chunked encoding on `DELETE` and `OPTIONS`.
 
@@ -6342,7 +6342,7 @@ https://github.com/nodejs/node/commit/f711d5343b29d1e72e87107315708e40951a7826
   pipeline
 
 * Bugfix: http.Client may be prematurely released back to the
-  free pool.  (Thomas Lee)
+  free pool. (Thomas Lee)
 
 * Upgrade V8 to 2.2.8
 

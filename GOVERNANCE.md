@@ -63,7 +63,7 @@ A guide for Collaborators is maintained in
 
 ## TC Membership
 
-TC seats are not time-limited.  There is no fixed size of the TC.
+TC seats are not time-limited. There is no fixed size of the TC.
 However, the expected target is between 6 and 12, to ensure adequate
 coverage of important areas of expertise, balanced with the ability to
 make decisions efficiently.
@@ -80,7 +80,7 @@ Changes to TC membership should be posted in the agenda, and may be
 suggested as any other agenda item (see "TC Meetings" below).
 
 No more than 1/3 of the TC members may be affiliated with the same
-employer.  If removal or resignation of a TC member, or a change of
+employer. If removal or resignation of a TC member, or a change of
 employment by a TC member, creates a situation where more than 1/3 of
 the TC membership shares an employer, then the situation must be
 immediately remedied by the resignation or removal of one or more TC
