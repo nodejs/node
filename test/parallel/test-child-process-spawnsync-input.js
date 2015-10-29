@@ -2,7 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 var os = require('os');
-var util = require('util');
 
 var spawnSync = require('child_process').spawnSync;
 
@@ -15,7 +14,7 @@ var msgErrBuf = new Buffer(msgErr + '\n');
 
 var args = [
   '-e',
-  util.format('console.log("%s"); console.error("%s");', msgOut, msgErr)
+  `console.log("${msgOut}"); console.error("${msgErr}");`
 ];
 
 var ret;

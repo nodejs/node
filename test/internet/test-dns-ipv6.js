@@ -12,6 +12,11 @@ var expected = 0,
     running = false,
     queue = [];
 
+if (!common.hasIPv6) {
+  console.log('1..0 # Skipped: this test, no IPv6 support');
+  return;
+}
+
 function TEST(f) {
   function next() {
     var f = queue.shift();
@@ -160,7 +165,8 @@ TEST(function test_lookup_all_ipv6(done) {
     assert.ok(ips.length > 0);
 
     ips.forEach(function(ip) {
-      assert.ok(isIPv6(ip.address));
+      assert.ok(isIPv6(ip.address),
+                'Invalid IPv6: ' + ip.address.toString());
       assert.strictEqual(ip.family, 6);
     });
 

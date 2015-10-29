@@ -30,10 +30,9 @@ encoding method.  Here are the different string encodings.
 
 * `'base64'` - Base64 string encoding.
 
-* `'binary'` - A way of encoding raw binary data into strings by using only
-  the first 8 bits of each character. This encoding method is deprecated and
-  should be avoided in favor of `Buffer` objects where possible. This encoding
-  will be removed in future versions of Node.js.
+* `'binary'` - A way of encoding the buffer into a one-byte (i.e. `latin-1`)
+  encoded string. The string `'latin-1'` is not supported. Instead simply pass
+  `'binary'` to use `'latin-1'` encoding.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
@@ -127,7 +126,7 @@ Example:
 ### Class Method: Buffer.concat(list[, totalLength])
 
 * `list` {Array} List of Buffer objects to concat
-* `totalLength` {Number} Total length of the buffers when concatenated
+* `totalLength` {Number} Total length of the buffers in the list when concatenated
 
 Returns a buffer which is the result of concatenating all the buffers in
 the list together.
@@ -138,6 +137,32 @@ zero-length buffer.
 If totalLength is not provided, it is read from the buffers in the list.
 However, this adds an additional loop to the function, so it is faster
 to provide the length explicitly.
+
+Example: build a single buffer from a list of three buffers:
+
+    var buf1 = new Buffer(10);
+    var buf2 = new Buffer(14);
+    var buf3 = new Buffer(18);
+
+    buf1.fill(0);
+    buf2.fill(0);
+    buf3.fill(0);
+
+    var buffers = [buf1, buf2, buf3];
+
+    var totalLength = 0;
+    for (var i = 0; i < buffers.length; i++) {
+      totalLength += buffers[i].length;
+    }
+
+    console.log(totalLength);
+    var bufA = Buffer.concat(buffers, totalLength);
+    console.log(bufA);
+    console.log(bufA.length);
+
+    // 42
+    // <Buffer 00 00 00 00 ...>
+    // 42
 
 ### Class Method: Buffer.compare(buf1, buf2)
 

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+var common = require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
 var net = require('net');
@@ -21,5 +21,5 @@ if (cluster.isMaster) {
   });
 }
 else {
-  net.createServer(assert.fail).listen(0);
+  net.createServer(common.fail).listen(0);
 }

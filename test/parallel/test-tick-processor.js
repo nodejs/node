@@ -20,9 +20,11 @@ runTest(/LazyCompile.*\[eval\]:1|.*%  UNKNOWN/,
    };
    setTimeout(function() { process.exit(0); }, 2000);
    f();`);
-if (process.platform === 'win32' ||
-    process.platform === 'sunos' ||
-    process.platform === 'freebsd') {
+if (common.isWindows ||
+    common.isSunOS ||
+    common.isAix ||
+    common.isLinuxPPCBE ||
+    common.isFreeBSD) {
   console.log('1..0 # Skipped: C++ symbols are not mapped for this os.');
   return;
 }
@@ -40,7 +42,7 @@ function runTest(pattern, code) {
     return /^isolate-/.test(file);
   });
   if (matches.length != 1) {
-    assert.fail('There should be a single log file.');
+    assert.fail(null, null, 'There should be a single log file.');
   }
   var log = matches[0];
   var out = cp.execSync(process.execPath + ' ' + processor +

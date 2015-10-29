@@ -449,18 +449,19 @@ Or
 Wrapper for instance of [net.Socket][], replaces internal socket read/write
 routines to perform transparent encryption/decryption of incoming/outgoing data.
 
-## new tls.TLSSocket(socket, options)
+## new tls.TLSSocket(socket[, options])
 
 Construct a new TLSSocket object from existing TCP socket.
 
 `socket` is an instance of [net.Socket][]
 
-`options` is an object that might contain following properties:
+`options` is an optional object that might contain following properties:
 
   - `secureContext`: An optional TLS context object from
      `tls.createSecureContext( ... )`
 
-  - `isServer`: If true - TLS socket will be instantiated in server-mode
+  - `isServer`: If `true` - TLS socket will be instantiated in server-mode.
+    Default: `false`
 
   - `server`: An optional [net.Server][] instance
 
@@ -605,14 +606,14 @@ established after addition of event listener.
 
 Here's an example for using TLS session resumption:
 
-  var tlsSessionStore = {};
-  server.on('newSession', function(id, data, cb) {
-    tlsSessionStore[id.toString('hex')] = data;
-    cb();
-  });
-  server.on('resumeSession', function(id, cb) {
-    cb(null, tlsSessionStore[id.toString('hex')] || null);
-  });
+    var tlsSessionStore = {};
+    server.on('newSession', function(id, data, cb) {
+      tlsSessionStore[id.toString('hex')] = data;
+      cb();
+    });
+    server.on('resumeSession', function(id, cb) {
+      cb(null, tlsSessionStore[id.toString('hex')] || null);
+    });
 
 ### Event: 'OCSPRequest'
 

@@ -140,9 +140,7 @@ assert.throws(makeBlock(a.deepEqual, 'a', ['a']), a.AssertionError);
 assert.throws(makeBlock(a.deepEqual, 'a', {0: 'a'}), a.AssertionError);
 assert.throws(makeBlock(a.deepEqual, 1, {}), a.AssertionError);
 assert.throws(makeBlock(a.deepEqual, true, {}), a.AssertionError);
-if (typeof Symbol === 'symbol') {
-  assert.throws(makeBlock(assert.deepEqual, Symbol(), {}), a.AssertionError);
-}
+assert.throws(makeBlock(a.deepEqual, Symbol(), {}), a.AssertionError);
 
 // primitive wrappers and object
 assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), ['a']),

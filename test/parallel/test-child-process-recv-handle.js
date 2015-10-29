@@ -24,7 +24,7 @@ function master() {
   });
   proc.stdout.on('data', function(data) {
     assert.equal(data, 'ok\r\n');
-    net.createServer(assert.fail).listen(common.PORT, function() {
+    net.createServer(common.fail).listen(common.PORT, function() {
       handle = this._handle;
       proc.send('one');
       proc.send('two', handle);

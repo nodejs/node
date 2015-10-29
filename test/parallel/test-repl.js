@@ -250,6 +250,34 @@ function error_test() {
     { client: client_unix, send: 'function x() {\nreturn \'\\\\\';\n }',
       expect: prompt_multiline + prompt_multiline +
               'undefined\n' + prompt_unix },
+    // regression tests for https://github.com/nodejs/node/issues/3421
+    { client: client_unix, send: 'function x() {\n//\'\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {\n//"\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {//\'\n }',
+      expect: prompt_multiline + 'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {//"\n }',
+      expect: prompt_multiline + 'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {\nvar i = "\'";\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x(/*optional*/) {}',
+      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x(/* // 5 */) {}',
+      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: '// /* 5 */',
+      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: '"//"',
+      expect: '\'//\'\n' + prompt_unix },
+    { client: client_unix, send: '"data /*with*/ comment"',
+      expect: '\'data /*with*/ comment\'\n' + prompt_unix },
+    { client: client_unix, send: 'function x(/*fn\'s optional params*/) {}',
+      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: '/* \'\n"\n\'"\'\n*/',
+      expect: 'undefined\n' + prompt_unix },
   ]);
 }
 
@@ -389,5 +417,5 @@ function unix_test() {
 unix_test();
 
 timer = setTimeout(function() {
-  assert.fail('Timeout');
+  assert.fail(null, null, 'Timeout');
 }, 5000);

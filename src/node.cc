@@ -51,6 +51,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <vector>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -83,6 +84,14 @@ typedef int mode_t;
 #define environ (*_NSGetEnviron())
 #elif !defined(_MSC_VER)
 extern char **environ;
+#endif
+
+#ifdef __APPLE__
+#include "atomic-polyfill.h"  // NOLINT(build/include_order)
+namespace node { template <typename T> using atomic = nonstd::atomic<T>; }
+#else
+#include <atomic>
+namespace node { template <typename T> using atomic = std::atomic<T>; }
 #endif
 
 namespace node {
@@ -152,8 +161,40 @@ static double prog_start_time;
 static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
 
-static Isolate* node_isolate = nullptr;
+static node::atomic<Isolate*> node_isolate;
 static v8::Platform* default_platform;
+
+
+static void PrintErrorString(const char* format, ...) {
+  va_list ap;
+  va_start(ap, format);
+#ifdef _WIN32
+  HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
+
+  // Check if stderr is something other than a tty/console
+  if (stderr_handle == INVALID_HANDLE_VALUE ||
+      stderr_handle == nullptr ||
+      uv_guess_handle(_fileno(stderr)) != UV_TTY) {
+    vfprintf(stderr, format, ap);
+    return;
+  }
+
+  // Fill in any placeholders
+  int n = _vscprintf(format, ap);
+  std::vector<char> out(n + 1);
+  vsprintf(out.data(), format, ap);
+
+  // Get required wide buffer size
+  n = MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, nullptr, 0);
+
+  std::vector<wchar_t> wbuf(n);
+  MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, wbuf.data(), n);
+  WriteConsoleW(stderr_handle, wbuf.data(), n, nullptr, nullptr);
+#else
+  vfprintf(stderr, format, ap);
+#endif
+  va_end(ap);
+}
 
 
 static void CheckImmediate(uv_check_t* handle) {
@@ -1416,7 +1457,7 @@ void AppendExceptionLine(Environment* env,
     return;
   env->set_printed_error(true);
   uv_tty_reset_mode();
-  fprintf(stderr, "\n%s", arrow);
+  PrintErrorString("\n%s", arrow);
 }
 
 
@@ -1444,10 +1485,10 @@ static void ReportException(Environment* env,
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
     if (arrow.IsEmpty() || !arrow->IsString()) {
-      fprintf(stderr, "%s\n", *trace);
+      PrintErrorString("%s\n", *trace);
     } else {
       node::Utf8Value arrow_string(env->isolate(), arrow);
-      fprintf(stderr, "%s\n%s\n", *arrow_string, *trace);
+      PrintErrorString("%s\n%s\n", *arrow_string, *trace);
     }
   } else {
     // this really only happens for RangeErrors, since they're the only
@@ -1468,20 +1509,19 @@ static void ReportException(Environment* env,
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
       node::Utf8Value message(env->isolate(), er);
-      fprintf(stderr, "%s\n", *message);
+      PrintErrorString("%s\n", *message);
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
 
       if (arrow.IsEmpty() || !arrow->IsString()) {
-        fprintf(stderr, "%s: %s\n", *name_string, *message_string);
+        PrintErrorString("%s: %s\n", *name_string, *message_string);
       } else {
         node::Utf8Value arrow_string(env->isolate(), arrow);
-        fprintf(stderr,
-                "%s\n%s: %s\n",
-                *arrow_string,
-                *name_string,
-                *message_string);
+        PrintErrorString("%s\n%s: %s\n",
+                         *arrow_string,
+                         *name_string,
+                         *message_string);
       }
     }
   }
@@ -2176,9 +2216,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
 static void OnFatalError(const char* location, const char* message) {
   if (location) {
-    fprintf(stderr, "FATAL ERROR: %s %s\n", location, message);
+    PrintErrorString("FATAL ERROR: %s %s\n", location, message);
   } else {
-    fprintf(stderr, "FATAL ERROR: %s\n", message);
+    PrintErrorString("FATAL ERROR: %s\n", message);
   }
   fflush(stderr);
   ABORT();
@@ -3002,7 +3042,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   node::Utf8Value message(args.GetIsolate(), args[0]);
-  fprintf(stderr, "%s\n", *message);
+  PrintErrorString("%s\n", *message);
   fflush(stderr);
 }
 
@@ -3357,28 +3397,46 @@ static void EnableDebug(Environment* env) {
 }
 
 
+// Called from an arbitrary thread.
+static void TryStartDebugger() {
+  // Call only async signal-safe functions here!  Don't retry the exchange,
+  // it will deadlock when the thread is interrupted inside a critical section.
+  if (auto isolate = node_isolate.exchange(nullptr)) {
+    v8::Debug::DebugBreak(isolate);
+    uv_async_send(&dispatch_debug_messages_async);
+    CHECK_EQ(nullptr, node_isolate.exchange(isolate));
+  }
+}
+
+
 // Called from the main thread.
 static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
+  // Synchronize with signal handler, see TryStartDebugger.
+  Isolate* isolate;
+  do {
+    isolate = node_isolate.exchange(nullptr);
+  } while (isolate == nullptr);
+
   if (debugger_running == false) {
     fprintf(stderr, "Starting debugger agent.\n");
 
-    HandleScope scope(node_isolate);
-    Environment* env = Environment::GetCurrent(node_isolate);
+    HandleScope scope(isolate);
+    Environment* env = Environment::GetCurrent(isolate);
     Context::Scope context_scope(env->context());
 
     StartDebug(env, false);
     EnableDebug(env);
   }
-  Isolate::Scope isolate_scope(node_isolate);
+
+  Isolate::Scope isolate_scope(isolate);
   v8::Debug::ProcessDebugMessages();
+  CHECK_EQ(nullptr, node_isolate.exchange(isolate));
 }
 
 
 #ifdef __POSIX__
 static void EnableDebugSignalHandler(int signo) {
-  // Call only async signal-safe functions here!
-  v8::Debug::DebugBreak(*static_cast<Isolate* volatile*>(&node_isolate));
-  uv_async_send(&dispatch_debug_messages_async);
+  TryStartDebugger();
 }
 
 
@@ -3432,8 +3490,7 @@ static int RegisterDebugSignalHandler() {
 
 #ifdef _WIN32
 DWORD WINAPI EnableDebugThreadProc(void* arg) {
-  v8::Debug::DebugBreak(*static_cast<Isolate* volatile*>(&node_isolate));
-  uv_async_send(&dispatch_debug_messages_async);
+  TryStartDebugger();
   return 0;
 }
 
@@ -3954,7 +4011,8 @@ static void StartNodeInstance(void* arg) {
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
   if (instance_data->is_main())
-    node_isolate = isolate;
+    CHECK_EQ(nullptr, node_isolate.exchange(isolate));
+
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
@@ -3964,7 +4022,7 @@ static void StartNodeInstance(void* arg) {
     array_buffer_allocator->set_env(env);
     Context::Scope context_scope(context);
 
-    node_isolate->SetAbortOnUncaughtExceptionCallback(
+    isolate->SetAbortOnUncaughtExceptionCallback(
         ShouldAbortOnUncaughtException);
 
     // Start debug agent when argv has --debug
@@ -4015,12 +4073,15 @@ static void StartNodeInstance(void* arg) {
     env = nullptr;
   }
 
+  if (instance_data->is_main()) {
+    // Synchronize with signal handler, see TryStartDebugger.
+    while (isolate != node_isolate.exchange(nullptr));  // NOLINT
+  }
+
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
   isolate = nullptr;
   delete array_buffer_allocator;
-  if (instance_data->is_main())
-    node_isolate = nullptr;
 }
 
 int Start(int argc, char** argv) {
