@@ -13,8 +13,8 @@ const n = fork(emptyFile);
 const rv = n.send({ hello: 'world' });
 assert.strictEqual(rv, true);
 
-const s = spawn(process.execPath, [emptyFile],
-  { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] });
+const spawnOptions = { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] };
+const s = spawn(process.execPath, [emptyFile], spawnOptions);
 var handle = null;
 s.on('exit', function() {
   handle.close();
