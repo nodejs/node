@@ -20,6 +20,7 @@ var syntaxArgs = [
   'syntax/good_syntax',
   'syntax/good_syntax_shebang.js',
   'syntax/good_syntax_shebang',
+  'syntax/illegal_if_not_wrapped.js'
 ].forEach(function(file) {
   file = path.join(common.fixturesDir, file);
 
