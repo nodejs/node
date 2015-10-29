@@ -150,19 +150,19 @@ test('setup', function (t) {
     npm.load({ cache: CACHE_DIR,
       registry: common.registry,
     cwd: PKG_DIR }, function (err) {
-        t.ifError(err, 'started server')
-        mockServer = server
+      t.ifError(err, 'started server')
+      mockServer = server
 
-        t.pass('npm.load complete')
+      t.pass('npm.load complete')
 
-        mockCommand(npm, 'install', function mockInstall (where, what, cb) {
-          installAskedFor = what
-          cb(null)
-        })
-
-        t.pass('mocks configured')
-        t.end()
+      mockCommand(npm, 'install', function mockInstall (where, what, cb) {
+        installAskedFor = what
+        cb(null)
       })
+
+      t.pass('mocks configured')
+      t.end()
+    })
   })
 })
 

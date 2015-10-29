@@ -58,17 +58,16 @@ test('outdated depth integer', function (t) {
       depth: 5
     }
     , function () {
-        npm.install('request@0.9.0', function (er) {
-          if (er) throw new Error(er)
-          npm.outdated(function (err, d) {
-            if (err) throw new Error(err)
-            t.deepEqual(d, expected)
-            s.close()
-            t.end()
-          })
+      npm.install('request@0.9.0', function (er) {
+        if (er) throw new Error(er)
+        npm.outdated(function (err, d) {
+          if (err) throw new Error(err)
+          t.deepEqual(d, expected)
+          s.close()
+          t.end()
         })
-      }
-    )
+      })
+    })
   })
 })
 

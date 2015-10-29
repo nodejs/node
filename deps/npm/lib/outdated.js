@@ -39,6 +39,7 @@ var long = npm.config.get('long')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var isExtraneous = require('./install/is-extraneous.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
+var moduleName = require('./utils/module-name.js')
 
 function uniqName (item) {
   return item[0].path + '|' + item[1] + '|' + item[7]
@@ -212,7 +213,7 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
   var deps = tree.children.filter(function (child) { return !isExtraneous(child) }) || []
 
   deps.forEach(function (dep) {
-    types[dep.package.name] = 'dependencies'
+    types[moduleName(dep)] = 'dependencies'
   })
 
   Object.keys(tree.missingDeps).forEach(function (name) {
@@ -250,17 +251,17 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
   }
 
   if (npm.config.get('save-dev')) {
-    deps = deps.filter(function (dep) { return pkg.devDependencies[dep.package.name] })
+    deps = deps.filter(function (dep) { return pkg.devDependencies[moduleName(dep)] })
     deps.forEach(function (dep) {
-      types[dep.package.name] = 'devDependencies'
+      types[moduleName(dep)] = 'devDependencies'
     })
   } else if (npm.config.get('save')) {
     // remove optional dependencies from dependencies during --save.
-    deps = deps.filter(function (dep) { return !pkg.optionalDependencies[dep.package.name] })
+    deps = deps.filter(function (dep) { return !pkg.optionalDependencies[moduleName(dep)] })
   } else if (npm.config.get('save-optional')) {
-    deps = deps.filter(function (dep) { return pkg.optionalDependencies[dep.package.name] })
+    deps = deps.filter(function (dep) { return pkg.optionalDependencies[moduleName(dep)] })
     deps.forEach(function (dep) {
-      types[dep.package.name] = 'optionalDependencies'
+      types[moduleName(dep)] = 'optionalDependencies'
     })
   }
   var doUpdate = dev || (
@@ -292,7 +293,7 @@ function outdated_ (args, path, tree, parentHas, depth, cb) {
   // if has[dep] !== shouldHave[dep], then cb with the data
   // otherwise dive into the folder
   asyncMap(deps, function (dep, cb) {
-    var name = dep.package.name
+    var name = moduleName(dep)
     var required = (tree.package.dependencies)[name] ||
                    (tree.package.optionalDependencies)[name] ||
                    (tree.package.devDependencies)[name] ||
@@ -325,9 +326,9 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
 
   function doIt (wanted, latest) {
     if (!long) {
-      return cb(null, [[ tree, dep, curr && curr.version, wanted, latest, req, null, pkgpath]])
+      return cb(null, [[tree, dep, curr && curr.version, wanted, latest, req, null, pkgpath]])
     }
-    cb(null, [[ tree, dep, curr && curr.version, wanted, latest, req, type, pkgpath]])
+    cb(null, [[tree, dep, curr && curr.version, wanted, latest, req, type, pkgpath]])
   }
 
   if (args.length && args.indexOf(dep) === -1) return skip()

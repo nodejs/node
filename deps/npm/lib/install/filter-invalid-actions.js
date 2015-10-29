@@ -2,7 +2,7 @@
 var path = require('path')
 var validate = require('aproba')
 var log = require('npmlog')
-var getPackageId = require('./get-package-id.js')
+var packageId = require('../utils/package-id.js')
 
 module.exports = function (top, differences, next) {
   validate('SAF', arguments)
@@ -25,7 +25,7 @@ module.exports = function (top, differences, next) {
       // we want to skip warning if this is a child of another module that we're removing
       if (!pkg.parent.removing) {
         log.warn('skippingAction', 'Module is inside a symlinked module: not running ' +
-          cmd + ' ' + getPackageId(pkg) + ' ' + path.relative(top, pkg.path))
+          cmd + ' ' + packageId(pkg) + ' ' + path.relative(top, pkg.path))
       }
     } else {
       keep.push(action)

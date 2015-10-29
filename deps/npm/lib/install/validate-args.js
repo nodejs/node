@@ -30,7 +30,7 @@ var isInstallable = module.exports.isInstallable = function (pkg, next) {
 }
 
 function checkSelf (idealTree, pkg, force, next) {
-  if (idealTree.package.name !== pkg.name) return next()
+  if (idealTree.package && idealTree.package.name !== pkg.name) return next()
   if (force) {
     var warn = new Error("Wouldn't install " + pkg.name + ' as a dependency of itself, but being forced')
     warn.code = 'ENOSELF'

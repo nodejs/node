@@ -114,14 +114,14 @@ function linkInstall (pkgs, cb) {
       if (npm.config.get('dry-run')) return resultPrinter(pkg, pp, target, rp, cb)
       chain(
         [
-          [function (cb) {
+          [ function (cb) {
             log.verbose('link', 'symlinking %s to %s', pp, target)
             cb()
-          }],
+          } ],
           [symlink, pp, target],
           // do not run any scripts
           rp && [build, [target], npm.config.get('global'), build._noLC, true],
-          [resultPrinter, pkg, pp, target, rp ]
+          [resultPrinter, pkg, pp, target, rp]
         ],
         cb
       )

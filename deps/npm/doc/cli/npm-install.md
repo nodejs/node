@@ -13,7 +13,7 @@ npm-install(1) -- Install a package
     npm install <folder>
 
     alias: npm i
-    common options: [--save|--save-dev|--save-optional] [--save-exact] [--dry-run]
+    common options: [-S|--save|-D|--save-dev|-O|--save-optional] [-E|--save-exact] [--dry-run]
 
 ## DESCRIPTION
 
@@ -73,7 +73,7 @@ after packing it up into a tarball (b).
 
           npm install https://github.com/indexzero/forever/tarball/v0.5.6
 
-* `npm install [<@scope>/]<name> [--save|--save-dev|--save-optional]`:
+* `npm install [<@scope>/]<name> [-S|--save|-D|--save-dev|-O|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
     `npm-config(7)`.)
@@ -88,16 +88,16 @@ after packing it up into a tarball (b).
     `npm install` takes 3 exclusive, optional flags which save or update
     the package version in your main package.json:
 
-    * `--save`: Package will appear in your `dependencies`.
+    * `-S, --save`: Package will appear in your `dependencies`.
 
-    * `--save-dev`: Package will appear in your `devDependencies`.
+    * `-D, --save-dev`: Package will appear in your `devDependencies`.
 
-    * `--save-optional`: Package will appear in your `optionalDependencies`.
+    * `-O, --save-optional`: Package will appear in your `optionalDependencies`.
 
     When using any of the above options to save dependencies to your
     package.json, there is an additional, optional flag:
 
-    * `--save-exact`: Saved dependencies will be configured with an
+    * `-E, --save-exact`: Saved dependencies will be configured with an
       exact version rather than using npm's default semver range
       operator.
 
@@ -207,7 +207,7 @@ after packing it up into a tarball (b).
 
     Install the package at `https://gist.github.com/gistID` by attempting to
     clone it using `git`. The GitHub username associated with the gist is
-    optional and will not be saved in `package.json` if `--save` is used.
+    optional and will not be saved in `package.json` if `-S` or `--save` is used.
 
     If you don't specify a *commit-ish* then `master` will be used.
 
@@ -249,12 +249,12 @@ versions.
 The `--dry-run` argument will report in the usual way what the install would
 have done without actually installing anything.
 
-The `--force` argument will force npm to fetch remote resources even if a
+The `-f` or `--force` argument will force npm to fetch remote resources even if a
 local copy exists on disk.
 
     npm install sax --force
 
-The `--global` argument will cause npm to install the package globally
+The `-g` or `--global` argument will cause npm to install the package globally
 rather than locally.  See `npm-folders(5)`.
 
 The `--link` argument will cause npm to link global installs into the
@@ -273,7 +273,7 @@ The `--nodedir=/path/to/node/source` argument will allow npm to find the
 node source code so that npm can compile native modules.
 
 The `--only={prod[uction]|dev[elopment]}` argument will cause either only
-`devDependencies` or only non-`devDependencies` to be installed.
+`devDependencies` or only non-`devDependencies` to be installed regardless of the `NODE_ENV`.
 
 See `npm-config(7)`.  Many of the configuration params have some
 effect on installation, since that's most of what npm does.
@@ -313,7 +313,7 @@ For `A{B,C}, B{C,D@1}, C{D@2}`, this algorithm produces:
        `-- D@2
     +-- D@1
 
-Because B's D@1 will be installed in the top leve, C now has to install D@2
+Because B's D@1 will be installed in the top level, C now has to install D@2
 privately for itself.
 
 See npm-folders(5) for a more detailed description of the specific

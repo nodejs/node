@@ -68,7 +68,7 @@ exports.makeGitRepo = function (params, cb) {
   var added = params.added || ['package.json']
   var message = params.message || 'stub repo'
 
-  var opts = { cwd: root, env: { PATH: process.env.PATH }}
+  var opts = { cwd: root, env: { PATH: process.env.PATH } }
   var commands = [
     git.chainableExec(['init'], opts),
     git.chainableExec(['config', 'user.name', user], opts),

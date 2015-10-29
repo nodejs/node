@@ -1,5 +1,7 @@
 'use strict'
 // var cache = require('../../cache.js')
+// var packageId = require('../../utils/package-id.js')
+// var moduleName = require('../../utils/module-name.js')
 
 module.exports = function (top, buildpath, pkg, log, next) {
   next()
@@ -8,7 +10,7 @@ module.exports = function (top, buildpath, pkg, log, next) {
 // is progressively seeming to be likely for the indefinite future.
 // ALSO fails for local deps specified with relative URLs outside of the top level.
 
-  var name = pkg.package.name
+  var name = moduleName(pkg)
   var version
   switch (pkg.package._requested.type) {
     case 'version':
@@ -21,7 +23,7 @@ module.exports = function (top, buildpath, pkg, log, next) {
     default:
       name = pkg.package._requested.raw
   }
-  log.silly('fetch', name, version)
+  log.silly('fetch', packageId(pkg))
   cache.add(name, version, top, false, next)
 */
 }

@@ -8,6 +8,8 @@ var log = require('npmlog')
 var andFinishTracker = require('./and-finish-tracker.js')
 var andAddParentToErrors = require('./and-add-parent-to-errors.js')
 var failedDependency = require('./deps.js').failedDependency
+var packageId = require('../utils/package-id.js')
+var moduleName = require('../utils/module-name.js')
 
 var actions = {}
 
@@ -68,8 +70,8 @@ function andHandleOptionalDepErrors (pkg, next) {
       if (isFatal) anyFatal = true
     }
     if (anyFatal) return next.apply(null, arguments)
-    log.warn('install:' + pkg.package.name, er.message)
-    log.verbose('install:' + pkg.package.name, er.stack)
+    log.warn('install:' + packageId(pkg), er.message)
+    log.verbose('install:' + packageId(pkg), er.stack)
     next()
   }
 }
@@ -81,9 +83,9 @@ function prepareAction (staging, log) {
     var cmd = action[0]
     var pkg = action[1]
     if (!actions[cmd]) throw new Error('Unknown decomposed command "' + cmd + '" (is it new?)')
-    var buildpath = uniqueFilename(staging, pkg.package.name, pkg.realpath)
+    var buildpath = uniqueFilename(staging, moduleName(pkg), pkg.realpath)
     var top = path.resolve(staging, '../..')
-    return [actions[cmd], top, buildpath, pkg, log.newGroup(cmd + ':' + pkg.package.name)]
+    return [actions[cmd], top, buildpath, pkg, log.newGroup(cmd + ':' + moduleName(pkg))]
   }
 }
 

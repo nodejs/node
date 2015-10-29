@@ -1,5 +1,6 @@
 'use strict'
 var validate = require('aproba')
+var moduleName = require('../utils/module-name.js')
 
 module.exports = function (tree) {
   validate('O', arguments)
@@ -25,5 +26,5 @@ module.exports = function (tree) {
 
 var flatName = module.exports.flatName = function (path, child) {
   validate('SO', arguments)
-  return path + (child.package.name || 'TOP')
+  return path + (moduleName(child) || 'TOP')
 }

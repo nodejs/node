@@ -76,7 +76,7 @@ Don't use them except in four situations:
 null loops like: \fBwhile (something) ;\fP (But you'd better have a good
 reason for doing that\.)
 .IP \(bu 2
-\fBcase "foo": doSomething(); break\fP
+\fBcase 'foo': doSomething(); break\fP
 .IP \(bu 2
 In front of a leading \fB(\fP or \fB[\fP at the start of the line\.
 This prevents the expression from being interpreted
@@ -92,9 +92,9 @@ Some examples of good semicolon usage:
 ;[a, b, c]\.forEach(doSomething)
 for (var i = 0; i < 10; i ++) {
   switch (state) {
-    case "begin": start(); continue
-    case "end": finish(); break
-    default: throw new Error("unknown state")
+    case 'begin': start(); continue
+    case 'end': finish(); break
+    default: throw new Error('unknown state')
   }
   end()
 }
@@ -112,17 +112,37 @@ final token in the list on a line by itself\.  For example:
 .P
 .RS 2
 .nf
-var magicWords = [ "abracadabra"
-                 , "gesundheit"
-                 , "ventrilo"
+var magicWords = [ 'abracadabra'
+                 , 'gesundheit'
+                 , 'ventrilo'
                  ]
-  , spells = { "fireball" : function () { setOnFire() }
-             , "water" : function () { putOut() }
+  , spells = { 'fireball' : function () { setOnFire() }
+             , 'water' : function () { putOut() }
              }
   , a = 1
-  , b = "abc"
+  , b = 'abc'
   , etc
   , somethingElse
+.fi
+.RE
+.SH Quotes
+.P
+Use single quotes for strings except to avoid escaping\.
+.P
+Bad:
+.P
+.RS 2
+.nf
+var notOk = "Just double quotes"
+.fi
+.RE
+.P
+Good:
+.P
+.RS 2
+.nf
+var ok = 'String contains "double" quotes'
+var alsoOk = "String contains 'single' quotes or apostrophe"
 .fi
 .RE
 .SH Whitespace

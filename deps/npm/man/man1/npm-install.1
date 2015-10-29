@@ -15,7 +15,7 @@ npm install <tarball url>
 npm install <folder>
 
 alias: npm i
-common options: [\-\-save|\-\-save\-dev|\-\-save\-optional] [\-\-save\-exact] [\-\-dry\-run]
+common options: [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional] [\-E|\-\-save\-exact] [\-\-dry\-run]
 .fi
 .RE
 .SH DESCRIPTION
@@ -85,7 +85,7 @@ after packing it up into a tarball (b)\.
 .fi
 .RE
 .IP \(bu 2
-\fBnpm install [<@scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional]\fP:
+\fBnpm install [<@scope>/]<name> [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional]\fP:
   Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
   npm help 7 \fBnpm\-config\fP\|\.)
   In most cases, this will install the latest version
@@ -101,15 +101,15 @@ after packing it up into a tarball (b)\.
   the package version in your main package\.json:
 .RS 0
 .IP \(bu 2
-\fB\-\-save\fP: Package will appear in your \fBdependencies\fP\|\.
+\fB\-S, \-\-save\fP: Package will appear in your \fBdependencies\fP\|\.
 .IP \(bu 2
-\fB\-\-save\-dev\fP: Package will appear in your \fBdevDependencies\fP\|\.
+\fB\-D, \-\-save\-dev\fP: Package will appear in your \fBdevDependencies\fP\|\.
 .IP \(bu 2
-\fB\-\-save\-optional\fP: Package will appear in your \fBoptionalDependencies\fP\|\.
+\fB\-O, \-\-save\-optional\fP: Package will appear in your \fBoptionalDependencies\fP\|\.
 When using any of the above options to save dependencies to your
 package\.json, there is an additional, optional flag:
 .IP \(bu 2
-\fB\-\-save\-exact\fP: Saved dependencies will be configured with an
+\fB\-E, \-\-save\-exact\fP: Saved dependencies will be configured with an
 exact version rather than using npm's default semver range
 operator\.
 Further, if you have an \fBnpm\-shrinkwrap\.json\fP then it will be updated as
@@ -244,7 +244,7 @@ GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\
 \fBnpm install gist:[<githubname>/]<gistID>[#<commit\-ish>]\fP:
   Install the package at \fBhttps://gist\.github\.com/gistID\fP by attempting to
   clone it using \fBgit\fP\|\. The GitHub username associated with the gist is
-  optional and will not be saved in \fBpackage\.json\fP if \fB\-\-save\fP is used\.
+  optional and will not be saved in \fBpackage\.json\fP if \fB\-S\fP or \fB\-\-save\fP is used\.
   If you don't specify a \fIcommit\-ish\fR then \fBmaster\fP will be used\.
   Example:
 .P
@@ -296,7 +296,7 @@ versions\.
 The \fB\-\-dry\-run\fP argument will report in the usual way what the install would
 have done without actually installing anything\.
 .P
-The \fB\-\-force\fP argument will force npm to fetch remote resources even if a
+The \fB\-f\fP or \fB\-\-force\fP argument will force npm to fetch remote resources even if a
 local copy exists on disk\.
 .P
 .RS 2
@@ -305,7 +305,7 @@ npm install sax \-\-force
 .fi
 .RE
 .P
-The \fB\-\-global\fP argument will cause npm to install the package globally
+The \fB\-g\fP or \fB\-\-global\fP argument will cause npm to install the package globally
 rather than locally\.  See npm help 5 \fBnpm\-folders\fP\|\.
 .P
 The \fB\-\-link\fP argument will cause npm to link global installs into the
@@ -324,7 +324,7 @@ The \fB\-\-nodedir=/path/to/node/source\fP argument will allow npm to find the
 node source code so that npm can compile native modules\.
 .P
 The \fB\-\-only={prod[uction]|dev[elopment]}\fP argument will cause either only
-\fBdevDependencies\fP or only non\-\fBdevDependencies\fP to be installed\.
+\fBdevDependencies\fP or only non\-\fBdevDependencies\fP to be installed regardless of the \fBNODE_ENV\fP\|\.
 .P
 See npm help 7 \fBnpm\-config\fP\|\.  Many of the configuration params have some
 effect on installation, since that's most of what npm does\.
@@ -375,7 +375,7 @@ A
 .fi
 .RE
 .P
-Because B's D@1 will be installed in the top leve, C now has to install D@2
+Because B's D@1 will be installed in the top level, C now has to install D@2
 privately for itself\.
 .P
 See npm help 5 folders for a more detailed description of the specific

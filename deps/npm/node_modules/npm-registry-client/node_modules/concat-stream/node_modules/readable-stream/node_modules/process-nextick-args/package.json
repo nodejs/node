@@ -1,0 +1,28 @@
+{
+  "name": "process-nextick-args",
+  "version": "1.0.3",
+  "description": "process.nextTick but always with args",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/calvinmetcalf/process-nextick-args.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/calvinmetcalf/process-nextick-args/issues"
+  },
+  "homepage": "https://github.com/calvinmetcalf/process-nextick-args",
+  "devDependencies": {
+    "tap": "~0.2.6"
+  },
+  "readme": "process-nextick-args\n=====\n\n[![Build Status](https://travis-ci.org/calvinmetcalf/process-nextick-args.svg?branch=master)](https://travis-ci.org/calvinmetcalf/process-nextick-args)\n\n```bash\nnpm install --save process-nextick-args\n```\n\nAlways be able to pass arguments to process.nextTick, no matter the platform\n\n```js\nvar nextTick = require('process-nextick-args');\n\nnextTick(function (a, b, c) {\n  console.log(a, b, c);\n}, 'step', 3,  'profit');\n```\n",
+  "readmeFilename": "readme.md",
+  "_id": "process-nextick-args@1.0.3",
+  "_shasum": "e272eed825d5e9f4ea74d8d73b1fe311c3beb630",
+  "_resolved": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-1.0.3.tgz",
+  "_from": "process-nextick-args@>=1.0.0 <1.1.0"
+}
