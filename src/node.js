@@ -106,6 +106,8 @@
           var source = fs.readFileSync(filename, 'utf-8');
           // remove shebang and BOM
           source = internalModule.stripBOM(source.replace(/^\#\!.*/, ''));
+          // wrap it
+          source = Module.wrap(source);
           // compile the script, this will throw if it fails
           new vm.Script(source, {filename: filename, displayErrors: true});
           process.exit(0);
