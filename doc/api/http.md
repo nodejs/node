@@ -832,17 +832,33 @@ Returns `server`.
 added: v0.9.12
 -->
 
-* {number} Defaults to 120000 (2 minutes).
+* {number} Timeout in milliseconds. Defaults to 120000 (2 minutes).
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
 
-Note that the socket timeout logic is set up on connection, so
-changing this value only affects *new* connections to the server, not
-any existing connections.
+A value of 0 will disable the timeout behavior on incoming connections.
 
-Set to 0 to disable any kind of automatic timeout behavior on incoming
-connections.
+*Note*: The socket timeout logic is set up on connection, so changing this
+value only affects new connections to the server, not any existing connections.
+
+### server.keepAliveTimeout
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number} Timeout in milliseconds. Defaults to 5000 (5 seconds).
+
+The number of milliseconds of inactivity a server needs to wait for additional
+incoming data, after it has finished writing the last response, before a socket
+will be destroyed. If the server receives new data before the keep-alive
+timeout has fired, it will reset the regular inactivity timeout, i.e.,
+[`server.timeout`][].
+
+A value of 0 will disable the keep-alive timeout behavior on incoming connections.
+
+*Note*: The socket timeout logic is set up on connection, so changing this
+value only affects new connections to the server, not any existing connections.
 
 ## Class: http.ServerResponse
 <!-- YAML
@@ -1764,6 +1780,7 @@ There are a few special headers that should be noted.
 [`response.write(data, encoding)`]: #http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http_response_writecontinue
 [`response.writeHead()`]: #http_response_writehead_statuscode_statusmessage_headers
+[`server.timeout`]: #http_server_timeout
 [`socket.setKeepAlive()`]: net.html#net_socket_setkeepalive_enable_initialdelay
 [`socket.setNoDelay()`]: net.html#net_socket_setnodelay_nodelay
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback
