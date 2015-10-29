@@ -30,11 +30,14 @@ export npm_config_tmp="$(pwd)/npm-tmp"
 
 # ensure npm always uses the local node
 export PATH="$(../$NODE -p 'require("path").resolve("..")'):$PATH"
+unset NODE
 
+# make sure the binaries from the non-dev-deps are available
+node cli.js rebuild
 # install npm devDependencies and run npm's tests
-../$NODE cli.js install --ignore-scripts
-../$NODE test/run.js
-../$NODE cli.js run-script tap -- "test/tap/*.js"
+node cli.js install --ignore-scripts
+# run the tests
+node cli.js run-script test-node
 
 # clean up everything one single shot
 cd .. && rm -rf test-npm
