@@ -46,6 +46,14 @@ added: v0.11.2
 
 See [`http.Server#timeout`][].
 
+### server.keepAliveTimeout
+<!-- YAML
+added: REPLACEME
+-->
+- {number} Defaults to 5000 (5 seconds).
+
+See [`http.Server#keepAliveTimeout`][].
+
 ## https.createServer(options[, requestListener])
 <!-- YAML
 added: v0.3.4
@@ -240,6 +248,7 @@ const req = https.request(options, (res) => {
 [`globalAgent`]: #https_https_globalagent
 [`http.Agent`]: http.html#http_class_http_agent
 [`http.Server#headersTimeout`]: http.html#http_server_headerstimeout
+[`http.Server#keepAliveTimeout`]: http.html#http_server_keepalivetimeout
 [`http.close()`]: http.html#http_server_close_callback
 [`http.get()`]: http.html#http_http_get_options_callback
 [`http.listen()`]: http.html#http_server_listen_port_hostname_backlog_callback
