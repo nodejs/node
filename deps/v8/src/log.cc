@@ -290,6 +290,12 @@ void PerfBasicLogger::LogRecordedBuffer(Code* code,
                                        int length) {
   DCHECK(code->instruction_start() == code->address() + Code::kHeaderSize);
 
+  if (FLAG_perf_basic_prof_only_functions &&
+      (code->kind() != Code::FUNCTION &&
+       code->kind() != Code::OPTIMIZED_FUNCTION)) {
+    return;
+  }
+
   base::OS::FPrint(perf_output_handle_, "%llx %x %.*s\n",
                    reinterpret_cast<uint64_t>(code->instruction_start()),
                    code->instruction_size(), length, name);
