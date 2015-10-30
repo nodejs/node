@@ -19,7 +19,7 @@ child.stderr.on('data', function(data) {
   var lines = data.toString().replace(/\r/g, '').trim().split('\n');
 
   lines.forEach(function(line) {
-    console.log('> ' + line);
+    // console.log('> ' + line);
 
     if (line === 'all workers are running') {
       child.on('message', function(msg) {
@@ -27,7 +27,7 @@ child.stderr.on('data', function(data) {
           return;
 
         pids = msg.pids;
-        console.error('got pids %j', pids);
+        // console.error('got pids %j', pids);
 
         waitingForDebuggers = true;
         process._debugProcess(child.pid);
