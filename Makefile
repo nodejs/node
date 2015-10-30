@@ -145,7 +145,98 @@ test-all-valgrind: test-build
 
 test-ci: | all
 	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		$(TEST_CI_ARGS) \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
+			parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
 		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
 		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
 		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
@@ -155,6 +246,7 @@ test-ci: | all
 		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
 		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel \
 		parallel parallel parallel parallel parallel parallel parallel parallel parallel parallel
+
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
