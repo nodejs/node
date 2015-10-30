@@ -1368,9 +1368,16 @@ Examples:
 var duplex = new stream.Duplex({
   read: function(n) {
     // sets this._read under the hood
+
+    // push data onto the read queue, passing null
+    // will signal the end of the stream (EOF)
+    this.push(chunk);
   },
   write: function(chunk, encoding, next) {
     // sets this._write under the hood
+
+    // An optional error can be passed as the first argument
+    next()
   }
 });
 
@@ -1379,9 +1386,16 @@ var duplex = new stream.Duplex({
 var duplex = new stream.Duplex({
   read: function(n) {
     // sets this._read under the hood
+
+    // push data onto the read queue, passing null
+    // will signal the end of the stream (EOF)
+    this.push(chunk);
   },
   writev: function(chunks, next) {
     // sets this._writev under the hood
+
+    // An optional error can be passed as the first argument
+    next()
   }
 });
 ```
@@ -1391,6 +1405,10 @@ var duplex = new stream.Duplex({
 var readable = new stream.Readable({
   read: function(n) {
     // sets this._read under the hood
+
+    // push data onto the read queue, passing null
+    // will signal the end of the stream (EOF)
+    this.push(chunk);
   }
 });
 ```
@@ -1400,9 +1418,20 @@ var readable = new stream.Readable({
 var transform = new stream.Transform({
   transform: function(chunk, encoding, next) {
     // sets this._transform under the hood
+
+    // generate output as many times as needed
+    // this.push(chunk);
+
+    // call when the current chunk is consumed
+    next();
   },
   flush: function(done) {
     // sets this._flush under the hood
+
+    // generate output as many times as needed
+    // this.push(chunk);
+
+    done();
   }
 });
 ```
@@ -1412,6 +1441,9 @@ var transform = new stream.Transform({
 var writable = new stream.Writable({
   write: function(chunk, encoding, next) {
     // sets this._write under the hood
+
+    // An optional error can be passed as the first argument
+    next()
   }
 });
 
@@ -1420,6 +1452,9 @@ var writable = new stream.Writable({
 var writable = new stream.Writable({
   writev: function(chunks, next) {
     // sets this._writev under the hood
+
+    // An optional error can be passed as the first argument
+    next()
   }
 });
 ```
