@@ -1,10 +1,14 @@
 'use strict';
-require('../../common');
+var common = require('../../common');
 var assert = require('assert');
 var repl = require('repl');
 var stream = require('stream');
+var path = require('path');
 var buildType = process.config.target_defaults.default_configuration;
-var buildPath = __dirname + '/build/' + buildType + '/binding';
+var buildPath = path.join(__dirname, 'build', buildType, 'binding');
+// On Windows, escape backslashes in the path before passing it to REPL.
+if (common.isWindows)
+  buildPath = buildPath.replace(/\\/g, '/');
 var cb_ran = false;
 
 process.on('exit', function() {
