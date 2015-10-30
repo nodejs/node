@@ -17,7 +17,7 @@ var pids = null;
 
 child.stderr.on('data', function(data) {
   console.error('>>> ' + data.toString().trim());
-  var lines = data.toString().replace(/\r/g, '').trim().split('\n');
+  var lines = data.toString().replace(/\r\n?/g, '\n').trim().split('\n');
   console.error('>>> ' + lines.length);
 
   lines.forEach(function(line) {
