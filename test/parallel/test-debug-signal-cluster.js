@@ -16,7 +16,9 @@ var waitingForDebuggers = false;
 var pids = null;
 
 child.stderr.on('data', function(data) {
+  console.error('>>> ' + data.toString().trim());
   var lines = data.toString().replace(/\r/g, '').trim().split('\n');
+  console.error('>>> ' + lines.length);
 
   lines.forEach(function(line) {
     console.log('> ' + line);
@@ -52,7 +54,7 @@ function onNoMoreLines() {
 
 setTimeout(function testTimedOut() {
   assert(false, 'test timed out.');
-}, common.platformTimeout(8000)).unref();
+}, common.platformTimeout(4000)).unref();
 
 process.on('exit', function onExit() {
   // Kill processes in reverse order to avoid timing problems on Windows where
