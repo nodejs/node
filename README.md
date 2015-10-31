@@ -165,7 +165,7 @@ enabled by default.
 #### "small" (English only) support
 
 This option will build with "small" (English only) support, but
-the full `Intl` (ECMA-402) APIs.  With `--download=all` it will
+the full `Intl` (ECMA-402) APIs. With `--download=all` it will
 download the ICU library as needed.
 
 Unix / Macintosh:
@@ -264,11 +264,11 @@ It is possible to build Node.js with
 [OpenSSL FIPS module](https://www.openssl.org/docs/fips/fipsnotes.html).
 
 **Note** that building in this way does **not** allow you to
-claim that the runtime is FIPS 140-2 validated.  Instead you
-can indicate that the runtime uses a validated module.  See
+claim that the runtime is FIPS 140-2 validated. Instead you
+can indicate that the runtime uses a validated module. See
 the [security policy]
 (http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
-page 60 for more details.  In addition, the validation for
+page 60 for more details. In addition, the validation for
 the underlying module is only valid if it is deployed in
 accordance with its [security policy]
 (http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
