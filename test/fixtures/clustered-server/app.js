@@ -2,8 +2,6 @@ var http = require('http');
 var cluster = require('cluster');
 var common = require('../../common');
 
-cluster.schedulingPolicy = cluster.SCHED_NONE;
-
 function handleRequest(request, response) {
   response.end('hello world\n');
 }
