@@ -673,11 +673,11 @@ Returns true of false based on the validity of the SPKAC.
 
 ### Certificate.exportChallenge(spkac)
 
-Exports the encoded public key from the supplied SPKAC.
+Exports the encoded challenge associated with the SPKAC.
 
 ### Certificate.exportPublicKey(spkac)
 
-Exports the encoded challenge associated with the SPKAC.
+Exports the encoded public key from the supplied SPKAC.
 
 ## crypto.publicEncrypt(public_key, buffer)
 
