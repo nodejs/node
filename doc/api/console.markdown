@@ -80,11 +80,11 @@ are identified by a unique name. Use the same name when you call
 output the elapsed time in milliseconds. Timer durations are accurate to the
 sub-millisecond.
 
-### console.timeEnd(timerName)
+### console.timeEnd(timerName, [...])
 
 Stops a timer that was previously started by calling
 [`console.time()`](#console_console_time_timername) and prints the result to the
-console.
+console. This function can take multiple arguments in a printf()-like way.
 
 Example:
 
@@ -94,6 +94,12 @@ Example:
     }
     console.timeEnd('100-elements');
     // prints 100-elements: 225.438ms
+
+    console.time('%d-elements');
+    ...
+    console.timeEnd('%d-elements', 100);
+    // prints 100-elements: 225.438ms
+
 
 ### console.trace(message[, ...])
 
