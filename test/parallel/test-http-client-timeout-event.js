@@ -2,6 +2,7 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
+var IncomingMessage = http.IncomingMessage;
 
 var options = {
   method: 'GET',
@@ -37,4 +38,10 @@ server.listen(options.port, options.host, function() {
   setTimeout(function() {
     req.end();
   }, 50);
+});
+
+var incomingMessage = new IncomingMessage(server.socket);
+
+assert.throws(function() {
+  incomingMessage.setTimeout(1, {});
 });
