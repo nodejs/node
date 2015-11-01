@@ -12,7 +12,6 @@ test-child-process-fork-regr-gh-2847 : PASS,FLAKY
 
 [$system==linux]
 test-http-client-timeout-event    : PASS,FLAKY
-test-tls-no-sslv3                 : PASS,FLAKY
 test-child-process-buffering      : PASS,FLAKY
 test-child-process-exit-code      : PASS,FLAKY
 
