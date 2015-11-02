@@ -7,7 +7,6 @@ prefix sequential
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-http-pipeline-flood                        : PASS,FLAKY
 
 [$system==linux]
 test-vm-syntax-error-stderr                     : PASS,FLAKY
