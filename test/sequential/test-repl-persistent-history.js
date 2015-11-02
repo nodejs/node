@@ -64,10 +64,13 @@ const convertMsg = '\nConverting old JSON repl history to line-separated ' +
                    path.join(common.tmpDir, '.node_repl_history') + '.\n';
 const homedirErr = '\nError: Could not get the home directory.\n' +
                    'REPL session history will not be persisted.\n';
+const replFailedRead = '\nError: Could not open history file.\n' +
+                       'REPL session history will not be persisted.\n';
 // File paths
 const fixtures = path.join(common.testDir, 'fixtures');
 const historyFixturePath = path.join(fixtures, '.node_repl_history');
 const historyPath = path.join(common.tmpDir, '.fixture_copy_repl_history');
+const historyPathFail = path.join(common.tmpDir, '.node_repl\u0000_history');
 const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
 const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
 const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
@@ -146,6 +149,12 @@ const tests = [{
          NODE_REPL_HISTORY_SIZE: 1 },
   test: [UP, UP, UP, CLEAR],
   expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
+},
+{
+  env: { NODE_REPL_HISTORY: historyPathFail,
+         NODE_REPL_HISTORY_SIZE: 1 },
+  test: [UP],
+  expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
 },
 { // Make sure this is always the last test, since we change os.homedir()
   before: function mockHomedirFailure() {
