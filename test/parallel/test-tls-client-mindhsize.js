@@ -78,6 +78,15 @@ testDHE1024();
 assert.throws(() => test(512, true, assert.fail),
               /DH parameter is less than 1024 bits/);
 
+[0, -1, -Infinity, NaN].forEach(minDHSize => {
+  assert.throws(() => tls.connect({ minDHSize }),
+                /minDHSize is not a positive number/);
+});
+
+[true, false, null, undefined, {}, [], '', '1'].forEach(minDHSize => {
+  assert.throws(() => tls.connect({ minDHSize }), /minDHSize is not a number/);
+});
+
 process.on('exit', function() {
   assert.equal(nsuccess, 1);
   assert.equal(nerror, 1);
