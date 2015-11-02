@@ -542,3 +542,5 @@ lint: jslint cpplint
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
 	bench-http bench-fs bench-tls cctest run-ci
+
+.NOTPARALLEL: build-addons
