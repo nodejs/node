@@ -75,6 +75,9 @@ function testDHE2048() {
 
 testDHE1024();
 
+assert.throws(() => test(512, true, assert.fail),
+              /DH parameter is less than 1024 bits/);
+
 process.on('exit', function() {
   assert.equal(nsuccess, 1);
   assert.equal(nerror, 1);
