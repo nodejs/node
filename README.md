@@ -387,7 +387,7 @@ maintaining the Node.js project.
 
 Releases of Node.js and io.js will be signed with one of the following GPG keys:
 
-* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;: `9554F04D7259F04124DE6B476D5A82AC7E37093B`
+* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt; `9554F04D7259F04124DE6B476D5A82AC7E37093B`
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt; `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
 * **Sam Roberts** &lt;octetcloud@keybase.io&gt; `0034A06D9D9B0064CE8ADF6BF1747F4AD2306D93`
 * **Jeremiah Senkpiel** &lt;fishrock@keybase.io&gt; `FD3A5288F042B6850C66B31F09FE44734EB7990E`
