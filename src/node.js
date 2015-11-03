@@ -229,6 +229,7 @@
     // and exit if there are no listeners.
     process._fatalException = function(er) {
       var caught = false;
+
       if (process.domain) {
         var domain = process.domain;
         var domainModule = NativeModule.require('domain');
@@ -256,11 +257,17 @@
         // aborting in these cases.
         if (domainStack.length === 1) {
           try {
-            // Set the _emittingTopLevelDomainError so that we know that, even
-            // if technically the top-level domain is still active, it would
-            // be ok to abort on an uncaught exception at this point
-            process._emittingTopLevelDomainError = true;
-            caught = domain.emit('error', er);
+            // If there's no error handler, do not emit an 'error' event
+            // as this would throw an error, make the process exit, and thus
+            // prevent the process 'uncaughtException' event from being emitted
+            // if a listener is set.
+            if (process.EventEmitter.listenerCount(domain, 'error') > 0) {
+              // Set the _emittingTopLevelDomainError so that we know that, even
+              // if technically the top-level domain is still active, it would
+              // be ok to abort on an uncaught exception at this point.
+              process._emittingTopLevelDomainError = true;
+              caught = domain.emit('error', er);
+            }
           } finally {
             process._emittingTopLevelDomainError = false;
           }
@@ -297,9 +304,12 @@
         // current tick and no domains should be left on the stack
         // between ticks.
         _clearDomainsStack();
-      } else {
+      }
+
+      if (!caught) {
         caught = process.emit('uncaughtException', er);
       }
+
       // if someone handled it, then great.  otherwise, die in C++ land
       // since that means that we'll exit the process, emit the 'exit' event
       if (!caught) {
