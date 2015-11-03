@@ -1,6 +1,6 @@
 # Node.js ChangeLog
 
-## 2015-10-29, Version 4.2.2 'Argon' (LTS), @jasnell
+## 2015-11-03, Version 4.2.2 'Argon' (LTS), @jasnell
 
 ### Notable changes
 
@@ -24,7 +24,6 @@ This is an LTS maintenance release that addresses a number of issues:
 
 ### Known issues
 
-* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/node/issues/1264).
 * Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/node/issues/690)
 * Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/node/issues/894)
 * `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
