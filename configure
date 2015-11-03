@@ -267,6 +267,11 @@ parser.add_option('--with-icu-source',
     dest='with_icu_source',
     help='Intl mode: optional local path to icu/ dir, or path/URL of icu source archive.')
 
+parser.add_option('--download-path',
+    dest='download_path',
+    default=os.path.join(root_dir, 'deps'),
+    help='Download directory [default: %default]')
+
 parser.add_option('--with-perfctr',
     action='store_true',
     dest='with_perfctr',
@@ -517,6 +522,10 @@ def configure_node(o):
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch
+  # ia32 is preferred by the build tools (GYP) over x86 even if we prefer the latter
+  # the Makefile resets this to x86 afterward
+  if target_arch == 'x86':
+    target_arch = 'ia32'
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
 
@@ -762,11 +771,15 @@ def configure_intl(o):
   ]
   def icu_download(path):
     # download ICU, if needed
+    if not os.access(options.download_path, os.W_OK):
+      print 'Error: cannot write to desired download path. ' \
+            'Either create it or verify permissions.'
+      sys.exit(1)
     for icu in icus:
       url = icu['url']
       md5 = icu['md5']
       local = url.split('/')[-1]
-      targetfile = os.path.join(root_dir, 'deps', local)
+      targetfile = os.path.join(options.download_path, local)
       if not os.path.isfile(targetfile):
         if nodedownload.candownload(auto_downloads, "icu"):
           nodedownload.retrievefile(url, targetfile)
