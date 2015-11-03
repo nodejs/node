@@ -38,11 +38,11 @@ function isDep (tree, child) {
   var name = moduleName(child)
   var requested = isProdDep(tree, name)
   var matches
-  if (requested) matches = doesChildVersionMatch(child, requested)
+  if (requested) matches = doesChildVersionMatch(child, requested, tree)
   if (matches) return matches
   requested = isDevDep(tree, name)
   if (!requested) return
-  return doesChildVersionMatch(child, requested)
+  return doesChildVersionMatch(child, requested, tree)
 }
 
 function isDevDep (tree, name) {
@@ -61,10 +61,10 @@ function isProdDep (tree, name) {
 
 var registryTypes = { range: true, version: true }
 
-function doesChildVersionMatch (child, requested) {
+function doesChildVersionMatch (child, requested, requestor) {
   // we always consider deps provided by a shrinkwrap as "correct" or else
   // we'll subvert them if they're intentionally "invalid"
-  if (child.fromShrinkwrap) return true
+  if (child.parent === requestor && child.fromShrinkwrap) return true
   // ranges of * ALWAYS count as a match, because when downloading we allow
   // prereleases to match * if there are ONLY prereleases
   if (requested.spec === '*') return true
@@ -515,13 +515,14 @@ function validateAllPeerDeps (tree, onInvalid, seen) {
 
 // Determine if a module requirement is already met by the tree at or above
 // our current location in the tree.
-var findRequirement = exports.findRequirement = function (tree, name, requested) {
-  validate('OSO', arguments)
+var findRequirement = exports.findRequirement = function (tree, name, requested, requestor) {
+  validate('OSO', [tree, name, requested])
+  if (!requestor) requestor = tree
   var nameMatch = function (child) {
     return moduleName(child) === name && child.parent && !child.removed
   }
   var versionMatch = function (child) {
-    return doesChildVersionMatch(child, requested)
+    return doesChildVersionMatch(child, requested, requestor)
   }
   if (nameMatch(tree)) {
     // this *is* the module, but it doesn't match the version, so a
@@ -538,7 +539,7 @@ var findRequirement = exports.findRequirement = function (tree, name, requested)
     return null
   }
   if (!tree.parent) return null
-  return findRequirement(tree.parent, name, requested)
+  return findRequirement(tree.parent, name, requested, requestor)
 }
 
 // Find the highest level in the tree that we can install this module in.
@@ -554,10 +555,11 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
 
   // If any of the children of this tree have conflicting
   // binaries then we need to decline to install this package here.
-  var binaryMatches = tree.children.some(function (child) {
+  var binaryMatches = typeof pkg.bin === 'object' && tree.children.some(function (child) {
     if (child.removed) return false
-    return Object.keys(child.package.bin || {}).some(function (bin) {
-      return pkg.bin && pkg.bin[bin]
+    if (typeof child.package.bin !== 'object') return false
+    return Object.keys(child.package.bin).some(function (bin) {
+      return pkg.bin[bin]
     })
   })
   if (binaryMatches) return null
