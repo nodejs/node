@@ -478,6 +478,10 @@ def configure_node(o):
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch
+  # ia32 is preferred by the build tools (GYP) over x86 even if we prefer the latter
+  # the Makefile resets this to x86 afterward
+  if target_arch == 'x86':
+    target_arch = 'ia32'
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
 
@@ -664,7 +668,6 @@ def configure_winsdk(o):
     return
 
   print "ctrpp not found in WinSDK path--using pre-gen files from tools/msvs/genfiles."
-
 
 # determine the "flavor" (operating system) we're building for,
 # leveraging gyp's GetFlavor function
