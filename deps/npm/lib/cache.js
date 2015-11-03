@@ -243,6 +243,15 @@ function add (args, cb) {
 
   if (!name && !spec) return cb(usage)
 
+  var maybeScoped = name || spec || ""
+  if (maybeScoped.match(/^@[^/]+\/[^/]+/)) {
+    return cb(new Error(
+      "This version of npm doesn't support scoped packages " +
+      "(caused by reference to " + maybeScoped +
+      "). Update to npm@2+."
+    ))
+  }
+
   if (adding <= 0) {
     npm.spinner.start()
   }

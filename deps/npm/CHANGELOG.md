@@ -1,3 +1,53 @@
+### v1.4.29 (2015-10-29):
+
+#### THINGS ARE HAPPENING IN LTS LAND
+
+In a special one-off release as part of the [strategy to get a version of npm
+into Node LTS that works with the current
+registry](https://github.com/nodejs/LTS/issues/37), modify npm to print out
+this deprecation banner literally every time npm is invoked to do anything:
+
+```
+npm WARN deprecated This version of npm lacks support for important features,
+npm WARN deprecated such as scoped packages, offered by the primary npm
+npm WARN deprecated registry. Consider upgrading to at least npm@2, if not the
+npm WARN deprecated latest stable version. To upgrade to npm@2, run:
+npm WARN deprecated
+npm WARN deprecated   npm -g install npm@latest-2
+npm WARN deprecated
+npm WARN deprecated To upgrade to the latest stable version, run:
+npm WARN deprecated
+npm WARN deprecated   npm -g install npm@latest
+npm WARN deprecated
+npm WARN deprecated (Depending on how Node.js was installed on your system, you
+npm WARN deprecated may need to prefix the preceding commands with `sudo`, or if
+npm WARN deprecated on Windows, run them from an Administrator prompt.)
+npm WARN deprecated
+npm WARN deprecated If you're running the version of npm bundled with
+npm WARN deprecated Node.js 0.10 LTS, be aware that the next version of 0.10 LTS
+npm WARN deprecated will be bundled with a version of npm@2, which has some small
+npm WARN deprecated backwards-incompatible changes made to `npm run-script` and
+npm WARN deprecated semver behavior.
+```
+
+The message basically tells the tale: Node 0.10 will finally be getting
+`npm@2`, so those of you who haven't upgraded your build systems to deal with
+its (relatively small) breaking changes should do so now.
+
+Also, this version doesn't even pretend that it can deal with scoped packages,
+which, given the confusing behavior of older versions of `npm@1.4`, where it
+would sometimes try to install packages from GitHub, is a distinct improvement.
+
+There is no good reason for you as an end user to upgrade to this version of
+npm yourself.
+
+* [`709e9b4`](https://github.com/npm/npm/commit/709e9b44f5df9817a1c4babfbf26a2329bd265fb)
+  Print 20-line deprecation banner on all command invocations.
+  ([@othiym23](https://github.com/othiym23))
+* [`0c29d09`](https://github.com/npm/npm/commit/0c29d0906608e8e174bd30a7a245e19795326051)
+  Crash out immediately with an exhortation to upgrade on attempts to use
+  scoped packages. ([@othiym23](https://github.com/othiym23))
+
 ### v1.4.28 (2014-09-12):
 
 * [`f4540b6`](https://github.com/npm/npm/commit/f4540b6537a87e653d7495a9ddcf72949fdd4d14)

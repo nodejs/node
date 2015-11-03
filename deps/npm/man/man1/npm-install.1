@@ -1,7 +1,7 @@
-.\" Generated with Ronnjs 0.3.8
-.\" http://github.com/kapouer/ronnjs/
+.\" Generated with Ronnjs 0.4.0
+.\" http://github.com/kapouer/ronnjs
 .
-.TH "NPM\-INSTALL" "1" "September 2014" "" ""
+.TH "NPM\-INSTALL" "1" "November 2015" "" ""
 .
 .SH "NAME"
 \fBnpm-install\fR \-\- Install a package
@@ -134,8 +134,14 @@ of the module published on npm\.
 .IP
 Example:
 .
-.IP
-      npm install sax
+.IP "" 4
+.
+.nf
+  npm install sax
+.
+.fi
+.
+.IP "" 0
 .
 .IP
 \fBnpm install\fR takes 3 exclusive, optional flags which save or update
@@ -150,6 +156,8 @@ the package version in your main package\.json:
 .IP "\(bu" 4
 \fB\-\-save\-optional\fR: Package will appear in your \fBoptionalDependencies\fR\|\.
 .
+.IP "" 0
+.
 .IP
 When using any of the above options to save dependencies to your
 package\.json, there is an additional, optional flag:
@@ -159,22 +167,27 @@ package\.json, there is an additional, optional flag:
 exact version rather than using npm\'s default semver range
 operator\.
 .
+.IP "" 0
+.
 .IP
 Examples:
 .
-.IP
+.IP "" 4
+.
+.nf
   npm install sax \-\-save
   npm install node\-tap \-\-save\-dev
   npm install dtrace\-provider \-\-save\-optional
   npm install readable\-stream \-\-save \-\-save\-exact
 .
+.fi
+.
+.IP "" 0
+.
 .IP
 \fBNote\fR: If there is a file or folder named \fB<name>\fR in the current
 working directory, then it will try to install that, and only try to
 fetch the package by name if it is not valid\.
-.
-.IP "" 0
-
 .
 .IP "\(bu" 4
 \fBnpm install <name>@<tag>\fR:
@@ -231,8 +244,15 @@ treat it as a single argument\.
 .IP
 Example:
 .
-.IP
-      npm install sax@">=0\.1\.0 <0\.2\.0"
+.IP "" 4
+.
+.nf
+  npm install sax@">=0\.1\.0 <0\.2\.0"
+.
+.fi
+.
+.IP "" 0
+
 .
 .IP "\(bu" 4
 \fBnpm install <git remote url>\fR:
@@ -241,8 +261,14 @@ Example:
 Install a package by cloning a git remote url\.  The format of the git
 url is:
 .
-.IP
-      <protocol>://[<user>@]<hostname><separator><path>[#<commit\-ish>]
+.IP "" 4
+.
+.nf
+  <protocol>://[<user>@]<hostname><separator><path>[#<commit\-ish>]
+.
+.fi
+.
+.IP "" 0
 .
 .IP
 \fB<protocol>\fR is one of \fBgit\fR, \fBgit+ssh\fR, \fBgit+http\fR, or \fBgit+https\fR\|\.  If no \fB<commit\-ish>\fR is specified, then \fBmaster\fR is
