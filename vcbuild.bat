@@ -13,11 +13,8 @@ if /i "%1"=="/?" goto help
 
 @rem Process arguments.
 set config=Release
-set msiplatform=x86
 set target=Build
-set target_arch=ia32
-set debug_arg=
-set nosnapshot_arg=
+set target_arch=x86
 set noprojgen=
 set nobuild=
 set nosign=
@@ -30,20 +27,19 @@ set upload=
 set jslint=
 set buildnodeweak=
 set noetw=
-set noetw_arg=
 set noetw_msi_arg=
 set noperfctr=
-set noperfctr_arg=
 set noperfctr_msi_arg=
 set flaky_tests_arg=
+set configure_flags=
 
 :next-arg
 if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
 if /i "%1"=="release"       set config=Release&goto arg-ok
 if /i "%1"=="clean"         set target=Clean&goto arg-ok
-if /i "%1"=="ia32"          set target_arch=ia32&goto arg-ok
-if /i "%1"=="x86"           set target_arch=ia32&goto arg-ok
+if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
+if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
@@ -75,13 +71,17 @@ shift
 goto next-arg
 
 :args-done
-if defined upload goto upload
 
-if "%config%"=="Debug" set debug_arg=--debug
-if "%target_arch%"=="x64" set msiplatform=x64
-if defined nosnapshot set nosnapshot_arg=--without-snapshot
-if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
-if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
+if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
+if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
+if defined noetw set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
+if defined noperfctr set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
+
+if defined config_flags set configure_flags=%configure_flags% %config_flags%
+
+call :getnodeversion || exit /b 1
+
+@rem Set environment for msbuild
 
 @rem Look for Visual Studio 2015
 echo Looking for Visual Studio 2015
@@ -176,7 +176,8 @@ if defined noprojgen goto msbuild
 if defined NIGHTLY set TAG=nightly-%NIGHTLY%
 
 @rem Generate the VS project.
-python configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+echo configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
+python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -193,7 +194,7 @@ if errorlevel 1 goto exit
 @rem Skip signing if the `nosign` option was specified.
 if defined nosign goto licensertf
 
-signtool sign /a /d "Node.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node.exe
+signtool sign /a /d "node" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node.exe
 if errorlevel 1 echo Failed to sign exe&goto exit
 
 :licensertf
@@ -206,19 +207,41 @@ if errorlevel 1 echo Failed to generate license.rtf&goto exit
 :msi
 @rem Skip msi generation if not requested
 if not defined msi goto run
-call :getnodeversion
-
-if not defined NIGHTLY goto msibuild
-set NODE_VERSION=%NODE_VERSION%.%NIGHTLY%
 
 :msibuild
-echo Building node-%NODE_VERSION%
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:PlatformToolset=%PLATFORM_TOOLSET% /p:GypMsvsVersion=%GYP_MSVS_VERSION% /p:Configuration=%config% /p:Platform=%msiplatform% /p:NodeVersion=%NODE_VERSION% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+echo Building node-v%FULLVERSION%-%target_arch%.msi
+msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:PlatformToolset=%PLATFORM_TOOLSET% /p:GypMsvsVersion=%GYP_MSVS_VERSION% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
-if defined nosign goto run
-signtool sign /a /d "Node.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node-v%NODE_VERSION%-%msiplatform%.msi
+if defined nosign goto upload
+signtool sign /a /d "node" /t http://timestamp.globalsign.com/scripts/timestamp.dll node-v%FULLVERSION%-%target_arch%.msi
 if errorlevel 1 echo Failed to sign msi&goto exit
+
+:upload
+@rem Skip upload if not requested
+if not defined upload goto run
+if not defined SSHCONFIG (
+  echo SSHCONFIG is not set for upload
+  exit /b 1
+)
+if not defined STAGINGSERVER set STAGINGSERVER=node-www
+if "%target_arch%"=="x64" set staging_dir=nodejs/%DISTTYPEDIR%/v%FULLVERSION%/x64
+if "%target_arch%"=="x86" set staging_dir=nodejs/%DISTTYPEDIR%/v%FULLVERSION%/
+echo Uploading to %STAGINGSERVER%:%staging_dir%
+ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p %staging_dir%"
+scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:%staging_dir%/node.exe
+scp -F %SSHCONFIG% Release\node.lib %STAGINGSERVER%:%staging_dir%/node.lib
+scp -F %SSHCONFIG% Release\node.pdb %STAGINGSERVER%:%staging_dir%/node.pdb
+scp -F %SSHCONFIG% Release\node.exp %STAGINGSERVER%:%staging_dir%/node.exp
+scp -F %SSHCONFIG% Release\openssl-cli.exe %STAGINGSERVER%:%staging_dir%/openssl-cli.exe
+scp -F %SSHCONFIG% Release\openssl-cli.pdb %STAGINGSERVER%:%staging_dir%/openssl-cli.pdb
+scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:%staging_dir%/
+if "%target_arch%"=="x64" (
+  ssh -F %SSHCONFIG% %STAGINGSERVER% "touch %staging_dir%.done && chmod -R ug=rw-x+X,o=r+X %staging_dir%*"
+)
+if "%target_arch%"=="x86" (
+  ssh -F %SSHCONFIG% %STAGINGSERVER% "touch %staging_dir%/node-v%FULLVERSION%-%target_arch%.msi.done %staging_dir%/node.exe.done %staging_dir%/node.lib.done %staging_dir%/node.pdb.done %staging_dir%/node.exp.done %staging_dir%/openssl-cli.exe.done %staging_dir%/openssl-cli.pdb.done && chmod -R ug=rw-x+X,o=r+X %staging_dir%/node.* %staging_dir%/openssl-cli.* %staging_dir%/node-v%FULLVERSION%-%target_arch%.msi* && chmod -R ug=rw-x+X,o=r+X %staging_dir%"
+)
 
 :run
 @rem Run tests if requested.
@@ -258,17 +281,6 @@ goto jslint
 echo Failed to create vc project files. 
 goto exit
 
-:upload
-echo uploading .exe .msi .pdb to nodejs.org
-call :getnodeversion
-@echo on
-ssh node@nodejs.org mkdir -p web/nodejs.org/dist/v%NODE_VERSION%
-scp Release\node.msi node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%.msi
-scp Release\node.exe node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.exe
-scp Release\node.pdb node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.pdb
-@echo off
-goto exit
-
 :jslint
 if not defined jslint goto exit
 echo running jslint
@@ -295,6 +307,46 @@ rem ***************
 
 :getnodeversion
 set NODE_VERSION=
+set TAG=
+set FULLVERSION=
+
 for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
-if not defined NODE_VERSION echo Cannot determine current version of node.js & exit /b 1
+if not defined NODE_VERSION (
+  echo Cannot determine current version of Node.js
+  exit /b 1
+)
+
+if not defined DISTTYPE set DISTTYPE=release
+if "%DISTTYPE%"=="release" (
+  set FULLVERSION=%NODE_VERSION%
+  goto exit
+)
+if "%DISTTYPE%"=="custom" (
+  if not defined CUSTOMTAG (
+    echo "CUSTOMTAG is not set for DISTTYPE=custom"
+    exit /b 1
+  )
+  set TAG=%CUSTOMTAG%
+)
+if not "%DISTTYPE%"=="custom" (
+  if not defined DATESTRING (
+    echo "DATESTRING is not set for nightly"
+    exit /b 1
+  )
+  if not defined COMMIT (
+    echo "COMMIT is not set for nightly"
+    exit /b 1
+  )
+  if not "%DISTTYPE%"=="nightly" (
+    if not "%DISTTYPE%"=="next-nightly" (
+      echo "DISTTYPE is not release, custom, nightly or next-nightly"
+      exit /b 1
+    )
+  )
+  set TAG=%DISTTYPE%%DATESTRING%%COMMIT%
+)
+set FULLVERSION=%NODE_VERSION%-%TAG%
+
+:exit
+if not defined DISTTYPEDIR set DISTTYPEDIR=%DISTTYPE%
 goto :EOF
