@@ -258,6 +258,7 @@ namespace node {
   V(buffer_constructor_function, v8::Function)                                \
   V(context, v8::Context)                                                     \
   V(domain_array, v8::Array)                                                  \
+  V(domains_stack_array, v8::Array)                                           \
   V(fs_stats_constructor_function, v8::Function)                              \
   V(gc_info_callback_function, v8::Function)                                  \
   V(module_load_list_array, v8::Array)                                        \
