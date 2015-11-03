@@ -45,6 +45,7 @@ void TTYWrap::Initialize(Local<Object> target,
 
   env->SetMethod(target, "isTTY", IsTTY);
   env->SetMethod(target, "guessHandleType", GuessHandleType);
+  env->SetMethod(target, "fdProtected", FdProtected);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"), t->GetFunction());
   env->set_tty_constructor_template(t);
@@ -78,6 +79,20 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), type));
 }
 
+void TTYWrap::FdProtected(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  int32_t fd = args[0]->Int32Value();
+  CHECK_GE(fd, 0);
+
+  uv_loop_t* loop = env->event_loop();
+  bool ret = false;
+
+  if (static_cast<unsigned>(fd) < loop->nwatchers &&
+      loop->watchers[fd] != NULL)
+    ret = true;
+
+  args.GetReturnValue().Set(ret);
+}
 
 void TTYWrap::IsTTY(const FunctionCallbackInfo<Value>& args) {
   int fd = args[0]->Int32Value();
