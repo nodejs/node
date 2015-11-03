@@ -132,6 +132,7 @@ function diffTrees (oldTree, newTree) {
                    requiredByAllLinked(pkg)
     if (pkg.fromBundle) {
       if (npm.config.get('rebuild-bundle')) differences.push(['rebuild', pkg])
+      if (pkg.oldPkg) differences.push(['remove', pkg])
     } else if (pkg.oldPkg) {
       if (!pkg.directlyRequested && pkgAreEquiv(pkg.oldPkg.package, pkg.package)) return
       if (!pkg.isInLink && (isLink(pkg.oldPkg) || isLink(pkg))) {

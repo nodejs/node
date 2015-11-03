@@ -1,3 +1,105 @@
+### v3.3.12 (2015-11-02):
+
+Hi, a little hot-fix release for a bug introduced in 3.3.11.  The ENOENT fix
+last week ([`f0e2088`](https://github.com/npm/npm/commit/f0e2088)) broke
+upgrades of modules that have bundled dependencies (like `npm`, augh!)
+
+* [`aedf7cf`](https://github.com/npm/npm/commit/aedf7cf)
+  [#10192](//github.com/npm/npm/pull/10192)
+  If a bundled module is going to be replacing a module that's currently on
+  disk (for instance, when you upgrade a module that includes bundled
+  dependencies) we want to select the version from the bundle in preference
+  over the one that was there previously.
+  ([@iarna](https://github.com/iarna))
+
+### v3.3.11 (2015-10-29):
+
+This is a dependency update week, so that means no PRs from our lovely
+users. Look for those next week.  As it happens, the dependencies updated
+were just devdeps, so nothing for you all to worry about.
+
+But the bug fixes, oh geez, I tracked down some really long standing stuff
+this week!!  The headliner is those intermittent `ENOENT` errors that no one
+could reproduce consistently?  I think they're nailed! But also pretty
+important, the bug where `hapi` would install w/ a dep missing? Squashed!
+
+#### EEEEEEENOENT
+
+* [`f0e2088`](https://github.com/npm/npm/commit/f0e2088)
+  [#10026](https://github.com/npm/npm/issues/10026)
+  Eliminate some, if not many, of the EONENT errors `npm@3` has seen over
+  the past few months.  This was happening when npm would, in its own mind,
+  correct a bundled dependency, due to a `package.json` specifying an
+  incompatible version.  Then, when npm extracted the bundled version, what
+  was on disk didn't match its mind and… well, when it tried to act on what
+  was in its mind, we got an `ENOENT` because it didn't actually exist on
+  disk.
+  ([@iarna](https://github.com/iarna))
+
+#### PARTIAL SHRINKWRAPS, NO LONGER A BAD DAY
+
+* [`712fd9c`](https://github.com/npm/npm/commit/712fd9c)
+  [#10153](https://github.com/npm/npm/pull/10153)
+  Imagine that you have a module, let's call it `fun-time`, and it depends
+  on two dependencies, `need-fun@1` and `need-time`.  Further, `need-time`
+  requires `need-fun@2`.  So after install the logical tree will look like
+  this:
+
+  ```
+  fun-time
+  ├── need-fun@1
+  └── need-time
+      └── need-fun@2
+  ```
+
+  Now, the `fun-time` author also distributes a shrinkwrap, but it only includes
+  the `need-fun@1` in it.
+
+  Resolving dependencies would look something like this:
+
+  1. Require `need-fun@1`: Use version from shrinkwrap (ignoring version)
+  2. Require `need-time`: User version in package.json
+    1. Require `need-fun@2`: Use version from shrinkwrap, which oh hey, is
+       already installed at the top level, so no further action is needed.
+
+  Which results in this tree:
+
+  ```
+  fun-time
+  ├── need-fun@1
+  └── need-time
+  ```
+
+  We're ignoring the version check on things specified in the shrinkwrap
+  so that you can override the version that will be installed. This is
+  because you may want to  use a different version than is specified
+  by your dependencies' dependencies' `package.json` files.
+
+  To fix this, we now only allow overrides of a dependency version when
+  that dependency is a child (in the tree) of the thing that requires it.
+  This means that when we're looking for `need-fun@2` we'll see `need-fun@1`
+  and reject it because, although it's from a shrinkwrap, it's parent is
+  `fun-time` and the package doing the requiring is `need-time`.
+
+  ([@iarna](https://github.com/iarna))
+
+#### STRING `package.bin` AND NON-NPMJS REGISTRIES
+
+* [`3de1463`](https://github.com/npm/npm/commit/3de1463)
+  [#9187](https://github.com/npm/npm/issues/9187)
+  If you were using a module with the `bin` field in your `package.json` set
+  to a string on a non-npmjs registry then npm would crash, due to the our
+  expectation that the `bin` field would be an object.  We now pass all
+  `package.json` data through a routine that normalizes the format,
+  including the `bin` field.  (This is the same routine that your
+  `package.json` is passed through when read off of disk or sent to the
+  registry for publication.) Doing this also ensures that older modules on
+  npm's own registry will be treated exactly the same as new ones.  (In the
+  past we weren't always super careful about scrubbing `package.json` data
+  on publish.  And even when we were, those rules have subtly changed over
+  time.)
+  ([@iarna](https://github.com/iarna))
+
 ### v3.3.10 (2015-10-22):
 
 Hey you all!  Welcome to a busy bug fix and PR week.  We've got changes
