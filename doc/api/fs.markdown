@@ -307,6 +307,8 @@ start at 0. The `encoding` can be any one of those accepted by [Buffer][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
 the specified file descriptor. This means that no `open` event will be emitted.
+Note that `fd` should be blocking; non-blocking `fd`s should be passed to
+`net.Socket`.
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
 there's an error.  It is your responsibility to close it and make sure
@@ -341,7 +343,8 @@ default mode `w`. The `defaultEncoding` can be any one of those accepted by [Buf
 
 Like `ReadStream` above, if `fd` is specified, `WriteStream` will ignore the
 `path` argument and will use the specified file descriptor. This means that no
-`open` event will be emitted.
+`open` event will be emitted. Note that `fd` should be blocking; non-blocking
+`fd`s should be passed to `net.Socket`.
 
 If `options` is a string, then it specifies the encoding.
 
