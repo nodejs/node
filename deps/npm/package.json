@@ -1,5 +1,5 @@
 {
-  "version": "3.3.10",
+  "version": "3.3.12",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -187,14 +187,14 @@
     "deep-equal": "~1.0.1",
     "marked": "~0.3.5",
     "marked-man": "~0.1.5",
-    "nock": "~2.15.0",
+    "nock": "~2.17.0",
     "npm-registry-couchapp": "~2.6.11",
     "npm-registry-mock": "~1.0.1",
     "readable-stream": "~2.0.2",
     "require-inject": "~1.2.1",
     "sprintf-js": "~1.0.3",
     "standard": "~5.3.1",
-    "tap": "~2.1.1"
+    "tap": "~2.2.0"
   },
   "scripts": {
     "dumpconf": "env | grep npm | sort | uniq",

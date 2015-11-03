@@ -15,6 +15,7 @@ var rimraf = require('rimraf')
 var clone = require('lodash.clonedeep')
 var validate = require('aproba')
 var unpipe = require('unpipe')
+var normalizePackageData = require('normalize-package-data')
 
 var npm = require('./npm.js')
 var mapToRegistry = require('./utils/map-to-registry.js')
@@ -68,6 +69,15 @@ module.exports = function fetchPackageMetadata (spec, where, tracker, done) {
       pkg._where = where
       if (!pkg._args) pkg._args = []
       pkg._args.push([pkg._spec, pkg._where])
+      // non-npm registries can and will return unnormalized data, plus
+      // even the npm registry may have package data normalized with older
+      // normalization rules. This ensures we get package data in a consistent,
+      // stable format.
+      try {
+        normalizePackageData(pkg)
+      } catch (ex) {
+        // don't care
+      }
     }
     logAndFinish(er, pkg)
   }
