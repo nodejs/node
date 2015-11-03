@@ -105,6 +105,8 @@ Persistent<String> domain_symbol;
 // declared in node_internals.h
 Persistent<Object> process;
 
+static Persistent<Array> domains_stack;
+
 static Persistent<Function> process_tickFromSpinner;
 static Persistent<Function> process_tickCallback;
 
@@ -126,6 +128,8 @@ static Persistent<String> exit_symbol;
 static Persistent<String> disposed_symbol;
 
 static Persistent<String> emitting_toplevel_domain_error_symbol;
+static Persistent<String> _events_symbol;
+static Persistent<String> error_symbol;
 
 static bool print_eval = false;
 static bool force_repl = false;
@@ -904,25 +908,83 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
   return scope.Close(t->GetFunction()->NewInstance(argc, argv));
 }
 
-static bool IsDomainActive() {
-  if (domain_symbol.IsEmpty())
-    domain_symbol = NODE_PSYMBOL("domain");
+static bool DomainHasErrorHandler(const Local<Object>& domain) {
+  HandleScope scope;
 
-  Local<Value> domain_v = process->Get(domain_symbol);
+  if (_events_symbol.IsEmpty())
+    _events_symbol = NODE_PSYMBOL("_events");
 
-  return domain_v->IsObject();
+  Local<Value> domain_event_listeners_v = domain->Get(_events_symbol);
+  if (!domain_event_listeners_v->IsObject())
+    return false;
+
+  Local<Object> domain_event_listeners_o =
+    domain_event_listeners_v->ToObject();
+
+  if (domain_event_listeners_o->IsNull())
+    return false;
+
+  if (error_symbol.IsEmpty())
+    error_symbol = NODE_PSYMBOL("error");
+
+  Local<Value> domain_error_listeners_v =
+    domain_event_listeners_o->Get(error_symbol);
+
+  if (domain_error_listeners_v->IsFunction() ||
+      (domain_error_listeners_v->IsArray() &&
+      domain_error_listeners_v.As<Array>()->Length() > 0))
+    return true;
+
+  return false;
+}
+
+static bool TopDomainHasErrorHandler() {
+  HandleScope scope;
+
+  if (!using_domains)
+    return false;
+
+  Local<Array> domains_stack_array = Local<Array>::New(domains_stack);
+  if (domains_stack_array->Length() == 0)
+    return false;
+
+  uint32_t domains_stack_length = domains_stack_array->Length();
+  if (domains_stack_length <= 0)
+    return false;
+
+  Local<Value> domain_v = domains_stack_array->Get(domains_stack_length - 1);
+  if (domain_v->IsNull())
+    return false;
+
+  Local<Object> domain = domain_v->ToObject();
+  if (domain->IsNull())
+    return false;
+
+  if (DomainHasErrorHandler(domain))
+    return true;
+
+  return false;
 }
 
 bool ShouldAbortOnUncaughtException() {
   Local<Value> emitting_toplevel_domain_error_v =
     process->Get(emitting_toplevel_domain_error_symbol);
-  return !IsDomainActive() || emitting_toplevel_domain_error_v->BooleanValue();
+
+  return emitting_toplevel_domain_error_v->BooleanValue() ||
+    !TopDomainHasErrorHandler();
 }
 
 Handle<Value> UsingDomains(const Arguments& args) {
   HandleScope scope;
+
   if (using_domains)
     return scope.Close(Undefined());
+
+  if (!args[0]->IsArray()) {
+    fprintf(stderr, "domains stack must be an array\n");
+    abort();
+  }
+
   using_domains = true;
   Local<Value> tdc_v = process->Get(String::New("_tickDomainCallback"));
   Local<Value> ndt_v = process->Get(String::New("_nextDomainTick"));
@@ -934,6 +996,9 @@ Handle<Value> UsingDomains(const Arguments& args) {
     fprintf(stderr, "process._nextDomainTick assigned to non-function\n");
     abort();
   }
+
+  domains_stack = Persistent<Array>::New(args[0].As<Array>());
+
   Local<Function> tdc = tdc_v.As<Function>();
   Local<Function> ndt = ndt_v.As<Function>();
   process->Set(String::New("_tickCallback"), tdc);
@@ -2449,7 +2514,10 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   process->Set(String::NewSymbol("_tickInfoBox"), info_box);
 
   // pre-set _events object for faster emit checks
-  process->Set(String::NewSymbol("_events"), Object::New());
+  if (_events_symbol.IsEmpty())
+    _events_symbol = NODE_PSYMBOL("_events");
+
+  process->Set(_events_symbol, Object::New());
 
   if (emitting_toplevel_domain_error_symbol.IsEmpty())
     emitting_toplevel_domain_error_symbol =
