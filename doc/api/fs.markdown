@@ -529,6 +529,11 @@ created. On POSIX systems, `path` is considered to exist even if it is a symlink
 to a non-existent file. The exclusive flag may or may not work with network file
 systems.
 
+`flags` can also be a number as documented by open(2); commonly used constants
+are available from `require('constants')`.  On Windows, flags are translated to
+their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
+or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
+
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
