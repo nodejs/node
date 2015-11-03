@@ -7,7 +7,14 @@ DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
 FLAKY_TESTS ?= run
+STAGINGSERVER ?= node-www
 
+OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
+
+# Flags for packaging.
+BUILD_DOWNLOAD_FLAGS ?= --download=all
+BUILD_INTL_FLAGS ?= --with-intl=small-icu
+BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 NODE ?= ./node
 
 # Default to verbose builds.
@@ -251,9 +258,45 @@ run-ci:
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
+
+# For nightly builds, you must set DISTTYPE to "nightly", "next-nightly" or
+# "custom". For the nightly and next-nightly case, you need to set DATESTRING
+# and COMMIT in order to properly name the build.
+# For the rc case you need to set CUSTOMTAG to an appropriate CUSTOMTAG number
+
+ifndef DISTTYPE
+DISTTYPE=release
+endif
+ifeq ($(DISTTYPE),release)
+FULLVERSION=$(VERSION)
+else # ifeq ($(DISTTYPE),release)
+ifeq ($(DISTTYPE),custom)
+ifndef CUSTOMTAG
+$(error CUSTOMTAG is not set for DISTTYPE=custom)
+endif # ifndef CUSTOMTAG
+TAG=$(CUSTOMTAG)
+else # ifeq ($(DISTTYPE),custom)
+ifndef DATESTRING
+$(error DATESTRING is not set for nightly)
+endif # ifndef DATESTRING
+ifndef COMMIT
+$(error COMMIT is not set for nightly)
+endif # ifndef COMMIT
+ifneq ($(DISTTYPE),nightly)
+ifneq ($(DISTTYPE),next-nightly)
+$(error DISTTYPE is not release, custom, nightly or next-nightly)
+endif # ifneq ($(DISTTYPE),next-nightly)
+endif # ifneq ($(DISTTYPE),nightly)
+TAG=$(DISTTYPE)$(DATESTRING)$(COMMIT)
+endif # ifeq ($(DISTTYPE),custom)
+FULLVERSION=$(VERSION)-$(TAG)
+endif # ifeq ($(DISTTYPE),release)
+
+DISTTYPEDIR ?= $(DISTTYPE)
+RELEASE=$(shell sed -ne 's/\#define NODE_VERSION_IS_RELEASE \([01]\)/\1/p' src/node_version.h)
 NODE_DOC_VERSION=$(VERSION)
-RELEASE=$(shell $(PYTHON) tools/getnodeisrelease.py)
-PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
+NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
+
 ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)
 DESTCPU ?= x64
 else
@@ -268,31 +311,28 @@ else
 ARCH=x86
 endif
 endif
-TARNAME=node-$(VERSION)
-ifdef NIGHTLY
-TAG = nightly-$(NIGHTLY)
-TARNAME=node-$(VERSION)-$(TAG)
+
+# enforce "x86" over "ia32" as the generally accepted way of referring to 32-bit intel
+ifeq ($(ARCH),ia32)
+override ARCH=x86
 endif
-TARBALL=$(TARNAME).tar.gz
-BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
-BINARYTAR=$(BINARYNAME).tar.gz
-PKG=out/$(TARNAME).pkg
+ifeq ($(DESTCPU),ia32)
+override DESTCPU=x86
+endif
+
+TARNAME=node-$(FULLVERSION)
+TARBALL=$(TARNAME).tar
+BINARYNAME=$(TARNAME)-$(OSTYPE)-$(ARCH)
+BINARYTAR=$(BINARYNAME).tar
+PKG=$(TARNAME).pkg
 PACKAGEMAKER ?= /Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
-
-PKGSRC=nodejs-$(DESTCPU)-$(RAWVER).tgz
-ifdef NIGHTLY
-PKGSRC=nodejs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
-endif
-
-dist: doc $(TARBALL) $(PKG)
-
 PKGDIR=out/dist-osx
 
 release-only:
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
 		exit 0 ; \
 	else \
-	  echo "" >&2 ; \
+		echo "" >&2 ; \
 		echo "The git repository is not clean." >&2 ; \
 		echo "Please commit changes before building release tarball." >&2 ; \
 		echo "" >&2 ; \
@@ -300,29 +340,33 @@ release-only:
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
-	@if [ "$(NIGHTLY)" != "" -o "$(RELEASE)" = "1" ]; then \
+	@if [ "$(DISTTYPE)" != "release" -o "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
-	  echo "" >&2 ; \
+		echo "" >&2 ; \
 		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE)." >&2 ; \
-	  echo "Did you remember to update src/node_version.cc?" >&2 ; \
-	  echo "" >&2 ; \
+		echo "Did you remember to update src/node_version.h?" >&2 ; \
+		echo "" >&2 ; \
 		exit 1 ; \
 	fi
-
-pkg: $(PKG)
 
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --download=all --with-intl=small-icu \
-		--without-snapshot --dest-cpu=ia32 --tag=$(TAG)
+	$(PYTHON) ./configure \
+		--dest-cpu=ia32 \
+		--tag=$(TAG) \
+		--without-snapshot \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)/32
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --download=all --with-intl=small-icu \
-		--without-snapshot --dest-cpu=x64 --tag=$(TAG)
+	$(PYTHON) ./configure \
+		--dest-cpu=x64 \
+		--tag=$(TAG) \
+		--without-snapshot \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
-	SIGN="$(APP_SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
+	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	lipo $(PKGDIR)/32/usr/local/bin/node \
 		$(PKGDIR)/usr/local/bin/node \
 		-output $(PKGDIR)/usr/local/bin/node-universal \
@@ -333,7 +377,15 @@ $(PKG): release-only
 		--id "org.nodejs.Node" \
 		--doc tools/osx-pkg.pmdoc \
 		--out $(PKG)
-	SIGN="$(INT_SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
+	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
+
+pkg: $(PKG)
+
+pkg-upload: pkg
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod 664 node-$(FULLVERSION).pkg
+	scp -p node-$(FULLVERSION).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg.done"
 
 $(TARBALL): release-only node doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
@@ -348,6 +400,39 @@ $(TARBALL): release-only node doc
 	gzip -f -9 $(TARNAME).tar
 
 tar: $(TARBALL)
+
+tar-upload: tar
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod 664 node-$(FULLVERSION).tar.gz
+	scp -p node-$(FULLVERSION).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz.done"
+
+doc-upload: tar
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod -R ug=rw-x+X,o=r+X out/doc/
+	scp -pr out/doc/ $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs.done"
+
+$(TARBALL)-headers: config.gypi release-only
+	$(PYTHON) ./configure \
+		--prefix=/ \
+		--dest-cpu=$(DESTCPU) \
+		--tag=$(TAG) \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
+	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	find $(TARNAME)/ -type l | xargs rm # annoying on windows
+	tar -cf $(TARNAME)-headers.tar $(TARNAME)
+	rm -rf $(TARNAME)
+	gzip -c -f -9 $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
+	rm $(TARNAME)-headers.tar
+
+tar-headers: $(TARBALL)-headers
+
+tar-headers-upload: tar-headers
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod 664 $(TARNAME)-headers.tar.gz
+	scp -p $(TARNAME)-headers.tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz.done"
 
 $(BINARYTAR): release-only
 	rm -rf $(BINARYNAME)
@@ -364,6 +449,35 @@ $(BINARYTAR): release-only
 
 binary: $(BINARYTAR)
 
+binary-upload-arch: binary
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod 664 node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
+	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz.done"
+
+ifeq ($(OSTYPE),darwin)
+binary-upload:
+	$(MAKE) binary-upload-arch \
+		DESTCPU=ia32 \
+		ARCH=x86 \
+		DISTTYPE=$(DISTTYPE) \
+		DATESTRING=$(DATESTRING) \
+		COMMIT=$(COMMIT) \
+		CUSTOMTAG=$(CUSTOMTAG) \
+		CONFIG_FLAGS=$(CONFIG_FLAGS)
+	$(MAKE) binary-upload-arch \
+		DESTCPU=x64 \
+		ARCH=x64 \
+		DISTTYPE=$(DISTTYPE) \
+		DATESTRING=$(DATESTRING) \
+		COMMIT=$(COMMIT) \
+		CUSTOMTAG=$(CUSTOMTAG) \
+		CONFIG_FLAGS=$(CONFIG_FLAGS)
+else
+binary-upload: binary-upload-arch
+endif
+
+
 $(PKGSRC): release-only
 	rm -rf dist out
 	$(PYTHON) configure --prefix=/ --without-snapshot --download=all \
@@ -377,11 +491,6 @@ $(PKGSRC): release-only
 		-f packlist -I /opt/local -p dist -U $(PKGSRC)
 
 pkgsrc: $(PKGSRC)
-
-dist-upload: $(TARBALL) $(PKG)
-	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
-	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
-	scp $(PKG) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARNAME).pkg
 
 wrkclean:
 	$(MAKE) -C tools/wrk/ clean

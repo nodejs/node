@@ -4,7 +4,7 @@
 
   <?define ProductName = "Node.js" ?>
   <?define ProductDescription = "Node.js" ?>
-  <?define ProductAuthor = "Joyent, Inc. and other Node contributors" ?>
+  <?define ProductAuthor = "Node.js Foundation" ?>
 
   <?define RegistryKeyPath = "SOFTWARE\Node.js" ?>
 
@@ -23,7 +23,7 @@
     <Media Id="1" Cabinet="media1.cab" EmbedCab="yes"/>
 
     <MajorUpgrade AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A later version of node.js is already installed. Setup will now exit."/>
+                  DowngradeErrorMessage="A later version of Node.js is already installed. Setup will now exit."/>
 
     <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
     <Property Id="ARPPRODUCTICON" Value="NodeIcon"/>
