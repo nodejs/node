@@ -57,6 +57,23 @@ Use `nc` to connect to a UNIX domain socket server:
 
     nc -U /tmp/echo.sock
 
+## net.listen(options[, callback])
+
+A factory function, which returns a new ['net.Server'](#net_class_net_server).
+
+The options are passed to the ['net.Server'](#net_class_net_server)
+constructor.
+
+Both the options and the callback, if present, are passed to the the
+['server.listen'](#net_server_listen_options_listenlistener) method.
+
+## net.listen(...)
+
+A factory function, which returns a new ['net.Server'](#net_class_net_server).
+
+All the arguments are passed to the`Server.listen()` that matches the provided
+argument types.
+
 ## net.connect(options[, connectListener])
 ## net.createConnection(options[, connectListener])
 
