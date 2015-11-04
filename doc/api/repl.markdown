@@ -29,6 +29,21 @@ For example, you could add this to your bashrc file:
 
     alias node="env NODE_NO_READLINE=1 rlwrap node"
 
+## Environment Variable Options
+
+The built-in repl (invoked by running `node` or `node -i`) may be controlled
+via the following environment variables:
+
+ - `NODE_REPL_HISTORY` - When a valid path is given, persistent REPL history
+   will be saved to the specified file rather than `.node_repl_history` in the
+   user's home directory. Setting this value to `""` will disable persistent
+   REPL history.
+ - `NODE_REPL_HISTORY_SIZE` - defaults to `1000`. Controls how many lines of
+   history will be persisted if history is available. Must be a positive number.
+ - `NODE_REPL_MODE` - may be any of `sloppy`, `strict`, or `magic`. Defaults
+   to `magic`, which will automatically run "strict mode only" statements in
+   strict mode.
+
 ## Persistent History
 
 By default, the REPL will persist history between `node` REPL sessions by saving
@@ -46,20 +61,86 @@ automatically be converted to using plain text. The new file will be saved to
 either your home directory, or a directory defined by the `NODE_REPL_HISTORY`
 variable, as documented below.
 
-## Environment Variable Options
+## REPL Features
 
-The built-in repl (invoked by running `node` or `node -i`) may be controlled
-via the following environment variables:
+<!-- type=misc -->
 
- - `NODE_REPL_HISTORY` - When a valid path is given, persistent REPL history
-   will be saved to the specified file rather than `.node_repl_history` in the
-   user's home directory. Setting this value to `""` will disable persistent
-   REPL history.
- - `NODE_REPL_HISTORY_SIZE` - defaults to `1000`. Controls how many lines of
-   history will be persisted if history is available. Must be a positive number.
- - `NODE_REPL_MODE` - may be any of `sloppy`, `strict`, or `magic`. Defaults
-   to `magic`, which will automatically run "strict mode only" statements in
-   strict mode.
+Inside the REPL, Control+D will exit.  Multi-line expressions can be input.
+Tab completion is supported for both global and local variables.
+
+Core modules will be loaded on-demand into the environment. For example,
+accessing `fs` will `require()` the `fs` module as `global.fs`.
+
+The special variable `_` (underscore) contains the result of the last expression.
+
+    > [ 'a', 'b', 'c' ]
+    [ 'a', 'b', 'c' ]
+    > _.length
+    3
+    > _ += 1
+    4
+
+The REPL provides access to any variables in the global scope. You can expose
+a variable to the REPL explicitly by assigning it to the `context` object
+associated with each `REPLServer`.  For example:
+
+    // repl_test.js
+    var repl = require('repl'),
+        msg = 'message';
+
+    repl.start('> ').context.m = msg;
+
+Things in the `context` object appear as local within the REPL:
+
+    mjr:~$ node repl_test.js
+    > m
+    'message'
+
+There are a few special REPL commands:
+
+  - `.break` - While inputting a multi-line expression, sometimes you get lost
+    or just don't care about completing it. `.break` will start over.
+  - `.clear` - Resets the `context` object to an empty object and clears any
+    multi-line expression.
+  - `.exit` - Close the I/O stream, which will cause the REPL to exit.
+  - `.help` - Show this list of special commands.
+  - `.save` - Save the current REPL session to a file
+    >.save ./file/to/save.js
+  - `.load` - Load a file into the current REPL session.
+    >.load ./file/to/load.js
+
+The following key combinations in the REPL have these special effects:
+
+  - `<ctrl>C` - Similar to the `.break` keyword.  Terminates the current
+    command.  Press twice on a blank line to forcibly exit.
+  - `<ctrl>D` - Similar to the `.exit` keyword.
+  - `<tab>` - Show both global and local(scope) variables
+
+
+### Customizing Object displays in the REPL
+
+The REPL module internally uses
+[util.inspect()][], when printing values. However, `util.inspect` delegates the
+ call to the object's `inspect()` function, if it has one. You can read more
+ about this delegation [here][].
+
+For example, if you have defined an `inspect()` function on an object, like this:
+
+    > var obj = { foo: 'this will not show up in the inspect() output' };
+    undefined
+    > obj.inspect = function() {
+    ...   return { bar: 'baz' };
+    ... };
+    [Function]
+
+and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
+
+    > obj
+    { bar: 'baz' }
+
+[Readline Interface]: readline.html#readline_class_interface
+[util.inspect()]: util.html#util_util_inspect_object_options
+[here]: util.html#util_custom_inspect_function_on_objects
 
 ## repl.start(options)
 
@@ -198,85 +279,3 @@ Example of listening for `reset`:
       console.log('repl has a new context');
       someExtension.extend(context);
     });
-
-
-## REPL Features
-
-<!-- type=misc -->
-
-Inside the REPL, Control+D will exit.  Multi-line expressions can be input.
-Tab completion is supported for both global and local variables.
-
-Core modules will be loaded on-demand into the environment. For example,
-accessing `fs` will `require()` the `fs` module as `global.fs`.
-
-The special variable `_` (underscore) contains the result of the last expression.
-
-    > [ 'a', 'b', 'c' ]
-    [ 'a', 'b', 'c' ]
-    > _.length
-    3
-    > _ += 1
-    4
-
-The REPL provides access to any variables in the global scope. You can expose
-a variable to the REPL explicitly by assigning it to the `context` object
-associated with each `REPLServer`.  For example:
-
-    // repl_test.js
-    var repl = require('repl'),
-        msg = 'message';
-
-    repl.start('> ').context.m = msg;
-
-Things in the `context` object appear as local within the REPL:
-
-    mjr:~$ node repl_test.js
-    > m
-    'message'
-
-There are a few special REPL commands:
-
-  - `.break` - While inputting a multi-line expression, sometimes you get lost
-    or just don't care about completing it. `.break` will start over.
-  - `.clear` - Resets the `context` object to an empty object and clears any
-    multi-line expression.
-  - `.exit` - Close the I/O stream, which will cause the REPL to exit.
-  - `.help` - Show this list of special commands.
-  - `.save` - Save the current REPL session to a file
-    >.save ./file/to/save.js
-  - `.load` - Load a file into the current REPL session.
-    >.load ./file/to/load.js
-
-The following key combinations in the REPL have these special effects:
-
-  - `<ctrl>C` - Similar to the `.break` keyword.  Terminates the current
-    command.  Press twice on a blank line to forcibly exit.
-  - `<ctrl>D` - Similar to the `.exit` keyword.
-  - `<tab>` - Show both global and local(scope) variables
-
-
-### Customizing Object displays in the REPL
-
-The REPL module internally uses
-[util.inspect()][], when printing values. However, `util.inspect` delegates the
- call to the object's `inspect()` function, if it has one. You can read more
- about this delegation [here][].
-
-For example, if you have defined an `inspect()` function on an object, like this:
-
-    > var obj = { foo: 'this will not show up in the inspect() output' };
-    undefined
-    > obj.inspect = function() {
-    ...   return { bar: 'baz' };
-    ... };
-    [Function]
-
-and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
-
-    > obj
-    { bar: 'baz' }
-
-[Readline Interface]: readline.html#readline_class_interface
-[util.inspect()]: util.html#util_util_inspect_object_options
-[here]: util.html#util_custom_inspect_function_on_objects
