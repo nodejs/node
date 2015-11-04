@@ -194,7 +194,8 @@ if (process.argv[2] === 'child') {
         test.messagesReceived.forEach(function(receivedMessage) {
           if (test.expectedMessages.indexOf(receivedMessage) === -1) {
             assert(false, 'test ' + test.fn.name +
-              ' should have sent message: ' + receivedMessage + ' but did');
+              ' should not have sent message: ' + receivedMessage +
+              ' but did');
           }
         });
       }
