@@ -57,6 +57,18 @@ arrays specification.  `ArrayBuffer#slice()` makes a copy of the slice while
 The Buffer class is a global type for dealing with binary data directly.
 It can be constructed in a variety of ways.
 
+### new Buffer(array)
+
+* `array` Array
+
+Allocates a new buffer using an `array` of octets.
+
+### new Buffer(buffer)
+
+* `buffer` {Buffer}
+
+Copies the passed `buffer` data onto a new `Buffer` instance.
+
 ### new Buffer(size)
 
 * `size` Number
@@ -70,18 +82,6 @@ Unlike `ArrayBuffers`, the underlying memory for buffers is not initialized. So
 the contents of a newly created `Buffer` are unknown and could contain
 sensitive data. Use `buf.fill(0)` to initialize a buffer to zeroes.
 
-### new Buffer(array)
-
-* `array` Array
-
-Allocates a new buffer using an `array` of octets.
-
-### new Buffer(buffer)
-
-* `buffer` {Buffer}
-
-Copies the passed `buffer` data onto a new `Buffer` instance.
-
 ### new Buffer(str[, encoding])
 
 * `str` String - string to encode.
@@ -89,20 +89,6 @@ Copies the passed `buffer` data onto a new `Buffer` instance.
 
 Allocates a new buffer containing the given `str`.
 `encoding` defaults to `'utf8'`.
-
-### Class Method: Buffer.isEncoding(encoding)
-
-* `encoding` {String} The encoding string to test
-
-Returns true if the `encoding` is a valid encoding argument, or false
-otherwise.
-
-### Class Method: Buffer.isBuffer(obj)
-
-* `obj` Object
-* Return: Boolean
-
-Tests if `obj` is a `Buffer`.
 
 ### Class Method: Buffer.byteLength(string[, encoding])
 
@@ -122,6 +108,17 @@ Example:
       Buffer.byteLength(str, 'utf8') + " bytes");
 
     // ½ + ¼ = ¾: 9 characters, 12 bytes
+
+### Class Method: Buffer.compare(buf1, buf2)
+
+* `buf1` {Buffer}
+* `buf2` {Buffer}
+
+The same as [`buf1.compare(buf2)`](#buffer_buf_compare_otherbuffer). Useful
+for sorting an Array of Buffers:
+
+    var arr = [Buffer('1234'), Buffer('0123')];
+    arr.sort(Buffer.compare);
 
 ### Class Method: Buffer.concat(list[, totalLength])
 
@@ -164,151 +161,32 @@ Example: build a single buffer from a list of three buffers:
     // <Buffer 00 00 00 00 ...>
     // 42
 
-### Class Method: Buffer.compare(buf1, buf2)
+### Class Method: Buffer.isBuffer(obj)
 
-* `buf1` {Buffer}
-* `buf2` {Buffer}
+* `obj` Object
+* Return: Boolean
 
-The same as [`buf1.compare(buf2)`](#buffer_buf_compare_otherbuffer). Useful
-for sorting an Array of Buffers:
+Tests if `obj` is a `Buffer`.
 
-    var arr = [Buffer('1234'), Buffer('0123')];
-    arr.sort(Buffer.compare);
+### Class Method: Buffer.isEncoding(encoding)
 
+* `encoding` {String} The encoding string to test
 
-### buf.length
+Returns true if the `encoding` is a valid encoding argument, or false
+otherwise.
 
-* Number
+### buffer.entries()
 
-The size of the buffer in bytes.  Note that this is not necessarily the size
-of the contents. `length` refers to the amount of memory allocated for the
-buffer object.  It does not change when the contents of the buffer are changed.
+Creates iterator for `[index, byte]` arrays.
 
-    buf = new Buffer(1234);
+### buffer.keys()
 
-    console.log(buf.length);
-    buf.write("some string", 0, "ascii");
-    console.log(buf.length);
+Creates iterator for buffer keys (indices).
 
-    // 1234
-    // 1234
+### buffer.values()
 
-While the `length` property is not immutable, changing the value of `length`
-can result in undefined and inconsistent behavior. Applications that wish to
-modify the length of a buffer should therefore treat `length` as read-only and
-use `buf.slice` to create a new buffer.
-
-    buf = new Buffer(10);
-    buf.write("abcdefghj", 0, "ascii");
-    console.log(buf.length); // 10
-    buf = buf.slice(0,5);
-    console.log(buf.length); // 5
-
-### buf.write(string[, offset][, length][, encoding])
-
-* `string` String - data to be written to buffer
-* `offset` Number, Optional, Default: 0
-* `length` Number, Optional, Default: `buffer.length - offset`
-* `encoding` String, Optional, Default: 'utf8'
-
-Writes `string` to the buffer at `offset` using the given encoding.
-`offset` defaults to `0`, `encoding` defaults to `'utf8'`. `length` is
-the number of bytes to write. Returns number of octets written. If `buffer` did
-not contain enough space to fit the entire string, it will write a partial
-amount of the string. `length` defaults to `buffer.length - offset`.
-The method will not write partial characters.
-
-    buf = new Buffer(256);
-    len = buf.write('\u00bd + \u00bc = \u00be', 0);
-    console.log(len + " bytes: " + buf.toString('utf8', 0, len));
-
-### buf.writeUIntLE(value, offset, byteLength[, noAssert])
-### buf.writeUIntBE(value, offset, byteLength[, noAssert])
-### buf.writeIntLE(value, offset, byteLength[, noAssert])
-### buf.writeIntBE(value, offset, byteLength[, noAssert])
-
-* `value` {Number} Bytes to be written to buffer
-* `offset` {Number} `0 <= offset <= buf.length`
-* `byteLength` {Number} `0 < byteLength <= 6`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
-
-Writes `value` to the buffer at the specified `offset` and `byteLength`.
-Supports up to 48 bits of accuracy. For example:
-
-    var b = new Buffer(6);
-    b.writeUIntBE(0x1234567890ab, 0, 6);
-    // <Buffer 12 34 56 78 90 ab>
-
-Set `noAssert` to `true` to skip validation of `value` and `offset`. Defaults
-to `false`.
-
-### buf.readUIntLE(offset, byteLength[, noAssert])
-### buf.readUIntBE(offset, byteLength[, noAssert])
-### buf.readIntLE(offset, byteLength[, noAssert])
-### buf.readIntBE(offset, byteLength[, noAssert])
-
-* `offset` {Number} `0 <= offset <= buf.length`
-* `byteLength` {Number} `0 < byteLength <= 6`
-* `noAssert` {Boolean} Default: false
-* Return: {Number}
-
-A generalized version of all numeric read methods. Supports up to 48 bits of
-accuracy. For example:
-
-    var b = new Buffer(6);
-    b.writeUInt16LE(0x90ab, 0);
-    b.writeUInt32LE(0x12345678, 2);
-    b.readUIntLE(0, 6).toString(16);  // Specify 6 bytes (48 bits)
-    // output: '1234567890ab'
-
-Set `noAssert` to true to skip validation of `offset`. This means that `offset`
-may be beyond the end of the buffer. Defaults to `false`.
-
-### buf.toString([encoding][, start][, end])
-
-* `encoding` String, Optional, Default: 'utf8'
-* `start` Number, Optional, Default: 0
-* `end` Number, Optional, Default: `buffer.length`
-
-Decodes and returns a string from buffer data encoded using the specified
-character set encoding. If `encoding` is `undefined` or `null`, then `encoding`
-defaults to `'utf8'`. The `start` and `end` parameters default to `0` and
-`buffer.length` when `undefined`.
-
-    buf = new Buffer(26);
-    for (var i = 0 ; i < 26 ; i++) {
-      buf[i] = i + 97; // 97 is ASCII a
-    }
-    buf.toString('ascii'); // outputs: abcdefghijklmnopqrstuvwxyz
-    buf.toString('ascii',0,5); // outputs: abcde
-    buf.toString('utf8',0,5); // outputs: abcde
-    buf.toString(undefined,0,5); // encoding defaults to 'utf8', outputs abcde
-
-See `buffer.write()` example, above.
-
-
-### buf.toJSON()
-
-Returns a JSON-representation of the Buffer instance.  `JSON.stringify`
-implicitly calls this function when stringifying a Buffer instance.
-
-Example:
-
-    var buf = new Buffer('test');
-    var json = JSON.stringify(buf);
-
-    console.log(json);
-    // '{"type":"Buffer","data":[116,101,115,116]}'
-
-    var copy = JSON.parse(json, function(key, value) {
-        return value && value.type === 'Buffer'
-          ? new Buffer(value.data)
-          : value;
-      });
-
-    console.log(copy);
-    // <Buffer 74 65 73 74>
+Creates iterator for buffer values (bytes). This function is called automatically
+when `buffer` is used in a `for..of` statement.
 
 ### buf[index]
 
@@ -330,10 +208,6 @@ Example: copy an ASCII string into a buffer, one byte at a time:
     console.log(buf);
 
     // Node.js
-
-### buf.equals(otherBuffer)
-
-* `otherBuffer` {Buffer}
 
 Returns a boolean of whether `this` and `otherBuffer` have the same
 bytes.
@@ -390,35 +264,22 @@ region in the same buffer
 
     // efghijghijklmnopqrstuvwxyz
 
+### buf.equals(otherBuffer)
 
-### buf.slice([start[, end]])
+* `otherBuffer` {Buffer}
 
-* `start` Number, Optional, Default: 0
-* `end` Number, Optional, Default: `buffer.length`
+### buf.fill(value[, offset][, end])
 
-Returns a new buffer which references the same memory as the old, but offset
-and cropped by the `start` (defaults to `0`) and `end` (defaults to
-`buffer.length`) indexes.  Negative indexes start from the end of the buffer.
+* `value`
+* `offset` Number, Optional
+* `end` Number, Optional
 
-**Modifying the new buffer slice will modify memory in the original buffer!**
+Fills the buffer with the specified value. If the `offset` (defaults to `0`)
+and `end` (defaults to `buffer.length`) are not given it will fill the entire
+buffer.
 
-Example: build a Buffer with the ASCII alphabet, take a slice, then modify one
-byte from the original Buffer.
-
-    var buf1 = new Buffer(26);
-
-    for (var i = 0 ; i < 26 ; i++) {
-      buf1[i] = i + 97; // 97 is ASCII a
-    }
-
-    var buf2 = buf1.slice(0, 3);
-    console.log(buf2.toString('ascii', 0, buf2.length));
-    buf1[0] = 33;
-    console.log(buf2.toString('ascii', 0, buf2.length));
-
-    // abc
-    // !bc
-
+    var b = new Buffer(50);
+    b.fill("h");
 
 ### buf.indexOf(value[, byteOffset])
 
@@ -431,6 +292,156 @@ Operates similar to
 Accepts a String, Buffer or Number. Strings are interpreted as UTF8. Buffers
 will use the entire buffer. So in order to compare a partial Buffer use
 `Buffer#slice()`. Numbers can range from 0 to 255.
+
+### buf.length
+
+* Number
+
+The size of the buffer in bytes.  Note that this is not necessarily the size
+of the contents. `length` refers to the amount of memory allocated for the
+buffer object.  It does not change when the contents of the buffer are changed.
+
+    buf = new Buffer(1234);
+
+    console.log(buf.length);
+    buf.write("some string", 0, "ascii");
+    console.log(buf.length);
+
+    // 1234
+    // 1234
+
+While the `length` property is not immutable, changing the value of `length`
+can result in undefined and inconsistent behavior. Applications that wish to
+modify the length of a buffer should therefore treat `length` as read-only and
+use `buf.slice` to create a new buffer.
+
+    buf = new Buffer(10);
+    buf.write("abcdefghj", 0, "ascii");
+    console.log(buf.length); // 10
+    buf = buf.slice(0,5);
+    console.log(buf.length); // 5
+
+### buf.readDoubleBE(offset[, noAssert])
+### buf.readDoubleLE(offset[, noAssert])
+
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+* Return: Number
+
+Reads a 64 bit double from the buffer at the specified offset with specified
+endian format.
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+Example:
+
+    var buf = new Buffer(8);
+
+    buf[0] = 0x55;
+    buf[1] = 0x55;
+    buf[2] = 0x55;
+    buf[3] = 0x55;
+    buf[4] = 0x55;
+    buf[5] = 0x55;
+    buf[6] = 0xd5;
+    buf[7] = 0x3f;
+
+    console.log(buf.readDoubleLE(0));
+
+    // 0.3333333333333333
+
+### buf.readFloatBE(offset[, noAssert])
+### buf.readFloatLE(offset[, noAssert])
+
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+* Return: Number
+
+Reads a 32 bit float from the buffer at the specified offset with specified
+endian format.
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+Example:
+
+    var buf = new Buffer(4);
+
+    buf[0] = 0x00;
+    buf[1] = 0x00;
+    buf[2] = 0x80;
+    buf[3] = 0x3f;
+
+    console.log(buf.readFloatLE(0));
+
+    // 0x01
+
+### buf.readInt8(offset[, noAssert])
+
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+* Return: Number
+
+Reads a signed 8 bit integer from the buffer at the specified offset.
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+Works as `buffer.readUInt8`, except buffer contents are treated as two's
+complement signed values.
+
+### buf.readInt16BE(offset[, noAssert])
+### buf.readInt16LE(offset[, noAssert])
+
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+* Return: Number
+
+Reads a signed 16 bit integer from the buffer at the specified offset with
+specified endian format.
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+Works as `buffer.readUInt16*`, except buffer contents are treated as two's
+complement signed values.
+
+### buf.readInt32BE(offset[, noAssert])
+### buf.readInt32LE(offset[, noAssert])
+
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+* Return: Number
+
+Reads a signed 32 bit integer from the buffer at the specified offset with
+specified endian format.
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+Works as `buffer.readUInt32*`, except buffer contents are treated as two's
+complement signed values.
+
+### buf.readIntBE(offset, byteLength[, noAssert])
+### buf.readIntLE(offset, byteLength[, noAssert])
+
+* `offset` {Number} `0 <= offset <= buf.length`
+* `byteLength` {Number} `0 < byteLength <= 6`
+* `noAssert` {Boolean} Default: false
+* Return: {Number}
+
+A generalized version of all numeric read methods. Supports up to 48 bits of
+accuracy. For example:
+
+    var b = new Buffer(6);
+    b.writeUInt16LE(0x90ab, 0);
+    b.writeUInt32LE(0x12345678, 2);
+    b.readUIntLE(0, 6).toString(16);  // Specify 6 bytes (48 bits)
+    // output: '1234567890ab'
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
 
 ### buf.readUInt8(offset[, noAssert])
 
@@ -461,8 +472,8 @@ Example:
     // 0x23
     // 0x42
 
-### buf.readUInt16LE(offset[, noAssert])
 ### buf.readUInt16BE(offset[, noAssert])
+### buf.readUInt16LE(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -497,8 +508,8 @@ Example:
     // 0x2342
     // 0x4223
 
-### buf.readUInt32LE(offset[, noAssert])
 ### buf.readUInt32BE(offset[, noAssert])
+### buf.readUInt32LE(offset[, noAssert])
 
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
@@ -525,107 +536,243 @@ Example:
     // 0x03042342
     // 0x42230403
 
-### buf.readInt8(offset[, noAssert])
+### buf.readUIntBE(offset, byteLength[, noAssert])
+### buf.readUIntLE(offset, byteLength[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number} `0 <= offset <= buf.length`
+* `byteLength` {Number} `0 < byteLength <= 6`
+* `noAssert` {Boolean} Default: false
+* Return: {Number}
 
-Reads a signed 8 bit integer from the buffer at the specified offset.
+A generalized version of all numeric read methods. Supports up to 48 bits of
+accuracy. For example:
 
-Set `noAssert` to true to skip validation of `offset`. This means that `offset`
-may be beyond the end of the buffer. Defaults to `false`.
+    var b = new Buffer(6);
+    b.writeUInt16LE(0x90ab, 0);
+    b.writeUInt32LE(0x12345678, 2);
+    b.readUIntLE(0, 6).toString(16);  // Specify 6 bytes (48 bits)
+    // output: '1234567890ab'
 
-Works as `buffer.readUInt8`, except buffer contents are treated as two's
-complement signed values.
+### buf.slice([start[, end]])
 
-### buf.readInt16LE(offset[, noAssert])
-### buf.readInt16BE(offset[, noAssert])
+* `start` Number, Optional, Default: 0
+* `end` Number, Optional, Default: `buffer.length`
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+Returns a new buffer which references the same memory as the old, but offset
+and cropped by the `start` (defaults to `0`) and `end` (defaults to
+`buffer.length`) indexes.  Negative indexes start from the end of the buffer.
 
-Reads a signed 16 bit integer from the buffer at the specified offset with
-specified endian format.
+**Modifying the new buffer slice will modify memory in the original buffer!**
 
-Set `noAssert` to true to skip validation of `offset`. This means that `offset`
-may be beyond the end of the buffer. Defaults to `false`.
+Example: build a Buffer with the ASCII alphabet, take a slice, then modify one
+byte from the original Buffer.
 
-Works as `buffer.readUInt16*`, except buffer contents are treated as two's
-complement signed values.
+    var buf1 = new Buffer(26);
 
-### buf.readInt32LE(offset[, noAssert])
-### buf.readInt32BE(offset[, noAssert])
+    for (var i = 0 ; i < 26 ; i++) {
+      buf1[i] = i + 97; // 97 is ASCII a
+    }
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+    var buf2 = buf1.slice(0, 3);
+    console.log(buf2.toString('ascii', 0, buf2.length));
+    buf1[0] = 33;
+    console.log(buf2.toString('ascii', 0, buf2.length));
 
-Reads a signed 32 bit integer from the buffer at the specified offset with
-specified endian format.
+    // abc
+    // !bc
 
-Set `noAssert` to true to skip validation of `offset`. This means that `offset`
-may be beyond the end of the buffer. Defaults to `false`.
+### buf.toString([encoding][, start][, end])
 
-Works as `buffer.readUInt32*`, except buffer contents are treated as two's
-complement signed values.
+* `encoding` String, Optional, Default: 'utf8'
+* `start` Number, Optional, Default: 0
+* `end` Number, Optional, Default: `buffer.length`
 
-### buf.readFloatLE(offset[, noAssert])
-### buf.readFloatBE(offset[, noAssert])
+Decodes and returns a string from buffer data encoded using the specified
+character set encoding. If `encoding` is `undefined` or `null`, then `encoding`
+defaults to `'utf8'`. The `start` and `end` parameters default to `0` and
+`buffer.length` when `undefined`.
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+    buf = new Buffer(26);
+    for (var i = 0 ; i < 26 ; i++) {
+      buf[i] = i + 97; // 97 is ASCII a
+    }
+    buf.toString('ascii'); // outputs: abcdefghijklmnopqrstuvwxyz
+    buf.toString('ascii',0,5); // outputs: abcde
+    buf.toString('utf8',0,5); // outputs: abcde
+    buf.toString(undefined,0,5); // encoding defaults to 'utf8', outputs abcde
 
-Reads a 32 bit float from the buffer at the specified offset with specified
-endian format.
+See `buffer.write()` example, above.
 
-Set `noAssert` to true to skip validation of `offset`. This means that `offset`
-may be beyond the end of the buffer. Defaults to `false`.
+
+### buf.toJSON()
+
+Returns a JSON-representation of the Buffer instance.  `JSON.stringify`
+implicitly calls this function when stringifying a Buffer instance.
 
 Example:
 
-    var buf = new Buffer(4);
+    var buf = new Buffer('test');
+    var json = JSON.stringify(buf);
 
-    buf[0] = 0x00;
-    buf[1] = 0x00;
-    buf[2] = 0x80;
-    buf[3] = 0x3f;
+    console.log(json);
+    // '{"type":"Buffer","data":[116,101,115,116]}'
 
-    console.log(buf.readFloatLE(0));
+    var copy = JSON.parse(json, function(key, value) {
+        return value && value.type === 'Buffer'
+          ? new Buffer(value.data)
+          : value;
+      });
 
-    // 0x01
+    console.log(copy);
+    // <Buffer 74 65 73 74>
 
-### buf.readDoubleLE(offset[, noAssert])
-### buf.readDoubleBE(offset[, noAssert])
+### buf.write(string[, offset][, length][, encoding])
 
+* `string` String - data to be written to buffer
+* `offset` Number, Optional, Default: 0
+* `length` Number, Optional, Default: `buffer.length - offset`
+* `encoding` String, Optional, Default: 'utf8'
+
+Writes `string` to the buffer at `offset` using the given encoding.
+`offset` defaults to `0`, `encoding` defaults to `'utf8'`. `length` is
+the number of bytes to write. Returns number of octets written. If `buffer` did
+not contain enough space to fit the entire string, it will write a partial
+amount of the string. `length` defaults to `buffer.length - offset`.
+The method will not write partial characters.
+
+    buf = new Buffer(256);
+    len = buf.write('\u00bd + \u00bc = \u00be', 0);
+    console.log(len + " bytes: " + buf.toString('utf8', 0, len));
+
+### buf.writeDoubleBE(value, offset[, noAssert])
+### buf.writeDoubleLE(value, offset[, noAssert])
+
+* `value` Number
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
-* Return: Number
 
-Reads a 64 bit double from the buffer at the specified offset with specified
-endian format.
+Writes `value` to the buffer at the specified offset with specified endian
+format. Note, `value` must be a valid 64 bit double.
 
-Set `noAssert` to true to skip validation of `offset`. This means that `offset`
-may be beyond the end of the buffer. Defaults to `false`.
+Set `noAssert` to true to skip validation of `value` and `offset`. This means
+that `value` may be too large for the specific function and `offset` may be
+beyond the end of the buffer leading to the values being silently dropped. This
+should not be used unless you are certain of correctness. Defaults to `false`.
 
 Example:
 
     var buf = new Buffer(8);
+    buf.writeDoubleBE(0xdeadbeefcafebabe, 0);
 
-    buf[0] = 0x55;
-    buf[1] = 0x55;
-    buf[2] = 0x55;
-    buf[3] = 0x55;
-    buf[4] = 0x55;
-    buf[5] = 0x55;
-    buf[6] = 0xd5;
-    buf[7] = 0x3f;
+    console.log(buf);
 
-    console.log(buf.readDoubleLE(0));
+    buf.writeDoubleLE(0xdeadbeefcafebabe, 0);
 
-    // 0.3333333333333333
+    console.log(buf);
+
+    // <Buffer 43 eb d5 b7 dd f9 5f d7>
+    // <Buffer d7 5f f9 dd b7 d5 eb 43>
+
+### buf.writeFloatBE(value, offset[, noAssert])
+### buf.writeFloatLE(value, offset[, noAssert])
+
+* `value` Number
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+
+Writes `value` to the buffer at the specified offset with specified endian
+format. Note, behavior is unspecified if `value` is not a 32 bit float.
+
+Set `noAssert` to true to skip validation of `value` and `offset`. This means
+that `value` may be too large for the specific function and `offset` may be
+beyond the end of the buffer leading to the values being silently dropped. This
+should not be used unless you are certain of correctness. Defaults to `false`.
+
+Example:
+
+    var buf = new Buffer(4);
+    buf.writeFloatBE(0xcafebabe, 0);
+
+    console.log(buf);
+
+    buf.writeFloatLE(0xcafebabe, 0);
+
+    console.log(buf);
+
+    // <Buffer 4f 4a fe bb>
+    // <Buffer bb fe 4a 4f>
+
+### buf.writeInt8(value, offset[, noAssert])
+
+* `value` Number
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+
+Writes `value` to the buffer at the specified offset. Note, `value` must be a
+valid signed 8 bit integer.
+
+Set `noAssert` to true to skip validation of `value` and `offset`. This means
+that `value` may be too large for the specific function and `offset` may be
+beyond the end of the buffer leading to the values being silently dropped. This
+should not be used unless you are certain of correctness. Defaults to `false`.
+
+Works as `buffer.writeUInt8`, except value is written out as a two's complement
+signed integer into `buffer`.
+
+### buf.writeInt16BE(value, offset[, noAssert])
+### buf.writeInt16LE(value, offset[, noAssert])
+
+* `value` Number
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+
+Writes `value` to the buffer at the specified offset with specified endian
+format. Note, `value` must be a valid signed 16 bit integer.
+
+Set `noAssert` to true to skip validation of `value` and `offset`. This means
+that `value` may be too large for the specific function and `offset` may be
+beyond the end of the buffer leading to the values being silently dropped. This
+should not be used unless you are certain of correctness. Defaults to `false`.
+
+Works as `buffer.writeUInt16*`, except value is written out as a two's
+complement signed integer into `buffer`.
+
+### buf.writeInt32BE(value, offset[, noAssert])
+### buf.writeInt32LE(value, offset[, noAssert])
+
+* `value` Number
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+
+Writes `value` to the buffer at the specified offset with specified endian
+format. Note, `value` must be a valid signed 32 bit integer.
+
+Set `noAssert` to true to skip validation of `value` and `offset`. This means
+that `value` may be too large for the specific function and `offset` may be
+beyond the end of the buffer leading to the values being silently dropped. This
+should not be used unless you are certain of correctness. Defaults to `false`.
+
+Works as `buffer.writeUInt32*`, except value is written out as a two's
+complement signed integer into `buffer`.
+
+### buf.writeIntBE(value, offset, byteLength[, noAssert])
+### buf.writeIntLE(value, offset, byteLength[, noAssert])
+
+* `value` {Number} Bytes to be written to buffer
+* `offset` {Number} `0 <= offset <= buf.length`
+* `byteLength` {Number} `0 < byteLength <= 6`
+* `noAssert` {Boolean} Default: false
+* Return: {Number}
+
+Writes `value` to the buffer at the specified `offset` and `byteLength`.
+Supports up to 48 bits of accuracy. For example:
+
+    var b = new Buffer(6);
+    b.writeUIntBE(0x1234567890ab, 0, 6);
+    // <Buffer 12 34 56 78 90 ab>
+
+Set `noAssert` to `true` to skip validation of `value` and `offset`. Defaults
+to `false`.
 
 ### buf.writeUInt8(value, offset[, noAssert])
 
@@ -653,8 +800,8 @@ Example:
 
     // <Buffer 03 04 23 42>
 
-### buf.writeUInt16LE(value, offset[, noAssert])
 ### buf.writeUInt16BE(value, offset[, noAssert])
+### buf.writeUInt16LE(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -684,8 +831,8 @@ Example:
     // <Buffer de ad be ef>
     // <Buffer ad de ef be>
 
-### buf.writeUInt32LE(value, offset[, noAssert])
 ### buf.writeUInt32BE(value, offset[, noAssert])
+### buf.writeUInt32LE(value, offset[, noAssert])
 
 * `value` Number
 * `offset` Number
@@ -713,142 +860,24 @@ Example:
     // <Buffer fe ed fa ce>
     // <Buffer ce fa ed fe>
 
-### buf.writeInt8(value, offset[, noAssert])
+### buf.writeUIntBE(value, offset, byteLength[, noAssert])
+### buf.writeUIntLE(value, offset, byteLength[, noAssert])
 
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
+* `value` {Number} Bytes to be written to buffer
+* `offset` {Number} `0 <= offset <= buf.length`
+* `byteLength` {Number} `0 < byteLength <= 6`
+* `noAssert` {Boolean} Default: false
+* Return: {Number}
 
-Writes `value` to the buffer at the specified offset. Note, `value` must be a
-valid signed 8 bit integer.
+Writes `value` to the buffer at the specified `offset` and `byteLength`.
+Supports up to 48 bits of accuracy. For example:
 
-Set `noAssert` to true to skip validation of `value` and `offset`. This means
-that `value` may be too large for the specific function and `offset` may be
-beyond the end of the buffer leading to the values being silently dropped. This
-should not be used unless you are certain of correctness. Defaults to `false`.
+    var b = new Buffer(6);
+    b.writeUIntBE(0x1234567890ab, 0, 6);
+    // <Buffer 12 34 56 78 90 ab>
 
-Works as `buffer.writeUInt8`, except value is written out as a two's complement
-signed integer into `buffer`.
-
-### buf.writeInt16LE(value, offset[, noAssert])
-### buf.writeInt16BE(value, offset[, noAssert])
-
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-
-Writes `value` to the buffer at the specified offset with specified endian
-format. Note, `value` must be a valid signed 16 bit integer.
-
-Set `noAssert` to true to skip validation of `value` and `offset`. This means
-that `value` may be too large for the specific function and `offset` may be
-beyond the end of the buffer leading to the values being silently dropped. This
-should not be used unless you are certain of correctness. Defaults to `false`.
-
-Works as `buffer.writeUInt16*`, except value is written out as a two's
-complement signed integer into `buffer`.
-
-### buf.writeInt32LE(value, offset[, noAssert])
-### buf.writeInt32BE(value, offset[, noAssert])
-
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-
-Writes `value` to the buffer at the specified offset with specified endian
-format. Note, `value` must be a valid signed 32 bit integer.
-
-Set `noAssert` to true to skip validation of `value` and `offset`. This means
-that `value` may be too large for the specific function and `offset` may be
-beyond the end of the buffer leading to the values being silently dropped. This
-should not be used unless you are certain of correctness. Defaults to `false`.
-
-Works as `buffer.writeUInt32*`, except value is written out as a two's
-complement signed integer into `buffer`.
-
-### buf.writeFloatLE(value, offset[, noAssert])
-### buf.writeFloatBE(value, offset[, noAssert])
-
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-
-Writes `value` to the buffer at the specified offset with specified endian
-format. Note, behavior is unspecified if `value` is not a 32 bit float.
-
-Set `noAssert` to true to skip validation of `value` and `offset`. This means
-that `value` may be too large for the specific function and `offset` may be
-beyond the end of the buffer leading to the values being silently dropped. This
-should not be used unless you are certain of correctness. Defaults to `false`.
-
-Example:
-
-    var buf = new Buffer(4);
-    buf.writeFloatBE(0xcafebabe, 0);
-
-    console.log(buf);
-
-    buf.writeFloatLE(0xcafebabe, 0);
-
-    console.log(buf);
-
-    // <Buffer 4f 4a fe bb>
-    // <Buffer bb fe 4a 4f>
-
-### buf.writeDoubleLE(value, offset[, noAssert])
-### buf.writeDoubleBE(value, offset[, noAssert])
-
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-
-Writes `value` to the buffer at the specified offset with specified endian
-format. Note, `value` must be a valid 64 bit double.
-
-Set `noAssert` to true to skip validation of `value` and `offset`. This means
-that `value` may be too large for the specific function and `offset` may be
-beyond the end of the buffer leading to the values being silently dropped. This
-should not be used unless you are certain of correctness. Defaults to `false`.
-
-Example:
-
-    var buf = new Buffer(8);
-    buf.writeDoubleBE(0xdeadbeefcafebabe, 0);
-
-    console.log(buf);
-
-    buf.writeDoubleLE(0xdeadbeefcafebabe, 0);
-
-    console.log(buf);
-
-    // <Buffer 43 eb d5 b7 dd f9 5f d7>
-    // <Buffer d7 5f f9 dd b7 d5 eb 43>
-
-### buf.fill(value[, offset][, end])
-
-* `value`
-* `offset` Number, Optional
-* `end` Number, Optional
-
-Fills the buffer with the specified value. If the `offset` (defaults to `0`)
-and `end` (defaults to `buffer.length`) are not given it will fill the entire
-buffer.
-
-    var b = new Buffer(50);
-    b.fill("h");
-
-### buffer.values()
-
-Creates iterator for buffer values (bytes). This function is called automatically
-when `buffer` is used in a `for..of` statement.
-
-### buffer.keys()
-
-Creates iterator for buffer keys (indices).
-
-### buffer.entries()
-
-Creates iterator for `[index, byte]` arrays.
+Set `noAssert` to `true` to skip validation of `value` and `offset`. Defaults
+to `false`.
 
 ## buffer.INSPECT_MAX_BYTES
 
