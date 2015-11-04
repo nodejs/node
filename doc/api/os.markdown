@@ -6,66 +6,15 @@ Provides a few basic operating-system related utility functions.
 
 Use `require('os')` to access this module.
 
-## os.tmpdir()
+## os.EOL
 
-Returns the operating system's default directory for temporary files.
-
-## os.homedir()
-
-Returns the home directory of the current user.
-
-## os.endianness()
-
-Returns the endianness of the CPU. Possible values are `'BE'` for big endian
-or `'LE'` for little endian.
-
-## os.hostname()
-
-Returns the hostname of the operating system.
-
-## os.type()
-
-Returns the operating system name. For example `'Linux'` on Linux, `'Darwin'`
-on OS X and `'Windows_NT'` on Windows.
-
-## os.platform()
-
-Returns the operating system platform. Possible values are `'darwin'`,
-`'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of
-`process.platform`.
+A constant defining the appropriate End-of-line marker for the operating
+system.
 
 ## os.arch()
 
 Returns the operating system CPU architecture. Possible values are `'x64'`,
 `'arm'` and `'ia32'`. Returns the value of `process.arch`.
-
-## os.release()
-
-Returns the operating system release.
-
-## os.uptime()
-
-Returns the system uptime in seconds.
-
-## os.loadavg()
-
-Returns an array containing the 1, 5, and 15 minute load averages.
-
-The load average is a measure of system activity, calculated by the operating
-system and expressed as a fractional number.  As a rule of thumb, the load
-average should ideally be less than the number of logical CPUs in the system.
-
-The load average is a very UNIX-y concept; there is no real equivalent on
-Windows platforms.  That is why this function always returns `[0, 0, 0]` on
-Windows.
-
-## os.totalmem()
-
-Returns the total amount of system memory in bytes.
-
-## os.freemem()
-
-Returns the amount of free system memory in bytes.
 
 ## os.cpus()
 
@@ -143,6 +92,35 @@ Example inspection of os.cpus:
 Note that since `nice` values are UNIX centric in Windows the `nice` values of
 all processors are always 0.
 
+## os.endianness()
+
+Returns the endianness of the CPU. Possible values are `'BE'` for big endian
+or `'LE'` for little endian.
+
+## os.freemem()
+
+Returns the amount of free system memory in bytes.
+
+## os.homedir()
+
+Returns the home directory of the current user.
+
+## os.hostname()
+
+Returns the hostname of the operating system.
+
+## os.loadavg()
+
+Returns an array containing the 1, 5, and 15 minute load averages.
+
+The load average is a measure of system activity, calculated by the operating
+system and expressed as a fractional number.  As a rule of thumb, the load
+average should ideally be less than the number of logical CPUs in the system.
+
+The load average is a very UNIX-y concept; there is no real equivalent on
+Windows platforms.  That is why this function always returns `[0, 0, 0]` on
+Windows.
+
 ## os.networkInterfaces()
 
 Get a list of network interfaces:
@@ -173,7 +151,29 @@ Get a list of network interfaces:
 Note that due to the underlying implementation this will only return network
 interfaces that have been assigned an address.
 
-## os.EOL
+## os.platform()
 
-A constant defining the appropriate End-of-line marker for the operating
-system.
+Returns the operating system platform. Possible values are `'darwin'`,
+`'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of
+`process.platform`.
+
+## os.release()
+
+Returns the operating system release.
+
+## os.tmpdir()
+
+Returns the operating system's default directory for temporary files.
+
+## os.totalmem()
+
+Returns the total amount of system memory in bytes.
+
+## os.type()
+
+Returns the operating system name. For example `'Linux'` on Linux, `'Darwin'`
+on OS X and `'Windows_NT'` on Windows.
+
+## os.uptime()
+
+Returns the system uptime in seconds.
