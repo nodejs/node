@@ -77,20 +77,6 @@ properties of URL objects:
 
 The following methods are provided by the URL module:
 
-## url.parse(urlStr[, parseQueryString][, slashesDenoteHost])
-
-Take a URL string, and return an object.
-
-Pass `true` as the second argument to also parse the query string using the
-`querystring` module. If `true` then the `query` property will always be
-assigned an object, and the `search` property will always be a (possibly
-empty) string. If `false` then the `query` property will not be parsed or
-decoded. Defaults to `false`.
-
-Pass `true` as the third argument to treat `//foo/bar` as
-`{ host: 'foo', pathname: '/bar' }` rather than
-`{ pathname: '//foo/bar' }`. Defaults to `false`.
-
 ## url.format(urlObj)
 
 Take a parsed URL object, and return a formatted URL string.
@@ -116,6 +102,20 @@ Here's how the formatting process works:
 * `search` will be used in place of `query`.
   * It is treated the same with or without the leading `?` (question mark).
 * `hash` is treated the same with or without the leading `#` (pound sign, anchor).
+
+## url.parse(urlStr[, parseQueryString][, slashesDenoteHost])
+
+Take a URL string, and return an object.
+
+Pass `true` as the second argument to also parse the query string using the
+`querystring` module. If `true` then the `query` property will always be
+assigned an object, and the `search` property will always be a (possibly
+empty) string. If `false` then the `query` property will not be parsed or
+decoded. Defaults to `false`.
+
+Pass `true` as the third argument to treat `//foo/bar` as
+`{ host: 'foo', pathname: '/bar' }` rather than
+`{ pathname: '//foo/bar' }`. Defaults to `false`.
 
 ## url.resolve(from, to)
 
