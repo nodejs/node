@@ -125,3 +125,11 @@ an anchor tag.  Examples:
     url.resolve('/one/two/three', 'four')         // '/one/two/four'
     url.resolve('http://example.com/', '/one')    // 'http://example.com/one'
     url.resolve('http://example.com/one', '/two') // 'http://example.com/two'
+
+## url.join(base, [path1][, path2][, ...])
+
+Take any number of paths as an argument, join them together, and resolve the results of the join with the base URL as a browser would for an anchor tag. Examples:
+
+    url.join('http://example.com', '/a', 'b');      // 'http://example.com/a/b'
+    url.join('http://example.com', 'a', '../b');    // 'http://example.com/b'
+    url.join('https://example.com', '1', '2', '3'); // 'http://example.com/1/2/3'
