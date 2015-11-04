@@ -54,6 +54,11 @@ There are subtle consequences in choosing one or another, please consult the
 [Implementation considerations section](#dns_implementation_considerations)
 for more information.
 
+## dns.getServers()
+
+Returns an array of IP addresses as strings that are currently being used for
+resolution
+
 ## dns.lookup(hostname[, options], callback)
 
 Resolves a hostname (e.g. `'google.com'`) into the first found A (IPv4) or
@@ -152,6 +157,11 @@ The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but on
 
 The same as [`dns.resolve4()`](#dns_dns_resolve4_hostname_callback) except for IPv6 queries (an `AAAA` query).
 
+## dns.resolveCname(hostname, callback)
+
+The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for canonical name records (`CNAME`
+records). `addresses` is an array of the canonical name records available for
+`hostname` (e.g., `['bar.example.com']`).
 
 ## dns.resolveMx(hostname, callback)
 
@@ -160,20 +170,11 @@ The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but on
 `addresses` is an array of MX records, each with a priority and an exchange
 attribute (e.g. `[{'priority': 10, 'exchange': 'mx.example.com'},...]`).
 
-## dns.resolveTxt(hostname, callback)
+## dns.resolveNs(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for text queries (`TXT` records).
-`addresses` is a 2-d array of the text records available for `hostname` (e.g.,
-`[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
-one record. Depending on the use case, the could be either joined together or
-treated separately.
-
-## dns.resolveSrv(hostname, callback)
-
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for service records (`SRV` records).
-`addresses` is an array of the SRV records available for `hostname`. Properties
-of SRV records are priority, weight, port, and name (e.g.,
-`[{'priority': 10, 'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
+The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for name server records (`NS` records).
+`addresses` is an array of the name server records available for `hostname`
+(e.g., `['ns1.example.com', 'ns2.example.com']`).
 
 ## dns.resolveSoa(hostname, callback)
 
@@ -194,17 +195,20 @@ The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but on
 }
 ```
 
-## dns.resolveNs(hostname, callback)
+## dns.resolveSrv(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for name server records (`NS` records).
-`addresses` is an array of the name server records available for `hostname`
-(e.g., `['ns1.example.com', 'ns2.example.com']`).
+The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for service records (`SRV` records).
+`addresses` is an array of the SRV records available for `hostname`. Properties
+of SRV records are priority, weight, port, and name (e.g.,
+`[{'priority': 10, 'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
 
-## dns.resolveCname(hostname, callback)
+## dns.resolveTxt(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for canonical name records (`CNAME`
-records). `addresses` is an array of the canonical name records available for
-`hostname` (e.g., `['bar.example.com']`).
+The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for text queries (`TXT` records).
+`addresses` is a 2-d array of the text records available for `hostname` (e.g.,
+`[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
+one record. Depending on the use case, the could be either joined together or
+treated separately.
 
 ## dns.reverse(ip, callback)
 
@@ -214,11 +218,6 @@ The callback has arguments `(err, hostnames)`.
 
 On error, `err` is an `Error` object, where `err.code` is
 one of the error codes listed below.
-
-## dns.getServers()
-
-Returns an array of IP addresses as strings that are currently being used for
-resolution
 
 ## dns.setServers(servers)
 
