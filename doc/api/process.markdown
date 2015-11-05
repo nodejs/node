@@ -547,7 +547,8 @@ string describing the signal to send.  Signal names are strings like
 See [Signal Events][] and kill(2) for more information.
 
 Will throw an error if target does not exist, and as a special case, a signal
-of `0` can be used to test for the existence of a process.
+of `0` can be used to test for the existence of a process. Windows platforms
+will throw an error if the `pid` is used to kill a process group.
 
 Note that even though the name of this function is `process.kill`, it is really
 just a signal sender, like the `kill` system call.  The signal sent may do
