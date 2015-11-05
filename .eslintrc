@@ -27,8 +27,6 @@ rules:
   no-duplicate-case: 2
   ## disallow assignment of exceptional params
   no-ex-assign: 2
-  ## disallow use of reserved words as keys like enum, class
-  no-reserved-keys: 2
   ## disallow unreachable code
   no-unreachable: 2
   ## require valid typeof compared string like typeof foo === 'strnig'
@@ -44,7 +42,7 @@ rules:
   ## use single quote, we can use double quote when escape chars
   quotes: [2, "single", "avoid-escape"]
   ## 2 space indentation
-  indent: [2, 2]
+  indent: [2, 2, {SwitchCase: 1}]
   ## add space after comma
   comma-spacing: 2
   ## put semi-colon
@@ -112,5 +110,3 @@ globals:
   DTRACE_NET_SERVER_CONNECTION         : false
   LTTNG_NET_SERVER_CONNECTION          : false
   COUNTER_NET_SERVER_CONNECTION        : false
-  escape                               : false
-  unescape                             : false
