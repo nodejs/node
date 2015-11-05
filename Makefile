@@ -510,7 +510,7 @@ bench-idle:
 
 jslint:
 	$(NODE) tools/eslint/bin/eslint.js src lib test tools/eslint-rules \
-		--rulesdir tools/eslint-rules --reset --quiet
+		--rulesdir tools/eslint-rules --quiet
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc
