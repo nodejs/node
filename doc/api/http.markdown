@@ -92,7 +92,7 @@ When a new TCP stream is established. `socket` is an object of type
 `net.Socket`. Usually users will not want to access this event. In
 particular, the socket will not emit `readable` events because of how
 the protocol parser attaches to the socket. The `socket` can also be
-accessed at `request.connection`.
+accessed at `request.socket`.
 
 ### Event: 'close'
 
@@ -1020,7 +1020,7 @@ received.  Only populated at the 'end' event.
 * `msecs` {Number}
 * `callback` {Function}
 
-Calls `message.connection.setTimeout(msecs, callback)`.
+Calls `message.socket.setTimeout(msecs, callback)`.
 
 Returns `message`.
 
