@@ -109,16 +109,19 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
   if (mainFile && path.resolve(this.path, entry) === path.resolve(this.path, mainFile)) return true
 
   // some files are *never* allowed under any circumstances
+  // (VCS folders, native build cruft, npm cruft, regular cruft)
   if (entry === '.git' ||
-      entry === '.lock-wscript' ||
-      entry.match(/^\.wafpickle-[0-9]+$/) ||
       entry === 'CVS' ||
       entry === '.svn' ||
       entry === '.hg' ||
+      entry === '.lock-wscript' ||
+      entry.match(/^\.wafpickle-[0-9]+$/) ||
+      entry === 'config.gypi' ||
+      entry === 'npm-debug.log' ||
+      entry === '.npmrc' ||
       entry.match(/^\..*\.swp$/) ||
       entry === '.DS_Store' ||
-      entry.match(/^\._/) ||
-      entry === 'npm-debug.log'
+      entry.match(/^\._/)
     ) {
     return false
   }

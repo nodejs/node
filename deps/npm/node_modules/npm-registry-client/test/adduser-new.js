@@ -51,6 +51,7 @@ tap.test('create new user account', function (t) {
     function (er, data) {
       if (er) throw er
       t.deepEqual(data, auth, 'received expected auth data')
+      server.close()
       t.end()
     }
   )

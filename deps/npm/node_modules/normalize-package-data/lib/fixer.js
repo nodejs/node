@@ -1,11 +1,11 @@
 var semver = require("semver")
 var validateLicense = require('validate-npm-package-license');
 var hostedGitInfo = require("hosted-git-info")
+var isBuiltinModule = require("is-builtin-module")
 var depTypes = ["dependencies","devDependencies","optionalDependencies"]
 var extractDescription = require("./extract_description")
 var url = require("url")
 var typos = require("./typos")
-var coreModuleNames = require("./core_module_names")
 
 var fixer = module.exports = {
   // default warning function
@@ -208,7 +208,7 @@ var fixer = module.exports = {
     if (!strict)
       data.name = data.name.trim()
     ensureValidName(data.name, strict, options.allowLegacyCase)
-    if (coreModuleNames.indexOf(data.name) !== -1)
+    if (isBuiltinModule(data.name))
       this.warn("conflictingName", data.name)
   }
 

@@ -467,6 +467,26 @@ Generates the following response payload:
 }
 ```
 
+### `Boom.preconditionRequired([message], [data])`
+
+Returns a 428 Precondition Required error where:
+- `message` - optional message.
+- `data` - optional additional error data.
+
+```js
+Boom.preconditionRequired('you must supply an If-Match header');
+```
+
+Generates the following response payload:
+
+```json
+{
+    "statusCode": 428,
+    "error": "Precondition Required",
+    "message": "you must supply an If-Match header"
+}
+```
+
 ### `Boom.tooManyRequests([message], [data])`
 
 Returns a 429 Too Many Requests error where:

@@ -31,28 +31,6 @@ misc_mandocs = $(shell find doc/misc -name '*.md' \
                |sed 's|doc/misc/|man/man7/|g' ) \
                man/man7/npm-index.7
 
-
-cli_partdocs = $(shell find doc/cli -name '*.md' \
-                |sed 's|.md|.html|g' \
-                |sed 's|doc/cli/|html/partial/doc/cli/|g' ) \
-                html/partial/doc/README.html
-
-api_partdocs = $(shell find doc/api -name '*.md' \
-                |sed 's|.md|.html|g' \
-                |sed 's|doc/api/|html/partial/doc/api/|g' )
-
-files_partdocs = $(shell find doc/files -name '*.md' \
-                  |sed 's|.md|.html|g' \
-                  |sed 's|doc/files/|html/partial/doc/files/|g' ) \
-                  html/partial/doc/files/npm-json.html \
-                  html/partial/doc/files/npm-global.html
-
-misc_partdocs = $(shell find doc/misc -name '*.md' \
-                 |sed 's|.md|.html|g' \
-                 |sed 's|doc/misc/|html/partial/doc/misc/|g' ) \
-                 html/partial/doc/index.html
-
-
 cli_htmldocs = $(shell find doc/cli -name '*.md' \
                 |sed 's|.md|.html|g' \
                 |sed 's|doc/cli/|html/doc/cli/|g' ) \
@@ -74,8 +52,6 @@ misc_htmldocs = $(shell find doc/misc -name '*.md' \
                  html/doc/index.html
 
 mandocs = $(api_mandocs) $(cli_mandocs) $(files_mandocs) $(misc_mandocs)
-
-partdocs = $(api_partdocs) $(cli_partdocs) $(files_partdocs) $(misc_partdocs)
 
 htmldocs = $(api_htmldocs) $(cli_htmldocs) $(files_htmldocs) $(misc_htmldocs)
 
@@ -103,7 +79,7 @@ clean: markedclean marked-manclean doc-clean uninstall
 uninstall:
 	node cli.js rm npm -g -f
 
-doc: $(mandocs) $(htmldocs) $(partdocs)
+doc: $(mandocs) $(htmldocs)
 
 markedclean:
 	rm -rf node_modules/marked node_modules/.bin/marked .building_marked
@@ -143,71 +119,41 @@ man/man5/%.5: doc/files/%.md scripts/doc-build.sh package.json
 	@[ -d man/man5 ] || mkdir -p man/man5
 	scripts/doc-build.sh $< $@
 
+doc/misc/npm-index.md: scripts/index-build.js package.json
+	node scripts/index-build.js > $@
+
+html/doc/index.html: doc/misc/npm-index.md $(html_docdeps)
+	@[ -d html/doc ] || mkdir -p html/doc
+	scripts/doc-build.sh $< $@
+
 man/man7/%.7: doc/misc/%.md scripts/doc-build.sh package.json
 	@[ -d man/man7 ] || mkdir -p man/man7
 	scripts/doc-build.sh $< $@
 
-
-doc/misc/npm-index.md: scripts/index-build.js package.json
-	node scripts/index-build.js > $@
-
-
-# html/doc depends on html/partial/doc
-html/doc/%.html: html/partial/doc/%.html
+html/doc/README.html: README.md $(html_docdeps)
 	@[ -d html/doc ] || mkdir -p html/doc
 	scripts/doc-build.sh $< $@
 
-html/doc/README.html: html/partial/doc/README.html
-	@[ -d html/doc ] || mkdir -p html/doc
-	scripts/doc-build.sh $< $@
-
-html/doc/cli/%.html: html/partial/doc/cli/%.html
+html/doc/cli/%.html: doc/cli/%.md $(html_docdeps)
 	@[ -d html/doc/cli ] || mkdir -p html/doc/cli
 	scripts/doc-build.sh $< $@
 
-html/doc/misc/%.html: html/partial/doc/misc/%.html
-	@[ -d html/doc/misc ] || mkdir -p html/doc/misc
-	scripts/doc-build.sh $< $@
-
-html/doc/files/%.html: html/partial/doc/files/%.html
-	@[ -d html/doc/files ] || mkdir -p html/doc/files
-	scripts/doc-build.sh $< $@
-
-html/doc/api/%.html: html/partial/doc/api/%.html
+html/doc/api/%.html: doc/api/%.md $(html_docdeps)
 	@[ -d html/doc/api ] || mkdir -p html/doc/api
 	scripts/doc-build.sh $< $@
 
-
-html/partial/doc/index.html: doc/misc/npm-index.md $(html_docdeps)
-	@[ -d html/partial/doc ] || mkdir -p html/partial/doc
-	scripts/doc-build.sh $< $@
-
-html/partial/doc/README.html: README.md $(html_docdeps)
-	@[ -d html/partial/doc ] || mkdir -p html/partial/doc
-	scripts/doc-build.sh $< $@
-
-html/partial/doc/cli/%.html: doc/cli/%.md $(html_docdeps)
-	@[ -d html/partial/doc/cli ] || mkdir -p html/partial/doc/cli
-	scripts/doc-build.sh $< $@
-
-html/partial/doc/api/%.html: doc/api/%.md $(html_docdeps)
-	@[ -d html/partial/doc/api ] || mkdir -p html/partial/doc/api
-	scripts/doc-build.sh $< $@
-
-html/partial/doc/files/npm-json.html: html/partial/doc/files/package.json.html
+html/doc/files/npm-json.html: html/doc/files/package.json.html
 	cp $< $@
-html/partial/doc/files/npm-global.html: html/partial/doc/files/npm-folders.html
+html/doc/files/npm-global.html: html/doc/files/npm-folders.html
 	cp $< $@
 
-html/partial/doc/files/%.html: doc/files/%.md $(html_docdeps)
-	@[ -d html/partial/doc/files ] || mkdir -p html/partial/doc/files
+html/doc/files/%.html: doc/files/%.md $(html_docdeps)
+	@[ -d html/doc/files ] || mkdir -p html/doc/files
 	scripts/doc-build.sh $< $@
 
-html/partial/doc/misc/%.html: doc/misc/%.md $(html_docdeps)
-	@[ -d html/partial/doc/misc ] || mkdir -p html/partial/doc/misc
+html/doc/misc/%.html: doc/misc/%.md $(html_docdeps)
+	@[ -d html/doc/misc ] || mkdir -p html/doc/misc
 	scripts/doc-build.sh $< $@
-
-
 
 
 marked: node_modules/.bin/marked

@@ -178,10 +178,10 @@ The "files" field is an array of files to include in your project.  If
 you name a folder in the array, then it will also include the files
 inside that folder. (Unless they would be ignored by another rule.)
 
-You can also provide a ".npmignore" file in the root of your package,
-which will keep files from being included, even if they would be picked
-up by the files array.  The ".npmignore" file works just like a
-".gitignore".
+You can also provide a ".npmignore" file in the root of your package or
+in subdirectories, which will keep files from being included, even
+if they would be picked up by the files array.  The `.npmignore` file
+works just like a `.gitignore`.
 
 Certain files are always included, regardless of settings:
 
@@ -571,7 +571,7 @@ this. If you depend on features introduced in 1.5.2, use `">= 1.5.2 < 2"`.
 
 Array of package names that will be bundled when publishing the package.
 
-If this is spelled `"bundleDependencies"`, then that is also honorable.
+If this is spelled `"bundleDependencies"`, then that is also honored.
 
 ## optionalDependencies
 

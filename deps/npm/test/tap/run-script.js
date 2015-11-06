@@ -1,4 +1,4 @@
-var fs = require('fs')
+var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
@@ -51,6 +51,14 @@ var both = {
   scripts: {
     'prestart': 'echo prestart',
     'whoa': 'echo whoa'
+  }
+}
+
+var preversionOnly = {
+  name: 'scripted',
+  version: '1.2.3',
+  scripts: {
+    'preversion': 'echo preversion'
   }
 }
 
@@ -182,6 +190,25 @@ test('npm run-script no-params (lifecycle only)', function (t) {
   ].join('\n')
 
   writeMetadata(lifecycleOnly)
+
+  common.npm(['run-script'], opts, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without parameters without crashing')
+    t.notOk(code, 'npm exited without error code')
+    t.notOk(stderr, 'npm printed nothing to stderr')
+    t.equal(stdout, expected, 'got expected output')
+    t.end()
+  })
+})
+
+test('npm run-script no-params (preversion only)', function (t) {
+  var expected = [
+    'Lifecycle scripts included in scripted:',
+    '  preversion',
+    '    echo preversion',
+    ''
+  ].join('\n')
+
+  writeMetadata(preversionOnly)
 
   common.npm(['run-script'], opts, function (err, code, stdout, stderr) {
     t.ifError(err, 'ran run-script without parameters without crashing')

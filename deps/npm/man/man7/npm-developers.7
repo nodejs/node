@@ -1,4 +1,4 @@
-.TH "NPM\-DEVELOPERS" "7" "August 2015" "" ""
+.TH "NPM\-DEVELOPERS" "7" "November 2015" "" ""
 .SH "NAME"
 \fBnpm-developers\fR \- Developer Guide
 .SH DESCRIPTION
@@ -110,7 +110,9 @@ Use a \fB\|\.npmignore\fP file to keep stuff out of your package\.  If there's
 no \fB\|\.npmignore\fP file, but there \fIis\fR a \fB\|\.gitignore\fP file, then npm will
 ignore the stuff matched by the \fB\|\.gitignore\fP file\.  If you \fIwant\fR to
 include something that is excluded by your \fB\|\.gitignore\fP file, you can
-create an empty \fB\|\.npmignore\fP file to override it\.
+create an empty \fB\|\.npmignore\fP file to override it\. Like \fBgit\fP, \fBnpm\fP looks
+for \fB\|\.npmignore\fP and \fB\|\.gitignore\fP files in all subdirectories of your
+package, not only the root directory\.
 .P
 \fB\|\.npmignore\fP files follow the same pattern rules \fIhttp://git\-scm\.com/book/en/v2/Git\-Basics\-Recording\-Changes\-to\-the\-Repository#Ignoring\-Files\fR
 as \fB\|\.gitignore\fP files:
@@ -140,11 +142,15 @@ need to add them to \fB\|\.npmignore\fP explicitly:
 .IP \(bu 2
 \fB\|\.hg\fP
 .IP \(bu 2
+\fB\|\.npmrc\fP
+.IP \(bu 2
 \fB\|\.lock\-wscript\fP
 .IP \(bu 2
 \fB\|\.svn\fP
 .IP \(bu 2
 \fB\|\.wafpickle\-*\fP
+.IP \(bu 2
+\fBconfig\.gypi\fP
 .IP \(bu 2
 \fBCVS\fP
 .IP \(bu 2
@@ -162,7 +168,11 @@ The following paths and files are never ignored, so adding them to
 .IP \(bu 2
 \fBpackage\.json\fP
 .IP \(bu 2
-\fBREADME\.*\fP
+\fBREADME\fP (and its variants)
+.IP \(bu 2
+\fBCHANGELOG\fP (and its variants)
+.IP \(bu 2
+\fBLICENSE\fP / \fBLICENCE\fP
 
 .RE
 .SH Link Packages

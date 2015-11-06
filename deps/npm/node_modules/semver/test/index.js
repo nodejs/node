@@ -391,14 +391,14 @@ test('\nincrement versions test', function(t) {
     ['1.2.3-alpha.9.beta', 'prerelease', '1.2.3-alpha.10.beta', false, 'alpha'],
     ['1.2.3-alpha.10.beta', 'prerelease', '1.2.3-alpha.11.beta', false, 'alpha'],
     ['1.2.3-alpha.11.beta', 'prerelease', '1.2.3-alpha.12.beta', false, 'alpha'],
-    ['1.2.0', 'prepatch', '1.2.1-dev.0', 'dev'],
-    ['1.2.0-1', 'prepatch', '1.2.1-dev.0', 'dev'],
-    ['1.2.0', 'preminor', '1.3.0-dev.0', 'dev'],
-    ['1.2.3-1', 'preminor', '1.3.0-dev.0', 'dev'],
-    ['1.2.0', 'premajor', '2.0.0-dev.0', 'dev'],
-    ['1.2.3-1', 'premajor', '2.0.0-dev.0', 'dev'],
-    ['1.2.0-1', 'minor', '1.2.0', 'dev'],
-    ['1.0.0-1', 'major', '1.0.0', 'dev'],
+    ['1.2.0', 'prepatch', '1.2.1-dev.0', false, 'dev'],
+    ['1.2.0-1', 'prepatch', '1.2.1-dev.0', false, 'dev'],
+    ['1.2.0', 'preminor', '1.3.0-dev.0', false, 'dev'],
+    ['1.2.3-1', 'preminor', '1.3.0-dev.0', false, 'dev'],
+    ['1.2.0', 'premajor', '2.0.0-dev.0', false, 'dev'],
+    ['1.2.3-1', 'premajor', '2.0.0-dev.0', false, 'dev'],
+    ['1.2.0-1', 'minor', '1.2.0', false, 'dev'],
+    ['1.0.0-1', 'major', '1.0.0', false, 'dev'],
     ['1.2.3-dev.bar', 'prerelease', '1.2.3-dev.0', false, 'dev']
 
   ].forEach(function(v) {
@@ -410,6 +410,19 @@ test('\nincrement versions test', function(t) {
     var found = inc(pre, what, loose, id);
     var cmd = 'inc(' + pre + ', ' + what + ', ' + id + ')';
     t.equal(found, wanted, cmd + ' === ' + wanted);
+
+    var parsed = semver.parse(pre, loose);
+    if (wanted) {
+      parsed.inc(what, id);
+      t.equal(parsed.version, wanted, cmd + ' object version updated');
+      t.equal(parsed.raw, wanted, cmd + ' object raw field updated');
+    } else if (parsed) {
+      t.throws(function () {
+        parsed.inc(what, id)
+      })
+    } else {
+      t.equal(parsed, null)
+    }
   });
 
   t.end();

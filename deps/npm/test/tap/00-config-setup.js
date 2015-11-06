@@ -1,3 +1,4 @@
+var fs = require("graceful-fs")
 var path = require("path")
 var userconfigSrc = path.resolve(__dirname, "..", "fixtures", "config", "userconfig")
 exports.userconfig = userconfigSrc + "-with-gc"
@@ -55,10 +56,24 @@ exports.envDataFix = {
   "other-env-thing": 1000
 }
 
+var projectConf = path.resolve(__dirname, '..', '..', '.npmrc')
+try {
+  fs.statSync(projectConf)
+} catch (er) {
+  // project conf not found, probably working with packed npm
+  fs.writeFileSync(projectConf, 'save-prefix = ~\nproprietary-attribs = false\n')
+}
+
+var projectRc = path.join(__dirname, '..', 'fixtures', 'config', '.npmrc')
+try {
+  fs.statSync(projectRc)
+} catch (er) {
+  // project conf not found, probably working with packed npm
+  fs.writeFileSync(projectRc, 'just = testing')
+}
 
 if (module === require.main) {
   // set the globalconfig in the userconfig
-  var fs = require("fs")
   var uc = fs.readFileSync(userconfigSrc)
   var gcini = "globalconfig = " + exports.globalconfig + "\n"
   fs.writeFileSync(exports.userconfig, gcini + uc)
