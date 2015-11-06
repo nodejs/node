@@ -41,6 +41,7 @@ int wmain(int argc, wchar_t *wargv[]) {
 #else
 // UNIX
 int main(int argc, char *argv[]) {
+  setvbuf(stderr, NULL, _IOLBF, 1024);
   return node::Start(argc, argv);
 }
 #endif
