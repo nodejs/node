@@ -62,7 +62,7 @@ function runScript (args, cb) {
 function list(cb) {
   var json = path.join(npm.localPrefix, "package.json")
   var cmdList = [ "publish", "install", "uninstall"
-                , "test", "stop", "start", "restart"
+                , "test", "stop", "start", "restart", "version"
                 ].reduce(function (l, p) {
                   return l.concat(["pre" + p, p, "post" + p])
                 }, [])

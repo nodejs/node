@@ -78,3 +78,29 @@ var retry = require(common.dir.lib + '/retry');
 
   fn();
 })();
+
+(function testRetryForever() {
+  var error = new Error('some error');
+  var operation = retry.operation({ retries: 3, forever: true });
+  var attempts = 0;
+
+  var finalCallback = fake.callback('finalCallback');
+  fake.expectAnytime(finalCallback);
+
+  var fn = function() {
+    operation.attempt(function(currentAttempt) {
+      attempts++;
+      assert.equal(currentAttempt, attempts);
+      if (attempts !== 6 && operation.retry(error)) {
+        return;
+      }
+
+      assert.strictEqual(attempts, 6);
+      assert.strictEqual(operation.attempts(), attempts);
+      assert.strictEqual(operation.mainError(), error);
+      finalCallback();
+    });
+  };
+
+  fn();
+})();

@@ -65,7 +65,7 @@ If a version range is provided, then data will be printed for every
 matching version of the package.  This will show which version of jsdom
 was required by each matching version of yui3:
 
-    npm.commands.view(["yui3@'>0.5.4'", "dependencies.jsdom"], callback)
+    npm.commands.view(["yui3@>0.5.4", "dependencies.jsdom"], callback)
 
 ## OUTPUT
 

@@ -13,13 +13,14 @@ var fs = require('graceful-fs')
   , which = require('which')
   , mkdirp = require('mkdirp')
   , exec = require('child_process').exec
+  , processRelease = require('./process-release')
   , win = process.platform == 'win32'
 
 exports.usage = 'Invokes `' + (win ? 'msbuild' : 'make') + '` and builds the module'
 
 function build (gyp, argv, callback) {
-
-  var makeCommand = gyp.opts.make || process.env.MAKE
+  var release = processRelease(argv, gyp, process.version, process.release)
+    , makeCommand = gyp.opts.make || process.env.MAKE
       || (process.platform.indexOf('bsd') != -1 && process.platform.indexOf('kfreebsd') == -1 ? 'gmake' : 'make')
     , command = win ? 'msbuild' : makeCommand
     , buildDir = path.resolve('build')
@@ -181,15 +182,15 @@ function build (gyp, argv, callback) {
     if (!win || !copyDevLib) return doBuild()
 
     var buildDir = path.resolve(nodeDir, buildType)
-      , archNodeLibPath = path.resolve(nodeDir, arch, 'node.lib')
-      , buildNodeLibPath = path.resolve(buildDir, 'node.lib')
+      , archNodeLibPath = path.resolve(nodeDir, arch, release.name + '.lib')
+      , buildNodeLibPath = path.resolve(buildDir, release.name + '.lib')
 
     mkdirp(buildDir, function (err, isNew) {
       if (err) return callback(err)
       log.verbose('"' + buildType + '" dir needed to be created?', isNew)
       var rs = fs.createReadStream(archNodeLibPath)
         , ws = fs.createWriteStream(buildNodeLibPath)
-      log.verbose('copying "node.lib" for ' + arch, buildNodeLibPath)
+      log.verbose('copying "' + release.name + '.lib" for ' + arch, buildNodeLibPath)
       rs.pipe(ws)
       rs.on('error', callback)
       ws.on('error', callback)

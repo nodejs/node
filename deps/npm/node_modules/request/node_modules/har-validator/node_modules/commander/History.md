@@ -1,10 +1,15 @@
 
+2.9.0 / 2015-10-13
+==================
+
+  * Add option `isDefault` to set default subcommand #415 @Qix-
+  * Add callback to allow filtering or post-processing of help text #434 @djulien
+  * Fix `undefined` text in help information close #414 #416 @zhiyelee
+
 2.8.1 / 2015-04-22
 ==================
 
  * Back out `support multiline description` Close #396 #397
-
-
 
 2.8.0 / 2015-04-07
 ==================

@@ -481,6 +481,7 @@ SemVer.prototype.inc = function(release, identifier) {
       throw new Error('invalid increment argument: ' + release);
   }
   this.format();
+  this.raw = this.version;
   return this;
 };
 
