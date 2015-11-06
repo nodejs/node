@@ -1,3 +1,86 @@
+### v2.14.9 (2015-10-29):
+
+There's still life in `npm@2`, but for now, enjoy these dependency upgrades!
+Also, [@othiym23](https://github.com/othiym23) says hi! _waves_
+[@zkat](https://github.com/zkat) has her hands full, and
+[@iarna](https://github.com/iarna)'s handling `npm@3`, so I'm dealing with
+`npm@2` and the totally nonexistent weird bridge `npm@1.4` LTS release that may
+or may not be happening this week.
+
+#### CAN'T STOP WON'T STOP UPDATING THOSE DEPENDENCIES
+
+* [`f52f0cb`](https://github.com/npm/npm/commit/f52f0cb51526314197e9d67619feebbd82a397b7)
+  [#10150](https://github.com/npm/npm/issues/10150) `chmodr@1.0.2`: Use
+  `fs.lstat()` to check if an entry is a directory, making `chmodr()` work
+  properly with NFS mounts on Windows. ([@sheerun](https://github.com/sheerun))
+* [`f7011d7`](https://github.com/npm/npm/commit/f7011d7b3b1d9148a6cd8f7b8359d6fe3269a912)
+  [#10150](https://github.com/npm/npm/issues/10150) `which@1.2.0`: Additional
+  command-line parameters, which is nice but not used by npm.
+  ([@isaacs](https://github.com/isaacs))
+* [`ebcc0d8`](https://github.com/npm/npm/commit/ebcc0d8629388da0b849bbbad590382cd7268f51)
+  [#10150](https://github.com/npm/npm/issues/10150) `minimatch@3.0.0`: Don't
+  package browser version. ([@isaacs](https://github.com/isaacs))
+* [`8c98dce`](https://github.com/npm/npm/commit/8c98dce5ffe242bafbe92b849e73e8de1803e256)
+  [#10150](https://github.com/npm/npm/issues/10150) `fstream-ignore@1.0.3`:
+  Upgrade to use `minimatch@3` (for deduping purposes).
+  ([@othiym23](https://github.com/othiym23))
+* [`db9ef33`](https://github.com/npm/npm/commit/db9ef337c253ecf21c921055bf8742e10d1cb3bb)
+  [#10150](https://github.com/npm/npm/issues/10150) `request@2.65.0`:
+  Dependency upgrades and a few bug fixes, mostly related to cookie handling.
+  ([@simov](https://github.com/simov))
+
+#### DEVDEPENDENCIES TOO, I GUESS, IT'S COOL
+
+* [`dfbf621`](https://github.com/npm/npm/commit/dfbf621afa09c46991249b4f9a995d1823ea7ede)
+  [#10150](https://github.com/npm/npm/issues/10150) `tap@2.2.0`: Better
+  handling of test order handling (including some test fixes for npm).
+  ([@isaacs](https://github.com/isaacs))
+* [`cf5ad5a`](https://github.com/npm/npm/commit/cf5ad5a8c88bfd72e30ef8a8d1d3c5508e0b3c23)
+  [#10150](https://github.com/npm/npm/issues/10150) `nock@2.16.0`: More
+  expectations, documentation, and bug fixes.
+  ([@pgte](https://github.com/pgte))
+
+### v2.14.8 (2015-10-08):
+
+#### SLOWLY RECOVERING FROM FEELINGS
+
+OS&F is definitely my favorite convention I've gone to. Y'all should check it
+out next year! Rebecca and Kat are back, although Forrest is out at
+[&yet conf](http://andyetconf.com/).
+
+This week sees another tiny LTS release with non-code-related patches -- just
+CI/release things.
+
+Meanwhile, have you heard? `npm@3` is much faster now! Go upgrade with `npm
+install -g npm@latest` and give it a whirl if you haven't already!
+
+#### IF YOU CHANGE CASING ON A FILE, YOU ARE NOT MY FRIEND
+
+Seriously. I love me some case-sensitive filesystems, but a lot of us have to
+deal with `git` and its funky support for case normalizing systems. Have mercy
+and just don't bother if all you're changing is casing, please? Otherwise, I
+have to do this little dance to prevent horrible conflicts.
+
+* [`c3a7b61`](https://github.com/npm/npm/commit/c3a7b619786650a45653c8b55b8741fc7bb5cfda)
+  [#9804](https://github.com/npm/npm/pulls/9804) Remove the readme file with
+  weird casing.
+  ([@zkat](https://github.com/zkat))
+* [`f3f619e`](https://github.com/npm/npm/commit/f3f619e06e4be1378dbf286f897b50e9c69c9557)
+  [#9804](https://github.com/npm/npm/pulls/9804) Add the readme file back in,
+  with desired casing.
+  ([@zkat](https://github.com/zkat))
+
+#### IDK. OUR CI DOESN'T EVEN FULLY WORK YET BUT SURE
+
+Either way, it's nice to make sure we're running stuff on the latest Node. `4.2`
+is getting released very soon, though (this week?), and that'll be the first
+official LTS release!
+
+* [`bd0b9ab`](https://github.com/npm/npm/commit/bd0b9ab6e60a31448794bbd88f94672572c3cb55)
+  [#9827](https://github.com/npm/npm/pulls/9827) Add node `4.0` and `4.1` to
+  TravisCI
+  ([@JaKXz](https://github.com/JaKXz))
+
 ### v2.14.7 (2015-10-01):
 
 #### MORE RELEASE STAGGERING?!
@@ -36,8 +119,6 @@ Anyway -- here's your version bump! :)
   `request@2.64.0`: No longer defaulting to `application/json` for `json`
   requests. Also some minor doc and packaging patches.
   ([@simov](https://github.com/simov))
-  `minimatch@3.0.0`: No longer packaging browser modules.
-  ([@isaacs](https://github.com/isaacs))
 * [`a18b213`](https://github.com/npm/npm/commit/a18b213e6945a8f5faf882927829ac95f844e2aa)
   `glob@5.0.15`: Upgraded `minimatch` dependency.
   ([@isaacs](https://github.com/isaacs))

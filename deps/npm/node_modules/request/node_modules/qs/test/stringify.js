@@ -278,4 +278,16 @@ describe('stringify()', function () {
         expect(Qs.stringify({ a: 'b', c: null }, { strictNullHandling: true, encode: false })).to.equal('a=b&c');
         done();
     });
+
+    it('can sort the keys', function (done) {
+
+        var sort = function alphabeticalSort (a, b) {
+
+            return a.localeCompare(b);
+        };
+
+        expect(Qs.stringify({ a: 'c', z: 'y', b : 'f' }, { sort : sort })).to.equal('a=c&b=f&z=y');
+        expect(Qs.stringify({ a: 'c', z: { j: 'a', i:'b' }, b : 'f' }, { sort : sort })).to.equal('a=c&b=f&z%5Bi%5D=b&z%5Bj%5D=a');
+        done();
+    });
 });

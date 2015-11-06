@@ -167,12 +167,14 @@ program
   .version('0.0.1')
   .command('install [name]', 'install one or more packages')
   .command('search [query]', 'search with optional query')
-  .command('list', 'list packages installed')
+  .command('list', 'list packages installed', {isDefault: true})
   .parse(process.argv);
 ```
 
 When `.command()` is invoked with a description argument, no `.action(callback)` should be called to handle sub-commands, otherwise there will be an error. This tells commander that you're going to use separate executables for sub-commands, much like `git(1)` and other popular tools.  
 The commander will try to search the executables in the directory of the entry script (like `./examples/pm`) with the name `program-command`, like `pm-install`, `pm-search`.
+
+Options can be passed with the call to `.command()`. Specifying `true` for `opts.noHelp` will remove the option from the generated help output. Specifying `true` for `opts.isDefault` will run the subcommand if no other subcommand is specified.
 
 If the program is designed to be installed globally, make sure the executables have proper modes, like `755`.
 
@@ -266,14 +268,16 @@ Examples:
 
 ```
 
-## .outputHelp()
+## .outputHelp(cb)
 
 Output help information without exiting.
+Optional callback cb allows post-processing of help text before it is displayed.
 
 If you want to display help by default (e.g. if no command was provided), you can use something like:
 
 ```js
 var program = require('commander');
+var colors = require('colors');
 
 program
   .version('0.0.1')
@@ -281,13 +285,18 @@ program
   .parse(process.argv);
 
   if (!process.argv.slice(2).length) {
-    program.outputHelp();
+    program.outputHelp(make_red);
   }
+
+function make_red(txt) {
+  return colors.red(txt); //display the help text in red on the console
+}
 ```
 
-## .help()
+## .help(cb)
 
   Output help information and exit immediately.
+  Optional callback cb allows post-processing of help text before it is displayed.
 
 ## Examples
 
