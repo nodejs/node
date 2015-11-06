@@ -22,6 +22,8 @@ exports.isLinuxPPCBE = (process.platform === 'linux') &&
 exports.isSunOS = process.platform === 'sunos';
 exports.isFreeBSD = process.platform === 'freebsd';
 
+exports.enoughTestMem = os.totalmem() > 0x20000000; /* 512MB */
+
 function rimrafSync(p) {
   try {
     var st = fs.lstatSync(p);
