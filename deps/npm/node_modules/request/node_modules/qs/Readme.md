@@ -201,13 +201,20 @@ Qs.parse('a[][b]=c');
 Qs.stringify(object, [options]);
 ```
 
-When stringifying, **qs** always URI encodes output. Objects are stringified as you would expect:
+When stringifying, **qs** by default URI encodes output. Objects are stringified as you would expect:
 
 ```javascript
 Qs.stringify({ a: 'b' });
 // 'a=b'
 Qs.stringify({ a: { b: 'c' } });
 // 'a%5Bb%5D=c'
+```
+
+This encoding can be disabled by setting the `encode` option to `false`:
+
+```javascript
+Qs.stringify({ a: { b: 'c' } }, { encode: false });
+// 'a[b]=c'
 ```
 
 Examples beyond this point will be shown as though the output is not URI encoded for clarity. Please note that the return values in these cases *will* be URI encoded during real usage.
