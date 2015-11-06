@@ -4,8 +4,10 @@
 
 <!--type=module-->
 
-Many objects in Node.js emit events: a `net.Server` emits an event each time
-a peer connects to it, a `fs.readStream` emits an event when the file is
+Many objects in Node.js emit events: a
+[`net.Server`](net.html#net_class_net_server) emits an event each time a peer
+connects to it, a [`fs.ReadStream`](fs.html#fs_class_fs_readstream) emits an
+event when the file is
 opened. All objects which emit events are instances of `events.EventEmitter`.
 You can access this module by doing: `require("events");`
 
@@ -99,7 +101,8 @@ Returns emitter, so calls can be chained.
 ### emitter.getMaxListeners()
 
 Returns the current max listener value for the emitter which is either set by
-`emitter.setMaxListeners(n)` or defaults to `EventEmitter.defaultMaxListeners`.
+[`emitter.setMaxListeners(n)`](#events_emitter_setmaxlisteners_n) or defaults to
+[`EventEmitter.defaultMaxListeners`](#events_eventemitter_defaultmaxlisteners).
 
 This can be useful to increment/decrement max listeners to avoid the warning
 while not being irresponsible and setting a too big number.
@@ -112,12 +115,13 @@ while not being irresponsible and setting a too big number.
 
 ### EventEmitter.defaultMaxListeners
 
-`emitter.setMaxListeners(n)` sets the maximum on a per-instance basis.
+[`emitter.setMaxListeners(n)`](#events_emitter_setmaxlisteners_n) sets the
+maximum on a per-instance basis.
 This class property lets you set it for *all* `EventEmitter` instances,
 current and future, effective immediately. Use with care.
 
-Note that `emitter.setMaxListeners(n)` still has precedence over
-`EventEmitter.defaultMaxListeners`.
+Note that [`emitter.setMaxListeners(n)`](#events_emitter_setmaxlisteners_n)
+still has precedence over `EventEmitter.defaultMaxListeners`.
 
 
 ### emitter.listeners(event)
