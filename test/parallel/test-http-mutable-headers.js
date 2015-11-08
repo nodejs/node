@@ -110,7 +110,7 @@ function nextTest() {
         break;
 
       default:
-        throw Error('?');
+        throw new Error('?');
     }
 
     response.setEncoding('utf8');
