@@ -40,7 +40,7 @@ assert.strictEqual(42, makeCallback(recv, 'two', 1337));
 const target = vm.runInNewContext(`
     (function($Object) {
       if (Object === $Object)
-        throw Error('bad');
+        throw new Error('bad');
       return Object;
     })
 `);
@@ -55,7 +55,7 @@ const forward = vm.runInNewContext(`
 // Runs in outer context.
 const endpoint = function($Object) {
   if (Object === $Object)
-    throw Error('bad');
+    throw new Error('bad');
   return Object;
 };
 assert.strictEqual(Object, makeCallback(process, forward, endpoint));
