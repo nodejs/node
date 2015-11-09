@@ -29,7 +29,6 @@
       'lib/dns.js',
       'lib/domain.js',
       'lib/events.js',
-      'lib/freelist.js',
       'lib/fs.js',
       'lib/http.js',
       'lib/_http_agent.js',
