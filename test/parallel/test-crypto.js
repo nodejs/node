@@ -93,11 +93,11 @@ assertSorted(crypto.getCurves());
 // throw, not assert in C++ land.
 assert.throws(function() {
   crypto.createCipher('aes192', 'test').update('0', 'hex');
-}, /Bad input string/);
+}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/);
 
 assert.throws(function() {
   crypto.createDecipher('aes192', 'test').update('0', 'hex');
-}, /Bad input string/);
+}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/);
 
 assert.throws(function() {
   crypto.createHash('sha1').update('0', 'hex');
