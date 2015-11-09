@@ -17,6 +17,36 @@ assert.doesNotThrow(function() {
   console.timeEnd('label');
 });
 
+assert.doesNotThrow(function() {
+  console.group('test');
+  console.groupEnd();
+});
+
+assert.doesNotThrow(function() {
+  console.groupCollapsed('test');
+  console.groupEnd();
+});
+
+assert.doesNotThrow(console.clear);
+
+assert.doesNotThrow(console.count);
+
+assert.doesNotThrow(console.dirxml);
+
+assert.doesNotThrow(console.exception);
+
+assert.doesNotThrow(console.isIndependentlyComposed);
+
+assert.doesNotThrow(console.profile);
+
+assert.doesNotThrow(console.profileEnd);
+
+assert.doesNotThrow(console.timeline);
+
+assert.doesNotThrow(console.timelineEnd);
+
+assert.doesNotThrow(console.timeStamp);
+
 // an Object with a custom .inspect() function
 var custom_inspect = { foo: 'bar', inspect: function() { return 'inspect'; } };
 
