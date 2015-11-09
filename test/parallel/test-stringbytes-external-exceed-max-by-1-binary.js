@@ -20,7 +20,7 @@ const buf = new Buffer(kStringMaxLength + 1);
 
 assert.throws(function() {
   buf.toString('binary');
-}, /toString failed/);
+}, /"toString\(\)" failed/);
 
 var maxString = buf.toString('binary', 1);
 assert.equal(maxString.length, kStringMaxLength);

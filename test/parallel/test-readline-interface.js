@@ -222,7 +222,7 @@ function isWarned(emitter) {
     });
   }, function(err) {
     if (err instanceof TypeError) {
-      if (/Argument \'completer\' must be a function/.test(err)) {
+      if (/Argument "completer" must be a function/.test(err)) {
         return true;
       }
     }
@@ -380,4 +380,3 @@ function isWarned(emitter) {
   });
 
 });
-
