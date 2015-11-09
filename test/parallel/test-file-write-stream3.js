@@ -178,7 +178,7 @@ function run_test_4() {
       function() {
         file = fs.createWriteStream(filepath, options);
       },
-      /start must be/
+      /"start" must be/
   );
 
 }

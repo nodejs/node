@@ -20,4 +20,4 @@ const buf = new Buffer(kStringMaxLength + 1);
 
 assert.throws(function() {
   buf.toString('base64');
-}, /toString failed/);
+}, /"toString\(\)" failed/);

@@ -4,7 +4,7 @@ var assert = require('assert');
 var fs = require('fs');
 
 function check(async, sync) {
-  var expected = /Path must be a string without null bytes./;
+  var expected = /Path must be a string without null bytes/;
   var argsSync = Array.prototype.slice.call(arguments, 2);
   var argsAsync = argsSync.concat(function(er) {
     assert(er && er.message.match(expected));

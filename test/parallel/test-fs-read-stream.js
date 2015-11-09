@@ -107,7 +107,7 @@ file6.on('end', function() {
 
 assert.throws(function() {
   fs.createReadStream(rangeFile, {start: 10, end: 2});
-}, /start must be <= end/);
+}, /"start" option must be <= "end" option/);
 
 var stream = fs.createReadStream(rangeFile, { start: 0, end: 0 });
 stream.data = '';

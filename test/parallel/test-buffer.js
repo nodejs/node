@@ -1222,11 +1222,11 @@ assert.throws(function() {
 
 assert.throws(function() {
   new Buffer();
-}, /must start with number, buffer, array or string/);
+}, /must start with number, buffer, array or string/i);
 
 assert.throws(function() {
   new Buffer(null);
-}, /must start with number, buffer, array or string/);
+}, /must start with number, buffer, array or string/i);
 
 
 // Test prototype getters don't throw
