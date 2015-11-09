@@ -2866,6 +2866,11 @@ void CipherBase::Init(const char* cipher_type,
                       int key_buf_len) {
   HandleScope scope(env()->isolate());
 
+#ifdef NODE_FIPS_MODE
+  return env()->ThrowError(
+    "crypto.createCipher() is not supported in FIPS mode.");
+#endif  // NODE_FIPS_MODE
+
   CHECK_EQ(cipher_, nullptr);
   cipher_ = EVP_get_cipherbyname(cipher_type);
   if (cipher_ == nullptr) {

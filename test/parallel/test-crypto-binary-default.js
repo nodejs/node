@@ -496,12 +496,13 @@ function testCipher4(key, iv) {
   assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
 }
 
+if (!common.hasFipsCrypto) {
+  testCipher1('MySecretKey123');
+  testCipher1(new Buffer('MySecretKey123'));
 
-testCipher1('MySecretKey123');
-testCipher1(new Buffer('MySecretKey123'));
-
-testCipher2('0123456789abcdef');
-testCipher2(new Buffer('0123456789abcdef'));
+  testCipher2('0123456789abcdef');
+  testCipher2(new Buffer('0123456789abcdef'));
+}
 
 testCipher3('0123456789abcd0123456789', '12345678');
 testCipher3('0123456789abcd0123456789', new Buffer('12345678'));
