@@ -8,7 +8,7 @@ const common = require('../common');
 const cmd = common.isWindows ? 'rundll32' : 'ls';
 const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
 const invalidArgsMsg = /Incorrect value of args option/;
-const invalidOptionsMsg = /options argument must be an object/;
+const invalidOptionsMsg = /"options" argument must be an object/;
 const empty = common.fixturesDir + '/empty.js';
 
 assert.throws(function() {

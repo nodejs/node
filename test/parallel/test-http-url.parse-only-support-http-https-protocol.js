@@ -10,7 +10,7 @@ assert.throws(function() {
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "file:" not supported.' +
-                       ' Expected "http:".');
+                       ' Expected "http:"');
     return true;
   }
 });
@@ -20,7 +20,7 @@ assert.throws(function() {
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "mailto:" not supported.' +
-                       ' Expected "http:".');
+                       ' Expected "http:"');
     return true;
   }
 });
@@ -30,7 +30,7 @@ assert.throws(function() {
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "ftp:" not supported.' +
-                       ' Expected "http:".');
+                       ' Expected "http:"');
     return true;
   }
 });
@@ -40,7 +40,7 @@ assert.throws(function() {
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "javascript:" not supported.' +
-                       ' Expected "http:".');
+                       ' Expected "http:"');
     return true;
   }
 });
@@ -50,7 +50,7 @@ assert.throws(function() {
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "xmpp:" not supported.' +
-                       ' Expected "http:".');
+                       ' Expected "http:"');
     return true;
   }
 });
@@ -60,7 +60,7 @@ assert.throws(function() {
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "f:" not supported.' +
-                       ' Expected "http:".');
+                       ' Expected "http:"');
     return true;
   }
 });

@@ -20,8 +20,8 @@ const buf = new Buffer(kStringMaxLength + 1);
 
 assert.throws(function() {
   buf.toString();
-}, /toString failed|Invalid array buffer length/);
+}, /"toString\(\)" failed|Invalid array buffer length/);
 
 assert.throws(function() {
   buf.toString('utf8');
-}, /toString failed/);
+}, /"toString\(\)" failed/);
