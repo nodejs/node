@@ -20,4 +20,4 @@ const buf0 = new Buffer(kStringMaxLength * 2 + 2);
 
 assert.throws(function() {
   buf0.toString('utf16le');
-}, /toString failed/);
+}, /"toString\(\)" failed/);

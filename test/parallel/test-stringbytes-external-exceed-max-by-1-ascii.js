@@ -20,4 +20,4 @@ const buf = new Buffer(kStringMaxLength + 1);
 
 assert.throws(function() {
   buf.toString('ascii');
-}, /toString failed/);
+}, /"toString\(\)" failed/);

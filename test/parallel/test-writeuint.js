@@ -131,10 +131,10 @@ function testUint(clazz) {
     const errmsg = `byteLength: ${i}`;
     ASSERT.throws(function() {
       data.writeUIntBE(val, 0, i);
-    }, /value is out of bounds/, errmsg);
+    }, /"value" argument is out of bounds/, errmsg);
     ASSERT.throws(function() {
       data.writeUIntLE(val, 0, i);
-    }, /value is out of bounds/, errmsg);
+    }, /"value" argument is out of bounds/, errmsg);
     val *= 0x100;
   }
 }
