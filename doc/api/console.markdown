@@ -45,6 +45,7 @@ The global `console` is a special `Console` whose output is sent to
 
 [assert.ok()]: assert.html#assert_assert_value_message_assert_ok_value_message
 [util.format()]: util.html#util_util_format_format
+[customizing util.inspect colors]: util.html#util_customizing_util_inspect_colors
 
 ## console
 
@@ -86,7 +87,7 @@ object. This is useful for inspecting large complicated objects. Defaults to
 `2`. To make it recurse indefinitely pass `null`.
 
 - `colors` - if `true`, then the output will be styled with ANSI color codes.
-Defaults to `false`. Colors are customizable, see below.
+Defaults to `false`. Colors are customizable, see [customizing util.inspect colors][].
 
 ### console.error([data][, ...])
 
