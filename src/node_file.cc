@@ -214,6 +214,9 @@ static void After(uv_fs_t *req) {
         {
           int r;
           Local<Array> names = Array::New(env->isolate(), 0);
+          Local<Function> fn = env->push_values_to_array_function();
+          Local<Value> name_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+          size_t name_idx = 0;
 
           for (int i = 0; ; i++) {
             uv_dirent_t ent;
@@ -229,9 +232,19 @@ static void After(uv_fs_t *req) {
               break;
             }
 
-            Local<String> name = String::NewFromUtf8(env->isolate(),
-                                                     ent.name);
-            names->Set(i, name);
+            name_argv[name_idx++] =
+                String::NewFromUtf8(env->isolate(), ent.name);
+
+            if (name_idx >= ARRAY_SIZE(name_argv)) {
+              fn->Call(env->context(), names, name_idx, name_argv)
+                  .ToLocalChecked();
+              name_idx = 0;
+            }
+          }
+
+          if (name_idx > 0) {
+            fn->Call(env->context(), names, name_idx, name_argv)
+                .ToLocalChecked();
           }
 
           argv[1] = names;
@@ -811,6 +824,9 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     CHECK_GE(SYNC_REQ.result, 0);
     int r;
     Local<Array> names = Array::New(env->isolate(), 0);
+    Local<Function> fn = env->push_values_to_array_function();
+    Local<Value> name_v[NODE_PUSH_VAL_TO_ARRAY_MAX];
+    size_t name_idx = 0;
 
     for (int i = 0; ; i++) {
       uv_dirent_t ent;
@@ -821,9 +837,18 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       if (r != 0)
         return env->ThrowUVException(r, "readdir", "", *path);
 
-      Local<String> name = String::NewFromUtf8(env->isolate(),
-                                               ent.name);
-      names->Set(i, name);
+
+      name_v[name_idx++] = String::NewFromUtf8(env->isolate(), ent.name);
+
+      if (name_idx >= ARRAY_SIZE(name_v)) {
+        fn->Call(env->context(), names, name_idx, name_v)
+            .ToLocalChecked();
+        name_idx = 0;
+      }
+    }
+
+    if (name_idx > 0) {
+      fn->Call(env->context(), names, name_idx, name_v).ToLocalChecked();
     }
 
     args.GetReturnValue().Set(names);
