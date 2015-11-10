@@ -11,8 +11,7 @@ if (!common.hasCrypto) {
 var crypto = require('crypto');
 
 // Test hashing
-var a0 = crypto.createHash('sha1').update('Test123').digest('hex');
-var a1 = crypto.createHash('md5').update('Test123').digest('binary');
+var a1 = crypto.createHash('sha1').update('Test123').digest('hex');
 var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
 var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
@@ -38,9 +37,12 @@ a8.write('');
 a8.end();
 a8 = a8.read();
 
-assert.equal(a0, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
-assert.equal(a1, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
-             '\u00bd\u008c', 'Test MD5 as binary');
+if (!common.hasFipsCrypto) {
+  var a0 = crypto.createHash('md5').update('Test123').digest('binary');
+  assert.equal(a0, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
+               '\u00bd\u008c', 'Test MD5 as binary');
+}
+assert.equal(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
 assert.equal(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
              'Test SHA256 as base64');
 assert.deepEqual(
