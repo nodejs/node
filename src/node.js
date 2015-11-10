@@ -181,9 +181,9 @@
   }
 
   startup.setupProcessObject = function() {
-    process._setupProcessObject(setPropByIndex);
+    process._setupProcessObject(pushValueToArray);
 
-    function setPropByIndex() {
+    function pushValueToArray() {
       for (var i = 0; i < arguments.length; i++)
         this.push(arguments[i]);
     }
