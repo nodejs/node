@@ -3781,6 +3781,29 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   if (pkey == nullptr || 0 != ERR_peek_error())
     goto exit;
 
+#ifdef NODE_FIPS_MODE
+  /* Validate DSA2 parameters from FIPS 186-4 */
+  if (EVP_PKEY_DSA == pkey->type) {
+    size_t L = BN_num_bits(pkey->pkey.dsa->p);
+    size_t N = BN_num_bits(pkey->pkey.dsa->q);
+    bool result = false;
+
+    if (L == 1024 && N == 160)
+      result = true;
+    else if (L == 2048 && N == 224)
+      result = true;
+    else if (L == 2048 && N == 256)
+      result = true;
+    else if (L == 3072 && N == 256)
+      result = true;
+
+    if (!result) {
+      fatal = true;
+      goto exit;
+    }
+  }
+#endif  // NODE_FIPS_MODE
+
   if (EVP_SignFinal(&mdctx_, *sig, sig_len, pkey))
     fatal = false;
 
