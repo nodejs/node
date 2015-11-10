@@ -94,6 +94,14 @@ function error_test() {
   });
 
   send_expect([
+    // Ref: https://github.com/nodejs/node/pull/3729#issuecomment-155460861
+    // REPL stores the result of the last evaluated expression in _.
+    // This test makes sure that _ can not be redefined in REPL.
+    { client: client_unix, send: 'const _ = 1',
+      expect: /^TypeError: Identifier '_' has already been declared/ },
+    // `_` should still be assignable
+    { client: client_unix, send: '_ = 1\n_',
+      expect: `1\n${prompt_unix}1\n${prompt_unix}` },
     // Uncaught error throws and prints out
     { client: client_unix, send: 'throw new Error(\'test error\');',
       expect: /^Error: test error/ },
