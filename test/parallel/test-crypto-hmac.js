@@ -61,6 +61,9 @@ var wikipedia = [
 
 for (var i = 0, l = wikipedia.length; i < l; i++) {
   for (var hash in wikipedia[i]['hmac']) {
+    // FIPS does not support MD5.
+    if (common.hasFipsCrypto && hash == 'md5' )
+      continue;
     var result = crypto.createHmac(hash, wikipedia[i]['key'])
                      .update(wikipedia[i]['data'])
                      .digest('hex');
@@ -346,12 +349,14 @@ var rfc2202_sha1 = [
   }
 ];
 
-for (var i = 0, l = rfc2202_md5.length; i < l; i++) {
-  assert.equal(rfc2202_md5[i]['hmac'],
-               crypto.createHmac('md5', rfc2202_md5[i]['key'])
-                   .update(rfc2202_md5[i]['data'])
-                   .digest('hex'),
-               'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
+if (!common.hasFipsCrypto) {
+  for (var i = 0, l = rfc2202_md5.length; i < l; i++) {
+    assert.equal(rfc2202_md5[i]['hmac'],
+                 crypto.createHmac('md5', rfc2202_md5[i]['key'])
+                     .update(rfc2202_md5[i]['data'])
+                     .digest('hex'),
+                 'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
+  }
 }
 for (var i = 0, l = rfc2202_sha1.length; i < l; i++) {
   assert.equal(rfc2202_sha1[i]['hmac'],
