@@ -1063,7 +1063,7 @@ void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsFunction());
 
-  env->set_add_properties_by_index_function(args[0].As<Function>());
+  env->set_push_values_to_array_function(args[0].As<Function>());
   env->process_object()->Delete(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject"));
 }
@@ -1607,7 +1607,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> ary = Array::New(args.GetIsolate());
   Local<Context> ctx = env->context();
-  Local<Function> fn = env->add_properties_by_index_function();
+  Local<Function> fn = env->push_values_to_array_function();
   static const size_t argc = 8;
   Local<Value> argv[argc];
   size_t i = 0;
