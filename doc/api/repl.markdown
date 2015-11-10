@@ -219,6 +219,9 @@ The special variable `_` (underscore) contains the result of the last expression
     > _ += 1
     4
 
+*NOTE*: Explicitly assigning a value to `_` in the REPL can produce unexpected
+results.
+
 The REPL provides access to any variables in the global scope. You can expose
 a variable to the REPL explicitly by assigning it to the `context` object
 associated with each `REPLServer`.  For example:
