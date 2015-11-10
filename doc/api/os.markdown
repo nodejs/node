@@ -30,9 +30,25 @@ on OS X and `'Windows_NT'` on Windows.
 
 ## os.platform()
 
-Returns the operating system platform. Possible values are `'darwin'`,
-`'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of
+Returns the operating system platform. Returns the value of
 `process.platform`.
+
+Its value is based on [`OS` constant of `gyp`](https://chromium.googlesource.com/external/gyp/+/HEAD/docs/InputFormatReference.md#Predefined-Variables)
+, but with exceptions in case of Mac OS X, Windows and Solaris.
+
+On Windows its value is always `"win32"`, on Mac OS X it's `"darwin"` and on
+Solaris it's `"sunos"`.
+
+Here's a list of possible values for some platforms:
+
+* Android: `"android"`
+* Windows/Cygwin: `"win32"`
+* Mac OS X: `"darwin"`
+* FreeBSD: `"freebsd"`
+* OpenBSD: `"openbsd"`
+* IBM AIX: `"aix"`
+* Solaris: `"sunos"`
+* Linux & Others: `"linux"`
 
 ## os.arch()
 
