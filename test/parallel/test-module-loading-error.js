@@ -9,6 +9,7 @@ var error_desc = {
   linux: 'file too short',
   sunos: 'unknown file type'
 };
+var musl_errno_enoexec = 'Exec format error';
 
 var dlerror_msg = error_desc[process.platform];
 
@@ -20,6 +21,10 @@ if (!dlerror_msg) {
 try {
   require('../fixtures/module-loading-error.node');
 } catch (e) {
+  if (process.platform === 'linux' &&
+      e.toString().indexOf(musl_errno_enoexec) !== -1) {
+    dlerror_msg = musl_errno_enoexec;
+  }
   assert.notEqual(e.toString().indexOf(dlerror_msg), -1);
 }
 
