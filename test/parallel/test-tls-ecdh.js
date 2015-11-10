@@ -14,7 +14,7 @@ var fs = require('fs');
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-  ciphers: '-ALL:ECDHE-RSA-RC4-SHA',
+  ciphers: '-ALL:ECDHE-RSA-AES128-SHA256',
   ecdhCurve: 'prime256v1'
 };
 
