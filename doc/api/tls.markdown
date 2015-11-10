@@ -735,6 +735,10 @@ of written data and all required TLS negotiation.
 This instance implements a duplex [Stream][] interfaces.  It has all the
 common stream methods and events.
 
+Methods that return TLS connection meta data (e.g.
+[getPeerCertificate](#tlssocketgetpeercertificate-detailed-))
+will only return data while the connection is open.
+
 ### Event: 'secureConnect'
 
 This event is emitted after a new connection has been successfully handshaked.
