@@ -6,7 +6,7 @@ var cluster = require('cluster');
 var SENTINEL = 42;
 
 // workers forcibly exit when control channel is disconnected, if
-// their .suicide flag isn't set
+// their .exitedAfterDisconnect flag isn't set
 //
 // test this by:
 //

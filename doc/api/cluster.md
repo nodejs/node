@@ -239,7 +239,7 @@ those servers, and then disconnect the IPC channel.
 In the master, an internal message is sent to the worker causing it to call
 `.disconnect()` on itself.
 
-Causes `.suicide` to be set.
+Causes `.exitedAfterDisconnect` to be set.
 
 Note that after a server is closed, it will no longer accept new connections,
 but connections may be accepted by any other listening worker. Existing
@@ -292,6 +292,27 @@ if (cluster.isMaster) {
 }
 ```
 
+### worker.exitedAfterDisconnect
+
+* {Boolean}
+
+Set by calling `.kill()` or `.disconnect()`. Until then, it is `undefined`.
+
+The boolean `worker.exitedAfterDisconnect` lets you distinguish between voluntary
+and accidental exit, the master may choose not to respawn a worker based on
+this value.
+
+```js
+cluster.on('exit', (worker, code, signal) => {
+  if (worker.exitedAfterDisconnect === true) {
+    console.log('Oh, it was just voluntary\' – no need to worry').
+  }
+});
+
+// kill worker
+worker.kill();
+```
+
 ### worker.id
 
 * {Number}
@@ -322,7 +343,7 @@ This function will kill the worker. In the master, it does this by disconnecting
 the `worker.process`, and once disconnected, killing with `signal`. In the
 worker, it does it by disconnecting the channel, and then exiting with code `0`.
 
-Causes `.suicide` to be set.
+Causes `.exitedAfterDisconnect` to be set.
 
 This method is aliased as `worker.destroy()` for backwards compatibility.
 
@@ -340,8 +361,8 @@ is stored.
 See: [Child Process module][]
 
 Note that workers will call `process.exit(0)` if the `'disconnect'` event occurs
-on `process` and `.suicide` is not `true`. This protects against accidental
-disconnection.
+on `process` and `.exitedAfterDisconnect` is not `true`. This protects against
+accidental disconnection.
 
 ### worker.send(message[, sendHandle][, callback])
 
@@ -374,23 +395,29 @@ if (cluster.isMaster) {
 
 ### worker.suicide
 
-* {Boolean}
+    Stability: 0 - Deprecated: Use [`worker.exitedAfterDisconnect`][] instead.
 
-Set by calling `.kill()` or `.disconnect()`, until then it is `undefined`.
+An alias to [`worker.exitedAfterDisconnect`][].
 
-The boolean `worker.suicide` lets you distinguish between voluntary and accidental
-exit, the master may choose not to respawn a worker based on this value.
+Set by calling `.kill()` or `.disconnect()`. Until then, it is `undefined`.
+
+The boolean `worker.suicide` lets you distinguish between voluntary
+and accidental exit, the master may choose not to respawn a worker based on
+this value.
 
 ```js
 cluster.on('exit', (worker, code, signal) => {
   if (worker.suicide === true) {
-    console.log('Oh, it was just suicide\' – no need to worry').
+    console.log('Oh, it was just voluntary\' – no need to worry').
   }
 });
 
 // kill worker
 worker.kill();
 ```
+
+This API only exists for backwards compatibility and will be removed in the
+future.
 
 ## Event: 'disconnect'
 
@@ -707,6 +734,7 @@ socket.on('data', (id) => {
 [`disconnect`]: child_process.html#child_process_child_disconnect
 [`kill`]: process.html#process_process_kill_pid_signal
 [`server.close()`]: net.html#net_event_close
+[`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [child_process event: 'exit']: child_process.html#child_process_event_exit
 [child_process event: 'message']: child_process.html#child_process_event_message
