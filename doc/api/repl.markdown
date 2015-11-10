@@ -86,6 +86,10 @@ The special variable `_` (underscore) contains the result of the last expression
 4
 ```
 
+*NOTE*: Explicitly assigning a value to `_` in the REPL can produce unexpected
+results. Also, attempting to create `_` as a `const` variable in the REPL will
+fail.
+
 The REPL provides access to any variables in the global scope. You can expose
 a variable to the REPL explicitly by assigning it to the `context` object
 associated with each `REPLServer`.  For example:
