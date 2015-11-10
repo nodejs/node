@@ -513,7 +513,7 @@ assert.throws(function() {
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
-var dh1 = crypto.createDiffieHellman(256);
+var dh1 = crypto.createDiffieHellman(1024);
 var p1 = dh1.getPrime('buffer');
 var dh2 = crypto.createDiffieHellman(p1, 'base64');
 var key1 = dh1.generateKeys();
