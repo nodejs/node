@@ -286,6 +286,11 @@ event and that writes can block when output is redirected to a file (although
 disks are fast and operating systems normally employ write-back caching so it
 should be a very rare occurrence indeed.)
 
+Note that a callback function on `stream.write` might be called before all 
+data is flushed completly. The only way to ensure that all data to 
+`process.stderr` and `process.stdout` is written and flushed is to let 
+Node.js end itself.
+
 To check if Node.js is being run in a TTY context, read the `isTTY` property
 on `process.stderr`, `process.stdout`, or `process.stdin`:
 
