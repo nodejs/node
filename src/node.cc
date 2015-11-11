@@ -2132,22 +2132,23 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
 
   uint64_t t = uv_hrtime();
 
-  if (args.Length() > 0) {
-    // return a time diff tuple
-    if (!args[0]->IsArray()) {
+  if (!args[1]->IsUndefined()) {
+    if (!args[1]->IsArray()) {
       return env->ThrowTypeError(
-          "process.hrtime() only accepts an Array tuple.");
+          "process.hrtime() only accepts an Array tuple");
     }
-    Local<Array> inArray = Local<Array>::Cast(args[0]);
-    uint64_t seconds = inArray->Get(0)->Uint32Value();
-    uint64_t nanos = inArray->Get(1)->Uint32Value();
-    t -= (seconds * NANOS_PER_SEC) + nanos;
+    args.GetReturnValue().Set(true);
   }
 
-  Local<Array> tuple = Array::New(env->isolate(), 2);
-  tuple->Set(0, Integer::NewFromUnsigned(env->isolate(), t / NANOS_PER_SEC));
-  tuple->Set(1, Integer::NewFromUnsigned(env->isolate(), t % NANOS_PER_SEC));
-  args.GetReturnValue().Set(tuple);
+  Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
+  uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
+
+  // These three indices will contain the values for the hrtime tuple. The
+  // seconds value is broken into the upper/lower 32 bits and stored in two
+  // uint32 fields to be converted back in JS.
+  fields[0] = (t / NANOS_PER_SEC) >> 32;
+  fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
+  fields[2] = t % NANOS_PER_SEC;
 }
 
 extern "C" void node_module_register(void* m) {
