@@ -531,8 +531,62 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	tools/icu/*.h \
 	))
 
-cpplint:
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
+GOOGLE_DOWNLOAD ?= tools/format/download_from_google_storage
+GOOGLE_DOWNLOAD_FLAGS ?= --no_resume --no_auth
+
+tools/format/clang-format-mac: tools/format/clang-format-mac.sha1
+	@echo "Downloading clang-format, may take some time"
+	@$(GOOGLE_DOWNLOAD) $(GOOGLE_DOWNLOAD_FLAGS) --platform=darwin \
+		--bucket chromium-clang-format -s $<
+
+tools/format/clang-format-win.exe: tools/format/clang-format-win.exe.sha1
+	@echo "Downloading clang-format, may take some time"
+	@$(GOOGLE_DOWNLOAD) $(GOOGLE_DOWNLOAD_FLAGS) --platform=win32 \
+		--bucket chromium-clang-format -s $<
+
+tools/format/clang-format-linux64: tools/format/clang-format-linux64.sha1
+	@echo "Downloading clang-format, may take some time"
+	@$(GOOGLE_DOWNLOAD) $(GOOGLE_DOWNLOAD_FLAGS) --platform=linux* \
+		--bucket chromium-clang-format -s $<
+
+ifeq ($(OSTYPE),darwin)
+CLANG_EXTERNAL_FORMAT ?= tools/format/clang-format-mac
+else ifeq ($(OSTYPE),linux)
+CLANG_EXTERNAL_FORMAT ?= tools/format/clang-format-linux64
+else
+CLANG_EXTERNAL_FORMAT ?= tools/format/clang-format-win.exe
+endif
+
+ifneq ("$(wildcard $(CLANG_EXTERNAL_FORMAT))", "")
+CLANG_FORMAT ?= $(CLANG_EXTERNAL_FORMAT)
+else
+CLANG_FORMAT ?= clang-format
+endif
+
+CLANG_LINT ?= ./tools/format/git-clang-format --binary $(CLANG_FORMAT)
+CLANG_LINT_BASE ?= origin/master
+CLANG_LINT_COMMIT ?= $(shell git merge-base @ $(CLANG_LINT_BASE))
+
+download-clang-format: $(CLANG_EXTERNAL_FORMAT)
+
+check-clang-format-version:
+	@($(CLANG_FORMAT) -version | grep -q "3\.[78]\.0") || \
+		(echo "Wrong clang-format version, expected either 3.7.0 or 3.8.0" && \
+			exit 1)
+
+cpplint: check-clang-format-version
+	@echo "Formatting against $(CLANG_LINT_COMMIT)"
+	@if [[ $$($(CLANG_LINT) $(CLANG_LINT_COMMIT) --diff -- $(CPPLINT_FILES) | grep "diff ") ]]; then \
+		echo "Lint issues detected, please run \"make format-commit\""; \
+		exit 1;\
+	fi
+
+format-commit: check-clang-format-version
+	@$(CLANG_LINT) -- $(CPPLINT_FILES)
+
+install-pre-commit-hook: check-clang-format-version
+	@echo "#!/bin/sh\nexec make format-commit" > .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
 
 lint: jslint cpplint
 
@@ -541,4 +595,5 @@ lint: jslint cpplint
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
-	bench-http bench-fs bench-tls cctest run-ci
+	bench-http bench-fs bench-tls cctest run-ci format-commit \
+	install-pre-commit-hook download-clang-format check-clang-format-version

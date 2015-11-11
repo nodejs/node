@@ -87,3 +87,6 @@ test.tap
 # Xcode workspaces and project folders
 *.xcodeproj
 *.xcworkspace
+tools/format/clang-format-*
+!tools/format/clang-format-*.sha1
+tools/format/external_bin
