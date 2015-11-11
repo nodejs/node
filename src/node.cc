@@ -1608,27 +1608,21 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Local<Array> ary = Array::New(args.GetIsolate());
   Local<Context> ctx = env->context();
   Local<Function> fn = env->push_values_to_array_function();
-  static const size_t argc = 8;
-  Local<Value> argv[argc];
-  size_t i = 0;
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
 
   for (auto w : *env->req_wrap_queue()) {
-    if (w->persistent().IsEmpty() == false) {
-      argv[i++ % argc] = w->object();
-      if ((i % argc) == 0) {
-        HandleScope scope(env->isolate());
-        fn->Call(ctx, ary, argc, argv).ToLocalChecked();
-        for (auto&& arg : argv) {
-          arg = Local<Value>();
-        }
-      }
+    if (w->persistent().IsEmpty())
+      continue;
+    argv[idx] = w->object();
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+      idx = 0;
     }
   }
 
-  const size_t remainder = i % argc;
-  if (remainder > 0) {
-    HandleScope scope(env->isolate());
-    fn->Call(ctx, ary, remainder, argv).ToLocalChecked();
+  if (idx > 0) {
+    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
   }
 
   args.GetReturnValue().Set(ary);
@@ -1641,7 +1635,10 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(env->isolate());
-  int i = 0;
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
 
   Local<String> owner_sym = env->owner_string();
 
@@ -1652,7 +1649,14 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
     Local<Value> owner = object->Get(owner_sym);
     if (owner->IsUndefined())
       owner = object;
-    ary->Set(i++, owner);
+    argv[idx] = owner;
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
+  }
+  if (idx > 0) {
+    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
   }
 
   args.GetReturnValue().Set(ary);
