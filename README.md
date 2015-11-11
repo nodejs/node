@@ -337,6 +337,7 @@ Instructions:
 
 ## Resources for Newcomers
 
+* [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 * [CONTRIBUTING.md](./CONTRIBUTING.md)
 * [GOVERNANCE.md](./GOVERNANCE.md)
 * IRC:
