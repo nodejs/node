@@ -168,7 +168,7 @@ consts_misc = [
     { 'name': 'scopeinfo_idx_ncontextlocals',
         'value': 'ScopeInfo::kContextLocalCount' },
     { 'name': 'scopeinfo_idx_ncontextglobals',
-        'value': 'ScopeInfo::kContextLocalCount' },
+        'value': 'ScopeInfo::kContextGlobalCount' },
     { 'name': 'scopeinfo_idx_first_vars',
         'value': 'ScopeInfo::kVariablePartIndex' },
 
