@@ -2524,23 +2524,35 @@ static void EnvDeleter(Local<String> property,
 
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
-  Isolate* isolate = info.GetIsolate();
+  Environment* env = Environment::GetCurrent(info);
+  Isolate* isolate = env->isolate();
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
+
 #ifdef __POSIX__
   int size = 0;
   while (environ[size])
     size++;
 
-  Local<Array> envarr = Array::New(isolate, size);
+  Local<Array> envarr = Array::New(isolate);
 
   for (int i = 0; i < size; ++i) {
     const char* var = environ[i];
     const char* s = strchr(var, '=');
     const int length = s ? s - var : strlen(var);
-    Local<String> name = String::NewFromUtf8(isolate,
-                                             var,
-                                             String::kNormalString,
-                                             length);
-    envarr->Set(i, name);
+    argv[idx] = String::NewFromUtf8(isolate,
+                                    var,
+                                    String::kNormalString,
+                                    length);
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
+  }
+  if (idx > 0) {
+    fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
   }
 #else  // _WIN32
   WCHAR* environment = GetEnvironmentStringsW();
@@ -2548,7 +2560,6 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     return;  // This should not happen.
   Local<Array> envarr = Array::New(isolate);
   WCHAR* p = environment;
-  int i = 0;
   while (*p) {
     WCHAR *s;
     if (*p == L'=') {
@@ -2563,12 +2574,18 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     }
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
     const size_t two_byte_buffer_len = s - p;
-    Local<String> value = String::NewFromTwoByte(isolate,
-                                                 two_byte_buffer,
-                                                 String::kNormalString,
-                                                 two_byte_buffer_len);
-    envarr->Set(i++, value);
+    argv[idx] = String::NewFromTwoByte(isolate,
+                                       two_byte_buffer,
+                                       String::kNormalString,
+                                       two_byte_buffer_len);
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
     p = s + wcslen(s) + 1;
+  }
+  if (idx > 0) {
+    fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
   }
   FreeEnvironmentStringsW(environment);
 #endif
