@@ -13,6 +13,8 @@ We intend to land, with increasing regularity, releases which are
 compatible with the npm ecosystem that has been built to date for
 Node.js.
 
+We also have a Code of Conduct. [Please read it.](./CODE_OF_CONDUCT.md)
+
 ## Download
 
 Binaries, installers, and source tarballs are available at
@@ -307,6 +309,7 @@ Instructions:
 
 ## Resources for Newcomers
 
+* [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 * [CONTRIBUTING.md](./CONTRIBUTING.md)
 * [GOVERNANCE.md](./GOVERNANCE.md)
 * IRC:
