@@ -95,6 +95,8 @@
       'cfi_vptr%': 0,
       'cfi_diag%': 0,
 
+      'cfi_blacklist%': '<(base_dir)/tools/cfi/blacklist.txt',
+
       # goma settings.
       # 1 to use goma.
       # If no gomadir is set, it uses the default gomadir.
@@ -122,6 +124,14 @@
         }, {
           'linux_use_bundled_gold%': 0,
         }],
+
+        # TODO(machenbach): Remove the conditions as more configurations are
+        # supported.
+        ['OS=="linux"', {
+          'test_isolation_mode%': 'check',
+        }, {
+          'test_isolation_mode%': 'noop',
+        }],
       ],
     },
     'base_dir%': '<(base_dir)',
@@ -143,9 +153,12 @@
     'use_lto%': '<(use_lto)',
     'cfi_vptr%': '<(cfi_vptr)',
     'cfi_diag%': '<(cfi_diag)',
+    'cfi_blacklist%': '<(cfi_blacklist)',
+    'test_isolation_mode%': '<(test_isolation_mode)',
 
-    # Add a simple extra solely for the purpose of the cctests
+    # Add a simple extras solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],
+    'v8_experimental_extra_library_files': ['../test/cctest/test-experimental-extra.js'],
 
     # .gyp files or targets should set v8_code to 1 if they build V8 specific
     # code, as opposed to external code.  This variable is used to control such
@@ -399,8 +412,25 @@
         # things when their commandline changes). Nothing should ever read this
         # define.
         'defines': ['CR_CLANG_REVISION=<!(<(DEPTH)/tools/clang/scripts/update.sh --print-revision)'],
-        'cflags+': [
-          '-Wno-format-pedantic',
+        'conditions': [
+          ['host_clang==1', {
+            'target_conditions': [
+              ['_toolset=="host"', {
+                'cflags+': [
+                  '-Wno-format-pedantic',
+                 ],
+              }],
+           ],
+          }],
+          ['clang==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags+': [
+                  '-Wno-format-pedantic',
+                 ],
+              }],
+           ],
+          }],
         ],
       }],
     ],
@@ -1247,6 +1277,12 @@
               '-fno-sanitize-trap=cfi',
               '-fsanitize-recover=cfi',
             ],
+            'cflags_cc!': [
+              '-fno-rtti',
+            ],
+            'cflags!': [
+              '-fno-rtti',
+            ],
             'ldflags': [
               '-fno-sanitize-trap=cfi',
               '-fsanitize-recover=cfi',
@@ -1263,6 +1299,7 @@
               '-fsanitize=cfi-vcall',
               '-fsanitize=cfi-derived-cast',
               '-fsanitize=cfi-unrelated-cast',
+              '-fsanitize-blacklist=<(cfi_blacklist)',
             ],
             'ldflags': [
               '-fsanitize=cfi-vcall',

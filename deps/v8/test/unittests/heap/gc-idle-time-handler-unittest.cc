@@ -19,30 +19,17 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
 
   GCIdleTimeHandler* handler() { return &handler_; }
 
-  GCIdleTimeHandler::HeapState DefaultHeapState() {
-    GCIdleTimeHandler::HeapState result;
+  GCIdleTimeHeapState DefaultHeapState() {
+    GCIdleTimeHeapState result;
     result.contexts_disposed = 0;
     result.contexts_disposal_rate = GCIdleTimeHandler::kHighContextDisposalRate;
-    result.size_of_objects = kSizeOfObjects;
     result.incremental_marking_stopped = false;
-    result.sweeping_in_progress = false;
-    result.sweeping_completed = false;
-    result.mark_compact_speed_in_bytes_per_ms = kMarkCompactSpeed;
-    result.incremental_marking_speed_in_bytes_per_ms = kMarkingSpeed;
-    result.scavenge_speed_in_bytes_per_ms = kScavengeSpeed;
-    result.used_new_space_size = 0;
-    result.new_space_capacity = kNewSpaceCapacity;
-    result.new_space_allocation_throughput_in_bytes_per_ms =
-        kNewSpaceAllocationThroughput;
     return result;
   }
 
   static const size_t kSizeOfObjects = 100 * MB;
   static const size_t kMarkCompactSpeed = 200 * KB;
   static const size_t kMarkingSpeed = 200 * KB;
-  static const size_t kScavengeSpeed = 100 * KB;
-  static const size_t kNewSpaceCapacity = 1 * MB;
-  static const size_t kNewSpaceAllocationThroughput = 10 * KB;
   static const int kMaxNotifications = 100;
 
  private:
@@ -111,88 +98,6 @@ TEST(GCIdleTimeHandler, EstimateMarkCompactTimeMax) {
 }
 
 
-TEST_F(GCIdleTimeHandlerTest, DoScavengeEmptyNewSpace) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  int idle_time_ms = 16;
-  EXPECT_FALSE(GCIdleTimeHandler::ShouldDoScavenge(
-      idle_time_ms, heap_state.new_space_capacity,
-      heap_state.used_new_space_size, heap_state.scavenge_speed_in_bytes_per_ms,
-      heap_state.new_space_allocation_throughput_in_bytes_per_ms));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DoScavengeFullNewSpace) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  heap_state.used_new_space_size = kNewSpaceCapacity;
-  int idle_time_ms = 16;
-  EXPECT_TRUE(GCIdleTimeHandler::ShouldDoScavenge(
-      idle_time_ms, heap_state.new_space_capacity,
-      heap_state.used_new_space_size, heap_state.scavenge_speed_in_bytes_per_ms,
-      heap_state.new_space_allocation_throughput_in_bytes_per_ms));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DoScavengeUnknownScavengeSpeed) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  heap_state.used_new_space_size = kNewSpaceCapacity;
-  heap_state.scavenge_speed_in_bytes_per_ms = 0;
-  int idle_time_ms = 8;
-  EXPECT_FALSE(GCIdleTimeHandler::ShouldDoScavenge(
-      idle_time_ms, heap_state.new_space_capacity,
-      heap_state.used_new_space_size, heap_state.scavenge_speed_in_bytes_per_ms,
-      heap_state.new_space_allocation_throughput_in_bytes_per_ms));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DoScavengeLowScavengeSpeed) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  heap_state.used_new_space_size = kNewSpaceCapacity;
-  heap_state.scavenge_speed_in_bytes_per_ms = 1 * KB;
-  int idle_time_ms = 16;
-  EXPECT_FALSE(GCIdleTimeHandler::ShouldDoScavenge(
-      idle_time_ms, heap_state.new_space_capacity,
-      heap_state.used_new_space_size, heap_state.scavenge_speed_in_bytes_per_ms,
-      heap_state.new_space_allocation_throughput_in_bytes_per_ms));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DoScavengeLowAllocationRate) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  heap_state.used_new_space_size = kNewSpaceCapacity;
-  heap_state.new_space_allocation_throughput_in_bytes_per_ms =
-      GCIdleTimeHandler::kLowAllocationThroughput - 1;
-  int idle_time_ms = 16;
-  EXPECT_TRUE(GCIdleTimeHandler::ShouldDoScavenge(
-      idle_time_ms, heap_state.new_space_capacity,
-      heap_state.used_new_space_size, heap_state.scavenge_speed_in_bytes_per_ms,
-      heap_state.new_space_allocation_throughput_in_bytes_per_ms));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DoScavengeHighScavengeSpeed) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  heap_state.used_new_space_size = kNewSpaceCapacity;
-  heap_state.scavenge_speed_in_bytes_per_ms = kNewSpaceCapacity;
-  int idle_time_ms = 16;
-  EXPECT_TRUE(GCIdleTimeHandler::ShouldDoScavenge(
-      idle_time_ms, heap_state.new_space_capacity,
-      heap_state.used_new_space_size, heap_state.scavenge_speed_in_bytes_per_ms,
-      heap_state.new_space_allocation_throughput_in_bytes_per_ms));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DoNotScavengeSmallNewSpaceSize) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  heap_state.used_new_space_size = (MB / 2) - 1;
-  heap_state.scavenge_speed_in_bytes_per_ms = kNewSpaceCapacity;
-  int idle_time_ms = 16;
-  EXPECT_FALSE(GCIdleTimeHandler::ShouldDoScavenge(
-      idle_time_ms, heap_state.new_space_capacity,
-      heap_state.used_new_space_size, heap_state.scavenge_speed_in_bytes_per_ms,
-      heap_state.new_space_allocation_throughput_in_bytes_per_ms));
-}
-
-
 TEST_F(GCIdleTimeHandlerTest, ShouldDoMarkCompact) {
   size_t idle_time_ms = GCIdleTimeHandler::kMaxScheduledIdleTime;
   EXPECT_TRUE(GCIdleTimeHandler::ShouldDoMarkCompact(idle_time_ms, 0, 0));
@@ -221,7 +126,7 @@ TEST_F(GCIdleTimeHandlerTest, DontDoFinalIncrementalMarkCompact) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ContextDisposeLowRate) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 0;
@@ -231,7 +136,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeLowRate) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate =
       GCIdleTimeHandler::kHighContextDisposalRate - 1;
@@ -243,7 +148,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
 
 
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate = 1.0;
   heap_state.incremental_marking_stopped = true;
@@ -254,119 +159,49 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
 
 
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate =
       GCIdleTimeHandler::kHighContextDisposalRate;
-  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  double idle_time_ms =
-      static_cast<double>(heap_state.size_of_objects / speed - 1);
+  size_t speed = kMarkCompactSpeed;
+  double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+  EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
 }
 
 
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate =
       GCIdleTimeHandler::kHighContextDisposalRate;
-  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  double idle_time_ms =
-      static_cast<double>(heap_state.size_of_objects / speed - 1);
+  size_t speed = kMarkCompactSpeed;
+  double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+  EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
 }
 
 
 TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  size_t speed = heap_state.incremental_marking_speed_in_bytes_per_ms;
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   double idle_time_ms = 10;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
-  EXPECT_GT(speed * static_cast<size_t>(idle_time_ms),
-            static_cast<size_t>(action.parameter));
-  EXPECT_LT(0, action.parameter);
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, IncrementalMarking2) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  size_t speed = heap_state.incremental_marking_speed_in_bytes_per_ms;
-  double idle_time_ms = 10;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
-  EXPECT_GT(speed * static_cast<size_t>(idle_time_ms),
-            static_cast<size_t>(action.parameter));
-  EXPECT_LT(0, action.parameter);
+  EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
 }
 
 
 TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
-  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  double idle_time_ms =
-      static_cast<double>(heap_state.size_of_objects / speed - 1);
+  size_t speed = kMarkCompactSpeed;
+  double idle_time_ms = static_cast<double>(kSizeOfObjects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DONE, action.type);
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, FinalizeSweeping) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  heap_state.incremental_marking_stopped = true;
-  heap_state.sweeping_in_progress = true;
-  heap_state.sweeping_completed = true;
-  double idle_time_ms = 10.0;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_FINALIZE_SWEEPING, action.type);
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, CannotFinalizeSweeping) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  heap_state.incremental_marking_stopped = true;
-  heap_state.sweeping_in_progress = true;
-  heap_state.sweeping_completed = false;
-  double idle_time_ms = 10.0;
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_NOTHING, action.type);
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, Scavenge) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  int idle_time_ms = 10;
-  heap_state.used_new_space_size =
-      heap_state.new_space_capacity -
-      (kNewSpaceAllocationThroughput * idle_time_ms);
-  GCIdleTimeAction action =
-      handler()->Compute(static_cast<double>(idle_time_ms), heap_state);
-  EXPECT_EQ(DO_SCAVENGE, action.type);
-  heap_state.used_new_space_size = 0;
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, ScavengeAndDone) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-  int idle_time_ms = 10;
-  heap_state.incremental_marking_stopped = true;
-  heap_state.used_new_space_size =
-      heap_state.new_space_capacity -
-      (kNewSpaceAllocationThroughput * idle_time_ms);
-  GCIdleTimeAction action =
-      handler()->Compute(static_cast<double>(idle_time_ms), heap_state);
-  EXPECT_EQ(DO_SCAVENGE, action.type);
-  heap_state.used_new_space_size = 0;
-  action = handler()->Compute(static_cast<double>(idle_time_ms), heap_state);
   EXPECT_EQ(DONE, action.type);
 }
 
 
 TEST_F(GCIdleTimeHandlerTest, DoNotStartIncrementalMarking) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 10.0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
@@ -375,19 +210,19 @@ TEST_F(GCIdleTimeHandlerTest, DoNotStartIncrementalMarking) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 10.0;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DONE, action.type);
   heap_state.incremental_marking_stopped = false;
   action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+  EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
 }
 
 
 TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   for (int i = 0; i < kMaxNotifications; i++) {
     GCIdleTimeAction action = handler()->Compute(0, heap_state);
     EXPECT_EQ(DO_NOTHING, action.type);
@@ -396,7 +231,7 @@ TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
 
 
 TEST_F(GCIdleTimeHandlerTest, SmallIdleTimeNothingToDo) {
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   for (int i = 0; i < kMaxNotifications; i++) {
     GCIdleTimeAction action = handler()->Compute(10, heap_state);
@@ -405,28 +240,9 @@ TEST_F(GCIdleTimeHandlerTest, SmallIdleTimeNothingToDo) {
 }
 
 
-TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnSweeping) {
-  // Regression test for crbug.com/489323.
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
-
-  // Simulate sweeping being in-progress but not complete.
-  heap_state.incremental_marking_stopped = true;
-  heap_state.sweeping_in_progress = true;
-  heap_state.sweeping_completed = false;
-  double idle_time_ms = 10.0;
-  for (int i = 0; i < GCIdleTimeHandler::kMaxNoProgressIdleTimes; i++) {
-    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-    EXPECT_EQ(DO_NOTHING, action.type);
-  }
-  // We should return DONE after not making progress for some time.
-  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DONE, action.type);
-}
-
-
 TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnIncrementalMarking) {
   // Regression test for crbug.com/489323.
-  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
 
   // Simulate incremental marking stopped and not eligible to start.
   heap_state.incremental_marking_stopped = true;

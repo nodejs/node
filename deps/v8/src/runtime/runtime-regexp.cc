@@ -6,10 +6,10 @@
 
 #include "src/arguments.h"
 #include "src/conversions-inl.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/jsregexp.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
 
@@ -738,20 +738,20 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   DCHECK(result->HasFastObjectElements());
 
-  if (part_count == 1 && indices.at(0) == subject_length) {
-    FixedArray::cast(result->elements())->set(0, *subject);
-    return *result;
-  }
-
   Handle<FixedArray> elements(FixedArray::cast(result->elements()));
-  int part_start = 0;
-  for (int i = 0; i < part_count; i++) {
-    HandleScope local_loop_handle(isolate);
-    int part_end = indices.at(i);
-    Handle<String> substring =
-        isolate->factory()->NewProperSubString(subject, part_start, part_end);
-    elements->set(i, *substring);
-    part_start = part_end + pattern_length;
+
+  if (part_count == 1 && indices.at(0) == subject_length) {
+    elements->set(0, *subject);
+  } else {
+    int part_start = 0;
+    for (int i = 0; i < part_count; i++) {
+      HandleScope local_loop_handle(isolate);
+      int part_end = indices.at(i);
+      Handle<String> substring =
+          isolate->factory()->NewProperSubString(subject, part_start, part_end);
+      elements->set(i, *substring);
+      part_start = part_end + pattern_length;
+    }
   }
 
   if (limit == 0xffffffffu) {
@@ -985,7 +985,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
 RUNTIME_FUNCTION(Runtime_MaterializeRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 3);
@@ -996,7 +996,7 @@ RUNTIME_FUNCTION(Runtime_MaterializeRegExpLiteral) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, regexp,
       RegExpImpl::CreateRegExpLiteral(constructor, pattern, flags));
-  literals->set(index, *regexp);
+  literals->set_literal(index, *regexp);
   return *regexp;
 }
 

@@ -2,27 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags.h"
+
 #include <cctype>
 #include <cstdlib>
 #include <sstream>
 
-#include "src/v8.h"
-
+#include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/list-inl.h"
 #include "src/ostreams.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
 // Define all of our flags.
 #define FLAG_MODE_DEFINE
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 
 // Define all of our flags default values.
 #define FLAG_MODE_DEFINE_DEFAULTS
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 
 namespace {
 
@@ -161,7 +164,7 @@ struct Flag {
 
 Flag flags[] = {
 #define FLAG_MODE_META
-#include "src/flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 };
 
 const size_t num_flags = sizeof(flags) / sizeof(*flags);
@@ -567,7 +570,7 @@ void ComputeFlagListHash() {
 // static
 void FlagList::EnforceFlagImplications() {
 #define FLAG_MODE_DEFINE_IMPLICATIONS
-#include "src/flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
   ComputeFlagListHash();
 }

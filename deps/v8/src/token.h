@@ -166,6 +166,7 @@ namespace internal {
                                                                      \
   /* Scanner-internal use only. */                                   \
   T(WHITESPACE, NULL, 0)                                             \
+  T(UNINITIALIZED, NULL, 0)                                          \
                                                                      \
   /* ES6 Template Literals */                                        \
   T(TEMPLATE_SPAN, NULL, 0)                                          \

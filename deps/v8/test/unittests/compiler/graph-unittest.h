@@ -18,8 +18,6 @@ namespace internal {
 template <class T>
 class Handle;
 class HeapObject;
-template <class T>
-class Unique;
 
 namespace compiler {
 
@@ -45,7 +43,6 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
   Node* Int64Constant(int64_t value);
   Node* NumberConstant(volatile double value);
   Node* HeapConstant(const Handle<HeapObject>& value);
-  Node* HeapConstant(const Unique<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();
   Node* UndefinedConstant();

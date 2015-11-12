@@ -12,11 +12,6 @@
 // Imports
 
 var GlobalRegExp = global.RegExp;
-var ToString;
-
-utils.Import(function(from) {
-  ToString = from.ToString;
-});
 
 // -------------------------------------------------------------------
 
@@ -24,7 +19,7 @@ utils.Import(function(from) {
 // + https://bugs.ecmascript.org/show_bug.cgi?id=3423
 function RegExpGetFlags() {
   if (!IS_SPEC_OBJECT(this)) {
-    throw MakeTypeError(kFlagsGetterNonObject, ToString(this));
+    throw MakeTypeError(kFlagsGetterNonObject, TO_STRING(this));
   }
   var result = '';
   if (this.global) result += 'g';

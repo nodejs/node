@@ -9,10 +9,11 @@
 %CheckIsBootstrapping();
 
 var GlobalSymbol = global.Symbol;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.InstallConstants(GlobalSymbol, [
    // TODO(dslomov, caitp): Move to symbol.js when shipping
-   "toStringTag", symbolToStringTag
+   "toStringTag", toStringTagSymbol
 ]);
 
 })

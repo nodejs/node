@@ -7,6 +7,7 @@
 #include "src/codegen.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 #include "test/cctest/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
@@ -58,11 +59,26 @@ class TyperTest : public TypedGraphTest {
   Type* TypeBinaryOp(const Operator* op, Type* lhs, Type* rhs) {
     Node* p0 = Parameter(0);
     Node* p1 = Parameter(1);
-    NodeProperties::SetBounds(p0, Bounds(lhs));
-    NodeProperties::SetBounds(p1, Bounds(rhs));
-    Node* n = graph()->NewNode(op, p0, p1, context_node_, graph()->start(),
-                               graph()->start());
-    return NodeProperties::GetBounds(n).upper;
+    NodeProperties::SetType(p0, lhs);
+    NodeProperties::SetType(p1, rhs);
+    std::vector<Node*> inputs;
+    inputs.push_back(p0);
+    inputs.push_back(p1);
+    if (OperatorProperties::HasContextInput(op)) {
+      inputs.push_back(context_node_);
+    }
+    for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op); i++) {
+      inputs.push_back(EmptyFrameState());
+    }
+    for (int i = 0; i < op->EffectInputCount(); i++) {
+      inputs.push_back(graph()->start());
+    }
+    for (int i = 0; i < op->ControlInputCount(); i++) {
+      inputs.push_back(graph()->start());
+    }
+    Node* n = graph()->NewNode(op, static_cast<int>(inputs.size()),
+                               &(inputs.front()));
+    return NodeProperties::GetType(n);
   }
 
   Type* RandomRange(bool int32 = false) {
@@ -196,9 +212,7 @@ class TyperTest : public TypedGraphTest {
       Type* type2 = types_.Fuzz();
       Type* type = TypeBinaryOp(op, type1, type2);
       Type* subtype1 = RandomSubtype(type1);
-      ;
       Type* subtype2 = RandomSubtype(type2);
-      ;
       Type* subtype = TypeBinaryOp(op, subtype1, subtype2);
       EXPECT_TRUE(subtype->Is(type));
     }
@@ -399,7 +413,7 @@ TEST_F(TyperTest, TypeRegressInt32Constant) {
   int values[] = {-5, 10};
   for (auto i : values) {
     Node* c = graph()->NewNode(common()->Int32Constant(i));
-    Type* type = NodeProperties::GetBounds(c).upper;
+    Type* type = NodeProperties::GetType(c);
     EXPECT_TRUE(type->Is(NewRange(i, i)));
   }
 }

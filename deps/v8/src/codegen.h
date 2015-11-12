@@ -76,7 +76,6 @@ class CodeGenerator {
 
   // Allocate and install the code.
   static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
-                                       Code::Flags flags,
                                        CompilationInfo* info);
 
   // Print the code after compiling it.

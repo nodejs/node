@@ -11,6 +11,7 @@
 #include "src/arguments.h"
 #include "src/factory.h"
 #include "src/i18n.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 
 #include "unicode/brkiter.h"
@@ -351,8 +352,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
 
   Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     Execution::ToNumber(isolate, date));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(date));
 
   icu::SimpleDateFormat* date_format =
       DateFormat::UnpackDateFormat(isolate, date_format_holder);
@@ -445,8 +445,7 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
   CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
 
   Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     Execution::ToNumber(isolate, number));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(number));
 
   icu::DecimalFormat* number_format =
       NumberFormat::UnpackNumberFormat(isolate, number_format_holder);

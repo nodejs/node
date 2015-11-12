@@ -133,7 +133,7 @@ void RelocInfo::set_target_object(Object* target,
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Memory::Object_at(pc_) = target;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CpuFeatures::FlushICache(pc_, sizeof(Address));
+    Assembler::FlushICacheWithoutIsolate(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
@@ -199,7 +199,7 @@ void RelocInfo::set_target_cell(Cell* cell,
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CpuFeatures::FlushICache(pc_, sizeof(Address));
+    Assembler::FlushICacheWithoutIsolate(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
     // TODO(1550) We are passing NULL as a slot because cell can never be on
@@ -280,7 +280,7 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(this);
-    CpuFeatures::FlushICache(pc_, sizeof(Address));
+    Assembler::FlushICacheWithoutIsolate(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
   } else if (mode == RelocInfo::CELL) {
@@ -305,7 +305,7 @@ void RelocInfo::Visit(Heap* heap) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     StaticVisitor::VisitEmbeddedPointer(heap, this);
-    CpuFeatures::FlushICache(pc_, sizeof(Address));
+    Assembler::FlushICacheWithoutIsolate(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(heap, this);
   } else if (mode == RelocInfo::CELL) {
@@ -459,7 +459,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
   int32_t* p = reinterpret_cast<int32_t*>(pc);
   *p = target - (pc + sizeof(int32_t));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CpuFeatures::FlushICache(p, sizeof(int32_t));
+    Assembler::FlushICacheWithoutIsolate(p, sizeof(int32_t));
   }
 }
 

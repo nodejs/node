@@ -42,6 +42,7 @@
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap-tester.h"
 
 using namespace v8::internal;
 using v8::Just;
@@ -74,9 +75,9 @@ TEST(MarkingDeque) {
 }
 
 
-TEST(Promotion) {
+HEAP_TEST(Promotion) {
   CcTest::InitializeVM();
-  TestHeap* heap = CcTest::test_heap();
+  Heap* heap = CcTest::heap();
   heap->ConfigureHeap(1, 1, 1, 0);
 
   v8::HandleScope sc(CcTest::isolate());
@@ -100,9 +101,9 @@ TEST(Promotion) {
 }
 
 
-TEST(NoPromotion) {
+HEAP_TEST(NoPromotion) {
   CcTest::InitializeVM();
-  TestHeap* heap = CcTest::test_heap();
+  Heap* heap = CcTest::heap();
   heap->ConfigureHeap(1, 1, 1, 0);
 
   v8::HandleScope sc(CcTest::isolate());
@@ -125,12 +126,12 @@ TEST(NoPromotion) {
 }
 
 
-TEST(MarkCompactCollector) {
+HEAP_TEST(MarkCompactCollector) {
   FLAG_incremental_marking = false;
   FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  TestHeap* heap = CcTest::test_heap();
+  Heap* heap = CcTest::heap();
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
@@ -244,11 +245,11 @@ static void WeakPointerCallback(
 }
 
 
-TEST(ObjectGroups) {
+HEAP_TEST(ObjectGroups) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
   GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-  TestHeap* heap = CcTest::test_heap();
+  Heap* heap = CcTest::heap();
   NumberOfWeakCalls = 0;
   v8::HandleScope handle_scope(CcTest::isolate());
 

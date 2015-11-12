@@ -70,7 +70,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   int param_offset = 7 * kPointerSize;
   // Save registers make sure they don't get clobbered.
   int reg_num = 0;
-  for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
+  for (; reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
     Register reg = Register::FromAllocationIndex(reg_num);
     if (!reg.is(esp) && !reg.is(ebp) && !reg.is(destination_reg)) {
       __ push(reg);

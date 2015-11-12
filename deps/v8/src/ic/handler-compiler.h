@@ -262,6 +262,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                              Register value_reg, Register scratch,
                              Label* miss_label);
 
+  bool RequiresFieldTypeChecks(HeapType* field_type) const;
   void GenerateFieldTypeChecks(HeapType* field_type, Register value_reg,
                                Label* miss_label);
 

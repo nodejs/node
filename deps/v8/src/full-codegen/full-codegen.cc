@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/full-codegen/full-codegen.h"
+
 #include "src/ast.h"
 #include "src/ast-numbering.h"
 #include "src/code-factory.h"
@@ -9,7 +11,7 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/full-codegen/full-codegen.h"
+#include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/prettyprinter.h"
 #include "src/scopeinfo.h"
@@ -50,8 +52,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   }
   unsigned table_offset = cgen.EmitBackEdgeTable();
 
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
-  Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
+  Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, info);
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
   cgen.PopulateHandlerTable(code);
@@ -87,28 +88,6 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
     __ dd(back_edges_[i].loop_depth);
   }
   return offset;
-}
-
-
-void FullCodeGenerator::EnsureSlotContainsAllocationSite(
-    FeedbackVectorSlot slot) {
-  Handle<TypeFeedbackVector> vector = FeedbackVector();
-  if (!vector->Get(slot)->IsAllocationSite()) {
-    Handle<AllocationSite> allocation_site =
-        isolate()->factory()->NewAllocationSite();
-    vector->Set(slot, *allocation_site);
-  }
-}
-
-
-void FullCodeGenerator::EnsureSlotContainsAllocationSite(
-    FeedbackVectorICSlot slot) {
-  Handle<TypeFeedbackVector> vector = FeedbackVector();
-  if (!vector->Get(slot)->IsAllocationSite()) {
-    Handle<AllocationSite> allocation_site =
-        isolate()->factory()->NewAllocationSite();
-    vector->Set(slot, *allocation_site);
-  }
 }
 
 
@@ -449,6 +428,12 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FullCodeGenerator::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* declaration) {
+  Visit(declaration->statement());
+}
+
+
 int FullCodeGenerator::DeclareGlobalsFlags() {
   DCHECK(DeclareGlobalsLanguageMode::is_valid(language_mode()));
   return DeclareGlobalsEvalFlag::encode(is_eval()) |
@@ -492,19 +477,6 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   VisitForStackValue(args->at(1));
 
   MathPowStub stub(isolate(), MathPowStub::ON_STACK);
-  __ CallStub(&stub);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(2, args->length());
-
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  StringCompareStub stub(isolate());
   __ CallStub(&stub);
   context()->Plug(result_register());
 }
@@ -884,7 +856,7 @@ void FullCodeGenerator::EmitUnwindBeforeReturn() {
 void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
-  __ InvokeBuiltin(Builtins::TO_NAME, CALL_FUNCTION);
+  __ CallRuntime(Runtime::kToName, 1);
   PrepareForBailoutForId(bailout_id, NO_REGISTERS);
   __ Push(result_register());
 }
@@ -1296,28 +1268,16 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ Push(Smi::FromInt(lit->start_position()));
     __ Push(Smi::FromInt(lit->end_position()));
 
-    __ CallRuntime(is_strong(language_mode()) ? Runtime::kDefineClassStrong
-                                              : Runtime::kDefineClass,
-                   5);
+    __ CallRuntime(Runtime::kDefineClass, 5);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
 
-    int store_slot_index = 0;
-    EmitClassDefineProperties(lit, &store_slot_index);
+    EmitClassDefineProperties(lit);
 
     if (lit->scope() != NULL) {
       DCHECK_NOT_NULL(lit->class_variable_proxy());
-      FeedbackVectorICSlot slot =
-          FLAG_vector_stores &&
-                  lit->class_variable_proxy()->var()->IsUnallocated()
-              ? lit->GetNthSlot(store_slot_index++)
-              : FeedbackVectorICSlot::Invalid();
       EmitVariableAssignment(lit->class_variable_proxy()->var(),
-                             Token::INIT_CONST, slot);
+                             Token::INIT_CONST, lit->ProxySlot());
     }
-
-    // Verify that compilation exactly consumed the number of store ic slots
-    // that the ClassLiteral node had to offer.
-    DCHECK(!FLAG_vector_stores || store_slot_index == lit->slot_count());
   }
 
   context()->Plug(result_register());
@@ -1398,6 +1358,11 @@ void FullCodeGenerator::ExitTryBlock(int handler_index) {
 
 
 void FullCodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
+
+
+void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
+  UNREACHABLE();
+}
 
 
 FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
@@ -1548,7 +1513,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
     needs_block_context_ = false;
   } else {
-    needs_block_context_ = scope->ContextLocalCount() > 0;
+    needs_block_context_ = scope->NeedsContext();
     codegen_->scope_ = scope;
     {
       if (needs_block_context_) {
@@ -1583,6 +1548,65 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::~EnterBlockScopeIfNeeded() {
   }
   codegen_->PrepareForBailoutForId(exit_id_, NO_REGISTERS);
   codegen_->scope_ = saved_scope_;
+}
+
+
+bool FullCodeGenerator::NeedsHoleCheckForLoad(VariableProxy* proxy) {
+  Variable* var = proxy->var();
+
+  if (!var->binding_needs_init()) {
+    return false;
+  }
+
+  // var->scope() may be NULL when the proxy is located in eval code and
+  // refers to a potential outside binding. Currently those bindings are
+  // always looked up dynamically, i.e. in that case
+  //     var->location() == LOOKUP.
+  // always holds.
+  DCHECK(var->scope() != NULL);
+  DCHECK(var->location() == VariableLocation::PARAMETER ||
+         var->location() == VariableLocation::LOCAL ||
+         var->location() == VariableLocation::CONTEXT);
+
+  // Check if the binding really needs an initialization check. The check
+  // can be skipped in the following situation: we have a LET or CONST
+  // binding in harmony mode, both the Variable and the VariableProxy have
+  // the same declaration scope (i.e. they are both in global code, in the
+  // same function or in the same eval code), the VariableProxy is in
+  // the source physically located after the initializer of the variable,
+  // and that the initializer cannot be skipped due to a nonlinear scope.
+  //
+  // We cannot skip any initialization checks for CONST in non-harmony
+  // mode because const variables may be declared but never initialized:
+  //   if (false) { const x; }; var y = x;
+  //
+  // The condition on the declaration scopes is a conservative check for
+  // nested functions that access a binding and are called before the
+  // binding is initialized:
+  //   function() { f(); let x = 1; function f() { x = 2; } }
+  //
+  // The check cannot be skipped on non-linear scopes, namely switch
+  // scopes, to ensure tests are done in cases like the following:
+  //   switch (1) { case 0: let x = 2; case 1: f(x); }
+  // The scope of the variable needs to be checked, in case the use is
+  // in a sub-block which may be linear.
+  if (var->scope()->DeclarationScope() != scope()->DeclarationScope()) {
+    return true;
+  }
+
+  if (var->is_this()) {
+    DCHECK(literal() != nullptr &&
+           (literal()->kind() & kSubclassConstructor) != 0);
+    // TODO(littledan): implement 'this' hole check elimination.
+    return true;
+  }
+
+  // Check that we always have valid source position.
+  DCHECK(var->initializer_position() != RelocInfo::kNoPosition);
+  DCHECK(proxy->position() != RelocInfo::kNoPosition);
+
+  return var->mode() == CONST_LEGACY || var->scope()->is_nonlinear() ||
+         var->initializer_position() >= proxy->position();
 }
 
 

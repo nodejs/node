@@ -214,7 +214,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
           CodeStub::Major major_key = CodeStub::GetMajorKey(code);
           DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
           out.AddFormatted(" %s, %s, ", Code::Kind2String(kind),
-                           CodeStub::MajorName(major_key, false));
+                           CodeStub::MajorName(major_key));
           out.AddFormatted("minor: %d", minor_key);
         } else {
           out.AddFormatted(" %s", Code::Kind2String(kind));
