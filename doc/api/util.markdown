@@ -404,6 +404,8 @@ Returns `true` if the given "object" is a primitive type. `false` otherwise.
 
     Stability: 0 - Deprecated
 
+Use `Buffer.isBuffer()` instead.
+
 Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
 
     var util = require('util');
