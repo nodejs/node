@@ -2321,7 +2321,7 @@ void SSLWrap<Base>::DestroySSL() {
 template <class Base>
 void SSLWrap<Base>::SetSNIContext(SecureContext* sc) {
   InitNPN(sc);
-  SSL_set_SSL_CTX(ssl_, sc->ctx_);
+  CHECK_EQ(SSL_set_SSL_CTX(ssl_, sc->ctx_), sc->ctx_);
 
   SetCACerts(sc);
 }
@@ -2335,6 +2335,8 @@ int SSLWrap<Base>::SetCACerts(SecureContext* sc) {
 
   STACK_OF(X509_NAME)* list = SSL_dup_CA_list(
       SSL_CTX_get_client_CA_list(sc->ctx_));
+
+  // NOTE: `SSL_set_client_CA_list` takes the ownership of `list`
   SSL_set_client_CA_list(ssl_, list);
   return 1;
 }
