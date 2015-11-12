@@ -225,6 +225,20 @@ footer = '''
 '''
 
 #
+# Get the base class
+#
+def get_base_class(klass):
+        if (klass == 'Object'):
+                return klass;
+
+        if (not (klass in klasses)):
+                return None;
+
+        k = klasses[klass];
+
+        return get_base_class(k['parent']);
+
+#
 # Loads class hierarchy and type information from "objects.h".
 #
 def load_objects():
@@ -262,12 +276,14 @@ def load_objects():
                         typestr += line;
                         continue;
 
-                match = re.match('class (\w[^\s:]*)(: public (\w[^\s{]*))?\s*{',
+                match = re.match('class (\w[^:]*)(: public (\w[^{]*))?\s*{\s*',
                     line);
 
                 if (match):
-                        klass = match.group(1);
+                        klass = match.group(1).rstrip().lstrip();
                         pklass = match.group(3);
+                        if (pklass):
+                                pklass = pklass.rstrip().lstrip();
                         klasses[klass] = { 'parent': pklass };
 
         #
@@ -518,6 +534,9 @@ def emit_config():
         keys.sort();
         for klassname in keys:
                 pklass = klasses[klassname]['parent'];
+                bklass = get_base_class(klassname);
+                if (bklass != 'Object'):
+                        continue;
                 if (pklass == None):
                         continue;
 
