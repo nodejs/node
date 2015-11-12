@@ -41,6 +41,59 @@ assert.equal(util.inspect(Object.create({},
   '{ visible: 1 }'
 );
 
+for (const showHidden of [true, false]) {
+  const ab = new ArrayBuffer(4);
+  const dv = new DataView(ab, 1, 2);
+  assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
+  assert.equal(util.inspect(new DataView(ab, 1, 2), showHidden),
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
+               '  buffer: ArrayBuffer { byteLength: 4 } }');
+  assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
+  assert.equal(util.inspect(dv, showHidden),
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
+               '  buffer: ArrayBuffer { byteLength: 4 } }');
+  ab.x = 42;
+  dv.y = 1337;
+  assert.equal(util.inspect(ab, showHidden),
+               'ArrayBuffer { byteLength: 4, x: 42 }');
+  assert.equal(util.inspect(dv, showHidden),
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
+               '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
+               '  y: 1337 }');
+}
+
+[ Float32Array,
+  Float64Array,
+  Int16Array,
+  Int32Array,
+  Int8Array,
+  Uint16Array,
+  Uint32Array,
+  Uint8Array,
+  Uint8ClampedArray ].forEach(constructor => {
+    const length = 2;
+    const byteLength = length * constructor.BYTES_PER_ELEMENT;
+    const array = new constructor(new ArrayBuffer(byteLength), 0, length);
+    array[0] = 65;
+    array[1] = 97;
+    assert.equal(util.inspect(array, true),
+                 `${constructor.name} [\n` +
+                 `  65,\n` +
+                 `  97,\n` +
+                 `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
+                 `  [length]: ${length},\n` +
+                 `  [byteLength]: ${byteLength},\n` +
+                 `  [byteOffset]: 0,\n` +
+                 `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
+    assert.equal(util.inspect(array, false), `${constructor.name} [ 65, 97 ]`);
+  });
+
 // Due to the hash seed randomization it's not deterministic the order that
 // the following ways this hash is displayed.
 // See http://codereview.chromium.org/9124004/
