@@ -158,9 +158,8 @@ inline bool IsHoleyElementsKind(ElementsKind kind) {
 
 
 inline bool IsFastPackedElementsKind(ElementsKind kind) {
-  return kind == FAST_SMI_ELEMENTS ||
-      kind == FAST_DOUBLE_ELEMENTS ||
-      kind == FAST_ELEMENTS;
+  return kind == FAST_SMI_ELEMENTS || kind == FAST_DOUBLE_ELEMENTS ||
+         kind == FAST_ELEMENTS;
 }
 
 
@@ -210,6 +209,15 @@ inline bool IsSimpleMapChangeTransition(ElementsKind from_kind,
 
 bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind);
+
+
+inline ElementsKind GetMoreGeneralElementsKind(ElementsKind from_kind,
+                                               ElementsKind to_kind) {
+  if (IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
+    return to_kind;
+  }
+  return from_kind;
+}
 
 
 inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {

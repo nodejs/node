@@ -132,7 +132,6 @@ class LCodeGen: public LCodeGenBase {
                            LOperand* temp1,
                            LOperand* temp2);
   void DoDeferredAllocate(LAllocate* instr);
-  void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
   void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
                                    Register result,

@@ -39,6 +39,22 @@ function eq_strict(a, b) {
   return a === b;
 }
 
+function le(a, b) {
+  return a <= b;
+}
+
+function lt(a, b) {
+  return a < b;
+}
+
+function ge(a, b) {
+  return a >= b;
+}
+
+function gt(a, b) {
+  return a > b;
+}
+
 function test(a, b) {
   // Check CompareIC for equality of known objects.
   assertTrue(eq(a, a));
@@ -48,6 +64,22 @@ function test(a, b) {
   assertTrue(eq_strict(a, a));
   assertTrue(eq_strict(b, b));
   assertFalse(eq_strict(a, b));
+  // Check CompareIC for less than or equal of known objects.
+  assertTrue(le(a, a));
+  assertTrue(le(a, b));
+  assertTrue(le(b, a));
+  // Check CompareIC for less than of known objects.
+  assertFalse(lt(a, a));
+  assertFalse(lt(a, b));
+  assertFalse(lt(b, a));
+  // Check CompareIC for greater than or equal of known objects.
+  assertTrue(ge(a, a));
+  assertTrue(ge(a, b));
+  assertTrue(ge(b, a));
+  // Check CompareIC for greater than of known objects.
+  assertFalse(gt(a, a));
+  assertFalse(gt(a, b));
+  assertFalse(gt(b, a));
 }
 
 function O(){};

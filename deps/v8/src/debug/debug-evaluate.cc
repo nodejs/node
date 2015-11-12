@@ -10,7 +10,7 @@
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/frames-inl.h"
-#include "src/isolate.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -106,7 +106,7 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   if (result->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, result);
     // TODO(verwaest): This will crash when the global proxy is detached.
-    result = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    result = PrototypeIterator::GetCurrent<JSObject>(iter);
   }
 
   return result;
@@ -280,15 +280,14 @@ Handle<Context> DebugEvaluate::ContextBuilder::MaterializeReceiver(
   switch (scope_info->scope_type()) {
     case FUNCTION_SCOPE: {
       VariableMode mode;
-      VariableLocation location;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
 
       // Don't bother creating a fake context node if "this" is in the context
       // already.
-      if (ScopeInfo::ContextSlotIndex(
-              scope_info, isolate_->factory()->this_string(), &mode, &location,
-              &init_flag, &maybe_assigned_flag) >= 0) {
+      if (ScopeInfo::ContextSlotIndex(scope_info,
+                                      isolate_->factory()->this_string(), &mode,
+                                      &init_flag, &maybe_assigned_flag) >= 0) {
         return target;
       }
       receiver = handle(frame_->receiver(), isolate_);

@@ -9,7 +9,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/unique.h"
+#include "src/handles-inl.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -575,12 +575,14 @@ const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
 
 
 const Operator* CommonOperatorBuilder::HeapConstant(
-    const Unique<HeapObject>& value) {
-  return new (zone()) Operator1<Unique<HeapObject>>(  // --
-      IrOpcode::kHeapConstant, Operator::kPure,       // opcode
-      "HeapConstant",                                 // name
-      0, 0, 0, 1, 0, 0,                               // counts
-      value);                                         // parameter
+    const Handle<HeapObject>& value) {
+  return new (zone())
+      Operator1<Handle<HeapObject>, Handle<HeapObject>::equal_to,
+                Handle<HeapObject>::hash>(           // --
+          IrOpcode::kHeapConstant, Operator::kPure,  // opcode
+          "HeapConstant",                            // name
+          0, 0, 0, 1, 0, 0,                          // counts
+          value);                                    // parameter
 }
 
 

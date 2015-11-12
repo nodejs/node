@@ -143,6 +143,10 @@ endif
 ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
 endif
+# vectorstores=on
+ifeq ($(vectorstores), on)
+  GYPFLAGS += -Dv8_vector_stores=1
+endif
 # imminentdeprecationwarnings=on
 ifeq ($(imminentdeprecationwarnings), on)
   GYPFLAGS += -Dv8_imminent_deprecation_warnings=1
@@ -240,7 +244,7 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64el x87 ppc ppc64
+ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64 mips64el x87 ppc ppc64
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug

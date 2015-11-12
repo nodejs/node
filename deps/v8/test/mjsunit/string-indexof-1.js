@@ -77,6 +77,20 @@ assertEquals(-1, twoByteString.indexOf("\u0391\u03a3\u0395"),
 //single char pattern
 assertEquals(4, twoByteString.indexOf("\u0395"));
 
+// test string with alignment traps
+var alignmentString = "\u1122\u2211\u2222\uFF00\u00FF\u00FF";
+assertEquals(2, alignmentString.indexOf("\u2222"));
+assertEquals(4, alignmentString.indexOf("\u00FF\u00FF"));
+
+var longAlignmentString = "\uFF00" + "\u00FF".repeat(10);
+assertEquals(1,
+    longAlignmentString.indexOf("\u00FF".repeat(10)));
+
+// test string with first character match at the end
+var boundsString = "112233";
+assertEquals(-1, boundsString.indexOf("334455"));
+assertEquals(-1, boundsString.indexOf("334455".repeat(10)));
+
 // Test complex string indexOf algorithms. Only trigger for long strings.
 
 // Long string that isn't a simple repeat of a shorter string.

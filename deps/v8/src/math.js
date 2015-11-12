@@ -15,6 +15,7 @@ var rngstate;  // Initialized to a Uint32Array during genesis.
 var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 //-------------------------------------------------------------------
 
@@ -288,7 +289,7 @@ function CubeRoot(x) {
 
 // -------------------------------------------------------------------
 
-%AddNamedProperty(GlobalMath, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
+%AddNamedProperty(GlobalMath, toStringTagSymbol, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.
 utils.InstallConstants(GlobalMath, [

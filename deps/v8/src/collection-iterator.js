@@ -15,6 +15,8 @@ var $setValues;
 
 var GlobalMap = global.Map;
 var GlobalSet = global.Set;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 // -------------------------------------------------------------------
 
@@ -30,21 +32,21 @@ function SetIteratorNextJS() {
   }
 
   var value_array = [UNDEFINED, UNDEFINED];
-  var entry = {value: value_array, done: false};
+  var result = %_CreateIterResultObject(value_array, false);
   switch (%SetIteratorNext(this, value_array)) {
     case 0:
-      entry.value = UNDEFINED;
-      entry.done = true;
+      result.value = UNDEFINED;
+      result.done = true;
       break;
     case ITERATOR_KIND_VALUES:
-      entry.value = value_array[0];
+      result.value = value_array[0];
       break;
     case ITERATOR_KIND_ENTRIES:
       value_array[1] = value_array[0];
       break;
   }
 
-  return entry;
+  return result;
 }
 
 
@@ -74,7 +76,7 @@ utils.InstallFunctions(SetIterator.prototype, DONT_ENUM, [
   'next', SetIteratorNextJS
 ]);
 
-%AddNamedProperty(SetIterator.prototype, symbolToStringTag,
+%AddNamedProperty(SetIterator.prototype, toStringTagSymbol,
     "Set Iterator", READ_ONLY | DONT_ENUM);
 
 utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
@@ -83,7 +85,7 @@ utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
   'values', SetValues
 ]);
 
-%AddNamedProperty(GlobalSet.prototype, symbolIterator, SetValues, DONT_ENUM);
+%AddNamedProperty(GlobalSet.prototype, iteratorSymbol, SetValues, DONT_ENUM);
 
 $setIteratorNext = SetIteratorNextJS;
 $setValues = SetValues;
@@ -102,22 +104,22 @@ function MapIteratorNextJS() {
   }
 
   var value_array = [UNDEFINED, UNDEFINED];
-  var entry = {value: value_array, done: false};
+  var result = %_CreateIterResultObject(value_array, false);
   switch (%MapIteratorNext(this, value_array)) {
     case 0:
-      entry.value = UNDEFINED;
-      entry.done = true;
+      result.value = UNDEFINED;
+      result.done = true;
       break;
     case ITERATOR_KIND_KEYS:
-      entry.value = value_array[0];
+      result.value = value_array[0];
       break;
     case ITERATOR_KIND_VALUES:
-      entry.value = value_array[1];
+      result.value = value_array[1];
       break;
     // ITERATOR_KIND_ENTRIES does not need any processing.
   }
 
-  return entry;
+  return result;
 }
 
 
@@ -156,7 +158,7 @@ utils.InstallFunctions(MapIterator.prototype, DONT_ENUM, [
   'next', MapIteratorNextJS
 ]);
 
-%AddNamedProperty(MapIterator.prototype, symbolToStringTag,
+%AddNamedProperty(MapIterator.prototype, toStringTagSymbol,
     "Map Iterator", READ_ONLY | DONT_ENUM);
 
 
@@ -166,7 +168,7 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
   'values', MapValues
 ]);
 
-%AddNamedProperty(GlobalMap.prototype, symbolIterator, MapEntries, DONT_ENUM);
+%AddNamedProperty(GlobalMap.prototype, iteratorSymbol, MapEntries, DONT_ENUM);
 
 $mapEntries = MapEntries;
 $mapIteratorNext = MapIteratorNextJS;

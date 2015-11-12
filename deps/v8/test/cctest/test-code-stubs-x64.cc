@@ -74,7 +74,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Save registers make sure they don't get clobbered.
   int reg_num = 0;
-  for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
+  for (; reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
     Register reg = Register::FromAllocationIndex(reg_num);
     if (!reg.is(rsp) && !reg.is(rbp) && !reg.is(destination_reg)) {
       __ pushq(reg);

@@ -27,7 +27,7 @@ static Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
                         0, 1, 0, 0);
 static Operator kIntLt(IrOpcode::kInt32LessThan, Operator::kPure,
                        "Int32LessThan", 2, 0, 0, 1, 0, 0);
-static Operator kStore(IrOpcode::kStore, Operator::kNoProperties, "Store", 0, 2,
+static Operator kStore(IrOpcode::kStore, Operator::kNoProperties, "Store", 1, 1,
                        1, 0, 1, 0);
 
 static const int kNumLeafs = 4;
@@ -234,8 +234,7 @@ struct StoreLoop {
   Node* store;
 
   explicit StoreLoop(While& w)
-      : base(w.t.jsgraph.Int32Constant(12)),
-        val(w.t.jsgraph.Int32Constant(13)) {
+      : base(w.t.graph.start()), val(w.t.jsgraph.Int32Constant(13)) {
     Build(w);
   }
 
@@ -243,7 +242,7 @@ struct StoreLoop {
 
   void Build(While& w) {
     phi = w.t.graph.NewNode(w.t.op(2, true), base, base, w.loop);
-    store = w.t.graph.NewNode(&kStore, phi, val, w.loop);
+    store = w.t.graph.NewNode(&kStore, val, phi, w.loop);
     phi->ReplaceInput(1, store);
   }
 };
@@ -489,7 +488,7 @@ TEST(LaNestedLoop1x) {
   p2a->ReplaceInput(1, p2b);
   p2b->ReplaceInput(1, p2a);
 
-  t.Return(t.p0, p1a, w1.exit);
+  t.Return(t.p0, t.start, w1.exit);
 
   Node* chain[] = {w1.loop, w2.loop};
   t.CheckNestedLoops(chain, 2);

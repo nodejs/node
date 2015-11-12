@@ -134,30 +134,26 @@ TEST(ConstructorCall) {
 // TODO(titzer): factor these out into test-runtime-calls.cc
 TEST(RuntimeCallCPP2) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a,b) { return %NumberAdd(a, b); })");
+  FunctionTester T("(function(a,b) { return %NumberImul(a, b); })");
 
-  T.CheckCall(T.Val(65), T.Val(42), T.Val(23));
-  T.CheckCall(T.Val(19), T.Val(42), T.Val(-23));
-  T.CheckCall(T.Val(6.5), T.Val(4.2), T.Val(2.3));
+  T.CheckCall(T.Val(2730), T.Val(42), T.Val(65));
+  T.CheckCall(T.Val(798), T.Val(42), T.Val(19));
 }
 
 
 TEST(RuntimeCallJS) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %$toString(a); })");
+  FunctionTester T("(function(a) { return %to_number_fun(a); })");
 
-  T.CheckCall(T.Val("23"), T.Val(23), T.undefined());
-  T.CheckCall(T.Val("4.2"), T.Val(4.2), T.undefined());
-  T.CheckCall(T.Val("str"), T.Val("str"), T.undefined());
-  T.CheckCall(T.Val("true"), T.true_value(), T.undefined());
-  T.CheckCall(T.Val("false"), T.false_value(), T.undefined());
-  T.CheckCall(T.Val("undefined"), T.undefined(), T.undefined());
+  T.CheckCall(T.Val(23), T.Val(23), T.undefined());
+  T.CheckCall(T.Val(4.2), T.Val(4.2), T.undefined());
+  T.CheckCall(T.Val(1), T.true_value(), T.undefined());
 }
 
 
 TEST(RuntimeCallInline) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %_IsObject(a); })");
+  FunctionTester T("(function(a) { return %_IsSpecObject(a); })");
 
   T.CheckCall(T.false_value(), T.Val(23), T.undefined());
   T.CheckCall(T.false_value(), T.Val(4.2), T.undefined());

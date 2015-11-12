@@ -69,10 +69,10 @@ const SharedOperator kSharedOperators[] = {
   }
     SHARED(Equal, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
     SHARED(NotEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(StrictEqual, Operator::kPure, 2, 0, 0, 0, 1, 0, 0),
-    SHARED(StrictNotEqual, Operator::kPure, 2, 0, 0, 0, 1, 0, 0),
-    SHARED(UnaryNot, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
-    SHARED(ToBoolean, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
+    SHARED(StrictEqual, Operator::kNoThrow, 2, 0, 1, 1, 1, 1, 0),
+    SHARED(StrictNotEqual, Operator::kNoThrow, 2, 0, 1, 1, 1, 1, 0),
+    SHARED(UnaryNot, Operator::kEliminatable, 1, 0, 1, 0, 1, 1, 0),
+    SHARED(ToBoolean, Operator::kEliminatable, 1, 0, 1, 0, 1, 1, 0),
     SHARED(ToNumber, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
     SHARED(ToString, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
     SHARED(ToName, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
@@ -80,13 +80,11 @@ const SharedOperator kSharedOperators[] = {
     SHARED(Yield, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
     SHARED(Create, Operator::kEliminatable, 0, 0, 1, 0, 1, 1, 0),
     SHARED(HasProperty, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(TypeOf, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
+    SHARED(TypeOf, Operator::kEliminatable, 1, 0, 1, 0, 1, 1, 0),
     SHARED(InstanceOf, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
     SHARED(CreateFunctionContext, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
     SHARED(CreateWithContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(CreateBlockContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
     SHARED(CreateModuleContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
-    SHARED(CreateScriptContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2)
 #undef SHARED
 };
 

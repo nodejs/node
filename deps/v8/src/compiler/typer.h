@@ -10,10 +10,11 @@
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
 // Forward declarations.
-class TyperCache;
+class ZoneTypeCache;
+
+namespace compiler {
 
 
 class Typer {
@@ -39,7 +40,7 @@ class Typer {
   Graph* const graph_;
   Type::FunctionType* function_type_;
   Decorator* decorator_;
-  TyperCache const& cache_;
+  ZoneTypeCache const& cache_;
 
   Type* singleton_false_;
   Type* singleton_true_;

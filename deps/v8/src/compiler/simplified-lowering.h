@@ -59,7 +59,7 @@ class SimplifiedLowering final {
   Node* Untag(Node* node);
   Node* OffsetMinusTagConstant(int32_t offset);
   Node* ComputeIndex(const ElementAccess& access, Node* const key);
-  Node* StringComparison(Node* node, bool requires_ordering);
+  Node* StringComparison(Node* node);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);
   Node* Uint32Div(Node* const node);
@@ -67,6 +67,7 @@ class SimplifiedLowering final {
 
   friend class RepresentationSelector;
 
+  Isolate* isolate() { return jsgraph_->isolate(); }
   Zone* zone() { return jsgraph_->zone(); }
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph()->graph(); }

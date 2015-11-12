@@ -6,6 +6,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
+#include "src/isolate-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
@@ -41,7 +42,7 @@ class JSBuiltinReducerTest : public TypedGraphTest {
         JSObject::GetProperty(
             m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
-    return HeapConstant(Unique<JSFunction>::CreateUninitialized(f));
+    return HeapConstant(f);
   }
 
   JSOperatorBuilder* javascript() { return &javascript_; }

@@ -665,7 +665,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
   Memory::Address_at(target_pointer_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to always flush the
   // instruction cache after patching a target address in the code as follows:
-  //   CpuFeatures::FlushICache(pc, sizeof(target));
+  //   Assembler::FlushICacheWithoutIsolate(pc, sizeof(target));
   // However, on ARM, an instruction is actually patched in the case of
   // embedded constants of the form:
   // ldr   ip, [pc, #...]

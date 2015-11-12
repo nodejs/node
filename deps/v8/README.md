@@ -31,3 +31,10 @@ configuration in `.git/config`:
 
         fetch = +refs/branch-heads/*:refs/remotes/branch-heads/*
         fetch = +refs/tags/*:refs/tags/*
+
+
+Contributing
+=============
+
+Please follow the instructions mentioned on the 
+[V8 wiki](https://code.google.com/p/v8-wiki/wiki/Contributing).

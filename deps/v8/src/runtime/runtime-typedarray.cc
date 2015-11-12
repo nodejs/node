@@ -13,64 +13,6 @@
 namespace v8 {
 namespace internal {
 
-void Runtime::SetupArrayBuffer(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer,
-                               bool is_external, void* data,
-                               size_t allocated_length, SharedFlag shared) {
-  DCHECK(array_buffer->GetInternalFieldCount() ==
-         v8::ArrayBuffer::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBuffer::kInternalFieldCount; i++) {
-    array_buffer->SetInternalField(i, Smi::FromInt(0));
-  }
-  array_buffer->set_backing_store(data);
-  array_buffer->set_bit_field(0);
-  array_buffer->set_is_external(is_external);
-  array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
-  array_buffer->set_is_shared(shared == SharedFlag::kShared);
-
-  if (data && !is_external) {
-    isolate->heap()->RegisterNewArrayBuffer(
-        isolate->heap()->InNewSpace(*array_buffer), data, allocated_length);
-  }
-
-  Handle<Object> byte_length =
-      isolate->factory()->NewNumberFromSize(allocated_length);
-  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
-  array_buffer->set_byte_length(*byte_length);
-}
-
-
-bool Runtime::SetupArrayBufferAllocatingData(Isolate* isolate,
-                                             Handle<JSArrayBuffer> array_buffer,
-                                             size_t allocated_length,
-                                             bool initialize,
-                                             SharedFlag shared) {
-  void* data;
-  CHECK(isolate->array_buffer_allocator() != NULL);
-  // Prevent creating array buffers when serializing.
-  DCHECK(!isolate->serializer_enabled());
-  if (allocated_length != 0) {
-    if (initialize) {
-      data = isolate->array_buffer_allocator()->Allocate(allocated_length);
-    } else {
-      data = isolate->array_buffer_allocator()->AllocateUninitialized(
-          allocated_length);
-    }
-    if (data == NULL) return false;
-  } else {
-    data = NULL;
-  }
-
-  SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length,
-                   shared);
-  return true;
-}
-
-
-void Runtime::NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer) {
-  array_buffer->Neuter();
-}
-
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
   HandleScope scope(isolate);
@@ -87,8 +29,8 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
-  if (!Runtime::SetupArrayBufferAllocatingData(
-          isolate, holder, allocated_length, true,
+  if (!JSArrayBuffer::SetupAllocatingData(
+          holder, isolate, allocated_length, true,
           is_shared ? SharedFlag::kShared : SharedFlag::kNotShared)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
@@ -150,9 +92,8 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   void* backing_store = array_buffer->backing_store();
   size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
   array_buffer->set_is_external(true);
-  Runtime::NeuterArrayBuffer(array_buffer);
-  isolate->heap()->UnregisterArrayBuffer(
-      isolate->heap()->InNewSpace(*array_buffer), backing_store);
+  isolate->heap()->UnregisterArrayBuffer(*array_buffer);
+  array_buffer->Neuter();
   isolate->array_buffer_allocator()->Free(backing_store, byte_length);
   return isolate->heap()->undefined_value();
 }
@@ -244,8 +185,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
     holder->set_elements(*elements);
   } else {
     Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-    Runtime::SetupArrayBuffer(isolate, buffer, true, NULL, byte_length,
-                              SharedFlag::kNotShared);
+    JSArrayBuffer::Setup(buffer, isolate, true, NULL, byte_length,
+                         SharedFlag::kNotShared);
     holder->set_buffer(*buffer);
     Handle<FixedTypedArrayBase> elements =
         isolate->factory()->NewFixedTypedArray(static_cast<int>(length),
@@ -319,8 +260,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   //
   // TODO(dslomov): revise this once we support subclassing.
 
-  if (!Runtime::SetupArrayBufferAllocatingData(isolate, buffer, byte_length,
-                                               false)) {
+  if (!JSArrayBuffer::SetupAllocatingData(buffer, isolate, byte_length,
+                                          false)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }

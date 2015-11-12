@@ -85,6 +85,8 @@
   'ecma/String/15.5.4.8-1': [FAIL],
   'ecma/String/15.5.4.9-1': [FAIL],
 
+  # Date.prototype is an Object, not a Date
+  'ecma/Date/15.9.5': [FAIL],
 
   ##################### SKIPPED TESTS #####################
 
@@ -849,6 +851,15 @@
 }],  # ALWAYS
 
 
+['no_i18n == True and mode == debug', {
+  # Tests too slow for no18n debug.
+  'ecma_3/Statements/regress-302439': [PASS, FAST_VARIANTS],
+  'js1_5/Regress/regress-98901': [SKIP],
+  'ecma_3/RegExp/perlstress-001': [PASS, FAST_VARIANTS],
+  'js1_5/extensions/regress-311161': [FAIL_OK, FAST_VARIANTS],
+}],  # 'no_i18n == True and mode == debug'
+
+
 ['arch == arm or arch == arm64', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
@@ -876,7 +887,7 @@
 }],  # 'arch ==  arm64'
 
 
-['arch == mipsel or arch == mips64el', {
+['arch == mipsel or arch == mips64el or arch == mips64', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
   'ecma_3/RegExp/regress-311414': [SKIP],
@@ -893,7 +904,7 @@
 
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
-}],  # 'arch == mipsel or arch == mips64el'
+}],  # 'arch == mipsel or arch == mips64el or arch == mips64'
 
 ['arch == mipsel and simulator_run == True', {
   # Crashes due to C stack overflow.

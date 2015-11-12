@@ -104,8 +104,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     return NewNode(common()->Int32Constant(value));
   }
   Node* HeapConstant(Handle<HeapObject> object) {
-    Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
-    return NewNode(common()->HeapConstant(val));
+    return NewNode(common()->HeapConstant(object));
   }
 
   Node* BooleanNot(Node* a) { return NewNode(simplified()->BooleanNot(), a); }
@@ -273,7 +272,8 @@ class GraphBuilderTester : public HandleAndZoneScope,
       Zone* zone = graph()->zone();
       CallDescriptor* desc =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
-      code_ = Pipeline::GenerateCodeForTesting(main_isolate(), desc, graph());
+      CompilationInfo info("testing", main_isolate(), main_zone());
+      code_ = Pipeline::GenerateCodeForTesting(&info, desc, graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {
         OFStream os(stdout);

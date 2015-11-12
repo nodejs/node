@@ -67,14 +67,12 @@ FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
 
 
 // static
-FieldAccess AccessBuilder::ForFixedArrayLength() {
-  // TODO(turbofan): 2^30 is a valid upper limit for the FixedArray::length
-  // field, although it's not the best. If we had a Zone we could create an
-  // appropriate range type instead.
+FieldAccess AccessBuilder::ForFixedArrayLength(Zone* zone) {
   STATIC_ASSERT(FixedArray::kMaxLength <= 1 << 30);
   FieldAccess access = {
       kTaggedBase, FixedArray::kLengthOffset, MaybeHandle<Name>(),
-      Type::Intersect(Type::Unsigned30(), Type::TaggedSigned()),
+      Type::Intersect(Type::Range(0, FixedArray::kMaxLength, zone),
+                      Type::TaggedSigned(), zone),
       kMachAnyTagged};
   return access;
 }

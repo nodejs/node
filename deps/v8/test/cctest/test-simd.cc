@@ -109,9 +109,12 @@ TEST(SimdTypes) {
 
   FLOAT_TEST(Float32x4, 4)
   INT_TEST(Int32x4, 4, int32_t)
+  INT_TEST(Uint32x4, 4, uint32_t)
   BOOL_TEST(Bool32x4, 4)
   INT_TEST(Int16x8, 8, int16_t)
+  INT_TEST(Uint16x8, 8, uint16_t)
   BOOL_TEST(Bool16x8, 8)
   INT_TEST(Int8x16, 16, int8_t)
+  INT_TEST(Uint8x16, 16, uint8_t)
   BOOL_TEST(Bool8x16, 16)
 }
