@@ -36,9 +36,18 @@ assert(!called);
 c.log('test');
 assert(called);
 
+assert.equal(Console.prototype.log, Console.prototype.debug);
+assert.equal(c.log('test'), c.debug('test'));
+
 called = false;
 c.error('test');
 assert(called);
+
+assert.equal(Console.prototype.error, Console.prototype.warn);
+assert.equal(c.error('test'), c.warn('test'));
+
+assert.equal(Console.prototype.exception, Console.prototype.warn);
+assert.equal(c.exception('test'), c.warn('test'));
 
 out.write = function(d) {
   assert.equal('{ foo: 1 }\n', d);
