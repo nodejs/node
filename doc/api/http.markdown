@@ -806,7 +806,7 @@ Just like `'end'`, this event occurs only once per response.
 
 The request/response headers object.
 
-Read only map of header names and values. Header names are lower-cased.
+Key-value pairs of header names and values. Header names are lower-cased.
 Example:
 
     // Prints something like:
