@@ -816,6 +816,16 @@ Example:
     //   accept: '*/*' }
     console.log(request.headers);
 
+Duplicates in raw headers are handled in the following ways, depending on the
+header name:
+
+* Duplicates of `age`, `authorization`, `content-length`, `content-type`,
+`etag`, `expires`, `from`, `host`, `if-modified-since`, `if-unmodified-since`,
+`last-modified`, `location`, `max-forwards`, `proxy-authorization`, `referer`,
+`retry-after`, or `user-agent` are discarded.
+* `set-cookie` is always an array. Duplicates are added to the array.
+* For all other headers, the values are joined together with ', '.
+
 ### message.httpVersion
 
 In case of server request, the HTTP version sent by the client. In the case of
