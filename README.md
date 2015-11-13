@@ -228,6 +228,9 @@ Windows:
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 ```
 
+If you are cross compiling, your `pkg-config` must be able to supply a path
+that works for both your host and target environments.
+
 #### Build with a specific ICU:
 
 You can find other ICU releases at
