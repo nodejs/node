@@ -566,6 +566,10 @@ even if it returns `false`.  However, writes will be buffered in
 memory, so it is best not to do this excessively.  Instead, wait for
 the `drain` event before writing more data.
 
+Note that on `process.stdout` and `process.stderr` the callback might
+be called before all data has been fully handled. This might result in 
+data loss if Node.js is ended via `process.exit`.
+
 #### Event: 'drain'
 
 If a [`writable.write(chunk)`][] call returns false, then the `drain`
