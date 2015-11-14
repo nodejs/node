@@ -103,6 +103,19 @@ em code {
   background-color: #0084B6;
 }
 
+.api_metadata {
+  font-size: .75em;
+  margin-bottom: 1em;
+}
+
+.api_metadata span {
+  margin-right: 1em;
+}
+
+.api_metadata span:last-child {
+  margin-right: 0px;
+}
+
 ul.plain {
   list-style: none;
 }
