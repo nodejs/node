@@ -1,0 +1,47 @@
+var toString = require('./toString');
+
+/** Used to match leading and trailing whitespace. */
+var reTrim = /^\s+|\s+$/g;
+
+/** Used to detect hexadecimal string values. */
+var reHasHexPrefix = /^0x/i;
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeParseInt = global.parseInt;
+
+/**
+ * Converts `string` to an integer of the specified radix. If `radix` is
+ * `undefined` or `0`, a `radix` of `10` is used unless `value` is a hexadecimal,
+ * in which case a `radix` of `16` is used.
+ *
+ * **Note:** This method aligns with the [ES5 implementation](https://es5.github.io/#x15.1.2.2)
+ * of `parseInt`.
+ *
+ * @static
+ * @memberOf _
+ * @category String
+ * @param {string} string The string to convert.
+ * @param {number} [radix] The radix to interpret `value` by.
+ * @param- {Object} [guard] Enables use as an iteratee for functions like `_.map`.
+ * @returns {number} Returns the converted integer.
+ * @example
+ *
+ * _.parseInt('08');
+ * // => 8
+ *
+ * _.map(['6', '08', '10'], _.parseInt);
+ * // => [6, 8, 10]
+ */
+function parseInt(string, radix, guard) {
+  // Chrome fails to trim leading <BOM> whitespace characters.
+  // See https://code.google.com/p/v8/issues/detail?id=3109 for more details.
+  if (guard || radix == null) {
+    radix = 0;
+  } else if (radix) {
+    radix = +radix;
+  }
+  string = toString(string).replace(reTrim, '');
+  return nativeParseInt(string, radix || (reHasHexPrefix.test(string) ? 16 : 10));
+}
+
+module.exports = parseInt;

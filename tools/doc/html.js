@@ -1,12 +1,15 @@
-var fs = require('fs');
-var marked = require('marked');
-var path = require('path');
-var preprocess = require('./preprocess.js');
+'use strict';
+
+const common = require('./common.js');
+const fs = require('fs');
+const marked = require('marked');
+const path = require('path');
+const preprocess = require('./preprocess.js');
 
 module.exports = toHTML;
 
 // TODO(chrisdickinson): never stop vomitting / fix this.
-var gtocPath = path.resolve(path.join(__dirname, '..', '..', 'doc', 'api', '_toc.markdown'));
+const gtocPath = path.resolve(path.join(__dirname, '..', '..', 'doc', 'api', '_toc.markdown'));
 var gtocLoading = null;
 var gtocData = null;
 
@@ -85,7 +88,7 @@ function render(lexed, filename, template, cb) {
 
     // content has to be the last thing we do with
     // the lexed tokens, because it's destructive.
-    content = marked.parser(lexed);
+    let content = marked.parser(lexed);
     template = template.replace(/__CONTENT__/g, content);
 
     cb(null, template);
@@ -123,6 +126,9 @@ function parseLists(input) {
         output.push(tok);
         return;
       }
+      if (tok.type === 'html' && common.isYAMLBlock(tok.text)) {
+        tok.text = parseYAML(tok.text);
+      }
       state = null;
       output.push(tok);
       return;
@@ -152,6 +158,18 @@ function parseLists(input) {
   return output;
 }
 
+function parseYAML(text) {
+  const meta = common.extractAndParseYAML(text);
+  let html = '<div class="api_metadata">';
+
+  if(meta.added || meta.Added){
+    meta.added = meta.added || meta.Added;
+
+    html += '<span>Added: ' + meta.added + '</span>';
+  }
+
+  return html + '</div>';
+}
 
 function parseListItem(text) {
   var parts = text.split('`');
@@ -219,4 +237,3 @@ function getId(text) {
   }
   return text;
 }
-

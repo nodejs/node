@@ -6,18 +6,27 @@ Each type of heading has a description block.
 
 
     ## module
+    <!-- YAML
+    added: v0.10.0
+    -->
 
         Stability: 3 - Stable
 
     description and examples.
 
     ### module.property
+    <!-- YAML
+    added: v0.10.0
+    -->
 
     * Type
 
     description of the property.
 
     ### module.someFunction(x, y, [z=100])
+    <!-- YAML
+    added: v0.10.0
+    -->
 
     * `x` {String} the description of the string
     * `y` {Boolean} Should I stay or should I go?
@@ -26,6 +35,9 @@ Each type of heading has a description block.
     A description of the function.
 
     ### Event: 'blerg'
+    <!-- YAML
+    added: v0.10.0
+    -->
 
     * Argument: SomeClass object.
 
@@ -33,10 +45,16 @@ Each type of heading has a description block.
     only exception.
 
     ## Class: SomeClass
+    <!-- YAML
+    added: v0.10.0
+    -->
 
     description of the class.
 
     ### Class Method: SomeClass.classMethod(anArg)
+    <!-- YAML
+    added: v0.10.0
+    -->
 
     * `anArg` {Object}  Just an argument
       * `field` {String} anArg can have this field.
@@ -46,16 +64,25 @@ Each type of heading has a description block.
     Description of the method for humans.
 
     ### someClass.nextSibling()
+    <!-- YAML
+    added: v0.10.0
+    -->
 
     * Return: {SomeClass object | null}  The next someClass in line.
 
     ### someClass.someProperty
+    <!-- YAML
+    added: v0.10.0
+    -->
 
     * String
 
     The indication of what someProperty is.
 
     ### Event: 'grelb'
+    <!-- YAML
+    added: v0.10.0
+    -->
 
     * `isBlerg` {Boolean}
 

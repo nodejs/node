@@ -1,9 +1,12 @@
+'use strict';
+
 module.exports = doJSON;
 
 // Take the lexed input, and return a JSON-encoded object
 // A module looks like this: https://gist.github.com/1777387
 
-var marked = require('marked');
+const common = require('./common.js');
+const marked = require('marked');
 
 function doJSON(input, filename, cb) {
   var root = {source: filename};
@@ -89,6 +92,8 @@ function doJSON(input, filename, cb) {
         current.list = current.list || [];
         current.list.push(tok);
         current.list.level = 1;
+      } else if ( type === 'html' ) {
+        current.meta = parseYAML(tok.text);
       } else {
         current.desc = current.desc || [];
         if (!Array.isArray(current.desc)) {
@@ -265,6 +270,9 @@ function processList(section) {
   delete section.list;
 }
 
+function parseYAML(text) {
+  return common.extractAndParseYAML(text);
+}
 
 // textRaw = "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
