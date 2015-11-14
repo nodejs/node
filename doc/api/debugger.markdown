@@ -5,9 +5,8 @@
 <!-- type=misc -->
 
 V8 comes with an extensive debugger which is accessible out-of-process via a
-simple [TCP protocol](http://code.google.com/p/v8/wiki/DebuggerProtocol).
-Node.js has a built-in client for this debugger. To use this, start Node.js with
-the `debug` argument; a prompt will appear:
+simple [TCP protocol][]. Node.js has a built-in client for this debugger. To
+use this, start Node.js with the `debug` argument; a prompt will appear:
 
     % node debug myscript.js
     < debugger listening on port 5858
@@ -168,3 +167,5 @@ debugger. The syntax is:
 
 * `node debug -p <pid>` - Connects to the process via the `pid`
 * `node debug <URI>` - Connects to the process via the URI such as localhost:5858
+
+[TCP protocol]: http://code.google.com/p/v8/wiki/DebuggerProtocol

@@ -32,7 +32,7 @@ operator ( `===` ).
 
 ## assert.doesNotThrow(block[, error][, message])
 
-Expects `block` not to throw an error. See [assert.throws()](#assert_assert_throws_block_error_message) for more details.
+Expects `block` not to throw an error. See [assert.throws()][] for more details.
 
 If `block` throws an error and if it is of a different type from `error`, the
 thrown error will get propagated back to the caller. The following call will
@@ -128,3 +128,5 @@ Custom error validation:
       },
       "unexpected error"
     );
+
+[assert.throws()]: #assert_assert_throws_block_error_message

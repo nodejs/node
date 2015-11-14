@@ -94,7 +94,7 @@ Objects returned from `fs.watch()` are of this type.
 * `filename` {String} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
-See more details in [fs.watch](#fs_fs_watch_filename_options_listener).
+See more details in [fs.watch][].
 
 ### Event: 'error'
 
@@ -108,7 +108,7 @@ Stop watching for changes on the given `fs.FSWatcher`.
 
 ## Class: fs.ReadStream
 
-`ReadStream` is a [Readable Stream](stream.html#stream_class_stream_readable).
+`ReadStream` is a [Readable Stream][].
 
 ### Event: 'open'
 
@@ -157,9 +157,6 @@ additional methods which can be used for displaying fuzzy information.
 More details can be found in the [MDN JavaScript Reference][MDN-Date]
 page.
 
-[MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
-[MDN-Date-getTime]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime
-
 ### Stat Time Values
 
 The times in the stat object have the following semantics:
@@ -186,7 +183,7 @@ on Unix systems, it never was.
 
 ## Class: fs.WriteStream
 
-`WriteStream` is a [Writable Stream](stream.html#stream_class_stream_writable).
+`WriteStream` is a [Writable Stream][].
 
 ### Event: 'open'
 
@@ -367,7 +364,7 @@ non-existent.
 
 ## fs.existsSync(path)
 
-Synchronous version of [`fs.exists`](fs.html#fs_fs_exists_path_callback).
+Synchronous version of [`fs.exists`][].
 Returns `true` if the file exists, `false` otherwise.
 
     Stability: 0 - Deprecated: Use [fs.statSync][] or [fs.accessSync][] instead.
@@ -652,8 +649,8 @@ Synchronous rmdir(2). Returns `undefined`.
 ## fs.stat(path, callback)
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a [fs.Stats](#fs_class_fs_stats) object.  See the [fs.Stats](#fs_class_fs_stats)
-section below for more information.
+`stats` is a [fs.Stats][] object.  See the [fs.Stats][] section below for more
+information.
 
 ## fs.statSync(path)
 
@@ -723,7 +720,7 @@ Synchronous version of `fs.utimes()`. Returns `undefined`.
 ## fs.watch(filename[, options][, listener])
 
 Watch for changes on `filename`, where `filename` is either a file or a
-directory.  The returned object is a [fs.FSWatcher](#fs_class_fs_fswatcher).
+directory.  The returned object is a [fs.FSWatcher][].
 
 The second argument is optional. The `options` if provided should be an object.
 The supported boolean members are `persistent` and `recursive`. `persistent`
@@ -855,8 +852,7 @@ the current position. See pwrite(2).
 
 The callback will receive the arguments `(err, written, string)` where `written`
 specifies how many _bytes_ the passed string required to be written. Note that
-bytes written is not the same as string characters. See
-[Buffer.byteLength](buffer.html#buffer_class_method_buffer_bytelength_string_encoding).
+bytes written is not the same as string characters. See [Buffer.byteLength][].
 
 Unlike when writing `buffer`, the entire string must be written. No substring
 may be specified. This is because the byte offset of the resulting data may not
@@ -915,8 +911,17 @@ The synchronous version of `fs.writeFile`. Returns `undefined`.
 
 Synchronous versions of `fs.write()`. Returns the number of bytes written.
 
+[fs.watch]: #fs_fs_watch_filename_options_listener
+[Readable Stream]: stream.html#stream_class_stream_readable
+[MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
+[MDN-Date-getTime]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime
+[Writable Stream]: stream.html#stream_class_stream_writable
 [fs.stat]: #fs_fs_stat_path_callback
+[`fs.exists`]: fs.html#fs_fs_exists_path_callback
 [fs.access]: #fs_fs_access_path_mode_callback
 [fs.statSync]: #fs_fs_statsync_path
 [fs.accessSync]: #fs_fs_accesssync_path_mode
+[fs.Stats]: #fs_class_fs_stats
 [Buffer]: buffer.html#buffer_buffer
+[fs.FSWatcher]: #fs_class_fs_fswatcher
+[Buffer.byteLength]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding

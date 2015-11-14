@@ -36,10 +36,10 @@ Class for encrypting data.
 
 Returned by `crypto.createCipher` and `crypto.createCipheriv`.
 
-Cipher objects are [streams](stream.html) that are both readable and
-writable.  The written plain text data is used to produce the
-encrypted data on the readable side.  The legacy `update` and `final`
-methods are also supported.
+Cipher objects are [streams][] that are both readable and writable.
+The written plain text data is used to produce the encrypted data on
+the readable side. The legacy `update` and `final` methods are also
+supported.
 
 ### cipher.final([output_encoding])
 
@@ -91,10 +91,10 @@ Class for decrypting data.
 
 Returned by `crypto.createDecipher` and `crypto.createDecipheriv`.
 
-Decipher objects are [streams](stream.html) that are both readable and
-writable.  The written enciphered data is used to produce the
-plain-text data on the the readable side.  The legacy `update` and
-`final` methods are also supported.
+Decipher objects are [streams][] that are both readable and writable.
+The written enciphered data is used to produce the plain-text data on
+the the readable side. The legacy `update` and `final` methods are also
+supported.
 
 ### decipher.final([output_encoding])
 
@@ -287,10 +287,10 @@ expected.
 
 The class for creating hash digests of data.
 
-It is a [stream](stream.html) that is both readable and writable.  The
-written data is used to compute the hash.  Once the writable side of
-the stream is ended, use the `read()` method to get the computed hash
-digest.  The legacy `update` and `digest` methods are also supported.
+It is a [stream][] that is both readable and writable.  The written data
+is used to compute the hash.  Once the writable side of the stream is ended,
+use the `read()` method to get the computed hash digest.  The legacy `update`
+and `digest` methods are also supported.
 
 Returned by `crypto.createHash`.
 
@@ -339,10 +339,10 @@ Class for generating signatures.
 
 Returned by `crypto.createSign`.
 
-Sign objects are writable [streams](stream.html).  The written data is
-used to generate the signature.  Once all of the data has been
-written, the `sign` method will return the signature.  The legacy
-`update` method is also supported.
+Sign objects are writable [streams][].  The written data is used to
+generate the signature.  Once all of the data has been written, the
+`sign` method will return the signature.  The legacy `update` method
+is also supported.
 
 ### sign.sign(private_key[, output_format])
 
@@ -375,11 +375,10 @@ Class for verifying signatures.
 
 Returned by `crypto.createVerify`.
 
-Verify objects are writable [streams](stream.html).  The written data
-is used to validate against the supplied signature.  Once all of the
-data has been written, the `verify` method will return true if the
-supplied signature is valid.  The legacy `update` method is also
-supported.
+Verify objects are writable [streams][].  The written data is used to
+validate against the supplied signature.  Once all of the data has been
+written, the `verify` method will return true if the supplied signature
+is valid.  The legacy `update` method is also supported.
 
 ### verifier.update(data)
 
@@ -420,12 +419,12 @@ password.
 `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc.  On
 recent releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.  `password` is used to derive key and IV,
-which must be a `'binary'` encoded string or a [buffer](buffer.html).
+which must be a `'binary'` encoded string or a [buffer][].
 
-It is a [stream](stream.html) that is both readable and writable.  The
-written data is used to compute the hash.  Once the writable side of
-the stream is ended, use the `read()` method to get the enciphered
-contents.  The legacy `update` and `final` methods are also supported.
+It is a [stream][] that is both readable and writable.  The written data
+is used to compute the hash.  Once the writable side of the stream is ended,
+use the `read()` method to get the enciphered contents.  The legacy `update`
+and `final` methods are also supported.
 
 Note: `createCipher` derives keys with the OpenSSL function [EVP_BytesToKey][]
 with the digest algorithm set to MD5, one iteration, and no salt. The lack of
@@ -443,11 +442,9 @@ Creates and returns a cipher object, with the given algorithm, key and
 iv.
 
 `algorithm` is the same as the argument to `createCipher()`.  `key` is
-the raw key used by the algorithm.  `iv` is an [initialization
-vector](http://en.wikipedia.org/wiki/Initialization_vector).
+the raw key used by the algorithm.  `iv` is an [initialization vector][].
 
-`key` and `iv` must be `'binary'` encoded strings or
-[buffers](buffer.html).
+`key` and `iv` must be `'binary'` encoded strings or [buffers][].
 
 ## crypto.createCredentials(details)
 
@@ -542,10 +539,10 @@ Example: this program that takes the sha256 sum of a file
 Creates and returns a hmac object, a cryptographic hmac with the given
 algorithm and key.
 
-It is a [stream](stream.html) that is both readable and writable.  The
-written data is used to compute the hmac.  Once the writable side of
-the stream is ended, use the `read()` method to get the computed
-digest.  The legacy `update` and `digest` methods are also supported.
+It is a [stream][] that is both readable and writable.  The written
+data is used to compute the hmac.  Once the writable side of the
+stream is ended, use the `read()` method to get the computed digest.
+The legacy `update` and `digest` methods are also supported.
 
 `algorithm` is dependent on the available algorithms supported by
 OpenSSL - see createHash above.  `key` is the hmac key to be used.
@@ -583,12 +580,12 @@ Example:
 
 Creates a predefined Diffie-Hellman key exchange object.  The
 supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
-[RFC 2412][], but see [Caveats](#crypto_caveats)) and `'modp14'`,
-`'modp15'`, `'modp16'`, `'modp17'`, `'modp18'` (defined in
-[RFC 3526][]).  The returned object mimics the interface of objects
-created by [crypto.createDiffieHellman()][] above, but will not allow
-changing the keys (with [diffieHellman.setPublicKey()][] for example).
-The advantage of using this routine is that the parties do not have to
+[RFC 2412][], but see [Caveats][]) and `'modp14'`, `'modp15'`,
+`'modp16'`, `'modp17'`, `'modp18'` (defined in [RFC 3526][]).  The
+returned object mimics the interface of objects created by
+[crypto.createDiffieHellman()][] above, but will not allow changing
+the keys (with [diffieHellman.setPublicKey()][] for example). The
+advantage of using this routine is that the parties do not have to
 generate nor exchange group modulus beforehand, saving both processor
 and communication time.
 
@@ -631,8 +628,7 @@ Example:
       console.log(key.toString('hex'));  // 'c5e478d...1469e50'
     });
 
-You can get a list of supported digest functions with
-[crypto.getHashes()](#crypto_crypto_gethashes).
+You can get a list of supported digest functions with [crypto.getHashes()][].
 
 ## crypto.pbkdf2Sync(password, salt, iterations, keylen[, digest])
 
@@ -779,6 +775,10 @@ Based on the recommendations of [NIST SP 800-131A]:
 
 See the reference for other recommendations and details.
 
+[stream]: stream.html
+[streams]: stream.html
+[buffer]: buffer.html
+[buffers]: buffer.html
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
 [getCurves()]: #crypto_crypto_getcurves
@@ -790,3 +790,6 @@ See the reference for other recommendations and details.
 [crypto.pbkdf2]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [EVP_BytesToKey]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
 [NIST SP 800-131A]: http://csrc.nist.gov/publications/nistpubs/800-131A/sp800-131A.pdf
+[initialization vector]: http://en.wikipedia.org/wiki/Initialization_vector
+[Caveats]: #crypto_caveats
+[crypto.getHashes()]: #crypto_crypto_gethashes
