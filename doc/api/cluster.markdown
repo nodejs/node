@@ -123,8 +123,6 @@ This event is the same as the one provided by `child_process.fork()`.
 
 In a worker you can also use `process.on('error')`.
 
-[ChildProcess.send()]: child_process.html#child_process_child_send_message_sendhandle_callback
-
 ### Event: 'exit'
 
 * `code` {Number} the exit code, if it exited normally.
@@ -232,15 +230,15 @@ Causes `.suicide` to be set.
 Note that after a server is closed, it will no longer accept new connections,
 but connections may be accepted by any other listening worker. Existing
 connections will be allowed to close as usual. When no more connections exist,
-see [server.close()](net.html#net_event_close), the IPC channel to the worker
-will close allowing it to die gracefully.
+see [server.close()][], the IPC channel to the worker will close allowing it to
+die gracefully.
 
 The above applies *only* to server connections, client connections are not
 automatically closed by workers, and disconnect does not wait for them to close
 before exiting.
 
 Note that in a worker, `process.disconnect` exists, but it is not this function,
-it is [disconnect](child_process.html#child_process_child_disconnect).
+it is [disconnect][].
 
 Because long living server connections may block workers from disconnecting, it
 may be useful to send a message, so application specific actions may be taken to
@@ -313,7 +311,7 @@ Causes `.suicide` to be set.
 This method is aliased as `worker.destroy()` for backwards compatibility.
 
 Note that in a worker, `process.kill()` exists, but it is not this function,
-it is [kill](process.html#process_process_kill_pid_signal).
+it is [kill][].
 
 ### worker.process
 
@@ -323,8 +321,7 @@ All workers are created using `child_process.fork()`, the returned object
 from this function is stored as `.process`. In a worker, the global `process`
 is stored.
 
-See: [Child Process module](
-child_process.html#child_process_child_process_fork_modulepath_args_options)
+See: [Child Process module][]
 
 Note that workers will call `process.exit(0)` if the `'disconnect'` event occurs
 on `process` and `.suicide` is not `true`. This protects against accidental
@@ -408,7 +405,7 @@ This can be used to restart the worker by calling `.fork()` again.
       cluster.fork();
     });
 
-See [child_process event: 'exit'](child_process.html#child_process_event_exit).
+See [child_process event: 'exit'][].
 
 ## Event: 'fork'
 
@@ -464,8 +461,7 @@ The `addressType` is one of:
 
 Emitted when any worker receives a message.
 
-See
-[child_process event: 'message'](child_process.html#child_process_event_message).
+See [child_process event: 'message'][].
 
 ## Event: 'online'
 
@@ -647,3 +643,11 @@ the worker's unique id is the easiest way to find the worker.
     socket.on('data', function(id) {
       var worker = cluster.workers[id];
     });
+
+[server.close()]: net.html#net_event_close
+[disconnect]: child_process.html#child_process_child_disconnect
+[kill]: process.html#process_process_kill_pid_signal
+[Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
+[ChildProcess.send()]: child_process.html#child_process_child_send_message_sendhandle_callback
+[child_process event: 'exit']: child_process.html#child_process_event_exit
+[child_process event: 'message']: child_process.html#child_process_event_message.

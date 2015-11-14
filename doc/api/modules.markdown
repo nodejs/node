@@ -372,9 +372,7 @@ are not found elsewhere.  (Note: On Windows, `NODE_PATH` is delimited by
 semicolons instead of colons.)
 
 `NODE_PATH` was originally created to support loading modules from
-varying paths before the current
-[module resolution](https://nodejs.org/api/modules.html#modules_all_together)
-algorithm was frozen.
+varying paths before the current [module resolution][] algorithm was frozen.
 
 `NODE_PATH` is still supported, but is less necessary now that the Node.js
 ecosystem has settled on a convention for locating dependent modules.
@@ -519,3 +517,5 @@ Note that in order to do this, you must get a reference to the `module`
 object.  Since `require()` returns the `module.exports`, and the `module` is
 typically *only* available within a specific module's code, it must be
 explicitly exported in order to be used.
+
+[module resolution]: https://nodejs.org/api/modules.html#modules_all_together

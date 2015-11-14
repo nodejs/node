@@ -7,14 +7,12 @@ knowledge of several libraries:
  - V8 JavaScript, a C++ library. Used for interfacing with JavaScript:
    creating objects, calling functions, etc.  Documented mostly in the
    `v8.h` header file (`deps/v8/include/v8.h` in the Node.js source
-   tree), which is also available
-   [online](https://v8docs.nodesource.com/).
+   tree), which is also available [online][].
 
- - [libuv](https://github.com/libuv/libuv), C event loop library.
-   Anytime one needs to wait for a file descriptor to become readable,
-   wait for a timer, or wait for a signal to be received one will need
-   to interface with libuv. That is, if you perform any I/O, libuv will
-   need to be used.
+ - [libuv][], C event loop library. Anytime one needs to wait for a file
+   descriptor to become readable, wait for a timer, or wait for a signal
+   to be received one will need to interface with libuv. That is, if you
+   perform any I/O, libuv will need to be used.
 
  - Internal Node.js libraries. Most importantly is the `node::ObjectWrap`
    class which you will likely want to derive from.
@@ -25,9 +23,8 @@ Node.js statically compiles all its dependencies into the executable.
 When compiling your module, you don't need to worry about linking to
 any of these libraries.
 
-All of the following examples are available for
-[download](https://github.com/rvagg/node-addon-examples) and may be
-used as a starting-point for your own Addon.
+All of the following examples are available for [download][] and may
+be used as a starting-point for your own Addon.
 
 ## Hello world
 
@@ -77,7 +74,7 @@ The `module_name` needs to match the filename of the final binary (minus the
 The source code needs to be built into `addon.node`, the binary Addon. To
 do this we create a file called `binding.gyp` which describes the configuration
 to build your module in a JSON-like format. This file gets compiled by
-[node-gyp](https://github.com/nodejs/node-gyp).
+[node-gyp][].
 
     {
       "targets": [
@@ -113,10 +110,9 @@ Please see patterns below for further information or
 ## Addon patterns
 
 Below are some addon patterns to help you get started. Consult the online
-[v8 reference](http://izs.me/v8-docs/main.html) for help with the various v8
-calls, and v8's [Embedder's Guide](http://code.google.com/apis/v8/embed.html)
-for an explanation of several concepts used such as handles, scopes,
-function templates, etc.
+[v8 reference][] for help with the various v8 calls, and v8's
+[Embedder's Guide][] for an explanation of several concepts used such as
+handles, scopes, function templates, etc.
 
 In order to use these examples you need to compile them using `node-gyp`.
 Create the following `binding.gyp` file:
@@ -869,3 +865,10 @@ Test in JavaScript by running:
 
     // test.js
     var addon = require('./build/Release/addon');
+
+[online]: https://v8docs.nodesource.com/
+[libuv]: https://github.com/libuv/libuv
+[download]: https://github.com/rvagg/node-addon-examples
+[node-gyp]: https://github.com/nodejs/node-gyp
+[v8 reference]: http://izs.me/v8-docs/main.html
+[Embedder's Guide]: http://code.google.com/apis/v8/embed.html
