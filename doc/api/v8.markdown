@@ -29,8 +29,7 @@ crashes and data loss.  Or it may simply do nothing.
 
 The V8 options available for a version of node.js may be determined by running
 `node --v8-options`.  An unofficial, community-maintained list of options
-and their effects is available
-[here](https://github.com/thlorenz/v8-flags/blob/master/flags-0.11.md).
+and their effects is available [here][].
 
 Usage:
 
@@ -42,3 +41,4 @@ setTimeout(function() { v8.setFlagsFromString('--notrace_gc'); }, 60e3);
 ```
 
 [V8]: https://code.google.com/p/v8/
+[here]: https://github.com/thlorenz/v8-flags/blob/master/flags-0.11.md

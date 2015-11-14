@@ -43,10 +43,6 @@ The global `console` is a special `Console` whose output is sent to
 
     new Console(process.stdout, process.stderr);
 
-[assert.ok()]: assert.html#assert_assert_value_message_assert_ok_value_message
-[util.format()]: util.html#util_util_format_format
-[customizing util.inspect colors]: util.html#util_customizing_util_inspect_colors
-
 ## console
 
 * {Object}
@@ -114,13 +110,13 @@ is used on each argument.  See [util.format()][] for more information.
 Used to calculate the duration of a specific operation. To start a timer, call
 the `console.time()` method, giving it a name as only parameter. To stop the
 timer, and to get the elapsed time in milliseconds, just call the
-[`console.timeEnd()`](#console_console_timeend_label) method, again passing the
+[`console.timeEnd()`][] method, again passing the
 timer's name as the parameter.
 
 ### console.timeEnd(label)
 
 Stops a timer that was previously started by calling
-[`console.time()`](#console_console_time_label) and print the result to the
+[`console.time()`][] and prints the result to the
 console.
 
 Example:
@@ -140,3 +136,9 @@ to the current position.
 ### console.warn([data][, ...])
 
 Same as `console.error`.
+
+[assert.ok()]: assert.html#assert_assert_value_message_assert_ok_value_message
+[customizing util.inspect colors]: util.html#util_customizing_util_inspect_colors
+[util.format()]: util.html#util_util_format_format
+[`console.timeEnd()`]: #console_console_timeend_label
+[`console.time()`]: #console_console_time_label

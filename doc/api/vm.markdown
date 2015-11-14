@@ -137,7 +137,7 @@ If given a `sandbox` object, will "contextify" that sandbox so that it can be
 used in calls to `vm.runInContext` or `script.runInContext`. Inside scripts run
 as such, `sandbox` will be the global object, retaining all its existing
 properties but also having the built-in objects and functions any standard
-[global object][2] has. Outside of scripts run by the vm module, `sandbox` will
+[global object][] has. Outside of scripts run by the vm module, `sandbox` will
 be unchanged.
 
 If not given a sandbox object, returns a new, empty contextified sandbox object
@@ -147,8 +147,6 @@ This function is useful for creating a sandbox that can be used to run multiple
 scripts, e.g. if you were emulating a web browser it could be used to create a
 single sandbox representing a window's global object, then run all `<script>`
 tags together inside that sandbox.
-
-[2]: http://es5.github.io/#x15.1
 
 ## vm.isContext(sandbox)
 
@@ -249,7 +247,7 @@ Example of using `vm.runInThisContext` and `eval` to run the same code:
 `vm.runInThisContext` does not have access to the local scope, so `localVar` is
 unchanged. `eval` does have access to the local scope, so `localVar` is changed.
 
-In this way `vm.runInThisContext` is much like an [indirect `eval` call][1],
+In this way `vm.runInThisContext` is much like an [indirect `eval` call][],
 e.g. `(0,eval)('code')`. However, it also has the following additional options:
 
 - `filename`: allows you to control the filename that shows up in any stack
@@ -261,4 +259,5 @@ e.g. `(0,eval)('code')`. However, it also has the following additional options:
 - `timeout`: a number of milliseconds to execute `code` before terminating
   execution. If execution is terminated, an `Error` will be thrown.
 
-[1]: http://es5.github.io/#x10.4.2
+[indirect `eval` call]: http://es5.github.io/#x10.4.2
+[global object]: http://es5.github.io/#x15.1

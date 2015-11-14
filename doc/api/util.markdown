@@ -116,10 +116,9 @@ Each argument is converted to a string with `util.inspect()`.
 
 ## util.inherits(constructor, superConstructor)
 
-Inherit the prototype methods from one
-[constructor](https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor)
-into another.  The prototype of `constructor` will be set to a new
-object created from `superConstructor`.
+Inherit the prototype methods from one [constructor][] into another.  The
+prototype of `constructor` will be set to a new object created from
+`superConstructor`.
 
 As an additional convenience, `superConstructor` will be accessible
 through the `constructor.super_` property.
@@ -505,3 +504,5 @@ Deprecated predecessor of `stream.pipe()`.
     Stability: 0 - Deprecated: Use console.log() instead.
 
 Deprecated predecessor of `console.log`.
+
+[constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
