@@ -56,13 +56,12 @@ require developers to manually close the HTTP clients using
 KeepAlive.
 
 If you opt into using HTTP KeepAlive, you can create an Agent object
-with that flag set to `true`.  (See the [constructor
-options](#http_new_agent_options) below.)  Then, the Agent will keep
-unused sockets in a pool for later use.  They will be explicitly
-marked so as to not keep the Node.js process running.  However, it is
-still a good idea to explicitly [`destroy()`](#http_agent_destroy)
-KeepAlive agents when they are no longer in use, so that the Sockets
-will be shut down.
+with that flag set to `true`.  (See the [constructor options][] below.)
+Then, the Agent will keep unused sockets in a pool for later use.  They
+will be explicitly marked so as to not keep the Node.js process running.
+However, it is still a good idea to explicitly [`destroy()`][] KeepAlive
+agents when they are no longer in use, so that the Sockets will be shut
+down.
 
 Sockets are removed from the agent's pool when the socket emits either
 a "close" event or a special "agentRemove" event. This means that if
@@ -506,8 +505,7 @@ already been bound to a port or domain socket.
 Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous. The last parameter `callback` will be added as
-a listener for the ['listening'](net.html#net_event_listening) event.
-See also [net.Server.listen()](net.html#net_server_listen_handle_callback).
+a listener for the ['listening'][] event. See also [net.Server.listen()][].
 
 ### server.listen(path[, callback])
 
@@ -958,7 +956,7 @@ connected to.
 
 ## http.createServer([requestListener])
 
-Returns a new instance of [http.Server](#http_class_http_server).
+Returns a new instance of [http.Server][].
 
 The `requestListener` is a function which is automatically
 added to the `'request'` event.
@@ -1085,6 +1083,8 @@ There are a few special headers that should be noted.
 * Sending an Authorization header will override using the `auth` option
   to compute basic authentication.
 
+[constructor options]: #http_new_agent_options
+[`destroy()`]: #http_agent_destroy
 ['checkContinue']: #http_event_checkcontinue
 ['listening']: net.html#net_event_listening
 ['response']: #http_event_response
@@ -1100,8 +1100,10 @@ There are a few special headers that should be noted.
 [http.Server]: #http_class_http_server
 [http.request]: #http_http_request_options_callback
 [net.Server.close()]: net.html#net_server_close_callback
+['listening']: net.html#net_event_listening
 [net.Server.listen(path)]: net.html#net_server_listen_path_callback
 [net.Server.listen(port)]: net.html#net_server_listen_port_hostname_backlog_callback
+[net.Server.listen()]: net.html#net_server_listen_handle_callback
 [response.end()]: #http_response_end_data_encoding_callback
 [response.write()]: #http_response_write_chunk_encoding_callback
 [response.writeContinue()]: #http_response_writecontinue
