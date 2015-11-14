@@ -1,10 +1,11 @@
 'use strict';
 
-var fs = require('fs');
-var marked = require('marked');
-var path = require('path');
-var preprocess = require('./preprocess.js');
-var typeParser = require('./type-parser.js');
+const common = require('./common.js');
+const fs = require('fs');
+const marked = require('marked');
+const path = require('path');
+const preprocess = require('./preprocess.js');
+const typeParser = require('./type-parser.js');
 
 module.exports = toHTML;
 
@@ -148,6 +149,9 @@ function parseLists(input) {
         output.push(tok);
         return;
       }
+      if (tok.type === 'html' && common.isYAMLBlock(tok.text)) {
+        tok.text = parseYAML(tok.text);
+      }
       state = null;
       output.push(tok);
       return;
@@ -174,6 +178,18 @@ function parseLists(input) {
   return output;
 }
 
+function parseYAML(text) {
+  const meta = common.extractAndParseYAML(text);
+  let html = '<div class="api_metadata">';
+
+  if (meta.added || meta.Added) {
+    meta.added = meta.added || meta.Added;
+
+    html += '<span>Added: ' + meta.added + '</span>';
+  }
+
+  return html + '</div>';
+}
 
 // Syscalls which appear in the docs, but which only exist in BSD / OSX
 var BSD_ONLY_SYSCALLS = new Set(['lchmod']);
