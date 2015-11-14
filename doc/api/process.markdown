@@ -357,8 +357,7 @@ Returns the current working directory of the process.
 Close the IPC channel to the parent process, allowing this child to exit
 gracefully once there are no other connections keeping it alive.
 
-Identical to the parent process's
-[ChildProcess.disconnect()](child_process.html#child_process_child_disconnect).
+Identical to the parent process's [ChildProcess.disconnect()][].
 
 If Node.js was not spawned with an IPC channel, `process.disconnect()` will be
 undefined.
@@ -545,7 +544,7 @@ Some care needs to be taken when dropping privileges. Example:
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
 'SIGINT' or 'SIGHUP'.  If omitted, the signal will be 'SIGTERM'.
-See [Signal Events](#process_signal_events) and kill(2) for more information.
+See [Signal Events][] and kill(2) for more information.
 
 Will throw an error if target does not exist, and as a special case, a signal
 of `0` can be used to test for the existence of a process. Windows platforms
@@ -569,16 +568,14 @@ Example of sending a signal to yourself:
     process.kill(process.pid, 'SIGHUP');
 
 Note: When SIGUSR1 is received by Node.js it starts the debugger, see
-[Signal Events](#process_signal_events).
+[Signal Events][].
 
 ## process.mainModule
 
-Alternate way to retrieve
-[`require.main`](modules.html#modules_accessing_the_main_module).
-The difference is that if the main module changes at runtime, `require.main`
-might still refer to the original main module in modules that were required
-before the change occurred. Generally it's safe to assume that the two refer
-to the same module.
+Alternate way to retrieve [`require.main`][]. The difference is that if the main
+module changes at runtime, `require.main` might still refer to the original main
+module in modules that were required before the change occurred. Generally it's
+safe to assume that the two refer to the same module.
 
 As with `require.main`, it will be `undefined` if there was no entry script.
 
@@ -727,8 +724,7 @@ relied upon to exist.
 
 When Node.js is spawned with an IPC channel attached, it can send messages to its
 parent process using `process.send()`. Each will be received as a
-['message'](child_process.html#child_process_event_message)
-event on the parent's `ChildProcess` object.
+['message'][] event on the parent's `ChildProcess` object.
 
 If Node.js was not spawned with an IPC channel, `process.send()` will be undefined.
 
@@ -853,8 +849,7 @@ Example of opening standard input and listening for both events:
 
 As a Stream, `process.stdin` can also be used in "old" mode that is compatible
 with scripts written for node.js prior to v0.10.
-For more information see
-[Stream compatibility](stream.html#stream_compatibility_with_older_node_js_versions).
+For more information see [Stream compatibility][].
 
 In "old" Streams mode the stdin stream is paused by default, so one
 must call `process.stdin.resume()` to read from it. Note also that calling
@@ -892,7 +887,7 @@ on `process.stderr`, `process.stdout`, or `process.stdin`:
     $ node -p "Boolean(process.stdout.isTTY)" | cat
     false
 
-See [the tty docs](tty.html#tty_tty) for more information.
+See [the tty docs][] for more information.
 
 ## process.title
 
@@ -949,8 +944,13 @@ Will print something like:
       icu: '55.1',
       openssl: '1.0.1k' }
 
-
+[ChildProcess.disconnect()]: child_process.html#child_process_child_disconnect
 [ChildProcess.send()]: child_process.html#child_process_child_send_message_sendhandle_callback
+[Signal Events]: #process_signal_events
 [EventEmitter]: events.html#events_class_events_eventemitter
 [net.Server]: net.html#net_class_net_server
 [net.Socket]: net.html#net_class_net_socket
+[`require.main`]: modules.html#modules_accessing_the_main_module
+['message']: child_process.html#child_process_event_message
+[Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
+[the tty docs]: tty.html#tty_tty

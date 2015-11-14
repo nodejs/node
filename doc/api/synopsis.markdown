@@ -2,7 +2,7 @@
 
 <!--type=misc-->
 
-An example of a [web server](http.html) written with Node.js which responds with
+An example of a [web server][] written with Node.js which responds with
 'Hello World':
 
     var http = require('http');
@@ -21,3 +21,5 @@ it with the node program
     Server running at http://127.0.0.1:8124/
 
 All of the examples in the documentation can be run similarly.
+
+[web server]: http.html
