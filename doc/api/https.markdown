@@ -74,7 +74,7 @@ See [http.listen()][] for details.
 Like `http.get()` but for HTTPS.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()](url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost).
+automatically parsed with [url.parse()][].
 
 Example:
 
@@ -96,26 +96,12 @@ Example:
 
 Global instance of [https.Agent][] for all HTTPS client requests.
 
-[http.Server#setTimeout()]: http.html#http_server_settimeout_msecs_callback
-[http.Server#timeout]: http.html#http_server_timeout
-[Agent]: #https_class_https_agent
-[globalAgent]: #https_https_globalagent
-[http.listen()]: http.html#http_server_listen_port_hostname_backlog_callback
-[http.close()]: http.html#http_server_close_callback
-[http.Agent]: http.html#http_class_http_agent
-[http.request()]: http.html#http_http_request_options_callback
-[https.Agent]: #https_class_https_agent
-[https.request()]: #https_https_request_options_callback
-[tls.connect()]: tls.html#tls_tls_connect_options_callback
-[tls.createServer()]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
-
 ## https.request(options, callback)
 
 Makes a request to a secure web server.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()](url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost).
+automatically parsed with [url.parse()][].
 
 All options from [http.request()][] are valid.
 
@@ -226,3 +212,18 @@ Example:
     var req = https.request(options, function(res) {
       ...
     }
+
+[http.Server#setTimeout()]: http.html#http_server_settimeout_msecs_callback
+[http.Server#timeout]: http.html#http_server_timeout
+[Agent]: #https_class_https_agent
+[globalAgent]: #https_https_globalagent
+[http.listen()]: http.html#http_server_listen_port_hostname_backlog_callback
+[url.parse()]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost
+[http.close()]: http.html#http_server_close_callback
+[http.Agent]: http.html#http_class_http_agent
+[http.request()]: http.html#http_http_request_options_callback
+[https.Agent]: #https_class_https_agent
+[https.request()]: #https_https_request_options_callback
+[tls.connect()]: tls.html#tls_tls_connect_options_callback
+[tls.createServer()]: tls.html#tls_tls_createserver_options_secureconnectionlistener
+[SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS

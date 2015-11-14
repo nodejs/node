@@ -493,12 +493,11 @@ written out - this may not be immediately.
 
 ## net.connect(options[, connectListener])
 
-A factory function, which returns a new ['net.Socket'](#net_class_net_socket)
-and automatically connects with the supplied `options`.
+A factory function, which returns a new ['net.Socket'][] and automatically
+connects with the supplied `options`.
 
-The options are passed to both the ['net.Socket'](#net_class_net_socket)
-constructor and the ['socket.connect'](#net_socket_connect_options_connectlistener)
-method.
+The options are passed to both the ['net.Socket'][] constructor and the
+['socket.connect'][] method.
 
 The `connectListener` parameter will be added as a listener for the
 ['connect'][] event once.
@@ -526,18 +525,16 @@ changed to
 
 ## net.connect(path[, connectListener])
 
-A factory function, which returns a new unix
-['net.Socket'](#net_class_net_socket) and automatically connects to the
-supplied `path`.
+A factory function, which returns a new unix ['net.Socket'][] and automatically
+connects to the supplied `path`.
 
 The `connectListener` parameter will be added as a listener for the
 ['connect'][] event once.
 
 ## net.connect(port[, host][, connectListener])
 
-A factory function, which returns a new
-['net.Socket'](#net_class_net_socket) and automatically connects to the
-supplied `port` and `host`.
+A factory function, which returns a new ['net.Socket'][] and automatically
+connects to the supplied `port` and `host`.
 
 If `host` is omitted, `'localhost'` will be assumed.
 
@@ -546,12 +543,11 @@ The `connectListener` parameter will be added as a listener for the
 
 ## net.createConnection(options[, connectListener])
 
-A factory function, which returns a new ['net.Socket'](#net_class_net_socket)
-and automatically connects with the supplied `options`.
+A factory function, which returns a new ['net.Socket'][] and automatically
+connects with the supplied `options`.
 
-The options are passed to both the ['net.Socket'](#net_class_net_socket)
-constructor and the ['socket.connect'](#net_socket_connect_options_connectlistener)
-method.
+The options are passed to both the ['net.Socket'][] constructor and the
+['socket.connect'][] method.
 
 The `connectListener` parameter will be added as a listener for the
 ['connect'][] event once.
@@ -579,18 +575,16 @@ changed to
 
 ## net.createConnection(path[, connectListener])
 
-A factory function, which returns a new unix
-['net.Socket'](#net_class_net_socket) and automatically connects to the
-supplied `path`.
+A factory function, which returns a new unix ['net.Socket'][] and automatically
+connects to the supplied `path`.
 
 The `connectListener` parameter will be added as a listener for the
 ['connect'][] event once.
 
 ## net.createConnection(port[, host][, connectListener])
 
-A factory function, which returns a new
-['net.Socket'](#net_class_net_socket) and automatically connects to the
-supplied `port` and `host`.
+A factory function, which returns a new ['net.Socket'][] and automatically
+connects to the supplied `port` and `host`.
 
 If `host` is omitted, `'localhost'` will be assumed.
 
@@ -672,4 +666,6 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [server.getConnections]: #net_server_getconnections_callback
 [Readable Stream]: stream.html#stream_class_stream_readable
 [stream.setEncoding()]: stream.html#stream_readable_setencoding_encoding
+['net.Socket']: #net_class_net_socket
 [dns.lookup()]: dns.html#dns_dns_lookup_hostname_options_callback
+['socket.connect']: #net_socket_connect_options_connectlistener

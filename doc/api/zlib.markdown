@@ -39,17 +39,13 @@ the convenience methods.
       }
     });
 
-To use this module in an HTTP client or server, use the
-[accept-encoding](http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3)
-on requests, and the
-[content-encoding](http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11)
-header on responses.
+To use this module in an HTTP client or server, use the [accept-encoding][]
+on requests, and the [content-encoding][] header on responses.
 
 **Note: these examples are drastically simplified to show
 the basic concept.**  Zlib encoding can be expensive, and the results
-ought to be cached.  See [Memory Usage Tuning](#zlib_memory_usage_tuning)
-below for more information on the speed/memory/compression
-tradeoffs involved in zlib usage.
+ought to be cached.  See [Memory Usage Tuning][] below for more information
+on the speed/memory/compression tradeoffs involved in zlib usage.
 
     // client request example
     var zlib = require('zlib');
@@ -151,9 +147,9 @@ All of the constants defined in zlib.h are also defined on
 `require('zlib')`.
 In the normal course of operations, you will not need to ever set any of
 these.  They are documented here so that their presence is not
-surprising.  This section is taken almost directly from the [zlib
-documentation](http://zlib.net/manual.html#Constants).  See
-<http://zlib.net/manual.html#Constants> for more details.
+surprising.  This section is taken almost directly from the
+[zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
+details.
 
 Allowed flush values.
 
@@ -282,38 +278,31 @@ the inflate and deflate algorithms.
 
 ## zlib.createDeflate([options])
 
-Returns a new [Deflate](#zlib_class_zlib_deflate) object with an
-[options](#zlib_options).
+Returns a new [Deflate][] object with an [options][].
 
 ## zlib.createDeflateRaw([options])
 
-Returns a new [DeflateRaw](#zlib_class_zlib_deflateraw) object with an
-[options](#zlib_options).
+Returns a new [DeflateRaw][] object with an [options][].
 
 ## zlib.createGunzip([options])
 
-Returns a new [Gunzip](#zlib_class_zlib_gunzip) object with an
-[options](#zlib_options).
+Returns a new [Gunzip][] object with an [options][].
 
 ## zlib.createGzip([options])
 
-Returns a new [Gzip](#zlib_class_zlib_gzip) object with an
-[options](#zlib_options).
+Returns a new [Gzip][] object with an [options][].
 
 ## zlib.createInflate([options])
 
-Returns a new [Inflate](#zlib_class_zlib_inflate) object with an
-[options](#zlib_options).
+Returns a new [Inflate][] object with an [options][].
 
 ## zlib.createInflateRaw([options])
 
-Returns a new [InflateRaw](#zlib_class_zlib_inflateraw) object with an
-[options](#zlib_options).
+Returns a new [InflateRaw][] object with an [options][].
 
 ## zlib.createUnzip([options])
 
-Returns a new [Unzip](#zlib_class_zlib_unzip) object with an
-[options](#zlib_options).
+Returns a new [Unzip][] object with an [options][].
 
 ## Convenience Methods
 
@@ -366,3 +355,16 @@ Decompress a raw Buffer with Inflate.
 ### zlib.unzipSync(buf[, options])
 
 Decompress a raw Buffer with Unzip.
+
+[accept-encoding]: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+[content-encoding]: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
+[Memory Usage Tuning]: #zlib_memory_usage_tuning
+[zlib documentation]: http://zlib.net/manual.html#Constants
+[options]: #zlib_options
+[Deflate]: #zlib_class_zlib_deflate
+[DeflateRaw]: #zlib_class_zlib_deflateraw
+[Gunzip]: #zlib_class_zlib_gunzip
+[Gzip]: #zlib_class_zlib_gzip
+[Inflate]: #zlib_class_zlib_inflate
+[InflateRaw]: #zlib_class_zlib_inflateraw
+[Unzip]: #zlib_class_zlib_unzip
