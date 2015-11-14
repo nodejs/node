@@ -440,54 +440,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
   uint32_t length = 0;
   CHECK(object->length()->ToArrayLength(&length));
   builder_.AppendCharacter('[');
-  switch (object->GetElementsKind()) {
-    case FAST_SMI_ELEMENTS: {
-      Handle<FixedArray> elements(
-          FixedArray::cast(object->elements()), isolate_);
-      for (uint32_t i = 0; i < length; i++) {
-        if (i > 0) builder_.AppendCharacter(',');
-        SerializeSmi(Smi::cast(elements->get(i)));
-      }
-      break;
-    }
-    case FAST_DOUBLE_ELEMENTS: {
-      // Empty array is FixedArray but not FixedDoubleArray.
-      if (length == 0) break;
-      Handle<FixedDoubleArray> elements(
-          FixedDoubleArray::cast(object->elements()), isolate_);
-      for (uint32_t i = 0; i < length; i++) {
-        if (i > 0) builder_.AppendCharacter(',');
-        SerializeDouble(elements->get_scalar(i));
-      }
-      break;
-    }
-    case FAST_ELEMENTS: {
-      Handle<FixedArray> elements(
-          FixedArray::cast(object->elements()), isolate_);
-      for (uint32_t i = 0; i < length; i++) {
-        if (i > 0) builder_.AppendCharacter(',');
-        Result result =
-            SerializeElement(isolate_,
-                             Handle<Object>(elements->get(i), isolate_),
-                             i);
-        if (result == SUCCESS) continue;
-        if (result == UNCHANGED) {
-          builder_.AppendCString("null");
-        } else {
-          return result;
-        }
-      }
-      break;
-    }
-    // TODO(yangguo):  The FAST_HOLEY_* cases could be handled in a faster way.
-    // They resemble the non-holey cases except that a prototype chain lookup
-    // is necessary for holes.
-    default: {
-      Result result = SerializeJSArraySlow(object, length);
-      if (result != SUCCESS) return result;
-      break;
-    }
-  }
+  Result result = SerializeJSArraySlow(object, length);
+  if (result != SUCCESS) return result;
   builder_.AppendCharacter(']');
   StackPop();
   return SUCCESS;
