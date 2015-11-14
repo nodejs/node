@@ -306,6 +306,8 @@ Instructions:
    /usr/local/ssl/fips-2.0
 8. Build Node.js with `make -j`
 9. Verify with `node -p "process.versions.openssl"` (`1.0.2a-fips`)
+10. For FIPS mode to be enabled at runtime, the OPENSSL_FIPS environment
+    variable must be set to 1.
 
 ## Resources for Newcomers
 
