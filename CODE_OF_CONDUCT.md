@@ -10,6 +10,8 @@ CoC](http://www.rust-lang.org/conduct.html).
   might detract from a friendly, safe and welcoming environment for
   all.
 * Please be kind and courteous. There's no need to be mean or rude.
+* Respect that some individuals and cultures consider the casual use of
+  profanity offensive and off-putting.
 * Respect that people have differences of opinion and that every
   design or implementation choice carries a trade-off and numerous
   costs. There is seldom a right answer.
