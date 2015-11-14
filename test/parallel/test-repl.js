@@ -407,7 +407,14 @@ function error_test() {
     {
       client: client_unix, send: '(function() {\nif (false) {} /bar"/;\n}())',
       expect: prompt_multiline + prompt_multiline + 'undefined\n' + prompt_unix
-    }
+    },
+
+    // Newline within template string maintains whitespace.
+    { client: client_unix, send: '`foo \n`',
+      expect: prompt_multiline + '\'foo \\n\'\n' + prompt_unix },
+    // Whitespace is not evaluated.
+    { client: client_unix, send: ' \t  \n',
+      expect: prompt_unix }
   ]);
 }
 
