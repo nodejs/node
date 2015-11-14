@@ -339,9 +339,8 @@ of written data and all required TLS negotiation.
 This instance implements a duplex [Stream][] interfaces.  It has all the
 common stream methods and events.
 
-Methods that return TLS connection meta data (e.g.
-[getPeerCertificate](#tlssocketgetpeercertificate-detailed-))
-will only return data while the connection is open.
+Methods that return TLS connection meta data (e.g. [getPeerCertificate][] will
+only return data while the connection is open.
 
 ### new tls.TLSSocket(socket[, options])
 
@@ -940,3 +939,4 @@ Example:
 [OCSP request]: http://en.wikipedia.org/wiki/OCSP_stapling
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
+[getPeerCertificate]: #tls_tlssocket_getpeercertificate_detailed

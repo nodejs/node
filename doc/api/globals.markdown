@@ -55,13 +55,6 @@ will not execute.
 
 The timer functions are global variables. See the [timers][] section.
 
-[buffer section]: buffer.html
-[module system documentation]: modules.html
-[Modules]: modules.html#modules_modules
-[process object]: process.html#process_process
-[console]: console.html
-[timers]: timers.html
-
 ## clearTimeout(t)
 
 Stop a timer that was previously created with `setTimeout()`. The callback will
@@ -185,3 +178,10 @@ outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
 cannot span more than 24.8 days.
 
 Returns an opaque value that represents the timer.
+
+[buffer section]: buffer.html
+[module system documentation]: modules.html
+[Modules]: modules.html#modules_modules
+[process object]: process.html#process_process
+[console]: console.html
+[timers]: timers.html
