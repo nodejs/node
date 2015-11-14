@@ -185,6 +185,13 @@ function error_test() {
       expect: prompt_multiline },
     { client: client_unix, send: '})()',
       expect: '1' },
+    // Multiline function call
+    { client: client_unix, send: 'function f(){}; f(f(1,',
+      expect: prompt_multiline },
+    { client: client_unix, send: '2)',
+      expect: prompt_multiline },
+    { client: client_unix, send: ')',
+      expect: 'undefined\n' + prompt_unix },
     // npm prompt error message
     { client: client_unix, send: 'npm install foobar',
       expect: expect_npm },
