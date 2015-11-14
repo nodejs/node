@@ -32,8 +32,6 @@ of the `tty.ReadStream` instance.
 `tty.ReadStream` to act either as a raw device or default. `isRaw` will be set
 to the resulting mode.
 
-[tty.ReadStream#setRawMode]: #tty_rs_setrawmode_mode
-
 ## Class: WriteStream
 
 A `net.Socket` subclass that represents the writable portion of a tty. In normal
@@ -70,3 +68,5 @@ terminal.
 ## tty.setRawMode(mode)
 
     Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
+
+[tty.ReadStream#setRawMode]: #tty_rs_setrawmode_mode

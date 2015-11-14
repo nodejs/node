@@ -2,9 +2,9 @@
 
     Stability: 2 - Stable
 
-[Punycode.js](https://mths.be/punycode) is bundled with Node.js v0.6.2+. Use
-`require('punycode')` to access it. (To use it with other Node.js versions, use
-npm to install the `punycode` module first.)
+[Punycode.js][] is bundled with Node.js v0.6.2+. Use `require('punycode')` to
+access it. (To use it with other Node.js versions, use npm to install the
+`punycode` module first.)
 
 ## punycode.decode(string)
 
@@ -47,8 +47,7 @@ you call it on a string that has already been converted to Unicode.
 ### punycode.ucs2.decode(string)
 
 Creates an array containing the numeric code point values of each Unicode
-symbol in the string. While [JavaScript uses UCS-2
-internally](http://mathiasbynens.be/notes/javascript-encoding), this function
+symbol in the string. While [JavaScript uses UCS-2 internally][], this function
 will convert a pair of surrogate halves (each of which UCS-2 exposes as
 separate characters) into a single code point, matching UTF-16.
 
@@ -66,3 +65,6 @@ Creates a string based on an array of numeric code point values.
 ## punycode.version
 
 A string representing the current Punycode.js version number.
+
+[Punycode.js]: https://mths.be/punycode
+[JavaScript uses UCS-2 internally]: http://mathiasbynens.be/notes/javascript-encoding
