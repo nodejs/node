@@ -29,6 +29,10 @@ function remove2() {
 }
 
 var e1 = new events.EventEmitter();
+
+// sanity check
+assert.equal(e1.removeListener, e1.un);
+
 e1.on('hello', listener1);
 e1.on('removeListener', common.mustCall(function(name, cb) {
   assert.equal(name, 'hello');

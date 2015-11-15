@@ -181,6 +181,9 @@ multiple times to remove each instance.
 
 Returns emitter, so calls can be chained.
 
+### emitter.un(event, listener)
+Alias for `emitter.removeListener(event, listener)`.
+
 ### emitter.setMaxListeners(n)
 
 By default EventEmitters will print a warning if more than 10 listeners are
