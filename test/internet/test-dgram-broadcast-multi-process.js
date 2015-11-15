@@ -15,6 +15,11 @@ var common = require('../common'),
       new Buffer('Fourth message to send')
     ];
 
+if (common.inFreeBSDJail) {
+  console.log('1..0 # Skipped: in a FreeBSD jail');
+  return;
+}
+
 // take the first non-internal interface as the address for binding
 get_bindAddress: for (var name in networkInterfaces) {
   var interfaces = networkInterfaces[name];
