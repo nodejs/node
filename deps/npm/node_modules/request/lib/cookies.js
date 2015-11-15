@@ -13,13 +13,13 @@ exports.parse = function(str) {
   if (typeof str !== 'string') {
     throw new Error('The cookie function only accepts STRING as param')
   }
-  return Cookie.parse(str)
+  return Cookie.parse(str, {loose: true})
 }
 
 // Adapt the sometimes-Async api of tough.CookieJar to our requirements
 function RequestJar(store) {
   var self = this
-  self._jar = new CookieJar(store)
+  self._jar = new CookieJar(store, {looseMode: true})
 }
 RequestJar.prototype.setCookie = function(cookieOrStr, uri, options) {
   var self = this

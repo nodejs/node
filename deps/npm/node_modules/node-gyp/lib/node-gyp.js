@@ -48,7 +48,7 @@ function Gyp () {
 
   // set the dir where node-gyp dev files get installed
   // TODO: make this *more* configurable?
-  //       see: https://github.com/TooTallNate/node-gyp/issues/21
+  //       see: https://github.com/nodejs/node-gyp/issues/21
   var homeDir = process.env.HOME || process.env.USERPROFILE
   if (!homeDir) {
     throw new Error(

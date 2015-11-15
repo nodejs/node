@@ -40,7 +40,7 @@ function whoami (args, silent, cb) {
   // At this point, if they have a credentials object, it doesn't have a token
   // or auth in it.  Probably just the default registry.
   var needAuth = new Error(
-    "'npm whoami' requires you to be logged in."
+    "this command requires you to be logged in."
   )
   needAuth.code = 'ENEEDAUTH'
   process.nextTick(cb.bind(this, needAuth))

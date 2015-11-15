@@ -40,6 +40,7 @@ tap.test('fetch with retry on server error', function (t) {
 
       var sink = cat(function (data) {
         t.deepEqual(data, readFileSync(tgz))
+        server.close()
         t.end()
       })
 

@@ -181,6 +181,10 @@ Stop a package
 
 Tag a published version
 
+### npm-team(1)
+
+Manage organization teams and team memberships
+
 ### npm-test(1)
 
 Test a package
@@ -416,6 +420,10 @@ Frequently Asked Questions
 ### npm-index(7)
 
 Index of all npm documentation
+
+### npm-orgs(7)
+
+Working with Teams & Orgs
 
 ### npm-registry(7)
 

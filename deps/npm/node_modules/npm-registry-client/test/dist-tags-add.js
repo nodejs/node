@@ -136,6 +136,7 @@ test('add a new dist-tag to a package', function (t) {
     t.ifError(error, 'no errors')
     t.ok(data.test, 'dist-tag added')
 
+    server.close()
     t.end()
   })
 })
