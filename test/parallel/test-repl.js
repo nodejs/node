@@ -117,6 +117,11 @@ function error_test() {
       expect: prompt_multiline },
     { client: client_unix, send: '+ ".2"}`',
       expect: `'io.js 1.0.2'\n${prompt_unix}` },
+    // Dot prefix in multiline commands aren't treated as commands
+    { client: client_unix, send: '("a"',
+      expect: prompt_multiline },
+    { client: client_unix, send: '.charAt(0))',
+      expect: `'a'\n${prompt_unix}` },
     // Floating point numbers are not interpreted as REPL commands.
     { client: client_unix, send: '.1234',
       expect: '0.1234' },
