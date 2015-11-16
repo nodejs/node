@@ -486,6 +486,8 @@
     }
 
     function nextTick(callback) {
+      if (typeof callback !== 'function')
+        throw new TypeError('callback is not a function');
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
         return;
