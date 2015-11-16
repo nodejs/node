@@ -20,6 +20,22 @@ process.nextTick(function() {
   order.push('C');
 });
 
+function testNextTickWith(val) {
+  assert.throws(
+    function() {
+      process.nextTick(val);
+    },
+    TypeError
+  );
+}
+
+testNextTickWith(false);
+testNextTickWith(true);
+testNextTickWith(1);
+testNextTickWith('str');
+testNextTickWith({});
+testNextTickWith([]);
+
 process.on('uncaughtException', function() {
   if (!exceptionHandled) {
     exceptionHandled = true;
