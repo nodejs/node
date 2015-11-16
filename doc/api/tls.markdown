@@ -842,7 +842,8 @@ automatically set as a listener for the [secureConnection][] event.  The
 
   - `sessionIdContext`: A string containing an opaque identifier for session
     resumption. If `requestCert` is `true`, the default is MD5 hash value
-    generated from command-line. Otherwise, the default is not provided.
+    generated from command-line. (In FIPS mode a truncated SHA1 hash is 
+    used instead.) Otherwise, the default is not provided.
 
   - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
     SSL version 3. The possible values depend on your installation of
