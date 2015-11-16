@@ -114,8 +114,7 @@ Example:
 * `buf1` {Buffer}
 * `buf2` {Buffer}
 
-The same as [`buf1.compare(buf2)`](#buffer_buf_compare_otherbuffer). Useful
-for sorting an Array of Buffers:
+The same as [`buf1.compare(buf2)`][]. Useful for sorting an Array of Buffers:
 
     var arr = [Buffer('1234'), Buffer('0123')];
     arr.sort(Buffer.compare);
@@ -287,11 +286,10 @@ buffer.
 * `byteOffset` Number, Optional, Default: 0
 * Return: Number
 
-Operates similar to
-[Array#indexOf()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf).
-Accepts a String, Buffer or Number. Strings are interpreted as UTF8. Buffers
-will use the entire buffer. So in order to compare a partial Buffer use
-`Buffer#slice()`. Numbers can range from 0 to 255.
+Operates similar to [Array#indexOf()][]. Accepts a String, Buffer or Number.
+Strings are interpreted as UTF8. Buffers will use the entire buffer. So in order
+to compare a partial Buffer use `Buffer#slice()`. Numbers can range from 0 to
+255.
 
 ### buf.length
 
@@ -932,3 +930,6 @@ un-pooled Buffer instance using SlowBuffer and copy out the relevant bits.
 
 Though this should be used sparingly and only be a last resort *after* a developer
 has actively observed undue memory retention in their applications.
+
+[`buf1.compare(buf2)`]: #buffer_buf_compare_otherbuffer
+[Array#indexOf()]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf

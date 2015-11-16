@@ -143,7 +143,7 @@ shown below.
 ### socket.close([callback])
 
 Close the underlying socket and stop listening for data on it. If a callback is
-provided, it is added as a listener for the ['close'](#dgram_event_close) event.
+provided, it is added as a listener for the ['close'][] event.
 
 ### socket.dropMembership(multicastAddress[, multicastInterface])
 
@@ -186,9 +186,7 @@ given, the error will be the first argument to the callback. If a callback is
 not given, the error is emitted as an `'error'` event on the `socket` object.
 
 With consideration for multi-byte characters, `offset` and `length` will
-be calculated with respect to
-[byte length](buffer.html#buffer_class_method_buffer_bytelength_string_encoding)
-and not the character position.
+be calculated with respect to [byte length][] and not the character position.
 
 Example of sending a UDP packet to a random port on `localhost`;
 
@@ -261,7 +259,7 @@ gateway that forwards a packet decrements the TTL.  If the TTL is decremented to
 router, it will not be forwarded.  Changing TTL values is typically done for network
 probes or when multicasting.
 
-The argument to `setTTL()` is a number of hops between 1 and 255.  The default on most
+The argument to `setTTL()` isa number of hops between 1 and 255.  The default on most
 systems is 64.
 
 ### socket.ref()
@@ -315,3 +313,6 @@ Call `socket.bind()` if you want to receive datagrams. `socket.bind()` will
 bind to the "all interfaces" address on a random port (it does the right thing
 for both `udp4` and `udp6` sockets). You can then retrieve the address and port
 with `socket.address().address` and `socket.address().port`.
+
+['close']: #dgram_event_close
+[byte length]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding

@@ -12,10 +12,9 @@ data you send to the child process may not be immediately consumed.)
 
 To create a child process use `require('child_process').spawn()` or
 `require('child_process').fork()`.  The semantics of each are slightly
-different, and explained [below](#child_process_asynchronous_process_creation).
+different, and explained [below][].
 
-For scripting purposes you may find the
-[synchronous counterparts](#child_process_synchronous_process_creation) more
+For scripting purposes you may find the [synchronous counterparts][] more
 convenient.
 
 ## Class: ChildProcess
@@ -61,8 +60,7 @@ Note that the `exit`-event may or may not fire after an error has occurred. If
 you are listening on both events to fire a function, remember to guard against
 calling your function twice.
 
-See also [`ChildProcess#kill()`](#child_process_child_kill_signal) and
-[`ChildProcess#send()`](#child_process_child_send_message_sendhandle_callback).
+See also [`ChildProcess#kill()`][] and [`ChildProcess#send()`][].
 
 ### Event:  'exit'
 
@@ -161,7 +159,7 @@ Example:
 * `callback` {Function}
 * Return: Boolean
 
-When using [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options) you can write to the child using
+When using [`child_process.fork()`][] you can write to the child using
 `child.send(message[, sendHandle][, callback])` and messages are received by
 a `'message'` event on the child.
 
@@ -310,9 +308,7 @@ to the same object, or null.
 * {Array}
 
 A sparse array of pipes to the child process, corresponding with positions in
-the [stdio](#child_process_options_stdio) option to
-[spawn](#child_process_child_process_spawn_command_args_options) that have been
-set to `'pipe'`.
+the [stdio][] option to [spawn][] that have been set to `'pipe'`.
 Note that streams 0-2 are also available as ChildProcess.stdin,
 ChildProcess.stdout, and ChildProcess.stderr, respectively.
 
@@ -439,9 +435,9 @@ the existing process and uses a shell to execute the command.*
   * `stderr` {Buffer}
 * Return: ChildProcess object
 
-This is similar to [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) except it does not execute a
+This is similar to [`child_process.exec()`][] except it does not execute a
 subshell but rather the specified file directly. This makes it slightly
-leaner than [`child_process.exec()`](#child_process_child_process_exec_command_options_callback). It has the same options.
+leaner than [`child_process.exec()`][]. It has the same options.
 
 
 ### child_process.fork(modulePath[, args][, options])
@@ -462,10 +458,10 @@ leaner than [`child_process.exec()`](#child_process_child_process_exec_command_o
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: ChildProcess object
 
-This is a special case of the [`child_process.spawn()`](#child_process_child_process_spawn_command_args_options) functionality for spawning Node.js
-processes. In addition to having all the methods in a normal ChildProcess
-instance, the returned object has a communication channel built-in. See
-[`child.send(message, [sendHandle])`](#child_process_child_send_message_sendhandle_callback) for details.
+This is a special case of the [`child_process.spawn()`][] functionality for
+spawning Node.js processes. In addition to having all the methods in a normal
+ChildProcess instance, the returned object has a communication channel built-in.
+See [`child.send(message, [sendHandle])`][] for details.
 
 These child Node.js processes are still whole new instances of V8. Assume at
 least 30ms startup and 10mb memory for each new Node.js. That is, you cannot
@@ -663,7 +659,7 @@ Example:
     // startd-style interface.
     spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
 
-See also: [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) and [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options)
+See also: [`child_process.exec()`][] and [`child_process.fork()`][]
 
 ## Synchronous Process Creation
 
@@ -703,11 +699,7 @@ process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The `Error` object will contain the entire result from
-[`child_process.spawnSync()`](#child_process_child_process_spawnsync_command_args_options)
-
-[EventEmitter]: events.html#events_class_events_eventemitter
-[net.Server]: net.html#net_class_net_server
-[net.Socket]: net.html#net_class_net_socket
+[`child_process.spawnSync()`][]
 
 ### child_process.execSync(command[, options])
 
@@ -741,7 +733,7 @@ process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The `Error` object will contain the entire result from
-[`child_process.spawnSync()`](#child_process_child_process_spawnsync_command_args_options)
+[`child_process.spawnSync()`][]
 
 ### child_process.spawnSync(command[, args][, options])
 
@@ -774,3 +766,18 @@ timeout has been encountered and `killSignal` is sent, the method won't return
 until the process has completely exited. That is to say, if the process handles
 the `SIGTERM` signal and doesn't exit, your process will wait until the child
 process has exited.
+
+[below]: #child_process_asynchronous_process_creation
+[synchronous counterparts]: #child_process_synchronous_process_creation
+[EventEmitter]: events.html#events_class_events_eventemitter
+[`ChildProcess#kill()`]: #child_process_child_kill_signal
+[`ChildProcess#send()`]: #child_process_child_send_message_sendhandle_callback
+[net.Server]: net.html#net_class_net_server
+[net.Socket]: net.html#net_class_net_socket
+[`child_process.fork()`]: #child_process_child_process_fork_modulepath_args_options
+[stdio]: #child_process_options_stdio
+[spawn]: #child_process_child_process_spawn_command_args_options
+[`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
+[`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
+[`child.send(message, [sendHandle])`]: #child_process_child_send_message_sendhandle_callback
+[`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
