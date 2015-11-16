@@ -676,105 +676,6 @@ void AsciiWrite(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static inline void Swizzle(char* start, unsigned int len) {
-  char* end = start + len - 1;
-  while (start < end) {
-    char tmp = *start;
-    *start++ = *end;
-    *end-- = tmp;
-  }
-}
-
-
-template <typename T, enum Endianness endianness>
-void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  SPREAD_ARG(args[0], ts_obj);
-
-  uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(T), ts_obj_length);
-
-  union NoAlias {
-    T val;
-    char bytes[sizeof(T)];
-  };
-
-  union NoAlias na;
-  const char* ptr = static_cast<const char*>(ts_obj_data) + offset;
-  memcpy(na.bytes, ptr, sizeof(na.bytes));
-  if (endianness != GetEndianness())
-    Swizzle(na.bytes, sizeof(na.bytes));
-
-  args.GetReturnValue().Set(na.val);
-}
-
-
-void ReadFloatLE(const FunctionCallbackInfo<Value>& args) {
-  ReadFloatGeneric<float, kLittleEndian>(args);
-}
-
-
-void ReadFloatBE(const FunctionCallbackInfo<Value>& args) {
-  ReadFloatGeneric<float, kBigEndian>(args);
-}
-
-
-void ReadDoubleLE(const FunctionCallbackInfo<Value>& args) {
-  ReadFloatGeneric<double, kLittleEndian>(args);
-}
-
-
-void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
-  ReadFloatGeneric<double, kBigEndian>(args);
-}
-
-
-template <typename T, enum Endianness endianness>
-uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
-  SPREAD_ARG(args[0], ts_obj);
-
-  T val = args[1]->NumberValue();
-  uint32_t offset = args[2]->Uint32Value();
-  CHECK_LE(offset + sizeof(T), ts_obj_length);
-
-  union NoAlias {
-    T val;
-    char bytes[sizeof(T)];
-  };
-
-  union NoAlias na = { val };
-  char* ptr = static_cast<char*>(ts_obj_data) + offset;
-  if (endianness != GetEndianness())
-    Swizzle(na.bytes, sizeof(na.bytes));
-  memcpy(ptr, na.bytes, sizeof(na.bytes));
-  return offset + sizeof(na.bytes);
-}
-
-
-void WriteFloatLE(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  args.GetReturnValue().Set(WriteFloatGeneric<float, kLittleEndian>(args));
-}
-
-
-void WriteFloatBE(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  args.GetReturnValue().Set(WriteFloatGeneric<float, kBigEndian>(args));
-}
-
-
-void WriteDoubleLE(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  args.GetReturnValue().Set(WriteFloatGeneric<double, kLittleEndian>(args));
-}
-
-
-void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  args.GetReturnValue().Set(WriteFloatGeneric<double, kBigEndian>(args));
-}
-
-
 void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
   CHECK(args[0]->IsString());
 
@@ -1064,16 +965,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
   env->SetMethod(target, "indexOfNumber", IndexOfNumber);
   env->SetMethod(target, "indexOfString", IndexOfString);
-
-  env->SetMethod(target, "readDoubleBE", ReadDoubleBE);
-  env->SetMethod(target, "readDoubleLE", ReadDoubleLE);
-  env->SetMethod(target, "readFloatBE", ReadFloatBE);
-  env->SetMethod(target, "readFloatLE", ReadFloatLE);
-
-  env->SetMethod(target, "writeDoubleBE", WriteDoubleBE);
-  env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
-  env->SetMethod(target, "writeFloatBE", WriteFloatBE);
-  env->SetMethod(target, "writeFloatLE", WriteFloatLE);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
