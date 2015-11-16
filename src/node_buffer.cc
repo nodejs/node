@@ -730,7 +730,9 @@ uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
 
   T val = args[1]->NumberValue();
   uint32_t offset = args[2]->Uint32Value();
-  CHECK_LE(offset + sizeof(T), ts_obj_length);
+  size_t memcpy_num = sizeof(T);
+  if (offset + sizeof(T) > ts_obj_length)
+    memcpy_num = ts_obj_length - offset;
 
   union NoAlias {
     T val;
@@ -741,8 +743,8 @@ uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   char* ptr = static_cast<char*>(ts_obj_data) + offset;
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
-  memcpy(ptr, na.bytes, sizeof(na.bytes));
-  return offset + sizeof(na.bytes);
+  memcpy(ptr, na.bytes, memcpy_num);
+  return offset + memcpy_num;
 }
 
 
