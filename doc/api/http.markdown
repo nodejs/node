@@ -640,7 +640,7 @@ passed as the second parameter to the `'request'` event.
 The response implements the [Writable Stream][] interface. This is an
 [`EventEmitter`][] with the following events:
 
-### Event: 'before-flushing-head'
+### Event: 'beforeFlushingHead'
 
 `function (messageHead) {}`
 

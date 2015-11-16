@@ -6,7 +6,7 @@ var http = require('http');
 var testResBody = 'other stuff!\n';
 
 var server = http.createServer(function(req, res) {
-  res.on('before-flushing-head', function(args) {
+  res.on('beforeFlushingHead', function(args) {
     args.statusCode = 201;
     args.statusMessage = "changed to show we can";
     args.headers["Flush-Head"] = 'event-was-called'; 
@@ -31,9 +31,9 @@ server.addListener('listening', function() {
     assert.ok(res.statusMessage === 'changed to show we can', 
               'Response status message was not overridden.');
     assert.ok('flush-head' in res.headers,
-              'Response headers didn\'t contain the flush-head header, indicating the before-flush-head event was not called or did not allow adding headers.');
+              'Response headers didn\'t contain the flush-head header, indicating the beforeFlushingHead event was not called or did not allow adding headers.');
     assert.ok(res.headers['flush-head'] === 'event-was-called',
-              'Response headers didn\'t contain the flush-head header with value event-was-called, indicating the before-flush-head event was not called or did not allow adding headers.');
+              'Response headers didn\'t contain the flush-head header with value event-was-called, indicating the beforeFlushingHead event was not called or did not allow adding headers.');
     res.addListener('end', function() {
       server.close();
       process.exit();
