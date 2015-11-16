@@ -44,3 +44,10 @@ assert.throws(function() {
   AB.prototype.__proto__ = ArrayBuffer.prototype;
   new Buffer(new AB());
 }, TypeError);
+
+// write{Double,Float}{LE,BE} with noAssert should not crash, cf. #3766
+var b = new Buffer(1);
+b.writeFloatLE(11.11, 0, true);
+b.writeFloatBE(11.11, 0, true);
+b.writeDoubleLE(11.11, 0, true);
+b.writeDoubleBE(11.11, 0, true);
