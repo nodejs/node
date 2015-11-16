@@ -20,6 +20,15 @@ process.nextTick(function() {
   order.push('C');
 });
 
+try {
+  process.nextTick();
+} catch (e) {
+  // should handle this error at try...catch
+  if (!e) {
+    assert.fail();
+  }
+}
+
 process.on('uncaughtException', function() {
   if (!exceptionHandled) {
     exceptionHandled = true;

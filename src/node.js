@@ -489,6 +489,8 @@
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
         return;
+      if (typeof callback !== 'function')
+        throw new Error('callback is not a function');
 
       var args;
       if (arguments.length > 1) {
