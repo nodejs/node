@@ -138,6 +138,89 @@ and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
     > obj
     { bar: 'baz' }
 
+## Class: REPLServer
+
+This inherits from [Readline Interface][] with the following events:
+
+### Event: 'exit'
+
+`function () {}`
+
+Emitted when the user exits the REPL in any of the defined ways. Namely, typing
+`.exit` at the repl, pressing Ctrl+C twice to signal SIGINT, or pressing Ctrl+D
+to signal "end" on the `input` stream.
+
+Example of listening for `exit`:
+
+    replServer.on('exit', function () {
+      console.log('Got "exit" event from repl!');
+      process.exit();
+    });
+
+
+### Event: 'reset'
+
+`function (context) {}`
+
+Emitted when the REPL's context is reset. This happens when you type `.clear`.
+If you start the repl with `{ useGlobal: true }` then this event will never
+be emitted.
+
+Example of listening for `reset`:
+
+    // Extend the initial repl context.
+    var replServer = repl.start({ options ... });
+    someExtension.extend(r.context);
+
+    // When a new context is created extend it as well.
+    replServer.on('reset', function (context) {
+      console.log('repl has a new context');
+      someExtension.extend(context);
+    });
+
+### replServer.defineCommand(keyword, cmd)
+
+* `keyword` {String}
+* `cmd` {Object|Function}
+
+Makes a command available in the REPL. The command is invoked by typing a `.`
+followed by the keyword. The `cmd` is an object with the following values:
+
+ - `help` - help text to be displayed when `.help` is entered (Optional).
+ - `action` - a function to execute, potentially taking in a string argument,
+   when the command is invoked, bound to the REPLServer instance (Required).
+
+If a function is provided instead of an object for `cmd`, it is treated as the
+`action`.
+
+Example of defining a command:
+
+    // repl_test.js
+    var repl = require('repl');
+
+    var replServer = repl.start();
+    replServer.defineCommand('sayhello', {
+      help: 'Say hello',
+      action: function(name) {
+        this.write('Hello, ' + name + '!\n');
+        this.displayPrompt();
+      }
+    });
+
+Example of invoking that command from the REPL:
+
+    > .sayhello Node.js User
+    Hello, Node.js User!
+
+### replServer.displayPrompt([preserveCursor])
+
+* `preserveCursor` {Boolean}
+
+Like [readline.prompt][] except also adding indents with ellipses when inside
+blocks. The `preserveCursor` argument is passed to [readline.prompt][]. This is
+used primarily with `defineCommand`. It's also used internally to render each
+prompt line.
+
 ## repl.start(options)
 
 Returns and starts a `REPLServer` instance, that inherits from
@@ -239,89 +322,6 @@ a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 
 For an example of running a REPL instance over `curl(1)`,
 see: https://gist.github.com/2053342
-
-## Class: REPLServer
-
-This inherits from [Readline Interface][] with the following events:
-
-### Event: 'exit'
-
-`function () {}`
-
-Emitted when the user exits the REPL in any of the defined ways. Namely, typing
-`.exit` at the repl, pressing Ctrl+C twice to signal SIGINT, or pressing Ctrl+D
-to signal "end" on the `input` stream.
-
-Example of listening for `exit`:
-
-    replServer.on('exit', function () {
-      console.log('Got "exit" event from repl!');
-      process.exit();
-    });
-
-
-### Event: 'reset'
-
-`function (context) {}`
-
-Emitted when the REPL's context is reset. This happens when you type `.clear`.
-If you start the repl with `{ useGlobal: true }` then this event will never
-be emitted.
-
-Example of listening for `reset`:
-
-    // Extend the initial repl context.
-    var replServer = repl.start({ options ... });
-    someExtension.extend(r.context);
-
-    // When a new context is created extend it as well.
-    replServer.on('reset', function (context) {
-      console.log('repl has a new context');
-      someExtension.extend(context);
-    });
-
-### replServer.defineCommand(keyword, cmd)
-
-* `keyword` {String}
-* `cmd` {Object|Function}
-
-Makes a command available in the REPL. The command is invoked by typing a `.`
-followed by the keyword. The `cmd` is an object with the following values:
-
- - `help` - help text to be displayed when `.help` is entered (Optional).
- - `action` - a function to execute, potentially taking in a string argument,
-   when the command is invoked, bound to the REPLServer instance (Required).
-
-If a function is provided instead of an object for `cmd`, it is treated as the
-`action`.
-
-Example of defining a command:
-
-    // repl_test.js
-    var repl = require('repl');
-
-    var replServer = repl.start();
-    replServer.defineCommand('sayhello', {
-      help: 'Say hello',
-      action: function(name) {
-        this.write('Hello, ' + name + '!\n');
-        this.displayPrompt();
-      }
-    });
-
-Example of invoking that command from the REPL:
-
-    > .sayhello Node.js User
-    Hello, Node.js User!
-
-### replServer.displayPrompt([preserveCursor])
-
-* `preserveCursor` {Boolean}
-
-Like [readline.prompt][] except also adding indents with ellipses when inside
-blocks. The `preserveCursor` argument is passed to [readline.prompt][]. This is
-used primarily with `defineCommand`. It's also used internally to render each
-prompt line.
 
 [Readline Interface]: readline.html#readline_class_interface
 [readline.prompt]: readline.html#readline_rl_prompt_preservecursor
