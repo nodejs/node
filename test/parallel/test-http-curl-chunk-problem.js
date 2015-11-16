@@ -17,7 +17,7 @@ var count = 0;
 function maybeMakeRequest() {
   if (++count < 2) return;
   console.log('making curl request');
-  var cmd = 'curl http://127.0.0.1:' + common.PORT + '/ | ' +
+  var cmd = 'curl --noproxy 127.0.0.1 http://127.0.0.1:' + common.PORT + '/ | ' +
             '"' + common.opensslCli + '" sha1';
   cp.exec(cmd, function(err, stdout, stderr) {
     if (err) throw err;
