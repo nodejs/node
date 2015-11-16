@@ -73,6 +73,7 @@
       'lib/internal/freelist.js',
       'lib/internal/linkedlist.js',
       'lib/internal/module.js',
+      'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/socket_list.js',
       'lib/internal/util.js',
