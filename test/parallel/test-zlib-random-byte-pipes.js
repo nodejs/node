@@ -87,7 +87,7 @@ RandomReadStream.prototype._process = function() {
 
   this._remaining -= block;
 
-  console.error('block=%d\nremain=%d\n', block, this._remaining);
+  console.error('block=%d\r\nremain=%d\r\n', block, this._remaining);
   this._processing = false;
 
   this.emit('data', buf);
