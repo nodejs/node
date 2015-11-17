@@ -308,6 +308,24 @@ a `"resize"` event on the `output` if/when the columns ever change
 
 Move cursor to the specified position in a given TTY stream.
 
+## readline.emitKeypressEvents(stream)
+
+Accepts a readable Stream instance and makes it emit "keypress" events.
+
+## readline.getStringWidth(str)
+
+Returns the number of columns required to display the given string.
+
+## readline.isFullWidthCodePoint(code)
+
+Returns true if the character represented by a given Unicode code point is
+full-width. Otherwise, returns false.
+
 ## readline.moveCursor(stream, dx, dy)
 
 Move cursor relative to it's current position in a given TTY stream.
+
+## readline.stripVTControlCharacters(str)
+
+Tries to remove all VT control characters. Use to estimate displayed string
+width. **May be buggy due to not running a real state machine.**
