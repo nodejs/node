@@ -16,8 +16,7 @@ execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  assert.equal(stderr, '(node) util.debug is deprecated. Use console.error ' +
-                       'instead.\nDEBUG: This is deprecated\n');
+  assert(/util\.debug is deprecated/.test(stderr));
   console.log('normal ok');
 });
 
