@@ -380,11 +380,6 @@ exports.mustCall = function(fn, expected) {
   };
 };
 
-exports.checkSpawnSyncRet = function(ret) {
-  assert.strictEqual(ret.status, 0);
-  assert.strictEqual(ret.error, undefined);
-};
-
 var etcServicesFileName = path.join('/etc', 'services');
 if (exports.isWindows) {
   etcServicesFileName = path.join(process.env.SystemRoot, 'System32', 'drivers',
