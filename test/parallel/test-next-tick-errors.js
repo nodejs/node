@@ -20,12 +20,6 @@ process.nextTick(function() {
   order.push('C');
 });
 
-assert.throws(
-  function () {
-    process.nextTick
-  }
-);
-
 function testNextTickWith(val) {
   assert.throws(
     function() {
