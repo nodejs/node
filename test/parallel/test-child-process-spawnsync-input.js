@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-var os = require('os');
 
 var spawnSync = require('child_process').spawnSync;
 
