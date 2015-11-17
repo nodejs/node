@@ -87,15 +87,3 @@ ret = spawnSync(process.execPath, args, { encoding: 'utf8' });
 checkSpawnSyncRet(ret);
 assert.strictEqual(ret.stdout, msgOut + '\n');
 assert.strictEqual(ret.stderr, msgErr + '\n');
-
-options = {
-  maxBuffer: 1
-};
-
-ret = spawnSync(process.execPath, args, options);
-
-assert.ok(ret.error, 'maxBuffer should error');
-assert.strictEqual(ret.error.errno, 'ENOBUFS');
-// we can have buffers larger than maxBuffer because underneath we alloc 64k
-// that matches our read sizes
-assert.deepEqual(ret.stdout, msgOutBuf);
