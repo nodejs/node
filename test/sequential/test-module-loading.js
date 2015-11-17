@@ -105,7 +105,7 @@ assert.equal(require('path').dirname(__filename), __dirname);
 console.error('load custom file types with extensions');
 require.extensions['.test'] = function(module, filename) {
   var content = fs.readFileSync(filename).toString();
-  assert.equal('this is custom source\n', content);
+  assert.equal('this is custom source\r\n', content);
   content = content.replace('this is custom source',
                             'exports.test = \'passed\'');
   module._compile(content, filename);
