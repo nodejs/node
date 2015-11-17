@@ -20,14 +20,27 @@ process.nextTick(function() {
   order.push('C');
 });
 
-try {
-  process.nextTick();
-} catch (e) {
-  // should handle this error at try...catch
-  if (!e) {
-    assert.fail();
+assert.throws(
+  function () {
+    process.nextTick
   }
+);
+
+function testNextTickWith(val) {
+  assert.throws(
+    function() {
+      process.nextTick(val);
+    },
+    TypeError
+  );
 }
+
+testNextTickWith(false);
+testNextTickWith(true);
+testNextTickWith(1);
+testNextTickWith('str');
+testNextTickWith({});
+testNextTickWith([]);
 
 process.on('uncaughtException', function() {
   if (!exceptionHandled) {

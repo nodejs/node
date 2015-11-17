@@ -490,7 +490,7 @@
       if (process._exiting)
         return;
       if (typeof callback !== 'function')
-        throw new Error('callback is not a function');
+        throw new TypeError('callback is not a function');
 
       var args;
       if (arguments.length > 1) {
