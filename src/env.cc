@@ -1,6 +1,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "v8.h"
+#include "unistd.h"
 #include <stdio.h>
 
 namespace node {
@@ -20,7 +21,7 @@ void Environment::PrintSyncTrace() const {
   Local<v8::StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
-  fprintf(stderr, "WARNING: Detected use of sync API\n");
+  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n", getpid());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(i);
