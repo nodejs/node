@@ -203,7 +203,8 @@ automatically set as a listener for the [secureConnection][] event.  The
 
   - `dhparam`: DH parameter file to use for DHE key agreement. Use
     `openssl dhparam` command to create it. If the file is invalid to
-    load, it is silently discarded.
+    load, it is silently discarded. Its key length should be greater
+    than or equal to 768 bits, otherwise an error will be thrown.
 
   - `handshakeTimeout`: Abort the connection if the SSL/TLS handshake does not
     finish in this many milliseconds. The default is 120 seconds.

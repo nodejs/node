@@ -95,7 +95,24 @@ function testError() {
   ntests++;
 }
 
+// validate that the server will not allow keys less than
+// 768
+function test512() {
+  var options = {
+    key: key,
+    cert: cert,
+    dhparam: loadDHParam(512)
+  };
+
+  assert.throws(function() {var server = tls.createServer(options)},
+                'Should not be able to create server with key smaller than 768');
+}
+
+// test client/server communication with different key sizes
 test1024();
+
+// test server key length enforcement
+test512();
 
 process.on('exit', function() {
   assert.equal(ntests, nsuccess);

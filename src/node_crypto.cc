@@ -77,6 +77,7 @@ namespace node {
 
 bool SSL2_ENABLE = false;
 bool SSL3_ENABLE = false;
+bool ALLOW_INSECURE_SERVER_DHPARAM = false;
 
 namespace crypto {
 
@@ -784,6 +785,13 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
   if (dh == NULL)
     return;
+
+  if (!ALLOW_INSECURE_SERVER_DHPARAM) {
+    const int keylen = BN_num_bits(dh->p);
+    if (keylen < 768) {
+      return env->ThrowError("DH parameter is less than 768 bits");
+    }
+  }
 
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_DH_USE);
   int r = SSL_CTX_set_tmp_dh(sc->ctx_, dh);
