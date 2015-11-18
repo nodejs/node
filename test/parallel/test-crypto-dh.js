@@ -11,7 +11,7 @@ var crypto = require('crypto');
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
-var dh1 = crypto.createDiffieHellman(1024);
+var dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
 var p1 = dh1.getPrime('buffer');
 var dh2 = crypto.createDiffieHellman(p1, 'buffer');
 var key1 = dh1.generateKeys();
