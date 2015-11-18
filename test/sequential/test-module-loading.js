@@ -279,3 +279,13 @@ process.on('exit', function() {
 // #1440 Loading files with a byte order marker.
 assert.equal(42, require('../fixtures/utf8-bom.js'));
 assert.equal(42, require('../fixtures/utf8-bom.json'));
+
+// #9118 resolution to the wrong module when package.json fails.
+assert.deepEqual({
+  a: {
+    b: 'Could not resolve "main" in ' +
+        path.resolve(__dirname,
+                     '../fixtures/module-require-package/' +
+                     'node_modules/a/node_modules/b/package.json')
+  }
+}, require('../fixtures/module-require-package'));
