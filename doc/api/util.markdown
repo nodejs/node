@@ -260,7 +260,7 @@ Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
       // false
     util.isBoolean(false)
       // true
-      
+
 ## util.isBuffer(object)
 
     Stability: 0 - Deprecated
