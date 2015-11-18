@@ -36,8 +36,8 @@ BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
 EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
-NODE ?= ./node$(EXEEXT)
 NODE_EXE = node$(EXEEXT)
+NODE ?= ./$(NODE_EXE)
 NODE_G_EXE = node_g$(EXEEXT)
 
 # Flags for packaging.
@@ -260,7 +260,9 @@ apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-doc: $(apidoc_dirs) $(apiassets) $(apidocs) tools/doc/ $(NODE_EXE)
+doc-only: $(apidoc_dirs) $(apiassets) $(apidocs) tools/doc/
+
+doc: $(NODE_EXE) doc-only
 
 $(apidoc_dirs):
 	mkdir -p $@
@@ -271,11 +273,11 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 out/doc/%: doc/%
 	cp -r $< $@
 
-out/doc/api/%.json: doc/api/%.md $(NODE_EXE)
+out/doc/api/%.json: doc/api/%.md
 	$(NODE) tools/doc/generate.js --format=json $< > $@
 
-out/doc/api/%.html: doc/api/%.md $(NODE_EXE)
-	$(NODE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
+out/doc/api/%.html: doc/api/%.md
+	$(NODE) tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
@@ -694,5 +696,5 @@ endif
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
 	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
-	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci \
+	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci doc-only \
 	$(TARBALL)-headers
