@@ -24,20 +24,38 @@ function test(statusCode, next) {
   });
 
   server.listen(common.PORT, function() {
-    var conn = net.createConnection(common.PORT, function() {
-      conn.write('GET / HTTP/1.1\r\n\r\n');
+    var conn = net.createConnection(common.PORT);
+    var gotSunOSError = false;
+    var resp = '';
 
-      var resp = '';
+    conn.on('connect', function() {
+      resp = '';
       conn.setEncoding('utf8');
-      conn.on('data', function(data) {
-        resp += data;
-      });
+      gotSunOSError = false;
 
-      conn.on('end', common.mustCall(function() {
+      conn.write('GET / HTTP/1.1\r\n\r\n');
+    });
+
+    conn.on('data', function(data) {
+      resp += data;
+    });
+
+    conn.on('error', function(e) {
+      // Retry if SmartOS and ECONNREFUSED. See
+      // https://github.com/nodejs/node/issues/2663.
+      if (common.isSunOS && (e.code === 'ECONNREFUSED')) {
+        gotSunOSError = true;
+        conn.connect(common.PORT);
+      }
+      console.error('error: %s', e);
+    });
+
+    conn.on('end', common.mustCall(function() {
+      if (!common.isSunOS || !gotSunOSError) {
         assert.equal(/^Connection: close\r\n$/m.test(resp), true);
         assert.equal(/^0\r\n$/m.test(resp), false);
         if (next) process.nextTick(next);
-      }));
-    });
+      }
+    }));
   });
 }
