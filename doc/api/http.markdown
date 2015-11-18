@@ -776,6 +776,10 @@ be called before [response.end()][] is called.
 If you call [response.write()][] or [response.end()][] before calling this, the
 implicit/mutable headers will be calculated and call this function for you.
 
+When headers have been set with `response.setHeader`, they will be merged with
+any headers passed to `request.writeHead`, with the headers passed to
+`request.writeHead` given precedence.
+
 Note that Content-Length is given in bytes not characters. The above example
 works because the string `'hello world'` contains only single byte characters.
 If the body contains higher coded characters then `Buffer.byteLength()`
