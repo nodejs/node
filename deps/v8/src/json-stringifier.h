@@ -82,7 +82,8 @@ class BasicJsonStringifier BASE_EMBEDDED {
   INLINE(Result SerializeJSArray(Handle<JSArray> object));
   INLINE(Result SerializeJSObject(Handle<JSObject> object));
 
-  Result SerializeJSArraySlow(Handle<JSArray> object, uint32_t length);
+  Result SerializeJSArraySlow(Handle<JSArray> object, uint32_t start,
+                              uint32_t length);
 
   void SerializeString(Handle<String> object);
 
@@ -434,8 +435,59 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
   uint32_t length = 0;
   CHECK(object->length()->ToArrayLength(&length));
   builder_.AppendCharacter('[');
-  Result result = SerializeJSArraySlow(object, length);
-  if (result != SUCCESS) return result;
+  switch (object->GetElementsKind()) {
+    case FAST_SMI_ELEMENTS: {
+      Handle<FixedArray> elements(FixedArray::cast(object->elements()),
+                                  isolate_);
+      for (uint32_t i = 0; i < length; i++) {
+        if (i > 0) builder_.AppendCharacter(',');
+        SerializeSmi(Smi::cast(elements->get(i)));
+      }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      // Empty array is FixedArray but not FixedDoubleArray.
+      if (length == 0) break;
+      Handle<FixedDoubleArray> elements(
+          FixedDoubleArray::cast(object->elements()), isolate_);
+      for (uint32_t i = 0; i < length; i++) {
+        if (i > 0) builder_.AppendCharacter(',');
+        SerializeDouble(elements->get_scalar(i));
+      }
+      break;
+    }
+    case FAST_ELEMENTS: {
+      Handle<Object> old_length(object->length(), isolate_);
+      for (uint32_t i = 0; i < length; i++) {
+        if (object->length() != *old_length ||
+            object->GetElementsKind() != FAST_ELEMENTS) {
+          Result result = SerializeJSArraySlow(object, i, length);
+          if (result != SUCCESS) return result;
+          break;
+        }
+        if (i > 0) builder_.AppendCharacter(',');
+        Result result = SerializeElement(
+            isolate_,
+            Handle<Object>(FixedArray::cast(object->elements())->get(i),
+                           isolate_),
+            i);
+        if (result == SUCCESS) continue;
+        if (result == UNCHANGED) {
+          builder_.AppendCString("null");
+        } else {
+          return result;
+        }
+      }
+      break;
+    }
+    // The FAST_HOLEY_* cases could be handled in a faster way. They resemble
+    // the non-holey cases except that a lookup is necessary for holes.
+    default: {
+      Result result = SerializeJSArraySlow(object, 0, length);
+      if (result != SUCCESS) return result;
+      break;
+    }
+  }
   builder_.AppendCharacter(']');
   StackPop();
   return SUCCESS;
@@ -443,8 +495,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
 
 
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
-    Handle<JSArray> object, uint32_t length) {
-  for (uint32_t i = 0; i < length; i++) {
+    Handle<JSArray> object, uint32_t start, uint32_t length) {
+  for (uint32_t i = start; i < length; i++) {
     if (i > 0) builder_.AppendCharacter(',');
     Handle<Object> element;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
