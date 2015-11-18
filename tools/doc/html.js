@@ -30,7 +30,12 @@ var gtocPath = path.resolve(path.join(
 var gtocLoading = null;
 var gtocData = null;
 
-function toHTML(input, filename, template, cb) {
+/**
+ * opts: input, filename, template, nodeVersion.
+ */
+function toHTML(opts, cb) {
+  var template = opts.template;
+
   if (gtocData) {
     return onGtocLoaded();
   }
@@ -51,10 +56,15 @@ function toHTML(input, filename, template, cb) {
   }
 
   function onGtocLoaded() {
-    var lexed = marked.lexer(input);
+    var lexed = marked.lexer(opts.input);
     fs.readFile(template, 'utf8', function(er, template) {
       if (er) return cb(er);
-      render(lexed, filename, template, cb);
+      render({
+        lexed: lexed,
+        filename: opts.filename,
+        template: template,
+        nodeVersion: opts.nodeVersion,
+      }, cb);
     });
   }
 }
@@ -81,7 +91,14 @@ function toID(filename) {
     .replace(/-+/g, '-');
 }
 
-function render(lexed, filename, template, cb) {
+/**
+ * opts: lexed, filename, template, nodeVersion.
+ */
+function render(opts, cb) {
+  var lexed = opts.lexed;
+  var filename = opts.filename;
+  var template = opts.template;
+
   // get the section
   var section = getSection(lexed);
 
@@ -100,7 +117,7 @@ function render(lexed, filename, template, cb) {
     template = template.replace(/__ID__/g, id);
     template = template.replace(/__FILENAME__/g, filename);
     template = template.replace(/__SECTION__/g, section);
-    template = template.replace(/__VERSION__/g, process.version);
+    template = template.replace(/__VERSION__/g, opts.nodeVersion);
     template = template.replace(/__TOC__/g, toc);
     template = template.replace(
       /__GTOC__/g,
