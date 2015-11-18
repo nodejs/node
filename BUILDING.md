@@ -67,9 +67,19 @@ $ make test-npm
 
 To build the documentation:
 
+This will build Node.js first (if necessary) and then use it to build the docs:
+
 ```text
 $ make doc
 ```
+
+If you have an existing Node.js you can build just the docs with:
+
+```text
+$ NODE=node make doc-only
+```
+
+(Where `node` is the path to your executable.)
 
 To read the documentation:
 
