@@ -260,7 +260,23 @@ then a buffer is returned.
 
 Sets the EC Diffie-Hellman private key. Key encoding can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
-expected.
+expected. If `private_key` is not valid for the curve specified when
+the ECDH object was created, then an error is thrown. Upon setting
+the private key, the associated public point (key) is also generated
+and set in the ECDH object.
+
+### ECDH.setPublicKey(public_key[, encoding])
+
+    Stability: 0 - Deprecated
+
+Sets the EC Diffie-Hellman public key. Key encoding can be `'binary'`,
+`'hex'` or `'base64'`. If no encoding is provided, then a buffer is
+expected. Note that there is not normally a reason to call this
+method. This is because ECDH only needs your private key and the
+other party's public key to compute the shared secret. Thus, usually
+either `generateKeys` or `setPrivateKey` will be called.
+Note that `setPrivateKey` attempts to generate the public point/key
+associated with the private key being set.
 
 Example (obtaining a shared secret):
 
@@ -268,20 +284,21 @@ Example (obtaining a shared secret):
     var alice = crypto.createECDH('secp256k1');
     var bob = crypto.createECDH('secp256k1');
 
-    alice.generateKeys();
+    // Note: This is a shortcut way to specify one of Alice's previous private
+    // keys. It would be unwise to use such a predictable private key in a real
+    // application.
+    alice.setPrivateKey(
+      crypto.createHash('sha256').update('alice', 'utf8').digest()
+    );
+
+    // Bob uses a newly generated cryptographically strong pseudorandom key pair
     bob.generateKeys();
 
     var alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
     var bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 
-    /* alice_secret and bob_secret should be the same */
-    console.log(alice_secret == bob_secret);
-
-### ECDH.setPublicKey(public_key[, encoding])
-
-Sets the EC Diffie-Hellman public key. Key encoding can be `'binary'`,
-`'hex'` or `'base64'`. If no encoding is provided, then a buffer is
-expected.
+    // alice_secret and bob_secret should be the same shared secret value
+    console.log(alice_secret === bob_secret);
 
 ## Class: Hash
 
@@ -760,6 +777,17 @@ use.  To switch to the previous style of using binary strings by
 default, set the `crypto.DEFAULT_ENCODING` field to 'binary'.  Note
 that new programs will probably expect buffers, so only use this as a
 temporary measure.
+
+Usage of `ECDH` with non-dynamically generated key pairs has been simplified.
+Now, `setPrivateKey` can be called with a preselected private key and the
+associated public point (key) will be computed and stored in the object.
+This allows you to only store and provide the private part of the EC key pair.
+`setPrivateKey` now also validates that the private key is valid for the curve.
+`ECDH.setPublicKey` is now deprecated as its inclusion in the API is not
+useful. Either a previously stored private key should be set, which
+automatically generates the associated public key, or `generateKeys` should be
+called. The main drawback of `ECDH.setPublicKey` is that it can be used to put
+the ECDH key pair into an inconsistent state.
 
 ## Caveats
 
