@@ -29,9 +29,13 @@ back in to the TSC.
 * [Addon API](#addon-api)
 * [Benchmarking](#benchmarking)
 * [Post-mortem](#post-mortem)
+* [Intl](#intl)
+* [HTTP](#http)
+
+#### Process:
+
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
-* [Intl](#Intl)
 
 ### [Website](https://github.com/nodejs/website)
 
@@ -170,6 +174,19 @@ Their responsibilities are:
 * Publishing regular update summaries and other promotional
 content.
 
+### [HTTP](https://github.com/nodejs/http)
+
+The HTTP working group is chartered for the support and improvement of the
+HTTP implementation in Node. It's responsibilities are:
+
+* Addressing HTTP issues on the Node.js issue tracker.
+* Authoring and editing HTTP documentation within the Node.js project.
+* Reviewing changes to HTTP functionality within the Node.js project.
+* Working with the ecosystem of HTTP related module developers to evolve the
+  HTTP implementation and APIs in core.
+* Advising the CTC on all HTTP related issues and discussions.
+* Messaging about the future of HTTP to give the community advance notice of
+  changes.
 
 ### [Roadmap](https://github.com/nodejs/roadmap)
 
