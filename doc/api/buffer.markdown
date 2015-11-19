@@ -882,7 +882,8 @@ to `false`.
 * Number, Default: 50
 
 How many bytes will be returned when `buffer.inspect()` is called. This can
-be overridden by user modules.
+be overridden by user modules. See [util.inspect()][] for more details on
+`buffer.inspect()` behavior.
 
 Note that this is a property on the buffer module returned by
 `require('buffer')`, not on the Buffer global, or a buffer instance.
@@ -933,3 +934,4 @@ has actively observed undue memory retention in their applications.
 
 [`buf1.compare(buf2)`]: #buffer_buf_compare_otherbuffer
 [Array#indexOf()]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
+[util.inspect()]: util.html#util_util_inspect_object_options
