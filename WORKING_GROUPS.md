@@ -29,8 +29,8 @@ back in to the TSC.
 * [Addon API](#addon-api)
 * [Benchmarking](#benchmarking)
 * [Post-mortem](#post-mortem)
-* [Intl](#Intl)
-* [HTTP](#HTTP)
+* [Intl](#intl)
+* [HTTP](#http)
 
 #### Process:
 
