@@ -615,13 +615,13 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("dest path required");
-  if (len < 2)
     return TYPE_ERROR("src path required");
+  if (len < 2)
+    return TYPE_ERROR("dest path required");
   if (!args[0]->IsString())
-    return TYPE_ERROR("dest path must be a string");
-  if (!args[1]->IsString())
     return TYPE_ERROR("src path must be a string");
+  if (!args[1]->IsString())
+    return TYPE_ERROR("dest path must be a string");
 
   node::Utf8Value orig_path(env->isolate(), args[0]);
   node::Utf8Value new_path(env->isolate(), args[1]);
