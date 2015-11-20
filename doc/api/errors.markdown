@@ -469,7 +469,7 @@ often a sign that a connected socket was not `.end()`'d appropriately.
 
 [Error]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
 [below]: #errors_error_propagation_and_interception
-[fs.readFileSync]: fs.html#fs_fs_readfilesync_filename_options
+[fs.readFileSync]: fs.html#fs_fs_readfilesync_file_options
 [stream-based]: stream.html
 [event emitter-based]: events.html#events_class_events_eventemitter
 [domains]: domain.html
