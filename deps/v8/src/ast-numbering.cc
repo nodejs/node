@@ -530,7 +530,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   Scope* scope = node->scope();
 
   if (scope->HasIllegalRedeclaration()) {
-    scope->VisitIllegalRedeclaration(this);
+    Visit(scope->GetIllegalRedeclaration());
     DisableOptimization(kFunctionWithIllegalRedeclaration);
     return Finish(node);
   }

@@ -191,9 +191,9 @@ class Scope: public ZoneObject {
   // the additional requests will be silently ignored.
   void SetIllegalRedeclaration(Expression* expression);
 
-  // Visit the illegal redeclaration expression. Do not call if the
+  // Retrieve the illegal redeclaration expression. Do not call if the
   // scope doesn't have an illegal redeclaration node.
-  void VisitIllegalRedeclaration(AstVisitor* visitor);
+  Expression* GetIllegalRedeclaration();
 
   // Check if the scope has (at least) one illegal redeclaration.
   bool HasIllegalRedeclaration() const { return illegal_redecl_ != NULL; }
