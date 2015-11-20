@@ -650,4 +650,4 @@ the worker's unique id is the easiest way to find the worker.
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [ChildProcess.send()]: child_process.html#child_process_child_send_message_sendhandle_callback
 [child_process event: 'exit']: child_process.html#child_process_event_exit
-[child_process event: 'message']: child_process.html#child_process_event_message.
+[child_process event: 'message']: child_process.html#child_process_event_message

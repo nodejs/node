@@ -920,7 +920,7 @@ Example:
 [BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [crypto.getCurves()]: crypto.html#crypto_crypto_getcurves
 [tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
-[tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized
+[tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [tls.TLSSocket]: #tls_class_tls_tlssocket
 [net.Server]: net.html#net_class_net_server
 [net.Socket]: net.html#net_class_net_socket
