@@ -7,8 +7,9 @@ const os = require('os');
 // when it fails test again under real OS tmp dir on Linux when it is
 // readable/writable to avoid failing tests on ecryptfs filesystems:
 // https://github.com/nodejs/node/issues/2255
-// it takes into account comments in:
+// it follows advice in comments to:
 // https://github.com/nodejs/node/pull/3925
+// https://github.com/nodejs/node/pull/3929
 try {
   common.refreshTmpDir();
   testRequireLongPath(common.tmpDir);
@@ -16,8 +17,8 @@ try {
 } catch (e) {
   if (os.type() == 'Linux') {
     fs.accessSync(os.tmpdir(), fs.R_OK | fs.W_OK);
-    var tmpDir = path.join(os.tmpdir(),
-      'node-' + process.version + '-test-' + (Math.random() * 1e6 | 0));
+    const tmpDir = path.join(os.tmpdir(),
+      `node-${process.version}-test-${1e6 * Math.random() | 0}`);
     fs.mkdirSync(tmpDir);
     testRequireLongPath(tmpDir);
     fs.rmdirSync(tmpDir);
