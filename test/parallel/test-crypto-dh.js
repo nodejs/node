@@ -58,7 +58,7 @@ assert.equal(secret1, secret3);
 
 // Run this one twice to make sure that the dh3 clears its error properly
 (function() {
-  var c = crypto.createDecipher('aes-128-ecb', '');
+  var c = crypto.createDecipheriv('aes-128-ecb', crypto.randomBytes(16), '');
   assert.throws(function() { c.final('utf8'); }, /wrong final block length/);
 })();
 
@@ -67,7 +67,7 @@ assert.throws(function() {
 }, /key is too small/i);
 
 (function() {
-  var c = crypto.createDecipher('aes-128-ecb', '');
+  var c = crypto.createDecipheriv('aes-128-ecb', crypto.randomBytes(16), '');
   assert.throws(function() { c.final('utf8'); }, /wrong final block length/);
 })();
 
