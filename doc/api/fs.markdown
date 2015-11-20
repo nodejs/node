@@ -364,10 +364,10 @@ non-existent.
 
 ## fs.existsSync(path)
 
+    Stability: 0 - Deprecated: Use [fs.statSync][] or [fs.accessSync][] instead.
+
 Synchronous version of [`fs.exists`][].
 Returns `true` if the file exists, `false` otherwise.
-
-    Stability: 0 - Deprecated: Use [fs.statSync][] or [fs.accessSync][] instead.
 
 ## fs.fchmod(fd, mode, callback)
 
