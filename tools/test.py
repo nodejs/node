@@ -138,6 +138,13 @@ class ProgressIndicator(object):
       try:
         start = datetime.now()
         output = case.Run()
+        # SmartOS has a bug that causes unexpected ECONNREFUSED errors.
+        # See https://smartos.org/bugview/OS-2767
+        # If ECONNREFUSED on SmartOS, retry the test one time.
+        if (output.UnexpectedOutput() and
+          sys.platform == 'sunos5' and
+          'ECONNREFUSED' in output.output.stderr):
+            output = case.Run()
         case.duration = (datetime.now() - start)
       except IOError, e:
         return
