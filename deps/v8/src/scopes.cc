@@ -565,9 +565,9 @@ void Scope::SetIllegalRedeclaration(Expression* expression) {
 }
 
 
-void Scope::VisitIllegalRedeclaration(AstVisitor* visitor) {
+Expression* Scope::GetIllegalRedeclaration() {
   DCHECK(HasIllegalRedeclaration());
-  illegal_redecl_->Accept(visitor);
+  return illegal_redecl_;
 }
 
 
