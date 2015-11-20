@@ -360,7 +360,7 @@ Decompress a raw Buffer with Unzip.
 [content-encoding]: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [zlib documentation]: http://zlib.net/manual.html#Constants
-[options]: #zlib_options
+[options]: #zlib_class_options
 [Deflate]: #zlib_class_zlib_deflate
 [DeflateRaw]: #zlib_class_zlib_deflateraw
 [Gunzip]: #zlib_class_zlib_gunzip
