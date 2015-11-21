@@ -145,6 +145,7 @@ class ProgressIndicator(object):
           sys.platform == 'sunos5' and
           'ECONNREFUSED' in output.output.stderr):
             output = case.Run()
+            output.diagnostic.append('ECONNREFUSED received, test retried')
         case.duration = (datetime.now() - start)
       except IOError, e:
         return
@@ -255,6 +256,10 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 
 class TapProgressIndicator(SimpleProgressIndicator):
 
+  def _printDiagnostic(self, messages):
+    for l in messages.splitlines():
+      logger.info('# ' + l)
+
   def Starting(self):
     logger.info('1..%i' % len(self.cases))
     self._done = 0
@@ -270,14 +275,13 @@ class TapProgressIndicator(SimpleProgressIndicator):
       if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
         status_line = status_line + ' # TODO : Fix flaky test'
       logger.info(status_line)
+      self._printDiagnostic("\n".join(output.diagnostic))
 
       if output.HasTimedOut():
-        logger.info('# TIMEOUT')
+        self._printDiagnostic('TIMEOUT')
 
-      for l in output.output.stderr.splitlines():
-        logger.info('#' + l)
-      for l in output.output.stdout.splitlines():
-        logger.info('#' + l)
+      self._printDiagnostic(output.output.stderr)
+      self._printDiagnostic(output.output.stdout)
     else:
       skip = skip_regex.search(output.output.stdout)
       if skip:
@@ -288,6 +292,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
         if FLAKY in output.test.outcomes:
           status_line = status_line + ' # TODO : Fix flaky test'
         logger.info(status_line)
+      self._printDiagnostic("\n".join(output.diagnostic))
 
     duration = output.test.duration
 
@@ -490,6 +495,7 @@ class TestOutput(object):
     self.command = command
     self.output = output
     self.store_unexpected_output = store_unexpected_output
+    self.diagnostic = []
 
   def UnexpectedOutput(self):
     if self.HasCrashed():
