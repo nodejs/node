@@ -1,12 +1,13 @@
-net = require('net');
-connections = 0;
+'use strict';
 
+const net = require('net');
+var connections = 0;
 var errors = 0;
 
-server = net.Server(function (socket) {
+var server = net.Server(function (socket) {
 
   socket.on('error', function () {
-    errors++; 
+    errors++;
   });
 
 });
@@ -28,4 +29,3 @@ setInterval(function () {
     console.log("SERVER %d errors: %d", process.pid, errors);
   }
 }, 1000);
-
