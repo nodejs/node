@@ -48,6 +48,7 @@ const server = http.createServer(function(req, res) {
 });
 
 server.listen(common.PORT, common.mustCall(function() {
+  var count = 0;
   for (let n = 1; n <= 2 ; n++) {
     // this runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. The
@@ -58,7 +59,7 @@ server.listen(common.PORT, common.mustCall(function() {
     http.get(
       {port:common.PORT, headers:{'x-num': n}},
       common.mustCall(function(res) {
-        if (n == 2) server.close();
+        if (++ count === 2) server.close();
         assert.equal(res.headers['content-length'], 1);
         for (const name of norepeat) {
           assert.equal(res.headers[name], 'A');
