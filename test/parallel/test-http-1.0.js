@@ -13,10 +13,7 @@ function test(handler, request_generator, response_validator) {
   var server = http.createServer(handler);
 
   var client_got_eof = false;
-  var server_response = {
-    data: '',
-    chunks: []
-  };
+  var server_response = '';
 
   function cleanup() {
     server.close();
@@ -36,8 +33,7 @@ function test(handler, request_generator, response_validator) {
     });
 
     c.on('data', function(chunk) {
-      server_response.data += chunk;
-      server_response.chunks.push(chunk);
+      server_response += chunk;
     });
 
     c.on('end', function() {
@@ -65,7 +61,7 @@ function test(handler, request_generator, response_validator) {
   }
 
   function response_validator(server_response, client_got_eof, timed_out) {
-    var m = server_response.data.split('\r\n\r\n');
+    var m = server_response.split('\r\n\r\n');
     assert.equal(m[1], body);
     assert.equal(true, client_got_eof);
     assert.equal(false, timed_out);
@@ -107,8 +103,7 @@ function test(handler, request_generator, response_validator) {
         '\r\n' +
         'Hello, world!');
 
-    assert.equal(expected_response, server_response.data);
-    assert.equal(1, server_response.chunks.length);
+    assert.equal(expected_response, server_response);
     assert.equal(true, client_got_eof);
     assert.equal(false, timed_out);
   }
@@ -151,8 +146,7 @@ function test(handler, request_generator, response_validator) {
         '0\r\n' +
         '\r\n');
 
-    assert.equal(expected_response, server_response.data);
-    assert.equal(1, server_response.chunks.length);
+    assert.equal(expected_response, server_response);
     assert.equal(true, client_got_eof);
     assert.equal(false, timed_out);
   }
