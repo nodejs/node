@@ -493,6 +493,9 @@ bench-url: all
 bench-events: all
 	@$(NODE) benchmark/common.js events
 
+bench-util: all
+	@$(NODE) benchmark/common.js util
+
 bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events
 
 bench: bench-net bench-http bench-fs bench-tls
