@@ -35,8 +35,8 @@ var server = tls.createServer(options, function(conn) {
       rejectUnauthorized: false
     }, function() {
       ciphers.push(rsa.getCipher());
-      ecdsa.destroy();
-      rsa.destroy();
+      ecdsa.end();
+      rsa.end();
       server.close();
     });
   });
