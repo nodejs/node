@@ -33,8 +33,8 @@ server.listen(options.port, options.host, function() {
   setTimeout(function() {
     req.destroy();
     assert.equal(timeout_events, 1);
-  }, 100);
+  }, common.platformTimeout(100));
   setTimeout(function() {
     req.end();
-  }, 50);
+  }, common.platformTimeout(50));
 });
