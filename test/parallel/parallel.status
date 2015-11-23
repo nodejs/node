@@ -10,7 +10,6 @@ prefix parallel
 test-tls-ticket-cluster           : PASS,FLAKY
 
 [$system==linux]
-test-cluster-worker-forced-exit   : PASS,FLAKY
 test-http-client-timeout-event    : PASS,FLAKY
 test-child-process-buffering      : PASS,FLAKY
 test-child-process-exit-code      : PASS,FLAKY
