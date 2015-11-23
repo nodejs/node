@@ -1,56 +1,39 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var disposalFailed = false;
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
 
-// no matter what happens, we should increment a 10 times.
-var a = 0;
-log();
-function log() {
-  console.log(a++, process.domain);
-  if (a < 10) setTimeout(log, 20);
-}
-
-var secondTimerRan = false;
-
-// in 50ms we'll throw an error.
+// Use the same timeout value so that both timers' callbacks are called during
+// the same invocation of the underlying native timer's callback (listOnTimeout
+// in lib/timers.js).
 setTimeout(err, 50);
-setTimeout(secondTimer, 50);
+setTimeout(common.mustCall(secondTimer), 50);
+
 function err() {
-  var d = domain.create();
-  d.on('error', handle);
+  const d = domain.create();
+  d.on('error', handleDomainError);
   d.run(err2);
 
   function err2() {
-    // this timeout should never be called, since the domain gets
-    // disposed when the error happens.
-    setTimeout(function() {
-      console.error('This should not happen.');
-      disposalFailed = true;
-      process.exit(1);
-    });
-
     // this function doesn't exist, and throws an error as a result.
     err3();
   }
 
-  function handle(e) {
-    // this should clean up everything properly.
-    d.dispose();
-    console.error(e);
-    console.error('in handler', process.domain, process.domain === d);
+  function handleDomainError(e) {
+    // In the domain's error handler, the current active domain should be the
+    // domain within which the error was thrown.
+    assert.equal(process.domain, d);
   }
 }
 
 function secondTimer() {
-  console.log('In second timer');
-  secondTimerRan = true;
+  // secondTimer was scheduled before any domain had been created, so its
+  // callback should not have any active domain set when it runs.
+  // Do not use assert here, as it throws errors and if a domain with an error
+  // handler is active, then asserting wouldn't make the test fail.
+  if (process.domain !== null) {
+    console.log('process.domain should be null, but instead is:',
+      process.domain);
+    process.exit(1);
+  }
 }
-
-process.on('exit', function() {
-  assert.equal(a, 10);
-  assert.equal(disposalFailed, false);
-  assert(secondTimerRan);
-  console.log('ok');
-});
