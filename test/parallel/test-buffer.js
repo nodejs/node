@@ -1027,6 +1027,26 @@ assert.equal(buf.readInt8(0), -1);
   assert.deepEqual(buf.toJSON().data, [0xed, 0xcb, 0xaa]);
   assert.equal(buf.readIntBE(0, 3), -0x123456);
 
+  buf = new Buffer(3);
+  buf.writeIntLE(-0x123400, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0x00, 0xcc, 0xed]);
+  assert.equal(buf.readIntLE(0, 3), -0x123400);
+
+  buf = new Buffer(3);
+  buf.writeIntBE(-0x123400, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0xed, 0xcc, 0x00]);
+  assert.equal(buf.readIntBE(0, 3), -0x123400);
+
+  buf = new Buffer(3);
+  buf.writeIntLE(-0x120000, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0x00, 0x00, 0xee]);
+  assert.equal(buf.readIntLE(0, 3), -0x120000);
+
+  buf = new Buffer(3);
+  buf.writeIntBE(-0x120000, 0, 3);
+  assert.deepEqual(buf.toJSON().data, [0xee, 0x00, 0x00]);
+  assert.equal(buf.readIntBE(0, 3), -0x120000);
+
   buf = new Buffer(5);
   buf.writeUIntLE(0x1234567890, 0, 5);
   assert.deepEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
@@ -1056,6 +1076,16 @@ assert.equal(buf.readInt8(0), -1);
   buf.writeIntBE(-0x1234567890, 0, 5);
   assert.deepEqual(buf.toJSON().data, [0xed, 0xcb, 0xa9, 0x87, 0x70]);
   assert.equal(buf.readIntBE(0, 5), -0x1234567890);
+
+  buf = new Buffer(5);
+  buf.writeIntLE(-0x0012000000, 0, 5);
+  assert.deepEqual(buf.toJSON().data, [0x00, 0x00, 0x00, 0xee, 0xff]);
+  assert.equal(buf.readIntLE(0, 5), -0x0012000000);
+
+  buf = new Buffer(5);
+  buf.writeIntBE(-0x0012000000, 0, 5);
+  assert.deepEqual(buf.toJSON().data, [0xff, 0xee, 0x00, 0x00, 0x00]);
+  assert.equal(buf.readIntBE(0, 5), -0x0012000000);
 })();
 
 // test Buffer slice
