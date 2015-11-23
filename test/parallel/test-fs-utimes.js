@@ -23,7 +23,7 @@ function check_mtime(resource, mtime) {
   var real_mtime = fs._toUnixTimestamp(stats.mtime);
   // check up to single-second precision
   // sub-second precision is OS and fs dependant
-  return Math.floor(mtime) == Math.floor(real_mtime);
+  return mtime - real_mtime < 2;
 }
 
 function expect_errno(syscall, resource, err, errno) {
