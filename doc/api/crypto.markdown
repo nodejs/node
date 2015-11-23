@@ -620,9 +620,16 @@ Asynchronous PBKDF2 function.  Applies the selected HMAC digest function
 salt and number of iterations.  The callback gets two arguments:
 `(err, derivedKey)`.
 
+The number of iterations passed to pbkdf2 should be as high as possible, the
+higher the number, the more secure it will be, but will take a longer amount of
+time to complete.
+
+Chosen salts should also be unique. It is recommended that the salts are random
+and their length is greater than 16 bytes. See NIST 800-132 for details.
+
 Example:
 
-    crypto.pbkdf2('secret', 'salt', 4096, 64, 'sha256', function(err, key) {
+    crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', function(err, key) {
       if (err)
         throw err;
       console.log(key.toString('hex'));  // 'c5e478d...1469e50'
