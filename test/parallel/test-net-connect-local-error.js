@@ -1,21 +1,15 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 var client = net.connect({
   port: common.PORT + 1,
   localPort: common.PORT,
-  localAddress: '127.0.0.1'
+  localAddress: common.localhostIPv4
 });
 
-var onErrorCalled = false;
-client.on('error', function(err) {
+client.on('error', common.mustCall(function onError(err) {
   assert.equal(err.localPort, common.PORT);
-  assert.equal(err.localAddress, '127.0.0.1');
-  onErrorCalled = true;
-});
-
-process.on('exit', function() {
-  assert.ok(onErrorCalled);
-});
+  assert.equal(err.localAddress, common.localhostIPv4);
+}));
