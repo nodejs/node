@@ -147,7 +147,7 @@ $ man doc/node.1
 To test if Node.js was built correctly:
 
 ```
-$ node -e "console.log('Hello from node.js ' + process.version)"
+$ node -e "console.log('Hello from Node.js ' + process.version)"
 ```
 
 ### Windows
@@ -174,7 +174,7 @@ To run the tests:
 To test if Node.js was built correctly:
 
 ```
-$ node -e "console.log('Hello from node.js ' + process.version)"
+$ node -e "console.log('Hello from Node.js ' + process.version)"
 ```
 
 ### Android / Android based devices, aka. Firefox OS
@@ -350,7 +350,7 @@ Instructions:
 
 ## Security
 
-All security bugs in node.js are taken seriously and should be reported by
+All security bugs in Node.js are taken seriously and should be reported by
 emailing security@nodejs.org. This will be delivered to a subset of the project
 team who handle security issues. Please don't disclose security bugs
 publicly until they have been handled by the security team.
