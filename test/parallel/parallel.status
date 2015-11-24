@@ -19,4 +19,3 @@ test-child-process-exit-code      : PASS,FLAKY
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
-test-net-socket-local-address     : PASS,FLAKY
