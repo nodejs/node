@@ -1,24 +1,30 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+
+// skip test in FreeBSD jails
+if (common.inFreeBSDJail) {
+  console.log('1..0 # Skipped: In a FreeBSD jail');
+  return;
+}
 
 var conns = 0;
 var clientLocalPorts = [];
 var serverRemotePorts = [];
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   serverRemotePorts.push(socket.remotePort);
   conns++;
 });
 
-var client = new net.Socket();
+const client = new net.Socket();
 
-server.on('close', function() {
+server.on('close', common.mustCall(function() {
   assert.deepEqual(clientLocalPorts, serverRemotePorts,
                    'client and server should agree on the ports used');
   assert.equal(2, conns);
-});
+}));
 
 server.listen(common.PORT, common.localhostIPv4, testConnect);
 
