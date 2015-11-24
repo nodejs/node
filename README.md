@@ -353,7 +353,7 @@ Instructions:
 All security bugs in node.js are taken seriously and should be reported by
 emailing security@nodejs.org. This will be delivered to a subset of the project
 team who handle security issues. Please don't disclose security bugs
-public until they have been handled by the security team.
+publicly until they have been handled by the security team.
 
 Your email will be acknowledged within 24 hours, and you’ll receive a more
 detailed response to your email within 48 hours indicating the next steps in
