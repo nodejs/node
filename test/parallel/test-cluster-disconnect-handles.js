@@ -33,6 +33,7 @@ if (cluster.isMaster) {
   worker.on('message', common.mustCall(message => {
     assert.strictEqual(Array.isArray(message), true);
     assert.strictEqual(message[0], 'listening');
+    let continueRecv = false;
     const address = message[1];
     const host = address.address;
     const debugClient = net.connect({ host, port: common.PORT });
@@ -41,13 +42,25 @@ if (cluster.isMaster) {
     debugClient.on('data', data => protocol.execute(data));
     debugClient.once('connect', common.mustCall(() => {
       protocol.onResponse = common.mustCall(res => {
-        protocol.onResponse = () => {};
+        protocol.onResponse = (res) => {
+          // It can happen that the first continue was sent before the break
+          // event was received. If that's the case, send also a continue from
+          // here so the worker exits
+          if (res.body.command === 'continue') {
+            continueRecv = true;
+          } else if (res.body.event === 'break' && continueRecv) {
+            const req = protocol.serialize({ command: 'continue' });
+            debugClient.write(req);
+          }
+        };
         const conn = net.connect({ host, port: address.port });
         conn.once('connect', common.mustCall(() => {
           conn.destroy();
           assert.notDeepStrictEqual(handles, {});
           worker.disconnect();
           assert.deepStrictEqual(handles, {});
+          // Always send the continue, as the break event might have already
+          // been received.
           const req = protocol.serialize({ command: 'continue' });
           debugClient.write(req);
         }));
