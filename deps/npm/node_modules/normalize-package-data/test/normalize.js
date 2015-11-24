@@ -2,8 +2,6 @@ var tap = require("tap")
 var fs = require("fs")
 var path = require("path")
 
-var globals = Object.keys(global)
-
 var normalize = require("../lib/normalize")
 var warningMessages = require("../lib/warning_messages.json")
 var safeFormat = require("../lib/safe_format")
@@ -244,10 +242,5 @@ tap.test("deprecation warning for array in dependencies fields", function(t) {
   t.ok(~warnings.indexOf(safeFormat(warningMessages.deprecatedArrayDependencies, 'dependencies')), "deprecation warning")
   t.ok(~warnings.indexOf(safeFormat(warningMessages.deprecatedArrayDependencies, 'devDependencies')), "deprecation warning")
   t.ok(~warnings.indexOf(safeFormat(warningMessages.deprecatedArrayDependencies, 'optionalDependencies')), "deprecation warning")
-  t.end()
-})
-
-tap.test('no new globals', function(t) {
-  t.same(Object.keys(global), globals)
   t.end()
 })

@@ -26,8 +26,8 @@ test("npm version in a prefix with no package.json", function(t) {
         var metadata = JSON.parse(stdout)
         t.equal(metadata.node, process.versions.node, "node versions match")
 
-        t.end()
       }, "able to reconstitute version object from stdout")
+      t.end()
     }
   )
 })

@@ -1,5 +1,20 @@
 ## Change Log
 
+### v2.65.0 (2015/10/11)
+- [#1833](https://github.com/request/request/pull/1833) Update aws-sign2 to version 0.6.0 🚀 (@greenkeeperio-bot)
+- [#1811](https://github.com/request/request/pull/1811) Enable loose cookie parsing in tough-cookie (@Sebmaster)
+- [#1830](https://github.com/request/request/pull/1830) Bring back tilde ranges for all dependencies (@simov)
+- [#1821](https://github.com/request/request/pull/1821) Implement support for RFC 2617 MD5-sess algorithm. (@BigDSK)
+- [#1828](https://github.com/request/request/pull/1828) Updated qs dependency to 5.2.0 (@acroca)
+- [#1818](https://github.com/request/request/pull/1818) Extract `readResponseBody` method out of `onRequestResponse` (@pvoisin)
+- [#1819](https://github.com/request/request/pull/1819) Run stringify once (@mgenereu)
+- [#1814](https://github.com/request/request/pull/1814) Updated har-validator to version 2.0.2 (@greenkeeperio-bot)
+- [#1807](https://github.com/request/request/pull/1807) Updated tough-cookie to version 2.1.0 (@greenkeeperio-bot)
+- [#1800](https://github.com/request/request/pull/1800) Add caret ranges for devDependencies, except eslint (@simov)
+- [#1799](https://github.com/request/request/pull/1799) Updated karma-browserify to version 4.4.0 (@greenkeeperio-bot)
+- [#1797](https://github.com/request/request/pull/1797) Updated tape to version 4.2.0 (@greenkeeperio-bot)
+- [#1788](https://github.com/request/request/pull/1788) Pinned all dependencies (@greenkeeperio-bot)
+
 ### v2.64.0 (2015/09/25)
 - [#1787](https://github.com/request/request/pull/1787) npm ignore examples, release.sh and disabled.appveyor.yml (@thisconnect)
 - [#1775](https://github.com/request/request/pull/1775) Fix typo in README.md (@djchie)
