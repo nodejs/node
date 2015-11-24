@@ -21,4 +21,3 @@ test-child-process-exit-code      : PASS,FLAKY
 test-debug-signal-cluster         : PASS,FLAKY
 
 [$system==freebsd]
-test-net-socket-local-address     : PASS,FLAKY
