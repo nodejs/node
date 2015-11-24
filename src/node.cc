@@ -3163,6 +3163,7 @@ static void EnableDebug(Environment* env) {
 
 // Called from the main thread.
 static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
+  HandleScope scope(node_isolate);
   if (debugger_running == false) {
     fprintf(stderr, "Starting debugger agent.\n");
 
