@@ -25,11 +25,7 @@ HTTP API is very low-level. It deals with stream handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
-Defined headers that allow multiple values are concatenated with a `,`
-character, except for the `set-cookie` and `cookie` headers which are
-represented as an array of values.  Headers such as `content-length`
-which can only have a single value are parsed accordingly, and only a
-single value is represented on the parsed object.
+See [message.headers][] for details on how duplicate headers are handled.
 
 The raw headers as they were received are retained in the `rawHeaders`
 property, which is an array of `[key, value, key2, value2, ...]`.  For
@@ -1083,6 +1079,7 @@ There are a few special headers that should be noted.
 * Sending an Authorization header will override using the `auth` option
   to compute basic authentication.
 
+[message.headers][]: #http_message_headers
 [constructor options]: #http_new_agent_options
 [`destroy()`]: #http_agent_destroy
 ['checkContinue']: #http_event_checkcontinue
