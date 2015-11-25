@@ -94,6 +94,7 @@ done
 /usr/include/*
 /usr/lib/node_modules/
 /usr/share/doc/node/gdbinit
+/usr/share/doc/node/tick-processor
 /usr/share/man/man1/node.1.gz
 /usr/share/systemtap/tapset/node.stp
 %{_datadir}/%{name}/
@@ -101,6 +102,9 @@ done
 
 
 %changelog
+* Tue Sep 22 2015 Matt Loring <mattloring@google.com>
+- Added tick processor.
+
 * Tue Jul 7 2015 Ali Ijaz Sheikh <ofrobots@google.com>
 - Added gdbinit.
 
