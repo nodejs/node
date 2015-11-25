@@ -20,23 +20,8 @@ process.on('exit', function() {
   assert.strictEqual(referenceErrors, expectedReferenceErrors);
 });
 
-// A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function(data) {
-    var self = this;
-    data.forEach(function(line) {
-      self.emit('data', line + '\n');
-    });
-  };
-}
-util.inherits(ArrayStream, require('stream').Stream);
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function() {};
-ArrayStream.prototype.write = function() {};
-
 var works = [['inner.one'], 'inner.o'];
-var putIn = new ArrayStream();
+const putIn = new common.ArrayStream();
 var testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback
