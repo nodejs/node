@@ -1,18 +1,19 @@
+// Flags: --expose_internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const util = require('util');
+const internalUtil = require('internal/util');
 
 assert.doesNotThrow(function() {
-  util.decorateErrorStack();
-  util.decorateErrorStack(null);
-  util.decorateErrorStack(1);
-  util.decorateErrorStack(true);
+  internalUtil.decorateErrorStack();
+  internalUtil.decorateErrorStack(null);
+  internalUtil.decorateErrorStack(1);
+  internalUtil.decorateErrorStack(true);
 });
 
 // Verify that a stack property is not added to non-Errors
 const obj = {};
-util.decorateErrorStack(obj);
+internalUtil.decorateErrorStack(obj);
 assert.strictEqual(obj.stack, undefined);
 
 // Verify that the stack is decorated when possible
@@ -23,7 +24,7 @@ try {
 } catch (e) {
   err = e;
   assert(!/var foo bar;/.test(err.stack));
-  util.decorateErrorStack(err);
+  internalUtil.decorateErrorStack(err);
 }
 
 assert(/var foo bar;/.test(err.stack));
@@ -31,5 +32,5 @@ assert(/var foo bar;/.test(err.stack));
 // Verify that the stack is unchanged when there is no arrow message
 err = new Error('foo');
 const originalStack = err.stack;
-util.decorateErrorStack(err);
+internalUtil.decorateErrorStack(err);
 assert.strictEqual(originalStack, err.stack);
