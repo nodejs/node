@@ -127,48 +127,6 @@ def subdir_files(path, dest, action):
   for subdir, files in ret.items():
     action(files, subdir + '/')
 
-def build_tick_processor(action):
-  tmp_script = 'out/Release/tick-processor'
-  if action == install:
-    # construct script
-    scripts = [
-        'tools/v8-prof/polyfill.js',
-        'deps/v8/tools/splaytree.js',
-        'deps/v8/tools/codemap.js',
-        'deps/v8/tools/csvparser.js',
-        'deps/v8/tools/consarray.js',
-        'deps/v8/tools/csvparser.js',
-        'deps/v8/tools/consarray.js',
-        'deps/v8/tools/profile.js',
-        'deps/v8/tools/profile_view.js',
-        'deps/v8/tools/logreader.js',
-        'deps/v8/tools/tickprocessor.js',
-        'deps/v8/tools/SourceMap.js',
-        'deps/v8/tools/tickprocessor-driver.js']
-    args = []
-    if sys.platform == 'win32':
-      args.append('--windows')
-    elif sys.platform == 'darwin':
-      args.append('--nm=' + abspath(install_path, 'share/doc/node') + '/mac-nm')
-      args.append('--mac')
-    with open(tmp_script, 'w') as out_file:
-      # Add #! line to run with node
-      out_file.write('#! ' + abspath(install_path, 'bin/node') + '\n')
-      # inject arguments
-      for arg in args:
-        out_file.write('process.argv.splice(2, 0, \'' + arg + '\');\n')
-      # cat in source files
-      for script in scripts:
-        with open(script) as in_file:
-          shutil.copyfileobj(in_file, out_file)
-    # make executable
-    st = os.stat(tmp_script)
-    os.chmod(tmp_script, st.st_mode | stat.S_IEXEC)
-  # perform installations
-  action([tmp_script], 'share/doc/node/')
-  if sys.platform == 'darwin':
-    action(['deps/v8/tools/mac-nm'], 'share/doc/node/')
-
 def files(action):
   is_windows = sys.platform == 'win32'
 
@@ -182,8 +140,6 @@ def files(action):
   action(['src/node.stp'], 'share/systemtap/tapset/')
 
   action(['deps/v8/tools/gdbinit'], 'share/doc/node/')
-
-  build_tick_processor(action)
 
   if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
     action(['doc/node.1'], 'man/man1/')
