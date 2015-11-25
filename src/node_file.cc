@@ -580,15 +580,15 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("dest path required");
+    return TYPE_ERROR("target path required");
   if (len < 2)
     return TYPE_ERROR("src path required");
   if (!args[0]->IsString())
-    return TYPE_ERROR("dest path must be a string");
+    return TYPE_ERROR("target path must be a string");
   if (!args[1]->IsString())
     return TYPE_ERROR("src path must be a string");
 
-  node::Utf8Value dest(env->isolate(), args[0]);
+  node::Utf8Value target(env->isolate(), args[0]);
   node::Utf8Value path(env->isolate(), args[1]);
   int flags = 0;
 
@@ -604,9 +604,9 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args[3]->IsObject()) {
-    ASYNC_DEST_CALL(symlink, args[3], *path, *dest, *path, flags)
+    ASYNC_DEST_CALL(symlink, args[3], *path, *target, *path, flags)
   } else {
-    SYNC_DEST_CALL(symlink, *dest, *path, *dest, *path, flags)
+    SYNC_DEST_CALL(symlink, *target, *path, *target, *path, flags)
   }
 }
 
