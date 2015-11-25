@@ -83,9 +83,10 @@ when sockets were sent to forks.
 
 Callback should take two arguments `err` and `count`.
 
-### server.listen(handle[, callback])
+### server.listen(handle[, backlog][, callback])
 
 * `handle` {Object}
+* `backlog` {Number}
 * `callback` {Function}
 
 The `handle` object can be set to either a server or socket (anything
@@ -102,6 +103,9 @@ This function is asynchronous.  When the server has been bound,
 The last parameter `callback` will be added as a listener for the
 [`'listening'`][] event.
 
+The parameter `backlog` behaves the same as in
+[`server.listen(port, \[host\], \[backlog\], \[callback\])`][].
+
 ### server.listen(options[, callback])
 
 * `options` {Object} - Required. Supports the following properties:
@@ -114,9 +118,8 @@ The last parameter `callback` will be added as a listener for the
 
 The `port`, `host`, and `backlog` properties of `options`, as well as the
 optional callback function, behave as they do on a call to
-[server.listen(port, \[host\], \[backlog\], \[callback\])
-](#net_server_listen_port_hostname_backlog_callback). Alternatively, the `path`
-option can be used to specify a UNIX socket.
+[`server.listen(port, \[host\], \[backlog\], \[callback\])`][]. Alternatively,
+the `path` option can be used to specify a UNIX socket.
 
 If `exclusive` is `false` (default), then cluster workers will use the same
 underlying handle, allowing connection handling duties to be shared. When
@@ -130,9 +133,10 @@ shown below.
       exclusive: true
     });
 
-### server.listen(path[, callback])
+### server.listen(path[, backlog][, callback])
 
 * `path` {String}
+* `backlog` {Number}
 * `callback` {Function}
 
 Start a local socket server listening for connections on the given `path`.
@@ -156,6 +160,9 @@ double-backslashes, such as:
 
     net.createServer().listen(
         path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
+
+The parameter `backlog` behaves the same as in
+[`server.listen(port, \[host\], \[backlog\], \[callback\])`][].
 
 ### server.listen(port[, hostname][, backlog][, callback])
 
@@ -677,6 +684,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`pause()`]: #net_socket_pause
 [`resume()`]: #net_socket_resume
 [`server.getConnections`]: #net_server_getconnections_callback
+[`server.listen(port, \[host\], \[backlog\], \[callback\])`]: #net_server_listen_port_hostname_backlog_callback
 [`socket.connect(options\[, connectListener\])`]: #net_socket_connect_options_connectlistener
 [`socket.connect`]: #net_socket_connect_options_connectlistener
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
