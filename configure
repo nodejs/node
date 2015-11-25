@@ -804,7 +804,7 @@ def configure_openssl(o):
     o['variables']['openssl_fips'] = options.openssl_fips
     fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
     fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
-    o['make_global_settings'] = [
+    o['make_fips_settings'] = [
       ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
     ]
   else:
@@ -1125,6 +1125,15 @@ configure_fullystatic(output)
 # move everything else to target_defaults
 variables = output['variables']
 del output['variables']
+
+# make_global_settings for special FIPS linking
+# should not be used to compile modules in node-gyp
+config_fips = { 'make_global_settings' : [] }
+if 'make_fips_settings' in output:
+  config_fips['make_global_settings'] = output['make_fips_settings']
+  del output['make_fips_settings']
+  write('config_fips.gypi', do_not_edit +
+        pprint.pformat(config_fips, indent=2) + '\n')
 
 # make_global_settings should be a root level element too
 if 'make_global_settings' in output:

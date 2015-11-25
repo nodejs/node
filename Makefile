@@ -74,7 +74,7 @@ clean:
 
 distclean:
 	-rm -rf out
-	-rm -f config.gypi icu_config.gypi
+	-rm -f config.gypi icu_config.gypi config_fips.gypi
 	-rm -f config.mk
 	-rm -rf $(NODE_EXE) $(NODE_G_EXE)
 	-rm -rf node_modules
