@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 var ntimeouts = 0;
 var nchunks = 0;
@@ -11,21 +11,21 @@ process.on('exit', function() {
   assert.equal(nchunks, 2);
 });
 
-var options = {
+const options = {
   method: 'GET',
   port: common.PORT,
   host: '127.0.0.1',
   path: '/'
 };
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Length':'2'});
   res.write('*');
-  setTimeout(function() { res.end('*'); }, 100);
+  setTimeout(function() { res.end('*'); }, common.platformTimeout(100));
 });
 
 server.listen(options.port, options.host, function() {
-  var req = http.request(options, onresponse);
+  const req = http.request(options, onresponse);
   req.end();
 
   function onresponse(res) {
