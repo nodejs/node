@@ -71,6 +71,9 @@
       var d = NativeModule.require('_debug_agent');
       d.start();
 
+    } else if (process.profProcess) {
+      NativeModule.require('internal/v8_prof_processor');
+
     } else {
       // There is user code to be run
 
