@@ -310,7 +310,7 @@ def JS2C(source, target):
     else:
       ids.append((id, len(lines)))
 
-    escaped_id = id.replace('/', '_')
+    escaped_id = id.replace('-', '_').replace('/', '_')
     source_lines.append(SOURCE_DECLARATION % {
       'id': id,
       'escaped_id': escaped_id,
