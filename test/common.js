@@ -5,6 +5,8 @@ var fs = require('fs');
 var assert = require('assert');
 var os = require('os');
 var child_process = require('child_process');
+const stream = require('stream');
+const util = require('util');
 
 
 exports.testDir = path.dirname(__filename);
@@ -449,3 +451,21 @@ exports.fileExists = function(pathname) {
 exports.fail = function(msg) {
   assert.fail(null, null, msg);
 };
+
+
+// A stream to push an array into a REPL
+function ArrayStream() {
+  this.run = function(data) {
+    data.forEach(line => {
+      this.emit('data', line + '\n');
+    });
+  };
+}
+
+util.inherits(ArrayStream, stream.Stream);
+exports.ArrayStream = ArrayStream;
+ArrayStream.prototype.readable = true;
+ArrayStream.prototype.writable = true;
+ArrayStream.prototype.pause = function() {};
+ArrayStream.prototype.resume = function() {};
+ArrayStream.prototype.write = function() {};

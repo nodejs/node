@@ -4,12 +4,9 @@ common.globalCheck = false;
 
 var assert = require('assert');
 var repl = require('repl');
-var Stream = require('stream');
 
-// create a dummy stream that does nothing
-var dummy = new Stream();
-dummy.write = dummy.pause = dummy.resume = function() {};
-dummy.readable = dummy.writable = true;
+// Create a dummy stream that does nothing
+const dummy = new common.ArrayStream();
 
 function testReset(cb) {
   var r = repl.start({
