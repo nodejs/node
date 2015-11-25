@@ -5354,6 +5354,25 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void AddEntropy(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() == 0) {
+    // Delegate entropy generation to OpenSSL, which will add
+    // entropy from system sources
+    RAND_poll();
+    return;
+  }
+  // Make sure we got a buffer from the user and use it to
+  // seed OpenSSL.
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
+  Local<Object> bufObj = args[0]->ToObject();
+  const void* buf = Buffer::Data(bufObj);
+  size_t bufLength = Buffer::Length(bufObj);
+  RAND_seed(buf, bufLength);
+}
+
+
 void Certificate::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
@@ -5648,6 +5667,7 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);
   env->SetMethod(target, "getCurves", GetCurves);
+  env->SetMethod(target, "addEntropy", AddEntropy);
   env->SetMethod(target, "publicEncrypt",
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_encrypt_init,

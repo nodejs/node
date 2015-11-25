@@ -37,6 +37,17 @@ process.setMaxListeners(256);
   });
 });
 
+// crypto.addEntropy takes nothing or an ArrayBuffer
+[-1,
+ undefined,
+ null,
+ false,
+ true,
+ {}, [], [1]
+].forEach(function(value) {
+  assert.throws(function() { crypto.addEntropy(value); });
+});
+
 // assert that the callback is indeed called
 function checkCall(cb, desc) {
   var called_ = false;
