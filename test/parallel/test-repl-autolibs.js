@@ -1,25 +1,13 @@
-/* eslint-disable required-modules */
 'use strict';
+const common = require('../common');
 var assert = require('assert');
 var util = require('util');
 var repl = require('repl');
 
-// A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function(data) {
-    var self = this;
-    data.forEach(function(line) {
-      self.emit('data', line + '\n');
-    });
-  };
-}
-util.inherits(ArrayStream, require('stream').Stream);
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function() {};
-ArrayStream.prototype.write = function() {};
+// This test adds global variables
+common.globalCheck = false;
 
-var putIn = new ArrayStream();
+const putIn = new common.ArrayStream();
 var testMe = repl.start('', putIn, null, true);
 
 test1();

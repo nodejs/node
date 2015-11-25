@@ -1,15 +1,12 @@
 'use strict';
 var common = require('../common'),
     assert = require('assert'),
-    Stream = require('stream'),
     repl = require('repl'),
     terminalExit = 0,
     regularExit = 0;
 
-// create a dummy stream that does nothing
-var stream = new Stream();
-stream.write = stream.pause = stream.resume = function() {};
-stream.readable = stream.writable = true;
+// Create a dummy stream that does nothing
+const stream = new common.ArrayStream();
 
 function testTerminalMode() {
   var r1 = repl.start({

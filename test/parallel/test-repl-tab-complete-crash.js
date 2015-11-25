@@ -1,32 +1,19 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const repl = require('repl');
 
 var referenceErrorCount = 0;
 
-// A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function(data) {
-    const self = this;
-    data.forEach(function(line) {
-      self.emit('data', line + '\n');
-    });
-  };
-}
-util.inherits(ArrayStream, require('stream').Stream);
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function() {};
-ArrayStream.prototype.write = function(msg) {
+common.ArrayStream.prototype.write = function(msg) {
   if (msg.startsWith('ReferenceError: ')) {
     referenceErrorCount++;
   }
 };
 
-const putIn = new ArrayStream();
+const putIn = new common.ArrayStream();
 const testMe = repl.start('', putIn);
 
 // https://github.com/nodejs/node/issues/3346
