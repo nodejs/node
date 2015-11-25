@@ -656,16 +656,22 @@ information.
 
 Synchronous stat(2). Returns an instance of `fs.Stats`.
 
-## fs.symlink(destination, path[, type], callback)
+## fs.symlink(target, path[, type], callback)
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback.
 The `type` argument can be set to `'dir'`, `'file'`, or `'junction'` (default
 is `'file'`) and is only available on Windows (ignored on other platforms).
 Note that Windows junction points require the destination path to be absolute.  When using
-`'junction'`, the `destination` argument will automatically be normalized to absolute path.
+`'junction'`, the `target` argument will automatically be normalized to absolute path.
 
-## fs.symlinkSync(destination, path[, type])
+Here is an example below:
+
+    fs.symlink('./foo', './new-port');
+
+It would create a symlic link named with "new-port" that points to "foo".
+
+## fs.symlinkSync(target, path[, type])
 
 Synchronous symlink(2). Returns `undefined`.
 
