@@ -1,3 +1,4 @@
+lib/internal/v8_prof_polyfill.js
 lib/punycode.js
 test/addons/doc-*/
 test/fixtures
