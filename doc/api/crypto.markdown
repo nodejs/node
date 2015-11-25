@@ -1282,6 +1282,18 @@ is a bit field taking one of or a mix of the following flags (defined in the
 * `ENGINE_METHOD_ALL`
 * `ENGINE_METHOD_NONE`
 
+## crypto.addSystemEntropy()
+
+Adds system-generated entropy to entropy pool. Usage:
+
+```js
+const crypto = require('crypto');
+crypto.addSystemEntropy();
+```
+
+NOTE: This method calls the OpenSSL `RAND_poll` function, which in turn calls
+an OS-specific implementation (e.g. `/dev/urandom`, `CryptGenRandom`).
+
 ## Notes
 
 ### Legacy Streams API (pre Node.js v0.10)
