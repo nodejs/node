@@ -731,12 +731,12 @@ one of or mix of following flags (defined in `constants` module):
 * `ENGINE_METHOD_ALL`
 * `ENGINE_METHOD_NONE`
 
-## crypto.addEntropy()
+## crypto.addSystemEntropy()
 
 Adds system-generated entropy to entropy pool. Usage:
 
   // sync
-  crypto.addEntropy();
+  crypto.addSystemEntropy();
 
 NOTE: This method calls the OpenSSL `RAND_poll` function, which in turn calls
 an OS-specific implementation (e.g. `/dev/urandom`, `CryptGenRandom`).

@@ -37,16 +37,14 @@ process.setMaxListeners(256);
   });
 });
 
-// crypto.addEntropy takes nothing or an ArrayBuffer
-[-1,
- undefined,
- null,
- false,
- true,
- {}, [], [1]
-].forEach(function(value) {
-  assert.throws(function() { crypto.addEntropy(value); });
-});
+// Test to make sure addSystemEntropy returns in less than 10 ms.
+(function() {
+  var start = process.hrtime();
+  crypto.addSystemEntropy();
+  var duration = process.hrtime(start);
+  duration = duration[0] * 1e9 + duration[1]; // convert to nanoseconds
+  assert.ok(duration < 10 * 1e6, 'addSystemEntropy responds in < 10ms');
+})();
 
 // assert that the callback is indeed called
 function checkCall(cb, desc) {
