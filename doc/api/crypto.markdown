@@ -731,6 +731,16 @@ one of or mix of following flags (defined in `constants` module):
 * `ENGINE_METHOD_ALL`
 * `ENGINE_METHOD_NONE`
 
+## crypto.addEntropy()
+
+Adds system-generated entropy to entropy pool. Usage:
+
+  // sync
+  crypto.addEntropy();
+
+NOTE: This method calls the OpenSSL `RAND_poll` function, which in turn calls
+an OS-specific implementation (e.g. `/dev/urandom`, `CryptGenRandom`).
+
 ## Recent API Changes
 
 The Crypto module was added to Node.js before there was the concept of a

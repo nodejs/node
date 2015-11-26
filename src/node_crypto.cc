@@ -5359,17 +5359,17 @@ void AddEntropy(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() == 0) {
     // Delegate entropy generation to OpenSSL, which will add
-    // entropy from system sources
+    // entropy from system sources.
     RAND_poll();
     return;
   }
   // Make sure we got a buffer from the user and use it to
   // seed OpenSSL.
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
-  Local<Object> bufObj = args[0]->ToObject();
-  const void* buf = Buffer::Data(bufObj);
-  size_t bufLength = Buffer::Length(bufObj);
-  RAND_seed(buf, bufLength);
+  Local<Object> buf_obj = args[0]->ToObject();
+  const void* buf = Buffer::Data(buf_obj);
+  size_t buf_length = Buffer::Length(buf_obj);
+  RAND_seed(buf, buf_length);
 }
 
 
