@@ -68,9 +68,15 @@ function which (cmd, opt, cb) {
   var info = getPathInfo(cmd, opt)
   var pathEnv = info.env
   var pathExt = info.ext
+  var found = []
 
   ;(function F (i, l) {
-    if (i === l) return cb(new Error('not found: '+cmd))
+    if (i === l) {
+      if (opt.all && found.length)
+        return cb(null, found)
+      else
+        return cb(new Error('not found: '+cmd))
+    }
     var p = path.resolve(pathEnv[i], cmd)
     ;(function E (ii, ll) {
       if (ii === ll) return F(i + 1, l)
@@ -79,7 +85,10 @@ function which (cmd, opt, cb) {
         if (!er &&
             stat.isFile() &&
             isExe(stat.mode, stat.uid, stat.gid)) {
-          return cb(null, p + ext)
+          if (opt.all)
+            found.push(p + ext)
+          else
+            return cb(null, p + ext)
         }
         return E(ii + 1, ll)
       })
@@ -93,6 +102,7 @@ function whichSync (cmd, opt) {
   var info = getPathInfo(cmd, opt)
   var pathEnv = info.env
   var pathExt = info.ext
+  var found = []
 
   for (var i = 0, l = pathEnv.length; i < l; i ++) {
     var p = path.join(pathEnv[i], cmd)
@@ -101,11 +111,18 @@ function whichSync (cmd, opt) {
       var stat
       try {
         stat = fs.statSync(cur)
-        if (stat.isFile() && isExe(stat.mode, stat.uid, stat.gid))
-          return cur
+        if (stat.isFile() && isExe(stat.mode, stat.uid, stat.gid)) {
+          if (opt.all)
+            found.push(cur)
+          else
+            return cur
+        }
       } catch (ex) {}
     }
   }
+
+  if (opt.all && found.length)
+    return found
 
   throw new Error('not found: '+cmd)
 }

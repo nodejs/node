@@ -1,3 +1,251 @@
+### v2.14.12 (2015-11-19):
+
+#### TEEN ORCS AT THE GATES
+
+This week heralds the general release of the primary npm registry's [new
+support for private packages for
+organizations](http://blog.npmjs.org/post/133542170540/private-packages-for-organizations).
+For many potential users, it's the missing piece needed to make it easy for you
+to move your organization's private work onto npm. And now it's here! The
+functionality to support it has been in place in the CLI for a while now,
+thanks to [@zkat](https://github.com/zkat)'s hard work.
+
+During our final testing before the release, our ace support team member
+[@snopeks](https://github.com/snopeks) noticed that there had been some drift
+between the CLI team's implementation and what npm was actually preparing to
+ship. In the interests of everyone having a smooth experience with this
+_extremely useful_ new feature, we quickly made a few changes to square up the
+CLI and the web site experiences.
+
+* [`0e8b15e`](https://github.com/npm/npm/commit/0e8b15e9fbc89e31bd00e573b648846beddfb835)
+  [#9327](https://github.com/npm/npm/issues/9327) `npm access` no longer has
+  problems when run in a directory that doesn't contain a `package.json`.
+  ([@othiym23](https://github.com/othiym23))
+* [`c4e939c`](https://github.com/npm/npm/commit/c4e939c1d493601d25dcb88e6ffcca73076fd3fd)
+  [npm/npm-registry-client#126](https://github.com/npm/npm-registry-client/issues/126)
+  `npm-registry-client@7.0.8`: Allow the CLI to grant, revoke, and list
+  permissions on unscoped (public) packages on the primary registry.
+  ([@othiym23](https://github.com/othiym23))
+
+#### A BRIEF NOTE ON NPM'S BACKWARDS COMPATIBILITY
+
+We don't often have much to say about the changes we make to our internal
+testing and tooling, but I'm going to take this opportunity to reiterate that
+npm tries hard to maintain compatibility with a wide variety of Node versions.
+As this change shows, we want to ensure that npm works the same across:
+
+* Node.js 0.8
+* Node.js 0.10
+* Node.js 0.12
+* the latest io.js release
+* Node.js 4 LTS
+* Node.js 5
+
+Contributors who send us pull requests often notice that it's very rare that
+our tests pass across all of those versions (ironically, almost entirely due to
+the packages we use for testing instead of any issues within npm itself). We're
+currently beginning an effort, lasting the rest of 2015, to clean up our test
+suite, and not only get it passing on all of the above versions of Node.js, but
+working solidly on Windows as well. This is a compounding form of technical
+debt that we're finally paying down, and our hope is that cleaning up the tests
+will produce a more robust CLI that's a lot easier to write patches for.
+
+* [`d743620`](https://github.com/npm/npm/commit/d743620a0005213a65d25de771661b4d48a09717)
+  [#10233](https://github.com/npm/npm/issues/10233) Update Node.js versions
+  that Travis uses to test npm. ([@iarna](https://github.com/iarna))
+
+#### TYPOS IN THE LICENSE, OH MY
+
+* [`58ac241`](https://github.com/npm/npm/commit/58ac241f556b2c202a8ee33321965e2540361ca7)
+  [#10478](https://github.com/npm/npm/issues/10478) Correct two typos in npm's
+  LICENSE. ([@jorrit](https://github.com/jorrit))
+
+### v2.14.11 (2015-11-12):
+
+#### ASK FOR NOTHING, GET LATEST
+
+When you run `npm install foo`, you probably expect that you'll get the
+`latest` version of `foo`, whatever that is. And good news! That's what this
+change makes it do.
+
+We _think_ this is what everyone wants, but if this causes problems for you, we
+want to know! If it proves problematic for people we will consider reverting it
+(preferrably before this becomes `npm@latest`).
+
+Previously, when you ran `npm install foo` we would act as if you typed `npm
+install foo@*`. Now, like any range-type specifier, in addition to matching the
+range, it would also have to be `<=` the value of the `latest` dist-tag.
+Further, it would exclude prerelease versions from the list of versions
+considered for a match.
+
+This worked as expected most of the time, unless your `latest` was a prerelease
+version, in which case that version wouldn't be used, to everyone's surprise.
+
+* [`6f0a646`](https://github.com/npm/npm/commit/6f0a646cd865b24fe3ff25365bf5421780e63e01)
+  [#10189](https://github.com/npm/npm/issues/10189) `npm-package-arg@4.1.0`:
+  Change the default version from `*` to `latest`.
+  ([@zkat](https://github.com/zkat))
+
+#### LICENSE CLARIFICATION
+
+* [`54a9046`](https://github.com/npm/npm/commit/54a90461f068ea89baa5d70248cdf1581897936d)
+  [#10326](https://github.com/npm/npm/issues/10326) Clarify what-all is covered
+  by npm's license and point to the registry's terms of use.
+  ([@kemitchell](https://github.com/kemitchell))
+
+#### CLOSER TO GREEN TRAVIS
+
+* [`28efd3d`](https://github.com/npm/npm/commit/28efd3d7dfb2fa3755076ae706ea4d38c6ee6900)
+  [#10232](https://github.com/npm/npm/issues/10232) `nock@1.9.0`: Downgrade
+  nock to a version that doesn't depend on streams2 in core so that more of our
+  tests can pass in 0.8. ([@iarna](https://github.com/iarna))
+
+#### A BUG FIX
+
+* [`eacac8f`](https://github.com/npm/npm/commit/eacac8f05014d15217c3d8264d0b00a72eafe2d2)
+  [#9965](https://github.com/npm/npm/issues/9965) Fix a corrupt `package.json`
+  file introduced by a merge conflict in
+  [`022691a`](https://github.com/npm/npm/commit/022691a).
+  ([@waynebloss](https://github.com/waynebloss))
+
+#### A DEPENDENCY UPGRADE
+
+* [`ea7d8e0`](https://github.com/npm/npm/commit/ea7d8e00a67a3d5877ed72c9728909c848468a9b)
+  [npm/nopt#51](https://github.com/npm/nopt/pull/51) `nopt@3.0.6`: Allow
+  types checked to be validated by passed-in name in addition to the JS name of
+  the type / class. ([@wbecker](https://github.com/wbecker))
+
+### v2.14.10 (2015-11-05):
+
+There's nothing in here that that isn't in the `npm@3.4.0` release notes, but
+all of the commit shasums have been adjusted to be correct. Enjoy!
+
+#### BUG FIXES VIA DEPENDENCY UPDATES
+
+* [`204c558`](https://github.com/npm/npm/commit/204c558c06637a753c0b41d0cf19f564a1ac3715)
+  [#8640](https://github.com/npm/npm/issues/8640)
+  [npm/normalize-package-data#69](https://github.com/npm/normalize-package-data/pull/69)
+  `normalize-package-data@2.3.5`: Fix a bug where if you didn't specify the
+  name of a scoped module's binary, it would install it such that it was
+  impossible to call it.  ([@iarna](https://github.com/iarna))
+* [`bbdf4ee`](https://github.com/npm/npm/commit/bbdf4ee0a3cd12be6a2ace255b67d573a72f1f8f)
+  [npm/fstream-npm#14](https://github.com/npm/fstream-npm/pull/14)
+  `fstream-npm@1.0.7`: Only filter `config.gypi` when it's in the build
+  directory.  ([@mscdex](https://github.com/mscdex))
+* [`d82ff81`](https://github.com/npm/npm/commit/d82ff81403e906931fac701775723626dcb443b3)
+  [npm/fstream-npm#15](https://github.com/npm/fstream-npm/pull/15)
+  `fstream-npm@1.0.6`: Stop including directories that happened to have names
+  matching whitelisted npm files in npm module tarballs. The most common cause
+  was that if you had a README directory then everything in it would be
+  included if wanted it or not. ([@taion](https://github.com/taion))
+
+#### DOCUMENTATION FIXES
+
+* [`16361d1`](https://github.com/npm/npm/commit/16361d122f2ff6d1a4729c66153b7c24c698fd19)
+  [#10036](https://github.com/npm/npm/pull/10036) Fix typo / over-abbreviation.
+  ([@ifdattic](https://github.com/ifdattic))
+* [`d1343dd`](https://github.com/npm/npm/commit/d1343dda42f113dc322f95687f5a8c7d71a97c35)
+  [#10176](https://github.com/npm/npm/pull/10176) Fix broken link, scopes =>
+  scope.  ([@ashleygwilliams](https://github.com/ashleygwilliams))
+* [`110663d`](https://github.com/npm/npm/commit/110663d000a3908a4853393d9abae481700cf4dc)
+  [#9460](https://github.com/npm/npm/issue/9460) Specifying the default command
+  run by "npm start" and the fact that you can pass it arguments.
+  ([@JuanCaicedo](https://github.com/JuanCaicedo))
+
+#### DEPENDENCY UPDATES FOR THEIR OWN SAKE
+
+* [`7476d2d`](https://github.com/npm/npm/commit/7476d2d31552a41671c425aa7fcc2844e0381008)
+  [npm/npmlog#19](https://github.com/npm/npmlog/pull/19)
+  `npmlog@2.0.0`: Make it possible to emit log messages with `error` as the
+  prefix.
+  ([@bengl](https://github.com/bengl))
+* [`6ca7888`](https://github.com/npm/npm/commit/6ca7888862cfe8bf802dc7c66632c102acd94cf5)
+  `read-package-json@2.0.2`: Minor cleanups.
+  ([@KenanY](https://github.com/KenanY))
+
+### v2.14.9 (2015-10-29):
+
+There's still life in `npm@2`, but for now, enjoy these dependency upgrades!
+Also, [@othiym23](https://github.com/othiym23) says hi! _waves_
+[@zkat](https://github.com/zkat) has her hands full, and
+[@iarna](https://github.com/iarna)'s handling `npm@3`, so I'm dealing with
+`npm@2` and the totally nonexistent weird bridge `npm@1.4` LTS release that may
+or may not be happening this week.
+
+#### CAN'T STOP WON'T STOP UPDATING THOSE DEPENDENCIES
+
+* [`f52f0cb`](https://github.com/npm/npm/commit/f52f0cb51526314197e9d67619feebbd82a397b7)
+  [#10150](https://github.com/npm/npm/issues/10150) `chmodr@1.0.2`: Use
+  `fs.lstat()` to check if an entry is a directory, making `chmodr()` work
+  properly with NFS mounts on Windows. ([@sheerun](https://github.com/sheerun))
+* [`f7011d7`](https://github.com/npm/npm/commit/f7011d7b3b1d9148a6cd8f7b8359d6fe3269a912)
+  [#10150](https://github.com/npm/npm/issues/10150) `which@1.2.0`: Additional
+  command-line parameters, which is nice but not used by npm.
+  ([@isaacs](https://github.com/isaacs))
+* [`ebcc0d8`](https://github.com/npm/npm/commit/ebcc0d8629388da0b849bbbad590382cd7268f51)
+  [#10150](https://github.com/npm/npm/issues/10150) `minimatch@3.0.0`: Don't
+  package browser version. ([@isaacs](https://github.com/isaacs))
+* [`8c98dce`](https://github.com/npm/npm/commit/8c98dce5ffe242bafbe92b849e73e8de1803e256)
+  [#10150](https://github.com/npm/npm/issues/10150) `fstream-ignore@1.0.3`:
+  Upgrade to use `minimatch@3` (for deduping purposes).
+  ([@othiym23](https://github.com/othiym23))
+* [`db9ef33`](https://github.com/npm/npm/commit/db9ef337c253ecf21c921055bf8742e10d1cb3bb)
+  [#10150](https://github.com/npm/npm/issues/10150) `request@2.65.0`:
+  Dependency upgrades and a few bug fixes, mostly related to cookie handling.
+  ([@simov](https://github.com/simov))
+
+#### DEVDEPENDENCIES TOO, I GUESS, IT'S COOL
+
+* [`dfbf621`](https://github.com/npm/npm/commit/dfbf621afa09c46991249b4f9a995d1823ea7ede)
+  [#10150](https://github.com/npm/npm/issues/10150) `tap@2.2.0`: Better
+  handling of test order handling (including some test fixes for npm).
+  ([@isaacs](https://github.com/isaacs))
+* [`cf5ad5a`](https://github.com/npm/npm/commit/cf5ad5a8c88bfd72e30ef8a8d1d3c5508e0b3c23)
+  [#10150](https://github.com/npm/npm/issues/10150) `nock@2.16.0`: More
+  expectations, documentation, and bug fixes.
+  ([@pgte](https://github.com/pgte))
+
+### v2.14.8 (2015-10-08):
+
+#### SLOWLY RECOVERING FROM FEELINGS
+
+OS&F is definitely my favorite convention I've gone to. Y'all should check it
+out next year! Rebecca and Kat are back, although Forrest is out at
+[&yet conf](http://andyetconf.com/).
+
+This week sees another tiny LTS release with non-code-related patches -- just
+CI/release things.
+
+Meanwhile, have you heard? `npm@3` is much faster now! Go upgrade with `npm
+install -g npm@latest` and give it a whirl if you haven't already!
+
+#### IF YOU CHANGE CASING ON A FILE, YOU ARE NOT MY FRIEND
+
+Seriously. I love me some case-sensitive filesystems, but a lot of us have to
+deal with `git` and its funky support for case normalizing systems. Have mercy
+and just don't bother if all you're changing is casing, please? Otherwise, I
+have to do this little dance to prevent horrible conflicts.
+
+* [`c3a7b61`](https://github.com/npm/npm/commit/c3a7b619786650a45653c8b55b8741fc7bb5cfda)
+  [#9804](https://github.com/npm/npm/pulls/9804) Remove the readme file with
+  weird casing.
+  ([@zkat](https://github.com/zkat))
+* [`f3f619e`](https://github.com/npm/npm/commit/f3f619e06e4be1378dbf286f897b50e9c69c9557)
+  [#9804](https://github.com/npm/npm/pulls/9804) Add the readme file back in,
+  with desired casing.
+  ([@zkat](https://github.com/zkat))
+
+#### IDK. OUR CI DOESN'T EVEN FULLY WORK YET BUT SURE
+
+Either way, it's nice to make sure we're running stuff on the latest Node. `4.2`
+is getting released very soon, though (this week?), and that'll be the first
+official LTS release!
+
+* [`bd0b9ab`](https://github.com/npm/npm/commit/bd0b9ab6e60a31448794bbd88f94672572c3cb55)
+  [#9827](https://github.com/npm/npm/pulls/9827) Add node `4.0` and `4.1` to
+  TravisCI
+  ([@JaKXz](https://github.com/JaKXz))
+
 ### v2.14.7 (2015-10-01):
 
 #### MORE RELEASE STAGGERING?!
@@ -36,8 +284,6 @@ Anyway -- here's your version bump! :)
   `request@2.64.0`: No longer defaulting to `application/json` for `json`
   requests. Also some minor doc and packaging patches.
   ([@simov](https://github.com/simov))
-  `minimatch@3.0.0`: No longer packaging browser modules.
-  ([@isaacs](https://github.com/isaacs))
 * [`a18b213`](https://github.com/npm/npm/commit/a18b213e6945a8f5faf882927829ac95f844e2aa)
   `glob@5.0.15`: Upgraded `minimatch` dependency.
   ([@isaacs](https://github.com/isaacs))
