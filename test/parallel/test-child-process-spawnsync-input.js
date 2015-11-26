@@ -95,4 +95,11 @@ assert.ok(ret.error, 'maxBuffer should error');
 assert.strictEqual(ret.error.errno, 'ENOBUFS');
 // we can have buffers larger than maxBuffer because underneath we alloc 64k
 // that matches our read sizes
-assert.deepEqual(ret.stdout, msgOutBuf);
+
+// While we are writing to stdout first which is expected to
+// overflow the buffer and cause child to return, the actual
+// write order can be reversed based on how uv loop get them.
+// So expect either stdout or stderr to be holding the data
+assert.ok(ret.stdout.toString() === msgOutBuf.toString() ||
+          ret.stderr.toString() === msgErrBuf.toString(),
+          'expected at least one stream to write back.');
