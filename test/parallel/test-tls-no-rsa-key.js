@@ -23,9 +23,16 @@ var server = tls.createServer(options, function(conn) {
   var c = tls.connect(common.PORT, {
     rejectUnauthorized: false
   }, function() {
+    c.on('end', common.mustCall(function() {
+      c.end();
+      server.close();
+    }));
+
+    c.on('data', function(data) {
+      assert.equal(data, 'ok');
+    });
+
     cert = c.getPeerCertificate();
-    c.destroy();
-    server.close();
   });
 });
 
