@@ -1,0 +1,60 @@
+{
+  "name": "gauge",
+  "version": "1.2.2",
+  "description": "A terminal based horizontal guage",
+  "main": "progress-bar.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/gauge.git"
+  },
+  "keywords": [
+    "progressbar",
+    "progress",
+    "gauge"
+  ],
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/iarna/gauge/issues"
+  },
+  "homepage": "https://github.com/iarna/gauge",
+  "dependencies": {
+    "ansi": "^0.3.0",
+    "has-unicode": "^1.0.0",
+    "lodash.pad": "^3.0.0",
+    "lodash.padleft": "^3.0.0",
+    "lodash.padright": "^3.0.0"
+  },
+  "devDependencies": {
+    "tap": "^0.4.13"
+  },
+  "gitHead": "9f7eeeeed3b74a70f30b721d570435f6ffbc0168",
+  "_id": "gauge@1.2.2",
+  "_shasum": "05b6730a19a8fcad3c340a142f0945222a3f815b",
+  "_from": "gauge@>=1.2.0 <1.3.0",
+  "_npmVersion": "3.1.0",
+  "_nodeVersion": "0.10.38",
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "dist": {
+    "shasum": "05b6730a19a8fcad3c340a142f0945222a3f815b",
+    "tarball": "http://registry.npmjs.org/gauge/-/gauge-1.2.2.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/gauge/-/gauge-1.2.2.tgz",
+  "readme": "ERROR: No README data found!"
+}

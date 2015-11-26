@@ -4,6 +4,7 @@ var path = require('path')
 var test = require('tap').test
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
+require('../common-tap')
 var nock = require('nock')
 
 var npm = require('../../')

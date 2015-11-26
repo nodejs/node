@@ -308,6 +308,16 @@ npm install sax \-\-force
 The \fB\-g\fP or \fB\-\-global\fP argument will cause npm to install the package globally
 rather than locally\.  See npm help 5 \fBnpm\-folders\fP\|\.
 .P
+The \fB\-\-global\-style\fP argument will cause npm to install the package into
+your local \fBnode_modules\fP folder with the same layout it uses with the
+global \fBnode_modules\fP folder\. Only your direct dependencies will show in
+\fBnode_modules\fP and everything they depend on will be flattened in their
+\fBnode_modules\fP folders\. This obviously will elminate some deduping\.
+.P
+The \fB\-\-legacy\-bundling\fP argument will cause npm to install the package such
+that versions of npm prior to 1\.4, such as the one included with node 0\.8,
+can install the package\. This eliminates all automatic deduping\.
+.P
 The \fB\-\-link\fP argument will cause npm to link global installs into the
 local space in some cases\.
 .P

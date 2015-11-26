@@ -1,3 +1,4 @@
+require('../common-tap')
 var nock = require('nock')
 var test = require('tap').test
 var npm = require('../../')

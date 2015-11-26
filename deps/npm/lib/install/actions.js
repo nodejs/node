@@ -3,13 +3,13 @@ var path = require('path')
 var validate = require('aproba')
 var chain = require('slide').chain
 var asyncMap = require('slide').asyncMap
-var uniqueFilename = require('unique-filename')
 var log = require('npmlog')
 var andFinishTracker = require('./and-finish-tracker.js')
 var andAddParentToErrors = require('./and-add-parent-to-errors.js')
 var failedDependency = require('./deps.js').failedDependency
 var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
+var buildPath = require('./build-path.js')
 
 var actions = {}
 
@@ -63,7 +63,7 @@ function andHandleOptionalDepErrors (pkg, next) {
   return function (er) {
     if (!er) return next.apply(null, arguments)
     markAsFailed(pkg)
-    var anyFatal = pkg.directlyRequested || !pkg.parent
+    var anyFatal = pkg.userRequired || !pkg.parent
     for (var ii = 0; ii < pkg.requiredBy.length; ++ii) {
       var parent = pkg.requiredBy[ii]
       var isFatal = failedDependency(parent, pkg)
@@ -83,8 +83,8 @@ function prepareAction (staging, log) {
     var cmd = action[0]
     var pkg = action[1]
     if (!actions[cmd]) throw new Error('Unknown decomposed command "' + cmd + '" (is it new?)')
-    var buildpath = uniqueFilename(staging, moduleName(pkg), pkg.realpath)
     var top = path.resolve(staging, '../..')
+    var buildpath = buildPath(staging, pkg)
     return [actions[cmd], top, buildpath, pkg, log.newGroup(cmd + ':' + moduleName(pkg))]
   }
 }
