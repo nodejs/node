@@ -242,7 +242,7 @@ by other contexts.
 
 <!--type=misc-->
 
-A JavaScript "exception" is a value that is thrown as a result of an invalid operation or
+A JavaScript exception is a value that is thrown as a result of an invalid operation or
 as the target of a `throw` statement. While it is not required that these values are instances of
 `Error` or classes which inherit from `Error`, all exceptions thrown by Node.js or the JavaScript
 runtime *will* be instances of Error.
