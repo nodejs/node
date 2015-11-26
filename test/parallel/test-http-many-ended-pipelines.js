@@ -13,15 +13,19 @@ var http = require('http');
 var net = require('net');
 
 var numRequests = 20;
-var done = 0;
+var first = false;
 
 var server = http.createServer(function(req, res) {
-  res.end('ok');
+  if (!first) {
+    first = true;
+    req.socket.on('close', function() {
+      server.close();
+    });
+  }
 
+  res.end('ok');
   // Oh no!  The connection died!
   req.socket.destroy();
-  if (++done == numRequests)
-    server.close();
 });
 
 server.listen(common.PORT);
