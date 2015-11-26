@@ -1,6 +1,9 @@
 package.json
 node_modules
-test/external
+test
+benchmark
+docs
 examples
+/.editorconfig
 /.eslint*
 /.travis.yml

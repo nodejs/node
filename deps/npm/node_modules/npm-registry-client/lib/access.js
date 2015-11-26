@@ -102,20 +102,20 @@ function accessAssertions (subcommand, uri, params, cb) {
     'callback': [cb, 'function']
   })
   if (contains([
-    'public', 'restricted', 'grant', 'revoke', 'ls-collaborators'
+    'public', 'restricted'
   ], subcommand)) {
-    typeChecks({ 'package': [params.package, 'string']})
+    typeChecks({ 'package': [params.package, 'string'] })
     assert(!!npa(params.package).scope,
            'access commands are only accessible for scoped packages')
   }
   if (contains(['grant', 'revoke', 'ls-packages'], subcommand)) {
-    typeChecks({ 'scope': [params.scope, 'string']})
+    typeChecks({ 'scope': [params.scope, 'string'] })
   }
   if (contains(['grant', 'revoke'], subcommand)) {
-    typeChecks({ 'team': [params.team, 'string']})
+    typeChecks({ 'team': [params.team, 'string'] })
   }
   if (subcommand === 'grant') {
-    typeChecks({ 'permissions': [params.permissions, 'string']})
+    typeChecks({ 'permissions': [params.permissions, 'string'] })
     assert(params.permissions === 'read-only' ||
            params.permissions === 'read-write',
            'permissions must be either read-only or read-write')

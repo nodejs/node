@@ -1,6 +1,5 @@
 // Load modules
 
-var Util = require('util');
 var Code = require('code');
 var Boom = require('../lib');
 var Lab = require('lab');
@@ -455,6 +454,22 @@ describe('badData()', function () {
     it('sets the message with the passed in message', function (done) {
 
         expect(Boom.badData('my message').message).to.equal('my message');
+        done();
+    });
+});
+
+
+describe('preconditionRequired()', function () {
+
+    it('returns a 428 error statusCode', function (done) {
+
+        expect(Boom.preconditionRequired().output.statusCode).to.equal(428);
+        done();
+    });
+
+    it('sets the message with the passed in message', function (done) {
+
+        expect(Boom.preconditionRequired('my message').message).to.equal('my message');
         done();
     });
 });

@@ -1,8 +1,10 @@
 'use strict'
 var test = require('tap').test
 var npm = require('../../lib/npm')
-var log = require('npmlog')
 var stream = require('readable-stream')
+
+// set up environment
+require('../common-tap.js')
 
 var moduleName = 'xyzzy-wibble'
 var testModule = {
@@ -42,13 +44,12 @@ var testModule = {
         shasum: 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
         tarball: 'http://registry.npmjs.org/aproba/-/xyzzy-wibble-1.3.0-a.tgz'
       }
-    },
-  },
+    }
+  }
 }
 
-var lastFetched
 test('setup', function (t) {
-  npm.load(function(){
+  npm.load(function () {
     npm.config.set('loglevel', 'silly')
     npm.registry = {
       get: function (uri, opts, cb) {
@@ -57,7 +58,6 @@ test('setup', function (t) {
         })
       },
       fetch: function (u, opts, cb) {
-        lastFetched = u
         setImmediate(function () {
           var empty = new stream.Readable()
           empty.push(null)
@@ -68,7 +68,6 @@ test('setup', function (t) {
     t.end()
   })
 })
-
 
 test('splat', function (t) {
   t.plan(3)

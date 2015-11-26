@@ -253,6 +253,12 @@ exports.badData = function (message, data) {
 };
 
 
+exports.preconditionRequired = function (message, data) {
+
+    return internals.create(428, message, data, exports.preconditionRequired);
+};
+
+
 exports.tooManyRequests = function (message, data) {
 
     return internals.create(429, message, data, exports.tooManyRequests);
