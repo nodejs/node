@@ -1071,13 +1071,12 @@ const hashes = crypto.getHashes();
 console.log(hashes); // ['sha', 'sha1', 'sha1WithRSAEncryption', ...]
 ```
 
-### crypto.pbkdf2(password, salt, iterations, keylen[, digest], callback)
+### crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)
 
 Provides an asynchronous Password-Based Key Derivation Function 2 (PBKDF2)
 implementation.  A selected HMAC digest algorithm specified by `digest` is
 applied to derive a key of the requested byte length (`keylen`) from the
-`password`, `salt` and `iterations`. If the `digest` algorithm is not specified,
-a default of `'sha1'` is used.
+`password`, `salt` and `iterations`.
 
 The supplied `callback` function is called with two arguments: `err` and
 `derivedKey`. If an error occurs, `err` will be set; otherwise `err` will be
@@ -1104,13 +1103,12 @@ crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, key) => {
 An array of supported digest functions can be retrieved using
 [`crypto.getHashes()`][].
 
-### crypto.pbkdf2Sync(password, salt, iterations, keylen[, digest])
+### crypto.pbkdf2Sync(password, salt, iterations, keylen, digest)
 
 Provides a synchronous Password-Based Key Derivation Function 2 (PBKDF2)
 implementation.  A selected HMAC digest algorithm specified by `digest` is
 applied to derive a key of the requested byte length (`keylen`) from the
-`password`, `salt` and `iterations`. If the `digest` algorithm is not specified,
-a default of `'sha1'` is used.
+`password`, `salt` and `iterations`.
 
 If an error occurs an Error will be thrown, otherwise the derived key will be
 returned as a [`Buffer`][].

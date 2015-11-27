@@ -12,37 +12,37 @@ var crypto = require('crypto');
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
 function testPBKDF2(password, salt, iterations, keylen, expected) {
-  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen);
+  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen, 'sha256');
   assert.equal(actual.toString('binary'), expected);
 
-  crypto.pbkdf2(password, salt, iterations, keylen, function(err, actual) {
+  crypto.pbkdf2(password, salt, iterations, keylen, 'sha256', (err, actual) => {
     assert.equal(actual.toString('binary'), expected);
   });
 }
 
 
 testPBKDF2('password', 'salt', 1, 20,
-           '\x0c\x60\xc8\x0f\x96\x1f\x0e\x71\xf3\xa9\xb5\x24' +
-           '\xaf\x60\x12\x06\x2f\xe0\x37\xa6');
+           '\x12\x0f\xb6\xcf\xfc\xf8\xb3\x2c\x43\xe7\x22\x52' +
+           '\x56\xc4\xf8\x37\xa8\x65\x48\xc9');
 
 testPBKDF2('password', 'salt', 2, 20,
-           '\xea\x6c\x01\x4d\xc7\x2d\x6f\x8c\xcd\x1e\xd9\x2a' +
-           '\xce\x1d\x41\xf0\xd8\xde\x89\x57');
+           '\xae\x4d\x0c\x95\xaf\x6b\x46\xd3\x2d\x0a\xdf\xf9' +
+           '\x28\xf0\x6d\xd0\x2a\x30\x3f\x8e');
 
 testPBKDF2('password', 'salt', 4096, 20,
-           '\x4b\x00\x79\x01\xb7\x65\x48\x9a\xbe\xad\x49\xd9\x26' +
-           '\xf7\x21\xd0\x65\xa4\x29\xc1');
+           '\xc5\xe4\x78\xd5\x92\x88\xc8\x41\xaa\x53\x0d\xb6' +
+           '\x84\x5c\x4c\x8d\x96\x28\x93\xa0');
 
 testPBKDF2('passwordPASSWORDpassword',
            'saltSALTsaltSALTsaltSALTsaltSALTsalt',
            4096,
            25,
-           '\x3d\x2e\xec\x4f\xe4\x1c\x84\x9b\x80\xc8\xd8\x36\x62' +
-           '\xc0\xe4\x4a\x8b\x29\x1a\x96\x4c\xf2\xf0\x70\x38');
+           '\x34\x8c\x89\xdb\xcb\xd3\x2b\x2f\x32\xd8\x14\xb8\x11' +
+           '\x6e\x84\xcf\x2b\x17\x34\x7e\xbc\x18\x00\x18\x1c');
 
 testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
-           '\x56\xfa\x6a\xa7\x55\x48\x09\x9d\xcc\x37\xd7\xf0\x34' +
-           '\x25\xe0\xc3');
+           '\x89\xb6\x9d\x05\x16\xf8\x29\x89\x3c\x69\x62\x26\x65' +
+           '\x0a\x86\x87');
 
 var expected =
     '64c486c55d30d4c5a079b8823b7d7cb37ff0556f537da8410233bcec330ed956';
@@ -62,28 +62,28 @@ assert.throws(function() {
 
 // Should not work with Infinity key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, Infinity, common.fail);
+  crypto.pbkdf2('password', 'salt', 1, Infinity, 'sha256', common.fail);
 }, function(err) {
   return err instanceof Error && err.message === 'Bad key length';
 });
 
 // Should not work with negative Infinity key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, -Infinity, common.fail);
+  crypto.pbkdf2('password', 'salt', 1, -Infinity, 'sha256', common.fail);
 }, function(err) {
   return err instanceof Error && err.message === 'Bad key length';
 });
 
 // Should not work with NaN key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, NaN, common.fail);
+  crypto.pbkdf2('password', 'salt', 1, NaN, 'sha256', common.fail);
 }, function(err) {
   return err instanceof Error && err.message === 'Bad key length';
 });
 
 // Should not work with negative key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, -1, common.fail);
+  crypto.pbkdf2('password', 'salt', 1, -1, 'sha256', common.fail);
 }, function(err) {
   return err instanceof Error && err.message === 'Bad key length';
 });
