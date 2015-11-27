@@ -46,7 +46,7 @@ server in a worker.
 
 <!--type=misc-->
 
-The worker processes are spawned using the `child_process.fork` method,
+The worker processes are spawned using the [`child_process.fork`][] method,
 so that they can communicate with the parent via IPC and pass server
 handles back and forth.
 
@@ -119,7 +119,7 @@ Similar to the `cluster.on('disconnect')` event, but specific to this worker.
 
 ### Event: 'error'
 
-This event is the same as the one provided by `child_process.fork()`.
+This event is the same as the one provided by [`child_process.fork()`][].
 
 In a worker you can also use `process.on('error')`.
 
@@ -160,7 +160,7 @@ It is not emitted in the worker.
 
 Similar to the `cluster.on('message')` event, but specific to this worker.
 
-This event is the same as the one provided by `child_process.fork()`.
+This event is the same as the one provided by [`child_process.fork()`][].
 
 In a worker you can also use `process.on('message')`.
 
@@ -219,7 +219,7 @@ It is not emitted in the worker.
 
 ### worker.disconnect()
 
-In a worker, this function will close all servers, wait for the 'close' event on
+In a worker, this function will close all servers, wait for the `'close'` event on
 those servers, and then disconnect the IPC channel.
 
 In the master, an internal message is sent to the worker causing it to call
@@ -238,12 +238,12 @@ automatically closed by workers, and disconnect does not wait for them to close
 before exiting.
 
 Note that in a worker, `process.disconnect` exists, but it is not this function,
-it is [disconnect][].
+it is [`disconnect`][].
 
 Because long living server connections may block workers from disconnecting, it
 may be useful to send a message, so application specific actions may be taken to
 close them. It also may be useful to implement a timeout, killing a worker if
-the `disconnect` event has not been emitted after some time.
+the `'disconnect'` event has not been emitted after some time.
 
     if (cluster.isMaster) {
       var worker = cluster.fork();
@@ -290,7 +290,7 @@ cluster.workers
 
 This function returns `true` if the worker is connected to its master via its IPC
 channel, `false` otherwise. A worker is connected to its master after it's been
-created. It is disconnected after the `disconnect` event is emitted.
+created. It is disconnected after the `'disconnect'` event is emitted.
 
 ### worker.isDead()
 
@@ -311,13 +311,13 @@ Causes `.suicide` to be set.
 This method is aliased as `worker.destroy()` for backwards compatibility.
 
 Note that in a worker, `process.kill()` exists, but it is not this function,
-it is [kill][].
+it is [`kill`][].
 
 ### worker.process
 
 * {ChildProcess object}
 
-All workers are created using `child_process.fork()`, the returned object
+All workers are created using [`child_process.fork()`][], the returned object
 from this function is stored as `.process`. In a worker, the global `process`
 is stored.
 
@@ -337,7 +337,7 @@ disconnection.
 Send a message to a worker or master, optionally with a handle.
 
 In the master this sends a message to a specific worker. It is identical to
-[ChildProcess.send()][].
+[`ChildProcess.send()`][].
 
 In a worker this sends a message to the master. It is identical to
 `process.send()`.
@@ -380,7 +380,7 @@ Emitted after the worker IPC channel has disconnected. This can occur when a
 worker exits gracefully, is killed, or is disconnected manually (such as with
 worker.disconnect()).
 
-There may be a delay between the `disconnect` and `exit` events.  These events
+There may be a delay between the `'disconnect'` and `'exit'` events.  These events
 can be used to detect if the process is stuck in a cleanup or if there are
 long-living connections.
 
@@ -395,7 +395,7 @@ long-living connections.
 * `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
   the process to be killed.
 
-When any of the workers die the cluster module will emit the 'exit' event.
+When any of the workers die the cluster module will emit the `'exit'` event.
 
 This can be used to restart the worker by calling `.fork()` again.
 
@@ -411,7 +411,7 @@ See [child_process event: 'exit'][].
 
 * `worker` {Worker object}
 
-When a new worker is forked the cluster module will emit a 'fork' event.
+When a new worker is forked the cluster module will emit a `'fork'` event.
 This can be used to log worker activity, and create your own timeout.
 
     var timeouts = [];
@@ -435,8 +435,8 @@ This can be used to log worker activity, and create your own timeout.
 * `worker` {Worker object}
 * `address` {Object}
 
-After calling `listen()` from a worker, when the 'listening' event is emitted on
-the server, a listening event will also be emitted on `cluster` in the master.
+After calling `listen()` from a worker, when the `'listening'` event is emitted on
+the server, a `'listening'` event will also be emitted on `cluster` in the master.
 
 The event handler is executed with two arguments, the `worker` contains the worker
 object and the `address` object contains the following connection properties:
@@ -469,7 +469,7 @@ See [child_process event: 'message'][].
 
 After forking a new worker, the worker should respond with an online message.
 When the master receives an online message it will emit this event.
-The difference between 'fork' and 'online' is that fork is emitted when the
+The difference between `'fork'` and `'online'` is that fork is emitted when the
 master forks a worker, and 'online' is emitted when the worker is running.
 
     cluster.on('online', function(worker) {
@@ -644,10 +644,11 @@ the worker's unique id is the easiest way to find the worker.
       var worker = cluster.workers[id];
     });
 
-[server.close()]: net.html#net_event_close
-[disconnect]: child_process.html#child_process_child_disconnect
-[kill]: process.html#process_process_kill_pid_signal
+[`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
+[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_callback
+[`disconnect`]: child_process.html#child_process_child_disconnect
+[`kill`]: process.html#process_process_kill_pid_signal
+[`server.close()`]: net.html#net_event_close
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
-[ChildProcess.send()]: child_process.html#child_process_child_send_message_sendhandle_callback
 [child_process event: 'exit']: child_process.html#child_process_event_exit
 [child_process event: 'message']: child_process.html#child_process_event_message
