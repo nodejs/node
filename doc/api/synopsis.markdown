@@ -3,7 +3,7 @@
 <!--type=misc-->
 
 An example of a [web server][] written with Node.js which responds with
-'Hello World':
+`'Hello World'`:
 
     var http = require('http');
 

@@ -164,7 +164,7 @@ Returned by tls.createSecurePair.
 The event is emitted from the SecurePair once the pair has successfully
 established a secure connection.
 
-Similarly to the checking for the server 'secureConnection' event,
+Similarly to the checking for the server `'secureConnection'` event,
 pair.cleartext.authorized should be checked to confirm whether the certificate
 used properly authorized.
 
@@ -179,7 +179,7 @@ connections using TLS or SSL.
 
 `function (exception, tlsSocket) { }`
 
-When a client connection emits an 'error' event before secure connection is
+When a client connection emits an `'error'` event before secure connection is
 established - it will be forwarded here.
 
 `tlsSocket` is the [tls.TLSSocket][] that the error originated from.
@@ -213,9 +213,9 @@ Calling `callback(err)` will result in a `socket.destroy(err)` call.
 
 Typical flow:
 
-1. Client connects to server and sends `OCSPRequest` to it (via status info
+1. Client connects to server and sends `'OCSPRequest'` to it (via status info
    extension in ClientHello.)
-2. Server receives request and invokes `OCSPRequest` event listener if present
+2. Server receives request and invokes `'OCSPRequest'` event listener if present
 3. Server grabs OCSP url from either `certificate` or `issuer` and performs an
    [OCSP request] to the CA
 4. Server receives `OCSPResponse` from CA and sends it back to client via
@@ -333,7 +333,7 @@ or currently pending server connections will use previous keys.
 
 ## Class: tls.TLSSocket
 
-This is a wrapped version of [net.Socket][] that does transparent encryption
+This is a wrapped version of [`net.Socket`][] that does transparent encryption
 of written data and all required TLS negotiation.
 
 This instance implements a duplex [Stream][] interfaces.  It has all the
@@ -346,7 +346,7 @@ only return data while the connection is open.
 
 Construct a new TLSSocket object from existing TCP socket.
 
-`socket` is an instance of [net.Socket][]
+`socket` is an instance of [`net.Socket`][]
 
 `options` is an optional object that might contain following properties:
 
@@ -356,7 +356,7 @@ Construct a new TLSSocket object from existing TCP socket.
   - `isServer`: If `true` - TLS socket will be instantiated in server-mode.
     Default: `false`
 
-  - `server`: An optional [net.Server][] instance
+  - `server`: An optional [`net.Server`][] instance
 
   - `requestCert`: Optional, see [tls.createSecurePair][]
 
@@ -369,7 +369,7 @@ Construct a new TLSSocket object from existing TCP socket.
   - `session`: Optional, a `Buffer` instance, containing TLS session
 
   - `requestOCSP`: Optional, if `true` - OCSP status request extension would
-    be added to client hello, and `OCSPResponse` event will be emitted on socket
+    be added to client hello, and `'OCSPResponse'` event will be emitted on socket
     before establishing secure communication
 
 ### Event: 'OCSPResponse'
@@ -575,7 +575,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
   - `session`: A `Buffer` instance, containing TLS session.
 
 The `callback` parameter will be added as a listener for the
-['secureConnect'][] event.
+[`'secureConnect'`][] event.
 
 `tls.connect()` returns a [tls.TLSSocket][] object.
 
@@ -687,7 +687,7 @@ NOTE: `cleartext` has the same APIs as [tls.TLSSocket][]
 ## tls.createServer(options[, secureConnectionListener])
 
 Creates a new [tls.Server][].  The `connectionListener` argument is
-automatically set as a listener for the [secureConnection][] event.  The
+automatically set as a listener for the [`'secureConnection'`][] event.  The
 `options` object has these possibilities:
 
   - `pfx`: A string or `Buffer` containing the private key, certificate and
@@ -883,11 +883,11 @@ Example:
 [tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
 [tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [tls.TLSSocket]: #tls_class_tls_tlssocket
-[net.Server]: net.html#net_class_net_server
-[net.Socket]: net.html#net_class_net_socket
+[`net.Server`]: net.html#net_class_net_server
+[`net.Socket`]: net.html#net_class_net_socket
 [net.Server.address()]: net.html#net_server_address
-['secureConnect']: #tls_event_secureconnect
-[secureConnection]: #tls_event_secureconnection
+[`'secureConnect'`]: #tls_event_secureconnect
+[`'secureConnection'`]: #tls_event_secureconnection
 [Stream]: stream.html#stream_stream
 [SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
 [tls.Server]: #tls_class_tls_server

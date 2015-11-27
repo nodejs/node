@@ -233,7 +233,7 @@ formatted according to the returned Object. This is similar to how
 
     Stability: 0 - Deprecated
 
-Internal alias for Array.isArray.
+Internal alias for [`Array.isArray`][].
 
 Returns `true` if the given "object" is an `Array`. `false` otherwise.
 
@@ -297,7 +297,7 @@ Returns `true` if the given "object" is a `Date`. `false` otherwise.
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is an `Error`. `false` otherwise.
+Returns `true` if the given "object" is an [`Error`][]. `false` otherwise.
 
     var util = require('util');
 
@@ -505,4 +505,6 @@ Deprecated predecessor of `stream.pipe()`.
 
 Deprecated predecessor of `console.log`.
 
+[`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
+[`Error`]: errors.html#errors_class_error
