@@ -19,7 +19,7 @@ convenient.
 
 ## Class: ChildProcess
 
-`ChildProcess` is an [EventEmitter][].
+`ChildProcess` is an [`EventEmitter`][].
 
 Child processes always have three streams associated with them. `child.stdin`,
 `child.stdout`, and `child.stderr`.  These may be shared with the stdio
@@ -27,7 +27,7 @@ streams of the parent process, or they may be separate stream objects
 which can be piped to and from.
 
 The ChildProcess class is not intended to be used directly.  Use the
-`spawn()`, `exec()`, `execFile()`, or `fork()` methods to create a Child
+[`spawn()`][], [`exec()`][], [`execFile()`][], or [`fork()`][] methods to create a Child
 Process instance.
 
 ### Event: 'close'
@@ -37,7 +37,7 @@ Process instance.
   was killed by the parent.
 
 This event is emitted when the stdio streams of a child process have all
-terminated.  This is distinct from 'exit', since multiple processes
+terminated.  This is distinct from `'exit'`, since multiple processes
 might share the same stdio streams.
 
 ### Event: 'disconnect'
@@ -56,7 +56,7 @@ Emitted when:
 2. The process could not be killed, or
 3. Sending a message to the child process failed for whatever reason.
 
-Note that the `exit`-event may or may not fire after an error has occurred. If
+Note that the `'exit'` event may or may not fire after an error has occurred. If
 you are listening on both events to fire a function, remember to guard against
 calling your function twice.
 
@@ -75,8 +75,8 @@ of the signal, otherwise `null`.
 
 Note that the child process stdio streams might still be open.
 
-Also, note that Node.js establishes signal handlers for `'SIGINT'` and
-`'SIGTERM`', so it will not terminate due to receipt of those signals,
+Also, note that Node.js establishes signal handlers for `SIGINT` and
+`SIGTERM`, so it will not terminate due to receipt of those signals,
 it will exit.
 
 See `waitpid(2)`.
@@ -84,11 +84,11 @@ See `waitpid(2)`.
 ### Event: 'message'
 
 * `message` {Object} a parsed JSON object or primitive value.
-* `sendHandle` {Handle object} a [net.Socket][] or [net.Server][] object, or
+* `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
 Messages sent by `.send(message, [sendHandle])` are obtained using the
-`message` event.
+`'message'` event.
 
 ### child.connected
 
@@ -103,11 +103,11 @@ gracefully once there are no other connections keeping it alive. After calling
 this method the `.connected` flag will be set to `false` in both the parent and
 child, and it is no longer possible to send messages.
 
-The 'disconnect' event will be emitted when there are no messages in the process
+The `'disconnect'` event will be emitted when there are no messages in the process
 of being received, most likely immediately.
 
 Note that you can also call `process.disconnect()` in the child process when the
-child process has any open IPC channels with the parent (i.e `fork()`).
+child process has any open IPC channels with the parent (i.e [`fork()`][]).
 
 ### child.kill([signal])
 
@@ -188,17 +188,17 @@ will emit objects each time it receives a message on its channel.
 
 There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
 containing a `NODE_` prefix in its `cmd` property will not be emitted in
-the `message` event, since they are internal messages used by Node.js core.
-Messages containing the prefix are emitted in the `internalMessage` event.
+the `'message'` event, since they are internal messages used by Node.js core.
+Messages containing the prefix are emitted in the `'internalMessage'` event.
 Avoid using this feature; it is subject to change without notice.
 
 The `sendHandle` option to `child.send()` is for sending a TCP server or
 socket object to another process. The child will receive the object as its
-second argument to the `message` event.
+second argument to the `'message'` event.
 
 The `callback` option is a function that is invoked after the message is
 sent but before the target may have received it.  It is called with a single
-argument: `null` on success, or an `Error` object on failure.
+argument: `null` on success, or an [`Error`][] object on failure.
 
 `child.send()` emits an `'error'` event if no callback was given and the message
 cannot be sent, for example because the child process has already exited.
@@ -237,7 +237,7 @@ Note that the server is now shared between the parent and child, this means
 that some connections will be handled by the parent and some by the child.
 
 For `dgram` servers the workflow is exactly the same.  Here you listen on
-a `message` event instead of `connection` and use `server.bind` instead of
+a `'message'` event instead of `'connection'` and use `server.bind` instead of
 `server.listen`.  (Currently only supported on UNIX platforms.)
 
 #### Example: sending socket object
@@ -308,7 +308,7 @@ to the same object, or null.
 * {Array}
 
 A sparse array of pipes to the child process, corresponding with positions in
-the [stdio][] option to [spawn][] that have been set to `'pipe'`.
+the [`stdio`][] option to [`spawn()`][] that have been set to `'pipe'`.
 Note that streams 0-2 are also available as ChildProcess.stdin,
 ChildProcess.stdout, and ChildProcess.stderr, respectively.
 
@@ -392,7 +392,7 @@ Runs a command in a shell and buffers the output.
     });
 
 The callback gets the arguments `(error, stdout, stderr)`. On success, `error`
-will be `null`.  On error, `error` will be an instance of `Error` and `error.code`
+will be `null`.  On error, `error` will be an instance of [`Error`][] and `error.code`
 will be the exit code of the child process, and `error.signal` will be set to the
 signal that terminated the process.
 
@@ -452,7 +452,7 @@ leaner than [`child_process.exec()`][]. It has the same options.
     (Default: `process.execArgv`)
   * `silent` {Boolean} If true, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
-    the "pipe" and "inherit" options for `spawn()`'s `stdio` for more details
+    the `'pipe'` and `'inherit'` options for [`spawn()`][]'s [`stdio`][] for more details
     (default is false)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -473,7 +473,7 @@ done with care and by default will talk over the fd represented an
 environmental variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.
 
-*Note: Unlike the `fork()` POSIX system call, `child_process.fork()` does not clone the
+*Note: Unlike the `fork()` POSIX system call, [`child_process.fork()`][] does not clone the
 current process.*
 
 ### child_process.spawn(command[, args][, options])
@@ -614,7 +614,7 @@ As a shorthand, the `stdio` argument may be one of the following strings:
 * `'ignore'` - `['ignore', 'ignore', 'ignore']`
 * `'inherit'` - `[process.stdin, process.stdout, process.stderr]` or `[0,1,2]`
 
-Otherwise, the 'stdio' option to `child_process.spawn()` is an array where each
+Otherwise, the `'stdio'` option to [`child_process.spawn()`][] is an array where each
 index corresponds to a fd in the child.  The value is one of the following:
 
 1. `'pipe'` - Create a pipe between the child process and the parent process.
@@ -698,7 +698,7 @@ the `SIGTERM` signal and doesn't exit, your process will wait until the child
 process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
-throw.  The `Error` object will contain the entire result from
+throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
 ### child_process.execSync(command[, options])
@@ -732,7 +732,7 @@ the `SIGTERM` signal and doesn't exit, your process will wait until the child
 process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
-throw.  The `Error` object will contain the entire result from
+throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
 ### child_process.spawnSync(command[, args][, options])
@@ -767,16 +767,20 @@ until the process has completely exited. That is to say, if the process handles
 the `SIGTERM` signal and doesn't exit, your process will wait until the child
 process has exited.
 
-[below]: #child_process_asynchronous_process_creation
-[synchronous counterparts]: #child_process_synchronous_process_creation
-[EventEmitter]: events.html#events_class_events_eventemitter
-[`ChildProcess#kill()`]: #child_process_child_kill_signal
-[`ChildProcess#send()`]: #child_process_child_send_message_sendhandle_callback
-[net.Server]: net.html#net_class_net_server
-[net.Socket]: net.html#net_class_net_socket
-[`child_process.fork()`]: #child_process_child_process_fork_modulepath_args_options
-[stdio]: #child_process_options_stdio
-[spawn]: #child_process_child_process_spawn_command_args_options
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
+[`child_process.fork()`]: #child_process_child_process_fork_modulepath_args_options
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
+[`ChildProcess#kill()`]: #child_process_child_kill_signal
+[`ChildProcess#send()`]: #child_process_child_send_message_sendhandle_callback
+[`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`exec()`]: #child_process_child_process_exec_command_options_callback
+[`execFile()`]: #child_process_child_process_execfile_file_args_options_callback
+[`fork()`]: #child_process_child_process_fork_modulepath_args_options
+[`net.Server`]: net.html#net_class_net_server
+[`net.Socket`]: net.html#net_class_net_socket
+[`spawn()`]: #child_process_child_process_spawn_command_args_options
+[`stdio`]: #child_process_options_stdio
+[below]: #child_process_asynchronous_process_creation
+[synchronous counterparts]: #child_process_synchronous_process_creation
