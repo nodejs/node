@@ -1,12 +1,12 @@
 'use strict';
-const common = require('../common'),
-      assert = require('assert'),
-      dgram = require('dgram'),
-      Buffer = require('buffer').Buffer,
-      fork = require('child_process').fork,
-      LOCAL_BROADCAST_HOST = '224.0.0.114',
-      TIMEOUT = common.platformTimeout(5000),
-      messages = [
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
+const Buffer = require('buffer').Buffer;
+const fork = require('child_process').fork;
+const LOCAL_BROADCAST_HOST = '224.0.0.114';
+const TIMEOUT = common.platformTimeout(5000);
+const messages = [
         new Buffer('First message to send'),
         new Buffer('Second message to send'),
         new Buffer('Third message to send'),
