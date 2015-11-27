@@ -3,7 +3,7 @@
     Stability: 2 - Stable
 
 To use this module, do `require('readline')`. Readline allows reading of a
-stream (such as `process.stdin`) on a line-by-line basis.
+stream (such as [`process.stdin`][]) on a line-by-line basis.
 
 Note that once you've invoked this module, your Node.js program will not
 terminate until you've closed the interface. Here's how to allow your
@@ -31,13 +31,14 @@ stream.
 ### rl.close()
 
 Closes the `Interface` instance, relinquishing control on the `input` and
-`output` streams. The "close" event will also be emitted.
+`output` streams. The `'close'` event will also be emitted.
 
 ### rl.pause()
 
 Pauses the readline `input` stream, allowing it to be resumed later if needed.
 
-Note that this doesn't immediately pause the stream of events. Several events may be emitted after calling `pause`, including `line`.
+Note that this doesn't immediately pause the stream of events. Several events may
+be emitted after calling `pause`, including `line`.
 
 ### rl.prompt([preserveCursor])
 
@@ -100,7 +101,7 @@ Example:
 
 Emitted when `close()` is called.
 
-Also emitted when the `input` stream receives its "end" event. The `Interface`
+Also emitted when the `input` stream receives its `'end'` event. The `Interface`
 instance should be considered "finished" once this is emitted. For example, when
 the `input` stream receives `^D`, respectively known as `EOT`.
 
@@ -114,7 +115,7 @@ the `input` stream receives a `^C`, respectively known as `SIGINT`.
 Emitted whenever the `input` stream receives a `\n`, usually received when the
 user hits enter, or return. This is a good hook to listen for user input.
 
-Example of listening for `line`:
+Example of listening for `'line'`:
 
     rl.on('line', function (cmd) {
       console.log('You just typed: '+cmd);
@@ -129,7 +130,7 @@ Emitted whenever the `input` stream is paused.
 Also emitted whenever the `input` stream is not paused and receives the
 `SIGCONT` event. (See events `SIGTSTP` and `SIGCONT`)
 
-Example of listening for `pause`:
+Example of listening for `'pause'`:
 
     rl.on('pause', function() {
       console.log('Readline paused.');
@@ -141,7 +142,7 @@ Example of listening for `pause`:
 
 Emitted whenever the `input` stream is resumed.
 
-Example of listening for `resume`:
+Example of listening for `'resume'`:
 
     rl.on('resume', function() {
       console.log('Readline resumed.');
@@ -191,10 +192,10 @@ Emitted whenever the `input` stream receives a `^Z`, respectively known as
 `SIGTSTP`. If there is no `SIGTSTP` event listener present when the `input`
 stream receives a `SIGTSTP`, the program will be sent to the background.
 
-When the program is resumed with `fg`, the `pause` and `SIGCONT` events will be
+When the program is resumed with `fg`, the `'pause'` and `SIGCONT` events will be
 emitted. You can use either to resume the stream.
 
-The `pause` and `SIGCONT` events will not be triggered if the stream was paused
+The `'pause'` and `SIGCONT` events will not be triggered if the stream was paused
 before the program was sent to the background.
 
 Example of listening for `SIGTSTP`:
@@ -246,7 +247,7 @@ Clears the screen from the current position of the cursor down.
 
 ## readline.createInterface(options)
 
-Creates a readline `Interface` instance. Accepts an "options" Object that takes
+Creates a readline `Interface` instance. Accepts an `options Object that takes
 the following values:
 
  - `input` - the readable stream to listen to (Required).
@@ -287,8 +288,8 @@ Also `completer` can be run in async mode if it accepts two arguments:
       callback(null, [['123'], linePartial]);
     }
 
-`createInterface` is commonly used with `process.stdin` and
-`process.stdout` in order to accept user input:
+`createInterface` is commonly used with [`process.stdin`][] and
+[`process.stdout`][] in order to accept user input:
 
     var readline = require('readline');
     var rl = readline.createInterface({
@@ -297,12 +298,12 @@ Also `completer` can be run in async mode if it accepts two arguments:
     });
 
 Once you have a readline instance, you most commonly listen for the
-`"line"` event.
+`'line'` event.
 
 If `terminal` is `true` for this instance then the `output` stream will get
 the best compatibility if it defines an `output.columns` property, and fires
-a `"resize"` event on the `output` if/when the columns ever change
-(`process.stdout` does this automatically when it is a TTY).
+a `'resize'` event on the `output` if/when the columns ever change
+([`process.stdout`][] does this automatically when it is a TTY).
 
 ## readline.cursorTo(stream, x, y)
 
@@ -311,3 +312,6 @@ Move cursor to the specified position in a given TTY stream.
 ## readline.moveCursor(stream, dx, dy)
 
 Move cursor relative to it's current position in a given TTY stream.
+
+[`process.stdin`]: process.html#process_process_stdin
+[`process.stdout`]: process.html#process_process_stdout

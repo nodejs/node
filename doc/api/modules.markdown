@@ -299,7 +299,7 @@ A required module prefixed with `'./'` is relative to the file calling
 Without a leading '/', './', or '../' to indicate a file, the module must
 either be a core module or is loaded from a `node_modules` folder.
 
-If the given path does not exist, `require()` will throw an Error with its
+If the given path does not exist, `require()` will throw an [`Error`][] with its
 `code` property set to `'MODULE_NOT_FOUND'`.
 
 ## Folders as Modules
@@ -519,4 +519,5 @@ object.  Since `require()` returns the `module.exports`, and the `module` is
 typically *only* available within a specific module's code, it must be
 explicitly exported in order to be used.
 
-[module resolution]: https://nodejs.org/api/modules.html#modules_all_together
+[`Error`]: errors.html#errors_class_error
+[module resolution]: #modules_all_together

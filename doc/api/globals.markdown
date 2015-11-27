@@ -11,7 +11,7 @@ actually in the global scope but in the module scope - this will be noted.
 
 * {Function}
 
-Used to handle binary data. See the [buffer section][]
+Used to handle binary data. See the [buffer section][].
 
 ## __dirname
 
@@ -48,7 +48,7 @@ Example: running `node example.js` from `/Users/mjr`
 
 ## clearInterval(t)
 
-Stop a timer that was previously created with `setInterval()`. The callback
+Stop a timer that was previously created with [`setInterval()`][]. The callback
 will not execute.
 
 <!--type=global-->
@@ -57,7 +57,7 @@ The timer functions are global variables. See the [timers][] section.
 
 ## clearTimeout(t)
 
-Stop a timer that was previously created with `setTimeout()`. The callback will
+Stop a timer that was previously created with [`setTimeout()`][]. The callback will
 not execute.
 
 ## console
@@ -66,7 +66,7 @@ not execute.
 
 * {Object}
 
-Used to print to stdout and stderr. See the [console][] section.
+Used to print to stdout and stderr. See the [`console`][] section.
 
 ## exports
 
@@ -111,7 +111,7 @@ See the [module system documentation][] for more information.
 
 * {Object}
 
-The process object. See the [process object][] section.
+The process object. See the [`process` object][] section.
 
 ## require()
 
@@ -179,9 +179,11 @@ cannot span more than 24.8 days.
 
 Returns an opaque value that represents the timer.
 
+[`console`]: console.html
+[`process` object]: process.html#process_process
+[`setInterval()`]: #globals_setinterval_cb_ms
+[`setTimeout()`]: #globals_settimeout_cb_ms
 [buffer section]: buffer.html
 [module system documentation]: modules.html
 [Modules]: modules.html#modules_modules
-[process object]: process.html#process_process
-[console]: console.html
 [timers]: timers.html
