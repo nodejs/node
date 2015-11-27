@@ -89,7 +89,7 @@ data as it is streamed.
 
 Class for decrypting data.
 
-Returned by `crypto.createDecipher` and `crypto.createDecipheriv`.
+Returned by [`crypto.createDecipher`][] and [`crypto.createDecipheriv`][].
 
 Decipher objects are [streams][] that are both readable and writable.
 The written enciphered data is used to produce the plain-text data on
@@ -125,7 +125,7 @@ You can disable auto padding if the data has been encrypted without
 standard block padding to prevent `decipher.final` from checking and
 removing it. This will only work if the input data's length is a multiple of
 the ciphers block size. You must call this before streaming data to
-`decipher.update`.
+[`decipher.update`][].
 
 ### decipher.update(data[, input_encoding][, output_encoding])
 
@@ -426,15 +426,15 @@ is used to compute the hash.  Once the writable side of the stream is ended,
 use the `read()` method to get the enciphered contents.  The legacy `update`
 and `final` methods are also supported.
 
-Note: `createCipher` derives keys with the OpenSSL function [EVP_BytesToKey][]
+Note: `createCipher` derives keys with the OpenSSL function [`EVP_BytesToKey`][]
 with the digest algorithm set to MD5, one iteration, and no salt. The lack of
 salt allows dictionary attacks as the same password always creates the same key.
 The low iteration count and non-cryptographically secure hash algorithm allow
 passwords to be tested very rapidly.
 
-In line with OpenSSL's recommendation to use pbkdf2 instead of EVP_BytesToKey it
-is recommended you derive a key and iv yourself with [crypto.pbkdf2][] and to
-then use [createCipheriv()][] to create the cipher stream.
+In line with OpenSSL's recommendation to use pbkdf2 instead of [`EVP_BytesToKey`][] it
+is recommended you derive a key and iv yourself with [`crypto.pbkdf2`][] and to
+then use [`createCipheriv()`][] to create the cipher stream.
 
 ## crypto.createCipheriv(algorithm, key, iv)
 
@@ -448,7 +448,7 @@ the raw key used by the algorithm.  `iv` is an [initialization vector][].
 
 ## crypto.createCredentials(details)
 
-    Stability: 0 - Deprecated: Use [tls.createSecureContext][] instead.
+    Stability: 0 - Deprecated: Use [`tls.createSecureContext`][] instead.
 
 Creates a credentials object, with the optional details being a
 dictionary with keys:
@@ -474,12 +474,12 @@ publicly trusted list of CAs as given in
 ## crypto.createDecipher(algorithm, password)
 
 Creates and returns a decipher object, with the given algorithm and
-key.  This is the mirror of the [createCipher()][] above.
+key.  This is the mirror of the [`createCipher()`][] above.
 
 ## crypto.createDecipheriv(algorithm, key, iv)
 
 Creates and returns a decipher object, with the given algorithm, key
-and iv.  This is the mirror of the [createCipheriv()][] above.
+and iv.  This is the mirror of the [`createCipheriv()`][] above.
 
 ## crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
 
@@ -500,7 +500,7 @@ If no `generator` is specified, then `2` is used.
 ## crypto.createECDH(curve_name)
 
 Creates an Elliptic Curve (EC) Diffie-Hellman key exchange object using a
-predefined curve specified by the `curve_name` string. Use [getCurves()][] to
+predefined curve specified by the `curve_name` string. Use [`getCurves()`][] to
 obtain a list of available curve names. On recent releases,
 `openssl ecparam -list_curves` will also display the name and description of
 each available elliptic curve.
@@ -583,8 +583,8 @@ supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
 [RFC 2412][], but see [Caveats][]) and `'modp14'`, `'modp15'`,
 `'modp16'`, `'modp17'`, `'modp18'` (defined in [RFC 3526][]).  The
 returned object mimics the interface of objects created by
-[crypto.createDiffieHellman()][] above, but will not allow changing
-the keys (with [diffieHellman.setPublicKey()][] for example). The
+[`crypto.createDiffieHellman()`][] above, but will not allow changing
+the keys (with [`diffieHellman.setPublicKey()`][] for example). The
 advantage of using this routine is that the parties do not have to
 generate nor exchange group modulus beforehand, saving both processor
 and communication time.
@@ -635,7 +635,7 @@ Example:
       console.log(key.toString('hex'));  // 'c5e478d...1469e50'
     });
 
-You can get a list of supported digest functions with [crypto.getHashes()][].
+You can get a list of supported digest functions with [`crypto.getHashes()`][].
 
 ## crypto.pbkdf2Sync(password, salt, iterations, keylen[, digest])
 
@@ -782,22 +782,25 @@ Based on the recommendations of [NIST SP 800-131A]:
 
 See the reference for other recommendations and details.
 
-[stream]: stream.html
-[streams]: stream.html
+[`createCipher()`]: #crypto_crypto_createcipher_algorithm_password
+[`createCipheriv()`]: #crypto_crypto_createcipheriv_algorithm_key_iv
+[`crypto.createDecipher`]: #crypto_crypto_createdecipher_algorithm_password
+[`crypto.createDecipheriv`]: #crypto_crypto_createdecipheriv_algorithm_key_iv
+[`crypto.createDiffieHellman()`]: #crypto_crypto_creatediffiehellman_prime_prime_encoding_generator_generator_encoding
+[`crypto.getHashes()`]: #crypto_crypto_gethashes
+[`crypto.pbkdf2`]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`decipher.update`]: #crypto_decipher_update_data_input_encoding_output_encoding
+[`diffieHellman.setPublicKey()`]: #crypto_diffiehellman_setpublickey_public_key_encoding
+[`EVP_BytesToKey`]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
+[`getCurves()`]: #crypto_crypto_getcurves
+[`tls.createSecureContext`]: tls.html#tls_tls_createsecurecontext_details
 [buffer]: buffer.html
 [buffers]: buffer.html
-[createCipher()]: #crypto_crypto_createcipher_algorithm_password
-[createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
-[getCurves()]: #crypto_crypto_getcurves
-[crypto.createDiffieHellman()]: #crypto_crypto_creatediffiehellman_prime_prime_encoding_generator_generator_encoding
-[tls.createSecureContext]: tls.html#tls_tls_createsecurecontext_details
-[diffieHellman.setPublicKey()]: #crypto_diffiehellman_setpublickey_public_key_encoding
+[Caveats]: #crypto_caveats
+[initialization vector]: http://en.wikipedia.org/wiki/Initialization_vector
+[NIST SP 800-131A]: http://csrc.nist.gov/publications/nistpubs/800-131A/sp800-131A.pdf
+[NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
 [RFC 2412]: http://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: http://www.rfc-editor.org/rfc/rfc3526.txt
-[crypto.pbkdf2]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
-[EVP_BytesToKey]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
-[NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[NIST SP 800-131A]: http://csrc.nist.gov/publications/nistpubs/800-131A/sp800-131A.pdf
-[initialization vector]: http://en.wikipedia.org/wiki/Initialization_vector
-[Caveats]: #crypto_caveats
-[crypto.getHashes()]: #crypto_crypto_gethashes
+[stream]: stream.html
+[streams]: stream.html

@@ -66,12 +66,12 @@ should worry about unless you log huge amounts of data.
 
 ### console.assert(value[, message][, ...])
 
-Similar to [assert.ok()][], but the error message is formatted as
+Similar to [`assert.ok()`][], but the error message is formatted as
 `util.format(message...)`.
 
 ### console.dir(obj[, options])
 
-Uses `util.inspect` on `obj` and prints resulting string to stdout. This function
+Uses [`util.inspect()`][] on `obj` and prints resulting string to stdout. This function
 bypasses any custom `inspect()` function on `obj`. An optional *options* object
 may be passed that alters certain aspects of the formatted string:
 
@@ -83,15 +83,15 @@ object. This is useful for inspecting large complicated objects. Defaults to
 `2`. To make it recurse indefinitely pass `null`.
 
 - `colors` - if `true`, then the output will be styled with ANSI color codes.
-Defaults to `false`. Colors are customizable, see [customizing util.inspect colors][].
+Defaults to `false`. Colors are customizable, see [customizing `util.inspect()` colors][].
 
 ### console.error([data][, ...])
 
-Same as `console.log` but prints to stderr.
+Same as [`console.log()`][] but prints to stderr.
 
 ### console.info([data][, ...])
 
-Same as `console.log`.
+Same as [`console.log()`][].
 
 ### console.log([data][, ...])
 
@@ -102,8 +102,8 @@ Prints to stdout with newline. This function can take multiple arguments in a
     console.log('count: %d', count);
     // prints 'count: 5'
 
-If formatting elements are not found in the first string then `util.inspect`
-is used on each argument.  See [util.format()][] for more information.
+If formatting elements are not found in the first string then [`util.inspect()`][]
+is used on each argument.  See [`util.format()`][] for more information.
 
 ### console.time(label)
 
@@ -134,10 +134,13 @@ to the current position.
 
 ### console.warn([data][, ...])
 
-Same as `console.error`.
+Same as [`console.error()`][].
 
-[assert.ok()]: assert.html#assert_assert_value_message_assert_ok_value_message
-[customizing util.inspect colors]: util.html#util_customizing_util_inspect_colors
-[util.format()]: util.html#util_util_format_format
-[`console.timeEnd()`]: #console_console_timeend_label
+[`assert.ok()`]: assert.html#assert_assert_value_message_assert_ok_value_message
+[`console.error()`]: #console_console_error_data
+[`console.log()`]: #console_console_log_data
 [`console.time()`]: #console_console_time_label
+[`console.timeEnd()`]: #console_console_timeend_label
+[`util.format()`]: util.html#util_util_format_format
+[`util.inspect()`]: util.html#util_util_inspect_object_options
+[customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors

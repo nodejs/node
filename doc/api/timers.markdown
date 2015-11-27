@@ -28,7 +28,7 @@ Returns the timer.
 ## setImmediate(callback[, arg][, ...])
 
 To schedule the "immediate" execution of `callback` after I/O events
-callbacks and before `setTimeout` and `setInterval` . Returns an
+callbacks and before [`setTimeout`][] and [`setInterval`][]. Returns an
 `immediateObject` for possible use with `clearImmediate()`. Optionally you
 can also pass arguments to the callback.
 
@@ -64,7 +64,7 @@ immediately, as if the `delay` was set to 1.
 
 ## unref()
 
-The opaque value returned by `setTimeout` and `setInterval` also has the method
+The opaque value returned by [`setTimeout`][] and [`setInterval`][] also has the method
 `timer.unref()` which will allow you to create a timer that is active but if
 it is the only item left in the event loop, it won't keep the program running.
 If the timer is already `unref`d calling `unref` again will have no effect.
@@ -74,3 +74,6 @@ will wakeup the event loop, creating too many of these may adversely effect
 event loop performance -- use wisely.
 
 Returns the timer.
+
+[`setInterval`]: timers.html#timers_setinterval_callback_delay_arg
+[`setTimeout`]: timers.html#timers_settimeout_callback_delay_arg
