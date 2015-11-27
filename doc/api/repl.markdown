@@ -120,7 +120,7 @@ The following key combinations in the REPL have these special effects:
 ### Customizing Object displays in the REPL
 
 The REPL module internally uses
-[util.inspect()][], when printing values. However, `util.inspect` delegates the
+[`util.inspect()`][], when printing values. However, `util.inspect` delegates the
  call to the object's `inspect()` function, if it has one. You can read more
  about this delegation [here][].
 
@@ -147,8 +147,8 @@ This inherits from [Readline Interface][] with the following events:
 `function () {}`
 
 Emitted when the user exits the REPL in any of the defined ways. Namely, typing
-`.exit` at the repl, pressing Ctrl+C twice to signal SIGINT, or pressing Ctrl+D
-to signal "end" on the `input` stream.
+`.exit` at the repl, pressing Ctrl+C twice to signal `SIGINT`, or pressing Ctrl+D
+to signal `'end'` on the `input` stream.
 
 Example of listening for `exit`:
 
@@ -216,8 +216,8 @@ Example of invoking that command from the REPL:
 
 * `preserveCursor` {Boolean}
 
-Like [readline.prompt][] except also adding indents with ellipses when inside
-blocks. The `preserveCursor` argument is passed to [readline.prompt][]. This is
+Like [`readline.prompt`][] except also adding indents with ellipses when inside
+blocks. The `preserveCursor` argument is passed to [`readline.prompt`][]. This is
 used primarily with `defineCommand`. It's also used internally to render each
 prompt line.
 
@@ -323,7 +323,7 @@ a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 For an example of running a REPL instance over `curl(1)`,
 see: https://gist.github.com/2053342
 
-[Readline Interface]: readline.html#readline_class_interface
-[readline.prompt]: readline.html#readline_rl_prompt_preservecursor
-[util.inspect()]: util.html#util_util_inspect_object_options
+[`readline.prompt`]: readline.html#readline_rl_prompt_preservecursor
+[`util.inspect()`]: util.html#util_util_inspect_object_options
 [here]: util.html#util_custom_inspect_function_on_objects
+[Readline Interface]: readline.html#readline_class_interface

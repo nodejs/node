@@ -35,7 +35,7 @@ The options when creating a script are:
   Applies only to syntax errors compiling the code; errors while running the
   code are controlled by the options to the script's methods.
 - `timeout`: a number of milliseconds to execute `code` before terminating
-  execution. If execution is terminated, an `Error` will be thrown.
+  execution. If execution is terminated, an [`Error`][] will be thrown.
 
 ### script.runInContext(contextifiedSandbox[, options])
 
@@ -141,7 +141,7 @@ The options for running a script are:
   Applies only to runtime errors executing the code; it is impossible to create
   a `Script` instance with syntax errors, as the constructor will throw.
 - `timeout`: a number of milliseconds to execute the script before terminating
-  execution. If execution is terminated, an `Error` will be thrown.
+  execution. If execution is terminated, an [`Error`][] will be thrown.
 
 ## vm.createContext([sandbox])
 
@@ -273,7 +273,8 @@ e.g. `(0,eval)('code')`. However, it also has the following additional options:
   Will capture both syntax errors from compiling `code` and runtime errors
   thrown by executing the compiled code. Defaults to `true`.
 - `timeout`: a number of milliseconds to execute `code` before terminating
-  execution. If execution is terminated, an `Error` will be thrown.
+  execution. If execution is terminated, an [`Error`][] will be thrown.
 
 [indirect `eval` call]: http://es5.github.io/#x10.4.2
 [global object]: http://es5.github.io/#x15.1
+[`Error`]: errors.html#errors_class_error

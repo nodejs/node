@@ -50,7 +50,7 @@ instead of cloning it.
 
 While more efficient, it introduces subtle incompatibilities with the typed
 arrays specification.  `ArrayBuffer#slice()` makes a copy of the slice while
-`Buffer#slice()` creates a view.
+[`Buffer#slice()`][] creates a view.
 
 ## Class: Buffer
 
@@ -76,11 +76,11 @@ Copies the passed `buffer` data onto a new `Buffer` instance.
 Allocates a new buffer of `size` bytes.  `size` must be less than
 1,073,741,824 bytes (1 GB) on 32 bits architectures or
 2,147,483,648 bytes (2 GB) on 64 bits architectures,
-otherwise a `RangeError` is thrown.
+otherwise a [`RangeError`][] is thrown.
 
 Unlike `ArrayBuffers`, the underlying memory for buffers is not initialized. So
 the contents of a newly created `Buffer` are unknown and could contain
-sensitive data. Use `buf.fill(0)` to initialize a buffer to zeroes.
+sensitive data. Use [`buf.fill(0)`][] to initialize a buffer to zeroes.
 
 ### new Buffer(str[, encoding])
 
@@ -97,7 +97,7 @@ Allocates a new buffer containing the given `str`.
 * Return: Number
 
 Gives the actual byte length of a string. `encoding` defaults to `'utf8'`.
-This is not the same as `String.prototype.length` since that returns the
+This is not the same as [`String.prototype.length`][] since that returns the
 number of *characters* in a string.
 
 Example:
@@ -286,9 +286,9 @@ buffer.
 * `byteOffset` Number, Optional, Default: 0
 * Return: Number
 
-Operates similar to [Array#indexOf()][]. Accepts a String, Buffer or Number.
+Operates similar to [`Array#indexOf()`][]. Accepts a String, Buffer or Number.
 Strings are interpreted as UTF8. Buffers will use the entire buffer. So in order
-to compare a partial Buffer use `Buffer#slice()`. Numbers can range from 0 to
+to compare a partial Buffer use [`Buffer#slice()`][]. Numbers can range from 0 to
 255.
 
 ### buf.length
@@ -311,7 +311,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
 While the `length` property is not immutable, changing the value of `length`
 can result in undefined and inconsistent behavior. Applications that wish to
 modify the length of a buffer should therefore treat `length` as read-only and
-use `buf.slice` to create a new buffer.
+use [`buf.slice`][] to create a new buffer.
 
     buf = new Buffer(10);
     buf.write("abcdefghj", 0, "ascii");
@@ -882,7 +882,7 @@ to `false`.
 * Number, Default: 50
 
 How many bytes will be returned when `buffer.inspect()` is called. This can
-be overridden by user modules. See [util.inspect()][] for more details on
+be overridden by user modules. See [`util.inspect()`][] for more details on
 `buffer.inspect()` behavior.
 
 Note that this is a property on the buffer module returned by
@@ -932,6 +932,11 @@ un-pooled Buffer instance using SlowBuffer and copy out the relevant bits.
 Though this should be used sparingly and only be a last resort *after* a developer
 has actively observed undue memory retention in their applications.
 
+[`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
+[`buf.fill(0)`]: #buffer_buf_fill_value_offset_end
+[`buf.slice`]: #buffer_buf_slice_start_end
 [`buf1.compare(buf2)`]: #buffer_buf_compare_otherbuffer
-[Array#indexOf()]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
-[util.inspect()]: util.html#util_util_inspect_object_options
+[`Buffer#slice()`]: #buffer_buf_slice_start_end
+[`RangeError`]: errors.html#errors_class_rangeerror
+[`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
+[`util.inspect()`]: util.html#util_util_inspect_object_options

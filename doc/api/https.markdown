@@ -7,26 +7,26 @@ separate module.
 
 ## Class: https.Agent
 
-An Agent object for HTTPS similar to [http.Agent][].  See [https.request()][]
+An Agent object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
 for more information.
 
 ## Class: https.Server
 
 This class is a subclass of `tls.Server` and emits events same as
-`http.Server`. See `http.Server` for more information.
+[`http.Server`][]. See [`http.Server`][] for more information.
 
 ### server.setTimeout(msecs, callback)
 
-See [http.Server#setTimeout()][].
+See [`http.Server#setTimeout()`][].
 
 ### server.timeout
 
-See [http.Server#timeout][].
+See [`http.Server#timeout`][].
 
 ## https.createServer(options[, requestListener])
 
 Returns a new HTTPS web server object. The `options` is similar to
-[tls.createServer()][].  The `requestListener` is a function which is
+[`tls.createServer()`][].  The `requestListener` is a function which is
 automatically added to the `'request'` event.
 
 Example:
@@ -61,20 +61,20 @@ Or
 
 ### server.close([callback])
 
-See [http.close()][] for details.
+See [`http.close()`][] for details.
 
 ### server.listen(handle[, callback])
 ### server.listen(path[, callback])
 ### server.listen(port[, host][, backlog][, callback])
 
-See [http.listen()][] for details.
+See [`http.listen()`][] for details.
 
 ## https.get(options, callback)
 
-Like `http.get()` but for HTTPS.
+Like [`http.get()`][] but for HTTPS.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()][].
+automatically parsed with [`url.parse()`][].
 
 Example:
 
@@ -94,16 +94,16 @@ Example:
 
 ## https.globalAgent
 
-Global instance of [https.Agent][] for all HTTPS client requests.
+Global instance of [`https.Agent`][] for all HTTPS client requests.
 
 ## https.request(options, callback)
 
 Makes a request to a secure web server.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()][].
+automatically parsed with [`url.parse()`][].
 
-All options from [http.request()][] are valid.
+All options from [`http.request()`][] are valid.
 
 Example:
 
@@ -150,15 +150,15 @@ The options argument has the following options
 - `headers`: An object containing request headers.
 - `auth`: Basic authentication i.e. `'user:password'` to compute an
   Authorization header.
-- `agent`: Controls [Agent][] behavior. When an Agent is used request will
+- `agent`: Controls [`Agent`][] behavior. When an Agent is used request will
   default to `Connection: keep-alive`. Possible values:
- - `undefined` (default): use [globalAgent][] for this host and port.
+ - `undefined` (default): use [`globalAgent`][] for this host and port.
  - `Agent` object: explicitly use the passed in `Agent`.
  - `false`: opts out of connection pooling with an Agent, defaults request to
    `Connection: close`.
 
-The following options from [tls.connect()][] can also be specified. However, a
-[globalAgent][] silently ignores these.
+The following options from [`tls.connect()`][] can also be specified. However, a
+[`globalAgent`][] silently ignores these.
 
 - `pfx`: Certificate, Private key and CA certificates to use for SSL. Default `null`.
 - `key`: Private key to use for SSL. Default `null`.
@@ -175,9 +175,9 @@ The following options from [tls.connect()][] can also be specified. However, a
   request is sent. Default `true`.
 - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
   SSL version 3. The possible values depend on your installation of
-  OpenSSL and are defined in the constant [SSL_METHODS][].
+  OpenSSL and are defined in the constant [`SSL_METHODS`][].
 
-In order to specify these options, use a custom `Agent`.
+In order to specify these options, use a custom [`Agent`][].
 
 Example:
 
@@ -213,17 +213,19 @@ Example:
       ...
     }
 
-[http.Server#setTimeout()]: http.html#http_server_settimeout_msecs_callback
-[http.Server#timeout]: http.html#http_server_timeout
-[Agent]: #https_class_https_agent
-[globalAgent]: #https_https_globalagent
-[http.listen()]: http.html#http_server_listen_port_hostname_backlog_callback
-[url.parse()]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost
-[http.close()]: http.html#http_server_close_callback
-[http.Agent]: http.html#http_class_http_agent
-[http.request()]: http.html#http_http_request_options_callback
-[https.Agent]: #https_class_https_agent
-[https.request()]: #https_https_request_options_callback
-[tls.connect()]: tls.html#tls_tls_connect_options_callback
-[tls.createServer()]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
+[`Agent`]: #https_class_https_agent
+[`globalAgent`]: #https_https_globalagent
+[`http.Agent`]: http.html#http_class_http_agent
+[`http.close()`]: http.html#http_server_close_callback
+[`http.get()`]: http.html#http_http_get_options_callback
+[`http.listen()`]: http.html#http_server_listen_port_hostname_backlog_callback
+[`http.request()`]: http.html#http_http_request_options_callback
+[`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
+[`http.Server#timeout`]: http.html#http_server_timeout
+[`http.Server`]: http.html#http_class_http_server
+[`https.Agent`]: #https_class_https_agent
+[`https.request()`]: #https_https_request_options_callback
+[`SSL_METHODS`]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
+[`tls.connect()`]: tls.html#tls_tls_connect_options_callback
+[`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
+[`url.parse()`]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost

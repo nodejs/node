@@ -17,7 +17,7 @@ additional support for utf8.
 
 ## Class: StringDecoder
 
-Accepts a single argument, `encoding` which defaults to `utf8`.
+Accepts a single argument, `encoding` which defaults to `'utf8'`.
 
 ### decoder.end()
 
