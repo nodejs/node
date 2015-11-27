@@ -12,10 +12,15 @@ if (common.inFreeBSDJail) {
 var conns = 0;
 var clientLocalPorts = [];
 var serverRemotePorts = [];
+var serverNeedsToFireConnection = false;
 
 const server = net.createServer(function(socket) {
   serverRemotePorts.push(socket.remotePort);
   conns++;
+  if (serverNeedsToFireConnection) {
+    serverNeedsToFireConnection = false;
+    testConnect();
+  }
 });
 
 const client = new net.Socket();
@@ -34,7 +39,13 @@ function testConnect() {
   }
   client.connect(common.PORT, common.localhostIPv4, function() {
     clientLocalPorts.push(this.localPort);
-    this.once('close', testConnect);
+    this.once('close', function() {
+      if (conns === clientLocalPorts.length) {
+        testConnect();
+      } else {
+        serverNeedsToFireConnection = true;
+      }
+    });
     this.destroy();
   });
 }
