@@ -64,7 +64,7 @@ will be relative to `process.cwd()`.
 
 Most fs functions let you omit the callback argument. If you do, a default
 callback is used that rethrows errors. To get a trace to the original call
-site, set the NODE_DEBUG environment variable:
+site, set the `NODE_DEBUG` environment variable:
 
     $ cat script.js
     function bad() {
@@ -94,7 +94,7 @@ Objects returned from `fs.watch()` are of this type.
 * `filename` {String} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
-See more details in [fs.watch][].
+See more details in [`fs.watch()`][].
 
 ### Event: 'error'
 
@@ -118,18 +118,18 @@ Emitted when the ReadStream's file is opened.
 
 ## Class: fs.Stats
 
-Objects returned from `fs.stat()`, `fs.lstat()` and `fs.fstat()` and their
+Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and their
 synchronous counterparts are of this type.
 
  - `stats.isFile()`
  - `stats.isDirectory()`
  - `stats.isBlockDevice()`
  - `stats.isCharacterDevice()`
- - `stats.isSymbolicLink()` (only valid with  `fs.lstat()`)
+ - `stats.isSymbolicLink()` (only valid with [`fs.lstat()`][])
  - `stats.isFIFO()`
  - `stats.isSocket()`
 
-For a regular file `util.inspect(stats)` would return a string very
+For a regular file [`util.inspect(stats)`][] would return a string very
 similar to this:
 
     { dev: 2114,
@@ -148,9 +148,9 @@ similar to this:
       birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
 
 Please note that `atime`, `mtime`, `birthtime`, and `ctime` are
-instances of [Date][MDN-Date] object and to compare the values of
+instances of [`Date`][MDN-Date] object and to compare the values of
 these objects you should use appropriate methods. For most general
-uses [getTime()][MDN-Date-getTime] will return the number of
+uses [`getTime()`][MDN-Date-getTime] will return the number of
 milliseconds elapsed since _1 January 1970 00:00:00 UTC_ and this
 integer should be sufficient for any comparison, however there are
 additional methods which can be used for displaying fuzzy information.
@@ -222,7 +222,7 @@ argument will be populated. The following example checks if the file
 
 ## fs.accessSync(path[, mode])
 
-Synchronous version of `fs.access`. This throws if any accessibility checks
+Synchronous version of [`fs.access()`][]. This throws if any accessibility checks
 fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
@@ -255,7 +255,7 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.appendFileSync(file, data[, options])
 
-The synchronous version of `fs.appendFile`. Returns `undefined`.
+The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
 
 ## fs.chmod(path, mode, callback)
 
@@ -286,7 +286,7 @@ Synchronous close(2). Returns `undefined`.
 
 ## fs.createReadStream(path[, options])
 
-Returns a new ReadStream object (See `Readable Stream`).
+Returns a new [`ReadStream`][] object. (See [Readable Stream][]).
 
 Be aware that, unlike the default value set for `highWaterMark` on a
 readable stream (16 kb), the stream returned by this method has a
@@ -303,12 +303,12 @@ default value of 64 kb for the same parameter.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file.  Both `start` and `end` are inclusive and
-start at 0. The `encoding` can be any one of those accepted by [Buffer][].
+start at 0. The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
-the specified file descriptor. This means that no `open` event will be emitted.
+the specified file descriptor. This means that no `'open'` event will be emitted.
 Note that `fd` should be blocking; non-blocking `fd`s should be passed to
-`net.Socket`.
+[`net.Socket`][].
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
 there's an error.  It is your responsibility to close it and make sure
@@ -327,7 +327,7 @@ If `options` is a string, then it specifies the encoding.
 
 ## fs.createWriteStream(path[, options])
 
-Returns a new WriteStream object (See `Writable Stream`).
+Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 
 `options` is an object or string with the following defaults:
 
@@ -339,18 +339,18 @@ Returns a new WriteStream object (See `Writable Stream`).
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file.  Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
-default mode `w`. The `defaultEncoding` can be any one of those accepted by [Buffer][].
+default mode `w`. The `defaultEncoding` can be any one of those accepted by [`Buffer`][].
 
-Like `ReadStream` above, if `fd` is specified, `WriteStream` will ignore the
+Like [`ReadStream`][], if `fd` is specified, `WriteStream` will ignore the
 `path` argument and will use the specified file descriptor. This means that no
-`open` event will be emitted. Note that `fd` should be blocking; non-blocking
-`fd`s should be passed to `net.Socket`.
+`'open'` event will be emitted. Note that `fd` should be blocking; non-blocking
+`fd`s should be passed to [`net.Socket`][].
 
 If `options` is a string, then it specifies the encoding.
 
 ## fs.exists(path, callback)
 
-    Stability: 0 - Deprecated: Use [fs.stat][] or [fs.access][] instead.
+    Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
@@ -367,9 +367,9 @@ non-existent.
 
 ## fs.existsSync(path)
 
-    Stability: 0 - Deprecated: Use [fs.statSync][] or [fs.accessSync][] instead.
+    Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][] instead.
 
-Synchronous version of [`fs.exists`][].
+Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.
 
 ## fs.fchmod(fd, mode, callback)
@@ -393,7 +393,7 @@ Synchronous fchown(2). Returns `undefined`.
 ## fs.fstat(fd, callback)
 
 Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a `fs.Stats` object. `fstat()` is identical to `stat()`, except that
+`stats` is a `fs.Stats` object. `fstat()` is identical to [`stat()`][], except that
 the file to be stat-ed is specified by the file descriptor `fd`.
 
 ## fs.fstatSync(fd)
@@ -425,7 +425,7 @@ descriptor.
 
 ## fs.futimesSync(fd, atime, mtime)
 
-Synchronous version of `fs.futimes()`. Returns `undefined`.
+Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
 ## fs.lchmod(path, mode, callback)
 
@@ -540,7 +540,7 @@ the end of the file.
 
 ## fs.openSync(path, flags[, mode])
 
-Synchronous version of `fs.open()`. Returns an integer representing the file
+Synchronous version of [`fs.open()`][]. Returns an integer representing the file
 descriptor.
 
 ## fs.read(fd, buffer, offset, length, position, callback)
@@ -599,7 +599,7 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.readFileSync(file[, options])
 
-Synchronous version of `fs.readFile`. Returns the contents of the `file`.
+Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
 
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
@@ -630,7 +630,7 @@ Example:
 
 ## fs.readSync(fd, buffer, offset, length, position)
 
-Synchronous version of `fs.read`. Returns the number of `bytesRead`.
+Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
 ## fs.realpathSync(path[, cache])
 
@@ -657,12 +657,12 @@ Synchronous rmdir(2). Returns `undefined`.
 ## fs.stat(path, callback)
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a [fs.Stats][] object.  See the [fs.Stats][] section below for more
+`stats` is a [`fs.Stats`][] object.  See the [`fs.Stats`][] section below for more
 information.
 
 ## fs.statSync(path)
 
-Synchronous stat(2). Returns an instance of `fs.Stats`.
+Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 
 ## fs.symlink(target, path[, type], callback)
 
@@ -711,8 +711,8 @@ have effectively stopped watching `filename`.
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
-_Note: `fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
-`fs.watch` should be used instead of `fs.watchFile` and `fs.unwatchFile`
+_Note: [`fs.watch()`][] is more efficient than `fs.watchFile()` and `fs.unwatchFile()`.
+`fs.watch()` should be used instead of `fs.watchFile()` and `fs.unwatchFile()`
 when possible._
 
 ## fs.utimes(path, atime, mtime, callback)
@@ -722,19 +722,19 @@ Change file timestamps of the file referenced by the supplied path.
 Note: the arguments `atime` and `mtime` of the following related functions does
 follow the below rules:
 
-- If the value is a numberable string like "123456789", the value would get
+- If the value is a numberable string like `'123456789'`, the value would get
   converted to corresponding number.
 - If the value is `NaN` or `Infinity`, the value would get converted to
   `Date.now()`.
 
 ## fs.utimesSync(path, atime, mtime)
 
-Synchronous version of `fs.utimes()`. Returns `undefined`.
+Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
 
 ## fs.watch(filename[, options][, listener])
 
 Watch for changes on `filename`, where `filename` is either a file or a
-directory.  The returned object is a [fs.FSWatcher][].
+directory.  The returned object is a [`fs.FSWatcher`][].
 
 The second argument is optional. The `options` if provided should be an object.
 The supported boolean members are `persistent` and `recursive`. `persistent`
@@ -746,7 +746,7 @@ on supported platforms (See Caveats below).
 The default is `{ persistent: true, recursive: false }`.
 
 The listener callback gets two arguments `(event, filename)`.  `event` is either
-'rename' or 'change', and `filename` is the name of the file which triggered
+`'rename'` or `'change'`, and `filename` is the name of the file which triggered
 the event.
 
 ### Caveats
@@ -828,7 +828,7 @@ _Note: when an `fs.watchFile` operation results in an `ENOENT` error, it will
  of zero. If the file is created later on, the listener will be called again,
  with the latest stat objects. This is a change in functionality since v0.10._
 
-_Note: `fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
+_Note: [`fs.watch()`][] is more efficient than `fs.watchFile` and `fs.unwatchFile`.
 `fs.watch` should be used instead of `fs.watchFile` and `fs.unwatchFile`
 when possible._
 
@@ -866,7 +866,7 @@ the current position. See pwrite(2).
 
 The callback will receive the arguments `(err, written, string)` where `written`
 specifies how many _bytes_ the passed string required to be written. Note that
-bytes written is not the same as string characters. See [Buffer.byteLength][].
+bytes written is not the same as string characters. See [`Buffer.byteLength`][].
 
 Unlike when writing `buffer`, the entire string must be written. No substring
 may be specified. This is because the byte offset of the resulting data may not
@@ -917,25 +917,40 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.writeFileSync(file, data[, options])
 
-The synchronous version of `fs.writeFile`. Returns `undefined`.
+The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 
 ## fs.writeSync(fd, buffer, offset, length[, position])
 
 ## fs.writeSync(fd, data[, position[, encoding]])
 
-Synchronous versions of `fs.write()`. Returns the number of bytes written.
+Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 
-[fs.watch]: #fs_fs_watch_filename_options_listener
-[Readable Stream]: stream.html#stream_class_stream_readable
-[MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
+[`Buffer.byteLength`]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
+[`Buffer`]: buffer.html#buffer_buffer
+[`fs.access()`]: #fs_fs_access_path_mode_callback
+[`fs.accessSync()`]: #fs_fs_accesssync_path_mode
+[`fs.appendFile()`]: fs.html#fs_fs_appendfile_file_data_options_callback
+[`fs.exists()`]: fs.html#fs_fs_exists_path_callback
+[`fs.fstat()`]: #fs_fs_fstat_fd_callback
+[`fs.FSWatcher`]: #fs_class_fs_fswatcher
+[`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
+[`fs.lstat()`]: #fs_fs_lstat_path_callback
+[`fs.open()`]: #fs_fs_open_path_flags_mode_callback
+[`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
+[`fs.readFile`]: #fs_fs_readfile_file_options_callback
+[`fs.stat()`]: #fs_fs_stat_path_callback
+[`fs.Stats`]: #fs_class_fs_stats
+[`fs.statSync()`]: #fs_fs_statsync_path
+[`fs.utimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
+[`fs.watch()`]: #fs_fs_watch_filename_options_listener
+[`fs.write()`]: #fs_fs_write_fd_buffer_offset_length_position_callback
+[`fs.writeFile()`]: #fs_fs_writefile_file_data_options_callback
+[`net.Socket`]: net.html#net_class_net_socket
+[`ReadStream`]: #fs_class_fs_readstream
+[`stat()`]: fs.html#fs_fs_stat_path_callback
+[`util.inspect(stats)`]: util.html#util_util_inspect_object_options
+[`WriteStream`]: #fs_class_fs_writestream
 [MDN-Date-getTime]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime
+[MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
+[Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
-[fs.stat]: #fs_fs_stat_path_callback
-[`fs.exists`]: fs.html#fs_fs_exists_path_callback
-[fs.access]: #fs_fs_access_path_mode_callback
-[fs.statSync]: #fs_fs_statsync_path
-[fs.accessSync]: #fs_fs_accesssync_path_mode
-[fs.Stats]: #fs_class_fs_stats
-[Buffer]: buffer.html#buffer_buffer
-[fs.FSWatcher]: #fs_class_fs_fswatcher
-[Buffer.byteLength]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
