@@ -13,6 +13,12 @@ const messages = [
         new Buffer('Fourth message to send')
       ];
 
+// skip test in FreeBSD jails
+if (common.inFreeBSDJail) {
+  console.log('1..0 # Skipped: In a FreeBSD jail');
+  return;
+}
+
 function launchChildProcess(index) {
   const worker = fork(process.argv[1], ['child']);
   workers[worker.pid] = worker;
