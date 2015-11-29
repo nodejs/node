@@ -343,6 +343,10 @@ li code {
   padding: 0.2em 0.4em;
 }
 
+a code {
+  color: inherit;
+}
+
 span.type {
   color: #222;
 }
