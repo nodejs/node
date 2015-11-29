@@ -10,9 +10,14 @@ buf.fill(0x62);
 var errs = [];
 
 const srv = net.createServer(function onConnection(conn) {
-  setImmediate(() => {
+  if (common.isWindows) {
+    // Windows-specific handling. See:
+    //   * https://github.com/nodejs/node/pull/4062
+    //   * https://github.com/nodejs/node/issues/4057
+    setTimeout(() => { conn.write(buf); }, 100);
+  } else {
     conn.write(buf);
-  });
+  }
 
   conn.on('error', function(err) {
     errs.push(err);
