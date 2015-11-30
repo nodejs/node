@@ -44,9 +44,6 @@ function launchChildProcess(index) {
     if (dead === listeners) {
       console.error('[PARENT] All workers have died.');
       console.error('[PARENT] Fail');
-
-      killChildren(workers);
-
       process.exit(1);
     }
   });
