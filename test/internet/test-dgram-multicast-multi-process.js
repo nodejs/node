@@ -19,7 +19,7 @@ if (common.inFreeBSDJail) {
 }
 
 function launchChildProcess(index) {
-  const worker = fork(process.argv[1], ['child']);
+  const worker = fork(__filename, ['child']);
   workers[worker.pid] = worker;
 
   worker.messagesReceived = [];
