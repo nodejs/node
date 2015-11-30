@@ -56,8 +56,9 @@ function launchChildProcess(index) {
         // All child process are listening, so start sending.
         sendSocket.sendNext();
       }
+      return;
     }
-    else if (msg.message) {
+    if (msg.message) {
       worker.messagesReceived.push(msg.message);
 
       if (worker.messagesReceived.length === messages.length) {
