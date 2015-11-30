@@ -90,7 +90,7 @@ function launchChildProcess(index) {
           console.error('[PARENT] %d received %d matching messages.',
                         worker.pid, count);
 
-          assert.equal(count, messages.length,
+          assert.strictEqual(count, messages.length,
                        'A worker received an invalid multicast message');
         });
 
