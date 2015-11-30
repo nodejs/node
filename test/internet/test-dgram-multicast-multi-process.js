@@ -6,11 +6,11 @@ const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '224.0.0.114';
 const TIMEOUT = common.platformTimeout(5000);
 const messages = [
-        new Buffer('First message to send'),
-        new Buffer('Second message to send'),
-        new Buffer('Third message to send'),
-        new Buffer('Fourth message to send')
-      ];
+  new Buffer('First message to send'),
+  new Buffer('Second message to send'),
+  new Buffer('Third message to send'),
+  new Buffer('Fourth message to send')
+];
 
 // skip test in FreeBSD jails
 if (common.inFreeBSDJail) {
