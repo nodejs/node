@@ -15,7 +15,7 @@ const workers = {};
 const listeners = 3;
 
 
-// skip test in FreeBSD jails
+// Skip test in FreeBSD jails.
 if (common.inFreeBSDJail) {
   console.log('1..0 # Skipped: In a FreeBSD jail');
   return;
@@ -27,12 +27,10 @@ function launchChildProcess(index) {
 
   worker.messagesReceived = [];
 
-  //handle the death of workers
+  // Handle the death of workers.
   worker.on('exit', function(code, signal) {
-    // don't consider this the true death if the
-    // worker has finished successfully
-
-    // or if the exit code is 0
+    // Don't consider this the true death if the worker has finished
+    // successfully or if the exit code is 0.
     if (worker.isDone || code === 0) {
       return;
     }
@@ -58,7 +56,7 @@ function launchChildProcess(index) {
       listening += 1;
 
       if (listening === listeners) {
-        //all child process are listening, so start sending
+        // All child process are listening, so start sending.
         sendSocket.sendNext();
       }
     }
@@ -119,7 +117,7 @@ if (process.argv[2] !== 'child') {
   var i = 0;
   var done = 0;
 
-  //exit the test if it doesn't succeed within TIMEOUT
+  // Exit the test if it doesn't succeed within TIMEOUT.
   var timer = setTimeout(function() {
     console.error('[PARENT] Responses were not received within %d ms.',
                   TIMEOUT);
@@ -130,18 +128,18 @@ if (process.argv[2] !== 'child') {
     process.exit(1);
   }, TIMEOUT);
 
-  //launch child processes
+  // Launch child processes.
   for (var x = 0; x < listeners; x++) {
     launchChildProcess(x);
   }
 
   var sendSocket = dgram.createSocket('udp4');
-  // FIXME a libuv limitation makes it necessary to bind()
-  // before calling any of the set*() functions - the bind()
-  // call is what creates the actual socket...
+  // FIXME: a libuv limitation makes it necessary to bind()
+  // before calling any of the set*() functions. The bind()
+  // call is what creates the actual socket.
   sendSocket.bind();
 
-  // The socket is actually created async now
+  // The socket is actually created async now.
   sendSocket.on('listening', function() {
     sendSocket.setTTL(1);
     sendSocket.setBroadcast(true);
@@ -191,7 +189,7 @@ if (process.argv[2] === 'child') {
       process.send({ message: buf.toString() });
 
       if (receivedMessages.length == messages.length) {
-        // .dropMembership() not strictly needed but here as a sanity check
+        // .dropMembership() not strictly needed but here as a sanity check.
         listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
         process.nextTick(function() {
           listenSocket.close();
@@ -200,9 +198,9 @@ if (process.argv[2] === 'child') {
     });
 
     listenSocket.on('close', function() {
-      //HACK: Wait to exit the process to ensure that the parent
-      //process has had time to receive all messages via process.send()
-      //This may be indicitave of some other issue.
+      // HACK: Wait to exit the process to ensure that the parent
+      // process has had time to receive all messages via process.send()
+      // This may be indicitave of some other issue.
       setTimeout(function() {
         process.exit();
       }, common.platformTimeout(1000));
