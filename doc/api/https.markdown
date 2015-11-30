@@ -195,7 +195,7 @@ Example:
       ...
     }
 
-Or does not use an `Agent`.
+Alternatively, opt out of connection pooling by not using an `Agent`.
 
 Example:
 
