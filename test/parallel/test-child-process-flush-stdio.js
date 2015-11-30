@@ -1,10 +1,14 @@
 'use strict';
 const cp = require('child_process');
 const common = require('../common');
+const assert = require('assert');
 
-var p = cp.spawn('echo');
+const p = cp.spawn('echo');
 
-p.on('close', common.mustCall(function() {}));
+p.on('close', common.mustCall(function(code, signal) {
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+}));
 
 p.stdout.read();
 
