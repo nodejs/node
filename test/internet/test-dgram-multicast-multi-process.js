@@ -11,6 +11,9 @@ const messages = [
   new Buffer('Third message to send'),
   new Buffer('Fourth message to send')
 ];
+const workers = {};
+const listeners = 3;
+
 
 // skip test in FreeBSD jails
 if (common.inFreeBSDJail) {
@@ -111,12 +114,10 @@ function killChildren(children) {
 }
 
 if (process.argv[2] !== 'child') {
-  var workers = {},
-      listeners = 3,
-      listening = 0,
-      dead = 0,
-      i = 0,
-      done = 0;
+  var listening = 0;
+  var dead = 0;
+  var i = 0;
+  var done = 0;
 
   //exit the test if it doesn't succeed within TIMEOUT
   var timer = setTimeout(function() {
