@@ -30,7 +30,7 @@ server.listen(common.PORT, common.localhostIPv4, testConnect);
 
 function testConnect() {
   // If we're not waiting for a server or client callback to fire...
-  if (serverRemotePorts.length === clientLocalPorts.length) {
+  if (conns > serverRemotePorts.length || conns > clientLocalPorts.length) {
     // ...then proceed.
     if (conns === 2) {
       return server.close();
