@@ -35,6 +35,7 @@ access.completion = function (opts, cb) {
       } else {
         return cb(null, [])
       }
+      break
     case 'public':
     case 'restricted':
     case 'ls-packages':
@@ -72,7 +73,9 @@ function access (args, cb) {
 }
 
 function parseParams (cmd, args, cb) {
-  var params = {}
+  // mapToRegistry will complain if package is undefined,
+  // but it's not needed for ls-packages
+  var params = { 'package': '' }
   if (cmd === 'grant') {
     params.permissions = args.shift()
   }
@@ -81,22 +84,25 @@ function parseParams (cmd, args, cb) {
     params.scope = entity[0]
     params.team = entity[1]
   }
-  getPackage(args.shift(), function (err, pkg) {
-    if (err) { return cb(err) }
-    params.package = pkg
 
-    if (!params.scope && cmd === 'ls-packages') {
+  if (cmd === 'ls-packages') {
+    if (!params.scope) {
       whoami([], true, function (err, scope) {
         params.scope = scope
         cb(err, params)
       })
     } else {
-      if (cmd === 'ls-collaborators') {
-        params.user = args.shift()
-      }
       cb(null, params)
     }
-  })
+  } else {
+    getPackage(args.shift(), function (err, pkg) {
+      if (err) return cb(err)
+      params.package = pkg
+
+      if (cmd === 'ls-collaborators') params.user = args.shift()
+      cb(null, params)
+    })
+  }
 }
 
 function getPackage (name, cb) {
@@ -105,6 +111,17 @@ function getPackage (name, cb) {
   } else {
     readPackageJson(
       resolve(npm.prefix, 'package.json'),
-      function (err, data) { cb(err, data.name) })
+      function (err, data) {
+        if (err) {
+          if (err.code === 'ENOENT') {
+            cb(new Error('no package name passed to command and no package.json found'))
+          } else {
+            cb(err)
+          }
+        } else {
+          cb(null, data.name)
+        }
+      }
+    )
   }
 }

@@ -24,6 +24,7 @@ var resultExpect =
   '\u001b[0m\u001b[37m\u001b[40mnpm\u001b[0m \u001b[0m\u001b[31m\u001b[40mERR!\u001b[0m \u001b[0m\u001b[35m404\u001b[0m and maybe a stack.\n',
   '\u001b[0m\u001b[37m\u001b[40mnpm\u001b[0m \u001b[0m\u001b[31m\u001b[40mERR!\u001b[0m \u001b[0m\u001b[35m404\u001b[0m \n',
   '\u001b[0m\u001b[37m\u001b[40mnpm\u001b[0m \u001b[0m\u0007noise\u001b[0m\u001b[35m\u001b[0m LOUD NOISES\n',
+  '\u001b[0m\u001b[37m\u001b[40mnpm\u001b[0m \u001b[0m\u0007noise\u001b[0m \u001b[0m\u001b[35merror\u001b[0m erroring\n',
   '\u001b[0m' ]
 
 var logPrefixEventsExpect =
@@ -161,7 +162,12 @@ var logEventsExpect =
     level: 'noise',
     prefix: false,
     message: 'LOUD NOISES',
-    messageRaw: [ 'LOUD NOISES' ] } ]
+    messageRaw: [ 'LOUD NOISES' ] },
+  { id: 23,
+    level: 'noise',
+    prefix: 'error',
+    message: 'erroring',
+    messageRaw: [ 'erroring' ] } ]
 
 var Stream = require('stream').Stream
 var s = new Stream()
@@ -217,6 +223,7 @@ tap.test('basic', function (t) {
                    'and maybe a stack.\n')
   log.addLevel('noise', 10000, {beep: true})
   log.noise(false, 'LOUD NOISES')
+  log.noise('error', 'erroring')
 
   t.deepEqual(result.join('').trim(), resultExpect.join('').trim(), 'result')
   t.deepEqual(log.record, logEventsExpect, 'record')
