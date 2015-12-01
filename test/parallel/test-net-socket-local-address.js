@@ -15,23 +15,21 @@ var serverRemotePorts = [];
 
 const server = net.createServer(function(socket) {
   serverRemotePorts.push(socket.remotePort);
-  conns++;
+  if (++conns === 2) this.close();
 });
 
 const client = new net.Socket();
 
-server.on('close', common.mustCall(function() {
+process.on('exit', function() {
   assert.deepEqual(clientLocalPorts, serverRemotePorts,
                    'client and server should agree on the ports used');
   assert.equal(2, conns);
-}));
+});
 
 server.listen(common.PORT, common.localhostIPv4, testConnect);
 
 function testConnect() {
-  if (conns == 2) {
-    return server.close();
-  }
+  if (conns >= 2) return;
   client.connect(common.PORT, common.localhostIPv4, function() {
     clientLocalPorts.push(this.localPort);
     this.once('close', testConnect);
