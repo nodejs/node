@@ -99,3 +99,7 @@ keys:
 * `scope` - If a name is something like `@org/module` then the `scope`
   field will be set to `org`.  If it doesn't have a scoped name, then
   scope is `null`.
+
+If you only include a name and no specifier part, eg, `foo` or `foo@` then
+a default of `latest` will be used (as of 4.1.0). This is contrast with
+previous behavior where `*` was used.
