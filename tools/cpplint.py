@@ -199,6 +199,7 @@ _ERROR_CATEGORIES = [
   'whitespace/comments',
   'whitespace/end_of_line',
   'whitespace/ending_newline',
+  'whitespace/if-one-line',
   'whitespace/indent',
   'whitespace/labels',
   'whitespace/line_length',
