@@ -65,7 +65,7 @@ projects. Do not send your patch to us, we cannot accept it.
 In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
 [project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
-([IRC](http://webchat.freenode.net/?channels=io.js) is often the best medium.) Especially do so if you plan to work on something big. Nothing is more
+([IRC](http://webchat.freenode.net/?channels=node-dev) is often the best medium.) Especially do so if you plan to work on something big. Nothing is more
 frustrating than seeing your hard work go to waste because your vision
 does not align with the project team.
 
