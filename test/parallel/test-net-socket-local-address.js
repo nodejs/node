@@ -32,9 +32,9 @@ function testConnect() {
   if (conns === 2) {
     return server.close();
   }
-  // conns === clientLocalPorts.length means both server and client callbacks
-  // have fired
-  if (conns === clientLocalPorts.length) {
+  // If both server and client callbacks have fired...
+  if (serverRemotePorts.length === clientLocalPorts.length) {
+    // ...then proceed.
     client.connect(common.PORT, common.localhostIPv4, function() {
       clientLocalPorts.push(this.localPort);
       this.once('close', testConnect);
