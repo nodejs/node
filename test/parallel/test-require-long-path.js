@@ -15,7 +15,7 @@ try {
   testRequireLongPath(common.tmpDir);
   common.refreshTmpDir();
 } catch (e) {
-  if (os.type() == 'Linux') {
+  if (process.platform == 'linux') {
     fs.accessSync(os.tmpdir(), fs.R_OK | fs.W_OK);
     const tmpDir = path.join(os.tmpdir(),
       `node-${process.version}-test-${1e6 * Math.random() | 0}`);
