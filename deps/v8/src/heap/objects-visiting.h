@@ -6,6 +6,7 @@
 #define V8_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
+#include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/layout-descriptor.h"
 
@@ -99,7 +100,6 @@ class StaticVisitorBase : public AllStatic {
     kVisitDataObject = kVisitDataObject2,
     kVisitJSObject = kVisitJSObject2,
     kVisitStruct = kVisitStruct2,
-    kMinObjectSizeInWords = 2
   };
 
   // Visitor ID should fit in one byte.
@@ -121,15 +121,15 @@ class StaticVisitorBase : public AllStatic {
     DCHECK((base == kVisitDataObject) || (base == kVisitStruct) ||
            (base == kVisitJSObject));
     DCHECK(IsAligned(object_size, kPointerSize));
-    DCHECK(kMinObjectSizeInWords * kPointerSize <= object_size);
+    DCHECK(Heap::kMinObjectSizeInWords * kPointerSize <= object_size);
     DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
     DCHECK(!has_unboxed_fields || (base == kVisitJSObject));
 
     if (has_unboxed_fields) return generic;
 
-    int visitor_id =
-        Min(base + (object_size >> kPointerSizeLog2) - kMinObjectSizeInWords,
-            static_cast<int>(generic));
+    int visitor_id = Min(
+        base + (object_size >> kPointerSizeLog2) - Heap::kMinObjectSizeInWords,
+        static_cast<int>(generic));
 
     return static_cast<VisitorId>(visitor_id);
   }
@@ -171,8 +171,7 @@ class VisitorDispatchTable {
   template <typename Visitor, StaticVisitorBase::VisitorId base,
             StaticVisitorBase::VisitorId generic>
   void RegisterSpecializations() {
-    STATIC_ASSERT((generic - base + StaticVisitorBase::kMinObjectSizeInWords) ==
-                  10);
+    STATIC_ASSERT((generic - base + Heap::kMinObjectSizeInWords) == 10);
     RegisterSpecialization<Visitor, base, generic, 2>();
     RegisterSpecialization<Visitor, base, generic, 3>();
     RegisterSpecialization<Visitor, base, generic, 4>();
@@ -317,10 +316,6 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
   }
 
-  INLINE(static int VisitBytecodeArray(Map* map, HeapObject* object)) {
-    return reinterpret_cast<BytecodeArray*>(object)->BytecodeArraySize();
-  }
-
   INLINE(static int VisitFixedDoubleArray(Map* map, HeapObject* object)) {
     int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
     return FixedDoubleArray::SizeFor(length);
@@ -351,6 +346,7 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
   INLINE(static int VisitJSArrayBuffer(Map* map, HeapObject* object));
   INLINE(static int VisitJSTypedArray(Map* map, HeapObject* object));
   INLINE(static int VisitJSDataView(Map* map, HeapObject* object));
+  INLINE(static int VisitBytecodeArray(Map* map, HeapObject* object));
 
   class DataObjectVisitor {
    public:
@@ -435,6 +431,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitJSTypedArray(Map* map, HeapObject* object));
   INLINE(static void VisitJSDataView(Map* map, HeapObject* object));
   INLINE(static void VisitNativeContext(Map* map, HeapObject* object));
+  INLINE(static void VisitBytecodeArray(Map* map, HeapObject* object));
 
   // Mark pointers in a Map and its TransitionArray together, possibly
   // treating transitions or back pointers weak.

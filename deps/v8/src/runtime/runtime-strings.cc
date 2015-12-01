@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/conversions-inl.h"
+#include "src/isolate-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/string-builder.h"
@@ -418,70 +419,22 @@ RUNTIME_FUNCTION(Runtime_CharFromCode) {
 
 RUNTIME_FUNCTION(Runtime_StringCompare) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
-
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-
   isolate->counters()->string_compare_runtime()->Increment();
-
-  // A few fast case tests before we flatten.
-  if (x.is_identical_to(y)) return Smi::FromInt(EQUAL);
-  if (y->length() == 0) {
-    if (x->length() == 0) return Smi::FromInt(EQUAL);
-    return Smi::FromInt(GREATER);
-  } else if (x->length() == 0) {
-    return Smi::FromInt(LESS);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kLessThan:
+      return Smi::FromInt(LESS);
+    case ComparisonResult::kEqual:
+      return Smi::FromInt(EQUAL);
+    case ComparisonResult::kGreaterThan:
+      return Smi::FromInt(GREATER);
+    case ComparisonResult::kUndefined:
+      break;
   }
-
-  int d = x->Get(0) - y->Get(0);
-  if (d < 0)
-    return Smi::FromInt(LESS);
-  else if (d > 0)
-    return Smi::FromInt(GREATER);
-
-  // Slow case.
-  x = String::Flatten(x);
-  y = String::Flatten(y);
-
-  DisallowHeapAllocation no_gc;
-  Object* equal_prefix_result = Smi::FromInt(EQUAL);
-  int prefix_length = x->length();
-  if (y->length() < prefix_length) {
-    prefix_length = y->length();
-    equal_prefix_result = Smi::FromInt(GREATER);
-  } else if (y->length() > prefix_length) {
-    equal_prefix_result = Smi::FromInt(LESS);
-  }
-  int r;
-  String::FlatContent x_content = x->GetFlatContent();
-  String::FlatContent y_content = y->GetFlatContent();
-  if (x_content.IsOneByte()) {
-    Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
-    if (y_content.IsOneByte()) {
-      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
-    } else {
-      Vector<const uc16> y_chars = y_content.ToUC16Vector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
-    }
-  } else {
-    Vector<const uc16> x_chars = x_content.ToUC16Vector();
-    if (y_content.IsOneByte()) {
-      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
-    } else {
-      Vector<const uc16> y_chars = y_content.ToUC16Vector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
-    }
-  }
-  Object* result;
-  if (r == 0) {
-    result = equal_prefix_result;
-  } else {
-    result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
-  }
-  return result;
+  UNREACHABLE();
+  return Smi::FromInt(0);
 }
 
 
@@ -1205,28 +1158,6 @@ RUNTIME_FUNCTION(Runtime_NewString) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewConsString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_INT32_ARG_CHECKED(length, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, left, 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, right, 3);
-
-  Handle<String> result;
-  if (is_one_byte) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        isolate->factory()->NewOneByteConsString(length, left, right));
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        isolate->factory()->NewTwoByteConsString(length, left, right));
-  }
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringEquals) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 2);
@@ -1318,12 +1249,6 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   if (!args[1]->IsNumber()) return isolate->heap()->undefined_value();
   if (std::isinf(args.number_at(1))) return isolate->heap()->nan_value();
   return __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(Runtime_IsStringWrapperSafeForDefaultValueOf) {
-  UNIMPLEMENTED();
-  return NULL;
 }
 
 

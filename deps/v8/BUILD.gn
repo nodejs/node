@@ -5,10 +5,13 @@
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
 import("//build/config/mips.gni")
+import("//build/config/sanitizers/sanitizers.gni")
 
 # Because standalone V8 builds are not supported, assume this is part of a
 # Chromium build.
 import("//build/module_args/v8.gni")
+
+import("snapshot_toolchain.gni")
 
 # TODO(jochen): These will need to be user-settable to support standalone V8
 # builds.
@@ -22,26 +25,16 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
-v8_target_arch = target_cpu
 v8_random_seed = "314159265"
 v8_toolset_for_d8 = "host"
 
-# The snapshot needs to be compiled for the host, but compiled with
-# a toolchain that matches the bit-width of the target.
-#
-# TODO(GYP): For now we only support 32-bit little-endian target builds from an
-# x64 Linux host. Eventually we need to support all of the host/target
-# configurations v8 runs on.
-if (host_cpu == "x64" && host_os == "linux") {
-  if (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86") {
-    snapshot_toolchain = "//build/toolchain/linux:clang_x86"
-  } else if (target_cpu == "x64") {
-    snapshot_toolchain = "//build/toolchain/linux:clang_x64"
-  } else {
-    assert(false, "Need environment for this arch")
-  }
+if (is_msan) {
+  # Running the V8-generated code on an ARM simulator is a powerful hack that
+  # allows the tool to see the memory accesses from JITted code. Without this
+  # flag, JS code causes false positive reports from MSan.
+  v8_target_arch = "arm64"
 } else {
-  snapshot_toolchain = default_toolchain
+  v8_target_arch = target_cpu
 }
 
 ###############################################################################
@@ -312,7 +305,6 @@ action("js2c_experimental") {
     "src/harmony-regexp.js",
     "src/harmony-reflect.js",
     "src/harmony-spread.js",
-    "src/harmony-object.js",
     "src/harmony-object-observe.js",
     "src/harmony-sharedarraybuffer.js",
     "src/harmony-simd.js"
@@ -367,6 +359,36 @@ action("js2c_extras") {
   }
 }
 
+action("js2c_experimental_extras") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  script = "tools/js2c.py"
+
+  # The script depends on this other script, this rule causes a rebuild if it
+  # changes.
+  inputs = [ "tools/jsmin.py" ]
+
+  sources = v8_experimental_extra_library_files
+
+  outputs = [
+    "$target_gen_dir/experimental-extras-libraries.cc",
+  ]
+
+  args = [
+           rebase_path("$target_gen_dir/experimental-extras-libraries.cc",
+                       root_build_dir),
+           "EXPERIMENTAL_EXTRAS",
+         ] + rebase_path(sources, root_build_dir)
+
+  if (v8_use_external_startup_data) {
+    outputs += [ "$target_gen_dir/libraries_experimental_extras.bin" ]
+    args += [
+      "--startup_blob",
+      rebase_path("$target_gen_dir/libraries_experimental_extras.bin", root_build_dir),
+    ]
+  }
+}
+
 action("d8_js2c") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -394,6 +416,7 @@ if (v8_use_external_startup_data) {
       ":js2c_code_stubs",
       ":js2c_experimental",
       ":js2c_extras",
+      ":js2c_experimental_extras",
     ]
 
     sources = [
@@ -401,6 +424,7 @@ if (v8_use_external_startup_data) {
       "$target_gen_dir/libraries_code_stub.bin",
       "$target_gen_dir/libraries_experimental.bin",
       "$target_gen_dir/libraries_extras.bin",
+      "$target_gen_dir/libraries_experimental_extras.bin",
     ]
 
     outputs = [
@@ -456,6 +480,7 @@ action("run_mksnapshot") {
     "--log-snapshot-positions",
     "--logfile",
     rebase_path("$target_gen_dir/snapshot.log", root_build_dir),
+    "--startup_src",
     rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
   ]
 
@@ -487,6 +512,7 @@ source_set("v8_nosnapshot") {
     ":js2c_code_stubs",
     ":js2c_experimental",
     ":js2c_extras",
+    ":js2c_experimental_extras",
     ":v8_base",
   ]
 
@@ -495,6 +521,7 @@ source_set("v8_nosnapshot") {
     "$target_gen_dir/code-stub-libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/extras-libraries.cc",
+    "$target_gen_dir/experimental-extras-libraries.cc",
     "src/snapshot/snapshot-empty.cc",
   ]
 
@@ -520,6 +547,7 @@ source_set("v8_snapshot") {
     ":js2c_code_stubs",
     ":js2c_experimental",
     ":js2c_extras",
+    ":js2c_experimental_extras",
     ":v8_base",
   ]
   public_deps = [
@@ -533,6 +561,7 @@ source_set("v8_snapshot") {
     "$target_gen_dir/code-stub-libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/extras-libraries.cc",
+    "$target_gen_dir/experimental-extras-libraries.cc",
     "$target_gen_dir/snapshot.cc",
   ]
 
@@ -554,6 +583,7 @@ if (v8_use_external_startup_data) {
       ":js2c_code_stubs",
       ":js2c_experimental",
       ":js2c_extras",
+      ":js2c_experimental_extras",
       ":v8_base",
     ]
     public_deps = [
@@ -594,8 +624,6 @@ source_set("v8_base") {
     "src/allocation.h",
     "src/allocation-site-scopes.cc",
     "src/allocation-site-scopes.h",
-    "src/allocation-tracker.cc",
-    "src/allocation-tracker.h",
     "src/api.cc",
     "src/api.h",
     "src/api-natives.cc",
@@ -606,6 +634,8 @@ source_set("v8_base") {
     "src/assembler.h",
     "src/assert-scope.h",
     "src/assert-scope.cc",
+    "src/ast-expression-visitor.cc",
+    "src/ast-expression-visitor.h",
     "src/ast-literal-reindexer.cc",
     "src/ast-literal-reindexer.h",
     "src/ast-numbering.cc",
@@ -614,6 +644,7 @@ source_set("v8_base") {
     "src/ast-value-factory.h",
     "src/ast.cc",
     "src/ast.h",
+    "src/atomic-utils.h",
     "src/background-parsing-task.cc",
     "src/background-parsing-task.h",
     "src/bailout-reason.cc",
@@ -638,14 +669,11 @@ source_set("v8_base") {
     "src/char-predicates-inl.h",
     "src/char-predicates.h",
     "src/checks.h",
-    "src/circular-queue-inl.h",
-    "src/circular-queue.h",
     "src/code-factory.cc",
     "src/code-factory.h",
     "src/code-stubs.cc",
     "src/code-stubs.h",
     "src/code-stubs-hydrogen.cc",
-    "src/code.h",
     "src/codegen.cc",
     "src/codegen.h",
     "src/compilation-cache.cc",
@@ -664,6 +692,8 @@ source_set("v8_base") {
     "src/compiler/ast-loop-assignment-analyzer.h",
     "src/compiler/basic-block-instrumentor.cc",
     "src/compiler/basic-block-instrumentor.h",
+    "src/compiler/bytecode-graph-builder.cc",
+    "src/compiler/bytecode-graph-builder.h",
     "src/compiler/change-lowering.cc",
     "src/compiler/change-lowering.h",
     "src/compiler/c-linkage.cc",
@@ -743,6 +773,8 @@ source_set("v8_base") {
     "src/compiler/jump-threading.h",
     "src/compiler/linkage.cc",
     "src/compiler/linkage.h",
+    "src/compiler/live-range-separator.cc",
+    "src/compiler/live-range-separator.h",
     "src/compiler/liveness-analyzer.cc",
     "src/compiler/liveness-analyzer.h",
     "src/compiler/load-elimination.cc",
@@ -781,8 +813,6 @@ source_set("v8_base") {
     "src/compiler/pipeline.h",
     "src/compiler/pipeline-statistics.cc",
     "src/compiler/pipeline-statistics.h",
-    "src/compiler/preprocess-live-ranges.cc",
-    "src/compiler/preprocess-live-ranges.h",
     "src/compiler/raw-machine-assembler.cc",
     "src/compiler/raw-machine-assembler.h",
     "src/compiler/register-allocator.cc",
@@ -822,6 +852,7 @@ source_set("v8_base") {
     "src/compiler.h",
     "src/context-measure.cc",
     "src/context-measure.h",
+    "src/contexts-inl.h",
     "src/contexts.cc",
     "src/contexts.h",
     "src/conversions-inl.h",
@@ -829,9 +860,6 @@ source_set("v8_base") {
     "src/conversions.h",
     "src/counters.cc",
     "src/counters.h",
-    "src/cpu-profiler-inl.h",
-    "src/cpu-profiler.cc",
-    "src/cpu-profiler.h",
     "src/date.cc",
     "src/date.h",
     "src/dateparser-inl.h",
@@ -904,11 +932,8 @@ source_set("v8_base") {
     "src/handles.cc",
     "src/handles.h",
     "src/hashmap.h",
-    "src/heap-profiler.cc",
-    "src/heap-profiler.h",
-    "src/heap-snapshot-generator-inl.h",
-    "src/heap-snapshot-generator.cc",
-    "src/heap-snapshot-generator.h",
+    "src/heap/array-buffer-tracker.cc",
+    "src/heap/array-buffer-tracker.h",
     "src/heap/gc-idle-time-handler.cc",
     "src/heap/gc-idle-time-handler.h",
     "src/heap/gc-tracer.cc",
@@ -916,8 +941,8 @@ source_set("v8_base") {
     "src/heap/heap-inl.h",
     "src/heap/heap.cc",
     "src/heap/heap.h",
-    "src/heap/identity-map.cc",
-    "src/heap/identity-map.h",
+    "src/heap/incremental-marking-job.cc",
+    "src/heap/incremental-marking-job.h",
     "src/heap/incremental-marking.cc",
     "src/heap/incremental-marking.h",
     "src/heap/mark-compact-inl.h",
@@ -925,9 +950,18 @@ source_set("v8_base") {
     "src/heap/mark-compact.h",
     "src/heap/memory-reducer.cc",
     "src/heap/memory-reducer.h",
+    "src/heap/object-stats.cc",
+    "src/heap/object-stats.h",
     "src/heap/objects-visiting-inl.h",
     "src/heap/objects-visiting.cc",
     "src/heap/objects-visiting.h",
+    "src/heap/scavenge-job.h",
+    "src/heap/scavenge-job.cc",
+    "src/heap/scavenger-inl.h",
+    "src/heap/scavenger.cc",
+    "src/heap/scavenger.h",
+    "src/heap/slots-buffer.cc",
+    "src/heap/slots-buffer.h",
     "src/heap/spaces-inl.h",
     "src/heap/spaces.cc",
     "src/heap/spaces.h",
@@ -1005,16 +1039,21 @@ source_set("v8_base") {
     "src/ic/ic-compiler.h",
     "src/ic/stub-cache.cc",
     "src/ic/stub-cache.h",
+    "src/identity-map.cc",
+    "src/identity-map.h",
     "src/interface-descriptors.cc",
     "src/interface-descriptors.h",
     "src/interpreter/bytecodes.cc",
     "src/interpreter/bytecodes.h",
     "src/interpreter/bytecode-array-builder.cc",
     "src/interpreter/bytecode-array-builder.h",
+    "src/interpreter/bytecode-array-iterator.cc",
+    "src/interpreter/bytecode-array-iterator.h",
     "src/interpreter/bytecode-generator.cc",
     "src/interpreter/bytecode-generator.h",
     "src/interpreter/interpreter.cc",
     "src/interpreter/interpreter.h",
+    "src/isolate-inl.h",
     "src/isolate.cc",
     "src/isolate.h",
     "src/json-parser.h",
@@ -1066,9 +1105,25 @@ source_set("v8_base") {
     "src/preparser.h",
     "src/prettyprinter.cc",
     "src/prettyprinter.h",
-    "src/profile-generator-inl.h",
-    "src/profile-generator.cc",
-    "src/profile-generator.h",
+    "src/profiler/allocation-tracker.cc",
+    "src/profiler/allocation-tracker.h",
+    "src/profiler/circular-queue-inl.h",
+    "src/profiler/circular-queue.h",
+    "src/profiler/cpu-profiler-inl.h",
+    "src/profiler/cpu-profiler.cc",
+    "src/profiler/cpu-profiler.h",
+    "src/profiler/heap-profiler.cc",
+    "src/profiler/heap-profiler.h",
+    "src/profiler/heap-snapshot-generator-inl.h",
+    "src/profiler/heap-snapshot-generator.cc",
+    "src/profiler/heap-snapshot-generator.h",
+    "src/profiler/profile-generator-inl.h",
+    "src/profiler/profile-generator.cc",
+    "src/profiler/profile-generator.h",
+    "src/profiler/sampler.cc",
+    "src/profiler/sampler.h",
+    "src/profiler/unbound-queue-inl.h",
+    "src/profiler/unbound-queue.h",
     "src/property-details.h",
     "src/property.cc",
     "src/property.h",
@@ -1105,6 +1160,7 @@ source_set("v8_base") {
     "src/runtime/runtime-generator.cc",
     "src/runtime/runtime-i18n.cc",
     "src/runtime/runtime-internal.cc",
+    "src/runtime/runtime-interpreter.cc",
     "src/runtime/runtime-json.cc",
     "src/runtime/runtime-literals.cc",
     "src/runtime/runtime-liveedit.cc",
@@ -1112,6 +1168,7 @@ source_set("v8_base") {
     "src/runtime/runtime-numbers.cc",
     "src/runtime/runtime-object.cc",
     "src/runtime/runtime-observe.cc",
+    "src/runtime/runtime-operators.cc",
     "src/runtime/runtime-proxy.cc",
     "src/runtime/runtime-regexp.cc",
     "src/runtime/runtime-scopes.cc",
@@ -1126,8 +1183,6 @@ source_set("v8_base") {
     "src/runtime/runtime.h",
     "src/safepoint-table.cc",
     "src/safepoint-table.h",
-    "src/sampler.cc",
-    "src/sampler.h",
     "src/scanner-character-streams.cc",
     "src/scanner-character-streams.h",
     "src/scanner.cc",
@@ -1173,13 +1228,17 @@ source_set("v8_base") {
     "src/types-inl.h",
     "src/types.cc",
     "src/types.h",
+    "src/typing-asm.cc",
+    "src/typing-asm.h",
+    "src/typing-reset.cc",
+    "src/typing-reset.h",
     "src/typing.cc",
     "src/typing.h",
-    "src/unbound-queue-inl.h",
-    "src/unbound-queue.h",
     "src/unicode-inl.h",
     "src/unicode.cc",
     "src/unicode.h",
+    "src/unicode-cache-inl.h",
+    "src/unicode-cache.h",
     "src/unicode-decoder.cc",
     "src/unicode-decoder.h",
     "src/unique.h",
@@ -1196,6 +1255,7 @@ source_set("v8_base") {
     "src/version.h",
     "src/vm-state-inl.h",
     "src/vm-state.h",
+    "src/zone-type-cache.h",
     "src/zone.cc",
     "src/zone.h",
     "src/zone-allocator.h",
@@ -1335,6 +1395,9 @@ source_set("v8_base") {
       "src/arm64/decoder-arm64.cc",
       "src/arm64/decoder-arm64.h",
       "src/arm64/decoder-arm64-inl.h",
+      "src/arm64/delayed-masm-arm64.cc",
+      "src/arm64/delayed-masm-arm64.h",
+      "src/arm64/delayed-masm-arm64-inl.h",
       "src/arm64/deoptimizer-arm64.cc",
       "src/arm64/disasm-arm64.cc",
       "src/arm64/disasm-arm64.h",
@@ -1462,7 +1525,7 @@ source_set("v8_base") {
   ]
 
   if (!is_debug) {
-    configs -= [ "//build/config/compiler:optimize" ]
+    configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
@@ -1561,7 +1624,7 @@ source_set("v8_libbase") {
   ]
 
   if (!is_debug) {
-    configs -= [ "//build/config/compiler:optimize" ]
+    configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
@@ -1628,7 +1691,7 @@ source_set("v8_libplatform") {
   ]
 
   if (!is_debug) {
-    configs -= [ "//build/config/compiler:optimize" ]
+    configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
@@ -1670,35 +1733,25 @@ if (current_toolchain == snapshot_toolchain) {
 # Public targets
 #
 
+if (v8_use_snapshot && v8_use_external_startup_data) {
+  snapshot_target = ":v8_external_snapshot"
+} else if (v8_use_snapshot) {
+  snapshot_target = ":v8_snapshot"
+} else {
+  assert(!v8_use_external_startup_data)
+  snapshot_target = ":v8_nosnapshot"
+}
+
 if (is_component_build) {
   component("v8") {
     sources = [
       "src/v8dll-main.cc",
     ]
 
-    if (v8_use_snapshot && v8_use_external_startup_data) {
-      deps = [
-        ":v8_base",
-      ]
-      public_deps = [
-        ":v8_external_snapshot",
-      ]
-    } else if (v8_use_snapshot) {
-      deps = [
-        ":v8_base",
-      ]
-      # v8_snapshot should be public so downstream targets can declare the
-      # snapshot file as their input.
-      public_deps = [
-        ":v8_snapshot",
-      ]
-    } else {
-      assert(!v8_use_external_startup_data)
-      deps = [
-        ":v8_base",
-        ":v8_nosnapshot",
-      ]
-    }
+    public_deps = [
+      ":v8_base",
+      snapshot_target,
+    ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -1717,31 +1770,16 @@ if (is_component_build) {
   }
 } else {
   group("v8") {
-    if (v8_use_snapshot && v8_use_external_startup_data) {
-      deps = [
-        ":v8_base",
-        ":v8_external_snapshot",
-      ]
-    } else if (v8_use_snapshot) {
-      deps = [
-        ":v8_base",
-      ]
-      public_deps = [
-        ":v8_snapshot",
-      ]
-    } else {
-      assert(!v8_use_external_startup_data)
-      deps = [
-        ":v8_base",
-        ":v8_nosnapshot",
-      ]
-    }
-
+    public_deps = [
+      ":v8_base",
+      snapshot_target,
+    ]
     public_configs = [ ":external_config" ]
   }
 }
 
 if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
+    (current_toolchain == snapshot_toolchain && v8_toolset_for_d8 == "host") ||
     (current_toolchain != host_toolchain && v8_toolset_for_d8 == "target")) {
   executable("d8") {
     sources = [

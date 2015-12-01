@@ -109,6 +109,7 @@
 
 #define JS_OBJECT_OP_LIST(V) \
   V(JSCreate)                \
+  V(JSCreateArguments)       \
   V(JSCreateClosure)         \
   V(JSCreateLiteralArray)    \
   V(JSCreateLiteralObject)   \
@@ -192,8 +193,7 @@
   V(StoreField)                    \
   V(StoreBuffer)                   \
   V(StoreElement)                  \
-  V(ObjectIsSmi)                   \
-  V(ObjectIsNonNegativeSmi)
+  V(ObjectIsSmi)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \
@@ -261,6 +261,10 @@
   V(TruncateFloat64ToFloat32)   \
   V(TruncateFloat64ToInt32)     \
   V(TruncateInt64ToInt32)       \
+  V(BitcastFloat32ToInt32)      \
+  V(BitcastFloat64ToInt64)      \
+  V(BitcastInt32ToFloat32)      \
+  V(BitcastInt64ToFloat64)      \
   V(Float32Add)                 \
   V(Float32Sub)                 \
   V(Float32Mul)                 \

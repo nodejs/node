@@ -692,12 +692,20 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
   __ JumpIfNotUniqueNameInstanceType(r4, &slow);
 
+  // We use register r8 when FLAG_vector_stores is enabled, because otherwise
+  // probing the megamorphic stub cache would require pushing temporaries on
+  // the stack.
+  // TODO(mvstanton): quit using register r8 when
+  // FLAG_enable_embedded_constant_pool is turned on.
+  DCHECK(!FLAG_vector_stores || !FLAG_enable_embedded_constant_pool);
+  Register temporary2 = FLAG_vector_stores ? r8 : r4;
   if (FLAG_vector_stores) {
     // The handlers in the stub cache expect a vector and slot. Since we won't
     // change the IC from any downstream misses, a dummy vector can be used.
     Register vector = VectorStoreICDescriptor::VectorRegister();
     Register slot = VectorStoreICDescriptor::SlotRegister();
-    DCHECK(!AreAliased(vector, slot, r3, r4, r5, r6));
+
+    DCHECK(!AreAliased(vector, slot, r5, temporary2, r6, r9));
     Handle<TypeFeedbackVector> dummy_vector =
         TypeFeedbackVector::DummyVector(masm->isolate());
     int slot_index = dummy_vector->GetIndex(
@@ -708,8 +716,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, key, r3, r4, r5, r6);
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::STORE_IC, flags, receiver, key, r5, temporary2, r6, r9);
   // Cache miss.
   __ b(&miss);
 
@@ -792,20 +800,22 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
-  Register dictionary = r3;
+  Register dictionary = r5;
   DCHECK(receiver.is(r1));
   DCHECK(name.is(r2));
   DCHECK(value.is(r0));
+  DCHECK(VectorStoreICDescriptor::VectorRegister().is(r3));
+  DCHECK(VectorStoreICDescriptor::SlotRegister().is(r4));
 
   __ ldr(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
-  GenerateDictionaryStore(masm, &miss, dictionary, name, value, r4, r5);
+  GenerateDictionaryStore(masm, &miss, dictionary, name, value, r6, r9);
   Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->store_normal_hit(), 1, r4, r5);
+  __ IncrementCounter(counters->store_normal_hit(), 1, r6, r9);
   __ Ret();
 
   __ bind(&miss);
-  __ IncrementCounter(counters->store_normal_miss(), 1, r4, r5);
+  __ IncrementCounter(counters->store_normal_miss(), 1, r6, r9);
   GenerateMiss(masm);
 }
 

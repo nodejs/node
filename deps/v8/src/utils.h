@@ -1084,6 +1084,7 @@ class BailoutId {
   int ToInt() const { return id_; }
 
   static BailoutId None() { return BailoutId(kNoneId); }
+  static BailoutId Prologue() { return BailoutId(kPrologueId); }
   static BailoutId FunctionEntry() { return BailoutId(kFunctionEntryId); }
   static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
@@ -1099,6 +1100,7 @@ class BailoutId {
   static const int kNoneId = -1;
 
   // Using 0 could disguise errors.
+  static const int kPrologueId = 1;
   static const int kFunctionEntryId = 2;
 
   // This AST id identifies the point after the declarations have been visited.
@@ -1207,17 +1209,6 @@ int WriteBytes(const char* filename,
 // to the file given by filename. Only the first len chars are written.
 int WriteAsCFile(const char* filename, const char* varname,
                  const char* str, int size, bool verbose = true);
-
-
-// ----------------------------------------------------------------------------
-// Data structures
-
-template <typename T>
-inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
-                                             int length) {
-  return Vector< Handle<Object> >(
-      reinterpret_cast<v8::internal::Handle<Object>*>(elms), length);
-}
 
 
 // ----------------------------------------------------------------------------

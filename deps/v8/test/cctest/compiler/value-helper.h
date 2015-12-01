@@ -47,9 +47,9 @@ class ValueHelper {
     CHECK_EQ(expected, OpParameter<int32_t>(node));
   }
 
-  void CheckHeapConstant(Object* expected, Node* node) {
+  void CheckHeapConstant(HeapObject* expected, Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    CHECK_EQ(expected, *OpParameter<Unique<Object> >(node).handle());
+    CHECK_EQ(expected, *OpParameter<Handle<HeapObject>>(node));
   }
 
   void CheckTrue(Node* node) {
@@ -131,6 +131,40 @@ class ValueHelper {
     return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
   }
 
+  static const std::vector<int64_t> int64_vector() {
+    std::vector<uint64_t> values = uint64_vector();
+    return std::vector<int64_t>(values.begin(), values.end());
+  }
+
+  static const std::vector<uint64_t> uint64_vector() {
+    static const uint64_t kValues[] = {
+        0x00000000,         0x00000001,         0xffffffff,
+        0x1b09788b,         0x04c5fce8,         0xcc0de5bf,
+        0x00000002,         0x00000003,         0x00000004,
+        0x00000005,         0x00000008,         0x00000009,
+        0xffffffffffffffff, 0xfffffffffffffffe, 0xfffffffffffffffd,
+        0x0000000000000000, 0x0000000100000000, 0xffffffff00000000,
+        0x1b09788b00000000, 0x04c5fce800000000, 0xcc0de5bf00000000,
+        0x0000000200000000, 0x0000000300000000, 0x0000000400000000,
+        0x0000000500000000, 0x0000000800000000, 0x0000000900000000,
+        0x273a798e187937a3, 0xece3af835495a16b, 0x0b668ecc11223344,
+        0x0000009e,         0x00000043,         0x0000af73,
+        0x0000116b,         0x00658ecc,         0x002b3b4c,
+        0x88776655,         0x70000000,         0x07200000,
+        0x7fffffff,         0x56123761,         0x7fffff00,
+        0x761c4761eeeeeeee, 0x80000000eeeeeeee, 0x88888888dddddddd,
+        0xa0000000dddddddd, 0xddddddddaaaaaaaa, 0xe0000000aaaaaaaa,
+        0xeeeeeeeeeeeeeeee, 0xfffffffdeeeeeeee, 0xf0000000dddddddd,
+        0x007fffffdddddddd, 0x003fffffaaaaaaaa, 0x001fffffaaaaaaaa,
+        0x000fffff,         0x0007ffff,         0x0003ffff,
+        0x0001ffff,         0x0000ffff,         0x00007fff,
+        0x00003fff,         0x00001fff,         0x00000fff,
+        0x000007ff,         0x000003ff,         0x000001ff,
+        0x00003fffffffffff, 0x00001fffffffffff, 0x00000fffffffffff,
+        0x000007ffffffffff, 0x000003ffffffffff, 0x000001ffffffffff};
+    return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
+  }
+
   static const std::vector<double> nan_vector(size_t limit = 0) {
     static const double nan = std::numeric_limits<double>::quiet_NaN();
     static const double values[] = {-nan,               -V8_INFINITY * -0.0,
@@ -156,6 +190,8 @@ class ValueHelper {
 
 #define FOR_INT32_INPUTS(var) FOR_INPUTS(int32_t, int32, var)
 #define FOR_UINT32_INPUTS(var) FOR_INPUTS(uint32_t, uint32, var)
+#define FOR_INT64_INPUTS(var) FOR_INPUTS(int64_t, int64, var)
+#define FOR_UINT64_INPUTS(var) FOR_INPUTS(uint64_t, uint64, var)
 #define FOR_FLOAT32_INPUTS(var) FOR_INPUTS(float, float32, var)
 #define FOR_FLOAT64_INPUTS(var) FOR_INPUTS(double, float64, var)
 

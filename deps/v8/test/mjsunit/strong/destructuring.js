@@ -6,7 +6,10 @@
 // Flags: --harmony-arrow-functions --strong-mode --allow-natives-syntax
 
 (function() {
-  function f({ x = function() { return []; } }) { "use strong"; return x(); }
+  var f = (function() {
+    "use strong";
+    return function f({ x = function() { return []; } }) { return x(); };
+  })();
   var a = f({ x: undefined });
   assertTrue(%IsStrong(a));
 
@@ -19,7 +22,10 @@
   assertFalse(%IsStrong(a));
 
   function outerf() { return []; }
-  function f2({ x = outerf }) { "use strong"; return x(); }
+  var f2 = (function() {
+    "use strong";
+    return function f2({ x = outerf }) { return x(); };
+  })();
   a = f2({ x: undefined });
   assertFalse(%IsStrong(a));
 })();

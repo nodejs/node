@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "src/allocation.h"
+#include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
@@ -40,7 +41,10 @@ class FutexWaitListNode {
         next_(nullptr),
         backing_store_(nullptr),
         wait_addr_(0),
-        waiting_(false) {}
+        waiting_(false),
+        interrupted_(false) {}
+
+  void NotifyWake();
 
  private:
   friend class FutexEmulation;
@@ -52,6 +56,7 @@ class FutexWaitListNode {
   void* backing_store_;
   size_t wait_addr_;
   bool waiting_;
+  bool interrupted_;
 
   DISALLOW_COPY_AND_ASSIGN(FutexWaitListNode);
 };
@@ -115,6 +120,8 @@ class FutexEmulation : public AllStatic {
                                       size_t addr);
 
  private:
+  friend class FutexWaitListNode;
+
   static base::LazyMutex mutex_;
   static base::LazyInstance<FutexWaitList>::type wait_list_;
 };

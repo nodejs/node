@@ -63,8 +63,8 @@ var sum = 0;
   debugger; // Break 0.
 
   for (let i=0; // Break 1.
-       i < 1;   // Break 2. // Break 5. // Break 6.
-       i++) {
+       i < 1;   // Break 2.  // Break 6.
+       i++) {   // Break 5.
     let key = i; // Break 3.
     sum += key;   // Break 4.
   }

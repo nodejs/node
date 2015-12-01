@@ -40,9 +40,9 @@ class X87OperandGenerator final : public OperandGenerator {
       case IrOpcode::kHeapConstant: {
         // Constants in new space cannot be used as immediates in V8 because
         // the GC does not scan code objects when collecting the new generation.
-        Unique<HeapObject> value = OpParameter<Unique<HeapObject> >(node);
-        Isolate* isolate = value.handle()->GetIsolate();
-        return !isolate->heap()->InNewSpace(*value.handle());
+        Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
+        Isolate* isolate = value->GetIsolate();
+        return !isolate->heap()->InNewSpace(*value);
       }
       default:
         return false;
@@ -661,6 +661,19 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
       return;
   }
   UNREACHABLE();
+}
+
+
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat32, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87BitcastFI, g.DefineAsRegister(node), 0, NULL);
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87BitcastIF, g.DefineAsFixed(node, stX_0), g.Use(node->InputAt(0)));
 }
 
 

@@ -11,6 +11,7 @@
 var GlobalObject = global.Object;
 var GlobalWeakMap = global.WeakMap;
 var GlobalWeakSet = global.WeakSet;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 // -------------------------------------------------------------------
 // Harmony WeakMap
@@ -24,14 +25,14 @@ function WeakMapConstructor(iterable) {
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
-    if (!IS_SPEC_FUNCTION(adder)) {
+    if (!IS_CALLABLE(adder)) {
       throw MakeTypeError(kPropertyNotFunction, 'set', this);
     }
     for (var nextItem of iterable) {
       if (!IS_SPEC_OBJECT(nextItem)) {
         throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
       }
-      %_CallFunction(this, nextItem[0], nextItem[1], adder);
+      %_Call(adder, this, nextItem[0], nextItem[1]);
     }
   }
 }
@@ -90,7 +91,7 @@ function WeakMapDelete(key) {
 %FunctionSetPrototype(GlobalWeakMap, new GlobalObject());
 %AddNamedProperty(GlobalWeakMap.prototype, "constructor", GlobalWeakMap,
                   DONT_ENUM);
-%AddNamedProperty(GlobalWeakMap.prototype, symbolToStringTag, "WeakMap",
+%AddNamedProperty(GlobalWeakMap.prototype, toStringTagSymbol, "WeakMap",
                   DONT_ENUM | READ_ONLY);
 
 // Set up the non-enumerable functions on the WeakMap prototype object.
@@ -113,11 +114,11 @@ function WeakSetConstructor(iterable) {
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
-    if (!IS_SPEC_FUNCTION(adder)) {
+    if (!IS_CALLABLE(adder)) {
       throw MakeTypeError(kPropertyNotFunction, 'add', this);
     }
     for (var value of iterable) {
-      %_CallFunction(this, value, adder);
+      %_Call(adder, this, value);
     }
   }
 }
@@ -164,7 +165,7 @@ function WeakSetDelete(value) {
 %FunctionSetPrototype(GlobalWeakSet, new GlobalObject());
 %AddNamedProperty(GlobalWeakSet.prototype, "constructor", GlobalWeakSet,
                  DONT_ENUM);
-%AddNamedProperty(GlobalWeakSet.prototype, symbolToStringTag, "WeakSet",
+%AddNamedProperty(GlobalWeakSet.prototype, toStringTagSymbol, "WeakSet",
                   DONT_ENUM | READ_ONLY);
 
 // Set up the non-enumerable functions on the WeakSet prototype object.

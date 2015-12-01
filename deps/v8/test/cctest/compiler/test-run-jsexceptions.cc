@@ -59,7 +59,6 @@ TEST(ThrowMessageDirectly) {
 
 
 TEST(ThrowMessageIndirectly) {
-  i::FLAG_turbo_try_catch = true;
   i::FLAG_turbo_try_finally = true;
   static const char* src =
       "(function(a, b) {"
@@ -81,7 +80,6 @@ TEST(ThrowMessageIndirectly) {
 
 
 TEST(Catch) {
-  i::FLAG_turbo_try_catch = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -100,7 +98,6 @@ TEST(Catch) {
 
 
 TEST(CatchNested) {
-  i::FLAG_turbo_try_catch = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -124,7 +121,6 @@ TEST(CatchNested) {
 
 
 TEST(CatchBreak) {
-  i::FLAG_turbo_try_catch = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -149,7 +145,6 @@ TEST(CatchBreak) {
 
 
 TEST(CatchCall) {
-  i::FLAG_turbo_try_catch = true;
   const char* src =
       "(function(fun) {"
       "  var r = '-';"
@@ -213,7 +208,6 @@ TEST(FinallyBreak) {
 
 
 TEST(DeoptTry) {
-  i::FLAG_turbo_try_catch = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -230,7 +224,6 @@ TEST(DeoptTry) {
 
 
 TEST(DeoptCatch) {
-  i::FLAG_turbo_try_catch = true;
   const char* src =
       "(function f(a) {"
       "  try {"

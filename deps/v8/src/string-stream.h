@@ -100,7 +100,7 @@ class StringStream final {
  public:
   enum ObjectPrintMode { kPrintObjectConcise, kPrintObjectVerbose };
   StringStream(StringAllocator* allocator,
-               ObjectPrintMode object_print_mode = kPrintObjectConcise)
+               ObjectPrintMode object_print_mode = kPrintObjectVerbose)
       : allocator_(allocator),
         object_print_mode_(object_print_mode),
         capacity_(kInitialCapacity),

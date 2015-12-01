@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/hydrogen-dce.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

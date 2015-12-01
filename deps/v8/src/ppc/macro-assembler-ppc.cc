@@ -11,8 +11,8 @@
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
-#include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
+#include "src/ppc/macro-assembler-ppc.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -753,6 +753,14 @@ void MacroAssembler::Prologue(bool code_pre_aging, int prologue_offset) {
 }
 
 
+void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+  LoadP(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  LoadP(vector, FieldMemOperand(vector, JSFunction::kSharedFunctionInfoOffset));
+  LoadP(vector,
+        FieldMemOperand(vector, SharedFunctionInfo::kFeedbackVectorOffset));
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   if (FLAG_enable_embedded_constant_pool && load_constant_pool_pointer_reg) {
@@ -987,10 +995,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
+    mov(r3, Operand(actual.immediate()));
     if (expected.immediate() == actual.immediate()) {
       definitely_matches = true;
     } else {
-      mov(r3, Operand(actual.immediate()));
       const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
       if (expected.immediate() == sentinel) {
         // Don't worry about adapting arguments for builtins that
@@ -1005,9 +1013,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
   } else {
     if (actual.is_immediate()) {
+      mov(r3, Operand(actual.immediate()));
       cmpi(expected.reg(), Operand(actual.immediate()));
       beq(&regular_invoke);
-      mov(r3, Operand(actual.immediate()));
     } else {
       cmp(expected.reg(), actual.reg());
       beq(&regular_invoke);
@@ -1119,23 +1127,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const CallWrapper& call_wrapper) {
   Move(r4, function);
   InvokeFunction(r4, expected, actual, flag, call_wrapper);
-}
-
-
-void MacroAssembler::IsObjectJSObjectType(Register heap_object, Register map,
-                                          Register scratch, Label* fail) {
-  LoadP(map, FieldMemOperand(heap_object, HeapObject::kMapOffset));
-  IsInstanceJSObjectType(map, scratch, fail);
-}
-
-
-void MacroAssembler::IsInstanceJSObjectType(Register map, Register scratch,
-                                            Label* fail) {
-  lbz(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  cmpi(scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  blt(fail);
-  cmpi(scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  bgt(fail);
 }
 
 
@@ -1701,20 +1692,6 @@ void MacroAssembler::CompareObjectType(Register object, Register map,
 }
 
 
-void MacroAssembler::CheckObjectTypeRange(Register object, Register map,
-                                          InstanceType min_type,
-                                          InstanceType max_type,
-                                          Label* false_label) {
-  STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
-  STATIC_ASSERT(LAST_TYPE < 256);
-  LoadP(map, FieldMemOperand(object, HeapObject::kMapOffset));
-  lbz(ip, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  subi(ip, ip, Operand(min_type));
-  cmpli(ip, Operand(max_type - min_type));
-  bgt(false_label);
-}
-
-
 void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
                                          InstanceType type) {
   STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
@@ -1979,36 +1956,7 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
 
 
 void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
-                                             Register scratch, Label* miss,
-                                             bool miss_on_bound_function) {
-  Label non_instance;
-  if (miss_on_bound_function) {
-    // Check that the receiver isn't a smi.
-    JumpIfSmi(function, miss);
-
-    // Check that the function really is a function.  Load map into result reg.
-    CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
-    bne(miss);
-
-    LoadP(scratch,
-          FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    lwz(scratch,
-        FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
-    TestBit(scratch,
-#if V8_TARGET_ARCH_PPC64
-            SharedFunctionInfo::kBoundFunction,
-#else
-            SharedFunctionInfo::kBoundFunction + kSmiTagSize,
-#endif
-            r0);
-    bne(miss, cr0);
-
-    // Make sure that the function has an instance prototype.
-    lbz(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
-    andi(r0, scratch, Operand(1 << Map::kHasNonInstancePrototype));
-    bne(&non_instance, cr0);
-  }
-
+                                             Register scratch, Label* miss) {
   // Get the prototype or initial map from the function.
   LoadP(result,
         FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
@@ -2027,15 +1975,6 @@ void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
 
   // Get the prototype from the initial map.
   LoadP(result, FieldMemOperand(result, Map::kPrototypeOffset));
-
-  if (miss_on_bound_function) {
-    b(&done);
-
-    // Non-instance prototype: Fetch prototype from constructor field
-    // in initial map.
-    bind(&non_instance);
-    GetMapConstructor(result, result, scratch, ip);
-  }
 
   // All done.
   bind(&done);
@@ -2312,12 +2251,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
 }
 
 
-void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag,
+void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
                                    const CallWrapper& call_wrapper) {
   // You can't call a builtin without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
-  GetBuiltinEntry(ip, id);
+  GetBuiltinEntry(ip, native_context_index);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(ip));
     CallJSEntry(ip);
@@ -2330,21 +2269,20 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag,
 
 
 void MacroAssembler::GetBuiltinFunction(Register target,
-                                        Builtins::JavaScript id) {
+                                        int native_context_index) {
   // Load the builtins object into target register.
   LoadP(target,
         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  LoadP(target, FieldMemOperand(target, GlobalObject::kBuiltinsOffset));
+  LoadP(target, FieldMemOperand(target, GlobalObject::kNativeContextOffset));
   // Load the JavaScript builtin function from the builtins object.
-  LoadP(target,
-        FieldMemOperand(target, JSBuiltinsObject::OffsetOfFunctionWithId(id)),
-        r0);
+  LoadP(target, ContextOperand(target, native_context_index), r0);
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+void MacroAssembler::GetBuiltinEntry(Register target,
+                                     int native_context_index) {
   DCHECK(!target.is(r4));
-  GetBuiltinFunction(r4, id);
+  GetBuiltinFunction(r4, native_context_index);
   // Load the code entry point from the builtins object.
   LoadP(target, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
 }
@@ -2465,6 +2403,12 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // cannot be allowed to destroy the context in esi).
     mr(dst, cp);
   }
+}
+
+
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  LoadP(dst, GlobalObjectOperand());
+  LoadP(dst, FieldMemOperand(dst, GlobalObject::kGlobalProxyOffset));
 }
 
 
@@ -2644,6 +2588,19 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
+void MacroAssembler::AssertFunction(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    TestIfSmi(object, r0);
+    Check(ne, kOperandIsASmiAndNotAFunction, cr0);
+    push(object);
+    CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
+    pop(object);
+    Check(eq, kOperandIsNotAFunction);
+  }
+}
+
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
   if (emit_debug_code()) {
@@ -2675,78 +2632,6 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
   AssertIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   cmp(scratch, heap_number_map);
   bne(on_not_heap_number);
-}
-
-
-void MacroAssembler::LookupNumberStringCache(Register object, Register result,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Register scratch3,
-                                             Label* not_found) {
-  // Use of registers. Register result is used as a temporary.
-  Register number_string_cache = result;
-  Register mask = scratch3;
-
-  // Load the number string cache.
-  LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
-
-  // Make the hash mask from the length of the number string cache. It
-  // contains two elements (number and string) for each cache entry.
-  LoadP(mask, FieldMemOperand(number_string_cache, FixedArray::kLengthOffset));
-  // Divide length by two (length is a smi).
-  ShiftRightArithImm(mask, mask, kSmiTagSize + kSmiShiftSize + 1);
-  subi(mask, mask, Operand(1));  // Make mask.
-
-  // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value, and the hash for
-  // doubles is the xor of the upper and lower words. See
-  // Heap::GetNumberStringCache.
-  Label is_smi;
-  Label load_result_from_cache;
-  JumpIfSmi(object, &is_smi);
-  CheckMap(object, scratch1, Heap::kHeapNumberMapRootIndex, not_found,
-           DONT_DO_SMI_CHECK);
-
-  STATIC_ASSERT(8 == kDoubleSize);
-  lwz(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
-  lwz(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
-  xor_(scratch1, scratch1, scratch2);
-  and_(scratch1, scratch1, mask);
-
-  // Calculate address of entry in string cache: each entry consists
-  // of two pointer sized fields.
-  ShiftLeftImm(scratch1, scratch1, Operand(kPointerSizeLog2 + 1));
-  add(scratch1, number_string_cache, scratch1);
-
-  Register probe = mask;
-  LoadP(probe, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
-  JumpIfSmi(probe, not_found);
-  lfd(d0, FieldMemOperand(object, HeapNumber::kValueOffset));
-  lfd(d1, FieldMemOperand(probe, HeapNumber::kValueOffset));
-  fcmpu(d0, d1);
-  bne(not_found);  // The cache did not contain this value.
-  b(&load_result_from_cache);
-
-  bind(&is_smi);
-  Register scratch = scratch1;
-  SmiUntag(scratch, object);
-  and_(scratch, mask, scratch);
-  // Calculate address of entry in string cache: each entry consists
-  // of two pointer sized fields.
-  ShiftLeftImm(scratch, scratch, Operand(kPointerSizeLog2 + 1));
-  add(scratch, number_string_cache, scratch);
-
-  // Check if the entry is the smi we are looking for.
-  LoadP(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
-  cmp(object, probe);
-  bne(not_found);
-
-  // Get the result from the cache.
-  bind(&load_result_from_cache);
-  LoadP(result,
-        FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
-  IncrementCounter(isolate()->counters()->number_to_string_native(), 1,
-                   scratch1, scratch2);
 }
 
 
@@ -3241,175 +3126,6 @@ void MacroAssembler::DecodeConstantPoolOffset(Register result,
   add(result, r0, result);
 
   bind(&done);
-}
-
-
-void MacroAssembler::SetRelocatedValue(Register location, Register scratch,
-                                       Register new_value) {
-  lwz(scratch, MemOperand(location));
-
-  if (FLAG_enable_embedded_constant_pool) {
-    if (emit_debug_code()) {
-      // Check that the instruction sequence is a load from the constant pool
-      ExtractBitMask(scratch, scratch, 0x1f * B16);
-      cmpi(scratch, Operand(kConstantPoolRegister.code()));
-      Check(eq, kTheInstructionToPatchShouldBeALoadFromConstantPool);
-      // Scratch was clobbered. Restore it.
-      lwz(scratch, MemOperand(location));
-    }
-    DecodeConstantPoolOffset(scratch, location);
-    StorePX(new_value, MemOperand(kConstantPoolRegister, scratch));
-    return;
-  }
-
-  // This code assumes a FIXED_SEQUENCE for lis/ori
-
-  // At this point scratch is a lis instruction.
-  if (emit_debug_code()) {
-    And(scratch, scratch, Operand(kOpcodeMask | (0x1f * B16)));
-    Cmpi(scratch, Operand(ADDIS), r0);
-    Check(eq, kTheInstructionToPatchShouldBeALis);
-    lwz(scratch, MemOperand(location));
-  }
-
-// insert new high word into lis instruction
-#if V8_TARGET_ARCH_PPC64
-  srdi(ip, new_value, Operand(32));
-  rlwimi(scratch, ip, 16, 16, 31);
-#else
-  rlwimi(scratch, new_value, 16, 16, 31);
-#endif
-
-  stw(scratch, MemOperand(location));
-
-  lwz(scratch, MemOperand(location, kInstrSize));
-  // scratch is now ori.
-  if (emit_debug_code()) {
-    And(scratch, scratch, Operand(kOpcodeMask));
-    Cmpi(scratch, Operand(ORI), r0);
-    Check(eq, kTheInstructionShouldBeAnOri);
-    lwz(scratch, MemOperand(location, kInstrSize));
-  }
-
-// insert new low word into ori instruction
-#if V8_TARGET_ARCH_PPC64
-  rlwimi(scratch, ip, 0, 16, 31);
-#else
-  rlwimi(scratch, new_value, 0, 16, 31);
-#endif
-  stw(scratch, MemOperand(location, kInstrSize));
-
-#if V8_TARGET_ARCH_PPC64
-  if (emit_debug_code()) {
-    lwz(scratch, MemOperand(location, 2 * kInstrSize));
-    // scratch is now sldi.
-    And(scratch, scratch, Operand(kOpcodeMask | kExt5OpcodeMask));
-    Cmpi(scratch, Operand(EXT5 | RLDICR), r0);
-    Check(eq, kTheInstructionShouldBeASldi);
-  }
-
-  lwz(scratch, MemOperand(location, 3 * kInstrSize));
-  // scratch is now ori.
-  if (emit_debug_code()) {
-    And(scratch, scratch, Operand(kOpcodeMask));
-    Cmpi(scratch, Operand(ORIS), r0);
-    Check(eq, kTheInstructionShouldBeAnOris);
-    lwz(scratch, MemOperand(location, 3 * kInstrSize));
-  }
-
-  rlwimi(scratch, new_value, 16, 16, 31);
-  stw(scratch, MemOperand(location, 3 * kInstrSize));
-
-  lwz(scratch, MemOperand(location, 4 * kInstrSize));
-  // scratch is now ori.
-  if (emit_debug_code()) {
-    And(scratch, scratch, Operand(kOpcodeMask));
-    Cmpi(scratch, Operand(ORI), r0);
-    Check(eq, kTheInstructionShouldBeAnOri);
-    lwz(scratch, MemOperand(location, 4 * kInstrSize));
-  }
-  rlwimi(scratch, new_value, 0, 16, 31);
-  stw(scratch, MemOperand(location, 4 * kInstrSize));
-#endif
-
-// Update the I-cache so the new lis and addic can be executed.
-#if V8_TARGET_ARCH_PPC64
-  FlushICache(location, 5 * kInstrSize, scratch);
-#else
-  FlushICache(location, 2 * kInstrSize, scratch);
-#endif
-}
-
-
-void MacroAssembler::GetRelocatedValue(Register location, Register result,
-                                       Register scratch) {
-  lwz(result, MemOperand(location));
-
-  if (FLAG_enable_embedded_constant_pool) {
-    if (emit_debug_code()) {
-      // Check that the instruction sequence is a load from the constant pool
-      ExtractBitMask(result, result, 0x1f * B16);
-      cmpi(result, Operand(kConstantPoolRegister.code()));
-      Check(eq, kTheInstructionToPatchShouldBeALoadFromConstantPool);
-      lwz(result, MemOperand(location));
-    }
-    DecodeConstantPoolOffset(result, location);
-    LoadPX(result, MemOperand(kConstantPoolRegister, result));
-    return;
-  }
-
-  // This code assumes a FIXED_SEQUENCE for lis/ori
-  if (emit_debug_code()) {
-    And(result, result, Operand(kOpcodeMask | (0x1f * B16)));
-    Cmpi(result, Operand(ADDIS), r0);
-    Check(eq, kTheInstructionShouldBeALis);
-    lwz(result, MemOperand(location));
-  }
-
-  // result now holds a lis instruction. Extract the immediate.
-  slwi(result, result, Operand(16));
-
-  lwz(scratch, MemOperand(location, kInstrSize));
-  if (emit_debug_code()) {
-    And(scratch, scratch, Operand(kOpcodeMask));
-    Cmpi(scratch, Operand(ORI), r0);
-    Check(eq, kTheInstructionShouldBeAnOri);
-    lwz(scratch, MemOperand(location, kInstrSize));
-  }
-  // Copy the low 16bits from ori instruction into result
-  rlwimi(result, scratch, 0, 16, 31);
-
-#if V8_TARGET_ARCH_PPC64
-  if (emit_debug_code()) {
-    lwz(scratch, MemOperand(location, 2 * kInstrSize));
-    // scratch is now sldi.
-    And(scratch, scratch, Operand(kOpcodeMask | kExt5OpcodeMask));
-    Cmpi(scratch, Operand(EXT5 | RLDICR), r0);
-    Check(eq, kTheInstructionShouldBeASldi);
-  }
-
-  lwz(scratch, MemOperand(location, 3 * kInstrSize));
-  // scratch is now ori.
-  if (emit_debug_code()) {
-    And(scratch, scratch, Operand(kOpcodeMask));
-    Cmpi(scratch, Operand(ORIS), r0);
-    Check(eq, kTheInstructionShouldBeAnOris);
-    lwz(scratch, MemOperand(location, 3 * kInstrSize));
-  }
-  sldi(result, result, Operand(16));
-  rldimi(result, scratch, 0, 48);
-
-  lwz(scratch, MemOperand(location, 4 * kInstrSize));
-  // scratch is now ori.
-  if (emit_debug_code()) {
-    And(scratch, scratch, Operand(kOpcodeMask));
-    Cmpi(scratch, Operand(ORI), r0);
-    Check(eq, kTheInstructionShouldBeAnOri);
-    lwz(scratch, MemOperand(location, 4 * kInstrSize));
-  }
-  sldi(result, result, Operand(16));
-  rldimi(result, scratch, 0, 48);
-#endif
 }
 
 
@@ -4040,6 +3756,25 @@ void MacroAssembler::MovDoubleToInt64(
 }
 
 
+void MacroAssembler::MovIntToFloat(DoubleRegister dst, Register src) {
+  subi(sp, sp, Operand(kFloatSize));
+  stw(src, MemOperand(sp, 0));
+  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
+  lfs(dst, MemOperand(sp, 0));
+  addi(sp, sp, Operand(kFloatSize));
+}
+
+
+void MacroAssembler::MovFloatToInt(Register dst, DoubleRegister src) {
+  subi(sp, sp, Operand(kFloatSize));
+  frsp(src, src);
+  stfs(src, MemOperand(sp, 0));
+  nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
+  lwz(dst, MemOperand(sp, 0));
+  addi(sp, sp, Operand(kFloatSize));
+}
+
+
 void MacroAssembler::Add(Register dst, Register src, intptr_t value,
                          Register scratch) {
   if (is_int16(value)) {
@@ -4601,7 +4336,7 @@ CodePatcher::CodePatcher(byte* address, int instructions,
 CodePatcher::~CodePatcher() {
   // Indicate that code has changed.
   if (flush_cache_ == FLUSH) {
-    CpuFeatures::FlushICache(address_, size_);
+    Assembler::FlushICacheWithoutIsolate(address_, size_);
   }
 
   // Check that the code was patched as expected.

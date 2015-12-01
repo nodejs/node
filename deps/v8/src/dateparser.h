@@ -99,24 +99,8 @@ class DateParser : public AllStatic {
       return false;
     }
 
-    bool SkipWhiteSpace() {
-      if (unicode_cache_->IsWhiteSpaceOrLineTerminator(ch_)) {
-        Next();
-        return true;
-      }
-      return false;
-    }
-
-    bool SkipParentheses() {
-      if (ch_ != '(') return false;
-      int balance = 0;
-      do {
-        if (ch_ == ')') --balance;
-        else if (ch_ == '(') ++balance;
-        Next();
-      } while (balance > 0 && ch_);
-      return true;
-    }
+    inline bool SkipWhiteSpace();
+    inline bool SkipParentheses();
 
     // Character testing/classification. Non-ASCII digits are not supported.
     bool Is(uint32_t c) const { return ch_ == c; }
@@ -375,9 +359,7 @@ class DateParser : public AllStatic {
   // legacy parser.
   template <typename Char>
   static DateParser::DateToken ParseES5DateTime(
-      DateStringTokenizer<Char>* scanner,
-      DayComposer* day,
-      TimeComposer* time,
+      DateStringTokenizer<Char>* scanner, DayComposer* day, TimeComposer* time,
       TimeZoneComposer* tz);
 };
 

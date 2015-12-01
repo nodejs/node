@@ -273,7 +273,7 @@ class Linkage : public ZoneObject {
                                              CallDescriptor::Flags flags);
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,
-      Operator::Properties properties);
+      Operator::Properties properties, bool needs_frame_state = true);
 
   static CallDescriptor* GetStubCallDescriptor(
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
@@ -335,6 +335,7 @@ class Linkage : public ZoneObject {
   static const int kInterpreterBytecodeOffsetParameter = 2;
   static const int kInterpreterBytecodeArrayParameter = 3;
   static const int kInterpreterDispatchTableParameter = 4;
+  static const int kInterpreterContextParameter = 5;
 
  private:
   CallDescriptor* const incoming_;

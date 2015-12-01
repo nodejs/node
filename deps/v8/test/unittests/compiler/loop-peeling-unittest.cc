@@ -468,7 +468,7 @@ TEST_F(LoopPeelingTest, TwoExitLoop_nope) {
 
 
 const Operator kMockCall(IrOpcode::kCall, Operator::kNoProperties, "MockCall",
-                         0, 0, 1, 1, 0, 2);
+                         0, 0, 1, 1, 1, 2);
 
 
 TEST_F(LoopPeelingTest, TwoExitLoopWithCall_nope) {
@@ -479,7 +479,7 @@ TEST_F(LoopPeelingTest, TwoExitLoopWithCall_nope) {
   Node* call = graph()->NewNode(&kMockCall, b1.if_true);
   Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
   Node* if_exception = graph()->NewNode(
-      common()->IfException(IfExceptionHint::kLocallyUncaught), call);
+      common()->IfException(IfExceptionHint::kLocallyUncaught), call, call);
 
   loop->ReplaceInput(1, if_success);
   Node* merge = graph()->NewNode(common()->Merge(2), b1.if_false, if_exception);

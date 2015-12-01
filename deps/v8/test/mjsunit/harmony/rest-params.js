@@ -16,18 +16,22 @@
                     return args.length; })(1,2,3,4,5));
 })();
 
-function strictTest(a, b, ...c) {
+
+var strictTest = (function() {
   "use strict";
-  assertEquals(Array, c.constructor);
-  assertTrue(Array.isArray(c));
+  return function strictTest(a, b, ...c) {
+    assertEquals(Array, c.constructor);
+    assertTrue(Array.isArray(c));
 
-  var expectedLength = arguments.length >= 3 ? arguments.length - 2 : 0;
-  assertEquals(expectedLength, c.length);
+    var expectedLength = arguments.length >= 3 ? arguments.length - 2 : 0;
+    assertEquals(expectedLength, c.length);
 
-  for (var i = 2, j = 0; i < arguments.length; ++i) {
-    assertEquals(c[j++], arguments[i]);
-  }
-}
+    for (var i = 2, j = 0; i < arguments.length; ++i) {
+      assertEquals(c[j++], arguments[i]);
+    }
+  };
+})();
+
 
 function sloppyTest(a, b, ...c) {
   assertEquals(Array, c.constructor);
@@ -144,14 +148,15 @@ var O = {
 
 
 (function testNoAliasArgumentsStrict() {
-  function strictF(a, ...rest) {
+  ((function() {
     "use strict";
-    arguments[0] = 1;
-    assertEquals(3, a);
-    arguments[1] = 2;
-    assertArrayEquals([4, 5], rest);
-  }
-  strictF(3, 4, 5);
+    return (function strictF(a, ...rest) {
+              arguments[0] = 1;
+              assertEquals(3, a);
+              arguments[1] = 2;
+              assertArrayEquals([4, 5], rest);
+            });
+  })())(3, 4, 5);
 })();
 
 
@@ -164,22 +169,6 @@ var O = {
   }
   sloppyF(3, 4, 5);
 })();
-
-
-/* TODO(caitp): support arrow functions (blocked on spread operator support)
-(function testRestParamsArrowFunctions() {
-  "use strict";
-
-  var fn = (a, b, ...c) => c;
-  assertEquals([], fn());
-  assertEquals([], fn(1, 2));
-  assertEquals([3], fn(1, 2, 3));
-  assertEquals([3, 4], fn(1, 2, 3, 4));
-  assertEquals([3, 4, 5], fn(1, 2, 3, 4, 5));
-  assertThrows("var x = ...y => y;", SyntaxError);
-  assertEquals([], ((...args) => args)());
-  assertEquals([1,2,3], ((...args) => args)(1,2,3));
-})();*/
 
 
 (function testRestParamsWithNewTarget() {
@@ -211,4 +200,22 @@ var O = {
   var c = new Child(1, 2, 3);
   assertEquals([1, 2, 3], c.child);
   assertEquals([1, 2, 3], c.base);
+})();
+
+(function TestDirectiveThrows() {
+  "use strict";
+
+  assertThrows(
+    function(){ eval("function(...rest){'use strict';}") }, SyntaxError);
+  assertThrows(function(){ eval("(...rest) => {'use strict';}") }, SyntaxError);
+  assertThrows(
+    function(){ eval("(class{foo(...rest) {'use strict';}});") }, SyntaxError);
+
+  assertThrows(
+    function(){ eval("function(a, ...rest){'use strict';}") }, SyntaxError);
+  assertThrows(
+    function(){ eval("(a, ...rest) => {'use strict';}") }, SyntaxError);
+  assertThrows(
+    function(){ eval("(class{foo(a, ...rest) {'use strict';}});") },
+    SyntaxError);
 })();

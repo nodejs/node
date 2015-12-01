@@ -88,6 +88,8 @@ namespace compiler {
   V(Mips64Swc1)                     \
   V(Mips64Ldc1)                     \
   V(Mips64Sdc1)                     \
+  V(Mips64BitcastDL)                \
+  V(Mips64BitcastLD)                \
   V(Mips64Float64ExtractLowWord32)  \
   V(Mips64Float64ExtractHighWord32) \
   V(Mips64Float64InsertLowWord32)   \

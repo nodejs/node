@@ -146,7 +146,6 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
   if (frame_state_before == nullptr) return NoChange();
 
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
-  Handle<Name> name = p.name().handle();
   SmallMapList maps;
 
   FeedbackVectorICSlot slot = js_type_feedback_->FindFeedbackVectorICSlot(node);
@@ -155,7 +154,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
     // No type feedback ids or the load is uninitialized.
     return NoChange();
   }
-  oracle()->PropertyReceiverTypes(slot, name, &maps);
+  oracle()->PropertyReceiverTypes(slot, p.name(), &maps);
 
   Node* receiver = node->InputAt(0);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -165,7 +164,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
 
   Handle<Map> map = maps.first();
   FieldAccess field_access;
-  if (!GetInObjectFieldAccess(LOAD, map, name, &field_access)) {
+  if (!GetInObjectFieldAccess(LOAD, map, p.name(), &field_access)) {
     return NoChange();
   }
 
@@ -191,7 +190,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSLoadNamed(Node* node) {
 Reduction JSTypeFeedbackSpecializer::ReduceJSLoadGlobal(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadGlobal);
   Handle<String> name =
-      Handle<String>::cast(LoadGlobalParametersOf(node->op()).name().handle());
+      Handle<String>::cast(LoadGlobalParametersOf(node->op()).name());
   // Try to optimize loads from the global object.
   Handle<Object> constant_value =
       jsgraph()->isolate()->factory()->GlobalConstantFor(name);
@@ -267,7 +266,6 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
   if (frame_state_before == nullptr) return NoChange();
 
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
-  Handle<Name> name = p.name().handle();
   SmallMapList maps;
   TypeFeedbackId id = js_type_feedback_->FindTypeFeedbackId(node);
   if (id.IsNone() || oracle()->StoreIsUninitialized(id) == UNINITIALIZED) {
@@ -275,7 +273,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
     // TODO(titzer): no feedback from vector ICs from stores.
     return NoChange();
   } else {
-    oracle()->AssignmentReceiverTypes(id, name, &maps);
+    oracle()->AssignmentReceiverTypes(id, p.name(), &maps);
   }
 
   Node* receiver = node->InputAt(0);
@@ -287,7 +285,7 @@ Reduction JSTypeFeedbackSpecializer::ReduceJSStoreNamed(Node* node) {
 
   Handle<Map> map = maps.first();
   FieldAccess field_access;
-  if (!GetInObjectFieldAccess(STORE, map, name, &field_access)) {
+  if (!GetInObjectFieldAccess(STORE, map, p.name(), &field_access)) {
     return NoChange();
   }
 

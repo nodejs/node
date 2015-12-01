@@ -33,8 +33,7 @@ Decision DecideCondition(Node* const cond) {
     }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher mcond(cond);
-      return mcond.Value().handle()->BooleanValue() ? Decision::kTrue
-                                                    : Decision::kFalse;
+      return mcond.Value()->BooleanValue() ? Decision::kTrue : Decision::kFalse;
     }
     default:
       return Decision::kUnknown;
@@ -86,10 +85,10 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
     for (Node* const use : node->uses()) {
       switch (use->opcode()) {
         case IrOpcode::kIfTrue:
-          use->set_op(common()->IfFalse());
+          NodeProperties::ChangeOp(use, common()->IfFalse());
           break;
         case IrOpcode::kIfFalse:
-          use->set_op(common()->IfTrue());
+          NodeProperties::ChangeOp(use, common()->IfTrue());
           break;
         default:
           UNREACHABLE();
@@ -100,7 +99,8 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
     // graph reduction logic will ensure that the uses are revisited properly.
     node->ReplaceInput(0, cond->InputAt(0));
     // Negate the hint for {branch}.
-    node->set_op(common()->Branch(NegateBranchHint(BranchHintOf(node->op()))));
+    NodeProperties::ChangeOp(
+        node, common()->Branch(NegateBranchHint(BranchHintOf(node->op()))));
     return Changed(node);
   }
   Decision const decision = DecideCondition(cond);
@@ -149,8 +149,8 @@ Reduction CommonOperatorReducer::ReduceMerge(Node* node) {
       DCHECK(branch->OwnedBy(if_true, if_false));
       Node* const control = branch->InputAt(1);
       // Mark the {branch} as {Dead}.
-      branch->set_op(common()->Dead());
       branch->TrimInputCount(0);
+      NodeProperties::ChangeOp(branch, common()->Dead());
       return Replace(control);
     }
   }
@@ -281,9 +281,8 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     DCHECK_NE(0, control_input_count);
     DCHECK_EQ(control_input_count, value->InputCount() - 1);
     DCHECK_EQ(control_input_count, effect->InputCount() - 1);
-    Node* const end = graph()->end();
-    DCHECK_EQ(IrOpcode::kEnd, end->opcode());
-    DCHECK_NE(0, end->InputCount());
+    DCHECK_EQ(IrOpcode::kEnd, graph()->end()->opcode());
+    DCHECK_NE(0, graph()->end()->InputCount());
     for (int i = 0; i < control_input_count; ++i) {
       // Create a new {Return} and connect it to {end}. We don't need to mark
       // {end} as revisit, because we mark {node} as {Dead} below, which was
@@ -291,8 +290,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
       // the reducer logic will visit {end} again.
       Node* ret = graph()->NewNode(common()->Return(), value->InputAt(i),
                                    effect->InputAt(i), control->InputAt(i));
-      end->set_op(common()->End(end->InputCount() + 1));
-      end->AppendInput(graph()->zone(), ret);
+      NodeProperties::MergeControlToEnd(graph(), common(), ret);
     }
     // Mark the merge {control} and return {node} as {dead}.
     Replace(control, dead());
@@ -362,19 +360,19 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
 
 Reduction CommonOperatorReducer::Change(Node* node, Operator const* op,
                                         Node* a) {
-  node->set_op(op);
   node->ReplaceInput(0, a);
   node->TrimInputCount(1);
+  NodeProperties::ChangeOp(node, op);
   return Changed(node);
 }
 
 
 Reduction CommonOperatorReducer::Change(Node* node, Operator const* op, Node* a,
                                         Node* b) {
-  node->set_op(op);
   node->ReplaceInput(0, a);
   node->ReplaceInput(1, b);
   node->TrimInputCount(2);
+  NodeProperties::ChangeOp(node, op);
   return Changed(node);
 }
 

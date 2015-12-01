@@ -39,6 +39,7 @@ class EntryFrameConstants : public AllStatic {
  public:
   static const int kCallerFPOffset      = -6 * kPointerSize;
 
+  static const int kNewTargetArgOffset = +2 * kPointerSize;
   static const int kFunctionArgOffset   = +3 * kPointerSize;
   static const int kReceiverArgOffset   = +4 * kPointerSize;
   static const int kArgcOffset          = +5 * kPointerSize;

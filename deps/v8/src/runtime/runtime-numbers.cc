@@ -9,13 +9,6 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 
-
-#ifndef _STLP_VENDOR_CSTD
-// STLPort doesn't import fpclassify and isless into the std namespace.
-using std::fpclassify;
-using std::isless;
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -112,81 +105,11 @@ RUNTIME_FUNCTION(Runtime_IsValidSmi) {
 }
 
 
-static bool AreDigits(const uint8_t* s, int from, int to) {
-  for (int i = from; i < to; i++) {
-    if (s[i] < '0' || s[i] > '9') return false;
-  }
-
-  return true;
-}
-
-
-static int ParseDecimalInteger(const uint8_t* s, int from, int to) {
-  DCHECK(to - from < 10);  // Overflow is not possible.
-  DCHECK(from < to);
-  int d = s[from] - '0';
-
-  for (int i = from + 1; i < to; i++) {
-    d = 10 * d + (s[i] - '0');
-  }
-
-  return d;
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringToNumber) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  subject = String::Flatten(subject);
-
-  // Fast case: short integer or some sorts of junk values.
-  if (subject->IsSeqOneByteString()) {
-    int len = subject->length();
-    if (len == 0) return Smi::FromInt(0);
-
-    DisallowHeapAllocation no_gc;
-    uint8_t const* data = Handle<SeqOneByteString>::cast(subject)->GetChars();
-    bool minus = (data[0] == '-');
-    int start_pos = (minus ? 1 : 0);
-
-    if (start_pos == len) {
-      return isolate->heap()->nan_value();
-    } else if (data[start_pos] > '9') {
-      // Fast check for a junk value. A valid string may start from a
-      // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit
-      // or the 'I' character ('Infinity'). All of that have codes not greater
-      // than '9' except 'I' and &nbsp;.
-      if (data[start_pos] != 'I' && data[start_pos] != 0xa0) {
-        return isolate->heap()->nan_value();
-      }
-    } else if (len - start_pos < 10 && AreDigits(data, start_pos, len)) {
-      // The maximal/minimal smi has 10 digits. If the string has less digits
-      // we know it will fit into the smi-data type.
-      int d = ParseDecimalInteger(data, start_pos, len);
-      if (minus) {
-        if (d == 0) return isolate->heap()->minus_zero_value();
-        d = -d;
-      } else if (!subject->HasHashCode() && len <= String::kMaxArrayIndexSize &&
-                 (len == 1 || data[0] != '0')) {
-        // String hash is not calculated yet but all the data are present.
-        // Update the hash field to speed up sequential convertions.
-        uint32_t hash = StringHasher::MakeArrayIndexHash(d, len);
-#ifdef DEBUG
-        subject->Hash();  // Force hash calculation.
-        DCHECK_EQ(static_cast<int>(subject->hash_field()),
-                  static_cast<int>(hash));
-#endif
-        subject->set_hash_field(hash);
-      }
-      return Smi::FromInt(d);
-    }
-  }
-
-  // Slower case.
-  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-  return *isolate->factory()->NewNumber(
-      StringToDouble(isolate->unicode_cache(), subject, flags));
+  return *String::ToNumber(subject);
 }
 
 
@@ -248,15 +171,6 @@ RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberToInteger) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-  return *isolate->factory()->NewNumber(DoubleToInteger(number));
-}
-
-
 RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -290,65 +204,6 @@ RUNTIME_FUNCTION(Runtime_NumberToSmi) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberAdd) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(x + y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberSub) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(x - y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberMul) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(x * y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberUnaryMinus) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(-x);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberDiv) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(x / y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberMod) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return *isolate->factory()->NewNumber(modulo(x, y));
-}
-
-
 RUNTIME_FUNCTION(Runtime_NumberImul) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -359,100 +214,6 @@ RUNTIME_FUNCTION(Runtime_NumberImul) {
   CONVERT_NUMBER_CHECKED(uint32_t, y, Int32, args[1]);
   int32_t product = static_cast<int32_t>(x * y);
   return *isolate->factory()->NewNumberFromInt(product);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberOr) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x | y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberAnd) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x & y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberXor) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x ^ y);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberShl) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x << (y & 0x1f));
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberShr) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(uint32_t, x, Uint32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromUint(x >> (y & 0x1f));
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberSar) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(
-      ArithmeticShiftRight(x, y & 0x1f));
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberEquals) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  if (std::isnan(x)) return Smi::FromInt(NOT_EQUAL);
-  if (std::isnan(y)) return Smi::FromInt(NOT_EQUAL);
-  if (x == y) return Smi::FromInt(EQUAL);
-  Object* result;
-  if ((fpclassify(x) == FP_ZERO) && (fpclassify(y) == FP_ZERO)) {
-    result = Smi::FromInt(EQUAL);
-  } else {
-    result = Smi::FromInt(NOT_EQUAL);
-  }
-  return result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberCompare) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 3);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, uncomparable_result, 2)
-  if (std::isnan(x) || std::isnan(y)) return *uncomparable_result;
-  if (x == y) return Smi::FromInt(EQUAL);
-  if (isless(x, y)) return Smi::FromInt(LESS);
-  return Smi::FromInt(GREATER);
 }
 
 
@@ -547,19 +308,11 @@ RUNTIME_FUNCTION(Runtime_IsSmi) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsNonNegativeSmi) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsSmi() &&
-                                    Smi::cast(obj)->value() >= 0);
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetRootNaN) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
   return isolate->heap()->nan_value();
 }
+
 }  // namespace internal
 }  // namespace v8

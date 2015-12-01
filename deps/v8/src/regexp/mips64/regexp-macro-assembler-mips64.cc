@@ -219,7 +219,7 @@ void RegExpMacroAssemblerMIPS::CheckCharacterGT(uc16 limit, Label* on_greater) {
 void RegExpMacroAssemblerMIPS::CheckAtStart(Label* on_at_start) {
   Label not_at_start;
   // Did we start the match at the start of the string at all?
-  __ lw(a0, MemOperand(frame_pointer(), kStartIndex));
+  __ ld(a0, MemOperand(frame_pointer(), kStartIndex));
   BranchOrBacktrack(&not_at_start, ne, a0, Operand(zero_reg));
 
   // If we did, are we still at the start of the input?
@@ -232,7 +232,7 @@ void RegExpMacroAssemblerMIPS::CheckAtStart(Label* on_at_start) {
 
 void RegExpMacroAssemblerMIPS::CheckNotAtStart(Label* on_not_at_start) {
   // Did we start the match at the start of the string at all?
-  __ lw(a0, MemOperand(frame_pointer(), kStartIndex));
+  __ ld(a0, MemOperand(frame_pointer(), kStartIndex));
   BranchOrBacktrack(on_not_at_start, ne, a0, Operand(zero_reg));
   // If we did, are we still at the start of the input?
   __ ld(a1, MemOperand(frame_pointer(), kInputStart));
@@ -779,7 +779,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       if (global()) {
         // Restart matching if the regular expression is flagged as global.
         __ ld(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
-        __ lw(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
+        __ ld(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
         __ ld(a2, MemOperand(frame_pointer(), kRegisterOutput));
         // Increment success counter.
         __ Daddu(a0, a0, 1);
@@ -1155,8 +1155,8 @@ int64_t RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
                                                        Address re_frame) {
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
-      frame_entry<int>(re_frame, kStartIndex),
-      frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
+      static_cast<int>(frame_entry<int64_t>(re_frame, kStartIndex)),
+      frame_entry<int64_t>(re_frame, kDirectCall) == 1, return_address, re_code,
       frame_entry_address<String*>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));

@@ -1599,7 +1599,7 @@ TEST(SerializeInternalReference) {
   return;
 #endif
   // Disable experimental natives that are loaded after deserialization.
-  FLAG_context_specialization = false;
+  FLAG_function_context_specialization = false;
   FLAG_always_opt = true;
   const char* flag = "--turbo-filter=foo";
   FlagList::SetFlagsFromString(flag, StrLength(flag));

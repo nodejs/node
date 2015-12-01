@@ -80,6 +80,7 @@ shell_g
 /tools/jsfunfuzz.zip
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
+/tools/swarming_client
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
 /v8.log.ll

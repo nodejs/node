@@ -4,18 +4,17 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
+#include "src/scanner.h"
+
 #include <stdint.h>
 
 #include <cmath>
-
-#include "src/v8.h"
 
 #include "src/ast-value-factory.h"
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
 #include "src/list-inl.h"
 #include "src/parser.h"
-#include "src/scanner.h"
 
 namespace v8 {
 namespace internal {
@@ -238,6 +237,11 @@ Token::Value Scanner::Next() {
     next_.location.end_pos = current_.location.end_pos;
   }
   current_ = next_;
+  if (V8_UNLIKELY(next_next_.token != Token::UNINITIALIZED)) {
+    next_ = next_next_;
+    next_next_.token = Token::UNINITIALIZED;
+    return current_.token;
+  }
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
   if (static_cast<unsigned>(c0_) <= 0x7f) {
@@ -253,6 +257,20 @@ Token::Value Scanner::Next() {
   }
   Scan();
   return current_.token;
+}
+
+
+Token::Value Scanner::PeekAhead() {
+  if (next_next_.token != Token::UNINITIALIZED) {
+    return next_next_.token;
+  }
+  TokenDesc prev = current_;
+  Next();
+  Token::Value ret = next_.token;
+  next_next_ = next_;
+  next_ = current_;
+  current_ = prev;
+  return ret;
 }
 
 
@@ -1433,7 +1451,7 @@ int Scanner::FindSymbol(DuplicateFinder* finder, int value) {
 
 bool Scanner::SetBookmark() {
   if (c0_ != kNoBookmark && bookmark_c0_ == kNoBookmark &&
-      source_->SetBookmark()) {
+      next_next_.token == Token::UNINITIALIZED && source_->SetBookmark()) {
     bookmark_c0_ = c0_;
     CopyTokenDesc(&bookmark_current_, &current_);
     CopyTokenDesc(&bookmark_next_, &next_);
@@ -1561,7 +1579,7 @@ uint32_t DuplicateFinder::Hash(Vector<const uint8_t> key, bool is_one_byte) {
   // Primitive hash function, almost identical to the one used
   // for strings (except that it's seeded by the length and representation).
   int length = key.length();
-  uint32_t hash = (length << 1) | (is_one_byte ? 1 : 0) ;
+  uint32_t hash = (length << 1) | (is_one_byte ? 1 : 0);
   for (int i = 0; i < length; i++) {
     uint32_t c = key[i];
     hash = (hash + c) * 1025;

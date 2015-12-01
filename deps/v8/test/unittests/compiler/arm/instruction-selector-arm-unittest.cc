@@ -1392,6 +1392,7 @@ struct Comparison {
   const char* constructor_name;
   FlagsCondition flags_condition;
   FlagsCondition negated_flags_condition;
+  FlagsCondition commuted_flags_condition;
 };
 
 
@@ -1401,15 +1402,17 @@ std::ostream& operator<<(std::ostream& os, const Comparison& cmp) {
 
 
 const Comparison kComparisons[] = {
-    {&RawMachineAssembler::Word32Equal, "Word32Equal", kEqual, kNotEqual},
+    {&RawMachineAssembler::Word32Equal, "Word32Equal", kEqual, kNotEqual,
+     kEqual},
     {&RawMachineAssembler::Int32LessThan, "Int32LessThan", kSignedLessThan,
-     kSignedGreaterThanOrEqual},
+     kSignedGreaterThanOrEqual, kSignedGreaterThan},
     {&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual",
-     kSignedLessThanOrEqual, kSignedGreaterThan},
+     kSignedLessThanOrEqual, kSignedGreaterThan, kSignedGreaterThanOrEqual},
     {&RawMachineAssembler::Uint32LessThan, "Uint32LessThan", kUnsignedLessThan,
-     kUnsignedGreaterThanOrEqual},
+     kUnsignedGreaterThanOrEqual, kUnsignedGreaterThan},
     {&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual",
-     kUnsignedLessThanOrEqual, kUnsignedGreaterThan}};
+     kUnsignedLessThanOrEqual, kUnsignedGreaterThan,
+     kUnsignedGreaterThanOrEqual}};
 
 }  // namespace
 
@@ -1495,11 +1498,13 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
 namespace {
 
 const Comparison kF32Comparisons[] = {
-    {&RawMachineAssembler::Float32Equal, "Float32Equal", kEqual, kNotEqual},
+    {&RawMachineAssembler::Float32Equal, "Float32Equal", kEqual, kNotEqual,
+     kEqual},
     {&RawMachineAssembler::Float32LessThan, "Float32LessThan",
-     kUnsignedLessThan, kUnsignedGreaterThanOrEqual},
+     kFloatLessThan, kFloatGreaterThanOrEqualOrUnordered, kFloatGreaterThan},
     {&RawMachineAssembler::Float32LessThanOrEqual, "Float32LessThanOrEqual",
-     kUnsignedLessThanOrEqual, kUnsignedGreaterThan}};
+     kFloatLessThanOrEqual, kFloatGreaterThanOrUnordered,
+     kFloatGreaterThanOrEqual}};
 
 }  // namespace
 
@@ -1551,33 +1556,36 @@ TEST_P(InstructionSelectorF32ComparisonTest, WithImmediateZeroOnRight) {
 }
 
 
+TEST_P(InstructionSelectorF32ComparisonTest, WithImmediateZeroOnLeft) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachFloat32);
+  m.Return((m.*cmp.constructor)(m.Float32Constant(0.0f), m.Parameter(0)));
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.commuted_flags_condition, s[0]->flags_condition());
+}
+
+
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorF32ComparisonTest,
                         ::testing::ValuesIn(kF32Comparisons));
 
 
-TEST_F(InstructionSelectorTest, Float32EqualWithImmediateZeroOnLeft) {
-  StreamBuilder m(this, kMachInt32, kMachFloat32);
-  m.Return(m.Float32Equal(m.Float32Constant(0.0f), m.Parameter(0)));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArmVcmpF32, s[0]->arch_opcode());
-  EXPECT_EQ(2U, s[0]->InputCount());
-  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
-  EXPECT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-  EXPECT_EQ(kEqual, s[0]->flags_condition());
-}
-
-
 namespace {
 
 const Comparison kF64Comparisons[] = {
-    {&RawMachineAssembler::Float64Equal, "Float64Equal", kEqual, kNotEqual},
+    {&RawMachineAssembler::Float64Equal, "Float64Equal", kEqual, kNotEqual,
+     kEqual},
     {&RawMachineAssembler::Float64LessThan, "Float64LessThan",
-     kUnsignedLessThan, kUnsignedGreaterThanOrEqual},
+     kFloatLessThan, kFloatGreaterThanOrEqualOrUnordered, kFloatGreaterThan},
     {&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
-     kUnsignedLessThanOrEqual, kUnsignedGreaterThan}};
+     kFloatLessThanOrEqual, kFloatGreaterThanOrUnordered,
+     kFloatGreaterThanOrEqual}};
 
 }  // namespace
 
@@ -1629,23 +1637,24 @@ TEST_P(InstructionSelectorF64ComparisonTest, WithImmediateZeroOnRight) {
 }
 
 
+TEST_P(InstructionSelectorF64ComparisonTest, WithImmediateZeroOnLeft) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachFloat64);
+  m.Return((m.*cmp.constructor)(m.Float64Constant(0.0), m.Parameter(0)));
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF64, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.commuted_flags_condition, s[0]->flags_condition());
+}
+
+
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorF64ComparisonTest,
                         ::testing::ValuesIn(kF64Comparisons));
-
-
-TEST_F(InstructionSelectorTest, Float64EqualWithImmediateZeroOnLeft) {
-  StreamBuilder m(this, kMachInt32, kMachFloat64);
-  m.Return(m.Float64Equal(m.Float64Constant(0.0), m.Parameter(0)));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArmVcmpF64, s[0]->arch_opcode());
-  EXPECT_EQ(2U, s[0]->InputCount());
-  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
-  EXPECT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-  EXPECT_EQ(kEqual, s[0]->flags_condition());
-}
 
 
 // -----------------------------------------------------------------------------

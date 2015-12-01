@@ -44,16 +44,17 @@
 #include "src/builtins.h"
 #include "src/codegen.h"
 #include "src/counters.h"
-#include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
+#include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serialize.h"
 #include "src/token.h"
 
@@ -152,6 +153,31 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
 
 AssemblerBase::~AssemblerBase() {
   if (own_buffer_) DeleteArray(buffer_);
+}
+
+
+void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
+  if (size == 0) return;
+  if (CpuFeatures::IsSupported(COHERENT_CACHE)) return;
+
+#if defined(USE_SIMULATOR)
+  Simulator::FlushICache(isolate->simulator_i_cache(), start, size);
+#else
+  CpuFeatures::FlushICache(start, size);
+#endif  // USE_SIMULATOR
+}
+
+
+void AssemblerBase::FlushICacheWithoutIsolate(void* start, size_t size) {
+  // Ideally we would just call Isolate::Current() here. However, this flushes
+  // out issues because we usually only need the isolate when in the simulator.
+  Isolate* isolate;
+#if defined(USE_SIMULATOR)
+  isolate = Isolate::Current();
+#else
+  isolate = nullptr;
+#endif  // USE_SIMULATOR
+  FlushICache(isolate, start, size);
 }
 
 
@@ -980,14 +1006,13 @@ ExternalReference::ExternalReference(Builtins::Name name, Isolate* isolate)
   : address_(isolate->builtins()->builtin_address(name)) {}
 
 
-ExternalReference::ExternalReference(Runtime::FunctionId id,
-                                     Isolate* isolate)
-  : address_(Redirect(isolate, Runtime::FunctionForId(id)->entry)) {}
+ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
+    : address_(Redirect(isolate, Runtime::FunctionForId(id)->entry)) {}
 
 
 ExternalReference::ExternalReference(const Runtime::Function* f,
                                      Isolate* isolate)
-  : address_(Redirect(isolate, f->entry)) {}
+    : address_(Redirect(isolate, f->entry)) {}
 
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
@@ -1020,12 +1045,6 @@ ExternalReference ExternalReference::
   return ExternalReference(Redirect(
       isolate,
       FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow)));
-}
-
-
-ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(CpuFeatures::FlushICache)));
 }
 
 
@@ -1141,7 +1160,7 @@ ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
 
 
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->store_buffer()->TopAddress());
+  return ExternalReference(isolate->heap()->store_buffer_top_address());
 }
 
 
@@ -1385,6 +1404,12 @@ ExternalReference
         Isolate* isolate) {
   return ExternalReference(
       isolate->debug()->restarter_frame_function_pointer_address());
+}
+
+
+ExternalReference ExternalReference::vector_store_virtual_register(
+    Isolate* isolate) {
+  return ExternalReference(isolate->vector_store_virtual_register_address());
 }
 
 

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8-version.h"
-#include "src/v8.h"
 #include "src/version.h"
+
+#include "include/v8-version.h"
+#include "src/utils.h"
 
 // Define SONAME to have the build system put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version

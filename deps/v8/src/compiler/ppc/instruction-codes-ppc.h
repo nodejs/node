@@ -86,6 +86,10 @@ namespace compiler {
   V(PPC_DoubleInsertLowWord32)     \
   V(PPC_DoubleInsertHighWord32)    \
   V(PPC_DoubleConstruct)           \
+  V(PPC_BitcastInt32ToFloat32)     \
+  V(PPC_BitcastFloat32ToInt32)     \
+  V(PPC_BitcastInt64ToDouble)      \
+  V(PPC_BitcastDoubleToInt64)      \
   V(PPC_LoadWordS8)                \
   V(PPC_LoadWordU8)                \
   V(PPC_LoadWordS16)               \

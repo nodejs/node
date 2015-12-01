@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-atomics --harmony-sharedarraybuffer
+// Flags: --harmony-sharedarraybuffer
 
 function Module(stdlib, foreign, heap) {
   "use asm";

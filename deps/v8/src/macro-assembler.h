@@ -5,6 +5,8 @@
 #ifndef V8_MACRO_ASSEMBLER_H_
 #define V8_MACRO_ASSEMBLER_H_
 
+#include "src/assembler.h"
+
 
 // Helper types to make boolean flag easier to read at call-site.
 enum InvokeFlag {
@@ -32,62 +34,43 @@ enum AllocationFlags {
 };
 
 
-// Invalid depth in prototype chain.
-const int kInvalidProtoDepth = -1;
-
 #if V8_TARGET_ARCH_IA32
-#include "src/assembler.h"
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/assembler-ia32-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/ia32/macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/assembler.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/assembler-x64-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/x64/macro-assembler-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/constants-arm64.h"
-#include "src/assembler.h"
-#include "src/arm64/assembler-arm64.h"  // NOLINT
+#include "src/arm64/assembler-arm64.h"
 #include "src/arm64/assembler-arm64-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
-#include "src/arm64/macro-assembler-arm64.h"  // NOLINT
+#include "src/arm64/constants-arm64.h"
+#include "src/arm64/macro-assembler-arm64.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/constants-arm.h"
-#include "src/assembler.h"
-#include "src/arm/assembler-arm.h"  // NOLINT
+#include "src/arm/assembler-arm.h"
 #include "src/arm/assembler-arm-inl.h"
-#include "src/code.h"                     // NOLINT, must be after assembler_*.h
-#include "src/arm/macro-assembler-arm.h"  // NOLINT
+#include "src/arm/constants-arm.h"
+#include "src/arm/macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_PPC
-#include "src/ppc/constants-ppc.h"
-#include "src/assembler.h"          // NOLINT
-#include "src/ppc/assembler-ppc.h"  // NOLINT
+#include "src/ppc/assembler-ppc.h"
 #include "src/ppc/assembler-ppc-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/ppc/constants-ppc.h"
 #include "src/ppc/macro-assembler-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/constants-mips.h"
-#include "src/assembler.h"            // NOLINT
-#include "src/mips/assembler-mips.h"  // NOLINT
+#include "src/mips/assembler-mips.h"
 #include "src/mips/assembler-mips-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/mips/constants-mips.h"
 #include "src/mips/macro-assembler-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/constants-mips64.h"
-#include "src/assembler.h"                // NOLINT
-#include "src/mips64/assembler-mips64.h"  // NOLINT
+#include "src/mips64/assembler-mips64.h"
 #include "src/mips64/assembler-mips64-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/mips64/constants-mips64.h"
 #include "src/mips64/macro-assembler-mips64.h"
 #elif V8_TARGET_ARCH_X87
-#include "src/assembler.h"
 #include "src/x87/assembler-x87.h"
 #include "src/x87/assembler-x87-inl.h"
-#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/x87/macro-assembler-x87.h"
 #else
 #error Unsupported target architecture.
@@ -243,6 +226,35 @@ class Comment {
 };
 
 #endif  // DEBUG
+
+
+// Wrapper class for passing expected and actual parameter counts as
+// either registers or immediate values. Used to make sure that the
+// caller provides exactly the expected number of parameters to the
+// callee.
+class ParameterCount BASE_EMBEDDED {
+ public:
+  explicit ParameterCount(Register reg) : reg_(reg), immediate_(0) {}
+  explicit ParameterCount(int imm) : reg_(no_reg), immediate_(imm) {}
+
+  bool is_reg() const { return !reg_.is(no_reg); }
+  bool is_immediate() const { return !is_reg(); }
+
+  Register reg() const {
+    DCHECK(is_reg());
+    return reg_;
+  }
+  int immediate() const {
+    DCHECK(is_immediate());
+    return immediate_;
+  }
+
+ private:
+  const Register reg_;
+  const int immediate_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
+};
 
 
 class AllocationUtils {

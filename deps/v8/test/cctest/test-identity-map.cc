@@ -4,7 +4,7 @@
 
 #include "src/v8.h"
 
-#include "src/heap/identity-map.h"
+#include "src/identity-map.h"
 #include "src/zone.h"
 
 #include "test/cctest/cctest.h"

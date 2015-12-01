@@ -195,6 +195,13 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* TruncateFloat64ToInt32(TruncationMode);
   const Operator* TruncateInt64ToInt32();
 
+  // These operators reinterpret the bits of a floating point number as an
+  // integer and vice versa.
+  const Operator* BitcastFloat32ToInt32();
+  const Operator* BitcastFloat64ToInt64();
+  const Operator* BitcastInt32ToFloat32();
+  const Operator* BitcastInt64ToFloat64();
+
   // Floating point operators always operate with IEEE 754 round-to-nearest
   // (single-precision).
   const Operator* Float32Add();
@@ -297,7 +304,6 @@ class MachineOperatorBuilder final : public ZoneObject {
 #undef PSEUDO_OP_LIST
 
  private:
-  Zone* const zone_;
   MachineOperatorGlobalCache const& cache_;
   MachineType const word_;
   Flags const flags_;

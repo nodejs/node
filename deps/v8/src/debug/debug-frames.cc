@@ -180,11 +180,10 @@ void FrameInspector::UpdateStackLocalsFromMaterializedObject(
 bool FrameInspector::ParameterIsShadowedByContextLocal(
     Handle<ScopeInfo> info, Handle<String> parameter_name) {
   VariableMode mode;
-  VariableLocation location;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &location,
-                                     &init_flag, &maybe_assigned_flag) != -1;
+  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &init_flag,
+                                     &maybe_assigned_flag) != -1;
 }
 
 

@@ -9,6 +9,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/verifier.h"
 
 namespace v8 {
 namespace internal {
@@ -167,6 +168,7 @@ void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
     // {replacement} was already reduced and finish.
     for (Edge edge : node->use_edges()) {
       Node* const user = edge.from();
+      Verifier::VerifyEdgeInputReplacement(edge, replacement);
       edge.UpdateTo(replacement);
       // Don't revisit this node if it refers to itself.
       if (user != node) Revisit(user);

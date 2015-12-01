@@ -13,11 +13,15 @@ var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
 var MathMin = global.Math.min;
+var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
+var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var SymbolToString;
 var ToBoolean;
 var ToString;
 
 utils.Import(function(from) {
   FunctionSourceString = from.FunctionSourceString;
+  SymbolToString = from.SymbolToString;
   ToBoolean = from.ToBoolean;
   ToString = from.ToString;
 });
@@ -103,16 +107,9 @@ function ClearMirrorCache(value) {
 }
 
 
-// Wrapper to check whether an object is a Promise.  The call may not work
-// if promises are not enabled.
-// TODO(yangguo): remove try-catch once promises are enabled by default.
 function ObjectIsPromise(value) {
-  try {
-    return IS_SPEC_OBJECT(value) &&
-           !IS_UNDEFINED(%DebugGetProperty(value, builtins.$promiseStatus));
-  } catch (e) {
-    return false;
-  }
+  return IS_SPEC_OBJECT(value) &&
+         !IS_UNDEFINED(%DebugGetProperty(value, promiseStatusSymbol));
 }
 
 
@@ -692,7 +689,7 @@ SymbolMirror.prototype.description = function() {
 
 
 SymbolMirror.prototype.toText = function() {
-  return %_CallFunction(this.value_, builtins.$symbolToString);
+  return %_CallFunction(this.value_, SymbolToString);
 }
 
 
@@ -859,7 +856,7 @@ ObjectMirror.prototype.internalProperties = function() {
 
 
 ObjectMirror.prototype.property = function(name) {
-  var details = %DebugGetPropertyDetails(this.value_, builtins.$toName(name));
+  var details = %DebugGetPropertyDetails(this.value_, TO_NAME(name));
   if (details) {
     return new PropertyMirror(this, name, details);
   }
@@ -1326,7 +1323,7 @@ inherits(PromiseMirror, ObjectMirror);
 
 
 function PromiseGetStatus_(value) {
-  var status = %DebugGetProperty(value, builtins.$promiseStatus);
+  var status = %DebugGetProperty(value, promiseStatusSymbol);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
@@ -1334,7 +1331,7 @@ function PromiseGetStatus_(value) {
 
 
 function PromiseGetValue_(value) {
-  return %DebugGetProperty(value, builtins.$promiseValue);
+  return %DebugGetProperty(value, promiseValueSymbol);
 }
 
 

@@ -497,8 +497,8 @@ static const MemoryAccess kMemoryAccesses[] = {
     {kMachInt16, kMipsLh, kMipsSh},
     {kMachUint16, kMipsLhu, kMipsSh},
     {kMachInt32, kMipsLw, kMipsSw},
-    {kRepFloat32, kMipsLwc1, kMipsSwc1},
-    {kRepFloat64, kMipsLdc1, kMipsSdc1}};
+    {kMachFloat32, kMipsLwc1, kMipsSwc1},
+    {kMachFloat64, kMipsLdc1, kMipsSdc1}};
 
 
 struct MemoryAccessImm {

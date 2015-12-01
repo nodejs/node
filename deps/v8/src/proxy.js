@@ -35,11 +35,11 @@ function ProxyCreate(handler, proto) {
 function ProxyCreateFunction(handler, callTrap, constructTrap) {
   if (!IS_SPEC_OBJECT(handler))
     throw MakeTypeError(kProxyHandlerNonObject, "createFunction")
-  if (!IS_SPEC_FUNCTION(callTrap))
+  if (!IS_CALLABLE(callTrap))
     throw MakeTypeError(kProxyTrapFunctionExpected, "call")
   if (IS_UNDEFINED(constructTrap)) {
     constructTrap = DerivedConstructTrap(callTrap)
-  } else if (IS_SPEC_FUNCTION(constructTrap)) {
+  } else if (IS_CALLABLE(constructTrap)) {
     // Make sure the trap receives 'undefined' as this.
     var construct = constructTrap
     constructTrap = function() {
@@ -145,7 +145,7 @@ function DerivedKeysTrap() {
   for (var i = 0, count = 0; i < names.length; ++i) {
     var name = names[i]
     if (IS_SYMBOL(name)) continue
-    var desc = this.getOwnPropertyDescriptor(TO_STRING_INLINE(name))
+    var desc = this.getOwnPropertyDescriptor(TO_STRING(name))
     if (!IS_UNDEFINED(desc) && desc.enumerable) {
       enumerableNames[count++] = names[i]
     }
@@ -159,7 +159,7 @@ function DerivedEnumerateTrap() {
   for (var i = 0, count = 0; i < names.length; ++i) {
     var name = names[i]
     if (IS_SYMBOL(name)) continue
-    var desc = this.getPropertyDescriptor(TO_STRING_INLINE(name))
+    var desc = this.getPropertyDescriptor(TO_STRING(name))
     if (!IS_UNDEFINED(desc)) {
       if (!desc.configurable) {
         throw MakeTypeError(kProxyPropNotConfigurable,
@@ -200,11 +200,11 @@ utils.Export(function(to) {
   to.ProxyDerivedKeysTrap = DerivedKeysTrap;
 });
 
-utils.ExportToRuntime(function(to) {
-  to.ProxyDerivedGetTrap = DerivedGetTrap;
-  to.ProxyDerivedHasTrap = DerivedHasTrap;
-  to.ProxyDerivedSetTrap = DerivedSetTrap;
-  to.ProxyEnumerate = ProxyEnumerate;
-});
+%InstallToContext([
+  "derived_get_trap", DerivedGetTrap,
+  "derived_has_trap", DerivedHasTrap,
+  "derived_set_trap", DerivedSetTrap,
+  "proxy_enumerate", ProxyEnumerate,
+]);
 
 })

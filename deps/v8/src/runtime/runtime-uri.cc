@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/conversions.h"
+#include "src/isolate-inl.h"
 #include "src/objects-inl.h"
 #include "src/string-search.h"
 #include "src/utils.h"
@@ -257,13 +258,15 @@ MaybeHandle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
 
 RUNTIME_FUNCTION(Runtime_URIEscape) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
-  Handle<String> string = String::Flatten(source);
-  DCHECK(string->IsFlat());
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<String> source;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source,
+                                     Object::ToString(isolate, input));
+  source = String::Flatten(source);
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, string->IsOneByteRepresentationUnderneath()
+      isolate, result, source->IsOneByteRepresentationUnderneath()
                            ? URIEscape::Escape<uint8_t>(isolate, source)
                            : URIEscape::Escape<uc16>(isolate, source));
   return *result;
@@ -273,15 +276,18 @@ RUNTIME_FUNCTION(Runtime_URIEscape) {
 RUNTIME_FUNCTION(Runtime_URIUnescape) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
-  Handle<String> string = String::Flatten(source);
-  DCHECK(string->IsFlat());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  Handle<String> source;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source,
+                                     Object::ToString(isolate, input));
+  source = String::Flatten(source);
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, string->IsOneByteRepresentationUnderneath()
+      isolate, result, source->IsOneByteRepresentationUnderneath()
                            ? URIUnescape::Unescape<uint8_t>(isolate, source)
                            : URIUnescape::Unescape<uc16>(isolate, source));
   return *result;
 }
+
 }  // namespace internal
 }  // namespace v8

@@ -8,10 +8,49 @@
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/conversions.h"
+#include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
+
+
+// Calls the FUNCTION_CALL function and retries it up to three times
+// to guarantee that any allocations performed during the call will
+// succeed if there's enough memory.
+//
+// Warning: Do not use the identifiers __object__, __maybe_object__,
+// __allocation__ or __scope__ in a call to this macro.
+
+#define RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)         \
+  if (__allocation__.To(&__object__)) {                   \
+    DCHECK(__object__ != (ISOLATE)->heap()->exception()); \
+    return Handle<TYPE>(TYPE::cast(__object__), ISOLATE); \
+  }
+
+#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
+  do {                                                                        \
+    AllocationResult __allocation__ = FUNCTION_CALL;                          \
+    Object* __object__ = NULL;                                                \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                 \
+    /* Two GCs before panicking.  In newspace will almost always succeed. */  \
+    for (int __i__ = 0; __i__ < 2; __i__++) {                                 \
+      (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),          \
+                                        "allocation failure");                \
+      __allocation__ = FUNCTION_CALL;                                         \
+      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                               \
+    }                                                                         \
+    (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();        \
+    (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");          \
+    {                                                                         \
+      AlwaysAllocateScope __scope__(ISOLATE);                                 \
+      __allocation__ = FUNCTION_CALL;                                         \
+    }                                                                         \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                 \
+    /* TODO(1181417): Fix this. */                                            \
+    v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true); \
+    return Handle<TYPE>();                                                    \
+  } while (false)
 
 
 template<typename T>
@@ -58,6 +97,19 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   result->set_registry_slot(PrototypeInfo::UNREGISTERED);
   result->set_validity_cell(Smi::FromInt(0));
   result->set_constructor_name(Smi::FromInt(0));
+  return result;
+}
+
+
+Handle<SloppyBlockWithEvalContextExtension>
+Factory::NewSloppyBlockWithEvalContextExtension(
+    Handle<ScopeInfo> scope_info, Handle<JSObject> extension) {
+  DCHECK(scope_info->is_declaration_scope());
+  Handle<SloppyBlockWithEvalContextExtension> result =
+      Handle<SloppyBlockWithEvalContextExtension>::cast(
+          NewStruct(SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE));
+  result->set_scope_info(*scope_info);
+  result->set_extension(*extension);
   return result;
 }
 
@@ -526,30 +578,10 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
             NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
-  return (is_one_byte || is_one_byte_data_in_two_byte_string)
-             ? NewOneByteConsString(length, left, right)
-             : NewTwoByteConsString(length, left, right);
-}
-
-
-MaybeHandle<String> Factory::NewOneByteConsString(int length,
-                                                  Handle<String> left,
-                                                  Handle<String> right) {
-  return NewRawConsString(cons_one_byte_string_map(), length, left, right);
-}
-
-
-MaybeHandle<String> Factory::NewTwoByteConsString(int length,
-                                                  Handle<String> left,
-                                                  Handle<String> right) {
-  return NewRawConsString(cons_string_map(), length, left, right);
-}
-
-
-MaybeHandle<String> Factory::NewRawConsString(Handle<Map> map, int length,
-                                              Handle<String> left,
-                                              Handle<String> right) {
-  Handle<ConsString> result = New<ConsString>(map, NEW_SPACE);
+  Handle<ConsString> result =
+      (is_one_byte || is_one_byte_data_in_two_byte_string)
+          ? New<ConsString>(cons_one_byte_string_map(), NEW_SPACE)
+          : New<ConsString>(cons_string_map(), NEW_SPACE);
 
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
@@ -837,17 +869,18 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_source(*source);
   script->set_name(heap->undefined_value());
   script->set_id(isolate()->heap()->NextScriptId());
-  script->set_line_offset(Smi::FromInt(0));
-  script->set_column_offset(Smi::FromInt(0));
+  script->set_line_offset(0);
+  script->set_column_offset(0);
   script->set_context_data(heap->undefined_value());
-  script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
+  script->set_type(Script::TYPE_NORMAL);
   script->set_wrapper(heap->undefined_value());
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared(heap->undefined_value());
-  script->set_eval_from_instructions_offset(Smi::FromInt(0));
+  script->set_eval_from_instructions_offset(0);
   script->set_shared_function_infos(Smi::FromInt(0));
-  script->set_flags(Smi::FromInt(0));
+  script->set_flags(0);
 
+  heap->set_script_list(*WeakFixedArray::Add(script_list(), script));
   return script;
 }
 
@@ -873,12 +906,13 @@ Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
 }
 
 
-Handle<BytecodeArray> Factory::NewBytecodeArray(int length,
-                                                const byte* raw_bytecodes,
-                                                int frame_size) {
+Handle<BytecodeArray> Factory::NewBytecodeArray(
+    int length, const byte* raw_bytecodes, int frame_size, int parameter_count,
+    Handle<FixedArray> constant_pool) {
   DCHECK(0 <= length);
   CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateBytecodeArray(
-                                    length, raw_bytecodes, frame_size),
+                                    length, raw_bytecodes, frame_size,
+                                    parameter_count, *constant_pool),
                      BytecodeArray);
 }
 
@@ -1121,6 +1155,22 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
 }
 
 
+#define DEFINE_ERROR(NAME, name)                                              \
+  Handle<Object> Factory::New##NAME(MessageTemplate::Template template_index, \
+                                    Handle<Object> arg0, Handle<Object> arg1, \
+                                    Handle<Object> arg2) {                    \
+    return NewError(isolate()->name##_function(), template_index, arg0, arg1, \
+                    arg2);                                                    \
+  }
+DEFINE_ERROR(Error, error)
+DEFINE_ERROR(EvalError, eval_error)
+DEFINE_ERROR(RangeError, range_error)
+DEFINE_ERROR(ReferenceError, reference_error)
+DEFINE_ERROR(SyntaxError, syntax_error)
+DEFINE_ERROR(TypeError, type_error)
+#undef DEFINE_ERROR
+
+
 void Factory::InitializeFunction(Handle<JSFunction> function,
                                  Handle<SharedFunctionInfo> info,
                                  Handle<Context> context) {
@@ -1282,17 +1332,26 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       context->native_context(), BailoutId::None());
   if (cached.code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    if (cached.literals != nullptr) result->set_literals(cached.literals);
     DCHECK(!cached.code->marked_for_deoptimization());
     DCHECK(result->shared()->is_compiled());
     result->ReplaceCode(cached.code);
   }
 
-  if (cached.literals == nullptr && !info->bound()) {
+  if (cached.literals != nullptr) {
+    result->set_literals(cached.literals);
+
+  } else if (!info->bound()) {
     int number_of_literals = info->num_literals();
-    // TODO(mstarzinger): Consider sharing the newly created literals array.
-    Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
+    Handle<LiteralsArray> literals =
+        LiteralsArray::New(isolate(), handle(info->feedback_vector()),
+                           number_of_literals, pretenure);
     result->set_literals(*literals);
+    // Cache context-specific literals.
+    if (FLAG_cache_optimized_code) {
+      Handle<Context> native_context(context->native_context());
+      SharedFunctionInfo::AddToOptimizedCodeMap(
+          info, native_context, undefined_value(), literals, BailoutId::None());
+    }
   }
 
   return result;
@@ -1594,15 +1653,15 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
 }
 
 
-Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(SharedFlag shared) {
+Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(SharedFlag shared,
+                                                PretenureFlag pretenure) {
   Handle<JSFunction> array_buffer_fun(
       shared == SharedFlag::kShared
           ? isolate()->native_context()->shared_array_buffer_fun()
           : isolate()->native_context()->array_buffer_fun());
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSObject(*array_buffer_fun),
-      JSArrayBuffer);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateJSObject(
+                                    *array_buffer_fun, pretenure),
+                     JSArrayBuffer);
 }
 
 
@@ -1619,7 +1678,7 @@ Handle<JSDataView> Factory::NewJSDataView() {
 Handle<JSMap> Factory::NewJSMap() {
   Handle<Map> map(isolate()->native_context()->js_map_map());
   Handle<JSMap> js_map = Handle<JSMap>::cast(NewJSObjectFromMap(map));
-  Runtime::JSMapInitialize(isolate(), js_map);
+  JSMap::Initialize(js_map, isolate());
   return js_map;
 }
 
@@ -1627,7 +1686,7 @@ Handle<JSMap> Factory::NewJSMap() {
 Handle<JSSet> Factory::NewJSSet() {
   Handle<Map> map(isolate()->native_context()->js_set_map());
   Handle<JSSet> js_set = Handle<JSSet>::cast(NewJSObjectFromMap(map));
-  Runtime::JSSetInitialize(isolate(), js_set);
+  JSSet::Initialize(js_set, isolate());
   return js_set;
 }
 
@@ -1645,6 +1704,16 @@ Handle<JSSetIterator> Factory::NewJSSetIterator() {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSObjectFromMap(*map),
                      JSSetIterator);
+}
+
+
+Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
+                                                      Handle<Object> done) {
+  Handle<JSIteratorResult> result = Handle<JSIteratorResult>::cast(
+      NewJSObjectFromMap(isolate()->iterator_result_map()));
+  result->set_value(*value);
+  result->set_done(*done);
+  return result;
 }
 
 
@@ -1742,18 +1811,19 @@ JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
 void SetupArrayBufferView(i::Isolate* isolate,
                           i::Handle<i::JSArrayBufferView> obj,
                           i::Handle<i::JSArrayBuffer> buffer,
-                          size_t byte_offset, size_t byte_length) {
+                          size_t byte_offset, size_t byte_length,
+                          PretenureFlag pretenure = NOT_TENURED) {
   DCHECK(byte_offset + byte_length <=
          static_cast<size_t>(buffer->byte_length()->Number()));
 
   obj->set_buffer(*buffer);
 
   i::Handle<i::Object> byte_offset_object =
-      isolate->factory()->NewNumberFromSize(byte_offset);
+      isolate->factory()->NewNumberFromSize(byte_offset, pretenure);
   obj->set_byte_offset(*byte_offset_object);
 
   i::Handle<i::Object> byte_length_object =
-      isolate->factory()->NewNumberFromSize(byte_length);
+      isolate->factory()->NewNumberFromSize(byte_length, pretenure);
   obj->set_byte_length(*byte_length_object);
 }
 
@@ -1761,31 +1831,32 @@ void SetupArrayBufferView(i::Isolate* isolate,
 }  // namespace
 
 
-Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
+Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
+                                              PretenureFlag pretenure) {
   Handle<JSFunction> typed_array_fun_handle(GetTypedArrayFun(type, isolate()));
 
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
-      JSTypedArray);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateJSObject(
+                                    *typed_array_fun_handle, pretenure),
+                     JSTypedArray);
 }
 
 
-Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind) {
+Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
+                                              PretenureFlag pretenure) {
   Handle<JSFunction> typed_array_fun_handle(
       GetTypedArrayFun(elements_kind, isolate()));
 
-  CALL_HEAP_FUNCTION(
-      isolate(), isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
-      JSTypedArray);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateJSObject(
+                                    *typed_array_fun_handle, pretenure),
+                     JSTypedArray);
 }
 
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
                                               Handle<JSArrayBuffer> buffer,
-                                              size_t byte_offset,
-                                              size_t length) {
-  Handle<JSTypedArray> obj = NewJSTypedArray(type);
+                                              size_t byte_offset, size_t length,
+                                              PretenureFlag pretenure) {
+  Handle<JSTypedArray> obj = NewJSTypedArray(type, pretenure);
 
   size_t element_size = GetExternalArrayElementSize(type);
   ElementsKind elements_kind = GetExternalArrayElementsKind(type);
@@ -1795,14 +1866,15 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   CHECK(length <= (std::numeric_limits<size_t>::max() / element_size));
   CHECK(length <= static_cast<size_t>(Smi::kMaxValue));
   size_t byte_length = length * element_size;
-  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length,
+                       pretenure);
 
-  Handle<Object> length_object = NewNumberFromSize(length);
+  Handle<Object> length_object = NewNumberFromSize(length, pretenure);
   obj->set_length(*length_object);
 
   Handle<FixedTypedArrayBase> elements = NewFixedTypedArrayWithExternalPointer(
       static_cast<int>(length), type,
-      static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
+      static_cast<uint8_t*>(buffer->backing_store()) + byte_offset, pretenure);
   Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);
   JSObject::SetMapAndElements(obj, map, elements);
   return obj;
@@ -1810,8 +1882,9 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
 
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
-                                              size_t number_of_elements) {
-  Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind);
+                                              size_t number_of_elements,
+                                              PretenureFlag pretenure) {
+  Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind, pretenure);
 
   size_t element_size = GetFixedTypedArraysElementSize(elements_kind);
   ExternalArrayType array_type = GetArrayTypeFromElementsKind(elements_kind);
@@ -1823,18 +1896,19 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
 
   obj->set_byte_offset(Smi::FromInt(0));
   i::Handle<i::Object> byte_length_object =
-      isolate()->factory()->NewNumberFromSize(byte_length);
+      NewNumberFromSize(byte_length, pretenure);
   obj->set_byte_length(*byte_length_object);
-  Handle<Object> length_object = NewNumberFromSize(number_of_elements);
+  Handle<Object> length_object =
+      NewNumberFromSize(number_of_elements, pretenure);
   obj->set_length(*length_object);
 
-  Handle<JSArrayBuffer> buffer = isolate()->factory()->NewJSArrayBuffer();
-  Runtime::SetupArrayBuffer(isolate(), buffer, true, NULL, byte_length,
-                            SharedFlag::kNotShared);
+  Handle<JSArrayBuffer> buffer =
+      NewJSArrayBuffer(SharedFlag::kNotShared, pretenure);
+  JSArrayBuffer::Setup(buffer, isolate(), true, NULL, byte_length,
+                       SharedFlag::kNotShared);
   obj->set_buffer(*buffer);
-  Handle<FixedTypedArrayBase> elements =
-      isolate()->factory()->NewFixedTypedArray(
-          static_cast<int>(number_of_elements), array_type, true);
+  Handle<FixedTypedArrayBase> elements = NewFixedTypedArray(
+      static_cast<int>(number_of_elements), array_type, true, pretenure);
   obj->set_elements(*elements);
   return obj;
 }
@@ -1867,7 +1941,7 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
 
 
 Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<Object> handler,
-                                            Handle<Object> call_trap,
+                                            Handle<JSReceiver> call_trap,
                                             Handle<Object> construct_trap,
                                             Handle<Object> prototype) {
   // Allocate map.
@@ -1875,6 +1949,8 @@ Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<Object> handler,
   // maps. Will probably depend on the identity of the handler object, too.
   Handle<Map> map = NewMap(JS_FUNCTION_PROXY_TYPE, JSFunctionProxy::kSize);
   Map::SetPrototype(map, prototype);
+  map->set_is_callable();
+  map->set_is_constructor(construct_trap->IsCallable());
 
   // Allocate the proxy object.
   Handle<JSFunctionProxy> result = New<JSFunctionProxy>(map, NEW_SPACE);
@@ -1936,7 +2012,8 @@ void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
 
   // Functions require some minimal initialization.
   if (type == JS_FUNCTION_TYPE) {
-    map->set_function_with_prototype(true);
+    map->set_is_constructor(true);
+    map->set_is_callable();
     Handle<JSFunction> js_function = Handle<JSFunction>::cast(proxy);
     InitializeFunction(js_function, shared.ToHandleChecked(), context);
   } else {
@@ -2001,9 +2078,9 @@ void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
 
 
 template Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(
-    const ZoneFeedbackVectorSpec* spec);
-template Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(
     const FeedbackVectorSpec* spec);
+template Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(
+    const StaticFeedbackVectorSpec* spec);
 
 template <typename Spec>
 Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(const Spec* spec) {
@@ -2071,7 +2148,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
-  FeedbackVectorSpec empty_spec(0);
+  StaticFeedbackVectorSpec empty_spec;
   Handle<TypeFeedbackVector> feedback_vector =
       NewTypeFeedbackVector(&empty_spec);
   share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);

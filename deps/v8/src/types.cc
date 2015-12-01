@@ -20,9 +20,14 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Range-related helper functions.
 
-// The result may be invalid (max < min).
+template <class Config>
+bool TypeImpl<Config>::Limits::IsEmpty() {
+  return this->min > this->max;
+}
+
+
 template<class Config>
-typename TypeImpl<Config>::Limits TypeImpl<Config>::Intersect(
+typename TypeImpl<Config>::Limits TypeImpl<Config>::Limits::Intersect(
     Limits lhs, Limits rhs) {
   DisallowHeapAllocation no_allocation;
   Limits result(lhs);
@@ -33,17 +38,11 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::Intersect(
 
 
 template <class Config>
-bool TypeImpl<Config>::IsEmpty(Limits lim) {
-  return lim.min > lim.max;
-}
-
-
-template <class Config>
-typename TypeImpl<Config>::Limits TypeImpl<Config>::Union(Limits lhs,
-                                                          Limits rhs) {
+typename TypeImpl<Config>::Limits TypeImpl<Config>::Limits::Union(
+    Limits lhs, Limits rhs) {
   DisallowHeapAllocation no_allocation;
-  if (IsEmpty(lhs)) return rhs;
-  if (IsEmpty(rhs)) return lhs;
+  if (lhs.IsEmpty()) return rhs;
+  if (rhs.IsEmpty()) return lhs;
   Limits result(lhs);
   if (lhs.min > rhs.min) result.min = rhs.min;
   if (lhs.max < rhs.max) result.max = rhs.max;
@@ -56,8 +55,7 @@ bool TypeImpl<Config>::Overlap(
     typename TypeImpl<Config>::RangeType* lhs,
     typename TypeImpl<Config>::RangeType* rhs) {
   DisallowHeapAllocation no_allocation;
-  typename TypeImpl<Config>::Limits lim = Intersect(Limits(lhs), Limits(rhs));
-  return lim.min <= lim.max;
+  return !Limits::Intersect(Limits(lhs), Limits(rhs)).IsEmpty();
 }
 
 
@@ -154,7 +152,7 @@ TypeImpl<Config>::BitsetType::Glb(TypeImpl* type) {
 }
 
 
-// The smallest bitset subsuming this type.
+// The smallest bitset subsuming this type, possibly not a proper one.
 template<class Config>
 typename TypeImpl<Config>::bitset
 TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
@@ -170,13 +168,9 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
     }
     return bitset;
   }
-  if (type->IsClass()) {
-    // Little hack to avoid the need for a region for handlification here...
-    return Config::is_class(type) ? Lub(*Config::as_class(type)) :
-        type->AsClass()->Bound(NULL)->AsBitset();
-  }
-  if (type->IsConstant()) return type->AsConstant()->Bound()->AsBitset();
-  if (type->IsRange()) return type->AsRange()->Bound();
+  if (type->IsClass()) return type->AsClass()->Lub();
+  if (type->IsConstant()) return type->AsConstant()->Lub();
+  if (type->IsRange()) return type->AsRange()->Lub();
   if (type->IsContext()) return kInternal & kTaggedPointer;
   if (type->IsArray()) return kOtherObject;
   if (type->IsFunction()) return kOtherObject;  // TODO(rossberg): kFunction
@@ -229,9 +223,9 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case HEAP_NUMBER_TYPE:
       return kNumber & kTaggedPointer;
     case SIMD128_VALUE_TYPE:
-      // TODO(bbudge): Add type bits for SIMD value types.
-      return kAny;
+      return kSimd;
     case JS_VALUE_TYPE:
+    case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -248,6 +242,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_MAP_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
+    case JS_ITERATOR_RESULT_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
       if (map->is_undetectable()) return kUndetectable;
@@ -275,6 +270,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case SHARED_FUNCTION_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
+    case FIXED_DOUBLE_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case FOREIGN_TYPE:
@@ -282,10 +278,43 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
       return kInternal & kTaggedPointer;
-    default:
+
+    // Remaining instance types are unsupported for now. If any of them do
+    // require bit set types, they should get kInternal & kTaggedPointer.
+    case MUTABLE_HEAP_NUMBER_TYPE:
+    case FREE_SPACE_TYPE:
+#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case FIXED_##TYPE##_ARRAY_TYPE:
+
+      TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)
+#undef FIXED_TYPED_ARRAY_CASE
+    case FILLER_TYPE:
+    case DECLARED_ACCESSOR_DESCRIPTOR_TYPE:
+    case ACCESS_CHECK_INFO_TYPE:
+    case INTERCEPTOR_INFO_TYPE:
+    case CALL_HANDLER_INFO_TYPE:
+    case FUNCTION_TEMPLATE_INFO_TYPE:
+    case OBJECT_TEMPLATE_INFO_TYPE:
+    case SIGNATURE_INFO_TYPE:
+    case TYPE_SWITCH_INFO_TYPE:
+    case ALLOCATION_SITE_TYPE:
+    case ALLOCATION_MEMENTO_TYPE:
+    case CODE_CACHE_TYPE:
+    case POLYMORPHIC_CODE_CACHE_TYPE:
+    case TYPE_FEEDBACK_INFO_TYPE:
+    case ALIASED_ARGUMENTS_ENTRY_TYPE:
+    case BOX_TYPE:
+    case DEBUG_INFO_TYPE:
+    case BREAK_POINT_INFO_TYPE:
+    case CELL_TYPE:
+    case WEAK_CELL_TYPE:
+    case PROTOTYPE_INFO_TYPE:
+    case SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE:
       UNREACHABLE();
       return kNone;
   }
+  UNREACHABLE();
+  return kNone;
 }
 
 
@@ -308,22 +337,21 @@ TypeImpl<Config>::BitsetType::Lub(double value) {
   if (i::IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
   if (IsUint32Double(value) || IsInt32Double(value)) return Lub(value, value);
-  return kPlainNumber;
+  return kOtherNumber;
 }
 
 
-// Minimum values of regular numeric bitsets.
+// Minimum values of plain numeric bitsets.
 template <class Config>
 const typename TypeImpl<Config>::BitsetType::Boundary
-    TypeImpl<Config>::BitsetType::BoundariesArray[] = {
-  {kPlainNumber, -V8_INFINITY},
-  {kNegative32, kMinInt},
-  {kNegative31, -0x40000000},
-  {kUnsigned30, 0},
-  {kUnsigned31, 0x40000000},
-  {kUnsigned32, 0x80000000},
-  {kPlainNumber, static_cast<double>(kMaxUInt32) + 1}
-};
+TypeImpl<Config>::BitsetType::BoundariesArray[] = {
+        {kOtherNumber, kPlainNumber, -V8_INFINITY},
+        {kOtherSigned32, kNegative32, kMinInt},
+        {kNegative31, kNegative31, -0x40000000},
+        {kUnsigned30, kUnsigned30, 0},
+        {kOtherUnsigned31, kUnsigned31, 0x40000000},
+        {kOtherUnsigned32, kUnsigned32, 0x80000000},
+        {kOtherNumber, kPlainNumber, static_cast<double>(kMaxUInt32) + 1}};
 
 
 template <class Config>
@@ -341,6 +369,21 @@ size_t TypeImpl<Config>::BitsetType::BoundariesSize() {
 }
 
 
+template <class Config>
+typename TypeImpl<Config>::bitset TypeImpl<Config>::BitsetType::ExpandInternals(
+    typename TypeImpl<Config>::bitset bits) {
+  DisallowHeapAllocation no_allocation;
+  if (!(bits & SEMANTIC(kPlainNumber))) return bits;  // Shortcut.
+  const Boundary* boundaries = Boundaries();
+  for (size_t i = 0; i < BoundariesSize(); ++i) {
+    DCHECK(BitsetType::Is(boundaries[i].internal, boundaries[i].external));
+    if (bits & SEMANTIC(boundaries[i].internal))
+      bits |= SEMANTIC(boundaries[i].external);
+  }
+  return bits;
+}
+
+
 template<class Config>
 typename TypeImpl<Config>::bitset
 TypeImpl<Config>::BitsetType::Lub(double min, double max) {
@@ -348,18 +391,13 @@ TypeImpl<Config>::BitsetType::Lub(double min, double max) {
   int lub = kNone;
   const Boundary* mins = Boundaries();
 
-  // Make sure the min-max range touches 0, so we are guaranteed no holes
-  // in unions of valid bitsets.
-  if (max < -1) max = -1;
-  if (min > 0) min = 0;
-
   for (size_t i = 1; i < BoundariesSize(); ++i) {
     if (min < mins[i].min) {
-      lub |= mins[i-1].bits;
+      lub |= mins[i-1].internal;
       if (max < mins[i].min) return lub;
     }
   }
-  return lub |= mins[BoundariesSize() - 1].bits;
+  return lub | mins[BoundariesSize() - 1].internal;
 }
 
 
@@ -369,16 +407,6 @@ typename TypeImpl<Config>::bitset TypeImpl<Config>::BitsetType::NumberBits(
   return SEMANTIC(bits & kPlainNumber);
 }
 
-
-template <class Config>
-void TypeImpl<Config>::BitsetType::CheckNumberBits(bitset bits) {
-  // Check that the bitset does not contain any holes in number ranges.
-  bitset number_bits = NumberBits(bits);
-  if (number_bits != 0) {
-    bitset lub = SEMANTIC(Lub(Min(number_bits), Max(number_bits)));
-    CHECK(lub == number_bits);
-  }
-}
 
 template <class Config>
 typename TypeImpl<Config>::bitset TypeImpl<Config>::BitsetType::Glb(
@@ -393,13 +421,11 @@ typename TypeImpl<Config>::bitset TypeImpl<Config>::BitsetType::Glb(
   for (size_t i = 1; i + 1 < BoundariesSize(); ++i) {
     if (min <= mins[i].min) {
       if (max + 1 < mins[i + 1].min) break;
-      glb |= mins[i].bits;
+      glb |= mins[i].external;
     }
   }
   // OtherNumber also contains float numbers, so it can never be
-  // in the greatest lower bound. (There is also the small trouble
-  // of kOtherNumber having a range hole, which we can conveniently
-  // ignore here.)
+  // in the greatest lower bound.
   return glb & ~(SEMANTIC(kOtherNumber));
 }
 
@@ -411,7 +437,7 @@ double TypeImpl<Config>::BitsetType::Min(bitset bits) {
   const Boundary* mins = Boundaries();
   bool mz = SEMANTIC(bits & kMinusZero);
   for (size_t i = 0; i < BoundariesSize(); ++i) {
-    if (Is(SEMANTIC(mins[i].bits), bits)) {
+    if (Is(SEMANTIC(mins[i].internal), bits)) {
       return mz ? std::min(0.0, mins[i].min) : mins[i].min;
     }
   }
@@ -426,11 +452,11 @@ double TypeImpl<Config>::BitsetType::Max(bitset bits) {
   DCHECK(Is(SEMANTIC(bits), kNumber));
   const Boundary* mins = Boundaries();
   bool mz = SEMANTIC(bits & kMinusZero);
-  if (BitsetType::Is(SEMANTIC(mins[BoundariesSize() - 1].bits), bits)) {
+  if (BitsetType::Is(SEMANTIC(mins[BoundariesSize() - 1].internal), bits)) {
     return +V8_INFINITY;
   }
   for (size_t i = BoundariesSize() - 1; i-- > 0;) {
-    if (Is(SEMANTIC(mins[i].bits), bits)) {
+    if (Is(SEMANTIC(mins[i].internal), bits)) {
       return mz ?
           std::max(0.0, mins[i+1].min - 1) : mins[i+1].min - 1;
     }
@@ -767,12 +793,12 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
   // Deal with bitsets.
   result->Set(size++, BitsetType::New(bits, region));
 
-  Limits lims = Limits::Empty(region);
+  Limits lims = Limits::Empty();
   size = IntersectAux(type1, type2, result, size, &lims, region);
 
   // If the range is not empty, then insert it into the union and
   // remove the number bits from the bitset.
-  if (!IsEmpty(lims)) {
+  if (!lims.IsEmpty()) {
     size = UpdateRange(RangeType::New(lims, representation, region), result,
                        size, region);
 
@@ -814,7 +840,7 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::ToLimits(bitset bits,
   bitset number_bits = BitsetType::NumberBits(bits);
 
   if (number_bits == BitsetType::kNone) {
-    return Limits::Empty(region);
+    return Limits::Empty();
   }
 
   return Limits(BitsetType::Min(number_bits), BitsetType::Max(number_bits));
@@ -826,7 +852,7 @@ typename TypeImpl<Config>::Limits TypeImpl<Config>::IntersectRangeAndBitset(
     TypeHandle range, TypeHandle bitset, Region* region) {
   Limits range_lims(range->AsRange());
   Limits bitset_lims = ToLimits(bitset->AsBitset(), region);
-  return Intersect(range_lims, bitset_lims);
+  return Limits::Intersect(range_lims, bitset_lims);
 }
 
 
@@ -857,21 +883,22 @@ int TypeImpl<Config>::IntersectAux(TypeHandle lhs, TypeHandle rhs,
     if (rhs->IsBitset()) {
       Limits lim = IntersectRangeAndBitset(lhs, rhs, region);
 
-      if (!IsEmpty(lim)) {
-        *lims = Union(lim, *lims);
+      if (!lim.IsEmpty()) {
+        *lims = Limits::Union(lim, *lims);
       }
       return size;
     }
     if (rhs->IsClass()) {
-      *lims = Union(Limits(lhs->AsRange()), *lims);
+      *lims = Limits::Union(Limits(lhs->AsRange()), *lims);
     }
     if (rhs->IsConstant() && Contains(lhs->AsRange(), rhs->AsConstant())) {
       return AddToUnion(rhs, result, size, region);
     }
     if (rhs->IsRange()) {
-      Limits lim = Intersect(Limits(lhs->AsRange()), Limits(rhs->AsRange()));
-      if (!IsEmpty(lim)) {
-        *lims = Union(lim, *lims);
+      Limits lim = Limits::Intersect(
+          Limits(lhs->AsRange()), Limits(rhs->AsRange()));
+      if (!lim.IsEmpty()) {
+        *lims = Limits::Union(lim, *lims);
       }
     }
     return size;
@@ -895,7 +922,7 @@ int TypeImpl<Config>::IntersectAux(TypeHandle lhs, TypeHandle rhs,
 
 // Make sure that we produce a well-formed range and bitset:
 // If the range is non-empty, the number bits in the bitset should be
-// clear. Moreover, if we have a canonical range (such as Signed32(),
+// clear. Moreover, if we have a canonical range (such as Signed32),
 // we want to produce a bitset rather than a range.
 template <class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
@@ -907,10 +934,10 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
     return range;
   }
 
-  // If the range is contained within the bitset, return an empty range
-  // (but make sure we take the representation).
+  // If the range is semantically contained within the bitset, return None and
+  // leave the bitset untouched.
   bitset range_lub = SEMANTIC(range->BitsetLub());
-  if (BitsetType::Is(BitsetType::NumberBits(range_lub), *bits)) {
+  if (BitsetType::Is(range_lub, *bits)) {
     return None(region);
   }
 
@@ -922,6 +949,8 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeRangeAndBitset(
   double range_max = range->Max();
 
   // Remove the number bits from the bitset, they would just confuse us now.
+  // NOTE: bits contains OtherNumber iff bits contains PlainNumber, in which
+  // case we already returned after the subtype check above.
   *bits &= ~number_bits;
 
   if (range_min <= bitset_min && range_max >= bitset_max) {
@@ -958,7 +987,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
 
   // Figure out the representation of the result.
   // The rest of the method should not change this representation and
-  // it should make any decisions based on representations (i.e.,
+  // it should not make any decisions based on representations (i.e.,
   // it should only use the semantic part of types).
   const bitset representation =
       type1->Representation() | type2->Representation();
@@ -981,7 +1010,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   RangeType* range1 = type1->GetRange();
   RangeType* range2 = type2->GetRange();
   if (range1 != NULL && range2 != NULL) {
-    Limits lims = Union(Limits(range1), Limits(range2));
+    Limits lims = Limits::Union(Limits(range1), Limits(range2));
     RangeHandle union_range = RangeType::New(lims, representation, region);
     range = NormalizeRangeAndBitset(union_range, &new_bitset, region);
   } else if (range1 != NULL) {
@@ -1231,6 +1260,7 @@ const char* TypeImpl<Config>::BitsetType::Name(bitset bits) {
     #define RETURN_NAMED_SEMANTIC_TYPE(type, value) \
     case SEMANTIC(k##type): return #type;
     SEMANTIC_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
+    INTERNAL_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
     #undef RETURN_NAMED_SEMANTIC_TYPE
 
     default:

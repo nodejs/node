@@ -642,6 +642,7 @@ static inline void PrintStats(const ConsStringGenerationData& data) {
 
 template<typename BuildString>
 void TestStringCharacterStream(BuildString build, int test_cases) {
+  FLAG_gc_global = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);

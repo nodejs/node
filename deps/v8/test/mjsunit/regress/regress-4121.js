@@ -4,55 +4,45 @@
 
 // Flags: --allow-natives-syntax
 
-function Migrator(o) {
-  return o.foo;
+function literals_sharing_test(warmup, optimize) {
+  function closure() {
+    // Ensure small array literals start in specific element kind mode.
+    assertTrue(%HasFastSmiElements([]));
+    assertTrue(%HasFastSmiElements([1]));
+    assertTrue(%HasFastSmiElements([1,2]));
+    assertTrue(%HasFastDoubleElements([1.1]));
+    assertTrue(%HasFastDoubleElements([1.1,2]));
+
+    var a = [1, 2, 3];
+    if (warmup) {
+      // Transition elements kind during warmup...
+      assertTrue(%HasFastSmiElements(a));
+      assertEquals(4, a.push(1.3));
+    }
+    // ... and ensure that the information about transitioning is
+    // propagated to the next closure.
+    assertTrue(%HasFastDoubleElements(a));
+  };
+  if (optimize) %OptimizeFunctionOnNextCall(closure);
+  closure();
 }
-function Loader(o) {
-  return o[0];
+
+
+function test() {
+  var warmup = true;
+  for (var i = 0; i < 3; i++) {
+    print("iter: " + i + ", warmup: "+ warmup);
+    literals_sharing_test(warmup, false);
+    warmup = false;
+  }
+  print("iter: " + i + ", opt: true");
+  literals_sharing_test(warmup, true);
 }
 
-var first_smi_array = [1];
-var second_smi_array = [2];
-var first_object_array = ["first"];
-var second_object_array = ["string"];
 
-assertTrue(%HasFastSmiElements(first_smi_array));
-assertTrue(%HasFastSmiElements(second_smi_array));
-assertTrue(%HasFastObjectElements(first_object_array));
-assertTrue(%HasFastObjectElements(second_object_array));
-
-// Prepare identical transition chains for smi and object arrays.
-first_smi_array.foo = 0;
-second_smi_array.foo = 0;
-first_object_array.foo = 0;
-second_object_array.foo = 0;
-
-// Collect type feedback for not-yet-deprecated original object array map.
-for (var i = 0; i < 3; i++) Migrator(second_object_array);
-
-// Blaze a migration trail for smi array maps.
-// This marks the migrated smi array map as a migration target.
-first_smi_array.foo = 0.5;
-print(second_smi_array.foo);
-
-// Deprecate original object array map.
-// Use TryMigrate from deferred optimized code to migrate second object array.
-first_object_array.foo = 0.5;
-%OptimizeFunctionOnNextCall(Migrator);
-Migrator(second_object_array);
-
-// |second_object_array| now erroneously has a smi map.
-// Optimized code assuming smi elements will expose this.
-
-for (var i = 0; i < 3; i++) Loader(second_smi_array);
-%OptimizeFunctionOnNextCall(Loader);
-assertEquals("string", Loader(second_object_array));
-
-// Any of the following checks will also fail:
-assertTrue(%HasFastObjectElements(second_object_array));
-assertFalse(%HasFastSmiElements(second_object_array));
-assertTrue(%HaveSameMap(first_object_array, second_object_array));
-assertFalse(%HaveSameMap(first_smi_array, second_object_array));
-
-%ClearFunctionTypeFeedback(Loader);
-%ClearFunctionTypeFeedback(Migrator);
+function stress_opt_test() {}
+stress_opt_test();
+if (%GetOptimizationStatus(stress_opt_test) == 2) {
+  // This test is not suitable for --always-opt mode.
+  test();
+}

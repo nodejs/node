@@ -67,7 +67,6 @@ def _V8PresubmitChecks(input_api, output_api):
         input_api.PresubmitLocalPath(), 'tools'))
   from presubmit import CppLintProcessor
   from presubmit import SourceProcessor
-  from presubmit import CheckRuntimeVsNativesNameClashes
   from presubmit import CheckExternalReferenceRegistration
   from presubmit import CheckAuthorizedAuthor
 
@@ -78,9 +77,6 @@ def _V8PresubmitChecks(input_api, output_api):
     results.append(output_api.PresubmitError(
         "Copyright header, trailing whitespaces and two empty lines " \
         "between declarations check failed"))
-  if not CheckRuntimeVsNativesNameClashes(input_api.PresubmitLocalPath()):
-    results.append(output_api.PresubmitError(
-        "Runtime/natives name clash check failed"))
   if not CheckExternalReferenceRegistration(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError(
         "External references registration check failed"))
@@ -237,7 +233,6 @@ def _SkipTreeCheck(input_api, output_api):
   """Check the env var whether we want to skip tree check.
      Only skip if include/v8-version.h has been updated."""
   src_version = 'include/v8-version.h'
-  FilterFile = lambda file: file.LocalPath() == src_version
   if not input_api.AffectedSourceFiles(
       lambda file: file.LocalPath() == src_version):
     return False

@@ -190,6 +190,12 @@ void Processor::VisitWithStatement(WithStatement* node) {
 }
 
 
+void Processor::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* node) {
+  Visit(node->statement());
+}
+
+
 // Do nothing:
 void Processor::VisitVariableDeclaration(VariableDeclaration* node) {}
 void Processor::VisitFunctionDeclaration(FunctionDeclaration* node) {}

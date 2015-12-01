@@ -35,6 +35,16 @@ enum ArchVariants {
 #endif
 
 
+  enum Endianness { kLittle, kBig };
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  static const Endianness kArchEndian = kLittle;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  static const Endianness kArchEndian = kBig;
+#else
+#error Unknown endianness
+#endif
+
 // TODO(plind): consider deriving ABI from compiler flags or build system.
 
 // ABI-dependent definitions are made with #define in simulator-mips64.h,
@@ -888,8 +898,67 @@ class Instruction {
     kUnsupported = -1
   };
 
+  enum TypeChecks { NORMAL, EXTRA };
+
+
+#define OpcodeToBitNumber(opcode) \
+  (1ULL << (static_cast<uint32_t>(opcode) >> kOpcodeShift))
+
+  static const uint64_t kOpcodeImmediateTypeMask =
+      OpcodeToBitNumber(REGIMM) | OpcodeToBitNumber(BEQ) |
+      OpcodeToBitNumber(BNE) | OpcodeToBitNumber(BLEZ) |
+      OpcodeToBitNumber(BGTZ) | OpcodeToBitNumber(ADDI) |
+      OpcodeToBitNumber(DADDI) | OpcodeToBitNumber(ADDIU) |
+      OpcodeToBitNumber(DADDIU) | OpcodeToBitNumber(SLTI) |
+      OpcodeToBitNumber(SLTIU) | OpcodeToBitNumber(ANDI) |
+      OpcodeToBitNumber(ORI) | OpcodeToBitNumber(XORI) |
+      OpcodeToBitNumber(LUI) | OpcodeToBitNumber(BEQL) |
+      OpcodeToBitNumber(BNEL) | OpcodeToBitNumber(BLEZL) |
+      OpcodeToBitNumber(BGTZL) | OpcodeToBitNumber(POP66) |
+      OpcodeToBitNumber(POP76) | OpcodeToBitNumber(LB) | OpcodeToBitNumber(LH) |
+      OpcodeToBitNumber(LWL) | OpcodeToBitNumber(LW) | OpcodeToBitNumber(LWU) |
+      OpcodeToBitNumber(LD) | OpcodeToBitNumber(LBU) | OpcodeToBitNumber(LHU) |
+      OpcodeToBitNumber(LWR) | OpcodeToBitNumber(SB) | OpcodeToBitNumber(SH) |
+      OpcodeToBitNumber(SWL) | OpcodeToBitNumber(SW) | OpcodeToBitNumber(SD) |
+      OpcodeToBitNumber(SWR) | OpcodeToBitNumber(LWC1) |
+      OpcodeToBitNumber(LDC1) | OpcodeToBitNumber(SWC1) |
+      OpcodeToBitNumber(SDC1) | OpcodeToBitNumber(PCREL) |
+      OpcodeToBitNumber(BC) | OpcodeToBitNumber(BALC);
+
+#define FunctionFieldToBitNumber(function) (1ULL << function)
+
+  static const uint64_t kFunctionFieldRegisterTypeMask =
+      FunctionFieldToBitNumber(JR) | FunctionFieldToBitNumber(JALR) |
+      FunctionFieldToBitNumber(BREAK) | FunctionFieldToBitNumber(SLL) |
+      FunctionFieldToBitNumber(DSLL) | FunctionFieldToBitNumber(DSLL32) |
+      FunctionFieldToBitNumber(SRL) | FunctionFieldToBitNumber(DSRL) |
+      FunctionFieldToBitNumber(DSRL32) | FunctionFieldToBitNumber(SRA) |
+      FunctionFieldToBitNumber(DSRA) | FunctionFieldToBitNumber(DSRA32) |
+      FunctionFieldToBitNumber(SLLV) | FunctionFieldToBitNumber(DSLLV) |
+      FunctionFieldToBitNumber(SRLV) | FunctionFieldToBitNumber(DSRLV) |
+      FunctionFieldToBitNumber(SRAV) | FunctionFieldToBitNumber(DSRAV) |
+      FunctionFieldToBitNumber(MFHI) | FunctionFieldToBitNumber(MFLO) |
+      FunctionFieldToBitNumber(MULT) | FunctionFieldToBitNumber(DMULT) |
+      FunctionFieldToBitNumber(MULTU) | FunctionFieldToBitNumber(DMULTU) |
+      FunctionFieldToBitNumber(DIV) | FunctionFieldToBitNumber(DDIV) |
+      FunctionFieldToBitNumber(DIVU) | FunctionFieldToBitNumber(DDIVU) |
+      FunctionFieldToBitNumber(ADD) | FunctionFieldToBitNumber(DADD) |
+      FunctionFieldToBitNumber(ADDU) | FunctionFieldToBitNumber(DADDU) |
+      FunctionFieldToBitNumber(SUB) | FunctionFieldToBitNumber(DSUB) |
+      FunctionFieldToBitNumber(SUBU) | FunctionFieldToBitNumber(DSUBU) |
+      FunctionFieldToBitNumber(AND) | FunctionFieldToBitNumber(OR) |
+      FunctionFieldToBitNumber(XOR) | FunctionFieldToBitNumber(NOR) |
+      FunctionFieldToBitNumber(SLT) | FunctionFieldToBitNumber(SLTU) |
+      FunctionFieldToBitNumber(TGE) | FunctionFieldToBitNumber(TGEU) |
+      FunctionFieldToBitNumber(TLT) | FunctionFieldToBitNumber(TLTU) |
+      FunctionFieldToBitNumber(TEQ) | FunctionFieldToBitNumber(TNE) |
+      FunctionFieldToBitNumber(MOVZ) | FunctionFieldToBitNumber(MOVN) |
+      FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
+      FunctionFieldToBitNumber(SELNEZ_S);
+
+
   // Get the encoding type of the instruction.
-  Type InstructionType() const;
+  inline Type InstructionType(TypeChecks checks = NORMAL) const;
 
 
   // Accessors for the different named fields used in the MIPS encoding.
@@ -1078,6 +1147,111 @@ const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize * 2;
 const int kInvalidStackOffset = -1;
 const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
 
+
+Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
+  if (checks == EXTRA) {
+    if (OpcodeToBitNumber(OpcodeFieldRaw()) & kOpcodeImmediateTypeMask) {
+      return kImmediateType;
+    }
+  }
+  switch (OpcodeFieldRaw()) {
+    case SPECIAL:
+      if (checks == EXTRA) {
+        if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
+            kFunctionFieldRegisterTypeMask) {
+          return kRegisterType;
+        } else {
+          return kUnsupported;
+        }
+      } else {
+        return kRegisterType;
+      }
+      break;
+    case SPECIAL2:
+      switch (FunctionFieldRaw()) {
+        case MUL:
+        case CLZ:
+          return kRegisterType;
+        default:
+          return kUnsupported;
+      }
+      break;
+    case SPECIAL3:
+      switch (FunctionFieldRaw()) {
+        case INS:
+        case EXT:
+        case DEXT:
+          return kRegisterType;
+        case BSHFL: {
+          int sa = SaFieldRaw() >> kSaShift;
+          switch (sa) {
+            case BITSWAP:
+              return kRegisterType;
+            case WSBH:
+            case SEB:
+            case SEH:
+              return kUnsupported;
+          }
+          sa >>= kBp2Bits;
+          switch (sa) {
+            case ALIGN:
+              return kRegisterType;
+            default:
+              return kUnsupported;
+          }
+        }
+        case DBSHFL: {
+          int sa = SaFieldRaw() >> kSaShift;
+          switch (sa) {
+            case DBITSWAP:
+              return kRegisterType;
+            case DSBH:
+            case DSHD:
+              return kUnsupported;
+          }
+          sa = SaFieldRaw() >> kSaShift;
+          sa >>= kBp3Bits;
+          switch (sa) {
+            case DALIGN:
+              return kRegisterType;
+            default:
+              return kUnsupported;
+          }
+        }
+        default:
+          return kUnsupported;
+      }
+      break;
+    case COP1:  // Coprocessor instructions.
+      switch (RsFieldRawNoAssert()) {
+        case BC1:  // Branch on coprocessor condition.
+        case BC1EQZ:
+        case BC1NEZ:
+          return kImmediateType;
+        default:
+          return kRegisterType;
+      }
+      break;
+    case COP1X:
+      return kRegisterType;
+
+    // 26 bits immediate type instructions. e.g.: j imm26.
+    case J:
+    case JAL:
+      return kJumpType;
+
+    default:
+      if (checks == NORMAL) {
+        return kImmediateType;
+      } else {
+        return kUnsupported;
+      }
+  }
+  return kUnsupported;
+}
+
+#undef OpcodeToBitNumber
+#undef FunctionFieldToBitNumber
 } }   // namespace v8::internal
 
 #endif    // #ifndef V8_MIPS_CONSTANTS_H_

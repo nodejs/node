@@ -32,11 +32,10 @@ namespace {
 const MachineType kMachineReps[] = {kRepWord32, kRepWord64};
 
 
-const MachineType kMachineTypes[] = {
-    kMachFloat32, kMachFloat64,   kMachInt8,   kMachUint8,  kMachInt16,
-    kMachUint16,  kMachInt32,     kMachUint32, kMachInt64,  kMachUint64,
-    kMachPtr,     kMachAnyTagged, kRepBit,     kRepWord8,   kRepWord16,
-    kRepWord32,   kRepWord64,     kRepFloat32, kRepFloat64, kRepTagged};
+const MachineType kMachineTypesForAccess[] = {
+    kMachFloat32, kMachFloat64,   kMachInt8,   kMachUint8, kMachInt16,
+    kMachUint16,  kMachInt32,     kMachUint32, kMachInt64, kMachUint64,
+    kMachPtr,     kMachAnyTagged, kMachPtr};
 
 }  // namespace
 
@@ -84,9 +83,10 @@ TEST_P(MachineLoadOperatorTest, ParameterIsCorrect) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(MachineOperatorTest, MachineLoadOperatorTest,
-                        ::testing::Combine(::testing::ValuesIn(kMachineReps),
-                                           ::testing::ValuesIn(kMachineTypes)));
+INSTANTIATE_TEST_CASE_P(
+    MachineOperatorTest, MachineLoadOperatorTest,
+    ::testing::Combine(::testing::ValuesIn(kMachineReps),
+                       ::testing::ValuesIn(kMachineTypesForAccess)));
 
 
 // -----------------------------------------------------------------------------
@@ -146,7 +146,7 @@ INSTANTIATE_TEST_CASE_P(
     MachineOperatorTest, MachineStoreOperatorTest,
     ::testing::Combine(
         ::testing::ValuesIn(kMachineReps),
-        ::testing::Combine(::testing::ValuesIn(kMachineTypes),
+        ::testing::Combine(::testing::ValuesIn(kMachineTypesForAccess),
                            ::testing::Values(kNoWriteBarrier,
                                              kFullWriteBarrier))));
 #endif

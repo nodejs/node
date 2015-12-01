@@ -5,6 +5,8 @@
 #ifndef V8_BASE_SMART_POINTERS_H_
 #define V8_BASE_SMART_POINTERS_H_
 
+#include "src/base/logging.h"
+
 namespace v8 {
 namespace base {
 

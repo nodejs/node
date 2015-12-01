@@ -241,48 +241,35 @@ class AstValue : public ZoneObject {
 
 
 // For generating constants.
-#define STRING_CONSTANTS(F)                                                \
-  F(anonymous_function, "(anonymous function)")                            \
-  F(arguments, "arguments")                                                \
-  F(concat_iterable_to_array, "$concatIterableToArray")                    \
-  F(constructor, "constructor")                                            \
-  F(default, "default")                                                    \
-  F(done, "done")                                                          \
-  F(dot, ".")                                                              \
-  F(dot_for, ".for")                                                       \
-  F(dot_generator, ".generator")                                           \
-  F(dot_generator_object, ".generator_object")                             \
-  F(dot_iterator, ".iterator")                                             \
-  F(dot_module, ".module")                                                 \
-  F(dot_result, ".result")                                                 \
-  F(empty, "")                                                             \
-  F(eval, "eval")                                                          \
-  F(get_template_callsite, "$getTemplateCallSite")                         \
-  F(initialize_const_global, "initializeConstGlobal")                      \
-  F(initialize_var_global, "initializeVarGlobal")                          \
-  F(is_construct_call, "_IsConstructCall")                                 \
-  F(is_spec_object, "_IsSpecObject")                                       \
-  F(let, "let")                                                            \
-  F(make_reference_error, "MakeReferenceError")                            \
-  F(make_syntax_error, "MakeSyntaxError")                                  \
-  F(make_type_error, "MakeTypeError")                                      \
-  F(native, "native")                                                      \
-  F(new_target, ".new.target")                                             \
-  F(next, "next")                                                          \
-  F(proto, "__proto__")                                                    \
-  F(prototype, "prototype")                                                \
-  F(reflect_apply, "$reflectApply")                                        \
-  F(reflect_construct, "$reflectConstruct")                                \
-  F(spread_arguments, "$spreadArguments")                                  \
-  F(spread_iterable, "$spreadIterable")                                    \
-  F(this, "this")                                                          \
-  F(this_function, ".this_function")                                       \
-  F(throw_iterator_result_not_an_object, "ThrowIteratorResultNotAnObject") \
-  F(to_string, "$toString")                                                \
-  F(undefined, "undefined")                                                \
-  F(use_asm, "use asm")                                                    \
-  F(use_strong, "use strong")                                              \
-  F(use_strict, "use strict")                                              \
+#define STRING_CONSTANTS(F)                     \
+  F(anonymous_function, "(anonymous function)") \
+  F(arguments, "arguments")                     \
+  F(constructor, "constructor")                 \
+  F(default, "default")                         \
+  F(done, "done")                               \
+  F(dot, ".")                                   \
+  F(dot_for, ".for")                            \
+  F(dot_generator, ".generator")                \
+  F(dot_generator_object, ".generator_object")  \
+  F(dot_iterator, ".iterator")                  \
+  F(dot_module, ".module")                      \
+  F(dot_result, ".result")                      \
+  F(dot_switch_tag, ".switch_tag")              \
+  F(empty, "")                                  \
+  F(eval, "eval")                               \
+  F(let, "let")                                 \
+  F(native, "native")                           \
+  F(new_target, ".new.target")                  \
+  F(next, "next")                               \
+  F(proto, "__proto__")                         \
+  F(prototype, "prototype")                     \
+  F(rest_parameter, ".rest_parameter")          \
+  F(this, "this")                               \
+  F(this_function, ".this_function")            \
+  F(undefined, "undefined")                     \
+  F(use_asm, "use asm")                         \
+  F(use_strong, "use strong")                   \
+  F(use_strict, "use strict")                   \
   F(value, "value")
 
 #define OTHER_CONSTANTS(F) \

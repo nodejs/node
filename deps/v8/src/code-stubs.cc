@@ -7,13 +7,13 @@
 #include <sstream>
 
 #include "src/bootstrapper.h"
-#include "src/cpu-profiler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "src/parser.h"
+#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -174,7 +174,7 @@ Handle<Code> CodeStub::GetCode() {
               Handle<UnseededNumberDictionary>(heap->code_stubs()),
               GetKey(),
               new_object);
-      heap->public_set_code_stubs(*dict);
+      heap->SetRootCodeStubs(*dict);
     }
     code = *new_object;
   }
@@ -187,8 +187,7 @@ Handle<Code> CodeStub::GetCode() {
 }
 
 
-const char* CodeStub::MajorName(CodeStub::Major major_key,
-                                bool allow_unknown_keys) {
+const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
 #define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
@@ -204,7 +203,7 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 
 
 void CodeStub::PrintBaseName(std::ostream& os) const {  // NOLINT
-  os << MajorName(MajorKey(), false);
+  os << MajorName(MajorKey());
 }
 
 
@@ -325,6 +324,12 @@ std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags) {
       return os << "CheckRight";
     case STRING_ADD_CHECK_BOTH:
       return os << "CheckBoth";
+    case STRING_ADD_CONVERT_LEFT:
+      return os << "ConvertLeft";
+    case STRING_ADD_CONVERT_RIGHT:
+      return os << "ConvertRight";
+    case STRING_ADD_CONVERT:
+      break;
   }
   UNREACHABLE();
   return os;
@@ -346,6 +351,7 @@ InlineCacheState CompareICStub::GetICState() const {
   switch (state) {
     case CompareICState::UNINITIALIZED:
       return ::v8::internal::UNINITIALIZED;
+    case CompareICState::BOOLEAN:
     case CompareICState::SMI:
     case CompareICState::NUMBER:
     case CompareICState::INTERNALIZED_STRING:
@@ -384,7 +390,6 @@ bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
-  DCHECK(op() == Token::EQ || op() == Token::EQ_STRICT);
   Handle<Object> probe(
       known_map_->FindInCodeCache(
         strict() ?
@@ -411,6 +416,9 @@ void CompareICStub::Generate(MacroAssembler* masm) {
   switch (state()) {
     case CompareICState::UNINITIALIZED:
       GenerateMiss(masm);
+      break;
+    case CompareICState::BOOLEAN:
+      GenerateBooleans(masm);
       break;
     case CompareICState::SMI:
       GenerateSmis(masm);
@@ -481,7 +489,7 @@ Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
 
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   // Get the outer ("stub generator") function.
-  const char* name = CodeStub::MajorName(MajorKey(), false);
+  const char* name = CodeStub::MajorName(MajorKey());
   Handle<JSFunction> outer = GetFunction(isolate(), name);
   DCHECK_EQ(2, outer->shared()->length());
 
@@ -490,21 +498,13 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   Handle<Object> call_conv = factory->InternalizeUtf8String(name);
   Handle<Object> minor_key = factory->NewNumber(MinorKey());
   Handle<Object> args[] = {call_conv, minor_key};
-  MaybeHandle<Object> result = Execution::Call(
-      isolate(), outer, factory->undefined_value(), 2, args, false);
+  MaybeHandle<Object> result =
+      Execution::Call(isolate(), outer, factory->undefined_value(), 2, args);
   Handle<JSFunction> inner = Handle<JSFunction>::cast(result.ToHandleChecked());
   // Just to make sure nobody calls this...
   inner->set_code(isolate()->builtins()->builtin(Builtins::kIllegal));
 
-  Zone zone;
-  // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
-  ParseInfo parse_info(&zone, inner);
-  CompilationInfo info(&parse_info);
-  info.SetFunctionType(GetCallInterfaceDescriptor().GetFunctionType());
-  info.MarkAsContextSpecializing();
-  info.MarkAsDeoptimizationEnabled();
-  info.SetStub(this);
-  return info.GenerateCodeStub();
+  return Compiler::GetStubCode(inner, this).ToHandleChecked();
 }
 
 
@@ -593,21 +593,8 @@ Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
 }
 
 
-void CallIC_ArrayStub::PrintState(std::ostream& os) const {  // NOLINT
-  os << state() << " (Array)";
-}
-
-
 void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << state();
-}
-
-
-void InstanceofStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "InstanceofStub";
-  if (HasArgsInRegisters()) os << "_REGS";
-  if (HasCallSiteInlineCheck()) os << "_INLINE";
-  if (ReturnTrueFalseObject()) os << "_TRUEFALSE";
 }
 
 
@@ -653,7 +640,8 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
     return LoadWithVectorDescriptor(isolate());
   } else {
     DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
-    return StoreDescriptor(isolate());
+    return FLAG_vector_stores ? VectorStoreICDescriptor(isolate())
+                              : StoreDescriptor(isolate());
   }
 }
 
@@ -679,13 +667,24 @@ void ToObjectStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 
 CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor()
     const {
+  if (FLAG_vector_stores) {
+    return VectorStoreTransitionDescriptor(isolate());
+  }
+  return StoreTransitionDescriptor(isolate());
+}
+
+
+CallInterfaceDescriptor
+ElementsTransitionAndStoreStub::GetCallInterfaceDescriptor() const {
+  if (FLAG_vector_stores) {
+    return VectorStoreTransitionDescriptor(isolate());
+  }
   return StoreTransitionDescriptor(isolate());
 }
 
 
 void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
+  descriptor->Initialize(Runtime::FunctionForId(Runtime::kNewClosure)->entry);
 }
 
 
@@ -862,11 +861,6 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 }
 
 
-void RestParamAccessStub::Generate(MacroAssembler* masm) {
-  GenerateNew(masm);
-}
-
-
 void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "ArgumentsAccessStub_";
   switch (type()) {
@@ -884,11 +878,6 @@ void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
       break;
   }
   return;
-}
-
-
-void RestParamAccessStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "RestParamAccessStub_";
 }
 
 

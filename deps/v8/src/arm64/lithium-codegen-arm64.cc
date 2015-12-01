@@ -8,10 +8,10 @@
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
-#include "src/cpu-profiler.h"
 #include "src/hydrogen-osr.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -630,8 +630,7 @@ bool LCodeGen::GeneratePrologue() {
     // Sloppy mode functions and builtins need to replace the receiver with the
     // global proxy when called as functions (without an explicit receiver
     // object).
-    if (is_sloppy(info_->language_mode()) && info()->MayUseThis() &&
-        !info()->is_native() && info()->scope()->has_this_declaration()) {
+    if (info()->MustReplaceUndefinedReceiverWithGlobalProxy()) {
       Label ok;
       int receiver_offset = info_->scope()->num_parameters() * kXRegSize;
       __ Peek(x10, receiver_offset);
@@ -666,16 +665,27 @@ bool LCodeGen::GeneratePrologue() {
   if (info()->saves_caller_doubles()) {
     SaveCallerDoubles();
   }
+  return !is_aborted();
+}
+
+
+void LCodeGen::DoPrologue(LPrologue* instr) {
+  Comment(";;; Prologue begin");
 
   // Allocate a local context if needed.
-  int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-  if (heap_slots > 0) {
+  if (info()->num_heap_slots() > 0) {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is in x1.
-    DCHECK(!info()->scope()->is_script_scope());
-    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
-      FastNewContextStub stub(isolate(), heap_slots);
+    int slots = info()->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    Safepoint::DeoptMode deopt_mode = Safepoint::kNoLazyDeopt;
+    if (info()->scope()->is_script_scope()) {
+      __ Mov(x10, Operand(info()->scope()->GetScopeInfo(info()->isolate())));
+      __ Push(x1, x10);
+      __ CallRuntime(Runtime::kNewScriptContext, 2);
+      deopt_mode = Safepoint::kLazyDeopt;
+    } else if (slots <= FastNewContextStub::kMaximumSlots) {
+      FastNewContextStub stub(isolate(), slots);
       __ CallStub(&stub);
       // Result of FastNewContextStub is always in new space.
       need_write_barrier = false;
@@ -683,7 +693,7 @@ bool LCodeGen::GeneratePrologue() {
       __ Push(x1);
       __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
-    RecordSafepoint(Safepoint::kNoLazyDeopt);
+    RecordSafepoint(deopt_mode);
     // Context is returned in x0. It replaces the context passed to us. It's
     // saved in the stack and kept live in cp.
     __ Mov(cp, x0);
@@ -720,14 +730,7 @@ bool LCodeGen::GeneratePrologue() {
     Comment(";;; End allocate local context");
   }
 
-  // Trace the call.
-  if (FLAG_trace && info()->IsOptimizing()) {
-    // We have not executed any compiled code yet, so cp still holds the
-    // incoming context.
-    __ CallRuntime(Runtime::kTraceEnter, 0);
-  }
-
-  return !is_aborted();
+  Comment(";;; Prologue end");
 }
 
 
@@ -981,7 +984,6 @@ void LCodeGen::DeoptimizeBranch(
   }
 
   DCHECK(environment->HasBeenRegistered());
-  DCHECK(info()->IsOptimizing() || info()->IsStub());
   int id = environment->deoptimization_index();
   Address entry =
       Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
@@ -1132,7 +1134,7 @@ void LCodeGen::DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr,
 
 
 void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
-  if (!info()->IsStub()) {
+  if (info()->ShouldEnsureSpaceForLazyDeopt()) {
     // Ensure that we have enough space after the previous lazy-bailout
     // instruction for patching the code here.
     intptr_t current_pc = masm()->pc_offset();
@@ -1994,11 +1996,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     // Change context.
     __ Ldr(cp, FieldMemOperand(function_reg, JSFunction::kContextOffset));
 
-    // Set the arguments count if adaption is not needed. Assumes that x0 is
-    // available to write to at this point.
-    if (dont_adapt_arguments) {
-      __ Mov(arity_reg, arity);
-    }
+    // Always initialize x0 to the number of actual arguments.
+    __ Mov(arity_reg, arity);
 
     // Invoke function.
     __ Ldr(x10, FieldMemOperand(function_reg, JSFunction::kCodeEntryOffset));
@@ -2065,9 +2064,7 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   DCHECK(instr->IsMarkedAsCall());
   DCHECK(ToRegister(instr->function()).is(x1));
 
-  if (instr->hydrogen()->pass_argument_count()) {
-    __ Mov(x0, Operand(instr->arity()));
-  }
+  __ Mov(x0, Operand(instr->arity()));
 
   // Change context.
   __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
@@ -2098,11 +2095,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     }
     case CodeStub::SubString: {
       SubStringStub stub(isolate());
-      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
-    case CodeStub::StringCompare: {
-      StringCompareStub stub(isolate());
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -2834,29 +2826,6 @@ void LCodeGen::DoDummyUse(LDummyUse* instr) {
 }
 
 
-void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  // FunctionLiteral instruction is marked as call, we can trash any register.
-  DCHECK(instr->IsMarkedAsCall());
-
-  // Use the fast case closure allocation code that allocates in new
-  // space for nested functions that don't need literals cloning.
-  bool pretenure = instr->hydrogen()->pretenure();
-  if (!pretenure && instr->hydrogen()->has_no_literals()) {
-    FastNewClosureStub stub(isolate(), instr->hydrogen()->language_mode(),
-                            instr->hydrogen()->kind());
-    __ Mov(x2, Operand(instr->hydrogen()->shared_info()));
-    CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ Mov(x2, Operand(instr->hydrogen()->shared_info()));
-    __ Mov(x1, Operand(pretenure ? factory()->true_value()
-                                 : factory()->false_value()));
-    __ Push(cp, x2, x1);
-    CallRuntime(Runtime::kNewClosure, 3, instr);
-  }
-}
-
-
 void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register map = ToRegister(instr->map());
   Register result = ToRegister(instr->result());
@@ -3009,135 +2978,39 @@ void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
 
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
-  // Assert that the arguments are in the registers expected by InstanceofStub.
-  DCHECK(ToRegister(instr->left()).Is(InstanceofStub::left()));
-  DCHECK(ToRegister(instr->right()).Is(InstanceofStub::right()));
-
-  InstanceofStub stub(isolate(), InstanceofStub::kArgsInRegisters);
+  DCHECK(ToRegister(instr->left()).is(InstanceOfDescriptor::LeftRegister()));
+  DCHECK(ToRegister(instr->right()).is(InstanceOfDescriptor::RightRegister()));
+  DCHECK(ToRegister(instr->result()).is(x0));
+  InstanceOfStub stub(isolate());
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-
-  // InstanceofStub returns a result in x0:
-  //   0     => not an instance
-  //   smi 1 => instance.
-  __ Cmp(x0, 0);
-  __ LoadTrueFalseRoots(x0, x1);
-  __ Csel(x0, x0, x1, eq);
 }
 
 
-void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
-  class DeferredInstanceOfKnownGlobal: public LDeferredCode {
-   public:
-    DeferredInstanceOfKnownGlobal(LCodeGen* codegen,
-                                  LInstanceOfKnownGlobal* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() {
-      codegen()->DoDeferredInstanceOfKnownGlobal(instr_);
-    }
-    virtual LInstruction* instr() { return instr_; }
-   private:
-    LInstanceOfKnownGlobal* instr_;
-  };
+void LCodeGen::DoHasInPrototypeChainAndBranch(
+    LHasInPrototypeChainAndBranch* instr) {
+  Register const object = ToRegister(instr->object());
+  Register const object_map = ToRegister(instr->scratch());
+  Register const object_prototype = object_map;
+  Register const prototype = ToRegister(instr->prototype());
 
-  DeferredInstanceOfKnownGlobal* deferred =
-      new(zone()) DeferredInstanceOfKnownGlobal(this, instr);
-
-  Label map_check, return_false, cache_miss, done;
-  Register object = ToRegister(instr->value());
-  Register result = ToRegister(instr->result());
-  // x4 is expected in the associated deferred code and stub.
-  Register map_check_site = x4;
-  Register map = x5;
-
-  // This instruction is marked as call. We can clobber any register.
-  DCHECK(instr->IsMarkedAsCall());
-
-  // We must take into account that object is in x11.
-  DCHECK(object.Is(x11));
-  Register scratch = x10;
-
-  // A Smi is not instance of anything.
-  __ JumpIfSmi(object, &return_false);
-
-  // This is the inlined call site instanceof cache. The two occurences of the
-  // hole value will be patched to the last map/result pair generated by the
-  // instanceof stub.
-  __ Ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
-  {
-    // Below we use Factory::the_hole_value() on purpose instead of loading from
-    // the root array to force relocation and later be able to patch with a
-    // custom value.
-    InstructionAccurateScope scope(masm(), 5);
-    __ bind(&map_check);
-    // Will be patched with the cached map.
-    Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
-    __ ldr(scratch, Immediate(cell));
-    __ ldr(scratch, FieldMemOperand(scratch, Cell::kValueOffset));
-    __ cmp(map, scratch);
-    __ b(&cache_miss, ne);
-    // The address of this instruction is computed relative to the map check
-    // above, so check the size of the code generated.
-    DCHECK(masm()->InstructionsGeneratedSince(&map_check) == 4);
-    // Will be patched with the cached result.
-    __ ldr(result, Immediate(factory()->the_hole_value()));
+  // The {object} must be a spec object.  It's sufficient to know that {object}
+  // is not a smi, since all other non-spec objects have {null} prototypes and
+  // will be ruled out below.
+  if (instr->hydrogen()->ObjectNeedsSmiCheck()) {
+    __ JumpIfSmi(object, instr->FalseLabel(chunk_));
   }
-  __ B(&done);
 
-  // The inlined call site cache did not match.
-  // Check null and string before calling the deferred code.
-  __ Bind(&cache_miss);
-  // Compute the address of the map check. It must not be clobbered until the
-  // InstanceOfStub has used it.
-  __ Adr(map_check_site, &map_check);
-  // Null is not instance of anything.
-  __ JumpIfRoot(object, Heap::kNullValueRootIndex, &return_false);
-
-  // String values are not instances of anything.
-  // Return false if the object is a string. Otherwise, jump to the deferred
-  // code.
-  // Note that we can't jump directly to deferred code from
-  // IsObjectJSStringType, because it uses tbz for the jump and the deferred
-  // code can be out of range.
-  __ IsObjectJSStringType(object, scratch, NULL, &return_false);
-  __ B(deferred->entry());
-
-  __ Bind(&return_false);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-
-  // Here result is either true or false.
-  __ Bind(deferred->exit());
-  __ Bind(&done);
-}
-
-
-void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
-  Register result = ToRegister(instr->result());
-  DCHECK(result.Is(x0));  // InstanceofStub returns its result in x0.
-  InstanceofStub::Flags flags = InstanceofStub::kNoFlags;
-  flags = static_cast<InstanceofStub::Flags>(
-      flags | InstanceofStub::kArgsInRegisters);
-  flags = static_cast<InstanceofStub::Flags>(
-      flags | InstanceofStub::kReturnTrueFalseObject);
-  flags = static_cast<InstanceofStub::Flags>(
-      flags | InstanceofStub::kCallSiteInlineCheck);
-
-  PushSafepointRegistersScope scope(this);
-  LoadContextFromDeferred(instr->context());
-
-  // Prepare InstanceofStub arguments.
-  DCHECK(ToRegister(instr->value()).Is(InstanceofStub::left()));
-  __ LoadObject(InstanceofStub::right(), instr->function());
-
-  InstanceofStub stub(isolate(), flags);
-  CallCodeGeneric(stub.GetCode(),
-                  RelocInfo::CODE_TARGET,
-                  instr,
-                  RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
-  LEnvironment* env = instr->GetDeferredLazyDeoptimizationEnvironment();
-  safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
-
-  // Put the result value into the result register slot.
-  __ StoreToSafepointRegisterSlot(result, result);
+  // Loop through the {object}s prototype chain looking for the {prototype}.
+  __ Ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
+  Label loop;
+  __ Bind(&loop);
+  __ Ldr(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
+  __ Cmp(object_prototype, prototype);
+  __ B(eq, instr->TrueLabel(chunk_));
+  __ CompareRoot(object_prototype, Heap::kNullValueRootIndex);
+  __ B(eq, instr->FalseLabel(chunk_));
+  __ Ldr(object_map, FieldMemOperand(object_prototype, HeapObject::kMapOffset));
+  __ B(&loop);
 }
 
 
@@ -3194,31 +3067,6 @@ void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
 
   EmitCompareAndBranch(
       instr, eq, temp1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
-}
-
-
-void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
-  Label* is_object = instr->TrueLabel(chunk_);
-  Label* is_not_object = instr->FalseLabel(chunk_);
-  Register value = ToRegister(instr->value());
-  Register map = ToRegister(instr->temp1());
-  Register scratch = ToRegister(instr->temp2());
-
-  __ JumpIfSmi(value, is_not_object);
-  __ JumpIfRoot(value, Heap::kNullValueRootIndex, is_object);
-
-  __ Ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));
-
-  // Check for undetectable objects.
-  __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ TestAndBranchIfAnySet(scratch, 1 << Map::kIsUndetectable, is_not_object);
-
-  // Check that instance type is in object type range.
-  __ IsInstanceJSObjectType(map, scratch, NULL);
-  // Flags have been updated by IsInstanceJSObjectType. We can now test the
-  // flags for "le" condition to check if the object's type is a valid
-  // JS object type.
-  EmitBranch(instr, le);
 }
 
 
@@ -4349,7 +4197,7 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
   Register result =
       is_smi ? ToRegister(instr->result()) : ToRegister32(instr->result());
   Register left =
-      is_smi ? ToRegister(instr->left()) : ToRegister32(instr->left()) ;
+      is_smi ? ToRegister(instr->left()) : ToRegister32(instr->left());
   int32_t right = ToInteger32(instr->right());
   DCHECK((right > -kMaxInt) && (right < kMaxInt));
 
@@ -5652,16 +5500,13 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
 
 void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
-  Token::Value op = instr->op();
+  DCHECK(ToRegister(instr->left()).is(x1));
+  DCHECK(ToRegister(instr->right()).is(x0));
 
-  Handle<Code> ic =
-      CodeFactory::CompareIC(isolate(), op, Strength::WEAK).code();
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  InlineSmiCheckInfo::EmitNotInlined(masm());
+  Handle<Code> code = CodeFactory::StringCompare(isolate()).code();
+  CallCode(code, RelocInfo::CODE_TARGET, instr);
 
-  Condition condition = TokenToCondition(op, false);
-
-  EmitCompareAndBranch(instr, condition, x0, 0);
+  EmitCompareAndBranch(instr, TokenToCondition(instr->op(), false), x0, 0);
 }
 
 
@@ -5805,7 +5650,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   // x0 = regexp literal clone.
   // x10-x12 are used as temporaries.
   int literal_offset =
-      FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
+      LiteralsArray::OffsetOfLiteralAt(instr->hydrogen()->literal_index());
   __ LoadObject(x7, instr->hydrogen()->literals());
   __ Ldr(x1, FieldMemOperand(x7, literal_offset));
   __ JumpIfNotRoot(x1, Heap::kUndefinedValueRootIndex, &materialized);
@@ -5976,14 +5821,15 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     EmitTestAndBranch(instr, ne, scratch, 1 << Map::kIsUndetectable);
 
   } else if (String::Equals(type_name, factory->function_string())) {
-    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     DCHECK(instr->temp1() != NULL);
-    Register type = ToRegister(instr->temp1());
+    Register scratch = ToRegister(instr->temp1());
 
     __ JumpIfSmi(value, false_label);
-    __ JumpIfObjectType(value, type, type, JS_FUNCTION_TYPE, true_label);
-    // HeapObject's type has been loaded into type register by JumpIfObjectType.
-    EmitCompareAndBranch(instr, eq, type, JS_FUNCTION_PROXY_TYPE);
+    __ Ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+    __ Ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ And(scratch, scratch,
+           (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
+    EmitCompareAndBranch(instr, eq, scratch, 1 << Map::kIsCallable);
 
   } else if (String::Equals(type_name, factory->object_string())) {
     DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
@@ -5992,13 +5838,13 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
 
     __ JumpIfSmi(value, false_label);
     __ JumpIfRoot(value, Heap::kNullValueRootIndex, true_label);
-    __ JumpIfObjectType(value, map, scratch,
-                        FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, false_label, lt);
-    __ CompareInstanceType(map, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    __ B(gt, false_label);
-    // Check for undetectable objects => false.
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ JumpIfObjectType(value, map, scratch, FIRST_SPEC_OBJECT_TYPE,
+                        false_label, lt);
+    // Check for callable or undetectable objects => false.
     __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-    EmitTestAndBranch(instr, eq, scratch, 1 << Map::kIsUndetectable);
+    EmitTestAndBranch(instr, eq, scratch,
+                      (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
 
 // clang-format off
 #define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)       \

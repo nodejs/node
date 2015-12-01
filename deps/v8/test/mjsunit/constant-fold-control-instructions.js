@@ -12,12 +12,7 @@ function test() {
   assertEquals("function", typeof function() {});
   assertEquals("object", typeof null);
   assertEquals("object", typeof {});
-
-  assertTrue(%_IsObject({}));
-  assertTrue(%_IsObject(null));
-  assertTrue(%_IsObject(/regex/));
-  assertFalse(%_IsObject(0));
-  assertFalse(%_IsObject(""));
+  assertEquals("object", typeof /regex/);
 
   assertTrue(%_IsSmi(1));
   assertFalse(%_IsSmi(1.1));

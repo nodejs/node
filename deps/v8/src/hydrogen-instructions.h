@@ -98,17 +98,15 @@ class LChunkBuilder;
   V(ForceRepresentation)                      \
   V(ForInCacheArray)                          \
   V(ForInPrepareMap)                          \
-  V(FunctionLiteral)                          \
   V(GetCachedArrayIndex)                      \
   V(Goto)                                     \
   V(HasCachedArrayIndexAndBranch)             \
   V(HasInstanceTypeAndBranch)                 \
   V(InnerAllocatedObject)                     \
   V(InstanceOf)                               \
-  V(InstanceOfKnownGlobal)                    \
   V(InvokeFunction)                           \
   V(IsConstructCallAndBranch)                 \
-  V(IsObjectAndBranch)                        \
+  V(HasInPrototypeChainAndBranch)             \
   V(IsStringAndBranch)                        \
   V(IsSmiAndBranch)                           \
   V(IsUndetectableAndBranch)                  \
@@ -132,6 +130,7 @@ class LChunkBuilder;
   V(OsrEntry)                                 \
   V(Parameter)                                \
   V(Power)                                    \
+  V(Prologue)                                 \
   V(PushArguments)                            \
   V(RegExpLiteral)                            \
   V(Return)                                   \
@@ -1285,6 +1284,18 @@ class HDebugBreak final : public HTemplateInstruction<0> {
 };
 
 
+class HPrologue final : public HTemplateInstruction<0> {
+ public:
+  static HPrologue* New(Zone* zone) { return new (zone) HPrologue(); }
+
+  Representation RequiredInputRepresentation(int index) override {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Prologue)
+};
+
+
 class HGoto final : public HTemplateControlInstruction<1, 0> {
  public:
   explicit HGoto(HBasicBlock* target) {
@@ -2216,8 +2227,7 @@ class HBinaryCall : public HCall<2> {
 class HCallJSFunction final : public HCall<1> {
  public:
   static HCallJSFunction* New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* function, int argument_count,
-                              bool pass_argument_count);
+                              HValue* function, int argument_count);
 
   HValue* function() const { return OperandAt(0); }
 
@@ -2228,8 +2238,6 @@ class HCallJSFunction final : public HCall<1> {
     return Representation::Tagged();
   }
 
-  bool pass_argument_count() const { return pass_argument_count_; }
-
   bool HasStackCheck() final { return has_stack_check_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallJSFunction)
@@ -2238,15 +2246,12 @@ class HCallJSFunction final : public HCall<1> {
   // The argument count includes the receiver.
   HCallJSFunction(HValue* function,
                   int argument_count,
-                  bool pass_argument_count,
                   bool has_stack_check)
       : HCall<1>(argument_count),
-        pass_argument_count_(pass_argument_count),
         has_stack_check_(has_stack_check) {
       SetOperandAt(0, function);
   }
 
-  bool pass_argument_count_;
   bool has_stack_check_;
 };
 
@@ -2473,16 +2478,13 @@ class HCallNewArray final : public HBinaryCall {
 
 class HCallRuntime final : public HCall<1> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallRuntime,
-                                              Handle<String>,
-                                              const Runtime::Function*,
-                                              int);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallRuntime,
+                                              const Runtime::Function*, int);
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
   HValue* context() { return OperandAt(0); }
   const Runtime::Function* function() const { return c_function_; }
-  Handle<String> name() const { return name_; }
   SaveFPRegsMode save_doubles() const { return save_doubles_; }
   void set_save_doubles(SaveFPRegsMode save_doubles) {
     save_doubles_ = save_doubles;
@@ -2495,17 +2497,15 @@ class HCallRuntime final : public HCall<1> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime)
 
  private:
-  HCallRuntime(HValue* context,
-               Handle<String> name,
-               const Runtime::Function* c_function,
+  HCallRuntime(HValue* context, const Runtime::Function* c_function,
                int argument_count)
-      : HCall<1>(argument_count), c_function_(c_function), name_(name),
+      : HCall<1>(argument_count),
+        c_function_(c_function),
         save_doubles_(kDontSaveFPRegs) {
     SetOperandAt(0, context);
   }
 
   const Runtime::Function* c_function_;
-  Handle<String> name_;
   SaveFPRegsMode save_doubles_;
 };
 
@@ -2635,7 +2635,12 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
     SetFlag(kAllowUndefinedAsNaN);
   }
 
-  bool IsDeletable() const override { return true; }
+  bool IsDeletable() const override {
+    // TODO(crankshaft): This should be true, however the semantics of this
+    // instruction also include the ToNumber conversion that is mentioned in the
+    // spec, which is of course observable.
+    return false;
+  }
 
   HValue* SimplifiedDividendForMathFloorOfDiv(HDiv* hdiv);
   HValue* SimplifiedDivisorForMathFloorOfDiv(HDiv* hdiv);
@@ -3258,14 +3263,7 @@ class InductionVariableData final : public ZoneObject {
 class HPhi final : public HValue {
  public:
   HPhi(int merged_index, Zone* zone)
-      : inputs_(2, zone),
-        merged_index_(merged_index),
-        phi_id_(-1),
-        induction_variable_data_(NULL) {
-    for (int i = 0; i < Representation::kNumRepresentations; i++) {
-      non_phi_uses_[i] = 0;
-      indirect_uses_[i] = 0;
-    }
+      : inputs_(2, zone), merged_index_(merged_index) {
     DCHECK(merged_index >= 0 || merged_index == kInvalidMergedIndex);
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
@@ -3318,32 +3316,15 @@ class HPhi final : public HValue {
 
   void InitRealUses(int id);
   void AddNonPhiUsesFrom(HPhi* other);
-  void AddIndirectUsesTo(int* use_count);
 
-  int tagged_non_phi_uses() const {
-    return non_phi_uses_[Representation::kTagged];
+  Representation representation_from_indirect_uses() const {
+    return representation_from_indirect_uses_;
   }
-  int smi_non_phi_uses() const {
-    return non_phi_uses_[Representation::kSmi];
+
+  bool has_type_feedback_from_uses() const {
+    return has_type_feedback_from_uses_;
   }
-  int int32_non_phi_uses() const {
-    return non_phi_uses_[Representation::kInteger32];
-  }
-  int double_non_phi_uses() const {
-    return non_phi_uses_[Representation::kDouble];
-  }
-  int tagged_indirect_uses() const {
-    return indirect_uses_[Representation::kTagged];
-  }
-  int smi_indirect_uses() const {
-    return indirect_uses_[Representation::kSmi];
-  }
-  int int32_indirect_uses() const {
-    return indirect_uses_[Representation::kInteger32];
-  }
-  int double_indirect_uses() const {
-    return indirect_uses_[Representation::kDouble];
-  }
+
   int phi_id() { return phi_id_; }
 
   static HPhi* cast(HValue* value) {
@@ -3364,13 +3345,19 @@ class HPhi final : public HValue {
   }
 
  private:
-  ZoneList<HValue*> inputs_;
-  int merged_index_;
+  Representation representation_from_non_phi_uses() const {
+    return representation_from_non_phi_uses_;
+  }
 
-  int non_phi_uses_[Representation::kNumRepresentations];
-  int indirect_uses_[Representation::kNumRepresentations];
-  int phi_id_;
-  InductionVariableData* induction_variable_data_;
+  ZoneList<HValue*> inputs_;
+  int merged_index_ = 0;
+
+  int phi_id_ = -1;
+  InductionVariableData* induction_variable_data_ = nullptr;
+
+  Representation representation_from_indirect_uses_ = Representation::None();
+  Representation representation_from_non_phi_uses_ = Representation::None();
+  bool has_type_feedback_from_uses_ = false;
 
   // TODO(titzer): we can't eliminate the receiver for generating backtraces
   bool IsDeletable() const override { return !IsReceiver(); }
@@ -3629,6 +3616,7 @@ class HConstant final : public HTemplateInstruction<0> {
 
   bool HasBooleanValue() const { return type_.IsBoolean(); }
   bool BooleanValue() const { return BooleanValueField::decode(bit_field_); }
+  bool IsCallable() const { return IsCallableField::decode(bit_field_); }
   bool IsUndetectable() const {
     return IsUndetectableField::decode(bit_field_);
   }
@@ -3761,9 +3749,10 @@ class HConstant final : public HTemplateInstruction<0> {
   class IsNotInNewSpaceField : public BitField<bool, 5, 1> {};
   class BooleanValueField : public BitField<bool, 6, 1> {};
   class IsUndetectableField : public BitField<bool, 7, 1> {};
+  class IsCallableField : public BitField<bool, 8, 1> {};
 
   static const InstanceType kUnknownInstanceType = FILLER_TYPE;
-  class InstanceTypeField : public BitField<InstanceType, 8, 8> {};
+  class InstanceTypeField : public BitField<InstanceType, 16, 8> {};
 
   // If this is a numerical constant, object_ either points to the
   // HeapObject the constant originated from or is null.  If the
@@ -4454,28 +4443,6 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
 };
 
 
-class HIsObjectAndBranch final : public HUnaryControlInstruction {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HIsObjectAndBranch, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P3(HIsObjectAndBranch, HValue*,
-                                 HBasicBlock*, HBasicBlock*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  bool KnownSuccessorBlock(HBasicBlock** block) override;
-
-  DECLARE_CONCRETE_INSTRUCTION(IsObjectAndBranch)
-
- private:
-  HIsObjectAndBranch(HValue* value,
-                     HBasicBlock* true_target = NULL,
-                     HBasicBlock* false_target = NULL)
-    : HUnaryControlInstruction(value, true_target, false_target) {}
-};
-
-
 class HIsStringAndBranch final : public HUnaryControlInstruction {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HIsStringAndBranch, HValue*);
@@ -4559,34 +4526,28 @@ class HIsUndetectableAndBranch final : public HUnaryControlInstruction {
 };
 
 
-class HStringCompareAndBranch : public HTemplateControlInstruction<2, 3> {
+class HStringCompareAndBranch final : public HTemplateControlInstruction<2, 3> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HStringCompareAndBranch,
                                               HValue*,
                                               HValue*,
                                               Token::Value);
 
-  HValue* context() { return OperandAt(0); }
-  HValue* left() { return OperandAt(1); }
-  HValue* right() { return OperandAt(2); }
+  HValue* context() const { return OperandAt(0); }
+  HValue* left() const { return OperandAt(1); }
+  HValue* right() const { return OperandAt(2); }
   Token::Value token() const { return token_; }
 
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
+  std::ostream& PrintDataTo(std::ostream& os) const final;  // NOLINT
 
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  Representation GetInputRepresentation() const {
+  Representation RequiredInputRepresentation(int index) final {
     return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCompareAndBranch)
 
  private:
-  HStringCompareAndBranch(HValue* context,
-                          HValue* left,
-                          HValue* right,
+  HStringCompareAndBranch(HValue* context, HValue* left, HValue* right,
                           Token::Value token)
       : token_(token) {
     DCHECK(Token::IsCompareOp(token));
@@ -4595,9 +4556,11 @@ class HStringCompareAndBranch : public HTemplateControlInstruction<2, 3> {
     SetOperandAt(2, right);
     set_representation(Representation::Tagged());
     SetChangesFlag(kNewSpacePromotion);
+    SetDependsOnFlag(kStringChars);
+    SetDependsOnFlag(kStringLengths);
   }
 
-  Token::Value token_;
+  Token::Value const token_;
 };
 
 
@@ -4760,34 +4723,32 @@ class HInstanceOf final : public HBinaryOperation {
 };
 
 
-class HInstanceOfKnownGlobal final : public HTemplateInstruction<2> {
+class HHasInPrototypeChainAndBranch final
+    : public HTemplateControlInstruction<2, 2> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HInstanceOfKnownGlobal,
-                                              HValue*,
-                                              Handle<JSFunction>);
+  DECLARE_INSTRUCTION_FACTORY_P2(HHasInPrototypeChainAndBranch, HValue*,
+                                 HValue*);
 
-  HValue* context() { return OperandAt(0); }
-  HValue* left() { return OperandAt(1); }
-  Handle<JSFunction> function() { return function_; }
+  HValue* object() const { return OperandAt(0); }
+  HValue* prototype() const { return OperandAt(1); }
 
   Representation RequiredInputRepresentation(int index) override {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal)
-
- private:
-  HInstanceOfKnownGlobal(HValue* context,
-                         HValue* left,
-                         Handle<JSFunction> right)
-      : HTemplateInstruction<2>(HType::Boolean()), function_(right) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, left);
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
+  bool ObjectNeedsSmiCheck() const {
+    return !object()->type().IsHeapObject() &&
+           !object()->representation().IsHeapObject();
   }
 
-  Handle<JSFunction> function_;
+  DECLARE_CONCRETE_INSTRUCTION(HasInPrototypeChainAndBranch)
+
+ private:
+  HHasInPrototypeChainAndBranch(HValue* object, HValue* prototype) {
+    SetOperandAt(0, object);
+    SetOperandAt(1, prototype);
+    SetDependsOnFlag(kCalls);
+  }
 };
 
 
@@ -5951,9 +5912,7 @@ class HObjectAccess final {
     return Representation::FromKind(RepresentationField::decode(value_));
   }
 
-  inline Handle<String> name() const {
-    return name_;
-  }
+  inline Handle<Name> name() const { return name_; }
 
   inline bool immutable() const {
     return ImmutableField::decode(value_);
@@ -5987,6 +5946,11 @@ class HObjectAccess final {
                          Representation::Integer32());
   }
 
+  static HObjectAccess ForOddballToNumber(
+      Representation representation = Representation::Tagged()) {
+    return HObjectAccess(kInobject, Oddball::kToNumberOffset, representation);
+  }
+
   static HObjectAccess ForOddballTypeOf() {
     return HObjectAccess(kInobject, Oddball::kTypeOfOffset,
                          Representation::HeapObject());
@@ -6016,7 +5980,7 @@ class HObjectAccess final {
 
   static HObjectAccess ForAllocationSiteList() {
     return HObjectAccess(kExternalMemory, 0, Representation::Tagged(),
-                         Handle<String>::null(), false, false);
+                         Handle<Name>::null(), false, false);
   }
 
   static HObjectAccess ForFixedArrayLength() {
@@ -6179,12 +6143,12 @@ class HObjectAccess final {
 
   static HObjectAccess ForCounter() {
     return HObjectAccess(kExternalMemory, 0, Representation::Integer32(),
-                         Handle<String>::null(), false, false);
+                         Handle<Name>::null(), false, false);
   }
 
   static HObjectAccess ForExternalUInteger8() {
     return HObjectAccess(kExternalMemory, 0, Representation::UInteger8(),
-                         Handle<String>::null(), false, false);
+                         Handle<Name>::null(), false, false);
   }
 
   // Create an access to an offset in a fixed array header.
@@ -6220,7 +6184,7 @@ class HObjectAccess final {
   // Create an access to a resolved field (in-object or backing store).
   static HObjectAccess ForField(Handle<Map> map, int index,
                                 Representation representation,
-                                Handle<String> name);
+                                Handle<Name> name);
 
   static HObjectAccess ForJSTypedArrayLength() {
     return HObjectAccess::ForObservableJSObjectOffset(
@@ -6335,16 +6299,15 @@ class HObjectAccess final {
 
   HObjectAccess(Portion portion, int offset,
                 Representation representation = Representation::Tagged(),
-                Handle<String> name = Handle<String>::null(),
-                bool immutable = false,
-                bool existing_inobject_property = true)
-    : value_(PortionField::encode(portion) |
-             RepresentationField::encode(representation.kind()) |
-             ImmutableField::encode(immutable ? 1 : 0) |
-             ExistingInobjectPropertyField::encode(
-                 existing_inobject_property ? 1 : 0) |
-             OffsetField::encode(offset)),
-      name_(name) {
+                Handle<Name> name = Handle<Name>::null(),
+                bool immutable = false, bool existing_inobject_property = true)
+      : value_(PortionField::encode(portion) |
+               RepresentationField::encode(representation.kind()) |
+               ImmutableField::encode(immutable ? 1 : 0) |
+               ExistingInobjectPropertyField::encode(
+                   existing_inobject_property ? 1 : 0) |
+               OffsetField::encode(offset)),
+        name_(name) {
     // assert that the fields decode correctly
     DCHECK(this->offset() == offset);
     DCHECK(this->portion() == portion);
@@ -6361,7 +6324,7 @@ class HObjectAccess final {
   class OffsetField : public BitField<int, 9, 23> {};
 
   uint32_t value_;  // encodes portion, representation, immutable, and offset
-  Handle<String> name_;
+  Handle<Name> name_;
 
   friend class HLoadNamedField;
   friend class HStoreNamedField;
@@ -7390,8 +7353,7 @@ class HStringAdd final : public HBinaryOperation {
  public:
   static HInstruction* New(
       Isolate* isolate, Zone* zone, HValue* context, HValue* left,
-      HValue* right, Strength strength = Strength::WEAK,
-      PretenureFlag pretenure_flag = NOT_TENURED,
+      HValue* right, PretenureFlag pretenure_flag = NOT_TENURED,
       StringAddFlags flags = STRING_ADD_CHECK_BOTH,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
 
@@ -7413,16 +7375,21 @@ class HStringAdd final : public HBinaryOperation {
   }
 
  private:
-  HStringAdd(HValue* context, HValue* left, HValue* right, Strength strength,
+  HStringAdd(HValue* context, HValue* left, HValue* right,
              PretenureFlag pretenure_flag, StringAddFlags flags,
              Handle<AllocationSite> allocation_site)
-      : HBinaryOperation(context, left, right, strength, HType::String()),
+      : HBinaryOperation(context, left, right, Strength::WEAK, HType::String()),
         flags_(flags),
         pretenure_flag_(pretenure_flag) {
     set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
+    if ((flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT) {
+      SetAllSideEffects();
+      ClearFlag(kUseGVN);
+    } else {
+      SetChangesFlag(kNewSpacePromotion);
+      SetFlag(kUseGVN);
+    }
     SetDependsOnFlag(kMaps);
-    SetChangesFlag(kNewSpacePromotion);
     if (FLAG_trace_pretenuring) {
       PrintF("HStringAdd with AllocationSite %p %s\n",
              allocation_site.is_null()
@@ -7432,8 +7399,9 @@ class HStringAdd final : public HBinaryOperation {
     }
   }
 
-  // No side-effects except possible allocation:
-  bool IsDeletable() const override { return true; }
+  bool IsDeletable() const final {
+    return (flags_ & STRING_ADD_CONVERT) != STRING_ADD_CONVERT;
+  }
 
   const StringAddFlags flags_;
   const PretenureFlag pretenure_flag_;
@@ -7583,56 +7551,6 @@ class HRegExpLiteral final : public HMaterializedLiteral<1> {
   Handle<FixedArray> literals_;
   Handle<String> pattern_;
   Handle<String> flags_;
-};
-
-
-class HFunctionLiteral final : public HTemplateInstruction<1> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HFunctionLiteral,
-                                              Handle<SharedFunctionInfo>,
-                                              bool);
-  HValue* context() { return OperandAt(0); }
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(FunctionLiteral)
-
-  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  bool pretenure() const { return PretenureField::decode(bit_field_); }
-  bool has_no_literals() const {
-    return HasNoLiteralsField::decode(bit_field_);
-  }
-  FunctionKind kind() const { return FunctionKindField::decode(bit_field_); }
-  LanguageMode language_mode() const {
-    return LanguageModeField::decode(bit_field_);
-  }
-
- private:
-  HFunctionLiteral(HValue* context, Handle<SharedFunctionInfo> shared,
-                   bool pretenure)
-      : HTemplateInstruction<1>(HType::JSObject()),
-        shared_info_(shared),
-        bit_field_(FunctionKindField::encode(shared->kind()) |
-                   PretenureField::encode(pretenure) |
-                   HasNoLiteralsField::encode(shared->num_literals() == 0) |
-                   LanguageModeField::encode(shared->language_mode())) {
-    SetOperandAt(0, context);
-    set_representation(Representation::Tagged());
-    SetChangesFlag(kNewSpacePromotion);
-  }
-
-  bool IsDeletable() const override { return true; }
-
-  class FunctionKindField : public BitField<FunctionKind, 0, 8> {};
-  class PretenureField : public BitField<bool, 8, 1> {};
-  class HasNoLiteralsField : public BitField<bool, 9, 1> {};
-  STATIC_ASSERT(LANGUAGE_END == 3);
-  class LanguageModeField : public BitField<LanguageMode, 10, 2> {};
-
-  Handle<SharedFunctionInfo> shared_info_;
-  uint32_t bit_field_;
 };
 
 

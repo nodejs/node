@@ -30,26 +30,16 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "test/cctest/heap-tester.h"
 
 
 using namespace v8::internal;
 
 
-static AllocationResult AllocateAfterFailures() {
-  static int attempts = 0;
-
-  // The first 4 times we simulate a full heap, by returning retry.
-  if (++attempts < 4) return AllocationResult::Retry();
-
-  // Expose some private stuff on Heap.
-  TestHeap* heap = CcTest::test_heap();
-
-  // Now that we have returned 'retry' 4 times, we are in a last-chance
-  // scenario, with always_allocate.  See CALL_AND_RETRY.  Test that all
-  // allocations succeed.
+AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
+  Heap* heap = CcTest::heap();
 
   // New space.
-  SimulateFullSpace(heap->new_space());
   heap->AllocateByteArray(100).ToObjectChecked();
   heap->AllocateFixedArray(100, NOT_TENURED).ToObjectChecked();
 
@@ -97,16 +87,21 @@ static AllocationResult AllocateAfterFailures() {
 }
 
 
-static Handle<Object> Test() {
-  CALL_HEAP_FUNCTION(CcTest::i_isolate(), AllocateAfterFailures(), Object);
+Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
+  // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
+  // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
+  // all allocations succeed immediately without any retry.
+  CcTest::heap()->CollectAllAvailableGarbage("panic");
+  AlwaysAllocateScope scope(CcTest::i_isolate());
+  return handle(AllocateAfterFailures().ToObjectChecked(), CcTest::i_isolate());
 }
 
 
-TEST(StressHandles) {
+HEAP_TEST(StressHandles) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<Object> o = Test();
+  Handle<Object> o = TestAllocateAfterFailures();
   CHECK(o->IsTrue());
   env->Exit();
 }
@@ -117,7 +112,8 @@ void TestGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  info.GetReturnValue().Set(v8::Utils::ToLocal(Test()));
+  info.GetReturnValue().Set(v8::Utils::ToLocal(
+      v8::internal::HeapTester::TestAllocateAfterFailures()));
 }
 
 
@@ -222,9 +218,12 @@ TEST(CodeRange) {
           (Page::kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
           Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
-      Address base = code_range.AllocateRawMemory(requested,
-                                                  requested,
-                                                  &allocated);
+
+      // The request size has to be at least 2 code guard pages larger than the
+      // actual commit size.
+      Address base = code_range.AllocateRawMemory(
+          requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
+          &allocated);
       CHECK(base != NULL);
       blocks.Add(::Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
@@ -241,6 +240,4 @@ TEST(CodeRange) {
       }
     }
   }
-
-  code_range.TearDown();
 }

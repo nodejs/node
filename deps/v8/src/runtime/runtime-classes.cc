@@ -10,6 +10,7 @@
 #include "src/arguments.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/runtime/runtime.h"
 
@@ -73,19 +74,6 @@ RUNTIME_FUNCTION(Runtime_ThrowIfStaticPrototype) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ToMethod) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
-  Handle<JSFunction> clone = JSFunction::CloneClosure(fun);
-  Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
-  JSObject::SetOwnPropertyIgnoreAttributes(clone, home_object_symbol,
-                                           home_object, DONT_ENUM).Assert();
-  return *clone;
-}
-
-
 RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
   DCHECK(args.length() == 0);
   return isolate->heap()->home_object_symbol();
@@ -104,8 +92,9 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
   } else {
     if (super_class->IsNull()) {
       prototype_parent = isolate->factory()->null_value();
-    } else if (super_class->IsSpecFunction()) {
-      if (Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
+    } else if (super_class->IsConstructor()) {
+      if (super_class->IsJSFunction() &&
+          Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
         THROW_NEW_ERROR(
             isolate,
             NewTypeError(MessageTemplate::kExtendsValueGenerator, super_class),
@@ -125,7 +114,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
       }
       constructor_parent = super_class;
     } else {
-      // TODO(arv): Should be IsConstructor.
       THROW_NEW_ERROR(
           isolate,
           NewTypeError(MessageTemplate::kExtendsValueNotFunction, super_class),
@@ -137,6 +125,11 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   if (constructor->map()->is_strong()) {
     map->set_is_strong();
+    if (super_class->IsNull()) {
+      // Strong class is not permitted to extend null.
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kStrongExtendNull),
+                      Object);
+    }
   }
   Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);
@@ -202,28 +195,6 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
   CONVERT_SMI_ARG_CHECKED(start_position, 3);
   CONVERT_SMI_ARG_CHECKED(end_position, 4);
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, DefineClass(isolate, name, super_class, constructor,
-                                   start_position, end_position));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_DefineClassStrong) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
-  CONVERT_SMI_ARG_CHECKED(start_position, 3);
-  CONVERT_SMI_ARG_CHECKED(end_position, 4);
-
-  if (super_class->IsNull()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kStrongExtendNull));
-  }
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -380,7 +351,7 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Runtime::ToName(isolate, key));
+                                     Object::ToName(isolate, key));
   // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -477,7 +448,7 @@ static Object* StoreKeyedToSuper(Isolate* isolate, Handle<JSObject> home_object,
   }
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Runtime::ToName(isolate, key));
+                                     Object::ToName(isolate, key));
   // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
     return StoreElementToSuper(isolate, home_object, receiver, index, value,
@@ -527,46 +498,22 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, original_constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, actual_constructor, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, super_constructor, 1);
   JavaScriptFrameIterator it(isolate);
 
-  // Prepare the callee to the super call. The super constructor is stored as
-  // the prototype of the constructor we are currently executing.
-  Handle<Object> super_constructor;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, super_constructor,
-      Runtime::GetPrototype(isolate, actual_constructor));
+  // Determine the actual arguments passed to the function.
+  int argument_count = 0;
+  base::SmartArrayPointer<Handle<Object>> arguments =
+      Runtime::GetCallerArguments(isolate, 0, &argument_count);
 
-  // Find the frame that holds the actual arguments passed to the function.
-  it.AdvanceToArgumentsFrame();
-  JavaScriptFrame* frame = it.frame();
-
-  // Prepare the array containing all passed arguments.
-  int argument_count = frame->GetArgumentsLength();
-  Handle<FixedArray> elements =
-      isolate->factory()->NewUninitializedFixedArray(argument_count);
-  for (int i = 0; i < argument_count; ++i) {
-    elements->set(i, frame->GetParameter(i));
-  }
-  Handle<JSArray> arguments = isolate->factory()->NewJSArrayWithElements(
-      elements, FAST_ELEMENTS, argument_count);
-
-  // Call $reflectConstruct(<super>, <args>, <new.target>) now.
-  Handle<Object> reflect;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, reflect,
-      Object::GetProperty(isolate,
-                          handle(isolate->native_context()->builtins()),
-                          "$reflectConstruct"));
-  RUNTIME_ASSERT(reflect->IsJSFunction());  // Depends on --harmony-reflect.
-  Handle<Object> argv[] = {super_constructor, arguments, original_constructor};
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Execution::Call(isolate, reflect, isolate->factory()->undefined_value(),
-                      arraysize(argv), argv));
+      Execution::New(isolate, super_constructor, original_constructor,
+                     argument_count, arguments.get()));
 
   return *result;
 }
+
 }  // namespace internal
 }  // namespace v8

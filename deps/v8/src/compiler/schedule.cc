@@ -345,13 +345,9 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
     for (Node* node : *block) {
       os << "  " << *node;
       if (NodeProperties::IsTyped(node)) {
-        Bounds bounds = NodeProperties::GetBounds(node);
+        Type* type = NodeProperties::GetType(node);
         os << " : ";
-        bounds.lower->PrintTo(os);
-        if (!bounds.upper->Is(bounds.lower)) {
-          os << "..";
-          bounds.upper->PrintTo(os);
-        }
+        type->PrintTo(os);
       }
       os << "\n";
     }

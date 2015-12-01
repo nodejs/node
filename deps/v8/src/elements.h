@@ -38,6 +38,11 @@ class ElementsAccessor {
     return HasElement(holder, index, handle(holder->elements()));
   }
 
+  // Returns true if the backing store is compact in the given range
+  virtual bool IsPacked(Handle<JSObject> holder,
+                        Handle<FixedArrayBase> backing_store, uint32_t start,
+                        uint32_t end) = 0;
+
   virtual Handle<Object> Get(Handle<FixedArrayBase> backing_store,
                              uint32_t entry) = 0;
 
@@ -59,9 +64,6 @@ class ElementsAccessor {
   // destination array, padding any remaining uninitialized elements in the
   // destination array with the hole.
   static const int kCopyToEndAndInitializeToHole = -2;
-
-  static const int kDirectionForward = 1;
-  static const int kDirectionReverse = -1;
 
   // Copy elements from one backing store to another. Typically, callers specify
   // the source JSObject or JSArray in source_holder. If the holder's backing
@@ -98,9 +100,9 @@ class ElementsAccessor {
   virtual void GrowCapacityAndConvert(Handle<JSObject> object,
                                       uint32_t capacity) = 0;
 
-  virtual Handle<FixedArray> AddElementsToFixedArray(
-      Handle<JSObject> receiver, Handle<FixedArray> to,
-      FixedArray::KeyFilter filter) = 0;
+  virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
+                                           KeyAccumulator* accumulator,
+                                           FixedArray::KeyFilter filter) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
@@ -125,11 +127,31 @@ class ElementsAccessor {
                    Handle<Object> value, PropertyAttributes attributes,
                    uint32_t new_capacity) = 0;
 
-  // TODO(cbruni): Consider passing Arguments* instead of Object** depending on
-  // the requirements of future callers.
+  static Handle<JSArray> Concat(Isolate* isolate, Arguments* args,
+                                uint32_t concat_size);
+
   virtual uint32_t Push(Handle<JSArray> receiver,
-                        Handle<FixedArrayBase> backing_store, Object** objects,
-                        uint32_t start, int direction) = 0;
+                        Handle<FixedArrayBase> backing_store, Arguments* args,
+                        uint32_t push_size) = 0;
+
+  virtual uint32_t Unshift(Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> backing_store,
+                           Arguments* args, uint32_t unshift_size) = 0;
+
+  virtual Handle<JSArray> Slice(Handle<JSObject> receiver,
+                                Handle<FixedArrayBase> backing_store,
+                                uint32_t start, uint32_t end) = 0;
+
+  virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
+                                 Handle<FixedArrayBase> backing_store,
+                                 uint32_t start, uint32_t delete_count,
+                                 Arguments* args, uint32_t add_count) = 0;
+
+  virtual Handle<Object> Pop(Handle<JSArray> receiver,
+                             Handle<FixedArrayBase> backing_store) = 0;
+
+  virtual Handle<Object> Shift(Handle<JSArray> receiver,
+                               Handle<FixedArrayBase> backing_store) = 0;
 
  protected:
   friend class LookupIterator;

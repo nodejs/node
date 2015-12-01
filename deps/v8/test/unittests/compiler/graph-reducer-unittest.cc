@@ -5,6 +5,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/operator.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/test-utils.h"
@@ -63,15 +64,15 @@ class InPlaceABReducer final : public Reducer {
     switch (node->op()->opcode()) {
       case kOpcodeA0:
         EXPECT_EQ(0, node->InputCount());
-        node->set_op(&kOpB0);
+        NodeProperties::ChangeOp(node, &kOpB0);
         return Replace(node);
       case kOpcodeA1:
         EXPECT_EQ(1, node->InputCount());
-        node->set_op(&kOpB1);
+        NodeProperties::ChangeOp(node, &kOpB1);
         return Replace(node);
       case kOpcodeA2:
         EXPECT_EQ(2, node->InputCount());
-        node->set_op(&kOpB2);
+        NodeProperties::ChangeOp(node, &kOpB2);
         return Replace(node);
     }
     return NoChange();
@@ -178,15 +179,15 @@ class InPlaceBCReducer final : public Reducer {
     switch (node->op()->opcode()) {
       case kOpcodeB0:
         EXPECT_EQ(0, node->InputCount());
-        node->set_op(&kOpC0);
+        NodeProperties::ChangeOp(node, &kOpC0);
         return Replace(node);
       case kOpcodeB1:
         EXPECT_EQ(1, node->InputCount());
-        node->set_op(&kOpC1);
+        NodeProperties::ChangeOp(node, &kOpC1);
         return Replace(node);
       case kOpcodeB2:
         EXPECT_EQ(2, node->InputCount());
-        node->set_op(&kOpC2);
+        NodeProperties::ChangeOp(node, &kOpC2);
         return Replace(node);
     }
     return NoChange();
@@ -290,7 +291,8 @@ const IfExceptionHint kNoHint = IfExceptionHint::kLocallyCaught;
 TEST_F(AdvancedReducerTest, ReplaceWithValue_ValueUse) {
   CommonOperatorBuilder common(zone());
   Node* node = graph()->NewNode(&kMockOperator);
-  Node* use_value = graph()->NewNode(common.Return(), node);
+  Node* start = graph()->NewNode(common.Start(1));
+  Node* use_value = graph()->NewNode(common.Return(), node, start, start);
   Node* replacement = graph()->NewNode(&kMockOperator);
   GraphReducer graph_reducer(zone(), graph(), nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
@@ -306,16 +308,18 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_EffectUse) {
   CommonOperatorBuilder common(zone());
   Node* start = graph()->NewNode(common.Start(1));
   Node* node = graph()->NewNode(&kMockOpEffect, start);
-  Node* use_effect = graph()->NewNode(common.EffectPhi(1), node);
+  Node* use_control = graph()->NewNode(common.Merge(1), start);
+  Node* use_effect = graph()->NewNode(common.EffectPhi(1), node, use_control);
   Node* replacement = graph()->NewNode(&kMockOperator);
   GraphReducer graph_reducer(zone(), graph(), nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
   EXPECT_EQ(start, use_effect->InputAt(0));
   EXPECT_EQ(0, node->UseCount());
-  EXPECT_EQ(2, start->UseCount());
+  EXPECT_EQ(3, start->UseCount());
   EXPECT_EQ(0, replacement->UseCount());
-  EXPECT_THAT(start->uses(), UnorderedElementsAre(use_effect, node));
+  EXPECT_THAT(start->uses(),
+              UnorderedElementsAre(use_effect, use_control, node));
 }
 
 

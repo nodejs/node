@@ -12,13 +12,13 @@
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/frames.h"
-#include "src/heap-profiler.h"
 #include "src/hydrogen.h"
 #include "src/isolate.h"
 #include "src/lithium-allocator.h"
 #include "src/objects.h"
+#include "src/profiler/heap-profiler.h"
+#include "src/profiler/sampler.h"
 #include "src/runtime-profiler.h"
-#include "src/sampler.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
@@ -52,12 +52,6 @@ void V8::TearDown() {
   Isolate::GlobalTearDown();
   Sampler::TearDown();
   FlagList::ResetAllFlags();  // Frees memory held by string arguments.
-}
-
-
-void V8::SetReturnAddressLocationResolver(
-      ReturnAddressLocationResolver resolver) {
-  StackFrame::SetReturnAddressLocationResolver(resolver);
 }
 
 
@@ -123,6 +117,9 @@ v8::Platform* V8::GetCurrentPlatform() {
   DCHECK(platform_);
   return platform_;
 }
+
+
+void V8::SetPlatformForTesting(v8::Platform* platform) { platform_ = platform; }
 
 
 void V8::SetNativesBlob(StartupData* natives_blob) {

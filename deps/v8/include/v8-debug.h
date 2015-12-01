@@ -5,7 +5,7 @@
 #ifndef V8_V8_DEBUG_H_
 #define V8_V8_DEBUG_H_
 
-#include "v8.h"
+#include "v8.h"  // NOLINT(build/include)
 
 /**
  * Debugger support for the V8 JavaScript engine.

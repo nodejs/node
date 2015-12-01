@@ -11,6 +11,54 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+
+FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
+  switch (condition) {
+    case kSignedLessThan:
+      return kSignedGreaterThan;
+    case kSignedGreaterThanOrEqual:
+      return kSignedLessThanOrEqual;
+    case kSignedLessThanOrEqual:
+      return kSignedGreaterThanOrEqual;
+    case kSignedGreaterThan:
+      return kSignedLessThan;
+    case kUnsignedLessThan:
+      return kUnsignedGreaterThan;
+    case kUnsignedGreaterThanOrEqual:
+      return kUnsignedLessThanOrEqual;
+    case kUnsignedLessThanOrEqual:
+      return kUnsignedGreaterThanOrEqual;
+    case kUnsignedGreaterThan:
+      return kUnsignedLessThan;
+    case kFloatLessThanOrUnordered:
+      return kFloatGreaterThanOrUnordered;
+    case kFloatGreaterThanOrEqual:
+      return kFloatLessThanOrEqual;
+    case kFloatLessThanOrEqual:
+      return kFloatGreaterThanOrEqual;
+    case kFloatGreaterThanOrUnordered:
+      return kFloatLessThanOrUnordered;
+    case kFloatLessThan:
+      return kFloatGreaterThan;
+    case kFloatGreaterThanOrEqualOrUnordered:
+      return kFloatLessThanOrEqualOrUnordered;
+    case kFloatLessThanOrEqualOrUnordered:
+      return kFloatGreaterThanOrEqualOrUnordered;
+    case kFloatGreaterThan:
+      return kFloatLessThan;
+    case kEqual:
+    case kNotEqual:
+    case kOverflow:
+    case kNotOverflow:
+    case kUnorderedEqual:
+    case kUnorderedNotEqual:
+      return condition;
+  }
+  UNREACHABLE();
+  return condition;
+}
+
+
 std::ostream& operator<<(std::ostream& os,
                          const PrintableInstructionOperand& printable) {
   const InstructionOperand& op = printable.op_;
@@ -300,6 +348,22 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
       return os << "unsigned less than or equal";
     case kUnsignedGreaterThan:
       return os << "unsigned greater than";
+    case kFloatLessThanOrUnordered:
+      return os << "less than or unordered (FP)";
+    case kFloatGreaterThanOrEqual:
+      return os << "greater than or equal (FP)";
+    case kFloatLessThanOrEqual:
+      return os << "less than or equal (FP)";
+    case kFloatGreaterThanOrUnordered:
+      return os << "greater than or unordered (FP)";
+    case kFloatLessThan:
+      return os << "less than (FP)";
+    case kFloatGreaterThanOrEqualOrUnordered:
+      return os << "greater than, equal or unordered (FP)";
+    case kFloatLessThanOrEqualOrUnordered:
+      return os << "less than, equal or unordered (FP)";
+    case kFloatGreaterThan:
+      return os << "greater than (FP)";
     case kUnorderedEqual:
       return os << "unordered equal";
     case kUnorderedNotEqual:
@@ -417,7 +481,8 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       handler_(handler),
       needs_frame_(false),
       must_construct_frame_(false),
-      must_deconstruct_frame_(false) {}
+      must_deconstruct_frame_(false),
+      last_deferred_(RpoNumber::Invalid()) {}
 
 
 size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {

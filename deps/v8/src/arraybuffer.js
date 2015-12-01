@@ -16,6 +16,7 @@ var GlobalObject = global.Object;
 var MathMax;
 var MathMin;
 var ToNumber;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
@@ -93,9 +94,10 @@ function ArrayBufferIsViewJS(obj) {
     GlobalArrayBuffer.prototype, "constructor", GlobalArrayBuffer, DONT_ENUM);
 
 %AddNamedProperty(GlobalArrayBuffer.prototype,
-    symbolToStringTag, "ArrayBuffer", DONT_ENUM | READ_ONLY);
+    toStringTagSymbol, "ArrayBuffer", DONT_ENUM | READ_ONLY);
 
-utils.InstallGetter(GlobalArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
+utils.InstallGetter(GlobalArrayBuffer.prototype, "byteLength",
+                    ArrayBufferGetByteLen);
 
 utils.InstallFunctions(GlobalArrayBuffer, DONT_ENUM, [
   "isView", ArrayBufferIsViewJS

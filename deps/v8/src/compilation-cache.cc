@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/compilation-cache.h"
 
 #include "src/assembler.h"
-#include "src/compilation-cache.h"
+#include "src/counters.h"
+#include "src/factory.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -122,8 +124,8 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
     return script->name()->IsUndefined();
   }
   // Do the fast bailout checks first.
-  if (line_offset != script->line_offset()->value()) return false;
-  if (column_offset != script->column_offset()->value()) return false;
+  if (line_offset != script->line_offset()) return false;
+  if (column_offset != script->column_offset()) return false;
   // Check that both names are strings. If not, no match.
   if (!name->IsString() || !script->name()->IsString()) return false;
   // Are the origin_options same?

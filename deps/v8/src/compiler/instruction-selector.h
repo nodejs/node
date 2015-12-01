@@ -22,6 +22,7 @@ class BasicBlock;
 struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 class Linkage;
+class OperandGenerator;
 struct SwitchInfo;
 
 typedef ZoneVector<InstructionOperand> InstructionOperandVector;
@@ -173,8 +174,13 @@ class InstructionSelector final {
                             bool call_address_immediate);
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
+
+  enum class FrameStateInputKind { kAny, kStackSlot };
   void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,
-                           FrameStateDescriptor* descriptor);
+                           FrameStateDescriptor* descriptor,
+                           FrameStateInputKind kind);
+  static InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
+                                            FrameStateInputKind kind);
 
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============

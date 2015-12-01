@@ -6,7 +6,7 @@
 #define V8_V8_PROFILER_H_
 
 #include <vector>
-#include "v8.h"
+#include "v8.h"  // NOLINT(build/include)
 
 /**
  * Profiler support for the V8 JavaScript engine.

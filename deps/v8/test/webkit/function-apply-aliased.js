@@ -68,18 +68,5 @@ shouldBe("myFunctionWithApply.apply(myObject, arg1Array)", '[myFunctionWithApply
 shouldBe("forwarder(myFunctionWithApply, myObject, arg1Array)", '[myFunctionWithApply, "myFunctionWithApply.apply", myObject]');
 shouldBe("myFunctionWithApply.aliasedApply(myObject, arg1Array)", '[myObject, "myFunctionWithApply", "arg1"]');
 
-function stackOverflowTest() {
-    try {
-        var a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
-        stackOverflowTest();
-    } catch(e) {
-        // Blow the stack with a sparse array
-        shouldThrow("myFunction.apply(null, new Array(500000))");
-        // Blow the stack with a sparse array that is sufficiently large to cause int overflow
-        shouldThrow("myFunction.apply(null, new Array(1 << 30))");
-    }
-}
-stackOverflowTest();
-
 // Blow the stack recursing with arguments
 shouldThrow("recurseArguments.apply(null, new Array(50000))");

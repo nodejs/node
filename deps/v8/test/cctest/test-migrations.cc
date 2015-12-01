@@ -7,7 +7,6 @@
 
 #include "src/v8.h"
 
-#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/factory.h"
@@ -568,7 +567,6 @@ static void TestGeneralizeRepresentation(
   CHECK(expectations.Check(*map));
 
   Zone zone;
-  FakeStubForTesting stub(isolate);
 
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
@@ -583,7 +581,7 @@ static void TestGeneralizeRepresentation(
 
   // Create new maps by generalizing representation of propX field.
   Handle<Map> field_owner(map->FindFieldOwner(property_index), isolate);
-  CompilationInfo info(&stub, isolate, &zone);
+  CompilationInfo info("testing", isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
 
   info.dependencies()->AssumeFieldType(field_owner);
@@ -959,9 +957,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   CHECK(expectations2.Check(*map2));
 
   Zone zone;
-  FakeStubForTesting stub(isolate);
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
-  CompilationInfo info(&stub, isolate, &zone);
+  CompilationInfo info("testing", isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 
@@ -1045,9 +1042,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   CHECK(expectations2.Check(*map2));
 
   Zone zone;
-  FakeStubForTesting stub(isolate);
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
-  CompilationInfo info(&stub, isolate, &zone);
+  CompilationInfo info("testing", isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
   info.dependencies()->AssumeFieldType(field_owner);
 

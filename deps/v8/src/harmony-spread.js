@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $spreadArguments;
-var $spreadIterable;
-
 (function(global, utils) {
 
 'use strict';
@@ -43,7 +40,12 @@ function SpreadIterable(collection) {
   return args;
 }
 
-$spreadArguments = SpreadArguments;
-$spreadIterable = SpreadIterable;
+// ----------------------------------------------------------------------------
+// Exports
+
+%InstallToContext([
+  "spread_arguments", SpreadArguments,
+  "spread_iterable", SpreadIterable,
+]);
 
 })

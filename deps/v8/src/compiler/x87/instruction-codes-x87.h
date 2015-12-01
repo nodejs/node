@@ -74,6 +74,8 @@ namespace compiler {
   V(X87Movss)                      \
   V(X87Movsd)                      \
   V(X87Lea)                        \
+  V(X87BitcastFI)                  \
+  V(X87BitcastIF)                  \
   V(X87Push)                       \
   V(X87PushFloat64)                \
   V(X87PushFloat32)                \

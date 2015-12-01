@@ -21,7 +21,7 @@ void BitVector::Print() {
       PrintF("%d", i);
     }
   }
-  PrintF("}");
+  PrintF("}\n");
 }
 #endif
 

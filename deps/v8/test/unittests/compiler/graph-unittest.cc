@@ -5,6 +5,8 @@
 #include "test/unittests/compiler/graph-unittest.h"
 
 #include "src/compiler/node-properties.h"
+#include "src/factory.h"
+#include "src/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
@@ -51,33 +53,25 @@ Node* GraphTest::NumberConstant(volatile double value) {
 
 
 Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
-  return HeapConstant(Unique<HeapObject>::CreateUninitialized(value));
-}
-
-
-Node* GraphTest::HeapConstant(const Unique<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
-  Type* type = Type::Constant(value.handle(), zone());
-  NodeProperties::SetBounds(node, Bounds(type));
+  Type* type = Type::Constant(value, zone());
+  NodeProperties::SetType(node, type);
   return node;
 }
 
 
 Node* GraphTest::FalseConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->false_value()));
+  return HeapConstant(factory()->false_value());
 }
 
 
 Node* GraphTest::TrueConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->true_value()));
+  return HeapConstant(factory()->true_value());
 }
 
 
 Node* GraphTest::UndefinedConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->undefined_value()));
+  return HeapConstant(factory()->undefined_value());
 }
 
 
@@ -92,20 +86,17 @@ Node* GraphTest::EmptyFrameState() {
 
 
 Matcher<Node*> GraphTest::IsFalseConstant() {
-  return IsHeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->false_value()));
+  return IsHeapConstant(factory()->false_value());
 }
 
 
 Matcher<Node*> GraphTest::IsTrueConstant() {
-  return IsHeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->true_value()));
+  return IsHeapConstant(factory()->true_value());
 }
 
 
 Matcher<Node*> GraphTest::IsUndefinedConstant() {
-  return IsHeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->undefined_value()));
+  return IsHeapConstant(factory()->undefined_value());
 }
 
 
@@ -118,7 +109,7 @@ TypedGraphTest::~TypedGraphTest() {}
 
 Node* TypedGraphTest::Parameter(Type* type, int32_t index) {
   Node* node = GraphTest::Parameter(index);
-  NodeProperties::SetBounds(node, Bounds(type));
+  NodeProperties::SetType(node, type);
   return node;
 }
 

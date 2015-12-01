@@ -105,8 +105,8 @@ inline unsigned CountTrailingZeros32(uint32_t value) {
 #else
   if (value == 0) return 32;
   unsigned count = 0;
-  for (value ^= value - 1; value >>= 1; ++count)
-    ;
+  for (value ^= value - 1; value >>= 1; ++count) {
+  }
   return count;
 #endif
 }
@@ -121,8 +121,8 @@ inline unsigned CountTrailingZeros64(uint64_t value) {
 #else
   if (value == 0) return 64;
   unsigned count = 0;
-  for (value ^= value - 1; value >>= 1; ++count)
-    ;
+  for (value ^= value - 1; value >>= 1; ++count) {
+  }
   return count;
 #endif
 }

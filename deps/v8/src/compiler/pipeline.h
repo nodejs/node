@@ -28,16 +28,15 @@ class Pipeline {
   // Run the entire pipeline and generate a handle to a code object.
   Handle<Code> GenerateCode();
 
-  // Run the pipeline on a machine graph and generate code. If {schedule} is
-  // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
-                                             Graph* graph,
-                                             Schedule* schedule = nullptr);
+  // Run the pipeline on an interpreter bytecode handler machine graph and
+  // generate code.
+  static Handle<Code> GenerateCodeForInterpreter(
+      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+      Schedule* schedule, const char* bytecode_name);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
-  static Handle<Code> GenerateCodeForTesting(Isolate* isolate,
-                                             CallDescriptor* call_descriptor,
+  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
                                              Graph* graph,
                                              Schedule* schedule = nullptr);
 
@@ -46,11 +45,14 @@ class Pipeline {
                                           InstructionSequence* sequence,
                                           bool run_verifier);
 
- private:
+  // Run the pipeline on a machine graph and generate code. If {schedule} is
+  // {nullptr}, then compute a new schedule for code generation.
   static Handle<Code> GenerateCodeForTesting(CompilationInfo* info,
                                              CallDescriptor* call_descriptor,
-                                             Graph* graph, Schedule* schedule);
+                                             Graph* graph,
+                                             Schedule* schedule = nullptr);
 
+ private:
   CompilationInfo* info_;
   PipelineData* data_;
 

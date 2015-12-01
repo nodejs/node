@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/snapshot/serialize.h"
 
 #include "src/accessors.h"
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
-#include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
@@ -17,11 +16,12 @@
 #include "src/ic/stub-cache.h"
 #include "src/objects.h"
 #include "src/parser.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/natives.h"
-#include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/snapshot-source-sink.h"
+#include "src/v8.h"
 #include "src/v8threads.h"
 #include "src/version.h"
 
@@ -121,8 +121,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "InvokeFunctionCallback");
   Add(ExternalReference::invoke_accessor_getter_callback(isolate).address(),
       "InvokeAccessorGetterCallback");
-  Add(ExternalReference::flush_icache_function(isolate).address(),
-      "CpuFeatures::FlushICache");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),
@@ -131,6 +129,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "double_constants.minus_one_half");
   Add(ExternalReference::stress_deopt_count(isolate).address(),
       "Isolate::stress_deopt_count_address()");
+  Add(ExternalReference::vector_store_virtual_register(isolate).address(),
+      "Isolate::vector_store_virtual_register()");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),
@@ -354,10 +354,9 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
   map_ = isolate->root_index_map();
   if (map_ != NULL) return;
   map_ = new HashMap(HashMap::PointersMatch);
-  Object** root_array = isolate->heap()->roots_array_start();
   for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
-    Object* root = root_array[root_index];
+    Object* root = isolate->heap()->root(root_index);
     // Omit root entries that can be written after initialization. They must
     // not be referenced through the root list in the snapshot.
     if (root->IsHeapObject() &&
@@ -506,7 +505,8 @@ void Deserializer::FlushICacheForNewIsolate() {
   PageIterator it(isolate_->heap()->code_space());
   while (it.has_next()) {
     Page* p = it.next();
-    CpuFeatures::FlushICache(p->area_start(), p->area_end() - p->area_start());
+    Assembler::FlushICache(isolate_, p->area_start(),
+                           p->area_end() - p->area_start());
   }
 }
 
@@ -514,8 +514,8 @@ void Deserializer::FlushICacheForNewIsolate() {
 void Deserializer::FlushICacheForNewCodeObjects() {
   DCHECK(deserializing_user_code_);
   for (Code* code : new_code_objects_) {
-    CpuFeatures::FlushICache(code->instruction_start(),
-                             code->instruction_size());
+    Assembler::FlushICache(isolate_, code->instruction_start(),
+                           code->instruction_size());
   }
 }
 
@@ -636,7 +636,7 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
       FlushICacheForNewCodeObjects();
       result = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
     }
-    CommitNewInternalizedStrings(isolate);
+    CommitPostProcessedObjects(isolate);
     return scope.CloseAndEscape(result);
   }
 }
@@ -660,18 +660,27 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
 
 void Deserializer::DeserializeDeferredObjects() {
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
-    int space = code & kSpaceMask;
-    DCHECK(space <= kNumberOfSpaces);
-    DCHECK(code - space == kNewObject);
-    HeapObject* object = GetBackReferencedObject(space);
-    int size = source_.GetInt() << kPointerSizeLog2;
-    Address obj_address = object->address();
-    Object** start = reinterpret_cast<Object**>(obj_address + kPointerSize);
-    Object** end = reinterpret_cast<Object**>(obj_address + size);
-    bool filled = ReadData(start, end, space, obj_address);
-    CHECK(filled);
-    DCHECK(CanBeDeferred(object));
-    PostProcessNewObject(object, space);
+    switch (code) {
+      case kAlignmentPrefix:
+      case kAlignmentPrefix + 1:
+      case kAlignmentPrefix + 2:
+        SetAlignment(code);
+        break;
+      default: {
+        int space = code & kSpaceMask;
+        DCHECK(space <= kNumberOfSpaces);
+        DCHECK(code - space == kNewObject);
+        HeapObject* object = GetBackReferencedObject(space);
+        int size = source_.GetInt() << kPointerSizeLog2;
+        Address obj_address = object->address();
+        Object** start = reinterpret_cast<Object**>(obj_address + kPointerSize);
+        Object** end = reinterpret_cast<Object**>(obj_address + size);
+        bool filled = ReadData(start, end, space, obj_address);
+        CHECK(filled);
+        DCHECK(CanBeDeferred(object));
+        PostProcessNewObject(object, space);
+      }
+    }
   }
 }
 
@@ -729,8 +738,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
         }
       }
     } else if (obj->IsScript()) {
-      // Assign a new script id to avoid collision.
-      Script::cast(obj)->set_id(isolate_->heap()->NextScriptId());
+      new_scripts_.Add(handle(Script::cast(obj)));
     } else {
       DCHECK(CanBeDeferred(obj));
     }
@@ -763,13 +771,23 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
 }
 
 
-void Deserializer::CommitNewInternalizedStrings(Isolate* isolate) {
+void Deserializer::CommitPostProcessedObjects(Isolate* isolate) {
   StringTable::EnsureCapacityForDeserialization(
       isolate, new_internalized_strings_.length());
   for (Handle<String> string : new_internalized_strings_) {
     StringTableInsertionKey key(*string);
     DCHECK_NULL(StringTable::LookupKeyIfExists(isolate, &key));
     StringTable::LookupKey(isolate, &key);
+  }
+
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  for (Handle<Script> script : new_scripts_) {
+    // Assign a new script id to avoid collision.
+    script->set_id(isolate_->heap()->NextScriptId());
+    // Add script to list.
+    Handle<Object> list = WeakFixedArray::Add(factory->script_list(), script);
+    heap->SetRootScriptList(*list);
   }
 }
 
@@ -946,8 +964,9 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         emit_write_barrier = (space_number == NEW_SPACE);                      \
         new_object = GetBackReferencedObject(data & kSpaceMask);               \
       } else if (where == kRootArray) {                                        \
-        int root_id = source_.GetInt();                                        \
-        new_object = isolate->heap()->roots_array_start()[root_id];            \
+        int id = source_.GetInt();                                             \
+        Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id); \
+        new_object = isolate->heap()->root(root_index);                        \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else if (where == kPartialSnapshotCache) {                             \
         int cache_index = source_.GetInt();                                    \
@@ -1202,12 +1221,9 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
       case kAlignmentPrefix:
       case kAlignmentPrefix + 1:
-      case kAlignmentPrefix + 2: {
-        DCHECK_EQ(kWordAligned, next_alignment_);
-        next_alignment_ =
-            static_cast<AllocationAlignment>(data - (kAlignmentPrefix - 1));
+      case kAlignmentPrefix + 2:
+        SetAlignment(data);
         break;
-      }
 
       STATIC_ASSERT(kNumberOfRootArrayConstants == Heap::kOldSpaceRoots);
       STATIC_ASSERT(kNumberOfRootArrayConstants == 32);
@@ -1221,8 +1237,9 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
       SIXTEEN_CASES(kRootArrayConstants)
       SIXTEEN_CASES(kRootArrayConstants + 16) {
-        int root_id = data & kRootArrayConstantsMask;
-        Object* object = isolate->heap()->roots_array_start()[root_id];
+        int id = data & kRootArrayConstantsMask;
+        Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
+        Object* object = isolate->heap()->root(root_index);
         DCHECK(!isolate->heap()->InNewSpace(object));
         UnalignedCopy(current++, &object);
         break;
@@ -1365,6 +1382,66 @@ void Serializer::OutputStatistics(const char* name) {
   PrintF("\n");
 #endif  // OBJECT_PRINT
 }
+
+
+class Serializer::ObjectSerializer : public ObjectVisitor {
+ public:
+  ObjectSerializer(Serializer* serializer, Object* o, SnapshotByteSink* sink,
+                   HowToCode how_to_code, WhereToPoint where_to_point)
+      : serializer_(serializer),
+        object_(HeapObject::cast(o)),
+        sink_(sink),
+        reference_representation_(how_to_code + where_to_point),
+        bytes_processed_so_far_(0),
+        is_code_object_(o->IsCode()),
+        code_has_been_output_(false) {}
+  void Serialize();
+  void SerializeDeferred();
+  void VisitPointers(Object** start, Object** end);
+  void VisitEmbeddedPointer(RelocInfo* target);
+  void VisitExternalReference(Address* p);
+  void VisitExternalReference(RelocInfo* rinfo);
+  void VisitInternalReference(RelocInfo* rinfo);
+  void VisitCodeTarget(RelocInfo* target);
+  void VisitCodeEntry(Address entry_address);
+  void VisitCell(RelocInfo* rinfo);
+  void VisitRuntimeEntry(RelocInfo* reloc);
+  // Used for seralizing the external strings that hold the natives source.
+  void VisitExternalOneByteString(
+      v8::String::ExternalOneByteStringResource** resource);
+  // We can't serialize a heap with external two byte strings.
+  void VisitExternalTwoByteString(
+      v8::String::ExternalStringResource** resource) {
+    UNREACHABLE();
+  }
+
+ private:
+  void SerializePrologue(AllocationSpace space, int size, Map* map);
+
+  bool SerializeExternalNativeSourceString(
+      int builtin_count,
+      v8::String::ExternalOneByteStringResource** resource_pointer,
+      FixedArray* source_cache, int resource_index);
+
+  enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
+  // This function outputs or skips the raw data between the last pointer and
+  // up to the current position.  It optionally can just return the number of
+  // bytes to skip instead of performing a skip instruction, in case the skip
+  // can be merged into the next instruction.
+  int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
+  // External strings are serialized in a way to resemble sequential strings.
+  void SerializeExternalString();
+
+  Address PrepareCode();
+
+  Serializer* serializer_;
+  HeapObject* object_;
+  SnapshotByteSink* sink_;
+  int reference_representation_;
+  int bytes_processed_so_far_;
+  bool is_code_object_;
+  bool code_has_been_output_;
+};
 
 
 void Serializer::SerializeDeferredObjects() {
@@ -1528,6 +1605,11 @@ void SerializerDeserializer::Iterate(Isolate* isolate,
 }
 
 
+bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
+  return !o->IsString() && !o->IsScript();
+}
+
+
 int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
   Isolate* isolate = this->isolate();
   List<Object*>* cache = isolate->partial_snapshot_cache();
@@ -1545,6 +1627,19 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
     return new_index;
   }
   return index;
+}
+
+
+bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
+  // Scripts should be referred only through shared function infos.  We can't
+  // allow them to be part of the partial snapshot because they contain a
+  // unique ID, and deserializing several partial snapshots containing script
+  // would cause dupes.
+  DCHECK(!o->IsScript());
+  return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
+         o->IsCode() || o->IsScopeInfo() || o->IsExecutableAccessorInfo() ||
+         o->map() ==
+             startup_serializer_->isolate()->heap()->fixed_cow_array_map();
 }
 
 
@@ -1628,6 +1723,17 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
     return true;
   }
   return false;
+}
+
+
+StartupSerializer::StartupSerializer(Isolate* isolate, SnapshotByteSink* sink)
+    : Serializer(isolate, sink), root_index_wave_front_(0) {
+  // Clear the cache of objects used by the partial snapshot.  After the
+  // strong roots have been serialized we can create a partial snapshot
+  // which will repopulate the cache with objects needed by that partial
+  // snapshot.
+  isolate->partial_snapshot_cache()->Clear();
+  InitializeCodeAddressMap();
 }
 
 
@@ -1982,6 +2088,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   CHECK_EQ(0, bytes_processed_so_far_);
   bytes_processed_so_far_ = kPointerSize;
 
+  serializer_->PutAlignmentPrefix(object_);
   sink_->Put(kNewObject + reference.space(), "deferred object");
   serializer_->PutBackReference(object_, reference);
   sink_->PutInt(size >> kPointerSizeLog2, "deferred object size");
@@ -2381,6 +2488,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
           SerializeGeneric(code_object, how_to_code, where_to_point);
         }
         return;
+      case Code::WASM_FUNCTION:
+        UNREACHABLE();
     }
     UNREACHABLE();
   }
@@ -2438,8 +2547,7 @@ void CodeSerializer::SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
 
   if (FLAG_trace_serializer) {
     PrintF(" Encoding code stub %s as %d\n",
-           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key), false),
-           index);
+           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key)), index);
   }
 
   sink_->Put(kAttachedReference + how_to_code + where_to_point, "CodeStub");
@@ -2721,6 +2829,11 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
   if (!Checksum(Payload()).Check(c1, c2)) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
+}
+
+
+uint32_t SerializedCodeData::SourceHash(String* source) const {
+  return source->length();
 }
 
 

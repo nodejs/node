@@ -24,6 +24,12 @@ void AstLiteralReindexer::VisitExportDeclaration(ExportDeclaration* node) {
 void AstLiteralReindexer::VisitEmptyStatement(EmptyStatement* node) {}
 
 
+void AstLiteralReindexer::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* node) {
+  Visit(node->statement());
+}
+
+
 void AstLiteralReindexer::VisitContinueStatement(ContinueStatement* node) {}
 
 
@@ -172,6 +178,9 @@ void AstLiteralReindexer::VisitCompareOperation(CompareOperation* node) {
 void AstLiteralReindexer::VisitSpread(Spread* node) {
   Visit(node->expression());
 }
+
+
+void AstLiteralReindexer::VisitEmptyParentheses(EmptyParentheses* node) {}
 
 
 void AstLiteralReindexer::VisitForInStatement(ForInStatement* node) {

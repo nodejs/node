@@ -277,7 +277,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       ICacheFlushMode icache_flush_mode) {
   Memory::int32_at(pc) = static_cast<int32_t>(target - pc - 4);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CpuFeatures::FlushICache(pc, sizeof(int32_t));
+    Assembler::FlushICacheWithoutIsolate(pc, sizeof(int32_t));
   }
 }
 
@@ -404,7 +404,7 @@ void RelocInfo::set_target_object(Object* target,
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Memory::Object_at(pc_) = target;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CpuFeatures::FlushICache(pc_, sizeof(Address));
+    Assembler::FlushICacheWithoutIsolate(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
@@ -451,7 +451,7 @@ void RelocInfo::set_target_cell(Cell* cell,
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CpuFeatures::FlushICache(pc_, sizeof(Address));
+    Assembler::FlushICacheWithoutIsolate(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL) {
@@ -527,8 +527,8 @@ void RelocInfo::set_debug_call_address(Address target) {
   DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
   Memory::Address_at(pc_ + Assembler::kPatchDebugBreakSlotAddressOffset) =
       target;
-  CpuFeatures::FlushICache(pc_ + Assembler::kPatchDebugBreakSlotAddressOffset,
-                           sizeof(Address));
+  Assembler::FlushICacheWithoutIsolate(
+      pc_ + Assembler::kPatchDebugBreakSlotAddressOffset, sizeof(Address));
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -541,7 +541,7 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(this);
-    CpuFeatures::FlushICache(pc_, sizeof(Address));
+    Assembler::FlushICacheWithoutIsolate(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
   } else if (mode == RelocInfo::CELL) {
@@ -566,7 +566,7 @@ void RelocInfo::Visit(Heap* heap) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     StaticVisitor::VisitEmbeddedPointer(heap, this);
-    CpuFeatures::FlushICache(pc_, sizeof(Address));
+    Assembler::FlushICache(heap->isolate(), pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(heap, this);
   } else if (mode == RelocInfo::CELL) {

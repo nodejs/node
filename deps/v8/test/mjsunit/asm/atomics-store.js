@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-atomics --harmony-sharedarraybuffer
+// Flags: --harmony-sharedarraybuffer
 
 function Module(stdlib, foreign, heap) {
   "use asm";
@@ -12,8 +12,6 @@ function Module(stdlib, foreign, heap) {
   var MEMU8 = new stdlib.Uint8Array(heap);
   var MEMU16 = new stdlib.Uint16Array(heap);
   var MEMU32 = new stdlib.Uint32Array(heap);
-  var MEMF32 = new stdlib.Float32Array(heap);
-  var MEMF64 = new stdlib.Float64Array(heap);
   var store = stdlib.Atomics.store;
   var fround = stdlib.Math.fround;
 
@@ -53,18 +51,6 @@ function Module(stdlib, foreign, heap) {
     return store(MEMU32, i, x)>>>0;
   }
 
-  function storef32(i, x) {
-    i = i | 0;
-    x = fround(x);
-    return fround(store(MEMF32, i, x));
-  }
-
-  function storef64(i, x) {
-    i = i | 0;
-    x = +x;
-    return +store(MEMF64, i, x);
-  }
-
   return {
     storei8: storei8,
     storei16: storei16,
@@ -72,8 +58,6 @@ function Module(stdlib, foreign, heap) {
     storeu8: storeu8,
     storeu16: storeu16,
     storeu32: storeu32,
-    storef32: storef32,
-    storef64: storef64
   };
 }
 
@@ -105,5 +89,3 @@ testElementType(Int32Array, m.storei32, 0);
 testElementType(Uint8Array, m.storeu8, 0);
 testElementType(Uint16Array, m.storeu16, 0);
 testElementType(Uint32Array, m.storeu32, 0);
-testElementType(Float32Array, m.storef32, NaN);
-testElementType(Float64Array, m.storef64, NaN);

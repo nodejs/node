@@ -10,6 +10,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/isolate-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -88,7 +89,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
 
   Handle<JSArrayBuffer> NewArrayBuffer(void* bytes, size_t byte_length) {
     Handle<JSArrayBuffer> buffer = factory()->NewJSArrayBuffer();
-    Runtime::SetupArrayBuffer(isolate(), buffer, true, bytes, byte_length);
+    JSArrayBuffer::Setup(buffer, isolate(), true, bytes, byte_length);
     return buffer;
   }
 
@@ -111,8 +112,8 @@ class JSTypedLoweringTest : public TypedGraphTest {
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithBoolean) {
   Node* input = Parameter(Type::Boolean(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->UnaryNot(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsBooleanNot(input));
 }
@@ -121,8 +122,8 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithBoolean) {
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithOrderedNumber) {
   Node* input = Parameter(Type::OrderedNumber(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->UnaryNot(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberEqual(input, IsNumberConstant(0)));
 }
@@ -150,8 +151,8 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithFalsish) {
           zone()),
       0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->UnaryNot(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
@@ -165,8 +166,8 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithTruish) {
           zone()),
       0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->UnaryNot(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFalseConstant());
 }
@@ -175,8 +176,8 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithTruish) {
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithNonZeroPlainNumber) {
   Node* input = Parameter(Type::Range(1.0, 42.0, zone()), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->UnaryNot(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFalseConstant());
 }
@@ -185,8 +186,8 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithNonZeroPlainNumber) {
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithString) {
   Node* input = Parameter(Type::String(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->UnaryNot(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
@@ -199,8 +200,8 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithString) {
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->UnaryNot(), input,
+                                        context, graph()->start()));
   ASSERT_FALSE(r.Changed());
 }
 
@@ -235,14 +236,12 @@ TEST_F(JSTypedLoweringTest, ParameterWithNull) {
   {
     Reduction r = Reduce(Parameter(Type::Constant(null, zone())));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsHeapConstant(Unique<HeapObject>::CreateImmovable(null)));
+    EXPECT_THAT(r.replacement(), IsHeapConstant(null));
   }
   {
     Reduction r = Reduce(Parameter(Type::Null()));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsHeapConstant(Unique<HeapObject>::CreateImmovable(null)));
+    EXPECT_THAT(r.replacement(), IsHeapConstant(null));
   }
 }
 
@@ -291,14 +290,12 @@ TEST_F(JSTypedLoweringTest, ParameterWithUndefined) {
   {
     Reduction r = Reduce(Parameter(Type::Undefined()));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsHeapConstant(Unique<HeapObject>::CreateImmovable(undefined)));
+    EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
   {
     Reduction r = Reduce(Parameter(Type::Constant(undefined, zone())));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsHeapConstant(Unique<HeapObject>::CreateImmovable(undefined)));
+    EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
 }
 
@@ -310,8 +307,8 @@ TEST_F(JSTypedLoweringTest, ParameterWithUndefined) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithBoolean) {
   Node* input = Parameter(Type::Boolean(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(input, r.replacement());
 }
@@ -339,8 +336,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithFalsish) {
           zone()),
       0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFalseConstant());
 }
@@ -354,8 +351,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithTruish) {
           zone()),
       0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
@@ -364,8 +361,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithTruish) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
   Node* input = Parameter(Type::Range(1, V8_INFINITY, zone()), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
@@ -374,8 +371,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
   Node* input = Parameter(Type::OrderedNumber(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0.0))));
@@ -385,8 +382,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
   Node* input = Parameter(Type::String(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
+                                        context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
@@ -399,8 +396,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
+                                        context, graph()->start()));
   ASSERT_FALSE(r.Changed());
 }
 
@@ -432,8 +429,9 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const context = UndefinedConstant();
   TRACED_FOREACH(Type*, type, kJSTypes) {
     Node* const lhs = Parameter(type);
-    Reduction r = Reduce(
-        graph()->NewNode(javascript()->StrictEqual(), lhs, the_hole, context));
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->StrictEqual(), lhs, the_hole,
+                                context, graph()->start(), graph()->start()));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsFalseConstant());
   }
@@ -445,7 +443,8 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
   Node* const rhs = Parameter(Type::Unique(), 1);
   Node* const context = Parameter(Type::Any(), 2);
   Reduction r =
-      Reduce(graph()->NewNode(javascript()->StrictEqual(), lhs, rhs, context));
+      Reduce(graph()->NewNode(javascript()->StrictEqual(), lhs, rhs, context,
+                              graph()->start(), graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsReferenceEqual(Type::Unique(), lhs, rhs));
 }
@@ -745,13 +744,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* control = graph()->start();
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context);
-      for (int i = 0;
-           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
-        node->AppendInput(zone(), EmptyFrameState());
-      }
-      node->AppendInput(zone(), effect);
-      node->AppendInput(zone(), control);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context,
+                                    EmptyFrameState(), EmptyFrameState(),
+                                    effect, control);
       Reduction r = Reduce(node);
 
       Matcher<Node*> offset_matcher =
@@ -793,13 +788,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* control = graph()->start();
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context);
-      for (int i = 0;
-           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
-        node->AppendInput(zone(), EmptyFrameState());
-      }
-      node->AppendInput(zone(), effect);
-      node->AppendInput(zone(), control);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context,
+                                    EmptyFrameState(), EmptyFrameState(),
+                                    effect, control);
       Reduction r = Reduce(node);
 
       Matcher<Node*> offset_matcher =
@@ -854,13 +845,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* control = graph()->start();
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context);
-      for (int i = 0;
-           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
-        node->AppendInput(zone(), EmptyFrameState());
-      }
-      node->AppendInput(zone(), effect);
-      node->AppendInput(zone(), control);
+      Node* node = graph()->NewNode(op, base, key, value, vector, context,
+                                    EmptyFrameState(), EmptyFrameState(),
+                                    effect, control);
       Reduction r = Reduce(node);
 
       ASSERT_TRUE(r.Changed());
@@ -885,8 +872,8 @@ TEST_F(JSTypedLoweringTest, JSLoadGlobalConstants) {
       Handle<String>(isolate()->heap()->nan_string(), isolate())  // --
   };
   Matcher<Node*> matches[] = {
-      IsHeapConstant(Unique<HeapObject>::CreateImmovable(
-          Handle<HeapObject>(isolate()->heap()->undefined_value(), isolate()))),
+      IsHeapConstant(
+          Handle<HeapObject>(isolate()->heap()->undefined_value(), isolate())),
       IsNumberConstant(std::numeric_limits<double>::infinity()),
       IsNumberConstant(IsNaN())  // --
   };
@@ -899,9 +886,8 @@ TEST_F(JSTypedLoweringTest, JSLoadGlobalConstants) {
   Node* control = graph()->start();
 
   for (size_t i = 0; i < arraysize(names); i++) {
-    Unique<Name> name = Unique<Name>::CreateImmovable(names[i]);
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadGlobal(name, feedback), context, global, vector,
+        javascript()->LoadGlobal(names[i], feedback), context, global, vector,
         context, EmptyFrameState(), EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
@@ -916,7 +902,7 @@ TEST_F(JSTypedLoweringTest, JSLoadGlobalConstants) {
 
 TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
   VectorSlotPair feedback;
-  Unique<Name> name = Unique<Name>::CreateImmovable(factory()->length_string());
+  Handle<Name> name = factory()->length_string();
   Node* const receiver = Parameter(Type::String(), 0);
   Node* const vector = Parameter(Type::Internal(), 1);
   Node* const context = UndefinedConstant();
@@ -1022,12 +1008,11 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
                                           rhs, context, frame_state0,
                                           frame_state1, effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(
-        r.replacement(),
-        IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
-                      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
-                                             NOT_TENURED).code())),
-               lhs, rhs, context, frame_state0, effect, control));
+    EXPECT_THAT(r.replacement(),
+                IsCall(_, IsHeapConstant(CodeFactory::StringAdd(
+                                             isolate(), STRING_ADD_CHECK_NONE,
+                                             NOT_TENURED).code()),
+                       lhs, rhs, context, frame_state0, effect, control));
   }
 }
 
@@ -1043,16 +1028,13 @@ TEST_F(JSTypedLoweringTest, JSCreateClosure) {
   Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
   Reduction r =
       Reduce(graph()->NewNode(javascript()->CreateClosure(shared, NOT_TENURED),
-                              context, context, effect, control));
+                              context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsCall(_,
-             IsHeapConstant(Unique<HeapObject>::CreateImmovable(
-                 CodeFactory::FastNewClosure(isolate(), shared->language_mode(),
-                                             shared->kind()).code())),
-             IsHeapConstant(Unique<HeapObject>::CreateImmovable(shared)),
-             effect, control));
+  EXPECT_THAT(r.replacement(),
+              IsCall(_, IsHeapConstant(CodeFactory::FastNewClosure(
+                                           isolate(), shared->language_mode(),
+                                           shared->kind()).code()),
+                     IsHeapConstant(shared), effect, control));
 }
 
 
@@ -1074,8 +1056,8 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralArray) {
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
-      IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
-                    CodeFactory::FastCloneShallowArray(isolate()).code())),
+      IsCall(_, IsHeapConstant(
+                    CodeFactory::FastCloneShallowArray(isolate()).code()),
              input0, input1, input2, context, frame_state, effect, control));
 }
 
@@ -1098,8 +1080,8 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
-      IsCall(_, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
-                    CodeFactory::FastCloneShallowObject(isolate(), 6).code())),
+      IsCall(_, IsHeapConstant(
+                    CodeFactory::FastCloneShallowObject(isolate(), 6).code()),
              input0, input1, input2, _, context, frame_state, effect, control));
 }
 

@@ -1069,6 +1069,28 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kX87BitcastFI: {
+      __ fstp(0);
+      __ mov(i.OutputRegister(), MemOperand(esp, 0));
+      __ lea(esp, Operand(esp, kFloatSize));
+      break;
+    }
+    case kX87BitcastIF: {
+      if (instr->InputAt(0)->IsRegister()) {
+        __ lea(esp, Operand(esp, -kFloatSize));
+        __ mov(MemOperand(esp, 0), i.InputRegister(0));
+        __ fstp(0);
+        __ fld_s(MemOperand(esp, 0));
+        __ lea(esp, Operand(esp, kFloatSize));
+      } else {
+        __ lea(esp, Operand(esp, -kDoubleSize));
+        __ mov(MemOperand(esp, 0), i.InputRegister(0));
+        __ fstp(0);
+        __ fld_d(MemOperand(esp, 0));
+        __ lea(esp, Operand(esp, kDoubleSize));
+      }
+      break;
+    }
     case kX87Lea: {
       AddressingMode mode = AddressingModeField::decode(instr->opcode());
       // Shorten "leal" to "addl", "subl" or "shll" if the register allocation
@@ -1224,6 +1246,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cmp(esp, Operand::StaticVariable(stack_limit));
       break;
     }
+    case kCheckedLoadWord64:
+    case kCheckedStoreWord64:
+      UNREACHABLE();  // currently unsupported checked int64 load/store.
+      break;
   }
 }  // NOLINT(readability/fn_size)
 
@@ -1277,6 +1303,9 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
       break;
     case kNotOverflow:
       __ j(no_overflow, tlabel);
+      break;
+    default:
+      UNREACHABLE();
       break;
   }
   // Add a jump if not falling through to the next block.
@@ -1347,6 +1376,9 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       break;
     case kNotOverflow:
       cc = no_overflow;
+      break;
+    default:
+      UNREACHABLE();
       break;
   }
   __ bind(&check);
@@ -1838,15 +1870,17 @@ void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
 
 
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
+  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
+    return;
+  }
+
   int space_needed = Deoptimizer::patch_size();
-  if (!info()->IsStub()) {
-    // Ensure that we have enough space after the previous lazy-bailout
-    // instruction for patching the code here.
-    int current_pc = masm()->pc_offset();
-    if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-      int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-      __ Nop(padding_size);
-    }
+  // Ensure that we have enough space after the previous lazy-bailout
+  // instruction for patching the code here.
+  int current_pc = masm()->pc_offset();
+  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
+    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
+    __ Nop(padding_size);
   }
 }
 

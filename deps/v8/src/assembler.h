@@ -101,6 +101,11 @@ class AssemblerBase: public Malloced {
 
   static const int kMinimalBufferSize = 4*KB;
 
+  static void FlushICache(Isolate* isolate, void* start, size_t size);
+
+  // TODO(all): Help get rid of this one.
+  static void FlushICacheWithoutIsolate(void* start, size_t size);
+
  protected:
   // The buffer into which code and relocation info are generated. It could
   // either be owned by the assembler or be provided externally.
@@ -891,7 +896,6 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference store_buffer_overflow_function(
       Isolate* isolate);
-  static ExternalReference flush_icache_function(Isolate* isolate);
   static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
 
   static ExternalReference get_date_field_function(Isolate* isolate);
@@ -985,6 +989,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference is_profiling_address(Isolate* isolate);
   static ExternalReference invoke_function_callback(Isolate* isolate);
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
+
+  static ExternalReference vector_store_virtual_register(Isolate* isolate);
 
   Address address() const { return reinterpret_cast<Address>(address_); }
 

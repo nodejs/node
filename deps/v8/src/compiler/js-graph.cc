@@ -12,8 +12,7 @@ namespace internal {
 namespace compiler {
 
 Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> object) {
-  Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(object);
-  return graph()->NewNode(common()->HeapConstant(unique));
+  return graph()->NewNode(common()->HeapConstant(object));
 }
 
 
@@ -74,23 +73,12 @@ Node* JSGraph::NaNConstant() {
 }
 
 
-Node* JSGraph::HeapConstant(Unique<HeapObject> value) {
-  // TODO(turbofan): canonicalize heap constants using Unique<T>
-  return graph()->NewNode(common()->HeapConstant(value));
-}
-
-
 Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
+  // TODO(turbofan): canonicalize heap constants using <magic approach>.
   // TODO(titzer): We could also match against the addresses of immortable
   // immovables here, even without access to the heap, thus always
   // canonicalizing references to them.
-  // return HeapConstant(Unique<Object>::CreateUninitialized(value));
-  // TODO(turbofan): This is a work-around to make Unique::HashCode() work for
-  // value numbering. We need some sane way to compute a unique hash code for
-  // arbitrary handles here.
-  Unique<HeapObject> unique(reinterpret_cast<Address>(*value.location()),
-                            value);
-  return HeapConstant(unique);
+  return graph()->NewNode(common()->HeapConstant(value));
 }
 
 

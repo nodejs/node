@@ -10,6 +10,7 @@
 
 #include "src/ppc/assembler-ppc.h"
 #include "src/ppc/assembler-ppc-inl.h"
+#include "src/ppc/frames-ppc.h"
 #include "src/ppc/macro-assembler-ppc.h"
 
 namespace v8 {

@@ -45,62 +45,25 @@ import subprocess
 import multiprocessing
 from subprocess import PIPE
 
-# Disabled LINT rules and reason.
+# Special LINT rules diverging from default and reason.
+# build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
 # build/include_what_you_use: Started giving false positives for variables
-#  named "string" and "map" assuming that you needed to include STL headers.
-
-ENABLED_LINT_RULES = """
-build/class
-build/deprecated
-build/endif_comment
-build/forward_decl
-build/include_alpha
-build/include_order
-build/printf_format
-build/storage_class
-legal/copyright
-readability/boost
-readability/braces
-readability/casting
-readability/constructors
-readability/fn_size
-readability/function
-readability/multiline_comment
-readability/multiline_string
-readability/streams
-readability/todo
-readability/utf8
-runtime/arrays
-runtime/casting
-runtime/deprecated_fn
-runtime/explicit
-runtime/int
-runtime/memset
-runtime/mutex
-runtime/nonconf
-runtime/printf
-runtime/printf_format
-runtime/rtti
-runtime/sizeof
-runtime/string
-runtime/virtual
-runtime/vlog
-whitespace/blank_line
-whitespace/braces
-whitespace/comma
-whitespace/comments
-whitespace/ending_newline
-whitespace/indent
-whitespace/labels
-whitespace/line_length
-whitespace/newline
-whitespace/operators
-whitespace/parens
-whitespace/tab
-whitespace/todo
-""".split()
-
+#   named "string" and "map" assuming that you needed to include STL headers.
 # TODO(bmeurer): Fix and re-enable readability/check
+# TODO(mstarzinger): Fix and re-enable readability/namespace
+
+LINT_RULES = """
+-build/header_guard
++build/include_alpha
+-build/include_what_you_use
+-build/namespaces
+-readability/check
+-readability/inheritance
+-readability/namespace
+-readability/nolint
++readability/streams
+-runtime/references
+""".split()
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
@@ -256,15 +219,15 @@ class CppLintProcessor(SourceFileProcessor):
       print 'No changes in files detected. Skipping cpplint check.'
       return True
 
-    filt = '-,' + ",".join(['+' + n for n in ENABLED_LINT_RULES])
-    command = [sys.executable, 'cpplint.py', '--filter', filt]
+    filters = ",".join([n for n in LINT_RULES])
+    command = [sys.executable, 'cpplint.py', '--filter', filters]
     cpplint = self.GetCpplintScript(join(path, "tools"))
     if cpplint is None:
       print('Could not find cpplint.py. Make sure '
             'depot_tools is installed and in the path.')
       sys.exit(1)
 
-    command = [sys.executable, cpplint, '--filter', filt]
+    command = [sys.executable, cpplint, '--filter', filters]
 
     commands = join([command + [file] for file in files])
     count = multiprocessing.cpu_count()
@@ -438,12 +401,6 @@ class SourceProcessor(SourceFileProcessor):
     return success
 
 
-def CheckRuntimeVsNativesNameClashes(workspace):
-  code = subprocess.call(
-      [sys.executable, join(workspace, "tools", "check-name-clashes.py")])
-  return code == 0
-
-
 def CheckExternalReferenceRegistration(workspace):
   code = subprocess.call(
       [sys.executable, join(workspace, "tools", "external-reference-check.py")])
@@ -495,7 +452,6 @@ def Main():
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success = SourceProcessor().Run(workspace) and success
-  success = CheckRuntimeVsNativesNameClashes(workspace) and success
   success = CheckExternalReferenceRegistration(workspace) and success
   if success:
     return 0

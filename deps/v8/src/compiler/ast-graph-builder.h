@@ -230,12 +230,6 @@ class AstGraphBuilder : public AstVisitor {
   // frame states with the undefined values.
   void ClearNonLiveSlotsInFrameStates();
 
-  // Helper to wrap a Handle<T> into a Unique<T>.
-  template <class T>
-  Unique<T> MakeUnique(Handle<T> object) {
-    return Unique<T>::CreateUninitialized(object);
-  }
-
   Node** EnsureInputBufferSize(int size);
 
   // Named and keyed loads require a VectorSlotPair for successful lowering.
@@ -261,9 +255,6 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builder to create an arguments object if it is used.
   Node* BuildArgumentsObject(Variable* arguments);
-
-  // Builder to create an array of rest parameters if used
-  Node* BuildRestArgumentsArray(Variable* rest, int index);
 
   // Builder that assigns to the {.this_function} internal variable if needed.
   Node* BuildThisFunctionVariable(Variable* this_function_var);
@@ -315,8 +306,8 @@ class AstGraphBuilder : public AstVisitor {
                          TypeFeedbackId id, int slot_index);
 
   // Builders for accessing the function context.
-  Node* BuildLoadBuiltinsObject();
   Node* BuildLoadGlobalObject();
+  Node* BuildLoadNativeContextField(int index);
   Node* BuildLoadGlobalProxy();
   Node* BuildLoadFeedbackVector();
 
@@ -335,8 +326,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Builder for adding the [[HomeObject]] to a value if the value came from a
   // function literal and needs a home object. Do nothing otherwise.
-  Node* BuildSetHomeObject(Node* value, Node* home_object, Expression* expr,
-                           const VectorSlotPair& feedback);
+  Node* BuildSetHomeObject(Node* value, Node* home_object,
+                           ObjectLiteralProperty* property,
+                           int slot_number = 0);
 
   // Builders for error reporting at runtime.
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
@@ -410,6 +402,10 @@ class AstGraphBuilder : public AstVisitor {
   void VisitForInAssignment(Expression* expr, Node* value,
                             const VectorSlotPair& feedback,
                             BailoutId bailout_id);
+
+  // Dispatched from VisitObjectLiteral.
+  void VisitObjectLiteralAccessor(Node* home_object,
+                                  ObjectLiteralProperty* property);
 
   // Dispatched from VisitClassLiteral.
   void VisitClassLiteralContents(ClassLiteral* expr);

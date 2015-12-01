@@ -7,6 +7,7 @@
 
 #include "src/char-predicates-inl.h"
 #include "src/dateparser.h"
+#include "src/unicode-cache-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -196,10 +197,31 @@ DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {
 
 
 template <typename Char>
+bool DateParser::InputReader<Char>::SkipWhiteSpace() {
+  if (unicode_cache_->IsWhiteSpaceOrLineTerminator(ch_)) {
+    Next();
+    return true;
+  }
+  return false;
+}
+
+
+template <typename Char>
+bool DateParser::InputReader<Char>::SkipParentheses() {
+  if (ch_ != '(') return false;
+  int balance = 0;
+  do {
+    if (ch_ == ')') --balance;
+    else if (ch_ == '(') ++balance;
+    Next();
+  } while (balance > 0 && ch_);
+  return true;
+}
+
+
+template <typename Char>
 DateParser::DateToken DateParser::ParseES5DateTime(
-    DateStringTokenizer<Char>* scanner,
-    DayComposer* day,
-    TimeComposer* time,
+    DateStringTokenizer<Char>* scanner, DayComposer* day, TimeComposer* time,
     TimeZoneComposer* tz) {
   DCHECK(day->IsEmpty());
   DCHECK(time->IsEmpty());

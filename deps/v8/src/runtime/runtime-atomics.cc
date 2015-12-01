@@ -12,12 +12,16 @@
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here
-// https://docs.google.com/document/d/1NDGA_gZJ7M7w1Bh8S0AoDyEqwDdRh4uSoTPSNn77PFk
+// https://github.com/lars-t-hansen/ecmascript_sharedmem
 
 namespace v8 {
 namespace internal {
 
 namespace {
+
+inline bool AtomicIsLockFree(uint32_t size) {
+  return size == 1 || size == 2 || size == 4;
+}
 
 #if V8_CC_GNU
 
@@ -70,37 +74,6 @@ inline T ExchangeSeqCst(T* p, T value) {
   return __atomic_exchange_n(p, value, __ATOMIC_SEQ_CST);
 }
 
-#if ATOMICS_REQUIRE_LOCK_64_BIT
-
-// We only need to implement the following functions, because the rest of the
-// atomic operations only work on integer types, and the only 64-bit type is
-// float64. Similarly, because the values are being bit_cast from double ->
-// uint64_t, we don't need to implement these functions for int64_t either.
-
-static base::LazyMutex atomic_mutex = LAZY_MUTEX_INITIALIZER;
-
-inline uint64_t CompareExchangeSeqCst(uint64_t* p, uint64_t oldval,
-                                      uint64_t newval) {
-  base::LockGuard<base::Mutex> lock_guard(atomic_mutex.Pointer());
-  uint64_t result = *p;
-  if (result == oldval) *p = newval;
-  return result;
-}
-
-
-inline uint64_t LoadSeqCst(uint64_t* p) {
-  base::LockGuard<base::Mutex> lock_guard(atomic_mutex.Pointer());
-  return *p;
-}
-
-
-inline void StoreSeqCst(uint64_t* p, uint64_t value) {
-  base::LockGuard<base::Mutex> lock_guard(atomic_mutex.Pointer());
-  *p = value;
-}
-
-#endif  // ATOMICS_REQUIRE_LOCK_64_BIT
-
 #elif V8_CC_MSVC
 
 #define InterlockedCompareExchange32 _InterlockedCompareExchange
@@ -113,33 +86,32 @@ inline void StoreSeqCst(uint64_t* p, uint64_t value) {
 #define InterlockedCompareExchange8 _InterlockedCompareExchange8
 #define InterlockedExchangeAdd8 _InterlockedExchangeAdd8
 
-#define ATOMIC_OPS_INTEGER(type, suffix, vctype)                        \
-  inline type AddSeqCst(type* p, type value) {                          \
-    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p), \
-                                          bit_cast<vctype>(value));     \
-  }                                                                     \
-  inline type SubSeqCst(type* p, type value) {                          \
-    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p), \
-                                          -bit_cast<vctype>(value));    \
-  }                                                                     \
-  inline type AndSeqCst(type* p, type value) {                          \
-    return InterlockedAnd##suffix(reinterpret_cast<vctype*>(p),         \
-                                  bit_cast<vctype>(value));             \
-  }                                                                     \
-  inline type OrSeqCst(type* p, type value) {                           \
-    return InterlockedOr##suffix(reinterpret_cast<vctype*>(p),          \
-                                 bit_cast<vctype>(value));              \
-  }                                                                     \
-  inline type XorSeqCst(type* p, type value) {                          \
-    return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),         \
-                                  bit_cast<vctype>(value));             \
-  }                                                                     \
-  inline type ExchangeSeqCst(type* p, type value) {                     \
-    return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),    \
-                                       bit_cast<vctype>(value));        \
-  }
-
-#define ATOMIC_OPS_FLOAT(type, suffix, vctype)                              \
+#define ATOMIC_OPS(type, suffix, vctype)                                    \
+  inline type AddSeqCst(type* p, type value) {                              \
+    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
+                                          bit_cast<vctype>(value));         \
+  }                                                                         \
+  inline type SubSeqCst(type* p, type value) {                              \
+    return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
+                                          -bit_cast<vctype>(value));        \
+  }                                                                         \
+  inline type AndSeqCst(type* p, type value) {                              \
+    return InterlockedAnd##suffix(reinterpret_cast<vctype*>(p),             \
+                                  bit_cast<vctype>(value));                 \
+  }                                                                         \
+  inline type OrSeqCst(type* p, type value) {                               \
+    return InterlockedOr##suffix(reinterpret_cast<vctype*>(p),              \
+                                 bit_cast<vctype>(value));                  \
+  }                                                                         \
+  inline type XorSeqCst(type* p, type value) {                              \
+    return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),             \
+                                  bit_cast<vctype>(value));                 \
+  }                                                                         \
+  inline type ExchangeSeqCst(type* p, type value) {                         \
+    return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),        \
+                                       bit_cast<vctype>(value));            \
+  }                                                                         \
+                                                                            \
   inline type CompareExchangeSeqCst(type* p, type oldval, type newval) {    \
     return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
                                               bit_cast<vctype>(newval),     \
@@ -151,20 +123,14 @@ inline void StoreSeqCst(uint64_t* p, uint64_t value) {
                                 bit_cast<vctype>(value));                   \
   }
 
-#define ATOMIC_OPS(type, suffix, vctype)   \
-  ATOMIC_OPS_INTEGER(type, suffix, vctype) \
-  ATOMIC_OPS_FLOAT(type, suffix, vctype)
-
 ATOMIC_OPS(int8_t, 8, char)
 ATOMIC_OPS(uint8_t, 8, char)
 ATOMIC_OPS(int16_t, 16, short)  /* NOLINT(runtime/int) */
 ATOMIC_OPS(uint16_t, 16, short) /* NOLINT(runtime/int) */
 ATOMIC_OPS(int32_t, 32, long)   /* NOLINT(runtime/int) */
 ATOMIC_OPS(uint32_t, 32, long)  /* NOLINT(runtime/int) */
-ATOMIC_OPS_FLOAT(uint64_t, 64, LONGLONG)
 
 #undef ATOMIC_OPS_INTEGER
-#undef ATOMIC_OPS_FLOAT
 #undef ATOMIC_OPS
 
 #undef InterlockedCompareExchange32
@@ -196,44 +162,14 @@ inline int32_t FromObject<int32_t>(Handle<Object> number) {
   return NumberToInt32(*number);
 }
 
-template <>
-inline float FromObject<float>(Handle<Object> number) {
-  return static_cast<float>(number->Number());
-}
-
-template <>
-inline double FromObject<double>(Handle<Object> number) {
-  return number->Number();
-}
-
 template <typename T, typename F>
 inline T ToAtomic(F from) {
   return static_cast<T>(from);
 }
 
-template <>
-inline uint32_t ToAtomic<uint32_t, float>(float from) {
-  return bit_cast<uint32_t, float>(from);
-}
-
-template <>
-inline uint64_t ToAtomic<uint64_t, double>(double from) {
-  return bit_cast<uint64_t, double>(from);
-}
-
 template <typename T, typename F>
 inline T FromAtomic(F from) {
   return static_cast<T>(from);
-}
-
-template <>
-inline float FromAtomic<float, uint32_t>(uint32_t from) {
-  return bit_cast<float, uint32_t>(from);
-}
-
-template <>
-inline double FromAtomic<double, uint64_t>(uint64_t from) {
-  return bit_cast<double, uint64_t>(from);
 }
 
 template <typename T>
@@ -266,16 +202,6 @@ inline Object* ToObject<int32_t>(Isolate* isolate, int32_t t) {
 
 template <>
 inline Object* ToObject<uint32_t>(Isolate* isolate, uint32_t t) {
-  return *isolate->factory()->NewNumber(t);
-}
-
-template <>
-inline Object* ToObject<float>(Isolate* isolate, float t) {
-  return *isolate->factory()->NewNumber(t);
-}
-
-template <>
-inline Object* ToObject<double>(Isolate* isolate, double t) {
   return *isolate->factory()->NewNumber(t);
 }
 
@@ -316,18 +242,6 @@ template <>
 struct FromObjectTraits<uint32_t> {
   typedef uint32_t convert_type;
   typedef uint32_t atomic_type;
-};
-
-template <>
-struct FromObjectTraits<float> {
-  typedef float convert_type;
-  typedef uint32_t atomic_type;
-};
-
-template <>
-struct FromObjectTraits<double> {
-  typedef double convert_type;
-  typedef uint64_t atomic_type;
 };
 
 
@@ -540,12 +454,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
-    case kExternalFloat32Array:
-      return DoCompareExchange<float>(isolate, buffer, index, oldobj, newobj);
-
-    case kExternalFloat64Array:
-      return DoCompareExchange<double>(isolate, buffer, index, oldobj, newobj);
-
     case kExternalUint8ClampedArray:
       return DoCompareExchangeUint8Clamped(isolate, buffer, index, oldobj,
                                            newobj);
@@ -574,8 +482,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad) {
   case kExternal##Type##Array:                              \
     return DoLoad<ctype>(isolate, buffer, index);
 
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+
+    case kExternalUint8ClampedArray:
+      return DoLoad<uint8_t>(isolate, buffer, index);
 
     default:
       break;
@@ -604,12 +515,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalFloat32Array:
-      return DoStore<float>(isolate, buffer, index, value);
-
-    case kExternalFloat64Array:
-      return DoStore<double>(isolate, buffer, index, value);
 
     case kExternalUint8ClampedArray:
       return DoStoreUint8Clamped(isolate, buffer, index, value);
@@ -645,8 +550,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
     case kExternalUint8ClampedArray:
       return DoAddUint8Clamped(isolate, buffer, index, value);
 
-    case kExternalFloat32Array:
-    case kExternalFloat64Array:
     default:
       break;
   }
@@ -678,8 +581,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
     case kExternalUint8ClampedArray:
       return DoSubUint8Clamped(isolate, buffer, index, value);
 
-    case kExternalFloat32Array:
-    case kExternalFloat64Array:
     default:
       break;
   }
@@ -711,8 +612,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
     case kExternalUint8ClampedArray:
       return DoAndUint8Clamped(isolate, buffer, index, value);
 
-    case kExternalFloat32Array:
-    case kExternalFloat64Array:
     default:
       break;
   }
@@ -744,8 +643,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
     case kExternalUint8ClampedArray:
       return DoOrUint8Clamped(isolate, buffer, index, value);
 
-    case kExternalFloat32Array:
-    case kExternalFloat64Array:
     default:
       break;
   }
@@ -777,8 +674,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
     case kExternalUint8ClampedArray:
       return DoXorUint8Clamped(isolate, buffer, index, value);
 
-    case kExternalFloat32Array:
-    case kExternalFloat64Array:
     default:
       break;
   }
@@ -810,8 +705,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
     case kExternalUint8ClampedArray:
       return DoExchangeUint8Clamped(isolate, buffer, index, value);
 
-    case kExternalFloat32Array:
-    case kExternalFloat64Array:
     default:
       break;
   }
@@ -826,9 +719,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsIsLockFree) {
   DCHECK(args.length() == 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(size, 0);
   uint32_t usize = NumberToUint32(*size);
-
-  return Runtime::AtomicIsLockFree(usize) ? isolate->heap()->true_value()
-                                          : isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(AtomicIsLockFree(usize));
 }
 }
 }  // namespace v8::internal

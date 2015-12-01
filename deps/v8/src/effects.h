@@ -35,11 +35,11 @@ struct Effect {
 
   // The unknown effect.
   static Effect Unknown(Zone* zone) {
-    return Effect(Bounds::Unbounded(zone), POSSIBLE);
+    return Effect(Bounds::Unbounded(), POSSIBLE);
   }
 
   static Effect Forget(Zone* zone) {
-    return Effect(Bounds::Unbounded(zone), DEFINITE);
+    return Effect(Bounds::Unbounded(), DEFINITE);
   }
 
   // Sequential composition, as in 'e1; e2'.
@@ -87,7 +87,7 @@ class EffectsMixin: public Base {
   Bounds LookupBounds(Var var) {
     Effect effect = Lookup(var);
     return effect.modality == Effect::DEFINITE
-        ? effect.bounds : Bounds::Unbounded(Base::zone());
+        ? effect.bounds : Bounds::Unbounded();
   }
 
   // Sequential composition.

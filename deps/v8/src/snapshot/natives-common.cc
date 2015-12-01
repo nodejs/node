@@ -30,6 +30,12 @@ FixedArray* NativesCollection<EXTRAS>::GetSourceCache(Heap* heap) {
 
 
 template <>
+FixedArray* NativesCollection<EXPERIMENTAL_EXTRAS>::GetSourceCache(Heap* heap) {
+  return heap->experimental_extra_natives_source_cache();
+}
+
+
+template <>
 FixedArray* NativesCollection<CODE_STUB>::GetSourceCache(Heap* heap) {
   return heap->code_stub_natives_source_cache();
 }
@@ -51,6 +57,8 @@ template void NativesCollection<CORE>::UpdateSourceCache(Heap* heap);
 template void NativesCollection<CODE_STUB>::UpdateSourceCache(Heap* heap);
 template void NativesCollection<EXPERIMENTAL>::UpdateSourceCache(Heap* heap);
 template void NativesCollection<EXTRAS>::UpdateSourceCache(Heap* heap);
+template void NativesCollection<EXPERIMENTAL_EXTRAS>::UpdateSourceCache(
+    Heap* heap);
 
 }  // namespace internal
 }  // namespace v8

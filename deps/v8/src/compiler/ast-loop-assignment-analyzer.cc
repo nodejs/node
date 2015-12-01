@@ -193,9 +193,18 @@ void ALAA::VisitCompareOperation(CompareOperation* e) {
 void ALAA::VisitSpread(Spread* e) { Visit(e->expression()); }
 
 
+void ALAA::VisitEmptyParentheses(EmptyParentheses* e) { UNREACHABLE(); }
+
+
 void ALAA::VisitCaseClause(CaseClause* cc) {
   if (!cc->is_default()) Visit(cc->label());
   VisitStatements(cc->statements());
+}
+
+
+void ALAA::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
 }
 
 

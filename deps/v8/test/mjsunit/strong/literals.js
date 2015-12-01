@@ -112,14 +112,14 @@
   assertWeakArray({a: [], b: {}}.a);
 })();
 
-(function StrongArrayLiterals(...args) {
+(function StrongArrayLiterals() {
   'use strong';
   function assertStrongArray(x) {
     assertTrue(%IsStrong(x));
     assertSame(Array.prototype, Object.getPrototypeOf(x));
   }
   let [...r] = [];
-  assertStrongArray(args);
+  assertStrongArray((function(...a) { return a; })());
   assertStrongArray(r);
   assertStrongArray([]);
   assertStrongArray([1, 2, 3]);
@@ -273,66 +273,6 @@ let GeneratorPrototype = (function*(){}).__proto__;
   assertStrongGenerator({*m(){'use strong'}}.m);
   assertStrongGenerator((class {static *m(){'use strong'}}).m);
   assertStrongGenerator((new class {*m(){'use strong'}}).m);
-})();
-
-(function WeakClassLiterals() {
-  function assertWeakClass(x) {
-    assertFalse(%IsStrong(x));
-    assertFalse(%IsStrong(x.prototype));
-    assertFalse(%IsStrong(new x));
-  }
-  class C {};
-  class D extends C {};
-  class E extends Object {};
-  // class F extends null {};
-  const S = (() => {'use strong'; return class {}})();
-  class G extends S {};
-  assertWeakClass(C);
-  assertWeakClass(D);
-  assertWeakClass(E);
-  // assertWeakClass(F);
-  assertWeakClass(G);
-  assertWeakClass(class {});
-  assertWeakClass(class extends Object {});
-  // assertWeakClass(class extends null {});
-  assertWeakClass(class extends C {});
-  assertWeakClass(class extends S {});
-  assertWeakClass(class extends class {} {});
-  assertWeakClass(class C {});
-  assertWeakClass(class D extends Object {});
-  // assertWeakClass(class D extends null {});
-  assertWeakClass(class D extends C {});
-  assertWeakClass(class D extends S {});
-  assertWeakClass(class D extends class {} {});
-})();
-
-(function StrongClassLiterals() {
-  'use strong';
-  function assertStrongClass(x) {
-    assertTrue(%IsStrong(x));
-    assertTrue(%IsStrong(x.prototype));
-    // TODO(rossberg): strongify class instance
-    // assertTrue(%IsStrong(new x));
-  }
-  class C {};
-  class D extends C {};
-  class E extends Object {};
-  const W = (1, eval)(() => {'use strict'; return class {}})();
-  class G extends W {};
-  assertStrongClass(C);
-  assertStrongClass(D);
-  assertStrongClass(E);
-  assertStrongClass(G);
-  assertStrongClass(class {});
-  assertStrongClass(class extends Object {});
-  assertStrongClass(class extends C {});
-  assertStrongClass(class extends W {});
-  assertStrongClass(class extends class {} {});
-  assertStrongClass(class C {});
-  assertStrongClass(class D extends Object {});
-  assertStrongClass(class D extends C {});
-  assertStrongClass(class D extends W {});
-  assertStrongClass(class D extends class {} {});
 })();
 
 (function WeakRegExpLiterals() {

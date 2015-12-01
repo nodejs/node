@@ -10,8 +10,13 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class CompilationInfo;
+
 namespace compiler {
 
+// Forward declarations.
 class JSCallFunctionAccessor;
 
 class JSInliner final : public AdvancedReducer {

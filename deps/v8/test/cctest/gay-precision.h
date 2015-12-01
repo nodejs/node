@@ -28,6 +28,8 @@
 #ifndef GAY_PRECISION_H_
 #define GAY_PRECISION_H_
 
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 

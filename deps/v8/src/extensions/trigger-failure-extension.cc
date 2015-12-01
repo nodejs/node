@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/extensions/trigger-failure-extension.h"
-#include "src/v8.h"
+
+#include "src/base/logging.h"
+#include "src/checks.h"
 
 namespace v8 {
 namespace internal {

@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/char-predicates-inl.h"
+#include "src/isolate-inl.h"
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
 #include "src/objects-inl.h"
@@ -38,9 +39,11 @@ RUNTIME_FUNCTION(Runtime_BasicJSONStringify) {
 
 RUNTIME_FUNCTION(Runtime_ParseJson) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
-
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<String> source;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source,
+                                     Object::ToString(isolate, object));
   source = String::Flatten(source);
   // Optimized fast case where we only have Latin1 characters.
   Handle<Object> result;
@@ -50,5 +53,6 @@ RUNTIME_FUNCTION(Runtime_ParseJson) {
                                          : JsonParser<false>::Parse(source));
   return *result;
 }
+
 }  // namespace internal
 }  // namespace v8

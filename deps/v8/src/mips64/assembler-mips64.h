@@ -79,6 +79,16 @@ struct Register {
   static const int kSizeInBytes = 8;
   static const int kCpRegister = 23;  // cp (s7) is the 23rd register.
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  static const int kMantissaOffset = 0;
+  static const int kExponentOffset = 4;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  static const int kMantissaOffset = 4;
+  static const int kExponentOffset = 0;
+#else
+#error Unknown endianness
+#endif
+
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
@@ -327,7 +337,8 @@ const FPURegister f31 = { 31 };
 #define kLithiumScratchDouble f30
 #define kDoubleRegZero f28
 // Used on mips64r6 for compare operations.
-#define kDoubleCompareReg f31
+// We use the last non-callee saved odd register for N64 ABI
+#define kDoubleCompareReg f23
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.

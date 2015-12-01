@@ -110,9 +110,16 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // the vector and slot registers, which need to be preserved for a handler
   // call or miss.
   if (IC::ICUseVector(ic_kind)) {
-    Register vector = LoadWithVectorDescriptor::VectorRegister();
-    Register slot = LoadDescriptor::SlotRegister();
-    DCHECK(!AreAliased(vector, slot, scratch));
+    if (ic_kind == Code::LOAD_IC || ic_kind == Code::KEYED_LOAD_IC) {
+      Register vector = LoadWithVectorDescriptor::VectorRegister();
+      Register slot = LoadDescriptor::SlotRegister();
+      DCHECK(!AreAliased(vector, slot, scratch));
+    } else {
+      DCHECK(ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC);
+      Register vector = VectorStoreICDescriptor::VectorRegister();
+      Register slot = VectorStoreICDescriptor::SlotRegister();
+      DCHECK(!AreAliased(vector, slot, scratch));
+    }
   }
 #endif
 

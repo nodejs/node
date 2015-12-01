@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "src/global-handles.h"
@@ -173,18 +176,24 @@ TEST(DateCacheVersion) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::Context> context = v8::Context::New(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  v8::Handle<v8::Array> date_cache_version =
-      v8::Handle<v8::Array>::Cast(CompileRun("%DateCacheVersion()"));
+  v8::Local<v8::Array> date_cache_version =
+      v8::Local<v8::Array>::Cast(CompileRun("%DateCacheVersion()"));
 
   CHECK_EQ(1, static_cast<int32_t>(date_cache_version->Length()));
-  CHECK(date_cache_version->Get(0)->IsNumber());
-  CHECK_EQ(0.0, date_cache_version->Get(0)->NumberValue());
+  CHECK(date_cache_version->Get(context, 0).ToLocalChecked()->IsNumber());
+  CHECK_EQ(0.0, date_cache_version->Get(context, 0)
+                    .ToLocalChecked()
+                    ->NumberValue(context)
+                    .FromJust());
 
   v8::Date::DateTimeConfigurationChangeNotification(isolate);
 
   CHECK_EQ(1, static_cast<int32_t>(date_cache_version->Length()));
-  CHECK(date_cache_version->Get(0)->IsNumber());
-  CHECK_EQ(1.0, date_cache_version->Get(0)->NumberValue());
+  CHECK(date_cache_version->Get(context, 0).ToLocalChecked()->IsNumber());
+  CHECK_EQ(1.0, date_cache_version->Get(context, 0)
+                    .ToLocalChecked()
+                    ->NumberValue(context)
+                    .FromJust());
 }

@@ -185,7 +185,7 @@ class RecordWriteStub: public PlatformCodeStub {
         break;
     }
     DCHECK(GetMode(stub) == mode);
-    CpuFeatures::FlushICache(stub->instruction_start(), 7);
+    Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(), 7);
   }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();

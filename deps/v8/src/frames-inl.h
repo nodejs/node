@@ -7,6 +7,7 @@
 
 #include "src/frames.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/v8memory.h"
 
 #if V8_TARGET_ARCH_IA32

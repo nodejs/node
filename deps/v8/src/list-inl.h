@@ -250,7 +250,7 @@ int SortedListBSearch(const List<T>& list, P cmp) {
   int low = 0;
   int high = list.length() - 1;
   while (low <= high) {
-    int mid = (low + high) / 2;
+    int mid = low + (high - low) / 2;
     T mid_elem = list[mid];
 
     if (cmp(&mid_elem) > 0) {

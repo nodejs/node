@@ -148,18 +148,6 @@ const float kFloatValues[] = {-std::numeric_limits<float>::infinity(),
                               std::numeric_limits<float>::signaling_NaN()};
 
 
-const double kDoubleValues[] = {-std::numeric_limits<double>::infinity(),
-                                std::numeric_limits<double>::min(),
-                                -1.0,
-                                -0.0,
-                                0.0,
-                                1.0,
-                                std::numeric_limits<double>::max(),
-                                std::numeric_limits<double>::infinity(),
-                                std::numeric_limits<double>::quiet_NaN(),
-                                std::numeric_limits<double>::signaling_NaN()};
-
-
 const size_t kInputCounts[] = {3, 4, 100, 255, 1024, 65000};
 
 

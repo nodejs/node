@@ -6363,16 +6363,18 @@ TEST(SyntaxErrorMessageOnSyntaxException) {
     v8::String::NewFromUtf8(env->GetIsolate(), "/sel\\/: \\"));
   CHECK_EQ(2, compile_error_event_count);
 
-  v8::Script::Compile(
-    v8::String::NewFromUtf8(env->GetIsolate(), "JSON.parse('1234:')"));
+  v8::Local<v8::Script> script = v8::Script::Compile(
+      v8::String::NewFromUtf8(env->GetIsolate(), "JSON.parse('1234:')"));
   CHECK_EQ(2, compile_error_event_count);
+  script->Run();
+  CHECK_EQ(3, compile_error_event_count);
 
   v8::Script::Compile(
     v8::String::NewFromUtf8(env->GetIsolate(), "new RegExp('/\\/\\\\');"));
-  CHECK_EQ(2, compile_error_event_count);
+  CHECK_EQ(3, compile_error_event_count);
 
   v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), "throw 1;"));
-  CHECK_EQ(2, compile_error_event_count);
+  CHECK_EQ(3, compile_error_event_count);
 }
 
 

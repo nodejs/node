@@ -8,9 +8,12 @@
 
 %CheckIsBootstrapping();
 
+var isConcatSpreadableSymbol =
+    utils.ImportNow("is_concat_spreadable_symbol");
+
 utils.InstallConstants(global.Symbol, [
   // TODO(littledan): Move to symbol.js when shipping
-  "isConcatSpreadable", symbolIsConcatSpreadable
+  "isConcatSpreadable", isConcatSpreadableSymbol
 ]);
 
 })

@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <cmath>
 #include "src/globals.h"       // Required for V8_INFINITY
+#include "src/unicode-cache-inl.h"
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.

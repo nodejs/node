@@ -9,6 +9,7 @@
 #include "src/date.h"
 #include "src/dateparser-inl.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 
 namespace v8 {
@@ -38,7 +39,6 @@ RUNTIME_FUNCTION(Runtime_DateSetValue) {
   DateCache* date_cache = isolate->date_cache();
 
   Handle<Object> value;
-  ;
   bool is_value_nan = false;
   if (std::isnan(time)) {
     value = isolate->factory()->nan_value();
@@ -99,8 +99,8 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
 
 RUNTIME_FUNCTION(Runtime_DateParseString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, output, 1);
 
   RUNTIME_ASSERT(output->HasFastElements());
@@ -108,6 +108,10 @@ RUNTIME_FUNCTION(Runtime_DateParseString) {
   RUNTIME_ASSERT(output->HasFastObjectElements());
   Handle<FixedArray> output_array(FixedArray::cast(output->elements()));
   RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
+
+  Handle<String> str;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
+                                     Object::ToString(isolate, input));
 
   str = String::Flatten(str);
   DisallowHeapAllocation no_gc;

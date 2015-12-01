@@ -115,6 +115,7 @@ namespace compiler {
   V(Arm64Float64InsertLowWord32)   \
   V(Arm64Float64InsertHighWord32)  \
   V(Arm64Float64MoveU64)           \
+  V(Arm64U64MoveFloat64)           \
   V(Arm64LdrS)                     \
   V(Arm64StrS)                     \
   V(Arm64LdrD)                     \

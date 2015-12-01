@@ -9,6 +9,7 @@
 
 #include "src/base/flags.h"
 #include "src/base/functional.h"
+#include "src/handles.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -155,7 +156,8 @@ class Operator1 : public Operator {
 
   bool Equals(const Operator* other) const final {
     if (opcode() != other->opcode()) return false;
-    const Operator1<T>* that = reinterpret_cast<const Operator1<T>*>(other);
+    const Operator1<T, Pred, Hash>* that =
+        reinterpret_cast<const Operator1<T, Pred, Hash>*>(other);
     return this->pred_(this->parameter(), that->parameter());
   }
   size_t HashCode() const final {
@@ -185,7 +187,8 @@ inline T const& OpParameter(const Operator* op) {
 }
 
 // NOTE: We have to be careful to use the right equal/hash functions below, for
-// float/double we always use the ones operating on the bit level.
+// float/double we always use the ones operating on the bit level, for Handle<>
+// we always use the ones operating on the location level.
 template <>
 inline float const& OpParameter(const Operator* op) {
   return reinterpret_cast<const Operator1<float, base::bit_equal_to<float>,
@@ -198,6 +201,27 @@ inline double const& OpParameter(const Operator* op) {
   return reinterpret_cast<const Operator1<double, base::bit_equal_to<double>,
                                           base::bit_hash<double>>*>(op)
       ->parameter();
+}
+
+template <>
+inline Handle<HeapObject> const& OpParameter(const Operator* op) {
+  return reinterpret_cast<
+             const Operator1<Handle<HeapObject>, Handle<HeapObject>::equal_to,
+                             Handle<HeapObject>::hash>*>(op)->parameter();
+}
+
+template <>
+inline Handle<String> const& OpParameter(const Operator* op) {
+  return reinterpret_cast<const Operator1<
+      Handle<String>, Handle<String>::equal_to, Handle<String>::hash>*>(op)
+      ->parameter();
+}
+
+template <>
+inline Handle<ScopeInfo> const& OpParameter(const Operator* op) {
+  return reinterpret_cast<
+             const Operator1<Handle<ScopeInfo>, Handle<ScopeInfo>::equal_to,
+                             Handle<ScopeInfo>::hash>*>(op)->parameter();
 }
 
 }  // namespace compiler

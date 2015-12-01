@@ -7,9 +7,12 @@
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/conversions.h"
+#include "src/heap/gc-idle-time-handler.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -41,8 +44,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       was_activated_(false),
       weak_closure_was_overapproximated_(false),
       weak_closure_approximation_rounds_(0),
-      request_type_(COMPLETE_MARKING),
-      gc_callback_flags_(kNoGCCallbackFlags) {}
+      request_type_(COMPLETE_MARKING) {}
 
 
 void IncrementalMarking::RecordWriteSlow(HeapObject* obj, Object** slot,
@@ -297,12 +299,6 @@ void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
   if (is_marking) {
     chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-
-    // It's difficult to filter out slots recorded for large objects.
-    if (chunk->owner()->identity() == LO_SPACE &&
-        chunk->size() > static_cast<size_t>(Page::kPageSize) && is_compacting) {
-      chunk->SetFlag(MemoryChunk::RESCAN_ON_EVACUATION);
-    }
   } else {
     chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
@@ -310,7 +306,7 @@ void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
 }
 
 
-void IncrementalMarking::SetNewSpacePageFlags(NewSpacePage* chunk,
+void IncrementalMarking::SetNewSpacePageFlags(MemoryChunk* chunk,
                                               bool is_marking) {
   chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
   if (is_marking) {
@@ -468,9 +464,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 }
 
 
-void IncrementalMarking::Start(int flags,
-                               const GCCallbackFlags gc_callback_flags,
-                               const char* reason) {
+void IncrementalMarking::Start(const char* reason) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start (%s)\n",
            (reason == nullptr) ? "unknown reason" : reason);
@@ -482,11 +476,9 @@ void IncrementalMarking::Start(int flags,
 
   ResetStepCounters();
 
-  gc_callback_flags_ = gc_callback_flags;
   was_activated_ = true;
 
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
-    heap_->set_current_gc_flags(flags);
     StartMarking();
   } else {
     if (FLAG_trace_incremental_marking) {
@@ -495,7 +487,8 @@ void IncrementalMarking::Start(int flags,
     state_ = SWEEPING;
   }
 
-  heap_->new_space()->LowerInlineAllocationLimit(kAllocatedThreshold);
+  heap_->LowerInlineAllocationLimit(kAllocatedThreshold);
+  incremental_marking_job()->Start(heap_);
 }
 
 
@@ -551,6 +544,7 @@ void IncrementalMarking::StartMarking() {
 void IncrementalMarking::MarkObjectGroups() {
   DCHECK(FLAG_overapproximate_weak_closure);
   DCHECK(!weak_closure_was_overapproximated_);
+  DCHECK(IsMarking());
 
   int old_marking_deque_top =
       heap_->mark_compact_collector()->marking_deque()->top();
@@ -745,7 +739,7 @@ void IncrementalMarking::Stop() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Stopping.\n");
   }
-  heap_->new_space()->LowerInlineAllocationLimit(0);
+  heap_->ResetInlineAllocationLimit();
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   if (IsMarking()) {
@@ -773,7 +767,7 @@ void IncrementalMarking::Finalize() {
   Hurry();
   state_ = STOPPED;
   is_compacting_ = false;
-  heap_->new_space()->LowerInlineAllocationLimit(0);
+  heap_->ResetInlineAllocationLimit();
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(heap_,
@@ -822,9 +816,38 @@ void IncrementalMarking::Epilogue() {
 }
 
 
+double IncrementalMarking::AdvanceIncrementalMarking(
+    intptr_t step_size_in_bytes, double deadline_in_ms,
+    IncrementalMarking::StepActions step_actions) {
+  DCHECK(!IsStopped());
+
+  if (step_size_in_bytes == 0) {
+    step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
+        static_cast<size_t>(GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs),
+        static_cast<size_t>(
+            heap()
+                ->tracer()
+                ->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()));
+  }
+
+  double remaining_time_in_ms = 0.0;
+  do {
+    Step(step_size_in_bytes, step_actions.completion_action,
+         step_actions.force_marking, step_actions.force_completion);
+    remaining_time_in_ms =
+        deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
+  } while (remaining_time_in_ms >=
+               2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
+           !IsComplete() &&
+           !heap()->mark_compact_collector()->marking_deque()->IsEmpty());
+  return remaining_time_in_ms;
+}
+
+
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
   if (IsStopped() && ShouldActivateEvenWithoutIdleNotification()) {
-    Start(Heap::kNoGCFlags, kNoGCCallbackFlags, "old space step");
+    heap()->StartIncrementalMarking(Heap::kNoGCFlags, kNoGCCallbackFlags,
+                                    "old space step");
   } else {
     Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
   }
@@ -907,6 +930,8 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
                                   CompletionAction action,
                                   ForceMarkingAction marking,
                                   ForceCompletionAction completion) {
+  DCHECK(allocated_bytes >= 0);
+
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
       (state_ != SWEEPING && state_ != MARKING)) {
     return 0;

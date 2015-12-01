@@ -31,9 +31,9 @@ class FunctionTester : public InitializedHandleScope {
         function((FLAG_allow_natives_syntax = true, NewFunction(source))),
         flags_(flags) {
     Compile(function);
-    const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
-                                     CompilationInfo::kInliningEnabled |
-                                     CompilationInfo::kTypingEnabled;
+    const uint32_t supported_flags =
+        CompilationInfo::kFunctionContextSpecializing |
+        CompilationInfo::kInliningEnabled | CompilationInfo::kTypingEnabled;
     CHECK_EQ(0u, flags_ & ~supported_flags);
   }
 
@@ -51,13 +51,13 @@ class FunctionTester : public InitializedHandleScope {
 
   MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b) {
     Handle<Object> args[] = {a, b};
-    return Execution::Call(isolate, function, undefined(), 2, args, false);
+    return Execution::Call(isolate, function, undefined(), 2, args);
   }
 
   MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b, Handle<Object> c,
                            Handle<Object> d) {
     Handle<Object> args[] = {a, b, c, d};
-    return Execution::Call(isolate, function, undefined(), 4, args, false);
+    return Execution::Call(isolate, function, undefined(), 4, args);
   }
 
   void CheckThrows(Handle<Object> a, Handle<Object> b) {
@@ -69,8 +69,8 @@ class FunctionTester : public InitializedHandleScope {
     isolate->OptionalRescheduleException(true);
   }
 
-  v8::Handle<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
-                                                   Handle<Object> b) {
+  v8::Local<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
+                                                  Handle<Object> b) {
     TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     MaybeHandle<Object> no_result = Call(a, b);
     CHECK(isolate->has_pending_exception());
@@ -122,12 +122,12 @@ class FunctionTester : public InitializedHandleScope {
 
   Handle<JSFunction> NewFunction(const char* source) {
     return v8::Utils::OpenHandle(
-        *v8::Handle<v8::Function>::Cast(CompileRun(source)));
+        *v8::Local<v8::Function>::Cast(CompileRun(source)));
   }
 
   Handle<JSObject> NewObject(const char* source) {
     return v8::Utils::OpenHandle(
-        *v8::Handle<v8::Object>::Cast(CompileRun(source)));
+        *v8::Local<v8::Object>::Cast(CompileRun(source)));
   }
 
   Handle<String> Val(const char* string) {
@@ -161,8 +161,8 @@ class FunctionTester : public InitializedHandleScope {
 
     CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
-    if (flags_ & CompilationInfo::kContextSpecializing) {
-      info.MarkAsContextSpecializing();
+    if (flags_ & CompilationInfo::kFunctionContextSpecializing) {
+      info.MarkAsFunctionContextSpecializing();
     }
     if (flags_ & CompilationInfo::kInliningEnabled) {
       info.MarkAsInliningEnabled();

@@ -128,32 +128,6 @@ TEST(IsMinusZero) {
 }
 
 
-TEST(IsNonNegativeSmi) {
-  FunctionTester T("(function(a) { return %_IsNonNegativeSmi(a); })", flags);
-
-  T.CheckTrue(T.Val(1));
-  T.CheckFalse(T.Val(1.1));
-  T.CheckFalse(T.Val(-0.0));
-  T.CheckFalse(T.Val(-2));
-  T.CheckFalse(T.Val(-2.3));
-  T.CheckFalse(T.undefined());
-}
-
-
-TEST(IsObject) {
-  FunctionTester T("(function(a) { return %_IsObject(a); })", flags);
-
-  T.CheckFalse(T.NewObject("(function() {})"));
-  T.CheckTrue(T.NewObject("([1])"));
-  T.CheckTrue(T.NewObject("({})"));
-  T.CheckTrue(T.NewObject("(/x/)"));
-  T.CheckFalse(T.undefined());
-  T.CheckTrue(T.null());
-  T.CheckFalse(T.Val("x"));
-  T.CheckFalse(T.Val(1));
-}
-
-
 TEST(IsRegExp) {
   FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 
@@ -240,17 +214,6 @@ TEST(OneByteSeqStringSetChar) {
   CHECK_EQ('b', string->SeqOneByteStringGet(0));
   CHECK_EQ('X', string->SeqOneByteStringGet(1));
   CHECK_EQ('r', string->SeqOneByteStringGet(2));
-}
-
-
-TEST(NewConsString) {
-  FunctionTester T(
-      "(function() { "
-      "   return %_NewConsString(14, true, 'abcdefghi', 'jklmn');"
-      " })",
-      flags);
-
-  T.CheckCall(T.Val("abcdefghijklmn"));
 }
 
 

@@ -104,9 +104,8 @@ class CreateCommitMessage(Step):
 
   def RunStep(self):
 
-    # Stringify: [123, 234] -> "r123, r234"
-    self["revision_list"] = ", ".join(map(lambda s: "r%s" % s,
-                                      self["full_revision_list"]))
+    # Stringify: ["abcde", "12345"] -> "abcde, 12345"
+    self["revision_list"] = ", ".join(self["full_revision_list"])
 
     if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")

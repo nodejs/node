@@ -9,10 +9,12 @@
 %CheckIsBootstrapping();
 
 var GlobalReflect = global.Reflect;
+var ReflectApply = utils.ImportNow("reflect_apply");
+var ReflectConstruct = utils.ImportNow("reflect_construct");
 
 utils.InstallFunctions(GlobalReflect, DONT_ENUM, [
-  "apply", $reflectApply,
-  "construct", $reflectConstruct
+  "apply", ReflectApply,
+  "construct", ReflectConstruct
 ]);
 
 })

@@ -4,7 +4,7 @@
 
 #include "src/interpreter/bytecodes.h"
 
-#include "src/interpreter/bytecode-array-builder.h"
+#include "src/frames.h"
 
 namespace v8 {
 namespace internal {
@@ -103,8 +103,8 @@ int Bytecodes::MaximumSize() { return 1 + kMaxOperands; }
 
 
 // static
-std::ostream& Bytecodes::Decode(std::ostream& os,
-                                const uint8_t* bytecode_start) {
+std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
+                                int parameter_count) {
   Vector<char> buf = Vector<char>::New(50);
 
   Bytecode bytecode = Bytecodes::FromByte(bytecode_start[0]);
@@ -126,12 +126,29 @@ std::ostream& Bytecodes::Decode(std::ostream& os,
     OperandType op_type = GetOperandType(bytecode, i);
     uint8_t operand = operands_start[i];
     switch (op_type) {
+      case interpreter::OperandType::kCount:
+        os << "#" << static_cast<unsigned int>(operand);
+        break;
+      case interpreter::OperandType::kIdx:
+        os << "[" << static_cast<unsigned int>(operand) << "]";
+        break;
       case interpreter::OperandType::kImm8:
-        os << "#" << static_cast<int>(operand);
+        os << "#" << static_cast<int>(static_cast<int8_t>(operand));
         break;
-      case interpreter::OperandType::kReg:
-        os << "r" << Register::FromOperand(operand).index();
+      case interpreter::OperandType::kReg: {
+        Register reg = Register::FromOperand(operand);
+        if (reg.is_parameter()) {
+          int parameter_index = reg.ToParameterIndex(parameter_count);
+          if (parameter_index == 0) {
+            os << "<this>";
+          } else {
+            os << "a" << parameter_index - 1;
+          }
+        } else {
+          os << "r" << reg.index();
+        }
         break;
+      }
       case interpreter::OperandType::kNone:
         UNREACHABLE();
         break;
@@ -151,6 +168,44 @@ std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {
 
 std::ostream& operator<<(std::ostream& os, const OperandType& operand_type) {
   return os << Bytecodes::OperandTypeToString(operand_type);
+}
+
+
+static const int kLastParamRegisterIndex =
+    -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
+
+
+// Registers occupy range 0-127 in 8-bit value leaving 128 unused values.
+// Parameter indices are biased with the negative value kLastParamRegisterIndex
+// for ease of access in the interpreter.
+static const int kMaxParameterIndex = 128 + kLastParamRegisterIndex;
+
+
+Register Register::FromParameterIndex(int index, int parameter_count) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, parameter_count);
+  DCHECK_LE(parameter_count, kMaxParameterIndex + 1);
+  int register_index = kLastParamRegisterIndex - parameter_count + index + 1;
+  DCHECK_LT(register_index, 0);
+  DCHECK_GE(register_index, Register::kMinRegisterIndex);
+  return Register(register_index);
+}
+
+
+int Register::ToParameterIndex(int parameter_count) const {
+  DCHECK(is_parameter());
+  return index() - kLastParamRegisterIndex + parameter_count - 1;
+}
+
+
+int Register::MaxParameterIndex() { return kMaxParameterIndex; }
+
+
+uint8_t Register::ToOperand() const { return static_cast<uint8_t>(-index_); }
+
+
+Register Register::FromOperand(uint8_t operand) {
+  return Register(-static_cast<int8_t>(operand));
 }
 
 }  // namespace interpreter

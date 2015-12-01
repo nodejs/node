@@ -126,23 +126,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsSmi) {
 
 
 // -----------------------------------------------------------------------------
-// %_IsNonNegativeSmi
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsNonNegativeSmi) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineIsNonNegativeSmi, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsObjectIsNonNegativeSmi(input));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_IsArray
 
 
@@ -327,7 +310,7 @@ TEST_F(JSIntrinsicLoweringTest, Likely) {
       graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineLikely, 1),
                        input, context, effect, control);
   Node* const to_boolean =
-      graph()->NewNode(javascript()->ToBoolean(), likely, context);
+      graph()->NewNode(javascript()->ToBoolean(), likely, context, effect);
   Diamond d(graph(), common(), to_boolean);
   graph()->SetEnd(graph()->NewNode(common()->End(1), d.merge));
 
@@ -422,7 +405,7 @@ TEST_F(JSIntrinsicLoweringTest, Unlikely) {
       graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineUnlikely, 1),
                        input, context, effect, control);
   Node* const to_boolean =
-      graph()->NewNode(javascript()->ToBoolean(), unlikely, context);
+      graph()->NewNode(javascript()->ToBoolean(), unlikely, context, effect);
   Diamond d(graph(), common(), to_boolean);
   graph()->SetEnd(graph()->NewNode(common()->End(1), d.merge));
 

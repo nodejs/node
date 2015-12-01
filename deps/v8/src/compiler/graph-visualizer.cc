@@ -18,6 +18,7 @@
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -28,14 +29,11 @@ namespace compiler {
 FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
                             const char* suffix, const char* mode) {
   EmbeddedVector<char, 256> filename(0);
-  base::SmartArrayPointer<char> function_name;
-  if (info->has_shared_info()) {
-    function_name = info->shared_info()->DebugName()->ToCString();
-    if (strlen(function_name.get()) > 0) {
-      SNPrintF(filename, "turbo-%s", function_name.get());
-    } else {
-      SNPrintF(filename, "turbo-%p", static_cast<void*>(info));
-    }
+  base::SmartArrayPointer<char> debug_name = info->GetDebugName();
+  if (strlen(debug_name.get()) > 0) {
+    SNPrintF(filename, "turbo-%s", debug_name.get());
+  } else if (info->has_shared_info()) {
+    SNPrintF(filename, "turbo-%p", static_cast<void*>(info));
   } else {
     SNPrintF(filename, "turbo-none-%s", phase);
   }
@@ -129,13 +127,10 @@ class JSONGraphNodeWriter {
     os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
                                                                : "false");
     if (NodeProperties::IsTyped(node)) {
-      Bounds bounds = NodeProperties::GetBounds(node);
-      std::ostringstream upper;
-      bounds.upper->PrintTo(upper);
-      std::ostringstream lower;
-      bounds.lower->PrintTo(lower);
-      os_ << ",\"upper_type\":\"" << Escaped(upper, "\"") << "\"";
-      os_ << ",\"lower_type\":\"" << Escaped(lower, "\"") << "\"";
+      Type* type = NodeProperties::GetType(node);
+      std::ostringstream type_out;
+      type->PrintTo(type_out);
+      os_ << ",\"type\":\"" << Escaped(type_out, "\"") << "\"";
     }
     os_ << "}";
   }
@@ -304,12 +299,10 @@ void GraphVisualizer::PrintNode(Node* node, bool gray) {
   os_ << "}";
 
   if (FLAG_trace_turbo_types && NodeProperties::IsTyped(node)) {
-    Bounds bounds = NodeProperties::GetBounds(node);
-    std::ostringstream upper;
-    bounds.upper->PrintTo(upper);
-    std::ostringstream lower;
-    bounds.lower->PrintTo(lower);
-    os_ << "|" << Escaped(upper) << "|" << Escaped(lower);
+    Type* type = NodeProperties::GetType(node);
+    std::ostringstream type_out;
+    type->PrintTo(type_out);
+    os_ << "|" << Escaped(type_out);
   }
   os_ << "}\"\n";
 
@@ -422,7 +415,9 @@ class GraphC1Visualizer {
   void PrintInputs(InputIterator* i, int count, const char* prefix);
   void PrintType(Node* node);
 
-  void PrintLiveRange(LiveRange* range, const char* type);
+  void PrintLiveRange(LiveRange* range, const char* type, int vreg);
+  void PrintLiveRangeChain(TopLevelLiveRange* range, const char* type);
+
   class Tag final BASE_EMBEDDED {
    public:
     Tag(GraphC1Visualizer* visualizer, const char* name) {
@@ -491,15 +486,14 @@ void GraphC1Visualizer::PrintIntProperty(const char* name, int value) {
 
 void GraphC1Visualizer::PrintCompilation(const CompilationInfo* info) {
   Tag tag(this, "compilation");
+  base::SmartArrayPointer<char> name = info->GetDebugName();
   if (info->IsOptimizing()) {
-    Handle<String> name = info->literal()->debug_name();
-    PrintStringProperty("name", name->ToCString().get());
+    PrintStringProperty("name", name.get());
     PrintIndent();
-    os_ << "method \"" << name->ToCString().get() << ":"
-        << info->optimization_id() << "\"\n";
+    os_ << "method \"" << name.get() << ":" << info->optimization_id()
+        << "\"\n";
   } else {
-    CodeStub::Major major_key = info->code_stub()->MajorKey();
-    PrintStringProperty("name", CodeStub::MajorName(major_key, false));
+    PrintStringProperty("name", name.get());
     PrintStringProperty("method", "stub");
   }
   PrintLongProperty("date",
@@ -546,11 +540,9 @@ void GraphC1Visualizer::PrintInputs(Node* node) {
 
 void GraphC1Visualizer::PrintType(Node* node) {
   if (NodeProperties::IsTyped(node)) {
-    Bounds bounds = NodeProperties::GetBounds(node);
+    Type* type = NodeProperties::GetType(node);
     os_ << " type:";
-    bounds.upper->PrintTo(os_);
-    os_ << "..";
-    bounds.lower->PrintTo(os_);
+    type->PrintTo(os_);
   }
 }
 
@@ -697,23 +689,34 @@ void GraphC1Visualizer::PrintLiveRanges(const char* phase,
   PrintStringProperty("name", phase);
 
   for (auto range : data->fixed_double_live_ranges()) {
-    PrintLiveRange(range, "fixed");
+    PrintLiveRangeChain(range, "fixed");
   }
 
   for (auto range : data->fixed_live_ranges()) {
-    PrintLiveRange(range, "fixed");
+    PrintLiveRangeChain(range, "fixed");
   }
 
   for (auto range : data->live_ranges()) {
-    PrintLiveRange(range, "object");
+    PrintLiveRangeChain(range, "object");
   }
 }
 
 
-void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
+void GraphC1Visualizer::PrintLiveRangeChain(TopLevelLiveRange* range,
+                                            const char* type) {
+  if (range == nullptr || range->IsEmpty()) return;
+  int vreg = range->vreg();
+  for (LiveRange* child = range; child != nullptr; child = child->next()) {
+    PrintLiveRange(child, type, vreg);
+  }
+}
+
+
+void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
+                                       int vreg) {
   if (range != NULL && !range->IsEmpty()) {
     PrintIndent();
-    os_ << range->id() << " " << type;
+    os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
       int assigned_reg = op.index();
@@ -742,13 +745,8 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type) {
         }
       }
     }
-    int parent_index = -1;
-    if (range->IsChild()) {
-      parent_index = range->parent()->id();
-    } else {
-      parent_index = range->id();
-    }
-    os_ << " " << parent_index;
+
+    os_ << " " << vreg;
     for (auto interval = range->first_interval(); interval != nullptr;
          interval = interval->next()) {
       os_ << " [" << interval->start().value() << ", "

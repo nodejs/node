@@ -154,10 +154,12 @@ namespace internal {
   V(kObjectFoundInSmiOnlyArray, "Object found in smi-only array")              \
   V(kObjectLiteralWithComplexProperty, "Object literal with complex property") \
   V(kOffsetOutOfRange, "Offset out of range")                                  \
+  V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")              \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
   V(kOperandIsASmi, "Operand is a smi")                                        \
   V(kOperandIsNotADate, "Operand is not a date")                               \
+  V(kOperandIsNotAFunction, "Operand is not a function")                       \
   V(kOperandIsNotAName, "Operand is not a name")                               \
   V(kOperandIsNotANumber, "Operand is not a number")                           \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \
@@ -180,7 +182,6 @@ namespace internal {
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root")  \
   V(kRegisterWasClobbered, "Register was clobbered")                           \
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
-  V(kRestParameter, "Rest parameters")                                         \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
   V(kScriptContext, "Allocation of script context")                            \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
@@ -197,8 +198,6 @@ namespace internal {
   V(kTheInstructionShouldBeAnOris, "The instruction should be an oris")        \
   V(kTheInstructionShouldBeALi, "The instruction should be a li")              \
   V(kTheInstructionShouldBeASldi, "The instruction should be a sldi")          \
-  V(kTheInstructionToPatchShouldBeALoadFromConstantPool,                       \
-    "The instruction to patch should be a load from the constant pool")        \
   V(kTheInstructionToPatchShouldBeAnLdrLiteral,                                \
     "The instruction to patch should be a ldr literal")                        \
   V(kTheInstructionToPatchShouldBeALis,                                        \

@@ -30,9 +30,20 @@ const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return edi; }
 const Register VectorStoreICDescriptor::VectorRegister() { return ebx; }
 
 
-const Register StoreTransitionDescriptor::MapRegister() {
-  return FLAG_vector_stores ? no_reg : ebx;
+const Register VectorStoreTransitionDescriptor::SlotRegister() {
+  return no_reg;
 }
+
+
+const Register VectorStoreTransitionDescriptor::VectorRegister() {
+  return no_reg;
+}
+
+
+const Register VectorStoreTransitionDescriptor::MapRegister() { return no_reg; }
+
+
+const Register StoreTransitionDescriptor::MapRegister() { return ebx; }
 
 
 const Register LoadGlobalViaContextDescriptor::SlotRegister() { return ebx; }
@@ -42,12 +53,21 @@ const Register StoreGlobalViaContextDescriptor::SlotRegister() { return ebx; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return eax; }
 
 
-const Register InstanceofDescriptor::left() { return eax; }
-const Register InstanceofDescriptor::right() { return edx; }
+const Register InstanceOfDescriptor::LeftRegister() { return edx; }
+const Register InstanceOfDescriptor::RightRegister() { return eax; }
+
+
+const Register StringCompareDescriptor::LeftRegister() { return edx; }
+const Register StringCompareDescriptor::RightRegister() { return eax; }
 
 
 const Register ArgumentsAccessReadDescriptor::index() { return edx; }
 const Register ArgumentsAccessReadDescriptor::parameter_count() { return eax; }
+
+
+const Register ArgumentsAccessNewDescriptor::function() { return edi; }
+const Register ArgumentsAccessNewDescriptor::parameter_count() { return ecx; }
+const Register ArgumentsAccessNewDescriptor::parameter_pointer() { return edx; }
 
 
 const Register ApiGetterDescriptor::function_address() { return edx; }
@@ -65,17 +85,11 @@ const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
 
 
-void StoreTransitionDescriptor::InitializePlatformSpecific(
+void VectorStoreTransitionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
-                          MapRegister()};
-
-  // When FLAG_vector_stores is true, we want to pass the map register on the
-  // stack instead of in a register.
-  DCHECK(FLAG_vector_stores || !MapRegister().is(no_reg));
-
-  int register_count = FLAG_vector_stores ? 3 : 4;
-  data->InitializePlatformSpecific(register_count, registers);
+  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister()};
+  // The other three parameters are on the stack in ia32.
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
@@ -99,6 +113,10 @@ void ToNumberDescriptor::InitializePlatformSpecific(
   Register registers[] = {eax};
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
+
+
+// static
+const Register ToStringDescriptor::ReceiverRegister() { return eax; }
 
 
 // static
@@ -186,6 +204,15 @@ void CallConstructDescriptor::InitializePlatformSpecific(
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
   Register registers[] = {eax, edi, ecx, ebx};
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+}
+
+
+void CallTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // eax : number of arguments
+  // edi : the target to call
+  Register registers[] = {edi, eax};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 
@@ -371,6 +398,18 @@ void MathRoundVariantCallFromOptimizedCodeDescriptor::
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
+
+
+void PushArgsAndCallDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      eax,  // argument count (including receiver)
+      ebx,  // address of first argument
+      edi   // the target callable to be call
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 }  // namespace internal
 }  // namespace v8
 

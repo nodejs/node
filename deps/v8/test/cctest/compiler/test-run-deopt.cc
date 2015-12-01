@@ -63,7 +63,6 @@ TEST(DeoptSimpleInExpr) {
 
 TEST(DeoptExceptionHandlerCatch) {
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_try_catch = true;
 
   FunctionTester T(
       "(function f() {"

@@ -106,11 +106,11 @@ var expected = [
   // For-of-let: next(), body, next(), ...
   "j16","J4","j16","J4","j16","J4","j16",
   // For-var: var decl, condition, body, next, condition, body, ...
-  "k7","k20","K4","k23","k20","K4","k23","k20","K4","k23","k20",
+  "k7","k20","K4","k26","k20","K4","k26","k20","K4","k26","k20",
   // For: init, condition, body, next, condition, body, ...
-  "l7","l16","L4","l19","l16","L4","l19","l16","L4","l19","l16",
+  "l7","l16","L4","l22","l16","L4","l22","l16","L4","l22","l16",
   // For-let: init, condition, body, next, condition, body, ...
-  "m7","m20","M4","m23","m20","M4","m23","m20","M4","m23","m20",
+  "m7","m20","M4","m26","m20","M4","m26","m20","M4","m26","m20",
   // Exit.
   "y0","z0",
 ]

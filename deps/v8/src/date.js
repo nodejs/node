@@ -16,19 +16,18 @@ var $createDate;
 // Imports
 
 var GlobalDate = global.Date;
+var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var IsFinite;
 var MathAbs;
 var MathFloor;
 var ToNumber;
-var ToString;
 
 utils.Import(function(from) {
   IsFinite = from.IsFinite;
   MathAbs = from.MathAbs;
   MathFloor = from.MathFloor;
   ToNumber = from.ToNumber;
-  ToString = from.ToString;
 });
 
 // -------------------------------------------------------------------
@@ -148,6 +147,7 @@ function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
   } else if (argc == 1) {
     if (IS_NUMBER(year)) {
       value = year;
+
     } else if (IS_STRING(year)) {
       // Probe the Date cache. If we already have a time value for the
       // given time, we re-use that instead of parsing the string again.
@@ -163,15 +163,11 @@ function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
         }
       }
 
+    } else if (IS_DATE(year)) {
+      value = UTC_DATE_VALUE(year);
+
     } else {
-      // According to ECMA 262, no hint should be given for this
-      // conversion. However, ToPrimitive defaults to STRING_HINT for
-      // Date objects which will lose precision when the Date
-      // constructor is called with another Date object as its
-      // argument. We therefore use NUMBER_HINT for the conversion,
-      // which is the default for everything else than Date objects.
-      // This makes us behave like KJS and SpiderMonkey.
-      var time = $toPrimitive(year, NUMBER_HINT);
+      var time = TO_PRIMITIVE(year);
       value = IS_STRING(time) ? DateParse(time) : ToNumber(time);
     }
     SET_UTC_DATE_VALUE(this, value);
@@ -270,7 +266,7 @@ var parse_buffer = new InternalArray(8);
 
 // ECMA 262 - 15.9.4.2
 function DateParse(string) {
-  var arr = %DateParseString(ToString(string), parse_buffer);
+  var arr = %DateParseString(string, parse_buffer);
   if (IS_NULL(arr)) return NAN;
 
   var day = MakeDay(arr[0], arr[1], arr[2]);
@@ -777,9 +773,10 @@ function DateToISOString() {
 }
 
 
+// 20.3.4.37 Date.prototype.toJSON ( key )
 function DateToJSON(key) {
   var o = TO_OBJECT(this);
-  var tv = $defaultNumber(o);
+  var tv = TO_PRIMITIVE_NUMBER(o);
   if (IS_NUMBER(tv) && !NUMBER_IS_FINITE(tv)) {
     return null;
   }
@@ -820,7 +817,7 @@ function CreateDate(time) {
 // -------------------------------------------------------------------
 
 %SetCode(GlobalDate, DateConstructor);
-%FunctionSetPrototype(GlobalDate, new GlobalDate(NAN));
+%FunctionSetPrototype(GlobalDate, new GlobalObject());
 
 // Set up non-enumerable properties of the Date object itself.
 utils.InstallFunctions(GlobalDate, DONT_ENUM, [
@@ -883,8 +880,6 @@ utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toJSON", DateToJSON
 ]);
 
-utils.ExportToRuntime(function(to) {
-  to.CreateDate = CreateDate;
-});
+%InstallToContext(["create_date_fun", CreateDate]);
 
 })

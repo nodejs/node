@@ -177,14 +177,14 @@ double Simulator::CallDouble(byte* entry, CallArgument* args) {
 
 
 int64_t Simulator::CallJS(byte* entry,
-                          byte* function_entry,
-                          JSFunction* func,
+                          Object* new_target,
+                          Object* target,
                           Object* revc,
                           int64_t argc,
                           Object*** argv) {
   CallArgument args[] = {
-    CallArgument(function_entry),
-    CallArgument(func),
+    CallArgument(new_target),
+    CallArgument(target),
     CallArgument(revc),
     CallArgument(argc),
     CallArgument(argv),
@@ -192,6 +192,7 @@ int64_t Simulator::CallJS(byte* entry,
   };
   return CallInt64(entry, args);
 }
+
 
 int64_t Simulator::CallRegExp(byte* entry,
                               String* input,

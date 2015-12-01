@@ -1,6 +1,6 @@
 {
   "flags": [
-    "--harmony-object",
+    "--harmony-simd",
     "test/simdjs/harness-adapt.js"
   ],
   "name": "SIMDJS",
@@ -9,7 +9,6 @@
   ],
   "resources": [
     "test/simdjs/data/src/benchmarks/base.js",
-    "test/simdjs/data/src/ecmascript_simd.js",
     "test/simdjs/harness-adapt.js",
     "test/simdjs/harness-finish.js",
     "test/simdjs/data/src/benchmarks/kernel-template.js",
@@ -239,7 +238,7 @@
       ]
     }
   ],
-  "timeout_arm": 240,
+  "timeout_arm": 480,
   "timeout_arm64": 120,
   "units": "ms"
 }

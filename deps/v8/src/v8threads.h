@@ -5,6 +5,8 @@
 #ifndef V8_V8THREADS_H_
 #define V8_V8THREADS_H_
 
+#include "src/isolate.h"
+
 namespace v8 {
 namespace internal {
 

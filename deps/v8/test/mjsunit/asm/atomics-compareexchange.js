@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-atomics --harmony-sharedarraybuffer
+// Flags: --harmony-sharedarraybuffer
 
 function Module(stdlib, foreign, heap) {
   "use asm";
@@ -12,8 +12,6 @@ function Module(stdlib, foreign, heap) {
   var MEMU8 = new stdlib.Uint8Array(heap);
   var MEMU16 = new stdlib.Uint16Array(heap);
   var MEMU32 = new stdlib.Uint32Array(heap);
-  var MEMF32 = new stdlib.Float32Array(heap);
-  var MEMF64 = new stdlib.Float64Array(heap);
   var compareExchange = stdlib.Atomics.compareExchange;
   var fround = stdlib.Math.fround;
 
@@ -59,20 +57,6 @@ function Module(stdlib, foreign, heap) {
     return compareExchange(MEMU32, i, o, n)>>>0;
   }
 
-  function compareExchangef32(i, o, n) {
-    i = i | 0;
-    o = fround(o);
-    n = fround(n);
-    return fround(compareExchange(MEMF32, i, o, n));
-  }
-
-  function compareExchangef64(i, o, n) {
-    i = i | 0;
-    o = +o;
-    n = +n;
-    return +compareExchange(MEMF64, i, o, n);
-  }
-
   return {
     compareExchangei8: compareExchangei8,
     compareExchangei16: compareExchangei16,
@@ -80,8 +64,6 @@ function Module(stdlib, foreign, heap) {
     compareExchangeu8: compareExchangeu8,
     compareExchangeu16: compareExchangeu16,
     compareExchangeu32: compareExchangeu32,
-    compareExchangef32: compareExchangef32,
-    compareExchangef64: compareExchangef64
   };
 }
 
@@ -117,5 +99,3 @@ testElementType(Int32Array, m.compareExchangei32, 0);
 testElementType(Uint8Array, m.compareExchangeu8, 0);
 testElementType(Uint16Array, m.compareExchangeu16, 0);
 testElementType(Uint32Array, m.compareExchangeu32, 0);
-testElementType(Float32Array, m.compareExchangef32, NaN);
-testElementType(Float64Array, m.compareExchangef64, NaN);

@@ -25,7 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-natives-as=builtins
+// Flags: --allow-natives-syntax --expose-natives-as=builtins
+
+// Verify that the builtin typed arrays have been pretenured.
+assertFalse(%InNewSpace(builtins.kMath));
+assertFalse(%InNewSpace(builtins.rempio2result));
+assertFalse(%InNewSpace(builtins.rngstate));
 
 // Checks that all function properties of the builtin object that are actually
 // constructors (recognized by having properties on their .prototype object),

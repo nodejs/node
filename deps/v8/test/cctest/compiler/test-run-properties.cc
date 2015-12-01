@@ -41,9 +41,9 @@ static void TypedArrayLoadHelper(const char* array_type) {
            values_buffer.start(), array_type, arraysize(kValues),
            values_buffer.start(), array_type, array_type);
 
-  FunctionTester T(
-      source_buffer.start(),
-      CompilationInfo::kContextSpecializing | CompilationInfo::kTypingEnabled);
+  FunctionTester T(source_buffer.start(),
+                   CompilationInfo::kFunctionContextSpecializing |
+                       CompilationInfo::kTypingEnabled);
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     for (size_t j = 0; j < arraysize(kValues); ++j) {
       volatile U value_a = static_cast<U>(kValues[i]);
@@ -109,9 +109,9 @@ static void TypedArrayStoreHelper(const char* array_type) {
            values_buffer.start(), array_type, arraysize(kValues),
            values_buffer.start(), array_type, array_type);
 
-  FunctionTester T(
-      source_buffer.start(),
-      CompilationInfo::kContextSpecializing | CompilationInfo::kTypingEnabled);
+  FunctionTester T(source_buffer.start(),
+                   CompilationInfo::kFunctionContextSpecializing |
+                       CompilationInfo::kTypingEnabled);
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     for (size_t j = 0; j < arraysize(kValues); ++j) {
       volatile U value_a = static_cast<U>(kValues[i]);

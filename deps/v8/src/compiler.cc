@@ -11,7 +11,6 @@
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
 #include "src/compiler/pipeline.h"
-#include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
@@ -19,11 +18,13 @@
 #include "src/gdb-jit.h"
 #include "src/hydrogen.h"
 #include "src/interpreter/interpreter.h"
+#include "src/isolate-inl.h"
 #include "src/lithium.h"
 #include "src/log-inl.h"
 #include "src/messages.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/rewriter.h"
 #include "src/runtime-profiler.h"
 #include "src/scanner-character-streams.h"
@@ -119,7 +120,7 @@ bool CompilationInfo::has_scope() const {
 
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info)
-    : CompilationInfo(parse_info, nullptr, BASE, parse_info->isolate(),
+    : CompilationInfo(parse_info, nullptr, nullptr, BASE, parse_info->isolate(),
                       parse_info->zone()) {
   // Compiling for the snapshot typically results in different code than
   // compiling later on. This means that code recompiled with deoptimization
@@ -129,7 +130,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
   // with deoptimization support.
   if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
 
-  if (FLAG_context_specialization) MarkAsContextSpecializing();
+  if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
@@ -148,11 +149,18 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
 
 
 CompilationInfo::CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone)
-    : CompilationInfo(nullptr, stub, STUB, isolate, zone) {}
+    : CompilationInfo(nullptr, stub, CodeStub::MajorName(stub->MajorKey()),
+                      STUB, isolate, zone) {}
 
+CompilationInfo::CompilationInfo(const char* debug_name, Isolate* isolate,
+                                 Zone* zone)
+    : CompilationInfo(nullptr, nullptr, debug_name, STUB, isolate, zone) {
+  set_output_code_kind(Code::STUB);
+}
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
-                                 Mode mode, Isolate* isolate, Zone* zone)
+                                 const char* debug_name, Mode mode,
+                                 Isolate* isolate, Zone* zone)
     : parse_info_(parse_info),
       isolate_(isolate),
       flags_(0),
@@ -173,7 +181,20 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       parameter_count_(0),
       optimization_id_(-1),
       osr_expr_stack_height_(0),
-      function_type_(nullptr) {}
+      function_type_(nullptr),
+      debug_name_(debug_name) {
+  // Parameter count is number of stack parameters.
+  if (code_stub_ != NULL) {
+    CodeStubDescriptor descriptor(code_stub_);
+    parameter_count_ = descriptor.GetStackParameterCount();
+    if (descriptor.function_mode() == NOT_JS_FUNCTION_STUB_MODE) {
+      parameter_count_--;
+    }
+    set_output_code_kind(code_stub->GetCodeKind());
+  } else {
+    set_output_code_kind(Code::FUNCTION);
+  }
+}
 
 
 CompilationInfo::~CompilationInfo() {
@@ -185,6 +206,14 @@ CompilationInfo::~CompilationInfo() {
   // been rolled back or committed.
   DCHECK(dependencies()->IsEmpty());
 #endif  // DEBUG
+}
+
+
+void CompilationInfo::SetStub(CodeStub* code_stub) {
+  SetMode(STUB);
+  code_stub_ = code_stub;
+  debug_name_ = CodeStub::MajorName(code_stub->MajorKey());
+  set_output_code_kind(code_stub->GetCodeKind());
 }
 
 
@@ -203,15 +232,6 @@ bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 
 int CompilationInfo::num_heap_slots() const {
   return has_scope() ? scope()->num_heap_slots() : 0;
-}
-
-
-Code::Flags CompilationInfo::flags() const {
-  return code_stub() != nullptr
-             ? Code::ComputeFlags(
-                   code_stub()->GetCodeKind(), code_stub()->GetICState(),
-                   code_stub()->GetExtraICState(), code_stub()->GetStubType())
-             : Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
 }
 
 
@@ -244,11 +264,6 @@ bool CompilationInfo::has_simple_parameters() {
 }
 
 
-bool CompilationInfo::MayUseThis() const {
-  return scope()->has_this_declaration() && scope()->receiver()->is_used();
-}
-
-
 int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                                           SourcePosition position,
                                           int parent_id) {
@@ -259,7 +274,7 @@ int CompilationInfo::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
       shared->start_position());
   if (!shared->script()->IsUndefined()) {
     Handle<Script> script(Script::cast(shared->script()));
-    info.script_id = script->id()->value();
+    info.script_id = script->id();
 
     if (FLAG_hydrogen_track_positions && !script->source()->IsUndefined()) {
       CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
@@ -302,11 +317,22 @@ void CompilationInfo::LogDeoptCallPosition(int pc_offset, int inlining_id) {
 }
 
 
-Handle<Code> CompilationInfo::GenerateCodeStub() {
-  // Run a "mini pipeline", extracted from compiler.cc.
-  CHECK(Parser::ParseStatic(parse_info()));
-  CHECK(Compiler::Analyze(parse_info()));
-  return compiler::Pipeline(this).GenerateCode();
+base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
+  if (parse_info()) {
+    AllowHandleDereference allow_deref;
+    return parse_info()->literal()->debug_name()->ToCString();
+  }
+  const char* str = debug_name_ ? debug_name_ : "unknown";
+  size_t len = strlen(str) + 1;
+  base::SmartArrayPointer<char> name(new char[len]);
+  memcpy(name.get(), str, len);
+  return name;
+}
+
+
+bool CompilationInfo::MustReplaceUndefinedReceiverWithGlobalProxy() {
+  return is_sloppy(language_mode()) && !is_native() &&
+         scope()->has_this_declaration() && scope()->receiver()->is_used();
 }
 
 
@@ -414,7 +440,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
     if (info()->shared_info()->asm_function()) {
       if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
-      info()->MarkAsContextSpecializing();
+      info()->MarkAsFunctionContextSpecializing();
     } else if (FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
       info()->EnsureFeedbackVector();
@@ -468,7 +494,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   }
 
   // Type-check the function.
-  AstTyper::Run(info());
+  AstTyper(info()->isolate(), info()->zone(), info()->closure(),
+           info()->scope(), info()->osr_ast_id(), info()->literal())
+      .Run();
 
   // Optimization could have been disabled by the parser. Note that this check
   // is only needed because the Hydrogen graph builder is missing some bailouts.
@@ -749,8 +777,8 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
 
   // Context specialization folds-in the context, so no sharing can occur.
-  if (info->is_context_specializing()) return;
-  // Frame specialization implies context specialization.
+  if (info->is_function_context_specializing()) return;
+  // Frame specialization implies function context specialization.
   DCHECK(!info->is_frame_specializing());
 
   // Do not cache bound functions.
@@ -760,7 +788,7 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   // Cache optimized context-specific code.
   if (FLAG_cache_optimized_code) {
     Handle<SharedFunctionInfo> shared(function->shared());
-    Handle<FixedArray> literals(function->literals());
+    Handle<LiteralsArray> literals(function->literals());
     Handle<Context> native_context(function->context()->native_context());
     SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
                                               literals, info->osr_ast_id());
@@ -771,7 +799,7 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 
   // Cache optimized context-independent code.
   if (FLAG_turbo_cache_shared_code && code->is_turbofanned()) {
-    DCHECK(!info->is_context_specializing());
+    DCHECK(!info->is_function_context_specializing());
     DCHECK(info->osr_ast_id().IsNone());
     Handle<SharedFunctionInfo> shared(function->shared());
     SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(shared, code);
@@ -940,8 +968,24 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
 }
 
 
-bool Compiler::EnsureCompiled(Handle<JSFunction> function,
-                              ClearExceptionFlag flag) {
+MaybeHandle<Code> Compiler::GetStubCode(Handle<JSFunction> function,
+                                        CodeStub* stub) {
+  // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
+  Zone zone;
+  ParseInfo parse_info(&zone, function);
+  CompilationInfo info(&parse_info);
+  info.SetFunctionType(stub->GetCallInterfaceDescriptor().GetFunctionType());
+  info.MarkAsFunctionContextSpecializing();
+  info.MarkAsDeoptimizationEnabled();
+  info.SetStub(stub);
+
+  // Run a "mini pipeline", extracted from compiler.cc.
+  if (!ParseAndAnalyze(&parse_info)) return MaybeHandle<Code>();
+  return compiler::Pipeline(&info).GenerateCode();
+}
+
+
+bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
   MaybeHandle<Code> maybe_code = Compiler::GetLazyCode(function);
   Handle<Code> code;
@@ -1233,8 +1277,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     script = isolate->factory()->NewScript(source);
     if (!script_name.is_null()) {
       script->set_name(*script_name);
-      script->set_line_offset(Smi::FromInt(line_offset));
-      script->set_column_offset(Smi::FromInt(column_offset));
+      script->set_line_offset(line_offset);
+      script->set_column_offset(column_offset);
     }
     script->set_origin_options(options);
     Zone zone;
@@ -1351,12 +1395,13 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     // Create a script object describing the script to be compiled.
     Handle<Script> script = isolate->factory()->NewScript(source);
     if (natives == NATIVES_CODE) {
-      script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
+      script->set_type(Script::TYPE_NATIVE);
+      script->set_hide_source(true);
     }
     if (!script_name.is_null()) {
       script->set_name(*script_name);
-      script->set_line_offset(Smi::FromInt(line_offset));
-      script->set_column_offset(Smi::FromInt(column_offset));
+      script->set_line_offset(line_offset);
+      script->set_column_offset(column_offset);
     }
     script->set_origin_options(resource_options);
     if (!source_map_url.is_null()) {
@@ -1714,7 +1759,6 @@ bool CompilationPhase::ShouldProduceTraceOutput() const {
   return (tracing_on &&
       base::OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }
-
 
 #if DEBUG
 void CompilationInfo::PrintAstForTesting() {

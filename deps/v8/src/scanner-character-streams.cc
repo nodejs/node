@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/scanner-character-streams.h"
 
 #include "include/v8.h"
+#include "src/globals.h"
 #include "src/handles.h"
+#include "src/list-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/objects.h"
 #include "src/unicode-inl.h"
 
 namespace v8 {

@@ -458,6 +458,9 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case kRepWord32:
       opcode = kCheckedLoadWord32;
       break;
+    case kRepWord64:
+      opcode = kCheckedLoadWord64;
+      break;
     case kRepFloat32:
       opcode = kCheckedLoadFloat32;
       break;
@@ -490,6 +493,9 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       break;
     case kRepWord32:
       opcode = kCheckedStoreWord32;
+      break;
+    case kRepWord64:
+      opcode = kCheckedStoreWord64;
       break;
     case kRepFloat32:
       opcode = kCheckedStoreFloat32;
@@ -1270,6 +1276,26 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  VisitRR(this, kArm64Float64ExtractLowWord32, node);
+}
+
+
+void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
+  VisitRR(this, kArm64U64MoveFloat64, node);
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  VisitRR(this, kArm64Float64MoveU64, node);
+}
+
+
+void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
+  VisitRR(this, kArm64Float64MoveU64, node);
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   VisitRRR(this, kArm64Float32Add, node);
 }
@@ -1645,7 +1671,7 @@ void VisitWord64Test(InstructionSelector* selector, Node* node,
 }
 
 
-// Shared routine for multiple float64 compare operations.
+// Shared routine for multiple float32 compare operations.
 void VisitFloat32Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
@@ -1653,6 +1679,10 @@ void VisitFloat32Compare(InstructionSelector* selector, Node* node,
   if (m.right().Is(0.0f)) {
     VisitCompare(selector, kArm64Float32Cmp, g.UseRegister(m.left().node()),
                  g.UseImmediate(m.right().node()), cont);
+  } else if (m.left().Is(0.0f)) {
+    cont->Commute();
+    VisitCompare(selector, kArm64Float32Cmp, g.UseRegister(m.right().node()),
+                 g.UseImmediate(m.left().node()), cont);
   } else {
     VisitCompare(selector, kArm64Float32Cmp, g.UseRegister(m.left().node()),
                  g.UseRegister(m.right().node()), cont);
@@ -1668,6 +1698,10 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
   if (m.right().Is(0.0)) {
     VisitCompare(selector, kArm64Float64Cmp, g.UseRegister(m.left().node()),
                  g.UseImmediate(m.right().node()), cont);
+  } else if (m.left().Is(0.0)) {
+    cont->Commute();
+    VisitCompare(selector, kArm64Float64Cmp, g.UseRegister(m.right().node()),
+                 g.UseImmediate(m.left().node()), cont);
   } else {
     VisitCompare(selector, kArm64Float64Cmp, g.UseRegister(m.left().node()),
                  g.UseRegister(m.right().node()), cont);
@@ -1739,19 +1773,19 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         cont.OverwriteAndNegateIfEqual(kEqual);
         return VisitFloat32Compare(this, value, &cont);
       case IrOpcode::kFloat32LessThan:
-        cont.OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        cont.OverwriteAndNegateIfEqual(kFloatLessThan);
         return VisitFloat32Compare(this, value, &cont);
       case IrOpcode::kFloat32LessThanOrEqual:
-        cont.OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        cont.OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
         return VisitFloat32Compare(this, value, &cont);
       case IrOpcode::kFloat64Equal:
         cont.OverwriteAndNegateIfEqual(kEqual);
         return VisitFloat64Compare(this, value, &cont);
       case IrOpcode::kFloat64LessThan:
-        cont.OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        cont.OverwriteAndNegateIfEqual(kFloatLessThan);
         return VisitFloat64Compare(this, value, &cont);
       case IrOpcode::kFloat64LessThanOrEqual:
-        cont.OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        cont.OverwriteAndNegateIfEqual(kFloatLessThanOrEqual);
         return VisitFloat64Compare(this, value, &cont);
       case IrOpcode::kProjection:
         // Check if this is the overflow output projection of an
@@ -1992,13 +2026,13 @@ void InstructionSelector::VisitFloat32Equal(Node* node) {
 
 
 void InstructionSelector::VisitFloat32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont(kFloatLessThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont(kFloatLessThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
@@ -2010,13 +2044,13 @@ void InstructionSelector::VisitFloat64Equal(Node* node) {
 
 
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont(kFloatLessThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont(kFloatLessThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 

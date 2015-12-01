@@ -41,10 +41,8 @@ TEST(RunOptimizedMathFloorStub) {
   Node* start = graph.NewNode(common.Start(4));
   // Parameter 0 is the number to round
   Node* numberParam = graph.NewNode(common.Parameter(1), start);
-  Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
-  Node* theCode = graph.NewNode(common.HeapConstant(u));
-  Unique<HeapObject> tvu = Unique<HeapObject>::CreateImmovable(tv);
-  Node* vector = graph.NewNode(common.HeapConstant(tvu));
+  Node* theCode = graph.NewNode(common.HeapConstant(code));
+  Node* vector = graph.NewNode(common.HeapConstant(tv));
   Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
   Node* call =
       graph.NewNode(common.Call(descriptor), theCode, js.UndefinedConstant(),
@@ -83,8 +81,7 @@ TEST(RunStringLengthTFStub) {
   Node* nameParam = graph.NewNode(common.Parameter(2), start);
   Node* slotParam = graph.NewNode(common.Parameter(3), start);
   Node* vectorParam = graph.NewNode(common.Parameter(4), start);
-  Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
-  Node* theCode = graph.NewNode(common.HeapConstant(u));
+  Node* theCode = graph.NewNode(common.HeapConstant(code));
   Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
   Node* call =
       graph.NewNode(common.Call(descriptor), theCode, receiverParam, nameParam,
@@ -127,8 +124,7 @@ TEST(RunStringAddTFStub) {
   // Parameter 0 is the receiver
   Node* leftParam = graph.NewNode(common.Parameter(1), start);
   Node* rightParam = graph.NewNode(common.Parameter(2), start);
-  Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
-  Node* theCode = graph.NewNode(common.HeapConstant(u));
+  Node* theCode = graph.NewNode(common.HeapConstant(code));
   Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
   Node* call = graph.NewNode(common.Call(descriptor), theCode, leftParam,
                              rightParam, dummyContext, start, start);

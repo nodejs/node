@@ -14,6 +14,7 @@
 var GlobalObject = global.Object;
 var MathMax;
 var ToNumber;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MathMax = from.MathMax;
@@ -22,12 +23,6 @@ utils.Import(function(from) {
 
 // -------------------------------------------------------------------
 
-
-function CheckSharedTypedArray(sta) {
-  if (!%IsSharedTypedArray(sta)) {
-    throw MakeTypeError(kNotSharedTypedArray, sta);
-  }
-}
 
 function CheckSharedIntegerTypedArray(ia) {
   if (!%IsSharedIntegerTypedArray(ia)) {
@@ -45,8 +40,8 @@ function CheckSharedInteger32TypedArray(ia) {
 //-------------------------------------------------------------------
 
 function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
-  CheckSharedTypedArray(sta);
-  index = $toInteger(index);
+  CheckSharedIntegerTypedArray(sta);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
   }
@@ -56,8 +51,8 @@ function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
 }
 
 function AtomicsLoadJS(sta, index) {
-  CheckSharedTypedArray(sta);
-  index = $toInteger(index);
+  CheckSharedIntegerTypedArray(sta);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
   }
@@ -65,8 +60,8 @@ function AtomicsLoadJS(sta, index) {
 }
 
 function AtomicsStoreJS(sta, index, value) {
-  CheckSharedTypedArray(sta);
-  index = $toInteger(index);
+  CheckSharedIntegerTypedArray(sta);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(sta)) {
     return UNDEFINED;
   }
@@ -76,7 +71,7 @@ function AtomicsStoreJS(sta, index, value) {
 
 function AtomicsAddJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
-  index = $toInteger(index);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
@@ -86,7 +81,7 @@ function AtomicsAddJS(ia, index, value) {
 
 function AtomicsSubJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
-  index = $toInteger(index);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
@@ -96,7 +91,7 @@ function AtomicsSubJS(ia, index, value) {
 
 function AtomicsAndJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
-  index = $toInteger(index);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
@@ -106,7 +101,7 @@ function AtomicsAndJS(ia, index, value) {
 
 function AtomicsOrJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
-  index = $toInteger(index);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
@@ -116,7 +111,7 @@ function AtomicsOrJS(ia, index, value) {
 
 function AtomicsXorJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
-  index = $toInteger(index);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
@@ -126,7 +121,7 @@ function AtomicsXorJS(ia, index, value) {
 
 function AtomicsExchangeJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
-  index = $toInteger(index);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
@@ -142,7 +137,7 @@ function AtomicsIsLockFreeJS(size) {
 
 function AtomicsFutexWaitJS(ia, index, value, timeout) {
   CheckSharedInteger32TypedArray(ia);
-  index = $toInteger(index);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
@@ -161,20 +156,20 @@ function AtomicsFutexWaitJS(ia, index, value, timeout) {
 
 function AtomicsFutexWakeJS(ia, index, count) {
   CheckSharedInteger32TypedArray(ia);
-  index = $toInteger(index);
+  index = TO_INTEGER(index);
   if (index < 0 || index >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
   }
-  count = MathMax(0, $toInteger(count));
+  count = MathMax(0, TO_INTEGER(count));
   return %AtomicsFutexWake(ia, index, count);
 }
 
 function AtomicsFutexWakeOrRequeueJS(ia, index1, count, value, index2) {
   CheckSharedInteger32TypedArray(ia);
-  index1 = $toInteger(index1);
-  count = MathMax(0, $toInteger(count));
+  index1 = TO_INTEGER(index1);
+  count = MathMax(0, TO_INTEGER(count));
   value = TO_INT32(value);
-  index2 = $toInteger(index2);
+  index2 = TO_INTEGER(index2);
   if (index1 < 0 || index1 >= %_TypedArrayGetLength(ia) ||
       index2 < 0 || index2 >= %_TypedArrayGetLength(ia)) {
     return UNDEFINED;
@@ -192,7 +187,7 @@ var Atomics = new AtomicsConstructor();
 %AddNamedProperty(global, "Atomics", Atomics, DONT_ENUM);
 %FunctionSetInstanceClassName(AtomicsConstructor, 'Atomics');
 
-%AddNamedProperty(Atomics, symbolToStringTag, "Atomics", READ_ONLY | DONT_ENUM);
+%AddNamedProperty(Atomics, toStringTagSymbol, "Atomics", READ_ONLY | DONT_ENUM);
 
 // These must match the values in src/futex-emulation.h
 utils.InstallConstants(Atomics, [

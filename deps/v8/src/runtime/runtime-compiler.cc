@@ -9,6 +9,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
@@ -27,6 +28,8 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
     PrintF("]\n");
   }
 #endif
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
 
   // Compile the target function.
   DCHECK(function->shared()->allows_lazy_compilation());
@@ -46,6 +49,9 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
 
   Compiler::ConcurrencyMode mode =
       concurrent ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;

@@ -398,6 +398,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "msan": False,
     "dcheck_always_on": options.dcheck_always_on,
     "novfp3": False,
+    "predictable": False,
     "byteorder": sys.byteorder,
   }
   all_tests = []

@@ -6,7 +6,6 @@
 
 #include "src/assembler.h"
 #include "src/compiler/node.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 
 namespace v8 {
 namespace internal {

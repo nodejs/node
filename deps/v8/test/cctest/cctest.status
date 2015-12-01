@@ -130,9 +130,6 @@
 
   # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
   'test-lockers/LockerUnlocker': [PASS, ['mode == debug', FLAKY]],
-
-  # BUG(4141).
-  'test-alloc/CodeRange': [PASS, FLAKY],
 }],  # ALWAYS
 
 ##############################################################################
@@ -214,9 +211,6 @@
 ##############################################################################
 ['system == windows', {
 
-  # BUG(3005).
-  'test-alloc/CodeRange': [PASS, FAIL],
-
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
@@ -282,7 +276,7 @@
 }],  # 'arch == mips'
 
 ##############################################################################
-['arch == mips64el', {
+['arch == mips64el or arch == mips64', {
   'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
 
   # BUG(v8:3154).
@@ -293,7 +287,7 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-}],  # 'arch == mips64el'
+}],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
 ['arch == x87', {

@@ -60,6 +60,7 @@ void IC::SetTargetAtAddress(Address address, Code* target,
   DCHECK(!target->is_inline_cache_stub() ||
          (target->kind() != Code::LOAD_IC &&
           target->kind() != Code::KEYED_LOAD_IC &&
+          target->kind() != Code::CALL_IC &&
           (!FLAG_vector_stores || (target->kind() != Code::STORE_IC &&
                                    target->kind() != Code::KEYED_STORE_IC))));
 

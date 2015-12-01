@@ -8,6 +8,7 @@
 #include "src/frames.h"
 #include "src/x64/assembler-x64-inl.h"
 #include "src/x64/assembler-x64.h"
+#include "src/x64/frames-x64.h"
 
 namespace v8 {
 namespace internal {

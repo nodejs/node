@@ -20,7 +20,7 @@ function InnerArrayIncludes(searchElement, fromIndex, array, length) {
     return false;
   }
 
-  var n = $toInteger(fromIndex);
+  var n = TO_INTEGER(fromIndex);
 
   var k;
   if (n >= 0) {
@@ -49,7 +49,7 @@ function ArrayIncludes(searchElement, fromIndex) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.includes");
 
   var array = TO_OBJECT(this);
-  var length = $toLength(array.length);
+  var length = TO_LENGTH(array.length);
 
   return InnerArrayIncludes(searchElement, fromIndex, array, length);
 }

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-arrow-functions --allow-natives-syntax
-// Flags: --harmony-spreadcalls --harmony-destructuring
+// Flags: --harmony-spread-calls --harmony-destructuring
 // Flags: --harmony-rest-parameters --harmony-sloppy
 
 (function TestSuperNamedLoads() {
@@ -78,39 +78,6 @@
 
   assertEquals("Base this is Base", new Base().f());
   assertEquals("Derived", new Derived().f());
-}());
-
-
-(function TestSuperNumericKeyedLoads() {
-  var x = 1;
-  var derivedDataProperty = 2;
-  var f = 3;
-
-  function Base() { }
-  function fBase() { return "Base " + this.toString(); }
-  Base.prototype[f] = %ToMethod(fBase, Base.prototype);
-  Base.prototype[x] = 15;
-  Base.prototype.toString = function() { return "this is Base"; };
-
-  function Derived() {
-    this[derivedDataProperty] = "xxx";
-  }
-  Derived.prototype = {
-    __proto__: Base.prototype,
-    toString() { return "this is Derived"; },
-    1: 27,
-    3() {
-      assertEquals("Base this is Derived", super[f]());
-      var a = super[x];
-      assertEquals(15, a);
-      assertEquals(15, super[x]);
-      assertEquals(27, this[x]);
-      return "Derived";
-    }
-  };
-
-  assertEquals("Base this is Base", new Base()[f]());
-  assertEquals("Derived", new Derived()[f]());
 }());
 
 

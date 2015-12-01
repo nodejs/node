@@ -551,7 +551,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   // We have to see if the double version of the hole is present. If so
   // go to the runtime.
   __ Daddu(address, elements,
-           Operand(FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32) -
+           Operand(FixedDoubleArray::kHeaderSize + Register::kExponentOffset -
                    kHeapObjectTag));
   __ SmiScale(at, key, kPointerSizeLog2);
   __ daddu(address, address, at);
@@ -677,9 +677,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   if (FLAG_vector_stores) {
     // The handlers in the stub cache expect a vector and slot. Since we won't
     // change the IC from any downstream misses, a dummy vector can be used.
-    Register vector = LoadWithVectorDescriptor::VectorRegister();
-    Register slot = LoadWithVectorDescriptor::SlotRegister();
-    DCHECK(!AreAliased(vector, slot, a3, a4, a5, a6));
+    Register vector = VectorStoreICDescriptor::VectorRegister();
+    Register slot = VectorStoreICDescriptor::SlotRegister();
+
+    DCHECK(!AreAliased(vector, slot, a5, a6, a7, t0));
     Handle<TypeFeedbackVector> dummy_vector =
         TypeFeedbackVector::DummyVector(masm->isolate());
     int slot_index = dummy_vector->GetIndex(
@@ -691,7 +692,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, key, a3, a4, a5, a6);
+                                               receiver, key, a5, a6, a7, t0);
   // Cache miss.
   __ Branch(&miss);
 
@@ -792,18 +793,20 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
-  Register dictionary = a3;
-  DCHECK(!AreAliased(value, receiver, name, dictionary, a4, a5));
+  Register dictionary = a5;
+  DCHECK(!AreAliased(
+      value, receiver, name, VectorStoreICDescriptor::VectorRegister(),
+      VectorStoreICDescriptor::SlotRegister(), dictionary, a6, a7));
 
   __ ld(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
-  GenerateDictionaryStore(masm, &miss, a3, name, value, a4, a5);
+  GenerateDictionaryStore(masm, &miss, dictionary, name, value, a6, a7);
   Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->store_normal_hit(), 1, a4, a5);
+  __ IncrementCounter(counters->store_normal_hit(), 1, a6, a7);
   __ Ret();
 
   __ bind(&miss);
-  __ IncrementCounter(counters->store_normal_miss(), 1, a4, a5);
+  __ IncrementCounter(counters->store_normal_miss(), 1, a6, a7);
   GenerateMiss(masm);
 }
 

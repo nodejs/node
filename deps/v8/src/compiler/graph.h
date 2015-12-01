@@ -34,6 +34,10 @@ class Graph : public ZoneObject {
   explicit Graph(Zone* zone);
 
   // Base implementation used by all factory methods.
+  Node* NewNodeUnchecked(const Operator* op, int input_count, Node** inputs,
+                         bool incomplete = false);
+
+  // Factory that checks the input count.
   Node* NewNode(const Operator* op, int input_count, Node** inputs,
                 bool incomplete = false);
 

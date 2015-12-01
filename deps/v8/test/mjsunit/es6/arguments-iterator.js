@@ -160,6 +160,21 @@ function TestAssignmentToIterator() {
 TestAssignmentToIterator(1, 2, 3, 4, 5);
 
 
+// Regression test for crbug.com/521484.
+function TestAssignmentToIterator2() {
+  var i = 0;
+  arguments.__defineGetter__('callee', function(){});
+  arguments.__defineGetter__('length', function(){ return 1 });
+  arguments[Symbol.iterator] = [].entries;
+  for (var entry of arguments) {
+    assertEquals([i, arguments[i]], entry);
+    i++;
+  }
+
+  assertEquals(arguments.length, i);
+}
+TestAssignmentToIterator2(1, 2, 3, 4, 5);
+
 function TestArgumentsMutation() {
   var i = 0;
   for (var x of arguments) {

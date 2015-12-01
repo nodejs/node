@@ -5,13 +5,17 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_H_
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
+#include "src/cancelable-task.h"
 #include "src/execution.h"
-#include "src/heap/mark-compact.h"
+#include "src/heap/incremental-marking-job.h"
 #include "src/objects.h"
 
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class MarkBit;
+class PagedSpace;
 
 class IncrementalMarking {
  public:
@@ -81,9 +85,7 @@ class IncrementalMarking {
 
   bool WasActivated();
 
-  void Start(int flags,
-             const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
-             const char* reason = nullptr);
+  void Start(const char* reason = nullptr);
 
   void MarkObjectGroups();
 
@@ -100,6 +102,15 @@ class IncrementalMarking {
   void MarkingComplete(CompletionAction action);
 
   void Epilogue();
+
+  // Performs incremental marking steps of step_size_in_bytes as long as
+  // deadline_ins_ms is not reached. step_size_in_bytes can be 0 to compute
+  // an estimate increment. Returns the remaining time that cannot be used
+  // for incremental marking anymore because a single step would exceed the
+  // deadline.
+  double AdvanceIncrementalMarking(intptr_t step_size_in_bytes,
+                                   double deadline_in_ms,
+                                   StepActions step_actions);
 
   // It's hard to know how much work the incremental marker should do to make
   // progress in the face of the mutator creating new work for it.  We start
@@ -173,7 +184,7 @@ class IncrementalMarking {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
   }
 
-  inline void SetNewSpacePageFlags(NewSpacePage* chunk) {
+  inline void SetNewSpacePageFlags(MemoryChunk* chunk) {
     SetNewSpacePageFlags(chunk, IsMarking());
   }
 
@@ -199,7 +210,9 @@ class IncrementalMarking {
 
   Heap* heap() const { return heap_; }
 
-  GCCallbackFlags CallbackFlags() const { return gc_callback_flags_; }
+  IncrementalMarkingJob* incremental_marking_job() {
+    return &incremental_marking_job_;
+  }
 
  private:
   int64_t SpaceLeftInOldSpace();
@@ -221,7 +234,7 @@ class IncrementalMarking {
   static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking,
                                    bool is_compacting);
 
-  static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
+  static void SetNewSpacePageFlags(MemoryChunk* chunk, bool is_marking);
 
   INLINE(void ProcessMarkingDeque());
 
@@ -259,7 +272,7 @@ class IncrementalMarking {
 
   GCRequestType request_type_;
 
-  GCCallbackFlags gc_callback_flags_;
+  IncrementalMarkingJob incremental_marking_job_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

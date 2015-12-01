@@ -33,12 +33,13 @@
 namespace v8 {
 namespace internal {
 
+struct TickSample;
+
 class TraceExtension : public v8::Extension {
  public:
   TraceExtension() : v8::Extension("v8/trace", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name);
   static void Trace(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void JSEntrySP(const v8::FunctionCallbackInfo<v8::Value>& args);

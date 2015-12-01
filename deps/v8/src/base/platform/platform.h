@@ -272,6 +272,7 @@ class OS {
   DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };
 
+
 // Represents and controls an area of reserved memory.
 // Control of the reserved memory can be assigned to another VirtualMemory
 // object by assignment or copy-contructing. This removes the reserved memory
@@ -329,6 +330,7 @@ class VirtualMemory {
     // inside the allocated region.
     void* address = address_;
     size_t size = size_;
+    CHECK(InVM(address, size));
     Reset();
     bool result = ReleaseRegion(address, size);
     USE(result);
@@ -360,6 +362,13 @@ class VirtualMemory {
   static bool HasLazyCommits();
 
  private:
+  bool InVM(void* address, size_t size) {
+    return (reinterpret_cast<uintptr_t>(address_) <=
+            reinterpret_cast<uintptr_t>(address)) &&
+           ((reinterpret_cast<uintptr_t>(address_) + size_) >=
+            (reinterpret_cast<uintptr_t>(address) + size));
+  }
+
   void* address_;  // Start address of the virtual memory.
   size_t size_;  // Size of the virtual memory.
 };
