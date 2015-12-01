@@ -6,6 +6,7 @@
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
 #include "src/heap/mark-compact.h"
+#include "src/heap/slots-buffer.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -56,15 +57,27 @@ bool MarkCompactCollector::IsMarked(Object* obj) {
 
 
 void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
-                                      Object* target,
-                                      SlotsBuffer::AdditionMode mode) {
+                                      Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   if (target_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(object)) {
-    if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
-                            target_page->slots_buffer_address(), slot, mode)) {
+    if (!SlotsBuffer::AddTo(slots_buffer_allocator_,
+                            target_page->slots_buffer_address(), slot,
+                            SlotsBuffer::FAIL_ON_OVERFLOW)) {
       EvictPopularEvacuationCandidate(target_page);
     }
+  }
+}
+
+
+void MarkCompactCollector::ForceRecordSlot(HeapObject* object, Object** slot,
+                                           Object* target) {
+  Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
+  if (target_page->IsEvacuationCandidate() &&
+      !ShouldSkipEvacuationSlotRecording(object)) {
+    CHECK(SlotsBuffer::AddTo(slots_buffer_allocator_,
+                             target_page->slots_buffer_address(), slot,
+                             SlotsBuffer::IGNORE_OVERFLOW));
   }
 }
 

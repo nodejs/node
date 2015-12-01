@@ -34,11 +34,12 @@ import tarfile
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
+SVN_SERVER = (
+    "svn://svn.chromium.org/chrome/trunk/deps/third_party/mozilla-tests")
+MOZILLA_VERSION = "51236"
 
-MOZILLA_VERSION = "2010-06-29"
 
-
-EXCLUDED = ["CVS"]
+EXCLUDED = ["CVS", ".svn"]
 
 
 FRAMEWORK = """
@@ -81,8 +82,9 @@ class MozillaTestSuite(testsuite.TestSuite):
         files.sort()
         for filename in files:
           if filename.endswith(".js") and not filename in FRAMEWORK:
-            testname = os.path.join(dirname[len(self.testroot) + 1:],
-                                    filename[:-3])
+            fullpath = os.path.join(dirname, filename)
+            relpath = fullpath[len(self.testroot) + 1 : -3]
+            testname = relpath.replace(os.path.sep, "/")
             case = testcase.TestCase(self, testname)
             tests.append(case)
     return tests
@@ -93,7 +95,7 @@ class MozillaTestSuite(testsuite.TestSuite):
     result += ["--expose-gc"]
     result += [os.path.join(self.root, "mozilla-shell-emulation.js")]
     testfilename = testcase.path + ".js"
-    testfilepath = testfilename.split(os.path.sep)
+    testfilepath = testfilename.split("/")
     for i in xrange(len(testfilepath)):
       script = os.path.join(self.testroot,
                             reduce(os.path.join, testfilepath[:i], ""),
@@ -146,9 +148,9 @@ class MozillaTestSuite(testsuite.TestSuite):
       os.chdir(old_cwd)
       return
 
-    # No cached copy. Check out via CVS, and pack as .tar.gz for later use.
-    command = ("cvs -d :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot"
-               " co -D %s mozilla/js/tests" % MOZILLA_VERSION)
+    # No cached copy. Check out via SVN, and pack as .tar.gz for later use.
+    command = ("svn co -r %s %s mozilla/js/tests" %
+               (MOZILLA_VERSION, SVN_SERVER))
     code = subprocess.call(command, shell=True)
     if code != 0:
       os.chdir(old_cwd)

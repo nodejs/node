@@ -8,10 +8,19 @@
 
 import json
 import os
+import re
+import platform
 import shutil
 import subprocess
 import sys
 import zipfile
+
+# Bail out on windows and cygwin.
+if "win" in platform.system().lower():
+  # Python 2.7.6 hangs at the second path.insert command on windows. Works
+  # with python 2.7.8.
+  print "Gold plugin download not supported on windows."
+  sys.exit(0)
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 CHROME_SRC = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir))
@@ -30,7 +39,28 @@ CLANG_REVISION = os.popen(CLANG_UPDATE_PY + ' --print-revision').read().rstrip()
 
 CLANG_BUCKET = 'gs://chromium-browser-clang/Linux_x64'
 
+GOLD_PLUGIN_PATH = os.path.join(LLVM_BUILD_PATH, 'lib', 'LLVMgold.so')
+
+sys.path.insert(0, os.path.join(CHROME_SRC, 'tools', 'clang', 'scripts'))
+
+import update
+
 def main():
+  if not re.search(r'cfi_vptr=1', os.environ.get('GYP_DEFINES', '')):
+    # Bailout if this is not a cfi build.
+    print 'Skipping gold plugin download for non-cfi build.'
+    return 0
+  if (os.path.exists(GOLD_PLUGIN_PATH) and
+      update.ReadStampFile().strip() == update.PACKAGE_VERSION):
+    # Bailout if clang is up-to-date. This requires the script to be run before
+    # the clang update step! I.e. afterwards clang would always be up-to-date.
+    print 'Skipping gold plugin download. File present and clang up to date.'
+    return 0
+
+  # Make sure this works on empty checkouts (i.e. clang not downloaded yet).
+  if not os.path.exists(LLVM_BUILD_PATH):
+    os.makedirs(LLVM_BUILD_PATH)
+
   targz_name = 'llvmgold-%s.tgz' % CLANG_REVISION
   remote_path = '%s/%s' % (CLANG_BUCKET, targz_name)
 

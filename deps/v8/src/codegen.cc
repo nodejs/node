@@ -5,14 +5,14 @@
 #include "src/codegen.h"
 
 #if defined(V8_OS_AIX)
-#include <fenv.h>
+#include <fenv.h>  // NOLINT(build/c++11)
 #endif
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
-#include "src/cpu-profiler.h"
 #include "src/debug/debug.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/rewriter.h"
 #include "src/runtime/runtime.h"
 
@@ -121,16 +121,8 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
   }
 
   if (FLAG_trace_codegen || print_source || print_ast) {
-    PrintF("[generating %s code for %s function: ", kind, ftype);
-    if (info->IsStub()) {
-      const char* name =
-          CodeStub::MajorName(info->code_stub()->MajorKey(), true);
-      PrintF("%s", name == NULL ? "<unknown>" : name);
-    } else {
-      AllowDeferredHandleDereference allow_deference_for_trace;
-      PrintF("%s", info->literal()->debug_name()->ToCString().get());
-    }
-    PrintF("]\n");
+    base::SmartArrayPointer<char> name = info->GetDebugName();
+    PrintF("[generating %s code for %s function: %s]", kind, ftype, name.get());
   }
 
 #ifdef DEBUG
@@ -149,9 +141,18 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 
 
 Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
-                                             Code::Flags flags,
                                              CompilationInfo* info) {
   Isolate* isolate = info->isolate();
+
+  Code::Flags flags;
+  if (info->IsStub() && info->code_stub()) {
+    DCHECK_EQ(info->output_code_kind(), info->code_stub()->GetCodeKind());
+    flags = Code::ComputeFlags(
+        info->output_code_kind(), info->code_stub()->GetICState(),
+        info->code_stub()->GetExtraICState(), info->code_stub()->GetStubType());
+  } else {
+    flags = Code::ComputeFlags(info->output_code_kind());
+  }
 
   // Allocate and install the code.
   CodeDesc desc;
@@ -181,16 +182,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
          (info->IsStub() && FLAG_print_code_stubs) ||
          (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
-    const char* debug_name;
-    base::SmartArrayPointer<char> debug_name_holder;
-    if (info->IsStub()) {
-      CodeStub::Major major_key = info->code_stub()->MajorKey();
-      debug_name = CodeStub::MajorName(major_key, false);
-    } else {
-      debug_name_holder = info->literal()->debug_name()->ToCString();
-      debug_name = debug_name_holder.get();
-    }
-
+    base::SmartArrayPointer<char> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
 
@@ -220,7 +212,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     if (info->IsOptimizing()) {
       if (FLAG_print_unopt_code && info->parse_info()) {
         os << "--- Unoptimized code ---\n";
-        info->closure()->shared()->code()->Disassemble(debug_name, os);
+        info->closure()->shared()->code()->Disassemble(debug_name.get(), os);
       }
       os << "--- Optimized code ---\n"
          << "optimization_id = " << info->optimization_id() << "\n";
@@ -231,7 +223,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       FunctionLiteral* literal = info->literal();
       os << "source_position = " << literal->start_position() << "\n";
     }
-    code->Disassemble(debug_name, os);
+    code->Disassemble(debug_name.get(), os);
     os << "--- End code ---\n";
   }
 #endif  // ENABLE_DISASSEMBLER

@@ -93,22 +93,16 @@ class OsrDeconstructorTester : public HandleAndZoneScope {
     return graph.NewNode(common.Phi(kMachAnyTagged, count), count + 1, inputs);
   }
 
-  Node* NewLoop(bool is_osr, int num_backedges, Node* entry = NULL) {
-    CHECK_LT(num_backedges, 4);
-    CHECK_GE(num_backedges, 0);
-    int count = 1 + num_backedges;
-    if (entry == NULL) entry = osr_normal_entry;
-    Node* inputs[5] = {entry, self, self, self, self};
+  Node* NewLoop(bool is_osr, int num_backedges, Node* entry = nullptr) {
+    if (entry == nullptr) entry = osr_normal_entry;
+    Node* loop = graph.NewNode(common.Loop(1), entry);
     if (is_osr) {
-      count = 2 + num_backedges;
-      inputs[1] = osr_loop_entry;
+      loop->AppendInput(graph.zone(), osr_loop_entry);
     }
-
-    Node* loop = graph.NewNode(common.Loop(count), count, inputs);
-    for (int i = 0; i < loop->InputCount(); i++) {
-      if (loop->InputAt(i) == self) loop->ReplaceInput(i, loop);
+    for (int i = 0; i < num_backedges; i++) {
+      loop->AppendInput(graph.zone(), loop);
     }
-
+    NodeProperties::ChangeOp(loop, common.Loop(loop->InputCount()));
     return loop;
   }
 
@@ -497,8 +491,7 @@ TEST(Deconstruct_osr_nested3) {
   loop0.branch->ReplaceInput(0, loop0_cntr);
 
   // middle loop.
-  Node* loop1 = T.graph.NewNode(T.common.Loop(2), loop0.if_true, T.self);
-  loop1->ReplaceInput(0, loop0.if_true);
+  Node* loop1 = T.graph.NewNode(T.common.Loop(1), loop0.if_true);
   Node* loop1_phi = T.graph.NewNode(T.common.Phi(kMachAnyTagged, 2), loop0_cntr,
                                     loop0_cntr, loop1);
 
@@ -521,7 +514,8 @@ TEST(Deconstruct_osr_nested3) {
   Node* if_false = T.graph.NewNode(T.common.IfFalse(), branch);
 
   loop0.loop->ReplaceInput(1, if_true);
-  loop1->ReplaceInput(1, if_false);
+  loop1->AppendInput(T.graph.zone(), if_false);
+  NodeProperties::ChangeOp(loop1, T.common.Loop(2));
 
   Node* ret =
       T.graph.NewNode(T.common.Return(), loop0_cntr, T.start, loop0.exit);

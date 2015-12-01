@@ -4,8 +4,6 @@
 
 // Called from a desugaring in the parser.
 
-var $getTemplateCallSite;
-
 (function(global, utils) {
 
 "use strict";
@@ -67,7 +65,7 @@ function SetCachedCallSite(siteObj, hash) {
 }
 
 
-$getTemplateCallSite = function(siteObj, rawStrings, hash) {
+function GetTemplateCallSite(siteObj, rawStrings, hash) {
   var cached = GetCachedCallSite(rawStrings, hash);
 
   if (!IS_UNDEFINED(cached)) return cached;
@@ -77,5 +75,10 @@ $getTemplateCallSite = function(siteObj, rawStrings, hash) {
 
   return SetCachedCallSite(%ObjectFreeze(siteObj), hash);
 }
+
+// ----------------------------------------------------------------------------
+// Exports
+
+%InstallToContext(["get_template_call_site", GetTemplateCallSite]);
 
 })

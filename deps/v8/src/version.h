@@ -6,6 +6,7 @@
 #define V8_VERSION_H_
 
 #include "src/base/functional.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

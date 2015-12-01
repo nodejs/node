@@ -161,6 +161,8 @@ void ReadNatives() {
     NativesHolder<EXPERIMENTAL>::set(
         NativesStore::MakeFromScriptsSource(&bytes));
     NativesHolder<EXTRAS>::set(NativesStore::MakeFromScriptsSource(&bytes));
+    NativesHolder<EXPERIMENTAL_EXTRAS>::set(
+        NativesStore::MakeFromScriptsSource(&bytes));
     DCHECK(!bytes.HasMore());
   }
 }
@@ -189,6 +191,7 @@ void DisposeNatives() {
   NativesHolder<CODE_STUB>::Dispose();
   NativesHolder<EXPERIMENTAL>::Dispose();
   NativesHolder<EXTRAS>::Dispose();
+  NativesHolder<EXPERIMENTAL_EXTRAS>::Dispose();
 }
 
 
@@ -241,6 +244,7 @@ INSTANTIATE_TEMPLATES(CORE)
 INSTANTIATE_TEMPLATES(CODE_STUB)
 INSTANTIATE_TEMPLATES(EXPERIMENTAL)
 INSTANTIATE_TEMPLATES(EXTRAS)
+INSTANTIATE_TEMPLATES(EXPERIMENTAL_EXTRAS)
 #undef INSTANTIATE_TEMPLATES
 
 }  // namespace internal

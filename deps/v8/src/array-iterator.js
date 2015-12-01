@@ -10,7 +10,18 @@ var $arrayValues;
 
 %CheckIsBootstrapping();
 
+// -----------------------------------------------------------------------
+// Imports
+
+var arrayIterationKindSymbol =
+    utils.ImportNow("array_iteration_kind_symbol");
+var arrayIteratorNextIndexSymbol =
+    utils.ImportNow("array_iterator_next_symbol");
+var arrayIteratorObjectSymbol =
+    utils.ImportNow("array_iterator_object_symbol");
 var GlobalArray = global.Array;
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
   FUNCTION(Uint8Array)
@@ -30,10 +41,7 @@ endmacro
 
 TYPED_ARRAYS(COPY_FROM_GLOBAL)
 
-var arrayIteratorObjectSymbol = GLOBAL_PRIVATE("ArrayIterator#object");
-var arrayIteratorNextIndexSymbol = GLOBAL_PRIVATE("ArrayIterator#next");
-var arrayIterationKindSymbol = GLOBAL_PRIVATE("ArrayIterator#kind");
-
+// -----------------------------------------------------------------------
 
 function ArrayIterator() {}
 
@@ -54,54 +62,49 @@ function CreateArrayIterator(array, kind) {
 }
 
 
-// 15.19.4.3.4 CreateItrResultObject
-function CreateIteratorResultObject(value, done) {
-  return {value: value, done: done};
-}
-
-
 // 22.1.5.2.2 %ArrayIteratorPrototype%[@@iterator]
 function ArrayIteratorIterator() {
     return this;
 }
 
 
-// 15.4.5.2.2 ArrayIterator.prototype.next( )
+// ES6 section 22.1.5.2.1 %ArrayIteratorPrototype%.next( )
 function ArrayIteratorNext() {
-  var iterator = TO_OBJECT(this);
+  var iterator = this;
+  var value = UNDEFINED;
+  var done = true;
 
-  if (!HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
+  if (!IS_SPEC_OBJECT(iterator) ||
+      !HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'Array Iterator.prototype.next', this);
   }
 
   var array = GET_PRIVATE(iterator, arrayIteratorObjectSymbol);
-  if (IS_UNDEFINED(array)) {
-    return CreateIteratorResultObject(UNDEFINED, true);
+  if (!IS_UNDEFINED(array)) {
+    var index = GET_PRIVATE(iterator, arrayIteratorNextIndexSymbol);
+    var itemKind = GET_PRIVATE(iterator, arrayIterationKindSymbol);
+    var length = TO_UINT32(array.length);
+
+    // "sparse" is never used.
+
+    if (index >= length) {
+      SET_PRIVATE(iterator, arrayIteratorObjectSymbol, UNDEFINED);
+    } else {
+      SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, index + 1);
+
+      if (itemKind == ITERATOR_KIND_VALUES) {
+        value = array[index];
+      } else if (itemKind == ITERATOR_KIND_ENTRIES) {
+        value = [index, array[index]];
+      } else {
+        value = index;
+      }
+      done = false;
+    }
   }
 
-  var index = GET_PRIVATE(iterator, arrayIteratorNextIndexSymbol);
-  var itemKind = GET_PRIVATE(iterator, arrayIterationKindSymbol);
-  var length = TO_UINT32(array.length);
-
-  // "sparse" is never used.
-
-  if (index >= length) {
-    SET_PRIVATE(iterator, arrayIteratorObjectSymbol, UNDEFINED);
-    return CreateIteratorResultObject(UNDEFINED, true);
-  }
-
-  SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, index + 1);
-
-  if (itemKind == ITERATOR_KIND_VALUES) {
-    return CreateIteratorResultObject(array[index], false);
-  }
-
-  if (itemKind == ITERATOR_KIND_ENTRIES) {
-    return CreateIteratorResultObject([index, array[index]], false);
-  }
-
-  return CreateIteratorResultObject(index, false);
+  return %_CreateIterResultObject(value, done);
 }
 
 
@@ -126,10 +129,10 @@ function ArrayKeys() {
 utils.InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
   'next', ArrayIteratorNext
 ]);
-utils.SetFunctionName(ArrayIteratorIterator, symbolIterator);
-%AddNamedProperty(ArrayIterator.prototype, symbolIterator,
+utils.SetFunctionName(ArrayIteratorIterator, iteratorSymbol);
+%AddNamedProperty(ArrayIterator.prototype, iteratorSymbol,
                   ArrayIteratorIterator, DONT_ENUM);
-%AddNamedProperty(ArrayIterator.prototype, symbolToStringTag,
+%AddNamedProperty(ArrayIterator.prototype, toStringTagSymbol,
                   "Array Iterator", READ_ONLY | DONT_ENUM);
 
 utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
@@ -142,14 +145,14 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
 // InstallFunctions block, as it'll be redundant.
 utils.SetFunctionName(ArrayValues, 'values');
 
-%AddNamedProperty(GlobalArray.prototype, symbolIterator, ArrayValues,
+%AddNamedProperty(GlobalArray.prototype, iteratorSymbol, ArrayValues,
                   DONT_ENUM);
 
 macro EXTEND_TYPED_ARRAY(NAME)
   %AddNamedProperty(GlobalNAME.prototype, 'entries', ArrayEntries, DONT_ENUM);
   %AddNamedProperty(GlobalNAME.prototype, 'values', ArrayValues, DONT_ENUM);
   %AddNamedProperty(GlobalNAME.prototype, 'keys', ArrayKeys, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype, symbolIterator, ArrayValues,
+  %AddNamedProperty(GlobalNAME.prototype, iteratorSymbol, ArrayValues,
                     DONT_ENUM);
 endmacro
 
@@ -158,14 +161,8 @@ TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
 // -------------------------------------------------------------------
 // Exports
 
-utils.Export(function(to) {
-  to.ArrayIteratorCreateResultObject = CreateIteratorResultObject;
-});
-
 $arrayValues = ArrayValues;
 
-utils.ExportToRuntime(function(to) {
-  to.ArrayValues = ArrayValues;
-});
+%InstallToContext(["array_values_iterator", ArrayValues]);
 
 })

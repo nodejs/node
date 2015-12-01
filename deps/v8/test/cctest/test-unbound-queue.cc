@@ -27,10 +27,13 @@
 //
 // Tests of the unbound queue.
 
+// TODO(mythria): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/unbound-queue-inl.h"
+#include "src/profiler/unbound-queue-inl.h"
 
 using i::UnboundQueue;
 

@@ -264,8 +264,8 @@ void ConditionVariable::Wait(Mutex* mutex) {
   mutex->Unlock();
 
   // Wait on the wait event.
-  while (!event->WaitFor(INFINITE))
-    ;
+  while (!event->WaitFor(INFINITE)) {
+  }
 
   // Reaquire the user mutex.
   mutex->Lock();

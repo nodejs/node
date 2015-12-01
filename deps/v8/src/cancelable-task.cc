@@ -5,7 +5,7 @@
 #include "src/cancelable-task.h"
 
 #include "src/base/platform/platform.h"
-#include "src/v8.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

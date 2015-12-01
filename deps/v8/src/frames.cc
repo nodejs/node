@@ -19,7 +19,6 @@
 namespace v8 {
 namespace internal {
 
-
 ReturnAddressLocationResolver
     StackFrame::return_address_location_resolver_ = NULL;
 
@@ -185,7 +184,7 @@ bool StackTraceFrameIterator::IsValidFrame() {
     Object* script = frame()->function()->shared()->script();
     // Don't show functions from native scripts to user.
     return (script->IsScript() &&
-            Script::TYPE_NATIVE != Script::cast(script)->type()->value());
+            Script::TYPE_NATIVE != Script::cast(script)->type());
 }
 
 
@@ -407,42 +406,58 @@ void StackFrame::SetReturnAddressLocationResolver(
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
   DCHECK(state->fp != NULL);
-  if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
-    return ARGUMENTS_ADAPTOR;
+
+  if (!iterator->can_access_heap_objects_) {
+    // TODO(titzer): "can_access_heap_objects" is kind of bogus. It really
+    // means that we are being called from the profiler, which can interrupt
+    // the VM with a signal at any arbitrary instruction, with essentially
+    // anything on the stack. So basically none of these checks are 100%
+    // reliable.
+    if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
+      // An adapter frame has a special SMI constant for the context and
+      // is not distinguished through the marker.
+      return ARGUMENTS_ADAPTOR;
+    }
+    Object* marker =
+        Memory::Object_at(state->fp + StandardFrameConstants::kMarkerOffset);
+    if (marker->IsSmi()) {
+      return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
+    } else {
+      return JAVA_SCRIPT;
+    }
   }
-  // The marker and function offsets overlap. If the marker isn't a
-  // smi then the frame is a JavaScript frame -- and the marker is
-  // really the function.
-  const int offset = StandardFrameConstants::kMarkerOffset;
-  Object* marker = Memory::Object_at(state->fp + offset);
-  if (!marker->IsSmi()) {
-    // If we're using a "safe" stack iterator, we treat optimized
-    // frames as normal JavaScript frames to avoid having to look
-    // into the heap to determine the state. This is safe as long
-    // as nobody tries to GC...
-    if (!iterator->can_access_heap_objects_) return JAVA_SCRIPT;
-    Code* code_obj =
-        GetContainingCode(iterator->isolate(), *(state->pc_address));
+
+  // Look up the code object to figure out the type of the stack frame.
+  Code* code_obj = GetContainingCode(iterator->isolate(), *(state->pc_address));
+
+  Object* marker =
+      Memory::Object_at(state->fp + StandardFrameConstants::kMarkerOffset);
+  if (code_obj != nullptr) {
     switch (code_obj->kind()) {
       case Code::FUNCTION:
         return JAVA_SCRIPT;
-
-      case Code::HANDLER:
-#ifdef DEBUG
-        if (!code_obj->is_hydrogen_stub()) {
-          // There's currently no support for non-hydrogen stub handlers. If
-          // you this, you'll have to implement it yourself.
-          UNREACHABLE();
-        }
-#endif
       case Code::OPTIMIZED_FUNCTION:
         return OPTIMIZED;
-
+      case Code::HANDLER:
+        if (!marker->IsSmi()) {
+          // Only hydrogen code stub handlers can have a non-SMI marker.
+          DCHECK(code_obj->is_hydrogen_stub());
+          return OPTIMIZED;
+        }
+        break;  // Marker encodes the frame type.
       default:
-        UNREACHABLE();
-        return JAVA_SCRIPT;
+        break;  // Marker encodes the frame type.
     }
   }
+
+  if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
+    // An adapter frame has a special SMI constant for the context and
+    // is not distinguished through the marker.
+    return ARGUMENTS_ADAPTOR;
+  }
+
+  // Didn't find a code object, or the code kind wasn't specific enough.
+  // The marker should encode the frame type.
   return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
 }
 
@@ -727,6 +742,13 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 
+bool JavaScriptFrame::HasInlinedFrames() {
+  List<JSFunction*> functions(1);
+  GetFunctions(&functions);
+  return functions.length() > 1;
+}
+
+
 Object* JavaScriptFrame::GetOriginalConstructor() const {
   Address fp = caller_fp();
   if (has_adapted_arguments()) {
@@ -877,6 +899,15 @@ void JavaScriptFrame::RestoreOperandStack(FixedArray* store) {
     Memory::Object_at(GetOperandSlot(i)) = store->get(i);
   }
 }
+
+
+FrameSummary::FrameSummary(Object* receiver, JSFunction* function, Code* code,
+                           int offset, bool is_constructor)
+    : receiver_(receiver, function->GetIsolate()),
+      function_(function),
+      code_(code),
+      offset_(offset),
+      is_constructor_(is_constructor) {}
 
 
 void FrameSummary::Print() {
@@ -1429,6 +1460,11 @@ Code* InnerPointerToCodeCache::GcSafeCastToCode(HeapObject* object,
 Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
     Address inner_pointer) {
   Heap* heap = isolate_->heap();
+  if (!heap->code_space()->Contains(inner_pointer) &&
+      !heap->lo_space()->Contains(inner_pointer)) {
+    return nullptr;
+  }
+
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = heap->lo_space()->FindPage(inner_pointer);
   if (large_page != NULL) {

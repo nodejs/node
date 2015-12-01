@@ -52,8 +52,8 @@ Reduction DeadCodeElimination::ReduceEnd(Node* node) {
   if (live_input_count == 0) {
     return Replace(dead());
   } else if (live_input_count < input_count) {
-    node->set_op(common()->End(live_input_count));
     node->TrimInputCount(live_input_count);
+    NodeProperties::ChangeOp(node, common()->End(live_input_count));
     return Changed(node);
   }
   DCHECK_EQ(input_count, live_input_count);
@@ -137,7 +137,7 @@ Reduction DeadCodeElimination::ReduceNode(Node* node) {
 void DeadCodeElimination::TrimMergeOrPhi(Node* node, int size) {
   const Operator* const op = common()->ResizeMergeOrPhi(node->op(), size);
   node->TrimInputCount(OperatorProperties::GetTotalInputCount(op));
-  node->set_op(op);
+  NodeProperties::ChangeOp(node, op);
 }
 
 }  // namespace compiler

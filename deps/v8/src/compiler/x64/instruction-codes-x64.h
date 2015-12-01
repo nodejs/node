@@ -109,6 +109,10 @@ namespace compiler {
   V(X64Movq)                       \
   V(X64Movsd)                      \
   V(X64Movss)                      \
+  V(X64BitcastFI)                  \
+  V(X64BitcastDL)                  \
+  V(X64BitcastIF)                  \
+  V(X64BitcastLD)                  \
   V(X64Lea32)                      \
   V(X64Lea)                        \
   V(X64Dec32)                      \

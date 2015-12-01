@@ -10,6 +10,7 @@
 
 var GlobalSharedArrayBuffer = global.SharedArrayBuffer;
 var GlobalObject = global.Object;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 // -------------------------------------------------------------------
 
@@ -44,7 +45,7 @@ function SharedArrayBufferIsViewJS(obj) {
                   GlobalSharedArrayBuffer, DONT_ENUM);
 
 %AddNamedProperty(GlobalSharedArrayBuffer.prototype,
-    symbolToStringTag, "SharedArrayBuffer", DONT_ENUM | READ_ONLY);
+    toStringTagSymbol, "SharedArrayBuffer", DONT_ENUM | READ_ONLY);
 
 utils.InstallGetter(GlobalSharedArrayBuffer.prototype, "byteLength",
                     SharedArrayBufferGetByteLen);

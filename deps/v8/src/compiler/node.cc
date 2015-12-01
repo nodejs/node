@@ -112,7 +112,7 @@ Node* Node::Clone(Zone* zone, NodeId id, const Node* node) {
                                   ? node->inputs_.inline_
                                   : node->inputs_.outline_->inputs_;
   Node* const clone = New(zone, id, node->op(), input_count, inputs, false);
-  clone->set_bounds(node->bounds());
+  clone->set_type(node->type());
   return clone;
 }
 
@@ -273,6 +273,7 @@ bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
 
 Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
     : op_(op),
+      type_(nullptr),
       mark_(0),
       bit_field_(IdField::encode(id) | InlineCountField::encode(inline_count) |
                  InlineCapacityField::encode(inline_capacity)),

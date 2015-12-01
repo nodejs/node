@@ -28,7 +28,7 @@ RUNTIME_FUNCTION(Runtime_ForInFilter) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   // TODO(turbofan): Fast case for array indices.
   Handle<Name> name;
-  if (!Runtime::ToName(isolate, key).ToHandle(&name)) {
+  if (!Object::ToName(isolate, key).ToHandle(&name)) {
     return isolate->heap()->exception();
   }
   Maybe<bool> result = JSReceiver::HasProperty(receiver, name);
@@ -53,7 +53,7 @@ RUNTIME_FUNCTION(Runtime_ForInNext) {
   }
   // TODO(turbofan): Fast case for array indices.
   Handle<Name> name;
-  if (!Runtime::ToName(isolate, key).ToHandle(&name)) {
+  if (!Object::ToName(isolate, key).ToHandle(&name)) {
     return isolate->heap()->exception();
   }
   Maybe<bool> result = JSReceiver::HasProperty(receiver, name);
