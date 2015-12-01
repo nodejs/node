@@ -6,6 +6,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/verifier.h"
 
 namespace v8 {
 namespace internal {
@@ -192,6 +193,13 @@ void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,
       edge.UpdateTo(value);
     }
   }
+}
+
+
+// static
+void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
+  node->set_op(new_op);
+  Verifier::VerifyNode(node);
 }
 
 

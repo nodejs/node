@@ -63,8 +63,6 @@ Reduction TailCallOptimization::Reduce(Node* node) {
 
       DCHECK_EQ(call, NodeProperties::GetControlInput(control, 0));
       DCHECK_EQ(3, node->InputCount());
-      node->set_op(
-          common()->TailCall(OpParameter<CallDescriptor const*>(call)));
       node->ReplaceInput(0, NodeProperties::GetEffectInput(call));
       node->ReplaceInput(1, NodeProperties::GetControlInput(call));
       node->RemoveInput(2);
@@ -72,6 +70,8 @@ Reduction TailCallOptimization::Reduce(Node* node) {
         node->InsertInput(graph()->zone(), index,
                           NodeProperties::GetValueInput(call, index));
       }
+      NodeProperties::ChangeOp(
+          node, common()->TailCall(OpParameter<CallDescriptor const*>(call)));
       return Changed(node);
     }
   }

@@ -7,6 +7,7 @@
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
+#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/scopes.h"
 
@@ -118,7 +119,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
       context_(function->context()),
       seen_script_scope_(false),
       failed_(false) {
-  if (function->IsBuiltin()) context_ = Handle<Context>();
+  if (!function->IsSubjectToDebugging()) context_ = Handle<Context>();
 }
 
 
@@ -237,7 +238,8 @@ MaybeHandle<JSObject> ScopeIterator::ScopeObject() {
       return MaterializeLocalScope();
     case ScopeIterator::ScopeTypeWith:
       // Return the with object.
-      return Handle<JSObject>(JSObject::cast(CurrentContext()->extension()));
+      // TODO(neis): This breaks for proxies.
+      return handle(JSObject::cast(CurrentContext()->extension_receiver()));
     case ScopeIterator::ScopeTypeCatch:
       return MaterializeCatchScope();
     case ScopeIterator::ScopeTypeClosure:
@@ -295,7 +297,7 @@ Handle<ScopeInfo> ScopeIterator::CurrentScopeInfo() {
   if (!nested_scope_chain_.is_empty()) {
     return nested_scope_chain_.last();
   } else if (context_->IsBlockContext()) {
-    return Handle<ScopeInfo>(ScopeInfo::cast(context_->extension()));
+    return Handle<ScopeInfo>(context_->scope_info());
   } else if (context_->IsFunctionContext()) {
     return Handle<ScopeInfo>(context_->closure()->shared()->scope_info());
   }
@@ -410,7 +412,7 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeScriptScope() {
        context_index++) {
     Handle<Context> context =
         ScriptContextTable::GetContext(script_contexts, context_index);
-    Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
+    Handle<ScopeInfo> scope_info(context->scope_info());
     CopyContextLocalsToScopeObject(scope_info, context, script_scope);
   }
   return script_scope;
@@ -438,28 +440,13 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeLocalScope() {
 
   // Finally copy any properties from the function context extension.
   // These will be variables introduced by eval.
-  if (function_context->closure() == *function) {
-    if (function_context->has_extension() &&
-        !function_context->IsNativeContext()) {
-      Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-      Handle<FixedArray> keys;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate_, keys, JSReceiver::GetKeys(ext, JSReceiver::INCLUDE_PROTOS),
-          JSObject);
-
-      for (int i = 0; i < keys->length(); i++) {
-        // Names of variables introduced by eval are strings.
-        DCHECK(keys->get(i)->IsString());
-        Handle<String> key(String::cast(keys->get(i)));
-        Handle<Object> value;
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate_, value, Object::GetPropertyOrElement(ext, key), JSObject);
-        RETURN_ON_EXCEPTION(isolate_,
-                            Runtime::SetObjectProperty(isolate_, local_scope,
-                                                       key, value, SLOPPY),
-                            JSObject);
-      }
-    }
+  if (function_context->closure() == *function &&
+      function_context->has_extension() &&
+      !function_context->IsNativeContext()) {
+    bool success = CopyContextExtensionToScopeObject(
+        handle(function_context->extension_object(), isolate_),
+        local_scope, JSReceiver::INCLUDE_PROTOS);
+    if (!success) return MaybeHandle<JSObject>();
   }
 
   return local_scope;
@@ -486,20 +473,11 @@ Handle<JSObject> ScopeIterator::MaterializeClosure() {
   // Finally copy any properties from the function context extension. This will
   // be variables introduced by eval.
   if (context->has_extension()) {
-    Handle<JSObject> ext(JSObject::cast(context->extension()));
-    DCHECK(ext->IsJSContextExtensionObject());
-    Handle<FixedArray> keys =
-        JSReceiver::GetKeys(ext, JSReceiver::OWN_ONLY).ToHandleChecked();
-
-    for (int i = 0; i < keys->length(); i++) {
-      HandleScope scope(isolate_);
-      // Names of variables introduced by eval are strings.
-      DCHECK(keys->get(i)->IsString());
-      Handle<String> key(String::cast(keys->get(i)));
-      Handle<Object> value = Object::GetProperty(ext, key).ToHandleChecked();
-      JSObject::SetOwnPropertyIgnoreAttributes(closure_scope, key, value, NONE)
-          .Check();
-    }
+    bool success = CopyContextExtensionToScopeObject(
+        handle(context->extension_object(), isolate_), closure_scope,
+        JSReceiver::OWN_ONLY);
+    DCHECK(success);
+    USE(success);
   }
 
   return closure_scope;
@@ -511,7 +489,7 @@ Handle<JSObject> ScopeIterator::MaterializeClosure() {
 Handle<JSObject> ScopeIterator::MaterializeCatchScope() {
   Handle<Context> context = CurrentContext();
   DCHECK(context->IsCatchContext());
-  Handle<String> name(String::cast(context->extension()));
+  Handle<String> name(context->catch_name());
   Handle<Object> thrown_object(context->get(Context::THROWN_OBJECT_INDEX),
                                isolate_);
   Handle<JSObject> catch_scope =
@@ -539,11 +517,17 @@ Handle<JSObject> ScopeIterator::MaterializeBlockScope() {
   }
 
   if (!context.is_null()) {
-    Handle<ScopeInfo> scope_info_from_context(
-        ScopeInfo::cast(context->extension()));
     // Fill all context locals.
-    CopyContextLocalsToScopeObject(scope_info_from_context, context,
-                                   block_scope);
+    CopyContextLocalsToScopeObject(handle(context->scope_info()),
+                                   context, block_scope);
+    // Fill all extension variables.
+    if (context->extension_object() != nullptr) {
+      bool success = CopyContextExtensionToScopeObject(
+          handle(context->extension_object()), block_scope,
+          JSReceiver::OWN_ONLY);
+      DCHECK(success);
+      USE(success);
+    }
   }
   return block_scope;
 }
@@ -554,7 +538,7 @@ Handle<JSObject> ScopeIterator::MaterializeBlockScope() {
 MaybeHandle<JSObject> ScopeIterator::MaterializeModuleScope() {
   Handle<Context> context = CurrentContext();
   DCHECK(context->IsModuleContext());
-  Handle<ScopeInfo> scope_info(ScopeInfo::cast(context->extension()));
+  Handle<ScopeInfo> scope_info(context->scope_info());
 
   // Allocate and initialize a JSObject with all the members of the debugged
   // module.
@@ -577,12 +561,10 @@ bool ScopeIterator::SetContextLocalValue(Handle<ScopeInfo> scope_info,
     Handle<String> next_name(scope_info->ContextLocalName(i));
     if (String::Equals(variable_name, next_name)) {
       VariableMode mode;
-      VariableLocation location;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      int context_index =
-          ScopeInfo::ContextSlotIndex(scope_info, next_name, &mode, &location,
-                                      &init_flag, &maybe_assigned_flag);
+      int context_index = ScopeInfo::ContextSlotIndex(
+          scope_info, next_name, &mode, &init_flag, &maybe_assigned_flag);
       context->set(context_index, *new_value);
       return true;
     }
@@ -636,7 +618,7 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
     if (function_context->closure() == *function) {
       if (function_context->has_extension() &&
           !function_context->IsNativeContext()) {
-        Handle<JSObject> ext(JSObject::cast(function_context->extension()));
+        Handle<JSObject> ext(function_context->extension_object());
 
         Maybe<bool> maybe = JSReceiver::HasProperty(ext, variable_name);
         DCHECK(maybe.IsJust());
@@ -670,9 +652,25 @@ bool ScopeIterator::SetBlockVariableValue(Handle<String> variable_name,
   }
 
   if (HasContext()) {
-    return SetContextLocalValue(scope_info, CurrentContext(), variable_name,
-                                new_value);
+    Handle<Context> context = CurrentContext();
+    if (SetContextLocalValue(scope_info, context, variable_name, new_value)) {
+      return true;
+    }
+
+    Handle<JSObject> ext(context->extension_object(), isolate_);
+    if (!ext.is_null()) {
+      Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
+      DCHECK(maybe.IsJust());
+      if (maybe.FromJust()) {
+        // We don't expect this to do anything except replacing property value.
+        JSObject::SetOwnPropertyIgnoreAttributes(ext, variable_name, new_value,
+                                                 NONE)
+            .Check();
+        return true;
+      }
+    }
   }
+
   return false;
 }
 
@@ -693,8 +691,7 @@ bool ScopeIterator::SetClosureVariableValue(Handle<String> variable_name,
   // Properties from the function context extension. This will
   // be variables introduced by eval.
   if (context->has_extension()) {
-    Handle<JSObject> ext(JSObject::cast(context->extension()));
-    DCHECK(ext->IsJSContextExtensionObject());
+    Handle<JSObject> ext(JSObject::cast(context->extension_object()));
     Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
     DCHECK(maybe.IsJust());
     if (maybe.FromJust()) {
@@ -732,7 +729,7 @@ bool ScopeIterator::SetCatchVariableValue(Handle<String> variable_name,
                                           Handle<Object> new_value) {
   Handle<Context> context = CurrentContext();
   DCHECK(context->IsCatchContext());
-  Handle<String> name(String::cast(context->extension()));
+  Handle<String> name(context->catch_name());
   if (!String::Equals(name, variable_name)) {
     return false;
   }
@@ -763,6 +760,28 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
         ::NONE)
         .Check();
   }
+}
+
+
+bool ScopeIterator::CopyContextExtensionToScopeObject(
+    Handle<JSObject> extension, Handle<JSObject> scope_object,
+    JSReceiver::KeyCollectionType type) {
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, keys, JSReceiver::GetKeys(extension, type), false);
+
+  for (int i = 0; i < keys->length(); i++) {
+    // Names of variables introduced by eval are strings.
+    DCHECK(keys->get(i)->IsString());
+    Handle<String> key(String::cast(keys->get(i)));
+    Handle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, value, Object::GetPropertyOrElement(extension, key), false);
+    RETURN_ON_EXCEPTION_VALUE(
+        isolate_, JSObject::SetOwnPropertyIgnoreAttributes(
+            scope_object, key, value, NONE), false);
+  }
+  return true;
 }
 
 }  // namespace internal

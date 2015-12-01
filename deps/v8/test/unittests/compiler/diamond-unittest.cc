@@ -128,22 +128,6 @@ TEST_F(DiamondTest, DiamondPhis) {
 }
 
 
-TEST_F(DiamondTest, DiamondEffectPhis) {
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* p2 = Parameter(2);
-  Diamond d(graph(), common(), p0);
-
-  Node* phi = d.EffectPhi(p1, p2);
-
-  EXPECT_THAT(d.branch, IsBranch(p0, graph()->start()));
-  EXPECT_THAT(d.if_true, IsIfTrue(d.branch));
-  EXPECT_THAT(d.if_false, IsIfFalse(d.branch));
-  EXPECT_THAT(d.merge, IsMerge(d.if_true, d.if_false));
-  EXPECT_THAT(phi, IsEffectPhi(p1, p2, d.merge));
-}
-
-
 TEST_F(DiamondTest, BranchHint) {
   Diamond dn(graph(), common(), Parameter(0));
   CHECK(BranchHint::kNone == BranchHintOf(dn.branch->op()));

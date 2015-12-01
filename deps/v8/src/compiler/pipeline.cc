@@ -12,6 +12,7 @@
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/basic-block-instrumentor.h"
+#include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
@@ -35,6 +36,7 @@
 #include "src/compiler/js-type-feedback-lowering.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/jump-threading.h"
+#include "src/compiler/live-range-separator.h"
 #include "src/compiler/load-elimination.h"
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/loop-peeling.h"
@@ -42,7 +44,6 @@
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
-#include "src/compiler/preprocess-live-ranges.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/register-allocator-verifier.h"
 #include "src/compiler/schedule.h"
@@ -350,21 +351,6 @@ void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
 }
 
 
-base::SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
-  if (info->code_stub() != NULL) {
-    CodeStub::Major major_key = info->code_stub()->MajorKey();
-    const char* major_name = CodeStub::MajorName(major_key, false);
-    size_t len = strlen(major_name) + 1;
-    base::SmartArrayPointer<char> name(new char[len]);
-    memcpy(name.get(), major_name, len);
-    return name;
-  } else {
-    AllowHandleDereference allow_deref;
-    return info->literal()->debug_name()->ToCString();
-  }
-}
-
-
 class AstGraphBuilderWithPositions final : public AstGraphBuilder {
  public:
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
@@ -487,11 +473,21 @@ struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    AstGraphBuilderWithPositions graph_builder(
-        temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
-        data->js_type_feedback(), data->source_positions());
     bool stack_check = !data->info()->IsStub();
-    if (!graph_builder.CreateGraph(stack_check)) {
+    bool succeeded = false;
+
+    if (data->info()->shared_info()->HasBytecodeArray()) {
+      BytecodeGraphBuilder graph_builder(temp_zone, data->info(),
+                                         data->jsgraph());
+      succeeded = graph_builder.CreateGraph(stack_check);
+    } else {
+      AstGraphBuilderWithPositions graph_builder(
+          temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),
+          data->js_type_feedback(), data->source_positions());
+      succeeded = graph_builder.CreateGraph(stack_check);
+    }
+
+    if (!succeeded) {
       data->set_compilation_failed();
     }
   }
@@ -508,9 +504,10 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSContextSpecialization context_specialization(
-        &graph_reducer, data->jsgraph(), data->info()->is_context_specializing()
-                                             ? data->info()->context()
-                                             : MaybeHandle<Context>());
+        &graph_reducer, data->jsgraph(),
+        data->info()->is_function_context_specializing()
+            ? data->info()->context()
+            : MaybeHandle<Context>());
     JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
                                                data->jsgraph());
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
@@ -794,13 +791,13 @@ struct BuildLiveRangesPhase {
 };
 
 
-struct PreprocessLiveRangesPhase {
-  static const char* phase_name() { return "preprocess live ranges"; }
+struct SplinterLiveRangesPhase {
+  static const char* phase_name() { return "splinter live ranges"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    PreprocessLiveRanges live_range_preprocessor(
-        data->register_allocation_data(), temp_zone);
-    live_range_preprocessor.PreprocessRanges();
+    LiveRangeSeparator live_range_splinterer(data->register_allocation_data(),
+                                             temp_zone);
+    live_range_splinterer.Splinter();
   }
 };
 
@@ -825,6 +822,16 @@ struct AllocateDoubleRegistersPhase {
     RegAllocator allocator(data->register_allocation_data(), DOUBLE_REGISTERS,
                            temp_zone);
     allocator.AllocateRegisters();
+  }
+};
+
+
+struct MergeSplintersPhase {
+  static const char* phase_name() { return "merge splintered ranges"; }
+  void Run(PipelineData* pipeline_data, Zone* temp_zone) {
+    RegisterAllocationData* data = pipeline_data->register_allocation_data();
+    LiveRangeMerger live_range_merger(data, temp_zone);
+    live_range_merger.Merge();
   }
 };
 
@@ -996,10 +1003,8 @@ Handle<Code> Pipeline::GenerateCode() {
   // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
   // the correct solution is to restore the context register after invoking
   // builtins from full-codegen.
-  for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
-    Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
-    Object* builtin = isolate()->js_builtins_object()->javascript_builtin(id);
-    if (*info()->closure() == builtin) return Handle<Code>::null();
+  if (Context::IsJSBuiltin(isolate()->native_context(), info()->closure())) {
+    return Handle<Code>::null();
   }
 
   ZonePool zone_pool;
@@ -1016,8 +1021,7 @@ Handle<Code> Pipeline::GenerateCode() {
       OFStream json_of(json_file);
       Handle<Script> script = info()->script();
       FunctionLiteral* function = info()->literal();
-      base::SmartArrayPointer<char> function_name =
-          info()->shared_info()->DebugName()->ToCString();
+      base::SmartArrayPointer<char> function_name = info()->GetDebugName();
       int pos = info()->shared_info()->start_position();
       json_of << "{\"function\":\"" << function_name.get()
               << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
@@ -1049,7 +1053,7 @@ Handle<Code> Pipeline::GenerateCode() {
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
     os << "---------------------------------------------------\n"
-       << "Begin compiling method " << GetDebugName(info()).get()
+       << "Begin compiling method " << info()->GetDebugName().get()
        << " using Turbofan" << std::endl;
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
@@ -1146,22 +1150,42 @@ Handle<Code> Pipeline::GenerateCode() {
 }
 
 
+Handle<Code> Pipeline::GenerateCodeForInterpreter(
+    Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+    Schedule* schedule, const char* bytecode_name) {
+  CompilationInfo info(bytecode_name, isolate, graph->zone());
+
+  // Construct a pipeline for scheduling and code generation.
+  ZonePool zone_pool;
+  PipelineData data(&zone_pool, &info, graph, schedule);
+  base::SmartPointer<PipelineStatistics> pipeline_statistics;
+  if (FLAG_turbo_stats) {
+    pipeline_statistics.Reset(new PipelineStatistics(&info, &zone_pool));
+    pipeline_statistics->BeginPhaseKind("interpreter handler codegen");
+  }
+  if (FLAG_trace_turbo) {
+    FILE* json_file = OpenVisualizerLogFile(&info, NULL, "json", "w+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      json_of << "{\"function\":\"" << info.GetDebugName().get()
+              << "\", \"source\":\"\",\n\"phases\":[";
+      fclose(json_file);
+    }
+  }
+
+  Pipeline pipeline(&info);
+  pipeline.data_ = &data;
+  pipeline.RunPrintAndVerify("Machine", true);
+  return pipeline.ScheduleAndGenerateCode(call_descriptor);
+}
+
+
 Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
                                               Graph* graph,
                                               Schedule* schedule) {
   CallDescriptor* call_descriptor =
       Linkage::ComputeIncoming(info->zone(), info);
   return GenerateCodeForTesting(info, call_descriptor, graph, schedule);
-}
-
-
-Handle<Code> Pipeline::GenerateCodeForTesting(Isolate* isolate,
-                                              CallDescriptor* call_descriptor,
-                                              Graph* graph,
-                                              Schedule* schedule) {
-  FakeStubForTesting stub(isolate);
-  CompilationInfo info(&stub, isolate, graph->zone());
-  return GenerateCodeForTesting(&info, call_descriptor, graph, schedule);
 }
 
 
@@ -1192,8 +1216,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
-  FakeStubForTesting stub(sequence->isolate());
-  CompilationInfo info(&stub, sequence->isolate(), sequence->zone());
+  CompilationInfo info("testing", sequence->isolate(), sequence->zone());
   ZonePool zone_pool;
   PipelineData data(&zone_pool, &info, sequence);
   Pipeline pipeline(&info);
@@ -1293,7 +1316,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
     }
     OFStream os(stdout);
     os << "---------------------------------------------------\n"
-       << "Finished compiling method " << GetDebugName(info()).get()
+       << "Finished compiling method " << info()->GetDebugName().get()
        << " using Turbofan" << std::endl;
   }
 
@@ -1317,7 +1340,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
 
   base::SmartArrayPointer<char> debug_name;
 #ifdef DEBUG
-  debug_name = GetDebugName(data->info());
+  debug_name = info()->GetDebugName();
 #endif
 
   data->InitializeRegisterAllocationData(config, descriptor, debug_name.get());
@@ -1340,12 +1363,20 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   }
 
   if (FLAG_turbo_preprocess_ranges) {
-    Run<PreprocessLiveRangesPhase>();
+    Run<SplinterLiveRangesPhase>();
   }
 
-  // TODO(mtrofin): re-enable greedy once we have bots for range preprocessing.
-  Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-  Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
+  if (FLAG_turbo_greedy_regalloc) {
+    Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
+    Run<AllocateDoubleRegistersPhase<GreedyAllocator>>();
+  } else {
+    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
+    Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
+  }
+
+  if (FLAG_turbo_preprocess_ranges) {
+    Run<MergeSplintersPhase>();
+  }
 
   if (FLAG_turbo_frame_elision) {
     Run<LocateSpillSlotsPhase>();

@@ -49,7 +49,6 @@ class Node final {
   void Kill();
 
   const Operator* op() const { return op_; }
-  void set_op(const Operator* op) { op_ = op; }
 
   IrOpcode::Value opcode() const {
     DCHECK(op_->opcode() <= IrOpcode::kLast);
@@ -284,9 +283,12 @@ class Node final {
 
   void* operator new(size_t, void* location) { return location; }
 
-  // Only NodeProperties should manipulate the bounds.
-  Bounds bounds() const { return bounds_; }
-  void set_bounds(Bounds b) { bounds_ = b; }
+  // Only NodeProperties should manipulate the op.
+  void set_op(const Operator* op) { op_ = op; }
+
+  // Only NodeProperties should manipulate the type.
+  Type* type() const { return type_; }
+  void set_type(Type* type) { type_ = type; }
 
   // Only NodeMarkers should manipulate the marks on nodes.
   Mark mark() { return mark_; }
@@ -306,7 +308,7 @@ class Node final {
   static const int kMaxInlineCapacity = InlineCapacityField::kMax - 1;
 
   const Operator* op_;
-  Bounds bounds_;
+  Type* type_;
   Mark mark_;
   uint32_t bit_field_;
   Use* first_use_;

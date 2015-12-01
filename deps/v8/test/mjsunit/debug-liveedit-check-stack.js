@@ -87,7 +87,7 @@ function WrapInCatcher(f, holder) {
 
 function WrapInNativeCall(f) {
   return function() {
-    return %Call(undefined, f);
+    return %Call(f, undefined);
   };
 }
 

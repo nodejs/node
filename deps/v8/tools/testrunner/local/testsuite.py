@@ -226,7 +226,7 @@ class TestSuite(object):
         continue
       if len(argpath) == 1 or (len(argpath) == 2 and argpath[1] == '*'):
         return  # Don't filter, run all tests in this suite.
-      path = os.path.sep.join(argpath[1:])
+      path = '/'.join(argpath[1:])
       if path[-1] == '*':
         path = path[:-1]
         globs.append(path)

@@ -11,7 +11,6 @@
 #include "src/assembler.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/unique.h"
 
 namespace v8 {
 namespace internal {
@@ -62,18 +61,22 @@ struct ValueMatcher : public NodeMatcher {
     return value_;
   }
 
-  bool Is(const T& value) const {
-    return this->HasValue() && this->Value() == value;
-  }
-
-  bool IsInRange(const T& low, const T& high) const {
-    return this->HasValue() && low <= this->Value() && this->Value() <= high;
-  }
-
  private:
   T value_;
   bool has_value_;
 };
+
+
+template <>
+inline ValueMatcher<uint32_t, IrOpcode::kInt32Constant>::ValueMatcher(
+    Node* node)
+    : NodeMatcher(node),
+      value_(),
+      has_value_(opcode() == IrOpcode::kInt32Constant) {
+  if (has_value_) {
+    value_ = static_cast<uint32_t>(OpParameter<int32_t>(node));
+  }
+}
 
 
 template <>
@@ -94,10 +97,10 @@ inline ValueMatcher<uint64_t, IrOpcode::kInt64Constant>::ValueMatcher(
     Node* node)
     : NodeMatcher(node), value_(), has_value_(false) {
   if (opcode() == IrOpcode::kInt32Constant) {
-    value_ = OpParameter<uint32_t>(node);
+    value_ = static_cast<uint32_t>(OpParameter<int32_t>(node));
     has_value_ = true;
   } else if (opcode() == IrOpcode::kInt64Constant) {
-    value_ = OpParameter<uint64_t>(node);
+    value_ = static_cast<uint64_t>(OpParameter<int64_t>(node));
     has_value_ = true;
   }
 }
@@ -108,6 +111,12 @@ template <typename T, IrOpcode::Value kOpcode>
 struct IntMatcher final : public ValueMatcher<T, kOpcode> {
   explicit IntMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
+  bool Is(const T& value) const {
+    return this->HasValue() && this->Value() == value;
+  }
+  bool IsInRange(const T& low, const T& high) const {
+    return this->HasValue() && low <= this->Value() && this->Value() <= high;
+  }
   bool IsMultipleOf(T n) const {
     return this->HasValue() && (this->Value() % n) == 0;
   }
@@ -139,6 +148,12 @@ template <typename T, IrOpcode::Value kOpcode>
 struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
   explicit FloatMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
+  bool Is(const T& value) const {
+    return this->HasValue() && this->Value() == value;
+  }
+  bool IsInRange(const T& low, const T& high) const {
+    return this->HasValue() && low <= this->Value() && this->Value() <= high;
+  }
   bool IsMinusZero() const {
     return this->Is(0.0) && std::signbit(this->Value());
   }
@@ -153,9 +168,9 @@ typedef FloatMatcher<double, IrOpcode::kNumberConstant> NumberMatcher;
 
 // A pattern matcher for heap object constants.
 struct HeapObjectMatcher final
-    : public ValueMatcher<Unique<HeapObject>, IrOpcode::kHeapConstant> {
+    : public ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant> {
   explicit HeapObjectMatcher(Node* node)
-      : ValueMatcher<Unique<HeapObject>, IrOpcode::kHeapConstant>(node) {}
+      : ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant>(node) {}
 };
 
 
@@ -164,6 +179,9 @@ struct ExternalReferenceMatcher final
     : public ValueMatcher<ExternalReference, IrOpcode::kExternalConstant> {
   explicit ExternalReferenceMatcher(Node* node)
       : ValueMatcher<ExternalReference, IrOpcode::kExternalConstant>(node) {}
+  bool Is(const ExternalReference& value) const {
+    return this->HasValue() && this->Value() == value;
+  }
 };
 
 

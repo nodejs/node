@@ -2279,7 +2279,7 @@ class PatchingAssembler : public Assembler {
     DCHECK(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
-    CpuFeatures::FlushICache(buffer_, length);
+    Assembler::FlushICacheWithoutIsolate(buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.

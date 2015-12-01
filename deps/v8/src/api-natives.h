@@ -45,9 +45,8 @@ class ApiNatives {
                               PropertyAttributes attributes);
 
   static void AddAccessorProperty(Isolate* isolate, Handle<TemplateInfo> info,
-                                  Handle<Name> name,
-                                  Handle<FunctionTemplateInfo> getter,
-                                  Handle<FunctionTemplateInfo> setter,
+                                  Handle<Name> name, Handle<Object> getter,
+                                  Handle<Object> setter,
                                   PropertyAttributes attributes);
 
   static void AddNativeDataProperty(Isolate* isolate, Handle<TemplateInfo> info,

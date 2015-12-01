@@ -4,10 +4,11 @@
 
 #include "src/ic/handler-compiler.h"
 
-#include "src/cpu-profiler.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
 #include "src/ic/ic-inl.h"
+#include "src/isolate-inl.h"
+#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -329,7 +330,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     PrototypeIterator iter(isolate(), last);
     while (!iter.IsAtEnd()) {
       lost_holder_register = true;
-      last = JSObject::cast(iter.GetCurrent());
+      last = iter.GetCurrent<JSObject>();
       iter.Advance();
     }
     auto last_handle = handle(last);
@@ -423,6 +424,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     Handle<Map> transition, Handle<Name> name) {
   Label miss;
 
+  if (FLAG_vector_stores) PushVectorAndSlot();
+
   // Check that we are allowed to write this.
   bool is_nonexistent = holder()->map() == transition->GetBackPointer();
   if (is_nonexistent) {
@@ -433,7 +436,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
                           : PrototypeIterator::END_AT_NULL;
     PrototypeIterator iter(isolate(), holder());
     while (!iter.IsAtEnd(end)) {
-      last = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+      last = PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
     }
     if (!last.is_null()) set_holder(last);
@@ -453,16 +456,19 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   DCHECK(!transition->is_access_check_needed());
 
   // Call to respective StoreTransitionStub.
-  Register transition_map_reg = StoreTransitionDescriptor::MapRegister();
-  bool push_map_on_stack = transition_map_reg.is(no_reg);
-  Register map_reg = push_map_on_stack ? scratch1() : transition_map_reg;
+  Register transition_map_reg = StoreTransitionHelper::MapRegister();
+  bool stack_args = StoreTransitionHelper::UsesStackArgs();
+  Register map_reg = stack_args ? scratch1() : transition_map_reg;
 
   if (details.type() == DATA_CONSTANT) {
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
     GenerateRestoreMap(transition, map_reg, scratch2(), &miss);
     GenerateConstantCheck(map_reg, descriptor, value(), scratch2(), &miss);
-    if (push_map_on_stack) {
+    if (stack_args) {
+      // Also pushes vector and slot.
       GeneratePushMap(map_reg, scratch2());
+    } else if (FLAG_vector_stores) {
+      PopVectorAndSlot();
     }
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate());
@@ -479,8 +485,11 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             : StoreTransitionStub::StoreMapAndValue;
 
     GenerateRestoreMap(transition, map_reg, scratch2(), &miss);
-    if (push_map_on_stack) {
+    if (stack_args) {
+      // Also pushes vector and slot.
       GeneratePushMap(map_reg, scratch2());
+    } else if (FLAG_vector_stores) {
+      PopVectorAndSlot();
     }
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate(),
@@ -490,9 +499,16 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   }
 
   GenerateRestoreName(&miss, name);
+  if (FLAG_vector_stores) PopVectorAndSlot();
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   return GetCode(kind(), Code::FAST, name);
+}
+
+
+bool NamedStoreHandlerCompiler::RequiresFieldTypeChecks(
+    HeapType* field_type) const {
+  return !field_type->Classes().Done();
 }
 
 
@@ -500,11 +516,20 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
   Label miss;
   DCHECK(it->representation().IsHeapObject());
 
-  GenerateFieldTypeChecks(*it->GetFieldType(), value(), &miss);
+  HeapType* field_type = *it->GetFieldType();
+  bool need_save_restore = false;
+  if (RequiresFieldTypeChecks(field_type)) {
+    need_save_restore = IC::ICUseVector(kind());
+    if (need_save_restore) PushVectorAndSlot();
+    GenerateFieldTypeChecks(field_type, value(), &miss);
+    if (need_save_restore) PopVectorAndSlot();
+  }
+
   StoreFieldStub stub(isolate(), it->GetFieldIndex(), it->representation());
   GenerateTailCall(masm(), stub.GetCode());
 
   __ bind(&miss);
+  if (need_save_restore) PopVectorAndSlot();
   TailCallBuiltin(masm(), MissBuiltin(kind()));
   return GetCode(kind(), Code::FAST, it->name());
 }

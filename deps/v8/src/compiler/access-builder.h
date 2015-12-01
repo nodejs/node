@@ -41,7 +41,7 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
 
   // Provides access to FixedArray::length() field.
-  static FieldAccess ForFixedArrayLength();
+  static FieldAccess ForFixedArrayLength(Zone* zone);
 
   // Provides access to DescriptorArray::enum_cache() field.
   static FieldAccess ForDescriptorArrayEnumCache();

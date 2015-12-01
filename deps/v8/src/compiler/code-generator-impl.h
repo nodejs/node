@@ -37,6 +37,8 @@ class InstructionOperandConverter {
 
   double InputDouble(size_t index) { return ToDouble(instr_->InputAt(index)); }
 
+  float InputFloat32(size_t index) { return ToFloat32(instr_->InputAt(index)); }
+
   int32_t InputInt32(size_t index) {
     return ToConstant(instr_->InputAt(index)).ToInt32();
   }
@@ -111,6 +113,8 @@ class InstructionOperandConverter {
   }
 
   double ToDouble(InstructionOperand* op) { return ToConstant(op).ToFloat64(); }
+
+  float ToFloat32(InstructionOperand* op) { return ToConstant(op).ToFloat32(); }
 
   ExternalReference ToExternalReference(InstructionOperand* op) {
     return ToConstant(op).ToExternalReference();

@@ -99,8 +99,6 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocate(LAllocate* instr);
-  void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                       Label* map_check);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
   void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
                                    Register object,
@@ -255,7 +253,9 @@ class LCodeGen: public LCodeGenBase {
   // EmitBranch expects to be the last instruction of a block.
   template<class InstrType>
   void EmitBranch(InstrType instr, Condition cc);
-  template<class InstrType>
+  template <class InstrType>
+  void EmitTrueBranch(InstrType instr, Condition cc);
+  template <class InstrType>
   void EmitFalseBranch(InstrType instr, Condition cc);
   void EmitNumberUntagD(LNumberUntagD* instr, Register input,
                         XMMRegister result, NumberUntagDMode mode);
@@ -264,13 +264,6 @@ class LCodeGen: public LCodeGenBase {
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
   Condition EmitTypeofIs(LTypeofIsAndBranch* instr, Register input);
-
-  // Emits optimized code for %_IsObject(x).  Preserves input register.
-  // Returns the condition on which a final split to
-  // true and false label should be made, to optimize fallthrough.
-  Condition EmitIsObject(Register input,
-                         Label* is_not_object,
-                         Label* is_object);
 
   // Emits optimized code for %_IsString(x).  Preserves input register.
   // Returns the condition on which a final split to

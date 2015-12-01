@@ -1,0 +1,15 @@
+# Copyright 2015 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+{
+  'conditions': [
+    ['v8_use_external_startup_data==1', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/natives_blob.bin',
+          '<(PRODUCT_DIR)/snapshot_blob.bin',
+        ],
+      },
+    }],
+  ],
+}

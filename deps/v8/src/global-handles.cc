@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
-#include "src/api.h"
 #include "src/global-handles.h"
 
+#include "src/api.h"
+#include "src/v8.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {

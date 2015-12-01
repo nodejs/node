@@ -32,11 +32,11 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
-#include "src/allocation-tracker.h"
 #include "src/debug/debug.h"
 #include "src/hashmap.h"
-#include "src/heap-profiler.h"
-#include "src/heap-snapshot-generator-inl.h"
+#include "src/profiler/allocation-tracker.h"
+#include "src/profiler/heap-profiler.h"
+#include "src/profiler/heap-snapshot-generator-inl.h"
 #include "test/cctest/cctest.h"
 
 using i::AllocationTraceNode;
@@ -503,10 +503,13 @@ void CheckSimdSnapshot(const char* program, const char* var_name) {
 TEST(HeapSnapshotSimd) {
   CheckSimdSnapshot("a = SIMD.Float32x4();\n", "a");
   CheckSimdSnapshot("a = SIMD.Int32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint32x4();\n", "a");
   CheckSimdSnapshot("a = SIMD.Bool32x4();\n", "a");
   CheckSimdSnapshot("a = SIMD.Int16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint16x8();\n", "a");
   CheckSimdSnapshot("a = SIMD.Bool16x8();\n", "a");
   CheckSimdSnapshot("a = SIMD.Int8x16();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint8x16();\n", "a");
   CheckSimdSnapshot("a = SIMD.Bool8x16();\n", "a");
 }
 

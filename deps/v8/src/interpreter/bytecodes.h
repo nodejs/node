@@ -18,32 +18,71 @@ namespace interpreter {
 // The list of operand types used by bytecodes.
 #define OPERAND_TYPE_LIST(V) \
   V(None)                    \
+  V(Count)                   \
   V(Imm8)                    \
+  V(Idx)                     \
   V(Reg)
 
 // The list of bytecodes which are interpreted by the interpreter.
-#define BYTECODE_LIST(V)               \
-                                       \
-  /* Loading the accumulator */        \
-  V(LdaZero, OperandType::kNone)       \
-  V(LdaSmi8, OperandType::kImm8)       \
-  V(LdaUndefined, OperandType::kNone)  \
-  V(LdaNull, OperandType::kNone)       \
-  V(LdaTheHole, OperandType::kNone)    \
-  V(LdaTrue, OperandType::kNone)       \
-  V(LdaFalse, OperandType::kNone)      \
-                                       \
-  /* Register-accumulator transfers */ \
-  V(Ldar, OperandType::kReg)           \
-  V(Star, OperandType::kReg)           \
-                                       \
-  /* Binary Operators */               \
-  V(Add, OperandType::kReg)            \
-  V(Sub, OperandType::kReg)            \
-  V(Mul, OperandType::kReg)            \
-  V(Div, OperandType::kReg)            \
-                                       \
-  /* Control Flow */                   \
+#define BYTECODE_LIST(V)                                                   \
+                                                                           \
+  /* Loading the accumulator */                                            \
+  V(LdaZero, OperandType::kNone)                                           \
+  V(LdaSmi8, OperandType::kImm8)                                           \
+  V(LdaConstant, OperandType::kIdx)                                        \
+  V(LdaUndefined, OperandType::kNone)                                      \
+  V(LdaNull, OperandType::kNone)                                           \
+  V(LdaTheHole, OperandType::kNone)                                        \
+  V(LdaTrue, OperandType::kNone)                                           \
+  V(LdaFalse, OperandType::kNone)                                          \
+                                                                           \
+  /* Load globals */                                                       \
+  V(LdaGlobal, OperandType::kIdx)                                          \
+                                                                           \
+  /* Register-accumulator transfers */                                     \
+  V(Ldar, OperandType::kReg)                                               \
+  V(Star, OperandType::kReg)                                               \
+                                                                           \
+  /* LoadIC operations */                                                  \
+  V(LoadIC, OperandType::kReg, OperandType::kIdx)                          \
+  V(KeyedLoadIC, OperandType::kReg, OperandType::kIdx)                     \
+                                                                           \
+  /* StoreIC operations */                                                 \
+  V(StoreIC, OperandType::kReg, OperandType::kReg, OperandType::kIdx)      \
+  V(KeyedStoreIC, OperandType::kReg, OperandType::kReg, OperandType::kIdx) \
+                                                                           \
+  /* Binary Operators */                                                   \
+  V(Add, OperandType::kReg)                                                \
+  V(Sub, OperandType::kReg)                                                \
+  V(Mul, OperandType::kReg)                                                \
+  V(Div, OperandType::kReg)                                                \
+  V(Mod, OperandType::kReg)                                                \
+                                                                           \
+  /* Call operations. */                                                   \
+  V(Call, OperandType::kReg, OperandType::kReg, OperandType::kCount)       \
+                                                                           \
+  /* Test Operators */                                                     \
+  V(TestEqual, OperandType::kReg)                                          \
+  V(TestNotEqual, OperandType::kReg)                                       \
+  V(TestEqualStrict, OperandType::kReg)                                    \
+  V(TestNotEqualStrict, OperandType::kReg)                                 \
+  V(TestLessThan, OperandType::kReg)                                       \
+  V(TestGreaterThan, OperandType::kReg)                                    \
+  V(TestLessThanOrEqual, OperandType::kReg)                                \
+  V(TestGreaterThanOrEqual, OperandType::kReg)                             \
+  V(TestInstanceOf, OperandType::kReg)                                     \
+  V(TestIn, OperandType::kReg)                                             \
+                                                                           \
+  /* Cast operators */                                                     \
+  V(ToBoolean, OperandType::kNone)                                         \
+                                                                           \
+  /* Control Flow */                                                       \
+  V(Jump, OperandType::kImm8)                                              \
+  V(JumpConstant, OperandType::kIdx)                                       \
+  V(JumpIfTrue, OperandType::kImm8)                                        \
+  V(JumpIfTrueConstant, OperandType::kIdx)                                 \
+  V(JumpIfFalse, OperandType::kImm8)                                       \
+  V(JumpIfFalseConstant, OperandType::kIdx)                                \
   V(Return, OperandType::kNone)
 
 
@@ -70,6 +109,43 @@ enum class Bytecode : uint8_t {
   // evaluate to the same value as the last real bytecode.
   kLast = -1 BYTECODE_LIST(COUNT_BYTECODE)
 #undef COUNT_BYTECODE
+};
+
+
+// An interpreter register which is located in the function's register file
+// in its stack-frame. Register hold parameters, this, and expression values.
+class Register {
+ public:
+  static const int kMaxRegisterIndex = 127;
+  static const int kMinRegisterIndex = -128;
+
+  Register() : index_(kIllegalIndex) {}
+
+  explicit Register(int index) : index_(index) {
+    DCHECK_LE(index_, kMaxRegisterIndex);
+    DCHECK_GE(index_, kMinRegisterIndex);
+  }
+
+  int index() const {
+    DCHECK(index_ != kIllegalIndex);
+    return index_;
+  }
+  bool is_parameter() const { return index() < 0; }
+
+  static Register FromParameterIndex(int index, int parameter_count);
+  int ToParameterIndex(int parameter_count) const;
+  static int MaxParameterIndex();
+
+  static Register FromOperand(uint8_t operand);
+  uint8_t ToOperand() const;
+
+ private:
+  static const int kIllegalIndex = kMaxInt;
+
+  void* operator new(size_t size);
+  void operator delete(void* p);
+
+  int index_;
 };
 
 
@@ -103,7 +179,8 @@ class Bytecodes {
   static int MaximumSize();
 
   // Decode a single bytecode and operands to |os|.
-  static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start);
+  static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
+                              int number_of_parameters);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);
