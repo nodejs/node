@@ -2153,7 +2153,7 @@ struct node_module* get_linked_module(const char* name) {
 
 typedef void (UV_DYNAMIC* extInit)(Local<Object> exports);
 
-// DLOpen is process.dlopen(module, filename).
+// DLOpen is process.dlopen(module, filename, [glob=false]).
 // Used to load 'module.node' dynamically shared objects.
 //
 // FIXME(bnoordhuis) Not multi-context ready. TBD how to resolve the conflict
@@ -2165,14 +2165,15 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(modpending, nullptr);
 
-  if (args.Length() != 2) {
-    env->ThrowError("process.dlopen takes exactly 2 arguments.");
+  if (args.Length() < 2 || args.Length() > 3) {
+    env->ThrowError("process.dlopen takes at least 2 arguments.");
     return;
   }
 
   Local<Object> module = args[0]->ToObject(env->isolate());  // Cast
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
-  const bool is_dlopen_error = uv_dlopen(*filename, &lib);
+  const bool dl_open_flag = args.Length() == 3 && args[2]->IsBoolean() && args[2]->BooleanValue();
+  const bool is_dlopen_error = uv_dlopen(*filename, &lib, dl_open_flag);
 
   // Objects containing v14 or later modules will have registered themselves
   // on the pending list.  Activate all of them now.  At present, only one
