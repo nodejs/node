@@ -15,7 +15,7 @@ var serverRemotePorts = [];
 
 const server = net.createServer(function(socket) {
   serverRemotePorts.push(socket.remotePort);
-  conns++;
+  testConnect();
 });
 
 const client = new net.Socket();
@@ -29,7 +29,12 @@ server.on('close', common.mustCall(function() {
 server.listen(common.PORT, common.localhostIPv4, testConnect);
 
 function testConnect() {
-  if (conns == 2) {
+  if (conns > serverRemotePorts.length || conns > clientLocalPorts.length) {
+    // We're waiting for a callback to fire.
+    return;
+  }
+
+  if (conns === 2) {
     return server.close();
   }
   client.connect(common.PORT, common.localhostIPv4, function() {
@@ -37,4 +42,5 @@ function testConnect() {
     this.once('close', testConnect);
     this.destroy();
   });
+  conns++;
 }
