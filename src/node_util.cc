@@ -30,6 +30,24 @@ static void IsPromise(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void IsTypedArray(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(args[0]->IsTypedArray());
+}
+
+
+static void IsArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(args[0]->IsArrayBuffer());
+}
+
+
+static void IsDataView(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(args[0]->IsDataView());
+}
+
+
 static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -53,6 +71,9 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "isMapIterator", IsMapIterator);
   env->SetMethod(target, "isSetIterator", IsSetIterator);
   env->SetMethod(target, "isPromise", IsPromise);
+  env->SetMethod(target, "isTypedArray", IsTypedArray);
+  env->SetMethod(target, "isArrayBuffer", IsArrayBuffer);
+  env->SetMethod(target, "isDataView", IsDataView);
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
 }
 
