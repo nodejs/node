@@ -453,26 +453,6 @@ static BIO* LoadBIO(Environment* env, Local<Value> v) {
 }
 
 
-// Takes a string or buffer and loads it into an X509
-// Caller responsible for X509_free-ing the returned object.
-static X509* LoadX509(Environment* env, Local<Value> v) {
-  HandleScope scope(env->isolate());
-
-  BIO *bio = LoadBIO(env, v);
-  if (!bio)
-    return nullptr;
-
-  X509 * x509 = PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr);
-  if (!x509) {
-    BIO_free_all(bio);
-    return nullptr;
-  }
-
-  BIO_free_all(bio);
-  return x509;
-}
-
-
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -668,16 +648,19 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
     newCAStore = true;
   }
 
-  X509* x509 = LoadX509(env, args[0]);
-  if (!x509)
-    return;
+  unsigned cert_count = 0;
+  if (BIO* bio = LoadBIO(env, args[0])) {
+    while (X509* x509 =  // NOLINT(whitespace/if-one-line)
+        PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
+      X509_STORE_add_cert(sc->ca_store_, x509);
+      SSL_CTX_add_client_CA(sc->ctx_, x509);
+      X509_free(x509);
+      cert_count += 1;
+    }
+    BIO_free_all(bio);
+  }
 
-  X509_STORE_add_cert(sc->ca_store_, x509);
-  SSL_CTX_add_client_CA(sc->ctx_, x509);
-
-  X509_free(x509);
-
-  if (newCAStore) {
+  if (cert_count > 0 && newCAStore) {
     SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
   }
 }
