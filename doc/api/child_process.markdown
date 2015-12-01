@@ -460,7 +460,7 @@ leaner than [`child_process.exec()`][]. It has the same options.
 This is a special case of the [`child_process.spawn()`][] functionality for
 spawning Node.js processes. In addition to having all the methods in a normal
 ChildProcess instance, the returned object has a communication channel built-in.
-See [`child.send(message, [sendHandle])`][] for details.
+See [`ChildProcess#send()`][] for details.
 
 These child Node.js processes are still whole new instances of V8. Assume at
 least 30ms startup and 10mb memory for each new Node.js. That is, you cannot
@@ -778,5 +778,4 @@ process has exited.
 [spawn]: #child_process_child_process_spawn_command_args_options
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
-[`child.send(message, [sendHandle])`]: #child_process_child_send_message_sendhandle_callback
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
