@@ -12,8 +12,8 @@
 // Imports
 
 var GlobalFunction = global.Function;
-
 var NewFunctionString;
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   NewFunctionString = from.NewFunctionString;
@@ -102,10 +102,10 @@ utils.InstallFunctions(GeneratorObjectPrototype,
 %AddNamedProperty(GeneratorObjectPrototype, "constructor",
     GeneratorFunctionPrototype, DONT_ENUM | READ_ONLY);
 %AddNamedProperty(GeneratorObjectPrototype,
-    symbolToStringTag, "Generator", DONT_ENUM | READ_ONLY);
+    toStringTagSymbol, "Generator", DONT_ENUM | READ_ONLY);
 %InternalSetPrototype(GeneratorFunctionPrototype, GlobalFunction.prototype);
 %AddNamedProperty(GeneratorFunctionPrototype,
-    symbolToStringTag, "GeneratorFunction", DONT_ENUM | READ_ONLY);
+    toStringTagSymbol, "GeneratorFunction", DONT_ENUM | READ_ONLY);
 %AddNamedProperty(GeneratorFunctionPrototype, "constructor",
     GeneratorFunction, DONT_ENUM | READ_ONLY);
 %InternalSetPrototype(GeneratorFunction, GlobalFunction);

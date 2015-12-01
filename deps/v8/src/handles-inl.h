@@ -26,6 +26,12 @@ HandleScope::HandleScope(Isolate* isolate) {
 }
 
 
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
+  return os << Brief(*handle);
+}
+
+
 HandleScope::~HandleScope() {
 #ifdef DEBUG
   if (FLAG_check_handle_count) {

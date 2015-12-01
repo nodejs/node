@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/objects.h"
 
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 
@@ -143,6 +144,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_MAP_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorPrint(os);
       break;
+    case JS_ITERATOR_RESULT_TYPE:
+      JSIteratorResult::cast(this)->JSIteratorResultPrint(os);
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapPrint(os);
       break;
@@ -220,8 +224,11 @@ void Float32x4::Float32x4Print(std::ostream& os) {  // NOLINT
     }                                                               \
   }
 SIMD128_INT_PRINT_FUNCTION(Int32x4, 4)
+SIMD128_INT_PRINT_FUNCTION(Uint32x4, 4)
 SIMD128_INT_PRINT_FUNCTION(Int16x8, 8)
+SIMD128_INT_PRINT_FUNCTION(Uint16x8, 8)
 SIMD128_INT_PRINT_FUNCTION(Int8x16, 16)
+SIMD128_INT_PRINT_FUNCTION(Uint8x16, 16)
 #undef SIMD128_INT_PRINT_FUNCTION
 
 
@@ -449,7 +456,8 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (has_named_interceptor()) os << " - named_interceptor\n";
   if (has_indexed_interceptor()) os << " - indexed_interceptor\n";
   if (is_undetectable()) os << " - undetectable\n";
-  if (has_instance_call_handler()) os << " - instance_call_handler\n";
+  if (is_callable()) os << " - callable\n";
+  if (is_constructor()) os << " - constructor\n";
   if (is_access_check_needed()) os << " - access_check_needed\n";
   if (!is_extensible()) os << " - non-extensible\n";
   if (is_observed()) os << " - observed\n";
@@ -562,19 +570,38 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
 
     for (int i = 0; i < ICSlots(); i++) {
       FeedbackVectorICSlot slot(i);
-      Code::Kind kind = GetKind(slot);
-      os << "\n ICSlot " << i;
-      if (kind == Code::LOAD_IC) {
-        LoadICNexus nexus(this, slot);
-        os << " LOAD_IC " << Code::ICState2String(nexus.StateFromFeedback());
-      } else if (kind == Code::KEYED_LOAD_IC) {
-        KeyedLoadICNexus nexus(this, slot);
-        os << " KEYED_LOAD_IC "
-           << Code::ICState2String(nexus.StateFromFeedback());
-      } else {
-        DCHECK(kind == Code::CALL_IC);
-        CallICNexus nexus(this, slot);
-        os << " CALL_IC " << Code::ICState2String(nexus.StateFromFeedback());
+      FeedbackVectorSlotKind kind = GetKind(slot);
+      os << "\n ICSlot " << i << " " << kind << " ";
+      switch (kind) {
+        case FeedbackVectorSlotKind::LOAD_IC: {
+          LoadICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::KEYED_LOAD_IC: {
+          KeyedLoadICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::CALL_IC: {
+          CallICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::STORE_IC: {
+          StoreICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+          KeyedStoreICNexus nexus(this, slot);
+          os << Code::ICState2String(nexus.StateFromFeedback());
+          break;
+        }
+        case FeedbackVectorSlotKind::UNUSED:
+        case FeedbackVectorSlotKind::KINDS_NUMBER:
+          UNREACHABLE();
+          break;
       }
 
       os << "\n  [" << GetIndex(slot) << "]: " << Brief(Get(slot));
@@ -742,6 +769,15 @@ void JSSetIterator::JSSetIteratorPrint(std::ostream& os) {  // NOLINT
 void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSMapIterator");
   OrderedHashTableIteratorPrint(os);
+}
+
+
+void JSIteratorResult::JSIteratorResultPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "JSIteratorResult");
+  os << " - map = " << reinterpret_cast<void*>(map()) << "\n";
+  os << " - done = " << Brief(done()) << "\n";
+  os << " - value = " << Brief(value()) << "\n";
+  os << "\n";
 }
 
 
@@ -913,7 +949,7 @@ void ExecutableAccessorInfo::ExecutableAccessorInfoPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "ExecutableAccessorInfo");
   os << "\n - name: " << Brief(name());
-  os << "\n - flag: " << Brief(flag());
+  os << "\n - flag: " << flag();
   os << "\n - getter: " << Brief(getter());
   os << "\n - setter: " << Brief(setter());
   os << "\n - data: " << Brief(data());
@@ -934,6 +970,15 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - registry slot: " << registry_slot();
   os << "\n - validity cell: " << Brief(validity_cell());
   os << "\n - constructor name: " << Brief(constructor_name());
+  os << "\n";
+}
+
+
+void SloppyBlockWithEvalContextExtension::
+    SloppyBlockWithEvalContextExtensionPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "SloppyBlockWithEvalContextExtension");
+  os << "\n - scope_info: " << Brief(scope_info());
+  os << "\n - extension: " << Brief(extension());
   os << "\n";
 }
 
@@ -1056,17 +1101,17 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Script");
   os << "\n - source: " << Brief(source());
   os << "\n - name: " << Brief(name());
-  os << "\n - line_offset: " << Brief(line_offset());
-  os << "\n - column_offset: " << Brief(column_offset());
-  os << "\n - type: " << Brief(type());
-  os << "\n - id: " << Brief(id());
+  os << "\n - line_offset: " << line_offset();
+  os << "\n - column_offset: " << column_offset();
+  os << "\n - type: " << type();
+  os << "\n - id: " << id();
   os << "\n - context data: " << Brief(context_data());
   os << "\n - wrapper: " << Brief(wrapper());
   os << "\n - compilation type: " << compilation_type();
   os << "\n - line ends: " << Brief(line_ends());
   os << "\n - eval from shared: " << Brief(eval_from_shared());
   os << "\n - eval from instructions offset: "
-     << Brief(eval_from_instructions_offset());
+     << eval_from_instructions_offset();
   os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
 }
@@ -1083,9 +1128,9 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
 
 void BreakPointInfo::BreakPointInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "BreakPointInfo");
-  os << "\n - code_position: " << code_position()->value();
-  os << "\n - source_position: " << source_position()->value();
-  os << "\n - statement_position: " << statement_position()->value();
+  os << "\n - code_position: " << code_position();
+  os << "\n - source_position: " << source_position();
+  os << "\n - statement_position: " << statement_position();
   os << "\n - break_point_objects: " << Brief(break_point_objects());
   os << "\n";
 }

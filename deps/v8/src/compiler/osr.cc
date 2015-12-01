@@ -99,7 +99,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
       }
       copy = graph->NewNode(orig->op(), orig->InputCount(), &tmp_inputs[0]);
       if (NodeProperties::IsTyped(orig)) {
-        NodeProperties::SetBounds(copy, NodeProperties::GetBounds(orig));
+        NodeProperties::SetType(copy, NodeProperties::GetType(orig));
       }
       mapping->at(orig->id()) = copy;
       TRACE(" copy #%d:%s -> #%d\n", orig->id(), orig->op()->mnemonic(),
@@ -237,7 +237,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
     NodeId const id = end->InputAt(i)->id();
     for (NodeVector* const copy : copies) {
       end->AppendInput(graph->zone(), copy->at(id));
-      end->set_op(common->End(end->InputCount()));
+      NodeProperties::ChangeOp(end, common->End(end->InputCount()));
     }
   }
 
@@ -301,12 +301,14 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   CHECK_NE(0, live_input_count);
   for (Node* const use : osr_loop->uses()) {
     if (NodeProperties::IsPhi(use)) {
-      use->set_op(common->ResizeMergeOrPhi(use->op(), live_input_count));
       use->RemoveInput(0);
+      NodeProperties::ChangeOp(
+          use, common->ResizeMergeOrPhi(use->op(), live_input_count));
     }
   }
-  osr_loop->set_op(common->ResizeMergeOrPhi(osr_loop->op(), live_input_count));
   osr_loop->RemoveInput(0);
+  NodeProperties::ChangeOp(
+      osr_loop, common->ResizeMergeOrPhi(osr_loop->op(), live_input_count));
 
   // Run control reduction and graph trimming.
   // TODO(bmeurer): The OSR deconstruction could be a regular reducer and play

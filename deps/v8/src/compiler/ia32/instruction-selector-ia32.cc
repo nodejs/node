@@ -36,9 +36,9 @@ class IA32OperandGenerator final : public OperandGenerator {
       case IrOpcode::kHeapConstant: {
         // Constants in new space cannot be used as immediates in V8 because
         // the GC does not scan code objects when collecting the new generation.
-        Unique<HeapObject> value = OpParameter<Unique<HeapObject> >(node);
-        Isolate* isolate = value.handle()->GetIsolate();
-        return !isolate->heap()->InNewSpace(*value.handle());
+        Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
+        Isolate* isolate = value->GetIsolate();
+        return !isolate->heap()->InNewSpace(*value);
       }
       default:
         return false;
@@ -684,6 +684,18 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
       return VisitRO(this, node, kSSEFloat64ToInt32);
   }
   UNREACHABLE();
+}
+
+
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kIA32BitcastFI, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kIA32BitcastIF, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(mythria): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <stdlib.h>
 #include <utility>
 
@@ -11,9 +14,11 @@
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/heap/slots-buffer.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap-tester.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -49,8 +54,10 @@ static Handle<String> MakeName(const char* str, int suffix) {
 
 
 Handle<JSObject> GetObject(const char* name) {
-  return v8::Utils::OpenHandle(
-      *v8::Handle<v8::Object>::Cast(CcTest::global()->Get(v8_str(name))));
+  return v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+      CcTest::global()
+          ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str(name))
+          .ToLocalChecked()));
 }
 
 
@@ -1397,88 +1404,6 @@ TEST(StoreBufferScanOnScavenge) {
 }
 
 
-static int LenFromSize(int size) {
-  return (size - FixedArray::kHeaderSize) / kPointerSize;
-}
-
-
-TEST(WriteBarriersInCopyJSObject) {
-  FLAG_max_semi_space_size = 1;  // Ensure new space is not growing.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  TestHeap* heap = CcTest::test_heap();
-
-  v8::HandleScope scope(CcTest::isolate());
-
-  // The plan: create JSObject which contains unboxed double value that looks
-  // like a reference to an object in new space.
-  // Then clone this object (forcing it to go into old space) and check
-  // that the value of the unboxed double property of the cloned object has
-  // was not corrupted by GC.
-
-  // Step 1: prepare a map for the object. We add unboxed double property to it.
-  // Create a map with single inobject property.
-  Handle<Map> my_map = Map::Create(isolate, 1);
-  Handle<String> name = isolate->factory()->InternalizeUtf8String("foo");
-  my_map = Map::CopyWithField(my_map, name, HeapType::Any(isolate), NONE,
-                              Representation::Double(),
-                              INSERT_TRANSITION).ToHandleChecked();
-
-  int object_size = my_map->instance_size();
-
-  // Step 2: allocate a lot of objects so to almost fill new space: we need
-  // just enough room to allocate JSObject and thus fill the newspace.
-
-  int allocation_amount =
-      Min(FixedArray::kMaxSize, Page::kMaxRegularHeapObjectSize + kPointerSize);
-  int allocation_len = LenFromSize(allocation_amount);
-  NewSpace* new_space = heap->new_space();
-  Address* top_addr = new_space->allocation_top_address();
-  Address* limit_addr = new_space->allocation_limit_address();
-  while ((*limit_addr - *top_addr) > allocation_amount) {
-    CHECK(!heap->always_allocate());
-    Object* array = heap->AllocateFixedArray(allocation_len).ToObjectChecked();
-    CHECK(new_space->Contains(array));
-  }
-
-  // Step 3: now allocate fixed array and JSObject to fill the whole new space.
-  int to_fill = static_cast<int>(*limit_addr - *top_addr - object_size);
-  int fixed_array_len = LenFromSize(to_fill);
-  CHECK(fixed_array_len < FixedArray::kMaxLength);
-
-  CHECK(!heap->always_allocate());
-  Object* array = heap->AllocateFixedArray(fixed_array_len).ToObjectChecked();
-  CHECK(new_space->Contains(array));
-
-  Object* object = heap->AllocateJSObjectFromMap(*my_map).ToObjectChecked();
-  CHECK(new_space->Contains(object));
-  JSObject* jsobject = JSObject::cast(object);
-  CHECK_EQ(0, FixedArray::cast(jsobject->elements())->length());
-  CHECK_EQ(0, jsobject->properties()->length());
-
-  // Construct a double value that looks like a pointer to the new space object
-  // and store it into the obj.
-  Address fake_object = reinterpret_cast<Address>(array) + kPointerSize;
-  double boom_value = bit_cast<double>(fake_object);
-  FieldIndex index = FieldIndex::ForDescriptor(*my_map, 0);
-  jsobject->RawFastDoublePropertyAtPut(index, boom_value);
-
-  CHECK_EQ(0, static_cast<int>(*limit_addr - *top_addr));
-
-  // Step 4: clone jsobject, but force always allocate first to create a clone
-  // in old pointer space.
-  AlwaysAllocateScope aa_scope(isolate);
-  Object* clone_obj = heap->CopyJSObject(jsobject).ToObjectChecked();
-  Handle<JSObject> clone(JSObject::cast(clone_obj));
-  CHECK(heap->old_space()->Contains(clone->address()));
-
-  CcTest::heap()->CollectGarbage(NEW_SPACE, "boom");
-
-  // The value in cloned object should not be corrupted by GC.
-  CHECK_EQ(boom_value, clone->RawFastDoublePropertyAt(index));
-}
-
-
 static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
                              int tagged_descriptor, int double_descriptor,
                              bool check_tagged_value = true) {
@@ -1545,7 +1470,6 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
                                         int double_descriptor,
                                         bool check_tagged_value = true) {
   if (FLAG_never_compact || !FLAG_incremental_marking) return;
-  FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();

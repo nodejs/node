@@ -34,11 +34,16 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   static Handle<Code> ComputeKeyedLoadMonomorphicHandler(
       Handle<Map> receiver_map, ExtraICState extra_ic_state);
 
+  static Handle<Code> ComputeKeyedStoreMonomorphicHandler(
+      Handle<Map> receiver_map, LanguageMode language_mode,
+      KeyedAccessStoreMode store_mode);
   static Handle<Code> ComputeKeyedStoreMonomorphic(
       Handle<Map> receiver_map, LanguageMode language_mode,
       KeyedAccessStoreMode store_mode);
-  static Handle<Code> ComputeKeyedLoadPolymorphic(MapHandleList* receiver_maps,
-                                                  LanguageMode language_mode);
+  static void ComputeKeyedStorePolymorphicHandlers(
+      MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
+      CodeHandleList* handlers, KeyedAccessStoreMode store_mode,
+      LanguageMode language_mode);
   static Handle<Code> ComputeKeyedStorePolymorphic(
       MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
       LanguageMode language_mode);
@@ -78,9 +83,15 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                                   Handle<Name> name, Code::StubType type,
                                   IcCheckType check);
 
+  Handle<Code> CompileKeyedStoreMonomorphicHandler(
+      Handle<Map> receiver_map, KeyedAccessStoreMode store_mode);
   Handle<Code> CompileKeyedStoreMonomorphic(Handle<Map> receiver_map,
                                             KeyedAccessStoreMode store_mode);
   Handle<Code> CompileKeyedStorePolymorphic(MapHandleList* receiver_maps,
+                                            KeyedAccessStoreMode store_mode);
+  void CompileKeyedStorePolymorphicHandlers(MapHandleList* receiver_maps,
+                                            MapHandleList* transitioned_maps,
+                                            CodeHandleList* handlers,
                                             KeyedAccessStoreMode store_mode);
   Handle<Code> CompileKeyedStorePolymorphic(MapHandleList* receiver_maps,
                                             CodeHandleList* handler_stubs,

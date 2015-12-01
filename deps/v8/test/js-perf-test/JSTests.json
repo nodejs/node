@@ -9,11 +9,24 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "RestParameters",
+      "path": ["RestParameters"],
+      "main": "run.js",
+      "resources": ["rest.js"],
+      "flags": ["--harmony-rest-parameters"],
+      "run_count": 5,
+      "units": "score",
+      "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Basic1"}
+      ]
+    },
+    {
       "name": "SpreadCalls",
       "path": ["SpreadCalls"],
       "main": "run.js",
       "resources": ["spreadcalls.js"],
-      "flags": ["--harmony-spreadcalls"],
+      "flags": ["--harmony-spread_calls"],
       "run_count": 5,
       "units": "score",
       "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",
@@ -100,7 +113,6 @@
       "path": ["Object"],
       "main": "run.js",
       "resources": ["assign.js"],
-      "flags": ["--harmony-object"],
       "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
       "tests": [
         {"name": "Assign"}

@@ -12,26 +12,21 @@
 // Imports
 
 var GlobalString = global.String;
-
-var ArrayIteratorCreateResultObject;
-
-utils.Import(function(from) {
-  ArrayIteratorCreateResultObject = from.ArrayIteratorCreateResultObject;
-});
+var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var stringIteratorIteratedStringSymbol =
+    utils.ImportNow("string_iterator_iterated_string_symbol");
+var stringIteratorNextIndexSymbol =
+    utils.ImportNow("string_iterator_next_index_symbol");
+var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 // -------------------------------------------------------------------
-
-var stringIteratorIteratedStringSymbol =
-    GLOBAL_PRIVATE("StringIterator#iteratedString");
-var stringIteratorNextIndexSymbol = GLOBAL_PRIVATE("StringIterator#next");
-
 
 function StringIterator() {}
 
 
 // 21.1.5.1 CreateStringIterator Abstract Operation
 function CreateStringIterator(string) {
-  var s = TO_STRING_INLINE(string);
+  var s = TO_STRING(string);
   var iterator = new StringIterator;
   SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol, s);
   SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, 0);
@@ -39,44 +34,42 @@ function CreateStringIterator(string) {
 }
 
 
-// 21.1.5.2.1 %StringIteratorPrototype%.next( )
+// ES6 section 21.1.5.2.1 %StringIteratorPrototype%.next ( )
 function StringIteratorNext() {
-  var iterator = TO_OBJECT(this);
+  var iterator = this;
+  var value = UNDEFINED;
+  var done = true;
 
-  if (!HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
+  if (!IS_SPEC_OBJECT(iterator) ||
+      !HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'String Iterator.prototype.next');
   }
 
   var s = GET_PRIVATE(iterator, stringIteratorIteratedStringSymbol);
-  if (IS_UNDEFINED(s)) {
-    return ArrayIteratorCreateResultObject(UNDEFINED, true);
-  }
-
-  var position = GET_PRIVATE(iterator, stringIteratorNextIndexSymbol);
-  var length = TO_UINT32(s.length);
-
-  if (position >= length) {
-    SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol,
-                UNDEFINED);
-    return ArrayIteratorCreateResultObject(UNDEFINED, true);
-  }
-
-  var first = %_StringCharCodeAt(s, position);
-  var resultString = %_StringCharFromCode(first);
-  position++;
-
-  if (first >= 0xD800 && first <= 0xDBFF && position < length) {
-    var second = %_StringCharCodeAt(s, position);
-    if (second >= 0xDC00 && second <= 0xDFFF) {
-      resultString += %_StringCharFromCode(second);
+  if (!IS_UNDEFINED(s)) {
+    var position = GET_PRIVATE(iterator, stringIteratorNextIndexSymbol);
+    var length = TO_UINT32(s.length);
+    if (position >= length) {
+      SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol, UNDEFINED);
+    } else {
+      var first = %_StringCharCodeAt(s, position);
+      value = %_StringCharFromCode(first);
+      done = false;
       position++;
+
+      if (first >= 0xD800 && first <= 0xDBFF && position < length) {
+        var second = %_StringCharCodeAt(s, position);
+        if (second >= 0xDC00 && second <= 0xDFFF) {
+          value += %_StringCharFromCode(second);
+          position++;
+        }
+      }
+
+      SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, position);
     }
   }
-
-  SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, position);
-
-  return ArrayIteratorCreateResultObject(resultString, false);
+  return %_CreateIterResultObject(value, done);
 }
 
 
@@ -93,11 +86,11 @@ function StringPrototypeIterator() {
 utils.InstallFunctions(StringIterator.prototype, DONT_ENUM, [
   'next', StringIteratorNext
 ]);
-%AddNamedProperty(StringIterator.prototype, symbolToStringTag,
+%AddNamedProperty(StringIterator.prototype, toStringTagSymbol,
                   "String Iterator", READ_ONLY | DONT_ENUM);
 
-utils.SetFunctionName(StringPrototypeIterator, symbolIterator);
-%AddNamedProperty(GlobalString.prototype, symbolIterator,
+utils.SetFunctionName(StringPrototypeIterator, iteratorSymbol);
+%AddNamedProperty(GlobalString.prototype, iteratorSymbol,
                   StringPrototypeIterator, DONT_ENUM);
 
 })

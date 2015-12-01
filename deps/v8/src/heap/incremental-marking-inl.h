@@ -6,6 +6,7 @@
 #define V8_HEAP_INCREMENTAL_MARKING_INL_H_
 
 #include "src/heap/incremental-marking.h"
+#include "src/heap/mark-compact.h"
 
 namespace v8 {
 namespace internal {

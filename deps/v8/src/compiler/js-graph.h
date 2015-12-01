@@ -11,6 +11,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -44,10 +45,6 @@ class JSGraph : public ZoneObject {
   Node* ZeroConstant();
   Node* OneConstant();
   Node* NaNConstant();
-
-  // Creates a HeapConstant node, possibly canonicalized, without inspecting the
-  // object.
-  Node* HeapConstant(Unique<HeapObject> value);
 
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.

@@ -45,6 +45,7 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSInstanceOf:
 
     // Object operations
+    case IrOpcode::kJSCreateArguments:
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
 

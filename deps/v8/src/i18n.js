@@ -19,6 +19,7 @@
 
 var ArrayIndexOf;
 var ArrayJoin;
+var ArrayPush;
 var IsFinite;
 var IsNaN;
 var GlobalBoolean = global.Boolean;
@@ -27,6 +28,8 @@ var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var MathFloor;
+var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
+var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
 var RegExpTest;
 var StringIndexOf;
 var StringLastIndexOf;
@@ -39,6 +42,7 @@ var StringSubstring;
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
+  ArrayPush = from.ArrayPush;
   IsFinite = from.IsFinite;
   IsNaN = from.IsNaN;
   MathFloor = from.MathFloor;
@@ -51,11 +55,6 @@ utils.Import(function(from) {
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
   ToNumber = from.ToNumber;
-});
-
-utils.ImportNow(function(from) {
-  ObjectDefineProperties = from.ObjectDefineProperties;
-  ObjectDefineProperty = from.ObjectDefineProperty;
 });
 
 // -------------------------------------------------------------------
@@ -298,7 +297,7 @@ function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
     do {
       if (!IS_UNDEFINED(availableLocales[locale])) {
         // Push requested locale not the resolved one.
-        %_CallFunction(matchedLocales, requestedLocales[i], $arrayPush);
+        %_CallFunction(matchedLocales, requestedLocales[i], ArrayPush);
         break;
       }
       // Truncate locale if possible, if not break.
@@ -715,7 +714,7 @@ function initializeLocaleList(locales) {
   } else {
     // We allow single string localeID.
     if (typeof locales === 'string') {
-      %_CallFunction(seen, canonicalizeLanguageTag(locales), $arrayPush);
+      %_CallFunction(seen, canonicalizeLanguageTag(locales), ArrayPush);
       return freezeArray(seen);
     }
 
@@ -729,7 +728,7 @@ function initializeLocaleList(locales) {
         var tag = canonicalizeLanguageTag(value);
 
         if (%_CallFunction(seen, tag, ArrayIndexOf) === -1) {
-          %_CallFunction(seen, tag, $arrayPush);
+          %_CallFunction(seen, tag, ArrayPush);
         }
       }
     }
@@ -775,7 +774,7 @@ function isValidLanguageTag(locale) {
     if (%_CallFunction(GetLanguageVariantRE(), value, RegExpTest) &&
         extensions.length === 0) {
       if (%_CallFunction(variants, value, ArrayIndexOf) === -1) {
-        %_CallFunction(variants, value, $arrayPush);
+        %_CallFunction(variants, value, ArrayPush);
       } else {
         return false;
       }
@@ -783,7 +782,7 @@ function isValidLanguageTag(locale) {
 
     if (%_CallFunction(GetLanguageSingletonRE(), value, RegExpTest)) {
       if (%_CallFunction(extensions, value, ArrayIndexOf) === -1) {
-        %_CallFunction(extensions, value, $arrayPush);
+        %_CallFunction(extensions, value, ArrayPush);
       } else {
         return false;
       }
@@ -2006,10 +2005,10 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
     }
 
     CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
-    var s = TO_STRING_INLINE(this);
+    var s = TO_STRING(this);
 
     var formArg = %_Arguments(0);
-    var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING_INLINE(formArg);
+    var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 

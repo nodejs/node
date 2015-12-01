@@ -19,32 +19,25 @@ class JSRegExp;
 class Execution final : public AllStatic {
  public:
   // Call a function, the caller supplies a receiver and an array
-  // of arguments. Arguments are Object* type. After function returns,
-  // pointers in 'args' might be invalid.
+  // of arguments.
   //
-  // *pending_exception tells whether the invoke resulted in
-  // a pending exception.
+  // When the function called is not in strict mode, receiver is
+  // converted to an object.
   //
-  // When convert_receiver is set, and the receiver is not an object,
-  // and the function called is not in strict mode, receiver is converted to
-  // an object.
-  //
-  MUST_USE_RESULT static MaybeHandle<Object> Call(
-      Isolate* isolate,
-      Handle<Object> callable,
-      Handle<Object> receiver,
-      int argc,
-      Handle<Object> argv[],
-      bool convert_receiver = false);
+  MUST_USE_RESULT static MaybeHandle<Object> Call(Isolate* isolate,
+                                                  Handle<Object> callable,
+                                                  Handle<Object> receiver,
+                                                  int argc,
+                                                  Handle<Object> argv[]);
 
   // Construct object from function, the caller supplies an array of
-  // arguments. Arguments are Object* type. After function returns,
-  // pointers in 'args' might be invalid.
-  //
-  // *pending_exception tells whether the invoke resulted in
-  // a pending exception.
-  //
-  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> func,
+  // arguments.
+  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> constructor,
+                                                 int argc,
+                                                 Handle<Object> argv[]);
+  MUST_USE_RESULT static MaybeHandle<Object> New(Isolate* isolate,
+                                                 Handle<Object> constructor,
+                                                 Handle<Object> new_target,
                                                  int argc,
                                                  Handle<Object> argv[]);
 
@@ -58,31 +51,6 @@ class Execution final : public AllStatic {
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
                                      MaybeHandle<Object>* exception_out = NULL);
-
-  // ECMA-262 9.3
-  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(
-      Isolate* isolate, Handle<Object> obj);
-
-  // ECMA-262 9.4
-  MUST_USE_RESULT static MaybeHandle<Object> ToInteger(
-      Isolate* isolate, Handle<Object> obj);
-
-  // ECMA-262 9.5
-  MUST_USE_RESULT static MaybeHandle<Object> ToInt32(
-      Isolate* isolate, Handle<Object> obj);
-
-  // ECMA-262 9.6
-  MUST_USE_RESULT static MaybeHandle<Object> ToUint32(
-      Isolate* isolate, Handle<Object> obj);
-
-
-  // ES6, draft 10-14-14, section 7.1.15
-  MUST_USE_RESULT static MaybeHandle<Object> ToLength(
-      Isolate* isolate, Handle<Object> obj);
-
-  // ECMA-262 9.8
-  MUST_USE_RESULT static MaybeHandle<Object> ToString(
-      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.8
   MUST_USE_RESULT static MaybeHandle<Object> ToDetailString(
@@ -100,26 +68,10 @@ class Execution final : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<JSRegExp> NewJSRegExp(
       Handle<String> pattern, Handle<String> flags);
 
-  static Handle<Object> GetFunctionFor();
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
-
-  // Get a function delegate (or undefined) for the given non-function
-  // object. Used for support calling objects as functions.
-  static Handle<Object> GetFunctionDelegate(Isolate* isolate,
-                                            Handle<Object> object);
-  MUST_USE_RESULT static MaybeHandle<Object> TryGetFunctionDelegate(
-      Isolate* isolate,
-      Handle<Object> object);
-
-  // Get a function delegate (or undefined) for the given non-function
-  // object. Used for support calling objects as constructors.
-  static Handle<Object> GetConstructorDelegate(Isolate* isolate,
-                                               Handle<Object> object);
-  static MaybeHandle<Object> TryGetConstructorDelegate(Isolate* isolate,
-                                                       Handle<Object> object);
 };
 
 
@@ -200,10 +152,7 @@ class StackGuard final {
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
   Object* HandleInterrupts();
-
-  bool InterruptRequested() { return GetCurrentStackPosition() < climit(); }
-
-  void CheckAndHandleGCInterrupt();
+  void HandleGCInterrupt();
 
  private:
   StackGuard();

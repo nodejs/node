@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/hydrogen-instructions.h"
 
 #include "src/base/bits.h"
 #include "src/double.h"
@@ -74,33 +74,26 @@ void HValue::InferRepresentation(HInferRepresentationPhase* h_infer) {
 
 Representation HValue::RepresentationFromUses() {
   if (HasNoUses()) return Representation::None();
-
-  // Array of use counts for each representation.
-  int use_count[Representation::kNumRepresentations] = { 0 };
+  Representation result = Representation::None();
 
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     Representation rep = use->observed_input_representation(it.index());
-    if (rep.IsNone()) continue;
+    result = result.generalize(rep);
+
     if (FLAG_trace_representation) {
       PrintF("#%d %s is used by #%d %s as %s%s\n",
              id(), Mnemonic(), use->id(), use->Mnemonic(), rep.Mnemonic(),
              (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
     }
-    use_count[rep.kind()] += 1;
   }
-  if (IsPhi()) HPhi::cast(this)->AddIndirectUsesTo(&use_count[0]);
-  int tagged_count = use_count[Representation::kTagged];
-  int double_count = use_count[Representation::kDouble];
-  int int32_count = use_count[Representation::kInteger32];
-  int smi_count = use_count[Representation::kSmi];
+  if (IsPhi()) {
+    result = result.generalize(
+        HPhi::cast(this)->representation_from_indirect_uses());
+  }
 
-  if (tagged_count > 0) return Representation::Tagged();
-  if (double_count > 0) return Representation::Double();
-  if (int32_count > 0) return Representation::Integer32();
-  if (smi_count > 0) return Representation::Smi();
-
-  return Representation::None();
+  // External representations are dealt with separately.
+  return result.IsExternal() ? Representation::None() : result;
 }
 
 
@@ -811,9 +804,8 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kHasInstanceTypeAndBranch:
     case HValue::kInnerAllocatedObject:
     case HValue::kInstanceOf:
-    case HValue::kInstanceOfKnownGlobal:
     case HValue::kIsConstructCallAndBranch:
-    case HValue::kIsObjectAndBranch:
+    case HValue::kHasInPrototypeChainAndBranch:
     case HValue::kIsSmiAndBranch:
     case HValue::kIsStringAndBranch:
     case HValue::kIsUndetectableAndBranch:
@@ -869,7 +861,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kDiv:
     case HValue::kForInCacheArray:
     case HValue::kForInPrepareMap:
-    case HValue::kFunctionLiteral:
     case HValue::kInvokeFunction:
     case HValue::kLoadContextSlot:
     case HValue::kLoadFunctionPrototype:
@@ -881,6 +872,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kMul:
     case HValue::kOsrEntry:
     case HValue::kPower:
+    case HValue::kPrologue:
     case HValue::kRor:
     case HValue::kSar:
     case HValue::kSeqStringSetChar:
@@ -934,8 +926,7 @@ std::ostream& HCallJSFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
                                       HValue* context, HValue* function,
-                                      int argument_count,
-                                      bool pass_argument_count) {
+                                      int argument_count) {
   bool has_stack_check = false;
   if (function->IsConstant()) {
     HConstant* fun_const = HConstant::cast(function);
@@ -946,9 +937,7 @@ HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
          jsfun->code()->kind() == Code::OPTIMIZED_FUNCTION);
   }
 
-  return new(zone) HCallJSFunction(
-      function, argument_count, pass_argument_count,
-      has_stack_check);
+  return new (zone) HCallJSFunction(function, argument_count, has_stack_check);
 }
 
 
@@ -1099,7 +1088,7 @@ std::ostream& HCallNewArray::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 std::ostream& HCallRuntime::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << name()->ToCString().get() << " ";
+  os << function()->name << " ";
   if (save_doubles() == kSaveFPRegs) os << "[save doubles] ";
   return os << "#" << argument_count();
 }
@@ -1306,7 +1295,9 @@ std::ostream& HTypeofIsAndBranch::PrintDataTo(
 }
 
 
-static String* TypeOfString(HConstant* constant, Isolate* isolate) {
+namespace {
+
+String* TypeOfString(HConstant* constant, Isolate* isolate) {
   Heap* heap = isolate->heap();
   if (constant->HasNumberValue()) return heap->number_string();
   if (constant->IsUndetectable()) return heap->undefined_string();
@@ -1337,13 +1328,13 @@ static String* TypeOfString(HConstant* constant, Isolate* isolate) {
       UNREACHABLE();
       return nullptr;
     }
-    case JS_FUNCTION_TYPE:
-    case JS_FUNCTION_PROXY_TYPE:
-      return heap->function_string();
     default:
+      if (constant->IsCallable()) return heap->function_string();
       return heap->object_string();
   }
 }
+
+}  // namespace
 
 
 bool HTypeofIsAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
@@ -1746,7 +1737,7 @@ std::ostream& HCheckInstanceType::PrintDataTo(
 
 
 std::ostream& HCallStub::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << CodeStub::MajorName(major_key_, false) << " ";
+  os << CodeStub::MajorName(major_key_) << " ";
   return HUnaryCall::PrintDataTo(os);
 }
 
@@ -2484,11 +2475,8 @@ std::ostream& HPhi::PrintTo(std::ostream& os) const {  // NOLINT
   for (int i = 0; i < OperandCount(); ++i) {
     os << " " << NameOf(OperandAt(i)) << " ";
   }
-  return os << " uses:" << UseCount() << "_"
-            << smi_non_phi_uses() + smi_indirect_uses() << "s_"
-            << int32_non_phi_uses() + int32_indirect_uses() << "i_"
-            << double_non_phi_uses() + double_indirect_uses() << "d_"
-            << tagged_non_phi_uses() + tagged_indirect_uses() << "t"
+  return os << " uses" << UseCount()
+            << representation_from_indirect_uses().Mnemonic() << " "
             << TypeOf(this) << "]";
 }
 
@@ -2547,7 +2535,12 @@ void HPhi::InitRealUses(int phi_id) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
       Representation rep = value->observed_input_representation(it.index());
-      non_phi_uses_[rep.kind()] += 1;
+      representation_from_non_phi_uses_ =
+          representation_from_non_phi_uses().generalize(rep);
+      if (rep.IsSmi() || rep.IsInteger32() || rep.IsDouble()) {
+        has_type_feedback_from_uses_ = true;
+      }
+
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is used by real #%d %s as %s\n",
                id(), value->id(), value->Mnemonic(), rep.Mnemonic());
@@ -2567,24 +2560,16 @@ void HPhi::InitRealUses(int phi_id) {
 
 void HPhi::AddNonPhiUsesFrom(HPhi* other) {
   if (FLAG_trace_representation) {
-    PrintF("adding to #%d Phi uses of #%d Phi: s%d i%d d%d t%d\n",
-           id(), other->id(),
-           other->non_phi_uses_[Representation::kSmi],
-           other->non_phi_uses_[Representation::kInteger32],
-           other->non_phi_uses_[Representation::kDouble],
-           other->non_phi_uses_[Representation::kTagged]);
+    PrintF(
+        "generalizing use representation '%s' of #%d Phi "
+        "with uses of #%d Phi '%s'\n",
+        representation_from_indirect_uses().Mnemonic(), id(), other->id(),
+        other->representation_from_non_phi_uses().Mnemonic());
   }
 
-  for (int i = 0; i < Representation::kNumRepresentations; i++) {
-    indirect_uses_[i] += other->non_phi_uses_[i];
-  }
-}
-
-
-void HPhi::AddIndirectUsesTo(int* dest) {
-  for (int i = 0; i < Representation::kNumRepresentations; i++) {
-    dest[i] += indirect_uses_[i];
-  }
+  representation_from_indirect_uses_ =
+      representation_from_indirect_uses().generalize(
+          other->representation_from_non_phi_uses());
 }
 
 
@@ -2718,15 +2703,15 @@ HConstant::HConstant(Handle<Object> object, Representation r)
     : HTemplateInstruction<0>(HType::FromValue(object)),
       object_(Unique<Object>::CreateUninitialized(object)),
       object_map_(Handle<Map>::null()),
-      bit_field_(HasStableMapValueField::encode(false) |
-                 HasSmiValueField::encode(false) |
-                 HasInt32ValueField::encode(false) |
-                 HasDoubleValueField::encode(false) |
-                 HasExternalReferenceValueField::encode(false) |
-                 IsNotInNewSpaceField::encode(true) |
-                 BooleanValueField::encode(object->BooleanValue()) |
-                 IsUndetectableField::encode(false) |
-                 InstanceTypeField::encode(kUnknownInstanceType)) {
+      bit_field_(
+          HasStableMapValueField::encode(false) |
+          HasSmiValueField::encode(false) | HasInt32ValueField::encode(false) |
+          HasDoubleValueField::encode(false) |
+          HasExternalReferenceValueField::encode(false) |
+          IsNotInNewSpaceField::encode(true) |
+          BooleanValueField::encode(object->BooleanValue()) |
+          IsUndetectableField::encode(false) | IsCallableField::encode(false) |
+          InstanceTypeField::encode(kUnknownInstanceType)) {
   if (object->IsHeapObject()) {
     Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
     Isolate* isolate = heap_object->GetIsolate();
@@ -2736,6 +2721,7 @@ HConstant::HConstant(Handle<Object> object, Representation r)
     bit_field_ = InstanceTypeField::update(bit_field_, map->instance_type());
     bit_field_ =
         IsUndetectableField::update(bit_field_, map->is_undetectable());
+    bit_field_ = IsCallableField::update(bit_field_, map->is_callable());
     if (map->is_stable()) object_map_ = Unique<Map>::CreateImmovable(map);
     bit_field_ = HasStableMapValueField::update(
         bit_field_,
@@ -3265,29 +3251,6 @@ bool HCompareObjectEqAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   }
   if (FLAG_fold_constants && left()->IsConstant() && right()->IsConstant()) {
     *block = HConstant::cast(left())->DataEquals(HConstant::cast(right()))
-        ? FirstSuccessor() : SecondSuccessor();
-    return true;
-  }
-  *block = NULL;
-  return false;
-}
-
-
-bool ConstantIsObject(HConstant* constant, Isolate* isolate) {
-  if (constant->HasNumberValue()) return false;
-  if (constant->GetUnique().IsKnownGlobal(isolate->heap()->null_value())) {
-    return true;
-  }
-  if (constant->IsUndetectable()) return false;
-  InstanceType type = constant->GetInstanceType();
-  return (FIRST_NONCALLABLE_SPEC_OBJECT_TYPE <= type) &&
-         (type <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
-}
-
-
-bool HIsObjectAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
-  if (FLAG_fold_constants && value()->IsConstant()) {
-    *block = ConstantIsObject(HConstant::cast(value()), isolate())
         ? FirstSuccessor() : SecondSuccessor();
     return true;
   }
@@ -4034,7 +3997,7 @@ DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HSub, -)
 
 
 HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* left, HValue* right, Strength strength,
+                              HValue* left, HValue* right,
                               PretenureFlag pretenure_flag,
                               StringAddFlags flags,
                               Handle<AllocationSite> allocation_site) {
@@ -4052,8 +4015,8 @@ HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
       }
     }
   }
-  return new (zone) HStringAdd(context, left, right, strength, pretenure_flag,
-                               flags, allocation_site);
+  return new (zone)
+      HStringAdd(context, left, right, pretenure_flag, flags, allocation_site);
 }
 
 
@@ -4445,13 +4408,13 @@ void HPhi::InferRepresentation(HInferRepresentationPhase* h_infer) {
 
 
 Representation HPhi::RepresentationFromInputs() {
-  bool has_type_feedback =
-      smi_non_phi_uses() + int32_non_phi_uses() + double_non_phi_uses() > 0;
   Representation r = representation();
   for (int i = 0; i < OperandCount(); ++i) {
     // Ignore conservative Tagged assumption of parameters if we have
     // reason to believe that it's too conservative.
-    if (has_type_feedback && OperandAt(i)->IsParameter()) continue;
+    if (has_type_feedback_from_uses() && OperandAt(i)->IsParameter()) {
+      continue;
+    }
 
     r = r.generalize(OperandAt(i)->KnownOptimalRepresentation());
   }
@@ -4626,7 +4589,7 @@ HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
 
 HObjectAccess HObjectAccess::ForField(Handle<Map> map, int index,
                                       Representation representation,
-                                      Handle<String> name) {
+                                      Handle<Name> name) {
   if (index < 0) {
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.

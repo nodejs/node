@@ -29,5 +29,4 @@
 
 // Test call of JS runtime functions.
 
-var a = %MakeError(0, "error");
-assertInstanceof(a, Error);
+assertEquals(1, %to_number_fun("1"));

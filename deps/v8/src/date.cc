@@ -4,8 +4,6 @@
 
 #include "src/date.h"
 
-#include "src/v8.h"
-
 #include "src/objects.h"
 #include "src/objects-inl.h"
 

@@ -173,6 +173,20 @@ int main(int argc, char* argv[]) {
 #endif  // V8_CC_MSVC
 #endif  // V8_OS_WIN
 
+  // hack to print cctest specific flags
+  for (int i = 1; i < argc; i++) {
+    char* arg = argv[i];
+    if ((strcmp(arg, "--help") == 0) || (strcmp(arg, "-h") == 0)) {
+      printf("Usage: %s [--list] [[V8_FLAGS] CCTEST]\n", argv[0]);
+      printf("\n");
+      printf("Options:\n");
+      printf("  --list:   list all cctests\n");
+      printf("  CCTEST:   cctest identfier returned by --list\n");
+      printf("  D8_FLAGS: see d8 output below\n");
+      printf("\n\n");
+    }
+  }
+
   v8::V8::InitializeICU();
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);

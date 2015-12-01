@@ -9,13 +9,14 @@ var $iteratorPrototype;
   %CheckIsBootstrapping();
 
   var GlobalObject = global.Object;
+  var iteratorSymbol = utils.ImportNow("iterator_symbol");
 
   // 25.1.2.1 %IteratorPrototype% [ @@iterator ] ( )
   function IteratorPrototypeIterator() {
     return this;
   }
 
-  utils.SetFunctionName(IteratorPrototypeIterator, symbolIterator);
-  %AddNamedProperty($iteratorPrototype, symbolIterator,
+  utils.SetFunctionName(IteratorPrototypeIterator, iteratorSymbol);
+  %AddNamedProperty($iteratorPrototype, iteratorSymbol,
       IteratorPrototypeIterator, DONT_ENUM);
 })

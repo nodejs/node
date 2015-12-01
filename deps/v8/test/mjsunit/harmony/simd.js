@@ -45,9 +45,9 @@ function isValidSimdString(string, value, type, lanes) {
 }
 
 
-var simdTypeNames = ['Float32x4', 'Int32x4', 'Bool32x4',
-                                  'Int16x8', 'Bool16x8',
-                                  'Int8x16', 'Bool8x16'];
+var simdTypeNames = ['Float32x4', 'Int32x4', 'Uint32x4', 'Bool32x4',
+                                  'Int16x8', 'Uint16x8', 'Bool16x8',
+                                  'Int8x16', 'Uint8x16', 'Bool8x16'];
 
 var nonSimdValues = [347, 1.275, NaN, "string", null, undefined, {},
                      function() {}];
@@ -212,6 +212,24 @@ function TestCoercions(type, lanes) {
       test(4294967296, 0);
       test(4294967297, 1);
       break;
+    case 'Uint32x4':
+      test(Infinity, 0);
+      test(-Infinity, 0);
+      test(NaN, 0);
+      test(0, 0);
+      test(-0, 0);
+      test(Number.MIN_VALUE, 0);
+      test(-Number.MIN_VALUE, 0);
+      test(0.1, 0);
+      test(-0.1, 0);
+      test(1, 1);
+      test(1.1, 1);
+      test(-1, 4294967295);
+      test(-1.6, 4294967295);
+      test(4294967295, 4294967295);
+      test(4294967296, 0);
+      test(4294967297, 1);
+      break;
     case 'Int16x8':
       test(Infinity, 0);
       test(-Infinity, 0);
@@ -233,6 +251,24 @@ function TestCoercions(type, lanes) {
       test(65536, 0);
       test(65537, 1);
       break;
+    case 'Uint16x8':
+      test(Infinity, 0);
+      test(-Infinity, 0);
+      test(NaN, 0);
+      test(0, 0);
+      test(-0, 0);
+      test(Number.MIN_VALUE, 0);
+      test(-Number.MIN_VALUE, 0);
+      test(0.1, 0);
+      test(-0.1, 0);
+      test(1, 1);
+      test(1.1, 1);
+      test(-1, 65535);
+      test(-1.6, 65535);
+      test(65535, 65535);
+      test(65536, 0);
+      test(65537, 1);
+      break;
     case 'Int8x16':
       test(Infinity, 0);
       test(-Infinity, 0);
@@ -251,6 +287,24 @@ function TestCoercions(type, lanes) {
       test(128, -128);
       test(129, -127);
       test(255, -1);
+      test(256, 0);
+      test(257, 1);
+      break;
+    case 'Uint8x16':
+      test(Infinity, 0);
+      test(-Infinity, 0);
+      test(NaN, 0);
+      test(0, 0);
+      test(-0, 0);
+      test(Number.MIN_VALUE, 0);
+      test(-Number.MIN_VALUE, 0);
+      test(0.1, 0);
+      test(-0.1, 0);
+      test(1, 1);
+      test(1.1, 1);
+      test(-1, 255);
+      test(-1.6, 255);
+      test(255, 255);
       test(256, 0);
       test(257, 1);
       break;
@@ -330,8 +384,11 @@ function TestEquality(type, lanes) {
       test(NaN, NaN);
       break;
     case 'Int32x4':
+    case 'Uint32x4':
     case 'Int16x8':
+    case 'Uint16x8':
     case 'Int8x16':
+    case 'Uint8x16':
       test(1, 2);
       test(1, 1);
       test(1, -1);
@@ -381,8 +438,11 @@ function TestSameValue(type, lanes) {
       test(NaN, NaN);
       break;
     case 'Int32x4':
+    case 'Uint32x4':
     case 'Int16x8':
+    case 'Uint16x8':
     case 'Int8x16':
+    case 'Uint8x16':
       test(1, 2);
       test(1, 1);
       test(1, -1);
