@@ -152,14 +152,11 @@ TEST_F(JSContextRelaxationTest,
   Node* const input1 = Parameter(1);
   Node* const context = Parameter(2);
   Node* const outer_context = Parameter(3);
-  const Operator* op = javascript()->CreateCatchContext(Unique<String>());
-  Node* const frame_state_1 =
-      ShallowFrameStateChain(outer_context, CALL_MAINTAINS_NATIVE_CONTEXT);
+  const Operator* op = javascript()->CreateCatchContext(Handle<String>());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Node* nested_context =
-      graph()->NewNode(op, graph()->start(), graph()->start(), outer_context,
-                       frame_state_1, effect, control);
+  Node* nested_context = graph()->NewNode(
+      op, graph()->start(), graph()->start(), outer_context, effect, control);
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node =
@@ -204,14 +201,12 @@ TEST_F(JSContextRelaxationTest,
   Node* const input1 = Parameter(1);
   Node* const context = Parameter(2);
   Node* const outer_context = Parameter(3);
-  const Operator* op = javascript()->CreateBlockContext();
-  Node* const frame_state_1 =
-      ShallowFrameStateChain(outer_context, CALL_MAINTAINS_NATIVE_CONTEXT);
+  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::null();
+  const Operator* op = javascript()->CreateBlockContext(scope_info);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Node* nested_context =
-      graph()->NewNode(op, graph()->start(), graph()->start(), outer_context,
-                       frame_state_1, effect, control);
+      graph()->NewNode(op, graph()->start(), outer_context, effect, control);
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node =
@@ -230,14 +225,14 @@ TEST_F(JSContextRelaxationTest,
   Node* const input1 = Parameter(1);
   Node* const context = Parameter(2);
   Node* const outer_context = Parameter(3);
-  const Operator* op = javascript()->CreateScriptContext();
+  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::null();
+  const Operator* op = javascript()->CreateScriptContext(scope_info);
   Node* const frame_state_1 =
       ShallowFrameStateChain(outer_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Node* nested_context =
-      graph()->NewNode(op, graph()->start(), graph()->start(), outer_context,
-                       frame_state_1, effect, control);
+  Node* nested_context = graph()->NewNode(op, graph()->start(), outer_context,
+                                          frame_state_1, effect, control);
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node =
@@ -257,13 +252,10 @@ TEST_F(JSContextRelaxationTest,
   Node* const context = Parameter(2);
   Node* const outer_context = Parameter(3);
   const Operator* op = javascript()->CreateModuleContext();
-  Node* const frame_state_1 =
-      ShallowFrameStateChain(outer_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Node* nested_context =
-      graph()->NewNode(op, graph()->start(), graph()->start(), outer_context,
-                       frame_state_1, effect, control);
+  Node* nested_context = graph()->NewNode(
+      op, graph()->start(), graph()->start(), outer_context, effect, control);
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node =
@@ -283,13 +275,10 @@ TEST_F(JSContextRelaxationTest,
   Node* const context = Parameter(2);
   Node* const outer_context = Parameter(3);
   const Operator* op = javascript()->CreateFunctionContext();
-  Node* const frame_state_1 =
-      ShallowFrameStateChain(outer_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Node* nested_context =
-      graph()->NewNode(op, graph()->start(), graph()->start(), outer_context,
-                       frame_state_1, effect, control);
+      graph()->NewNode(op, graph()->start(), outer_context, effect, control);
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node =

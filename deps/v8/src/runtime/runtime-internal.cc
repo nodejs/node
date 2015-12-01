@@ -9,6 +9,7 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"
@@ -24,32 +25,53 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ImportToRuntime) {
+RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
-  Bootstrapper::ImportNatives(isolate, container);
-  return isolate->heap()->undefined_value();
+  JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
+                                "ExportFromRuntime");
+  Bootstrapper::ExportFromRuntime(isolate, container);
+  JSObject::MigrateSlowToFast(container, 0, "ExportFromRuntime");
+  return *container;
 }
 
 
-RUNTIME_FUNCTION(Runtime_ImportExperimentalToRuntime) {
+RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
-  Bootstrapper::ImportExperimentalNatives(isolate, container);
-  return isolate->heap()->undefined_value();
+  JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
+                                "ExportExperimentalFromRuntime");
+  Bootstrapper::ExportExperimentalFromRuntime(isolate, container);
+  JSObject::MigrateSlowToFast(container, 0, "ExportExperimentalFromRuntime");
+  return *container;
 }
 
 
-RUNTIME_FUNCTION(Runtime_InstallJSBuiltins) {
+RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  RUNTIME_ASSERT(array->HasFastElements());
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
-  Bootstrapper::InstallJSBuiltins(isolate, container);
+  Handle<Context> native_context = isolate->native_context();
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
+  int length = Smi::cast(array->length())->value();
+  for (int i = 0; i < length; i += 2) {
+    RUNTIME_ASSERT(fixed_array->get(i)->IsString());
+    Handle<String> name(String::cast(fixed_array->get(i)));
+    RUNTIME_ASSERT(fixed_array->get(i + 1)->IsJSObject());
+    Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)));
+    int index = Context::ImportedFieldIndexForName(name);
+    if (index == Context::kNotFound) {
+      index = Context::IntrinsicIndexForName(name);
+    }
+    RUNTIME_ASSERT(index != Context::kNotFound);
+    native_context->set(index, *object);
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -65,6 +87,13 @@ RUNTIME_FUNCTION(Runtime_ReThrow) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   return isolate->ReThrow(args[0]);
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->StackOverflow();
 }
 
 
@@ -172,12 +201,6 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_PromiseHasHandlerSymbol) {
-  DCHECK(args.length() == 0);
-  return isolate->heap()->promise_has_handler_symbol();
-}
-
-
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
@@ -245,29 +268,6 @@ RUNTIME_FUNCTION(Runtime_CollectStackTrace) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_RenderCallSite) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  MessageLocation location;
-  isolate->ComputeLocation(&location);
-  if (location.start_pos() == -1) return isolate->heap()->empty_string();
-
-  Zone zone;
-  base::SmartPointer<ParseInfo> info(
-      location.function()->shared()->is_function()
-          ? new ParseInfo(&zone, location.function())
-          : new ParseInfo(&zone, location.script()));
-
-  if (!Parser::ParseStatic(info.get())) {
-    isolate->clear_pending_exception();
-    return isolate->heap()->empty_string();
-  }
-  CallPrinter printer(isolate, &zone);
-  const char* string = printer.Print(info->literal(), location.start_pos());
-  return *isolate->factory()->NewStringFromAsciiChecked(string);
-}
-
-
 RUNTIME_FUNCTION(Runtime_MessageGetStartPosition) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -311,16 +311,14 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
 }
 
 
-#define CALLSITE_GET(NAME, RETURN)                   \
-  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {     \
-    HandleScope scope(isolate);                      \
-    DCHECK(args.length() == 3);                      \
-    CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0); \
-    CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 1);  \
-    CONVERT_INT32_ARG_CHECKED(pos, 2);               \
-    Handle<String> result;                           \
-    CallSite call_site(receiver, fun, pos);          \
-    return RETURN(call_site.NAME(isolate), isolate); \
+#define CALLSITE_GET(NAME, RETURN)                          \
+  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
+    HandleScope scope(isolate);                             \
+    DCHECK(args.length() == 1);                             \
+    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
+    Handle<String> result;                                  \
+    CallSite call_site(isolate, call_site_obj);             \
+    return RETURN(call_site.NAME(), isolate);               \
   }
 
 static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
@@ -411,6 +409,40 @@ RUNTIME_FUNCTION(Runtime_GetCallerJSFunction) {
 RUNTIME_FUNCTION(Runtime_GetCodeStubExportsObject) {
   HandleScope shs(isolate);
   return isolate->heap()->code_stub_exports_object();
+}
+
+
+namespace {
+
+Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
+  MessageLocation location;
+  if (isolate->ComputeLocation(&location)) {
+    Zone zone;
+    base::SmartPointer<ParseInfo> info(
+        location.function()->shared()->is_function()
+            ? new ParseInfo(&zone, location.function())
+            : new ParseInfo(&zone, location.script()));
+    if (Parser::ParseStatic(info.get())) {
+      CallPrinter printer(isolate, &zone);
+      const char* string = printer.Print(info->literal(), location.start_pos());
+      return isolate->factory()->NewStringFromAsciiChecked(string);
+    } else {
+      isolate->clear_pending_exception();
+    }
+  }
+  return Object::TypeOf(isolate, object);
+}
+
+}  // namespace
+
+
+RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<String> callsite = RenderCallSite(isolate, object);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callsite));
 }
 
 }  // namespace internal

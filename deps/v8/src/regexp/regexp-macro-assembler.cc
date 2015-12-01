@@ -6,6 +6,7 @@
 
 #include "src/assembler.h"
 #include "src/ast.h"
+#include "src/isolate-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator.h"
 

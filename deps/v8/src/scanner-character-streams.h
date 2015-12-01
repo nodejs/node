@@ -5,10 +5,15 @@
 #ifndef V8_SCANNER_CHARACTER_STREAMS_H_
 #define V8_SCANNER_CHARACTER_STREAMS_H_
 
+#include "src/handles.h"
 #include "src/scanner.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ExternalTwoByteString;
 
 // A buffered character stream based on a random access character
 // source (ReadBlock can be called with pos_ pointing to any position,

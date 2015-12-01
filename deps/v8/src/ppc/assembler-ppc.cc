@@ -34,6 +34,8 @@
 // modified significantly by Google Inc.
 // Copyright 2014 the V8 project authors. All rights reserved.
 
+#include "src/ppc/assembler-ppc.h"
+
 #if V8_TARGET_ARCH_PPC
 
 #include "src/base/bits.h"

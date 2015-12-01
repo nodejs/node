@@ -11,6 +11,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parser.h"
 #include "src/scopeinfo.h"
@@ -994,10 +995,12 @@ class LiteralFixer {
       // collect all functions and fix their literal arrays.
       Handle<FixedArray> function_instances =
           CollectJSFunctions(shared_info, isolate);
+      Handle<TypeFeedbackVector> vector(shared_info->feedback_vector());
+
       for (int i = 0; i < function_instances->length(); i++) {
         Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
-        Handle<FixedArray> new_literals =
-            isolate->factory()->NewFixedArray(new_literal_count);
+        Handle<LiteralsArray> new_literals =
+            LiteralsArray::New(isolate, vector, new_literal_count, TENURED);
         fun->set_literals(*new_literals);
       }
 

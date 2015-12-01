@@ -44,8 +44,8 @@ class ValueNumberingReducerTest : public TestWithZone {
 TEST_F(ValueNumberingReducerTest, AllInputsAreChecked) {
   Node* na = graph()->NewNode(&kOp0);
   Node* nb = graph()->NewNode(&kOp0);
-  Node* n1 = graph()->NewNode(&kOp0, na);
-  Node* n2 = graph()->NewNode(&kOp0, nb);
+  Node* n1 = graph()->NewNode(&kOp1, na);
+  Node* n2 = graph()->NewNode(&kOp1, nb);
   EXPECT_FALSE(Reduce(n1).Changed());
   EXPECT_FALSE(Reduce(n2).Changed());
 }
@@ -73,8 +73,7 @@ TEST_F(ValueNumberingReducerTest, OperatorEqualityNotIdentity) {
   static const size_t kMaxInputCount = 16;
   Node* inputs[kMaxInputCount];
   for (size_t i = 0; i < arraysize(inputs); ++i) {
-    Operator::Opcode opcode = static_cast<Operator::Opcode>(
-        std::numeric_limits<Operator::Opcode>::max() - i);
+    Operator::Opcode opcode = static_cast<Operator::Opcode>(kMaxInputCount + i);
     inputs[i] = graph()->NewNode(
         new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
   }
@@ -99,8 +98,7 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
   static const size_t kMaxInputCount = 16;
   Node* inputs[kMaxInputCount];
   for (size_t i = 0; i < arraysize(inputs); ++i) {
-    Operator::Opcode opcode = static_cast<Operator::Opcode>(
-        std::numeric_limits<Operator::Opcode>::max() - i);
+    Operator::Opcode opcode = static_cast<Operator::Opcode>(2 + i);
     inputs[i] = graph()->NewNode(
         new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
   }

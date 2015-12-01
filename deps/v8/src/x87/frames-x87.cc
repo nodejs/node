@@ -8,6 +8,7 @@
 #include "src/frames.h"
 #include "src/x87/assembler-x87-inl.h"
 #include "src/x87/assembler-x87.h"
+#include "src/x87/frames-x87.h"
 
 namespace v8 {
 namespace internal {

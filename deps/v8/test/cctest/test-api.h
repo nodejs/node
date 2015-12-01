@@ -4,8 +4,8 @@
 
 #include "src/v8.h"
 
-#include "src/cpu-profiler.h"
 #include "src/isolate.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/vm-state.h"
 #include "test/cctest/cctest.h"
 
@@ -20,7 +20,7 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   bool is_runtime = (*o)->IsTheHole();
   rv.Set(true);
   CHECK(!(*o)->IsTheHole() && !(*o)->IsUndefined());
-  rv.Set(v8::Handle<v8::Object>());
+  rv.Set(v8::Local<v8::Object>());
   CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
   CHECK_EQ(is_runtime, (*o)->IsTheHole());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(t.GetIsolate());

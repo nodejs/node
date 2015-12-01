@@ -82,6 +82,3 @@ testTraceNativeConstructor(Date);    // Does ToNumber on argument.
 testNotOmittedBuiltin(function(){ [thrower, 2].sort(function (a,b) {
                                                      (b < a) - (a < b); });
                       }, "QuickSort");
-
-// Not omitted even though ADD from runtime.js is a non-native builtin.
-testNotOmittedBuiltin(function(){ thrower + 2; }, "ADD");

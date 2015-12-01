@@ -11,6 +11,7 @@
 #define V8_MESSAGES_H_
 
 #include "src/base/smart-pointers.h"
+#include "src/handles.h"
 #include "src/list.h"
 
 namespace v8 {
@@ -46,23 +47,23 @@ class MessageLocation {
 
 class CallSite {
  public:
-  CallSite(Handle<Object> receiver, Handle<JSFunction> fun, int pos)
-      : receiver_(receiver), fun_(fun), pos_(pos) {}
+  CallSite(Isolate* isolate, Handle<JSObject> call_site_obj);
 
-  Handle<Object> GetFileName(Isolate* isolate);
-  Handle<Object> GetFunctionName(Isolate* isolate);
-  Handle<Object> GetScriptNameOrSourceUrl(Isolate* isolate);
-  Handle<Object> GetMethodName(Isolate* isolate);
+  Handle<Object> GetFileName();
+  Handle<Object> GetFunctionName();
+  Handle<Object> GetScriptNameOrSourceUrl();
+  Handle<Object> GetMethodName();
   // Return 1-based line number, including line offset.
-  int GetLineNumber(Isolate* isolate);
+  int GetLineNumber();
   // Return 1-based column number, including column offset if first line.
-  int GetColumnNumber(Isolate* isolate);
-  bool IsNative(Isolate* isolate);
-  bool IsToplevel(Isolate* isolate);
-  bool IsEval(Isolate* isolate);
-  bool IsConstructor(Isolate* isolate);
+  int GetColumnNumber();
+  bool IsNative();
+  bool IsToplevel();
+  bool IsEval();
+  bool IsConstructor();
 
  private:
+  Isolate* isolate_;
   Handle<Object> receiver_;
   Handle<JSFunction> fun_;
   int pos_;
@@ -257,6 +258,7 @@ class CallSite {
     "Offset is outside the bounds of the DataView")                            \
   T(InvalidDataViewLength, "Invalid data view length")                         \
   T(InvalidDataViewOffset, "Start offset is outside the bounds of the buffer") \
+  T(InvalidHint, "Invalid hint: %")                                            \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
   T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \
@@ -296,6 +298,8 @@ class CallSite {
   T(IllegalAccess, "Illegal access")                                           \
   T(IllegalBreak, "Illegal break statement")                                   \
   T(IllegalContinue, "Illegal continue statement")                             \
+  T(IllegalLanguageModeDirective,                                              \
+    "Illegal '%' directive in function with non-simple parameter list")        \
   T(IllegalReturn, "Illegal return statement")                                 \
   T(InvalidLhsInAssignment, "Invalid left-hand side in assignment")            \
   T(InvalidLhsInFor, "Invalid left-hand side in for-loop")                     \
@@ -308,8 +312,6 @@ class CallSite {
   T(MalformedArrowFunParamList, "Malformed arrow function parameter list")     \
   T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
   T(MalformedRegExpFlags, "Invalid regular expression flags")                  \
-  T(MissingArrow,                                                              \
-    "Expected () to start arrow function, but got '%' instead of '=>'")        \
   T(ModuleExportUndefined, "Export '%' is not defined in module")              \
   T(MultipleDefaultsInSwitch,                                                  \
     "More than one default clause in switch statement")                        \
@@ -334,6 +336,8 @@ class CallSite {
   T(StrictWith, "Strict mode code may not include a with statement")           \
   T(StrongArguments,                                                           \
     "In strong mode, 'arguments' is deprecated, use '...args' instead")        \
+  T(StrongConstructorDirective,                                                \
+    "\"use strong\" directive is disallowed in class constructor body")        \
   T(StrongConstructorReturnMisplaced,                                          \
     "In strong mode, returning from a constructor before its super "           \
     "constructor invocation or all assignments to 'this' is deprecated")       \
@@ -432,8 +436,9 @@ class MessageHandler {
  public:
   // Returns a message object for the API to use.
   static Handle<JSMessageObject> MakeMessageObject(
-      Isolate* isolate, MessageTemplate::Template type, MessageLocation* loc,
-      Handle<Object> argument, Handle<JSArray> stack_frames);
+      Isolate* isolate, MessageTemplate::Template type,
+      MessageLocation* location, Handle<Object> argument,
+      Handle<JSArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).
   static void ReportMessage(Isolate* isolate, MessageLocation* loc,

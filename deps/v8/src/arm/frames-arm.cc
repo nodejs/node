@@ -10,6 +10,7 @@
 
 #include "src/arm/assembler-arm-inl.h"
 #include "src/arm/assembler-arm.h"
+#include "src/arm/frames-arm.h"
 #include "src/arm/macro-assembler-arm.h"
 
 namespace v8 {

@@ -6,12 +6,14 @@
 #define V8_SNAPSHOT_SERIALIZE_H_
 
 #include "src/hashmap.h"
-#include "src/isolate.h"
+#include "src/heap/heap.h"
+#include "src/objects.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
 namespace v8 {
 namespace internal {
 
+class Isolate;
 class ScriptData;
 
 static const int kDeoptTableSerializeEntryCount = 64;
@@ -308,9 +310,7 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNumberOfSpaces = LAST_SPACE + 1;
 
  protected:
-  static bool CanBeDeferred(HeapObject* o) {
-    return !o->IsString() && !o->IsScript();
-  }
+  static bool CanBeDeferred(HeapObject* o);
 
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
@@ -572,12 +572,20 @@ class Deserializer: public SerializerDeserializer {
     memcpy(dest, src, sizeof(*src));
   }
 
+  void SetAlignment(byte data) {
+    DCHECK_EQ(kWordAligned, next_alignment_);
+    int alignment = data - (kAlignmentPrefix - 1);
+    DCHECK_LE(kWordAligned, alignment);
+    DCHECK_LE(alignment, kSimd128Unaligned);
+    next_alignment_ = static_cast<AllocationAlignment>(alignment);
+  }
+
   void DeserializeDeferredObjects();
 
   void FlushICacheForNewIsolate();
   void FlushICacheForNewCodeObjects();
 
-  void CommitNewInternalizedStrings(Isolate* isolate);
+  void CommitPostProcessedObjects(Isolate* isolate);
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
@@ -621,6 +629,7 @@ class Deserializer: public SerializerDeserializer {
   List<HeapObject*> deserialized_large_objects_;
   List<Code*> new_code_objects_;
   List<Handle<String> > new_internalized_strings_;
+  List<Handle<Script> > new_scripts_;
 
   bool deserializing_user_code_;
 
@@ -653,65 +662,7 @@ class Serializer : public SerializerDeserializer {
 #endif  // OBJECT_PRINT
 
  protected:
-  class ObjectSerializer : public ObjectVisitor {
-   public:
-    ObjectSerializer(Serializer* serializer, Object* o, SnapshotByteSink* sink,
-                     HowToCode how_to_code, WhereToPoint where_to_point)
-        : serializer_(serializer),
-          object_(HeapObject::cast(o)),
-          sink_(sink),
-          reference_representation_(how_to_code + where_to_point),
-          bytes_processed_so_far_(0),
-          is_code_object_(o->IsCode()),
-          code_has_been_output_(false) {}
-    void Serialize();
-    void SerializeDeferred();
-    void VisitPointers(Object** start, Object** end);
-    void VisitEmbeddedPointer(RelocInfo* target);
-    void VisitExternalReference(Address* p);
-    void VisitExternalReference(RelocInfo* rinfo);
-    void VisitInternalReference(RelocInfo* rinfo);
-    void VisitCodeTarget(RelocInfo* target);
-    void VisitCodeEntry(Address entry_address);
-    void VisitCell(RelocInfo* rinfo);
-    void VisitRuntimeEntry(RelocInfo* reloc);
-    // Used for seralizing the external strings that hold the natives source.
-    void VisitExternalOneByteString(
-        v8::String::ExternalOneByteStringResource** resource);
-    // We can't serialize a heap with external two byte strings.
-    void VisitExternalTwoByteString(
-        v8::String::ExternalStringResource** resource) {
-      UNREACHABLE();
-    }
-
-   private:
-    void SerializePrologue(AllocationSpace space, int size, Map* map);
-
-    bool SerializeExternalNativeSourceString(
-        int builtin_count,
-        v8::String::ExternalOneByteStringResource** resource_pointer,
-        FixedArray* source_cache, int resource_index);
-
-    enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
-    // This function outputs or skips the raw data between the last pointer and
-    // up to the current position.  It optionally can just return the number of
-    // bytes to skip instead of performing a skip instruction, in case the skip
-    // can be merged into the next instruction.
-    int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
-    // External strings are serialized in a way to resemble sequential strings.
-    void SerializeExternalString();
-
-    Address PrepareCode();
-
-    Serializer* serializer_;
-    HeapObject* object_;
-    SnapshotByteSink* sink_;
-    int reference_representation_;
-    int bytes_processed_so_far_;
-    bool is_code_object_;
-    bool code_has_been_output_;
-  };
-
+  class ObjectSerializer;
   class RecursionScope {
    public:
     explicit RecursionScope(Serializer* serializer) : serializer_(serializer) {
@@ -850,17 +801,7 @@ class PartialSerializer : public Serializer {
 
  private:
   int PartialSnapshotCacheIndex(HeapObject* o);
-  bool ShouldBeInThePartialSnapshotCache(HeapObject* o) {
-    // Scripts should be referred only through shared function infos.  We can't
-    // allow them to be part of the partial snapshot because they contain a
-    // unique ID, and deserializing several partial snapshots containing script
-    // would cause dupes.
-    DCHECK(!o->IsScript());
-    return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
-           o->IsCode() || o->IsScopeInfo() || o->IsExecutableAccessorInfo() ||
-           o->map() ==
-               startup_serializer_->isolate()->heap()->fixed_cow_array_map();
-  }
+  bool ShouldBeInThePartialSnapshotCache(HeapObject* o);
 
   void SerializeOutdatedContextsAsFixedArray();
 
@@ -874,16 +815,7 @@ class PartialSerializer : public Serializer {
 
 class StartupSerializer : public Serializer {
  public:
-  StartupSerializer(Isolate* isolate, SnapshotByteSink* sink)
-      : Serializer(isolate, sink), root_index_wave_front_(0) {
-    // Clear the cache of objects used by the partial snapshot.  After the
-    // strong roots have been serialized we can create a partial snapshot
-    // which will repopulate the cache with objects needed by that partial
-    // snapshot.
-    isolate->partial_snapshot_cache()->Clear();
-    InitializeCodeAddressMap();
-  }
-
+  StartupSerializer(Isolate* isolate, SnapshotByteSink* sink);
   ~StartupSerializer() { OutputStatistics("StartupSerializer"); }
 
   // The StartupSerializer has to serialize the root array, which is slightly
@@ -1030,7 +962,7 @@ class SerializedCodeData : public SerializedData {
 
   SanityCheckResult SanityCheck(Isolate* isolate, String* source) const;
 
-  uint32_t SourceHash(String* source) const { return source->length(); }
+  uint32_t SourceHash(String* source) const;
 
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and external reference count
