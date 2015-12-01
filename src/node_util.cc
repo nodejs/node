@@ -13,9 +13,34 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+
+static void IsRegExp(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(args[0]->IsRegExp());
+}
+
+
+static void IsDate(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(args[0]->IsDate());
+}
+
+
+static void IsMap(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(args[0]->IsMap());
+}
+
+
 static void IsMapIterator(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(1, args.Length());
   args.GetReturnValue().Set(args[0]->IsMapIterator());
+}
+
+
+static void IsSet(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(args[0]->IsSet());
 }
 
 
@@ -50,7 +75,11 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target, "isRegExp", IsRegExp);
+  env->SetMethod(target, "isDate", IsDate);
+  env->SetMethod(target, "isMap", IsMap);
   env->SetMethod(target, "isMapIterator", IsMapIterator);
+  env->SetMethod(target, "isSet", IsSet);
   env->SetMethod(target, "isSetIterator", IsSetIterator);
   env->SetMethod(target, "isPromise", IsPromise);
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
