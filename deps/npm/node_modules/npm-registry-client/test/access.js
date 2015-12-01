@@ -14,6 +14,13 @@ var PARAMS = {
   package: '@foo/bar',
   permissions: 'read-write'
 }
+var UNSCOPED = {
+  auth: { token: 'foo' },
+  scope: 'myorg',
+  team: 'myteam',
+  package: 'bar',
+  permissions: 'read-write'
+}
 
 var commands = [
   'public', 'restricted', 'grant', 'revoke', 'ls-packages', 'ls-collaborators'
@@ -72,6 +79,25 @@ test('access grant basic', function (t) {
   })
 })
 
+test('access grant basic unscoped', function (t) {
+  server.expect('PUT', '/-/team/myorg/myteam/package', function (req, res) {
+    t.equal(req.method, 'PUT')
+    onJsonReq(req, function (json) {
+      t.deepEqual(json, {
+        permissions: UNSCOPED.permissions,
+        package: UNSCOPED.package
+      })
+      res.statusCode = 201
+      res.json({ accessChanged: true })
+    })
+  })
+  client.access('grant', URI, UNSCOPED, function (error, data) {
+    t.ifError(error, 'no errors')
+    t.ok(data.accessChanged, 'access level set')
+    t.end()
+  })
+})
+
 test('access revoke basic', function (t) {
   server.expect('DELETE', '/-/team/myorg/myteam/package', function (req, res) {
     t.equal(req.method, 'DELETE')
@@ -84,6 +110,24 @@ test('access revoke basic', function (t) {
     })
   })
   client.access('revoke', URI, PARAMS, function (error, data) {
+    t.ifError(error, 'no errors')
+    t.ok(data.accessChanged, 'access level set')
+    t.end()
+  })
+})
+
+test('access revoke basic unscoped', function (t) {
+  server.expect('DELETE', '/-/team/myorg/myteam/package', function (req, res) {
+    t.equal(req.method, 'DELETE')
+    onJsonReq(req, function (json) {
+      t.deepEqual(json, {
+        package: UNSCOPED.package
+      })
+      res.statusCode = 200
+      res.json({ accessChanged: true })
+    })
+  })
+  client.access('revoke', URI, UNSCOPED, function (error, data) {
     t.ifError(error, 'no errors')
     t.ok(data.accessChanged, 'access level set')
     t.end()
@@ -188,7 +232,7 @@ test('ls-collaborators', function (t) {
   })
 })
 
-test('ls-collaborators w/ scope', function (t) {
+test('ls-collaborators w/scope', function (t) {
   var serverCollaborators = {
     'myorg:myteam': 'write',
     'myorg:anotherteam': 'read'
@@ -204,6 +248,30 @@ test('ls-collaborators w/ scope', function (t) {
     res.json(serverCollaborators)
   })
   var params = Object.create(PARAMS)
+  params.user = 'zkat'
+  client.access('ls-collaborators', URI, params, function (error, data) {
+    t.ifError(error, 'no errors')
+    t.same(data, clientCollaborators)
+    t.end()
+  })
+})
+
+test('ls-collaborators w/o scope', function (t) {
+  var serverCollaborators = {
+    'myorg:myteam': 'write',
+    'myorg:anotherteam': 'read'
+  }
+  var clientCollaborators = {
+    'myorg:myteam': 'read-write',
+    'myorg:anotherteam': 'read-only'
+  }
+  var uri = '/-/package/bar/collaborators?format=cli&user=zkat'
+  server.expect('GET', uri, function (req, res) {
+    t.equal(req.method, 'GET')
+    res.statusCode = 200
+    res.json(serverCollaborators)
+  })
+  var params = Object.create(UNSCOPED)
   params.user = 'zkat'
   client.access('ls-collaborators', URI, params, function (error, data) {
     t.ifError(error, 'no errors')
@@ -242,7 +310,7 @@ test('access command base validation', function (t) {
       client.access(cmd, URI, PARAMS, undefined)
     }, 'callback is required')
     if (contains([
-      'public', 'restricted', 'grant', 'revoke', 'ls-collaborators'
+      'public', 'restricted'
     ], cmd)) {
       t.throws(function () {
         var params = Object.create(PARAMS)
@@ -253,7 +321,7 @@ test('access command base validation', function (t) {
         var params = Object.create(PARAMS)
         params.package = 'underscore'
         client.access(cmd, URI, params, nop)
-      }, 'only scopes packages are allowed')
+      }, 'only scoped packages are allowed')
     }
     if (contains(['grant', 'revoke', 'ls-packages'], cmd)) {
       t.throws(function () {
