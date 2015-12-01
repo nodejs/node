@@ -39,6 +39,9 @@ copy locally.
 $ git clone git@github.com:username/node.git
 $ cd node
 $ git remote add upstream git://github.com/nodejs/node.git
+$ # Either install `clang-format` (version 3.7.0 or 3.8.0) or download one with
+$ # `make download-clang-format`
+$ make install-pre-commit-hook
 ```
 
 #### Which branch?

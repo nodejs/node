@@ -1,0 +1,25 @@
+---
+BasedOnStyle: Google
+AlignAfterOpenBracket: 'true'
+AlignConsecutiveAssignments: 'false'
+AlignEscapedNewlinesLeft: 'false'
+AllowShortIfStatementsOnASingleLine: 'false'
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: 'false'
+AllowShortLoopsOnASingleLine: 'false'
+AllowAllParametersOfDeclarationOnNextLine: 'true'
+AlwaysBreakTemplateDeclarations: 'true'
+BinPackArguments: 'false'
+BinPackParameters: 'false'
+ColumnLimit: '80'
+IndentWidth: '2'
+MaxEmptyLinesToKeep: '2'
+NamespaceIndentation: None
+PointerAlignment: Left
+SpaceAfterCStyleCast: 'true'
+SpaceBeforeAssignmentOperators: 'true'
+SpacesBeforeTrailingComments: '2'
+TabWidth: '2'
+UseTab: Never
+
+...
