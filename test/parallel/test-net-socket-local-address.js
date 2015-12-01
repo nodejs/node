@@ -29,17 +29,17 @@ server.on('close', common.mustCall(function() {
 server.listen(common.PORT, common.localhostIPv4, testConnect);
 
 function testConnect() {
-  if (conns === 2) {
-    return server.close();
-  }
-  // If both server and client callbacks have fired...
+  // If we're not waiting for a server or client callback to fire...
   if (serverRemotePorts.length === clientLocalPorts.length) {
     // ...then proceed.
+    if (conns === 2) {
+      return server.close();
+    }
     client.connect(common.PORT, common.localhostIPv4, function() {
       clientLocalPorts.push(this.localPort);
       this.once('close', testConnect);
       this.destroy();
     });
+    conns++;
   }
-  conns++;
 }
