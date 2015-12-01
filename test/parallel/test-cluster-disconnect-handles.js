@@ -23,6 +23,7 @@ cluster.schedulingPolicy = cluster.SCHED_RR;
 // is to make sure the connection is still sitting in the master's
 // pending handle queue.
 if (cluster.isMaster) {
+  let isKilling = false;
   const handles = require('internal/cluster').handles;
   // FIXME(bnoordhuis) lib/cluster.js scans the execArgv arguments for
   // debugger flags and renumbers any port numbers it sees starting
@@ -68,11 +69,30 @@ if (cluster.isMaster) {
     }));
   }));
   process.on('exit', () => assert.deepStrictEqual(handles, {}));
+  process.on('uncaughtException', function(ex) {
+    // Make sure we clean up so as not to leave a stray worker process running
+    // if we encounter a connection or other error
+    if (!worker.isDead()) {
+      if (!isKilling) {
+        isKilling = true;
+        worker.once('exit', function() {
+          throw ex;
+        });
+        worker.process.kill();
+      }
+      return;
+    }
+    throw ex;
+  });
 } else {
   const server = net.createServer(socket => socket.pipe(socket));
-  server.listen(() => {
+  const cb = () => {
     process.send(['listening', server.address()]);
     debugger;
-  });
+  };
+  if (common.hasIPv6)
+    server.listen(cb);
+  else
+    server.listen(0, common.localhostIPv4, cb);
   process.on('disconnect', process.exit);
 }
