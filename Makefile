@@ -89,7 +89,7 @@ cctest: all
 
 test: | cctest  # Depends on 'all'.
 	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
-	$(MAKE) jslint
+	$(MAKE) eslint
 	$(MAKE) cpplint
 
 test-parallel: all
@@ -505,7 +505,7 @@ bench-idle:
 	sleep 1
 	$(NODE) benchmark/idle_clients.js &
 
-jslint:
+eslint:
 	$(NODE) tools/eslint/bin/eslint.js src lib test tools/eslint-rules \
 		--rulesdir tools/eslint-rules --reset --quiet
 
@@ -534,9 +534,9 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 cpplint:
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
 
-lint: jslint cpplint
+lint: eslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
+.PHONY: lint cpplint eslint bench clean docopen docclean doc dist distclean \
 	check uninstall install install-includes install-bin all staticlib \
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
