@@ -14,63 +14,27 @@ using v8::String;
 using v8::Value;
 
 
-static void IsRegExp(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsRegExp());
-}
+#define VALUE_METHOD_MAP(V)                                                   \
+  V(isArrayBuffer, IsArrayBuffer)                                             \
+  V(isDataView, IsDataView)                                                   \
+  V(isDate, IsDate)                                                           \
+  V(isMap, IsMap)                                                             \
+  V(isMapIterator, IsMapIterator)                                             \
+  V(isPromise, IsPromise)                                                     \
+  V(isRegExp, IsRegExp)                                                       \
+  V(isSet, IsSet)                                                             \
+  V(isSetIterator, IsSetIterator)                                             \
+  V(isTypedArray, IsTypedArray)
 
 
-static void IsDate(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsDate());
-}
+#define V(_, ucname) \
+  static void ucname(const FunctionCallbackInfo<Value>& args) {               \
+    CHECK_EQ(1, args.Length());                                               \
+    args.GetReturnValue().Set(args[0]->ucname());                             \
+  }
 
-
-static void IsMap(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsMap());
-}
-
-
-static void IsMapIterator(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsMapIterator());
-}
-
-
-static void IsSet(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsSet());
-}
-
-
-static void IsSetIterator(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsSetIterator());
-}
-
-static void IsPromise(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsPromise());
-}
-
-
-static void IsTypedArray(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsTypedArray());
-}
-
-
-static void IsArrayBuffer(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsArrayBuffer());
-}
-
-
-static void IsDataView(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(1, args.Length());
-  args.GetReturnValue().Set(args[0]->IsDataView());
-}
+  VALUE_METHOD_MAP(V)
+#undef V
 
 
 static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
@@ -93,16 +57,11 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "isRegExp", IsRegExp);
-  env->SetMethod(target, "isDate", IsDate);
-  env->SetMethod(target, "isMap", IsMap);
-  env->SetMethod(target, "isMapIterator", IsMapIterator);
-  env->SetMethod(target, "isSet", IsSet);
-  env->SetMethod(target, "isSetIterator", IsSetIterator);
-  env->SetMethod(target, "isPromise", IsPromise);
-  env->SetMethod(target, "isTypedArray", IsTypedArray);
-  env->SetMethod(target, "isArrayBuffer", IsArrayBuffer);
-  env->SetMethod(target, "isDataView", IsDataView);
+
+#define V(lcname, ucname) env->SetMethod(target, #lcname, ucname);
+  VALUE_METHOD_MAP(V)
+#undef V
+
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
 }
 
