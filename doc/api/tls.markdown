@@ -425,7 +425,7 @@ Example:
 { name: 'AES256-SHA', version: 'TLSv1/SSLv3' }
 
 See SSL_CIPHER_get_name() and SSL_CIPHER_get_version() in
-http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_CIPHERS for more
+https://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_CIPHERS for more
 information.
 
 ### tlsSocket.getEphemeralKeyInfo()
@@ -680,7 +680,7 @@ dictionary with keys:
   (Certificate Revocation List)
 * `ciphers`: A string describing the ciphers to use or exclude.
   Consult
-  <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
+  <https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
   for details on the format.
 * `honorCipherOrder` : When choosing a cipher, use the server's preferences
   instead of the client preferences. For further details see `tls` module
@@ -914,10 +914,10 @@ Example:
     console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 
 
-[OpenSSL cipher list format documentation]: http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
-[Chrome's 'modern cryptography' setting]: http://www.chromium.org/Home/chromium-security/education/tls#TOC-Deprecation-of-TLS-Features-Algorithms-in-Chrome
+[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+[Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Deprecation-of-TLS-Features-Algorithms-in-Chrome
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
-[BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
+[BEAST attacks]: https://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [crypto.getCurves()]: crypto.html#crypto_crypto_getcurves
 [tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
 [tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
@@ -929,15 +929,15 @@ Example:
 [`'secureConnection'`]: #tls_event_secureconnection
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
 [Stream]: stream.html#stream_stream
-[SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
+[SSL_METHODS]: https://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
 [tls.Server]: #tls_class_tls_server
-[SSL_CTX_set_timeout]: http://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
-[RFC 4492]: http://www.rfc-editor.org/rfc/rfc4492.txt
-[Forward secrecy]: http://en.wikipedia.org/wiki/Perfect_forward_secrecy
+[SSL_CTX_set_timeout]: https://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
+[RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
+[Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-[asn1.js]: http://npmjs.org/package/asn1.js
-[OCSP request]: http://en.wikipedia.org/wiki/OCSP_stapling
+[asn1.js]: https://npmjs.org/package/asn1.js
+[OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [getPeerCertificate]: #tls_tlssocket_getpeercertificate_detailed

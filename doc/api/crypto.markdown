@@ -14,7 +14,7 @@ decipher, sign and verify methods.
 
 The class used for working with signed public key & challenges. The most
 common usage for this series of functions is when dealing with the `<keygen>`
-element. http://www.openssl.org/docs/apps/spkac.html
+element. https://www.openssl.org/docs/apps/spkac.html
 
 Returned by `crypto.Certificate`.
 
@@ -464,7 +464,7 @@ dictionary with keys:
   (Certificate Revocation List)
 * `ciphers`: A string describing the ciphers to use or exclude.
   Consult
-  <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
+  <https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
   for details on the format.
 
 If no 'ca' details are given, then Node.js will use the default
@@ -797,10 +797,10 @@ See the reference for other recommendations and details.
 [buffer]: buffer.html
 [buffers]: buffer.html
 [Caveats]: #crypto_caveats
-[initialization vector]: http://en.wikipedia.org/wiki/Initialization_vector
+[initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [NIST SP 800-131A]: http://csrc.nist.gov/publications/nistpubs/800-131A/sp800-131A.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[RFC 2412]: http://www.rfc-editor.org/rfc/rfc2412.txt
-[RFC 3526]: http://www.rfc-editor.org/rfc/rfc3526.txt
+[RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
+[RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [stream]: stream.html
 [streams]: stream.html
