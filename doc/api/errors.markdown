@@ -482,7 +482,7 @@ often a sign that a connected socket was not `.end()`'d appropriately.
 [below]: #errors_error_propagation_and_interception
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_events_eventemitter
-[file descriptors]: http://en.wikipedia.org/wiki/File_descriptor
+[file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
