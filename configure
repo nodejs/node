@@ -575,7 +575,7 @@ def host_arch_cc():
     # would be xlc so hard code gcc
     k = cc_macros('gcc')
   else:
-    k = cc_macros()
+    k = cc_macros(os.environ.get('CC_host'))
 
   matchup = {
     '__aarch64__' : 'arm64',
