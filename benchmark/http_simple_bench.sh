@@ -42,7 +42,7 @@ ab_hello_world() {
   data_fn="$dir/$date.data"
 
   echo "Bench $name starts in 3 seconds..."
-  # let shit calm down
+  # let things calm down
   sleep 3
 
   # hammer that as hard as it can for 10 seconds.
