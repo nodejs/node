@@ -356,8 +356,8 @@ Decompress a raw Buffer with Inflate.
 
 Decompress a raw Buffer with Unzip.
 
-[accept-encoding]: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-[content-encoding]: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
+[accept-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+[content-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [zlib documentation]: http://zlib.net/manual.html#Constants
 [options]: #zlib_class_options
