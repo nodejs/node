@@ -275,6 +275,6 @@ e.g. `(0,eval)('code')`. However, it also has the following additional options:
 - `timeout`: a number of milliseconds to execute `code` before terminating
   execution. If execution is terminated, an [`Error`][] will be thrown.
 
-[indirect `eval` call]: http://es5.github.io/#x10.4.2
-[global object]: http://es5.github.io/#x15.1
+[indirect `eval` call]: https://es5.github.io/#x10.4.2
+[global object]: https://es5.github.io/#x15.1
 [`Error`]: errors.html#errors_class_error
