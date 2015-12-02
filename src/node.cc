@@ -1512,8 +1512,10 @@ static void ReportException(Environment* env,
         name.IsEmpty() ||
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
-      node::Utf8Value message(env->isolate(), er);
-      PrintErrorString("%s\n", *message);
+      String::Utf8Value message(er);
+
+      PrintErrorString("%s\n", *message ? *message :
+                                          "<toString() threw exception>");
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
