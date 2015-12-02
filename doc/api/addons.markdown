@@ -871,4 +871,4 @@ Test in JavaScript by running:
 [download]: https://github.com/rvagg/node-addon-examples
 [node-gyp]: https://github.com/nodejs/node-gyp
 [v8 reference]: http://izs.me/v8-docs/main.html
-[Embedder's Guide]: http://code.google.com/apis/v8/embed.html
+[Embedder's Guide]: https://code.google.com/apis/v8/embed.html
