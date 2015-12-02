@@ -87,6 +87,19 @@ if (cluster.isMaster) {
 
 var source = dgram.createSocket('udp4');
 
+// Retry sending on EPERM error. An EPERM error indicates the kernel could
+// not send the message because of the high transmission rate. In this case,
+// retry. See:
+// https://groups.google.com/forum/#!topic/comp.protocols.tcp-ip/Qou9Sfgr77E
+function doSend(b, init, length, port, host) {
+  source.send(b, init, b.length, port, host, function(err) {
+    if (err) {
+      assert.equal(err.code, 'EPERM');
+      doSend(b, init, b.length, port, host);
+    }
+  });
+}
+
 if (process.env.BOUND === 'y') {
   source.bind(0);
 } else {
@@ -96,4 +109,4 @@ if (process.env.BOUND === 'y') {
   source.unref();
 }
 
-source.send(Buffer('abc'), 0, 3, common.PORT, '127.0.0.1');
+doSend(Buffer('abc'), 0, 3, common.PORT, '127.0.0.1');
