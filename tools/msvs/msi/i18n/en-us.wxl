@@ -35,4 +35,6 @@
 
     <!-- References like [ProductName] are not resolved for Property tags -->
     <String Id="WIXUI_EXITDIALOGOPTIONALTEXT">Node.js has been successfully installed.</String>
+
+    <String Id="InstalledNativeCompileInfo">Some native modules may require additional build tools to be installed. See the <![CDATA[<a href="https://github.com/Microsoft/nodejs-guidelines/blob/master/windows-environment.md#configuring-your-windows-development-environment">Windows Native Development Guide</a>]]> for more information.</String>
 </WixLocalization>
