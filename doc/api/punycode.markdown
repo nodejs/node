@@ -67,4 +67,4 @@ Creates a string based on an array of numeric code point values.
 A string representing the current Punycode.js version number.
 
 [Punycode.js]: https://mths.be/punycode
-[JavaScript uses UCS-2 internally]: http://mathiasbynens.be/notes/javascript-encoding
+[JavaScript uses UCS-2 internally]: https://mathiasbynens.be/notes/javascript-encoding
