@@ -296,6 +296,8 @@ readable.on('data', function(chunk) {
 * `destination` {[Writable][] Stream} The destination for writing data
 * `options` {Object} Pipe options
   * `end` {Boolean} End the writer when the reader ends. Default = `true`
+  * `cork` {Boolean} Before each write, cork the stream and then uncork it on the
+   next tick in order to consolidate writes. Default = `false`
 
 This method pulls all the data out of a readable stream, and writes it
 to the supplied destination, automatically managing the flow so that
