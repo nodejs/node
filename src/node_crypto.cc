@@ -4672,12 +4672,12 @@ void ECDH::GeneratePublicKey(const FunctionCallbackInfo<Value>& args) {
   if (pub == nullptr)
     return env->ThrowError("Failed to allocate EC_POINT for a public key");
 
-  if(EC_POINT_mul(ecdh->group_, pub, priv, nullptr, nullptr, nullptr) <= 0) {
+  if (EC_POINT_mul(ecdh->group_, pub, priv, nullptr, nullptr, nullptr) <= 0) {
     EC_POINT_free(pub);
     return env->ThrowError("Failed to generate ECDH public key");
   }
 
-  if(!EC_KEY_set_public_key(ecdh->key_, pub)) {
+  if (!EC_KEY_set_public_key(ecdh->key_, pub)) {
     EC_POINT_free(pub);
     return env->ThrowError("Failed to convert EC_POINT to a public key");
   }

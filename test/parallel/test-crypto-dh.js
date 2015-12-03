@@ -188,4 +188,4 @@ assert.throws(function() {
 var ecdh5 = crypto.createECDH('prime256v1');
 ecdh5.setPrivateKey(ecdh4.getPrivateKey());
 
-assert(ecdh5.generatePublicKey('hex') === ecdh5.getPublicKey('hex'));
+assert.strictEqual(ecdh5.generatePublicKey('hex'), ecdh5.getPublicKey('hex'));

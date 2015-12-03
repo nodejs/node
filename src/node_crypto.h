@@ -701,7 +701,8 @@ class ECDH : public BaseObject {
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GenerateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GeneratePublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static
+    void GeneratePublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ComputeSecret(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
