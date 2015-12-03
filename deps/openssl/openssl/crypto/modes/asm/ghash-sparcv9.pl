@@ -379,7 +379,7 @@ gcm_init_vis3:
 	or	$V,%lo(0xA0406080),$V
 	or	%l0,%lo(0x20C0E000),%l0
 	sllx	$V,32,$V
-	or	%l0,$V,$V		! (0xE0·i)&0xff=0xA040608020C0E000
+	or	%l0,$V,$V		! (0xE0Â·i)&0xff=0xA040608020C0E000
 	stx	$V,[%i0+16]
 
 	ret
@@ -399,7 +399,7 @@ gcm_gmult_vis3:
 
 	mov	0xE1,%l7
 	sllx	%l7,57,$xE1		! 57 is not a typo
-	ldx	[$Htable+16],$V		! (0xE0·i)&0xff=0xA040608020C0E000
+	ldx	[$Htable+16],$V		! (0xE0Â·i)&0xff=0xA040608020C0E000
 
 	xor	$Hhi,$Hlo,$Hhl		! Karatsuba pre-processing
 	xmulx	$Xlo,$Hlo,$C0
@@ -411,9 +411,9 @@ gcm_gmult_vis3:
 	xmulx	$Xhi,$Hhi,$Xhi
 
 	sll	$C0,3,$sqr
-	srlx	$V,$sqr,$sqr		! ·0xE0 [implicit &(7<<3)]
+	srlx	$V,$sqr,$sqr		! Â·0xE0 [implicit &(7<<3)]
 	xor	$C0,$sqr,$sqr
-	sllx	$sqr,57,$sqr		! ($C0·0xE1)<<1<<56 [implicit &0x7f]
+	sllx	$sqr,57,$sqr		! ($C0Â·0xE1)<<1<<56 [implicit &0x7f]
 
 	xor	$C0,$C1,$C1		! Karatsuba post-processing
 	xor	$Xlo,$C2,$C2
@@ -423,7 +423,7 @@ gcm_gmult_vis3:
 	xor	$Xhi,$C2,$C2
 	xor	$Xhi,$C1,$C1
 
-	xmulxhi	$C0,$xE1,$Xlo		! ·0xE1<<1<<56
+	xmulxhi	$C0,$xE1,$Xlo		! Â·0xE1<<1<<56
 	 xor	$C0,$C2,$C2
 	xmulx	$C1,$xE1,$C0
 	 xor	$C1,$C3,$C3
@@ -453,7 +453,7 @@ gcm_ghash_vis3:
 
 	mov	0xE1,%l7
 	sllx	%l7,57,$xE1		! 57 is not a typo
-	ldx	[$Htable+16],$V		! (0xE0·i)&0xff=0xA040608020C0E000
+	ldx	[$Htable+16],$V		! (0xE0Â·i)&0xff=0xA040608020C0E000
 
 	and	$inp,7,$shl
 	andn	$inp,7,$inp
@@ -490,9 +490,9 @@ gcm_ghash_vis3:
 	xmulx	$Xhi,$Hhi,$Xhi
 
 	sll	$C0,3,$sqr
-	srlx	$V,$sqr,$sqr		! ·0xE0 [implicit &(7<<3)]
+	srlx	$V,$sqr,$sqr		! Â·0xE0 [implicit &(7<<3)]
 	xor	$C0,$sqr,$sqr
-	sllx	$sqr,57,$sqr		! ($C0·0xE1)<<1<<56 [implicit &0x7f]
+	sllx	$sqr,57,$sqr		! ($C0Â·0xE1)<<1<<56 [implicit &0x7f]
 
 	xor	$C0,$C1,$C1		! Karatsuba post-processing
 	xor	$Xlo,$C2,$C2
@@ -502,7 +502,7 @@ gcm_ghash_vis3:
 	xor	$Xhi,$C2,$C2
 	xor	$Xhi,$C1,$C1
 
-	xmulxhi	$C0,$xE1,$Xlo		! ·0xE1<<1<<56
+	xmulxhi	$C0,$xE1,$Xlo		! Â·0xE1<<1<<56
 	 xor	$C0,$C2,$C2
 	xmulx	$C1,$xE1,$C0
 	 xor	$C1,$C3,$C3

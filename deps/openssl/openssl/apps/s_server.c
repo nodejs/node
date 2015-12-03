@@ -652,6 +652,12 @@ static void sv_usage(void)
                " -no_ticket    - disable use of RFC4507bis session tickets\n");
     BIO_printf(bio_err,
                " -legacy_renegotiation - enable use of legacy renegotiation (dangerous)\n");
+    BIO_printf(bio_err,
+               " -sigalgs arg      - Signature algorithms to support (colon-separated list)\n");
+    BIO_printf(bio_err,
+               " -client_sigalgs arg  - Signature algorithms to support for client \n");
+    BIO_printf(bio_err,
+               "                        certificate authentication (colon-separated list)\n");
 # ifndef OPENSSL_NO_NEXTPROTONEG
     BIO_printf(bio_err,
                " -nextprotoneg arg - set the advertised protocols for the NPN extension (comma-separated list)\n");
@@ -2881,6 +2887,21 @@ static int www_body(char *hostname, int s, int stype, unsigned char *context)
                 goto err;
             } else {
                 BIO_printf(bio_s_out, "read R BLOCK\n");
+#ifndef OPENSSL_NO_SRP
+                if (BIO_should_io_special(io)
+                    && BIO_get_retry_reason(io) == BIO_RR_SSL_X509_LOOKUP) {
+                    BIO_printf(bio_s_out, "LOOKUP renego during read\n");
+                    srp_callback_parm.user =
+                        SRP_VBASE_get_by_user(srp_callback_parm.vb,
+                                              srp_callback_parm.login);
+                    if (srp_callback_parm.user)
+                        BIO_printf(bio_s_out, "LOOKUP done %s\n",
+                                   srp_callback_parm.user->info);
+                    else
+                        BIO_printf(bio_s_out, "LOOKUP not successful\n");
+                    continue;
+                }
+#endif
 #if defined(OPENSSL_SYS_NETWARE)
                 delay(1000);
 #elif !defined(OPENSSL_SYS_MSDOS) && !defined(__DJGPP__)
@@ -3211,6 +3232,21 @@ static int rev_body(char *hostname, int s, int stype, unsigned char *context)
             ERR_print_errors(bio_err);
             goto end;
         }
+#ifndef OPENSSL_NO_SRP
+        if (BIO_should_io_special(io)
+            && BIO_get_retry_reason(io) == BIO_RR_SSL_X509_LOOKUP) {
+            BIO_printf(bio_s_out, "LOOKUP renego during accept\n");
+            srp_callback_parm.user =
+                SRP_VBASE_get_by_user(srp_callback_parm.vb,
+                                      srp_callback_parm.login);
+            if (srp_callback_parm.user)
+                BIO_printf(bio_s_out, "LOOKUP done %s\n",
+                           srp_callback_parm.user->info);
+            else
+                BIO_printf(bio_s_out, "LOOKUP not successful\n");
+            continue;
+        }
+#endif
     }
     BIO_printf(bio_err, "CONNECTION ESTABLISHED\n");
     print_ssl_summary(bio_err, con);
@@ -3224,6 +3260,21 @@ static int rev_body(char *hostname, int s, int stype, unsigned char *context)
                 goto err;
             } else {
                 BIO_printf(bio_s_out, "read R BLOCK\n");
+#ifndef OPENSSL_NO_SRP
+                if (BIO_should_io_special(io)
+                    && BIO_get_retry_reason(io) == BIO_RR_SSL_X509_LOOKUP) {
+                    BIO_printf(bio_s_out, "LOOKUP renego during read\n");
+                    srp_callback_parm.user =
+                        SRP_VBASE_get_by_user(srp_callback_parm.vb,
+                                              srp_callback_parm.login);
+                    if (srp_callback_parm.user)
+                        BIO_printf(bio_s_out, "LOOKUP done %s\n",
+                                   srp_callback_parm.user->info);
+                    else
+                        BIO_printf(bio_s_out, "LOOKUP not successful\n");
+                    continue;
+                }
+#endif
 #if defined(OPENSSL_SYS_NETWARE)
                 delay(1000);
 #elif !defined(OPENSSL_SYS_MSDOS) && !defined(__DJGPP__)

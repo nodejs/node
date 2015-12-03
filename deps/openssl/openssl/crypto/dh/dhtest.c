@@ -533,9 +533,9 @@ static int run_rfc5114_tests(void)
          * Work out shared secrets using both sides and compare with expected
          * values.
          */
-        if (!DH_compute_key(Z1, dhB->pub_key, dhA))
+        if (DH_compute_key(Z1, dhB->pub_key, dhA) == -1)
             goto bad_err;
-        if (!DH_compute_key(Z2, dhA->pub_key, dhB))
+        if (DH_compute_key(Z2, dhA->pub_key, dhB) == -1)
             goto bad_err;
 
         if (memcmp(Z1, td->Z, td->Z_len))

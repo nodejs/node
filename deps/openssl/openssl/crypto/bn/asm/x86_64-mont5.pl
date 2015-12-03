@@ -53,6 +53,11 @@ if (!$addx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$addx = ($1>=12);
 }
 
+if (!$addx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|based on LLVM) ([3-9])\.([0-9]+)/) {
+	my $ver = $2 + $3/100.0;	# 3.1->3.01, 3.10->3.10
+	$addx = ($ver>=3.03);
+}
+
 # int bn_mul_mont_gather5(
 $rp="%rdi";	# BN_ULONG *rp,
 $ap="%rsi";	# const BN_ULONG *ap,
@@ -1779,6 +1784,15 @@ sqr8x_reduction:
 .align	32
 .L8x_tail_done:
 	add	(%rdx),%r8		# can this overflow?
+	adc	\$0,%r9
+	adc	\$0,%r10
+	adc	\$0,%r11
+	adc	\$0,%r12
+	adc	\$0,%r13
+	adc	\$0,%r14
+	adc	\$0,%r15		# can't overflow, because we
+					# started with "overhung" part
+					# of multiplication
 	xor	%rax,%rax
 
 	neg	$carry
@@ -3125,6 +3139,15 @@ sqrx8x_reduction:
 .align	32
 .Lsqrx8x_tail_done:
 	add	24+8(%rsp),%r8		# can this overflow?
+	adc	\$0,%r9
+	adc	\$0,%r10
+	adc	\$0,%r11
+	adc	\$0,%r12
+	adc	\$0,%r13
+	adc	\$0,%r14
+	adc	\$0,%r15		# can't overflow, because we
+					# started with "overhung" part
+					# of multiplication
 	mov	$carry,%rax		# xor	%rax,%rax
 
 	sub	16+8(%rsp),$carry	# mov 16(%rsp),%cf
@@ -3168,13 +3191,11 @@ my ($rptr,$nptr)=("%rdx","%rbp");
 my @ri=map("%r$_",(10..13));
 my @ni=map("%r$_",(14..15));
 $code.=<<___;
-	xor	%rbx,%rbx
+	xor	%ebx,%ebx
 	sub	%r15,%rsi		# compare top-most words
 	adc	%rbx,%rbx
 	mov	%rcx,%r10		# -$num
-	.byte	0x67
 	or	%rbx,%rax
-	.byte	0x67
 	mov	%rcx,%r9		# -$num
 	xor	\$1,%rax
 	sar	\$3+2,%rcx		# cf=0
