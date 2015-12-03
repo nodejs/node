@@ -78,6 +78,7 @@ function render(lexed, filename, template, cb) {
     template = template.replace(/__SECTION__/g, section);
     template = template.replace(/__VERSION__/g, process.version);
     template = template.replace(/__TOC__/g, toc);
+    template = template.replace(/__GITHUB_LINK__/, getGithubLink(filename));
     template = template.replace(
       /__GTOC__/g,
       gtocData.replace('class="nav-' + id, 'class="nav-' + id + ' active')
@@ -220,3 +221,16 @@ function getId(text) {
   return text;
 }
 
+function getGithubLink(page) {
+  // pages that shouldn't have "Edit on Github" link
+  var ignoredPages = [
+    'all',
+    'index'
+  ];
+
+  if (ignoredPages.indexOf(page) >= 0) {
+    return '';
+  }
+
+  return `| <a href="https://github.com/nodejs/node/edit/master/doc/api/${page}.markdown">Edit on GitHub</a>`;
+}
