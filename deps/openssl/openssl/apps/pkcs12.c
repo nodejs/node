@@ -134,19 +134,19 @@ int MAIN(int argc, char **argv)
 
     apps_startup();
 
-# ifdef OPENSSL_FIPS
-    if (FIPS_mode())
-        cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
-    else
-# endif
-        cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
-
     enc = EVP_des_ede3_cbc();
     if (bio_err == NULL)
         bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 
     if (!load_config(bio_err, NULL))
         goto end;
+
+# ifdef OPENSSL_FIPS
+    if (FIPS_mode())
+        cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
+    else
+# endif
+        cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
 
     args = argv + 1;
 

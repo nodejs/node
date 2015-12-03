@@ -66,9 +66,9 @@
 # switch to AVX alone improves performance by as little as 4% in
 # comparison to SSSE3 code path. But below result doesn't look like
 # 4% improvement... Trouble is that Sandy Bridge decodes 'ro[rl]' as
-# pair of µ-ops, and it's the additional µ-ops, two per round, that
+# pair of Âµ-ops, and it's the additional Âµ-ops, two per round, that
 # make it run slower than Core2 and Westmere. But 'sh[rl]d' is decoded
-# as single µ-op by Sandy Bridge and it's replacing 'ro[rl]' with
+# as single Âµ-op by Sandy Bridge and it's replacing 'ro[rl]' with
 # equivalent 'sh[rl]d' that is responsible for the impressive 5.1
 # cycles per processed byte. But 'sh[rl]d' is not something that used
 # to be fast, nor does it appear to be fast in upcoming Bulldozer
