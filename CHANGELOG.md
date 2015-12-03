@@ -1,5 +1,32 @@
 # Node.js ChangeLog
 
+## 2015-12-04, Version 4.2.3 'Argon' (LTS), @rvagg
+
+Security Update
+
+### Notable changes
+
+* **http**: Fix a bug where an HTTP socket may no longer have a socket but a pipelined request triggers a pause or resume, a potential denial-of-service vector. (Fedor Indutny)
+* **openssl**: Upgrade to 1.0.2e, containing fixes for:
+  - CVE-2015-3193 "BN_mod_exp may produce incorrect results on x86_64", an attack is considered feasible against a Node.js TLS server using DHE key exchange. Details are available at <http://openssl.org/news/secadv/20151203.txt>.
+  - CVE-2015-3194 "Certificate verify crash with missing PSS parameter", a potential denial-of-service vector for Node.js TLS servers; TLS clients are also impacted. Details are available at <http://openssl.org/news/secadv/20151203.txt>.
+  (Shigeki Ohtsu) [#4134](https://github.com/nodejs/node/pull/4134)
+* **v8**: Backport fixes for a bug in `JSON.stringify()` that can result in out-of-bounds reads for arrays. (Ben Noordhuis)
+
+### Known issues
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/node/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/node/issues/690)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/node/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
+
+### Commits
+
+* [[`49bbd563be`](https://github.com/nodejs/node/commit/49bbd563be)] - **deps**: upgrade openssl sources to 1.0.2e (Shigeki Ohtsu) [#4134](https://github.com/nodejs/node/pull/4134)
+* [[`9a063fd492`](https://github.com/nodejs/node/commit/9a063fd492)] - **deps**: backport a7e50a5 from upstream v8 (Ben Noordhuis) [nodejs/node-private#8](https://github.com/nodejs/node-private/pull/8)
+* [[`07233206e9`](https://github.com/nodejs/node/commit/07233206e9)] - **deps**: backport 6df9a1d from upstream v8 (Ben Noordhuis) [nodejs/node-private#8](https://github.com/nodejs/node-private/pull/8)
+* [[`1c8e6de78e`](https://github.com/nodejs/node/commit/1c8e6de78e)] - **http**: fix pipeline regression (Fedor Indutny) [nodejs/node-private#5](https://github.com/nodejs/node-private/pull/5)
+
 ## 2015-10-29, Version 4.2.2 'Argon' (LTS), @jasnell
 
 ### Notable changes
