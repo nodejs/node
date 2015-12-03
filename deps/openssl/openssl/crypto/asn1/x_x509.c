@@ -180,16 +180,15 @@ X509 *d2i_X509_AUX(X509 **a, const unsigned char **pp, long length)
     if (!a || *a == NULL) {
         freeret = 1;
     }
-    ret = d2i_X509(a, pp, length);
+    ret = d2i_X509(a, &q, length);
     /* If certificate unreadable then forget it */
     if (!ret)
         return NULL;
     /* update length */
-    length -= *pp - q;
-    if (!length)
-        return ret;
-    if (!d2i_X509_CERT_AUX(&ret->aux, pp, length))
+    length -= q - *pp;
+    if (length > 0 && !d2i_X509_CERT_AUX(&ret->aux, &q, length))
         goto err;
+    *pp = q;
     return ret;
  err:
     if (freeret) {

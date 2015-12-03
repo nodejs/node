@@ -205,7 +205,7 @@ keys or either respectively.
 cipher suites using ephemeral ECDH key agreement, including anonymous
 cipher suites.
 
-=item B<EECDHE>
+=item B<EECDH>
 
 cipher suites using authenticated ephemeral ECDH key agreement.
 

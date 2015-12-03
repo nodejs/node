@@ -11,13 +11,13 @@
 mul_1x1_neon:
 	vshl.u64	d2,d16,#8	@ q1-q3 are slided
 
-	vmull.p8	q0,d16,d17	@ a·bb
+	vmull.p8	q0,d16,d17	@ aÂ·bb
 	vshl.u64	d4,d16,#16
-	vmull.p8	q1,d2,d17	@ a<<8·bb
+	vmull.p8	q1,d2,d17	@ a<<8Â·bb
 	vshl.u64	d6,d16,#24
-	vmull.p8	q2,d4,d17	@ a<<16·bb
+	vmull.p8	q2,d4,d17	@ a<<16Â·bb
 	vshr.u64	d2,#8
-	vmull.p8	q3,d6,d17	@ a<<24·bb
+	vmull.p8	q3,d6,d17	@ a<<24Â·bb
 	vshl.u64	d3,#24
 	veor		d0,d2
 	vshr.u64	d4,#16
@@ -132,20 +132,20 @@ bn_GF2m_mul_2x2:
 
 	vmov	d16,d18
 	vmov	d17,d19
-	bl	mul_1x1_neon		@ a1·b1
+	bl	mul_1x1_neon		@ a1Â·b1
 	vmov	d22,d0
 
 	vmov	d16,d20
 	vmov	d17,d21
-	bl	mul_1x1_neon		@ a0·b0
+	bl	mul_1x1_neon		@ a0Â·b0
 	vmov	d23,d0
 
 	veor	d16,d20,d18
 	veor	d17,d21,d19
 	veor	d20,d23,d22
-	bl	mul_1x1_neon		@ (a0+a1)·(b0+b1)
+	bl	mul_1x1_neon		@ (a0+a1)Â·(b0+b1)
 
-	veor	d0,d20			@ (a0+a1)·(b0+b1)-a0·b0-a1·b1
+	veor	d0,d20			@ (a0+a1)Â·(b0+b1)-a0Â·b0-a1Â·b1
 	vshl.u64 d1,d0,#32
 	vshr.u64 d0,d0,#32
 	veor	d23,d1
@@ -165,7 +165,7 @@ bn_GF2m_mul_2x2:
 	mov	r12,#7<<2
 	sub	sp,sp,#32		@ allocate tab[8]
 
-	bl	mul_1x1_ialu		@ a1·b1
+	bl	mul_1x1_ialu		@ a1Â·b1
 	str	r5,[r10,#8]
 	str	r4,[r10,#12]
 
@@ -175,13 +175,13 @@ bn_GF2m_mul_2x2:
 	 eor	r2,r2,r1
 	eor	r0,r0,r3
 	 eor	r1,r1,r2
-	bl	mul_1x1_ialu		@ a0·b0
+	bl	mul_1x1_ialu		@ a0Â·b0
 	str	r5,[r10]
 	str	r4,[r10,#4]
 
 	eor	r1,r1,r2
 	eor	r0,r0,r3
-	bl	mul_1x1_ialu		@ (a1+a0)·(b1+b0)
+	bl	mul_1x1_ialu		@ (a1+a0)Â·(b1+b0)
 	ldmia	r10,{r6-r9}
 	eor	r5,r5,r4
 	eor	r4,r4,r7

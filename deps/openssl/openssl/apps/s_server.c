@@ -2654,6 +2654,21 @@ static int www_body(char *hostname, int s, unsigned char *context)
                 goto err;
             } else {
                 BIO_printf(bio_s_out, "read R BLOCK\n");
+#ifndef OPENSSL_NO_SRP
+                if (BIO_should_io_special(io)
+                    && BIO_get_retry_reason(io) == BIO_RR_SSL_X509_LOOKUP) {
+                    BIO_printf(bio_s_out, "LOOKUP renego during read\n");
+                    srp_callback_parm.user =
+                        SRP_VBASE_get_by_user(srp_callback_parm.vb,
+                                              srp_callback_parm.login);
+                    if (srp_callback_parm.user)
+                        BIO_printf(bio_s_out, "LOOKUP done %s\n",
+                                   srp_callback_parm.user->info);
+                    else
+                        BIO_printf(bio_s_out, "LOOKUP not successful\n");
+                    continue;
+                }
+#endif
 #if defined(OPENSSL_SYS_NETWARE)
                 delay(1000);
 #elif !defined(OPENSSL_SYS_MSDOS) && !defined(__DJGPP__)

@@ -930,13 +930,29 @@ void OPENSSL_showfatal(const char *fmta, ...)
 # if defined(_WIN32_WINNT) && _WIN32_WINNT>=0x0333
     /* this -------------v--- guards NT-specific calls */
     if (check_winnt() && OPENSSL_isservice() > 0) {
-        HANDLE h = RegisterEventSource(0, _T("OPENSSL"));
-        const TCHAR *pmsg = buf;
-        ReportEvent(h, EVENTLOG_ERROR_TYPE, 0, 0, 0, 1, 0, &pmsg, 0);
-        DeregisterEventSource(h);
+        HANDLE hEventLog = RegisterEventSource(NULL, _T("OpenSSL"));
+
+        if (hEventLog != NULL) {
+            const TCHAR *pmsg = buf;
+
+            if (!ReportEvent(hEventLog, EVENTLOG_ERROR_TYPE, 0, 0, NULL,
+                             1, 0, &pmsg, NULL)) {
+#if defined(DEBUG)
+                /*
+                 * We are in a situation where we tried to report a critical
+                 * error and this failed for some reason. As a last resort,
+                 * in debug builds, send output to the debugger or any other
+                 * tool like DebugView which can monitor the output.
+                 */
+                OutputDebugString(pmsg);
+#endif
+            }
+
+            (void)DeregisterEventSource(hEventLog);
+        }
     } else
 # endif
-        MessageBox(NULL, buf, _T("OpenSSL: FATAL"), MB_OK | MB_ICONSTOP);
+        MessageBox(NULL, buf, _T("OpenSSL: FATAL"), MB_OK | MB_ICONERROR);
 }
 #else
 void OPENSSL_showfatal(const char *fmta, ...)

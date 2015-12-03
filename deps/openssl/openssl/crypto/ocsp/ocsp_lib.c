@@ -246,12 +246,6 @@ int OCSP_parse_url(char *url, char **phost, char **pport, char **ppath,
     if ((p = strchr(p, ':'))) {
         *p = 0;
         port = p + 1;
-    } else {
-        /* Not found: set default port */
-        if (*pssl)
-            port = "443";
-        else
-            port = "80";
     }
 
     *pport = BUF_strdup(port);
