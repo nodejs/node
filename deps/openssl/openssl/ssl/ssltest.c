@@ -142,6 +142,7 @@
 
 /* Or gethostname won't be declared properly on Linux and GNU platforms. */
 #define _BSD_SOURCE 1
+#define _DEFAULT_SOURCE 1
 
 #include <assert.h>
 #include <errno.h>
