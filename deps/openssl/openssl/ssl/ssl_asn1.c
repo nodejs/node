@@ -121,12 +121,15 @@ typedef struct ssl_session_asn1_st {
 int i2d_SSL_SESSION(SSL_SESSION *in, unsigned char **pp)
 {
 #define LSIZE2 (sizeof(long)*2)
-    int v1 = 0, v2 = 0, v3 = 0, v4 = 0, v5 = 0, v7 = 0, v8 = 0;
+    int v1 = 0, v2 = 0, v3 = 0, v4 = 0, v5 = 0;
     unsigned char buf[4], ibuf1[LSIZE2], ibuf2[LSIZE2];
     unsigned char ibuf3[LSIZE2], ibuf4[LSIZE2], ibuf5[LSIZE2];
 #ifndef OPENSSL_NO_TLSEXT
     int v6 = 0, v9 = 0, v10 = 0;
     unsigned char ibuf6[LSIZE2];
+#endif
+#ifndef OPENSSL_NO_PSK
+    int v7 = 0, v8 = 0;
 #endif
 #ifndef OPENSSL_NO_COMP
     unsigned char cbuf;

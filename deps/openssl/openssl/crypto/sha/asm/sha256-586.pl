@@ -21,7 +21,7 @@
 #     purposes.
 #
 # Performance improvement over compiler generated code varies from
-# 10% to 40% [see above]. Not very impressive on some µ-archs, but
+# 10% to 40% [see above]. Not very impressive on some Âµ-archs, but
 # it's 5 times smaller and optimizies amount of writes.
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;

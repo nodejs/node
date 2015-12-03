@@ -66,7 +66,7 @@
 # undef sqr
 
 /*-
- * "m"(a), "+m"(r)      is the way to favor DirectPath µ-code;
+ * "m"(a), "+m"(r)      is the way to favor DirectPath Âµ-code;
  * "g"(0)               let the compiler to decide where does it
  *                      want to keep the value of zero;
  */

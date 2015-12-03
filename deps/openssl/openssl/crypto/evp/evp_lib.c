@@ -67,9 +67,19 @@ int EVP_CIPHER_param_to_asn1(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
 
     if (c->cipher->set_asn1_parameters != NULL)
         ret = c->cipher->set_asn1_parameters(c, type);
-    else if (c->cipher->flags & EVP_CIPH_FLAG_DEFAULT_ASN1)
-        ret = EVP_CIPHER_set_asn1_iv(c, type);
-    else
+    else if (c->cipher->flags & EVP_CIPH_FLAG_DEFAULT_ASN1) {
+        switch (EVP_CIPHER_CTX_mode(c)) {
+
+        case EVP_CIPH_GCM_MODE:
+        case EVP_CIPH_CCM_MODE:
+        case EVP_CIPH_XTS_MODE:
+            ret = -1;
+            break;
+
+        default:
+            ret = EVP_CIPHER_set_asn1_iv(c, type);
+        }
+    } else
         ret = -1;
     return (ret);
 }
@@ -80,9 +90,20 @@ int EVP_CIPHER_asn1_to_param(EVP_CIPHER_CTX *c, ASN1_TYPE *type)
 
     if (c->cipher->get_asn1_parameters != NULL)
         ret = c->cipher->get_asn1_parameters(c, type);
-    else if (c->cipher->flags & EVP_CIPH_FLAG_DEFAULT_ASN1)
-        ret = EVP_CIPHER_get_asn1_iv(c, type);
-    else
+    else if (c->cipher->flags & EVP_CIPH_FLAG_DEFAULT_ASN1) {
+        switch (EVP_CIPHER_CTX_mode(c)) {
+
+        case EVP_CIPH_GCM_MODE:
+        case EVP_CIPH_CCM_MODE:
+        case EVP_CIPH_XTS_MODE:
+            ret = -1;
+            break;
+
+        default:
+            ret = EVP_CIPHER_get_asn1_iv(c, type);
+            break;
+        }
+    } else
         ret = -1;
     return (ret);
 }

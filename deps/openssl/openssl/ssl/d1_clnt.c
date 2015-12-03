@@ -299,13 +299,12 @@ int dtls1_connect(SSL *s)
 #endif
 
         case SSL3_ST_CW_CLNT_HELLO_A:
-        case SSL3_ST_CW_CLNT_HELLO_B:
-
             s->shutdown = 0;
 
             /* every DTLS ClientHello resets Finished MAC */
             ssl3_init_finished_mac(s);
 
+        case SSL3_ST_CW_CLNT_HELLO_B:
             dtls1_start_timer(s);
             ret = dtls1_client_hello(s);
             if (ret <= 0)
@@ -350,11 +349,15 @@ int dtls1_connect(SSL *s)
                              sizeof(DTLS1_SCTP_AUTH_LABEL),
                              DTLS1_SCTP_AUTH_LABEL);
 
-                    SSL_export_keying_material(s, sctpauthkey,
+                    if (SSL_export_keying_material(s, sctpauthkey,
                                                sizeof(sctpauthkey),
                                                labelbuffer,
                                                sizeof(labelbuffer), NULL, 0,
-                                               0);
+                                               0) <= 0) {
+                        ret = -1;
+                        s->state = SSL_ST_ERR;
+                        goto end;
+                    }
 
                     BIO_ctrl(SSL_get_wbio(s),
                              BIO_CTRL_DGRAM_SCTP_ADD_AUTH_KEY,
@@ -362,6 +365,10 @@ int dtls1_connect(SSL *s)
 #endif
 
                     s->state = SSL3_ST_CR_FINISHED_A;
+                    if (s->tlsext_ticket_expected) {
+                        /* receive renewed session ticket */
+                        s->state = SSL3_ST_CR_SESSION_TICKET_A;
+                    }
                 } else
                     s->state = DTLS1_ST_CR_HELLO_VERIFY_REQUEST_A;
             }
@@ -484,9 +491,13 @@ int dtls1_connect(SSL *s)
             snprintf((char *)labelbuffer, sizeof(DTLS1_SCTP_AUTH_LABEL),
                      DTLS1_SCTP_AUTH_LABEL);
 
-            SSL_export_keying_material(s, sctpauthkey,
+            if (SSL_export_keying_material(s, sctpauthkey,
                                        sizeof(sctpauthkey), labelbuffer,
-                                       sizeof(labelbuffer), NULL, 0, 0);
+                                       sizeof(labelbuffer), NULL, 0, 0) <= 0) {
+                ret = -1;
+                s->state = SSL_ST_ERR;
+                goto end;
+            }
 
             BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_ADD_AUTH_KEY,
                      sizeof(sctpauthkey), sctpauthkey);

@@ -23,7 +23,7 @@ maximum of 1024 bits.
 If B<seed> is B<NULL> or B<seed_len> E<lt> 20, the primes will be
 generated at random. Otherwise, the seed is used to generate
 them. If the given seed does not yield a prime q, a new random
-seed is chosen and placed at B<seed>.
+seed is chosen.
 
 DSA_generate_parameters() places the iteration count in
 *B<counter_ret> and a counter used for finding a generator in
