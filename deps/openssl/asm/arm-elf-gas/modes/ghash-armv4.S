@@ -368,8 +368,8 @@ gcm_ghash_neon:
 	vdup.8		d4,d28[0]	@ broadcast lowest byte
 .Linner_neon:
 	subs		r1,r1,#1
-	vmull.p8	q9,d1,d4		@ H.lo·Xi[i]
-	vmull.p8	q8,d0,d4		@ H.hi·Xi[i]
+	vmull.p8	q9,d1,d4		@ H.loÂ·Xi[i]
+	vmull.p8	q8,d0,d4		@ H.hiÂ·Xi[i]
 	vext.8		q14,q12,#1		@ IN>>=8
 
 	veor		q10,q13		@ modulo-scheduled part
@@ -382,7 +382,7 @@ gcm_ghash_neon:
 	vsli.8		d2,d3,#1		@ compose the "carry" byte
 	vext.8		q10,q12,#1		@ Z>>=8
 
-	vmull.p8	q11,d2,d5		@ "carry"·0xe1
+	vmull.p8	q11,d2,d5		@ "carry"Â·0xe1
 	vshr.u8		d2,d3,#7		@ save Z's bottom bit
 	vext.8		q13,q9,q12,#1	@ Qlo>>=8
 	veor		q10,q8
