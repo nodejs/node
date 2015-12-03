@@ -142,7 +142,7 @@ struct dh_st {
     BIGNUM *p;
     BIGNUM *g;
     long length;                /* optional */
-    BIGNUM *pub_key;            /* g^x */
+    BIGNUM *pub_key;            /* g^x % p */
     BIGNUM *priv_key;           /* x */
     int flags;
     BN_MONT_CTX *method_mont_p;

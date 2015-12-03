@@ -9,9 +9,9 @@ BIO_read, BIO_write, BIO_gets, BIO_puts - BIO I/O functions
  #include <openssl/bio.h>
 
  int	BIO_read(BIO *b, void *buf, int len);
- int	BIO_gets(BIO *b,char *buf, int size);
+ int	BIO_gets(BIO *b, char *buf, int size);
  int	BIO_write(BIO *b, const void *buf, int len);
- int	BIO_puts(BIO *b,const char *buf);
+ int	BIO_puts(BIO *b, const char *buf);
 
 =head1 DESCRIPTION
 
@@ -26,7 +26,7 @@ return the digest and other BIOs may not support BIO_gets() at all.
 
 BIO_write() attempts to write B<len> bytes from B<buf> to BIO B<b>.
 
-BIO_puts() attempts to write a null terminated string B<buf> to BIO B<b>
+BIO_puts() attempts to write a null terminated string B<buf> to BIO B<b>.
 
 =head1 RETURN VALUES
 
