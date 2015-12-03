@@ -77,6 +77,9 @@ int PKCS12_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
     const unsigned char *pbuf;
     unsigned char key[EVP_MAX_KEY_LENGTH], iv[EVP_MAX_IV_LENGTH];
 
+    if (cipher == NULL)
+        return 0;
+
     /* Extract useful info from parameter */
     if (param == NULL || param->type != V_ASN1_SEQUENCE ||
         param->value.sequence == NULL) {
