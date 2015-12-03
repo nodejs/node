@@ -367,10 +367,13 @@ non-existent.
 
 ## fs.existsSync(path)
 
-    Stability: 0 - Deprecated: Use [fs.statSync][] or [fs.accessSync][] instead.
-
 Synchronous version of [`fs.exists`][].
 Returns `true` if the file exists, `false` otherwise.
+
+Note: this function will throw on Windows if an EPERM error is returned by the
+underlying `fs.statSync()` call. However, it is not suggested to attempt to
+catch this error. Instead, the end user probably needs to fix the file's
+permissions by hand.
 
 ## fs.fchmod(fd, mode, callback)
 
