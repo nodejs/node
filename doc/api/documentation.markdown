@@ -65,4 +65,4 @@ Please do not suggest API changes in this area; they will be refused.
 Every HTML file in the markdown has a corresponding JSON file with the
 same data.
 
-This feature was added in node v0.6.12.  It is experimental.
+This feature was added in Node.js v0.6.12.  It is experimental.
