@@ -41,13 +41,13 @@ $code=<<___;
 .align	5
 mul_1x1_neon:
 	vshl.u64	`&Dlo("q1")`,d16,#8	@ q1-q3 are slided $a
-	vmull.p8	`&Q("d0")`,d16,d17	@ a·bb
+	vmull.p8	`&Q("d0")`,d16,d17	@ aÂ·bb
 	vshl.u64	`&Dlo("q2")`,d16,#16
-	vmull.p8	q1,`&Dlo("q1")`,d17	@ a<<8·bb
+	vmull.p8	q1,`&Dlo("q1")`,d17	@ a<<8Â·bb
 	vshl.u64	`&Dlo("q3")`,d16,#24
-	vmull.p8	q2,`&Dlo("q2")`,d17	@ a<<16·bb
+	vmull.p8	q2,`&Dlo("q2")`,d17	@ a<<16Â·bb
 	vshr.u64	`&Dlo("q1")`,#8
-	vmull.p8	q3,`&Dlo("q3")`,d17	@ a<<24·bb
+	vmull.p8	q3,`&Dlo("q3")`,d17	@ a<<24Â·bb
 	vshl.u64	`&Dhi("q1")`,#24
 	veor		d0,`&Dlo("q1")`
 	vshr.u64	`&Dlo("q2")`,#16
@@ -158,7 +158,7 @@ ___
 ################
 # void	bn_GF2m_mul_2x2(BN_ULONG *r,
 #	BN_ULONG a1,BN_ULONG a0,
-#	BN_ULONG b1,BN_ULONG b0);	# r[3..0]=a1a0·b1b0
+#	BN_ULONG b1,BN_ULONG b0);	# r[3..0]=a1a0Â·b1b0
 
 ($A1,$B1,$A0,$B0,$A1B1,$A0B0)=map("d$_",(18..23));
 
@@ -184,20 +184,20 @@ bn_GF2m_mul_2x2:
 
 	vmov	d16,$A1
 	vmov	d17,$B1
-	bl	mul_1x1_neon		@ a1·b1
+	bl	mul_1x1_neon		@ a1Â·b1
 	vmov	$A1B1,d0
 
 	vmov	d16,$A0
 	vmov	d17,$B0
-	bl	mul_1x1_neon		@ a0·b0
+	bl	mul_1x1_neon		@ a0Â·b0
 	vmov	$A0B0,d0
 
 	veor	d16,$A0,$A1
 	veor	d17,$B0,$B1
 	veor	$A0,$A0B0,$A1B1
-	bl	mul_1x1_neon		@ (a0+a1)·(b0+b1)
+	bl	mul_1x1_neon		@ (a0+a1)Â·(b0+b1)
 
-	veor	d0,$A0			@ (a0+a1)·(b0+b1)-a0·b0-a1·b1
+	veor	d0,$A0			@ (a0+a1)Â·(b0+b1)-a0Â·b0-a1Â·b1
 	vshl.u64 d1,d0,#32
 	vshr.u64 d0,d0,#32
 	veor	$A0B0,d1
@@ -220,7 +220,7 @@ $code.=<<___;
 	mov	$mask,#7<<2
 	sub	sp,sp,#32		@ allocate tab[8]
 
-	bl	mul_1x1_ialu		@ a1·b1
+	bl	mul_1x1_ialu		@ a1Â·b1
 	str	$lo,[$ret,#8]
 	str	$hi,[$ret,#12]
 
@@ -230,13 +230,13 @@ $code.=<<___;
 	 eor	r2,r2,$a
 	eor	$b,$b,r3
 	 eor	$a,$a,r2
-	bl	mul_1x1_ialu		@ a0·b0
+	bl	mul_1x1_ialu		@ a0Â·b0
 	str	$lo,[$ret]
 	str	$hi,[$ret,#4]
 
 	eor	$a,$a,r2
 	eor	$b,$b,r3
-	bl	mul_1x1_ialu		@ (a1+a0)·(b1+b0)
+	bl	mul_1x1_ialu		@ (a1+a0)Â·(b1+b0)
 ___
 @r=map("r$_",(6..9));
 $code.=<<___;
