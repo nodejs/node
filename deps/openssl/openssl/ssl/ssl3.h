@@ -263,6 +263,8 @@ extern "C" {
 # define SSL3_SESSION_ID_SIZE                    32
 # define SSL3_RT_HEADER_LENGTH                   5
 
+# define SSL3_HM_HEADER_LENGTH                   4
+
 # ifndef SSL3_ALIGN_PAYLOAD
  /*
   * Some will argue that this increases memory footprint, but it's not

@@ -523,8 +523,6 @@ STACK_OF(X509_CRL) *X509_STORE_get1_crls(X509_STORE_CTX *ctx, X509_NAME *nm)
     X509_OBJECT *obj, xobj;
     sk = sk_X509_CRL_new_null();
     CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
-    /* Check cache first */
-    idx = x509_object_idx_cnt(ctx->ctx->objs, X509_LU_CRL, nm, &cnt);
 
     /*
      * Always do lookup to possibly add new CRLs to cache

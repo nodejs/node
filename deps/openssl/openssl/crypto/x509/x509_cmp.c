@@ -179,11 +179,24 @@ unsigned long X509_subject_name_hash_old(X509 *x)
  */
 int X509_cmp(const X509 *a, const X509 *b)
 {
+    int rv;
+
     /* ensure hash is valid */
     X509_check_purpose((X509 *)a, -1, 0);
     X509_check_purpose((X509 *)b, -1, 0);
 
-    return memcmp(a->sha1_hash, b->sha1_hash, SHA_DIGEST_LENGTH);
+    rv = memcmp(a->sha1_hash, b->sha1_hash, SHA_DIGEST_LENGTH);
+    if (rv)
+        return rv;
+    /* Check for match against stored encoding too */
+    if (!a->cert_info->enc.modified && !b->cert_info->enc.modified) {
+        rv = (int)(a->cert_info->enc.len - b->cert_info->enc.len);
+        if (rv)
+            return rv;
+        return memcmp(a->cert_info->enc.enc, b->cert_info->enc.enc,
+                      a->cert_info->enc.len);
+    }
+    return rv;
 }
 #endif
 

@@ -1230,15 +1230,18 @@ static DSA_SIG *cryptodev_dsa_do_sign(const unsigned char *dgst, int dlen,
     if (cryptodev_asym(&kop, BN_num_bytes(dsa->q), r,
                        BN_num_bytes(dsa->q), s) == 0) {
         dsaret = DSA_SIG_new();
+        if (dsaret == NULL)
+            goto err;
         dsaret->r = r;
         dsaret->s = s;
+        r = s = NULL;
     } else {
         const DSA_METHOD *meth = DSA_OpenSSL();
-        BN_free(r);
-        BN_free(s);
         dsaret = (meth->dsa_do_sign) (dgst, dlen, dsa);
     }
  err:
+    BN_free(r);
+    BN_free(s);
     kop.crk_param[0].crp_p = NULL;
     zapparams(&kop);
     return (dsaret);

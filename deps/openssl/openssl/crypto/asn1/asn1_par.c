@@ -62,6 +62,10 @@
 #include <openssl/objects.h>
 #include <openssl/asn1.h>
 
+#ifndef ASN1_PARSE_MAXDEPTH
+#define ASN1_PARSE_MAXDEPTH 128
+#endif
+
 static int asn1_print_info(BIO *bp, int tag, int xclass, int constructed,
                            int indent);
 static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
@@ -128,6 +132,12 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
 #else
     dump_indent = 6;            /* Because we know BIO_dump_indent() */
 #endif
+
+    if (depth > ASN1_PARSE_MAXDEPTH) {
+            BIO_puts(bp, "BAD RECURSION DEPTH\n");
+            return 0;
+    }
+
     p = *pp;
     tot = p + length;
     op = p - 1;

@@ -253,7 +253,7 @@ int EVP_PKEY_set_type_str(EVP_PKEY *pkey, const char *str, int len)
 
 int EVP_PKEY_assign(EVP_PKEY *pkey, int type, void *key)
 {
-    if (!EVP_PKEY_set_type(pkey, type))
+    if (pkey == NULL || !EVP_PKEY_set_type(pkey, type))
         return 0;
     pkey->pkey.ptr = key;
     return (key != NULL);
