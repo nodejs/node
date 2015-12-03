@@ -2983,7 +2983,7 @@ int ssl3_new(SSL *s)
 
 void ssl3_free(SSL *s)
 {
-    if (s == NULL)
+    if (s == NULL || s->s3 == NULL)
         return;
 
 #ifdef TLSEXT_TYPE_opaque_prf_input

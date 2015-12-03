@@ -34,7 +34,7 @@ them to suit its needs: for example to add a hostname check.
 Check hostname matches "www.foo.com" in peer certificate:
 
  X509_VERIFY_PARAM *vpm = SSL_get0_param(ssl);
- X509_VERIFY_PARAM_set1_host(vpm, "www.foo.com");
+ X509_VERIFY_PARAM_set1_host(vpm, "www.foo.com", 0);
 
 =head1 RETURN VALUES
 

@@ -173,11 +173,11 @@ int PKCS12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
     }
     if (!saltlen)
         saltlen = PKCS12_SALT_LEN;
-    p12->mac->salt->length = saltlen;
-    if (!(p12->mac->salt->data = OPENSSL_malloc(saltlen))) {
+    if ((p12->mac->salt->data = OPENSSL_malloc(saltlen)) == NULL) {
         PKCS12err(PKCS12_F_PKCS12_SETUP_MAC, ERR_R_MALLOC_FAILURE);
         return 0;
     }
+    p12->mac->salt->length = saltlen;
     if (!salt) {
         if (RAND_pseudo_bytes(p12->mac->salt->data, saltlen) < 0)
             return 0;

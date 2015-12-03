@@ -857,6 +857,8 @@ int CMS_SignerInfo_verify_content(CMS_SignerInfo *si, BIO *chain)
     } else {
         const EVP_MD *md = EVP_MD_CTX_md(&mctx);
         pkctx = EVP_PKEY_CTX_new(si->pkey, NULL);
+        if (pkctx == NULL)
+            goto err;
         if (EVP_PKEY_verify_init(pkctx) <= 0)
             goto err;
         if (EVP_PKEY_CTX_set_signature_md(pkctx, md) <= 0)

@@ -2,29 +2,39 @@
 
 =head1 NAME
 
-SSL_CTX_add_extra_chain_cert - add certificate to chain
+SSL_CTX_add_extra_chain_cert, SSL_CTX_clear_extra_chain_certs - add or clear
+extra chain certificates
 
 =head1 SYNOPSIS
 
  #include <openssl/ssl.h>
 
- long SSL_CTX_add_extra_chain_cert(SSL_CTX ctx, X509 *x509)
+ long SSL_CTX_add_extra_chain_cert(SSL_CTX *ctx, X509 *x509);
+ long SSL_CTX_clear_extra_chain_certs(SSL_CTX *ctx);
 
 =head1 DESCRIPTION
 
-SSL_CTX_add_extra_chain_cert() adds the certificate B<x509> to the certificate
-chain presented together with the certificate. Several certificates
-can be added one after the other.
+SSL_CTX_add_extra_chain_cert() adds the certificate B<x509> to the extra chain
+certificates associated with B<ctx>. Several certificates can be added one
+after another.
+
+SSL_CTX_clear_extra_chain_certs() clears all extra chain certificates
+associated with B<ctx>.
+
+These functions are implemented as macros.
 
 =head1 NOTES
 
-When constructing the certificate chain, the chain will be formed from
-these certificates explicitly specified. If no chain is specified,
-the library will try to complete the chain from the available CA
-certificates in the trusted CA storage, see
+When sending a certificate chain, extra chain certificates are sent in order
+following the end entity certificate.
+
+If no chain is specified, the library will try to complete the chain from the
+available CA certificates in the trusted CA storage, see
 L<SSL_CTX_load_verify_locations(3)|SSL_CTX_load_verify_locations(3)>.
 
-The B<x509> certificate provided to SSL_CTX_add_extra_chain_cert() will be freed by the library when the B<SSL_CTX> is destroyed. An application B<should not> free the B<x509> object.
+The B<x509> certificate provided to SSL_CTX_add_extra_chain_cert() will be
+freed by the library when the B<SSL_CTX> is destroyed. An application
+B<should not> free the B<x509> object.
 
 =head1 RESTRICTIONS
 
@@ -37,8 +47,9 @@ be used instead.
 
 =head1 RETURN VALUES
 
-SSL_CTX_add_extra_chain_cert() returns 1 on success. Check out the
-error stack to find out the reason for failure otherwise.
+SSL_CTX_add_extra_chain_cert() and SSL_CTX_clear_extra_chain_certs() return
+1 on success and 0 for failure. Check out the error stack to find out the
+reason for failure.
 
 =head1 SEE ALSO
 

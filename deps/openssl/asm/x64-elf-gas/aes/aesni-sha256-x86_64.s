@@ -21,11 +21,8 @@ aesni_cbc_sha256_enc:
 	andl	$296,%r11d
 	cmpl	$296,%r11d
 	je	aesni_cbc_sha256_enc_avx2
-	andl	$1073741824,%eax
-	andl	$268435968,%r10d
-	orl	%eax,%r10d
-	cmpl	$1342177792,%r10d
-	je	aesni_cbc_sha256_enc_avx
+	andl	$268435456,%r10d
+	jnz	aesni_cbc_sha256_enc_avx
 	ud2
 	xorl	%eax,%eax
 	cmpq	$0,%rdi

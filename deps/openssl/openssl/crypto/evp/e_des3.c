@@ -289,7 +289,7 @@ static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 # endif
 # ifdef EVP_CHECK_DES_KEY
     if (DES_set_key_checked(&deskey[0], &dat->ks1)
-        ! !DES_set_key_checked(&deskey[1], &dat->ks2))
+        || DES_set_key_checked(&deskey[1], &dat->ks2))
         return 0;
 # else
     DES_set_key_unchecked(&deskey[0], &dat->ks1);

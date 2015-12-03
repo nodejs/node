@@ -45,7 +45,7 @@
 # processes one byte in 8.45 cycles, A9 - in 10.2, Snapdragon S4 -
 # in 9.33.
 #
-# Câmara, D.; Gouvêa, C. P. L.; López, J. & Dahab, R.: Fast Software
+# CÃ¢mara, D.; GouvÃªa, C. P. L.; LÃ³pez, J. & Dahab, R.: Fast Software
 # Polynomial Multiplication on ARM Processors using the NEON Engine.
 # 
 # http://conradoplg.cryptoland.net/files/2010/12/mocrysen13.pdf
@@ -125,6 +125,11 @@ $code=<<___;
 
 .text
 .code	32
+
+#ifdef __clang__
+#define ldrplb	ldrbpl
+#define ldrneb	ldrbne
+#endif
 
 .type	rem_4bit,%object
 .align	5
@@ -432,12 +437,12 @@ gcm_ghash_neon:
 	veor		$IN,$Xl			@ inp^=Xi
 .Lgmult_neon:
 ___
-	&clmul64x64	($Xl,$Hlo,"$IN#lo");	# H.lo·Xi.lo
+	&clmul64x64	($Xl,$Hlo,"$IN#lo");	# H.loÂ·Xi.lo
 $code.=<<___;
 	veor		$IN#lo,$IN#lo,$IN#hi	@ Karatsuba pre-processing
 ___
-	&clmul64x64	($Xm,$Hhl,"$IN#lo");	# (H.lo+H.hi)·(Xi.lo+Xi.hi)
-	&clmul64x64	($Xh,$Hhi,"$IN#hi");	# H.hi·Xi.hi
+	&clmul64x64	($Xm,$Hhl,"$IN#lo");	# (H.lo+H.hi)Â·(Xi.lo+Xi.hi)
+	&clmul64x64	($Xh,$Hhi,"$IN#hi");	# H.hiÂ·Xi.hi
 $code.=<<___;
 	veor		$Xm,$Xm,$Xl		@ Karatsuba post-processing
 	veor		$Xm,$Xm,$Xh

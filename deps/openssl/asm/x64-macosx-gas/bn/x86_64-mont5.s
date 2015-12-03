@@ -1565,6 +1565,15 @@ L$8x_tail:
 .p2align	5
 L$8x_tail_done:
 	addq	(%rdx),%r8
+	adcq	$0,%r9
+	adcq	$0,%r10
+	adcq	$0,%r11
+	adcq	$0,%r12
+	adcq	$0,%r13
+	adcq	$0,%r14
+	adcq	$0,%r15
+
+
 	xorq	%rax,%rax
 
 	negq	%rsi
@@ -2806,6 +2815,15 @@ L$sqrx8x_tail:
 .p2align	5
 L$sqrx8x_tail_done:
 	addq	24+8(%rsp),%r8
+	adcq	$0,%r9
+	adcq	$0,%r10
+	adcq	$0,%r11
+	adcq	$0,%r12
+	adcq	$0,%r13
+	adcq	$0,%r14
+	adcq	$0,%r15
+
+
 	movq	%rsi,%rax
 
 	subq	16+8(%rsp),%rsi
@@ -2839,13 +2857,11 @@ L$sqrx8x_no_tail:
 	leaq	64(%rdi,%rcx,1),%rdi
 	cmpq	8+8(%rsp),%r8
 	jb	L$sqrx8x_reduction_loop
-	xorq	%rbx,%rbx
+	xorl	%ebx,%ebx
 	subq	%r15,%rsi
 	adcq	%rbx,%rbx
 	movq	%rcx,%r10
-.byte	0x67
 	orq	%rbx,%rax
-.byte	0x67
 	movq	%rcx,%r9
 	xorq	$1,%rax
 	sarq	$3+2,%rcx

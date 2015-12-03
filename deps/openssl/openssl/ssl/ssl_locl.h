@@ -1366,7 +1366,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *buf,
 unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *buf,
                                           unsigned char *limit, int *al);
 int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **data,
-                                 unsigned char *d, int n);
+                                 unsigned char *limit);
 int tls1_set_server_sigalgs(SSL *s);
 int ssl_check_clienthello_tlsext_late(SSL *s);
 int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **data,
@@ -1439,15 +1439,15 @@ int tls1_cbc_remove_padding(const SSL *s,
                             SSL3_RECORD *rec,
                             unsigned block_size, unsigned mac_size);
 char ssl3_cbc_record_digest_supported(const EVP_MD_CTX *ctx);
-void ssl3_cbc_digest_record(const EVP_MD_CTX *ctx,
-                            unsigned char *md_out,
-                            size_t *md_out_size,
-                            const unsigned char header[13],
-                            const unsigned char *data,
-                            size_t data_plus_mac_size,
-                            size_t data_plus_mac_plus_padding_size,
-                            const unsigned char *mac_secret,
-                            unsigned mac_secret_length, char is_sslv3);
+int ssl3_cbc_digest_record(const EVP_MD_CTX *ctx,
+                           unsigned char *md_out,
+                           size_t *md_out_size,
+                           const unsigned char header[13],
+                           const unsigned char *data,
+                           size_t data_plus_mac_size,
+                           size_t data_plus_mac_plus_padding_size,
+                           const unsigned char *mac_secret,
+                           unsigned mac_secret_length, char is_sslv3);
 
 void tls_fips_digest_extra(const EVP_CIPHER_CTX *cipher_ctx,
                            EVP_MD_CTX *mac_ctx, const unsigned char *data,

@@ -37,10 +37,11 @@ EVP_DigestVerifyInit() and EVP_DigestVerifyUpdate() return 1 for success and 0
 or a negative value for failure. In particular a return value of -2 indicates
 the operation is not supported by the public key algorithm.
 
-Unlike other functions the return value 0 from EVP_DigestVerifyFinal() only
-indicates that the signature did not verify successfully (that is tbs did
-not match the original data or the signature was of invalid form) it is not an
-indication of a more serious error.
+EVP_DigestVerifyFinal() returns 1 for success; any other value indicates
+failure.  A return value of zero indicates that the signature did not verify
+successfully (that is, tbs did not match the original data or the signature had
+an invalid form), while other values indicate a more serious error (and
+sometimes also indicate an invalid signature form).
 
 The error codes can be obtained from L<ERR_get_error(3)|ERR_get_error(3)>.
 

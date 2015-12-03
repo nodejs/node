@@ -40,9 +40,8 @@ consider insecure or to be insecure pretty soon.
 
 3. To generate a DSA key
 
-A DSA key can be used for signing only.  This is important to keep
-in mind to know what kind of purposes a certificate request with a
-DSA key can really be used for.
+A DSA key can be used for signing only.  It is important to
+know what a certificate request with a DSA key can really be used for.
 
 Generating a key for the DSA algorithm is a two-step process.  First,
 you have to generate parameters from which to generate the key:

@@ -432,6 +432,14 @@ static void sc_usage(void)
                " -no_ticket        - disable use of RFC4507bis session tickets\n");
     BIO_printf(bio_err,
                " -serverinfo types - send empty ClientHello extensions (comma-separated numbers)\n");
+    BIO_printf(bio_err,
+               " -curves arg       - Elliptic curves to advertise (colon-separated list)\n");
+    BIO_printf(bio_err,
+               " -sigalgs arg      - Signature algorithms to support (colon-separated list)\n");
+    BIO_printf(bio_err,
+               " -client_sigalgs arg - Signature algorithms to support for client\n");
+    BIO_printf(bio_err,
+               "                       certificate authentication (colon-separated list)\n");
 #endif
 #ifndef OPENSSL_NO_NEXTPROTONEG
     BIO_printf(bio_err,
@@ -2080,6 +2088,9 @@ int MAIN(int argc, char **argv)
         sk_X509_pop_free(chain, X509_free);
     if (pass)
         OPENSSL_free(pass);
+#ifndef OPENSSL_NO_SRP
+    OPENSSL_free(srp_arg.srppassin);
+#endif
     if (vpm)
         X509_VERIFY_PARAM_free(vpm);
     ssl_excert_free(exc);

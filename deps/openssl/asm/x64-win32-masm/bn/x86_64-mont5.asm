@@ -1624,6 +1624,15 @@ $L$8x_tail::
 ALIGN	32
 $L$8x_tail_done::
 	add	r8,QWORD PTR[rdx]
+	adc	r9,0
+	adc	r10,0
+	adc	r11,0
+	adc	r12,0
+	adc	r13,0
+	adc	r14,0
+	adc	r15,0
+
+
 	xor	rax,rax
 
 	neg	rsi
@@ -2923,6 +2932,15 @@ DB	0c4h,062h,0fbh,0f6h,0a5h,040h,000h,000h,000h
 ALIGN	32
 $L$sqrx8x_tail_done::
 	add	r8,QWORD PTR[((24+8))+rsp]
+	adc	r9,0
+	adc	r10,0
+	adc	r11,0
+	adc	r12,0
+	adc	r13,0
+	adc	r14,0
+	adc	r15,0
+
+
 	mov	rax,rsi
 
 	sub	rsi,QWORD PTR[((16+8))+rsp]
@@ -2956,13 +2974,11 @@ DB	102,72,15,126,213
 	lea	rdi,QWORD PTR[64+rcx*1+rdi]
 	cmp	r8,QWORD PTR[((8+8))+rsp]
 	jb	$L$sqrx8x_reduction_loop
-	xor	rbx,rbx
+	xor	ebx,ebx
 	sub	rsi,r15
 	adc	rbx,rbx
 	mov	r10,rcx
-DB	067h
 	or	rax,rbx
-DB	067h
 	mov	r9,rcx
 	xor	rax,1
 	sar	rcx,3+2

@@ -216,7 +216,7 @@ key is encrypted using triple DES and the certificate using 40 bit RC2.
 
 these options allow the algorithm used to encrypt the private key and
 certificates to be selected. Any PKCS#5 v1.5 or PKCS#12 PBE algorithm name
-can be used (see B<NOTES> section for more information). If a a cipher name
+can be used (see B<NOTES> section for more information). If a cipher name
 (as output by the B<list-cipher-algorithms> command is specified then it
 is used with PKCS#5 v2.0. For interoperability reasons it is advisable to only
 use PKCS#12 algorithms.

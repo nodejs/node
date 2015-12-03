@@ -416,6 +416,7 @@ my %table=(
 "linux-ia64-icc","icc:-DL_ENDIAN -O2 -Wall::-D_REENTRANT::-ldl -no_cpprt:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_RISC1 DES_INT:${ia64_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 "linux-x86_64",	"gcc:-m64 -DL_ENDIAN -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
 "linux-x86_64-clang",	"clang: -m64 -DL_ENDIAN -O3 -Wall -Wextra $clang_disabled_warnings -Qunused-arguments::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
+"debug-linux-x86_64-clang",	"clang: -DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DCRYPTO_MDEBUG -m64 -DL_ENDIAN -g -Wall -Wextra $clang_disabled_warnings -Qunused-arguments::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
 "linux-x86_64-icc", "icc:-DL_ENDIAN -O2::-D_REENTRANT::-ldl -no_cpprt:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
 "linux-x32",	"gcc:-mx32 -DL_ENDIAN -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT RC4_CHUNK_LL DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC:-mx32:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::x32",
 "linux64-s390x",	"gcc:-m64 -DB_ENDIAN -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL:${s390x_asm}:64:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
@@ -1646,21 +1647,22 @@ if ($shlib_version_number =~ /(^[0-9]*)\.([0-9\.]*)/)
 	$shlib_minor=$2;
 	}
 
+my $ecc = $cc;
+$ecc = "clang" if `$cc --version 2>&1` =~ /clang/;
+
 if ($strict_warnings)
 	{
-	my $ecc = $cc;
-	$ecc = "clang" if `$cc --version 2>&1` =~ /clang/;
 	my $wopt;
 	die "ERROR --strict-warnings requires gcc or clang" unless ($ecc =~ /gcc$/ or $ecc =~ /clang$/);
 	foreach $wopt (split /\s+/, $gcc_devteam_warn)
 		{
-		$cflags .= " $wopt" unless ($cflags =~ /$wopt/)
+		$cflags .= " $wopt" unless ($cflags =~ /(^|\s)$wopt(\s|$)/)
 		}
 	if ($ecc eq "clang")
 		{
 		foreach $wopt (split /\s+/, $clang_devteam_warn)
 			{
-			$cflags .= " $wopt" unless ($cflags =~ /$wopt/)
+			$cflags .= " $wopt" unless ($cflags =~ /(^|\s)$wopt(\s|$)/)
 			}
 		}
 	}
@@ -1713,6 +1715,7 @@ while (<IN>)
 		s/^AR=\s*ar/AR= $ar/;
 		s/^RANLIB=.*/RANLIB= $ranlib/;
 		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $cc eq "gcc";
+		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $ecc eq "gcc" || $ecc eq "clang";
 		}
 	s/^CFLAG=.*$/CFLAG= $cflags/;
 	s/^DEPFLAG=.*$/DEPFLAG=$depflags/;

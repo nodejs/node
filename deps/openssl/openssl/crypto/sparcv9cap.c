@@ -237,6 +237,17 @@ static void common_handler(int sig)
     siglongjmp(common_jmp, sig);
 }
 
+#if defined(__sun) && defined(__SVR4)
+# if defined(__GNUC__) && __GNUC__>=2
+extern unsigned int getisax(unsigned int vec[], unsigned int sz) __attribute__ ((weak));
+# elif defined(__SUNPRO_C)
+#pragma weak getisax
+extern unsigned int getisax(unsigned int vec[], unsigned int sz);
+# else
+static unsigned int (*getisax) (unsigned int vec[], unsigned int sz) = NULL;
+# endif
+#endif
+
 void OPENSSL_cpuid_setup(void)
 {
     char *e;
@@ -254,6 +265,42 @@ void OPENSSL_cpuid_setup(void)
             OPENSSL_sparcv9cap_P[1] = strtoul(e + 1, NULL, 0);
         return;
     }
+
+#if defined(__sun) && defined(__SVR4)
+    if (getisax != NULL) {
+        unsigned int vec[1];
+
+        if (getisax (vec,1)) {
+            if (vec[0]&0x0020) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS1;
+            if (vec[0]&0x0040) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS2;
+            if (vec[0]&0x0080) OPENSSL_sparcv9cap_P[0] |= SPARCV9_BLK;
+            if (vec[0]&0x0100) OPENSSL_sparcv9cap_P[0] |= SPARCV9_FMADD;
+            if (vec[0]&0x0400) OPENSSL_sparcv9cap_P[0] |= SPARCV9_VIS3;
+
+            /* reconstruct %cfr copy */
+            OPENSSL_sparcv9cap_P[1] = (vec[0]>>17)&0x3ff;
+            OPENSSL_sparcv9cap_P[1] |= (OPENSSL_sparcv9cap_P[1]&CFR_MONTMUL)<<1;
+            if (vec[0]&0x20000000) OPENSSL_sparcv9cap_P[1] |= CFR_CRC32C;
+
+            /* Some heuristics */
+            /* all known VIS2-capable CPUs have unprivileged tick counter */
+            if (OPENSSL_sparcv9cap_P[0]&SPARCV9_VIS2)
+                OPENSSL_sparcv9cap_P[0] &= ~SPARCV9_TICK_PRIVILEGED;
+
+            OPENSSL_sparcv9cap_P[0] |= SPARCV9_PREFER_FPU;
+
+            /* detect UltraSPARC-Tx, see sparccpud.S for details... */
+            if ((OPENSSL_sparcv9cap_P[0]&SPARCV9_VIS1) &&
+                _sparcv9_vis1_instrument() >= 12)
+                OPENSSL_sparcv9cap_P[0] &= ~(SPARCV9_VIS1 | SPARCV9_PREFER_FPU);
+        }
+
+        if (sizeof(size_t) == 8)
+            OPENSSL_sparcv9cap_P[0] |= SPARCV9_64BIT_STACK;
+
+        return;
+    }
+#endif
 
     /* Initial value, fits UltraSPARC-I&II... */
     OPENSSL_sparcv9cap_P[0] = SPARCV9_PREFER_FPU | SPARCV9_TICK_PRIVILEGED;

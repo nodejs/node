@@ -10,7 +10,7 @@
 # SHA256 block transform for x86. September 2007.
 #
 # Performance improvement over compiler generated code varies from
-# 10% to 40% [see below]. Not very impressive on some µ-archs, but
+# 10% to 40% [see below]. Not very impressive on some Âµ-archs, but
 # it's 5 times smaller and optimizies amount of writes.
 #
 # May 2012.

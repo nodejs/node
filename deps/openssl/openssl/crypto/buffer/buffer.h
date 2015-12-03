@@ -86,7 +86,13 @@ int BUF_MEM_grow(BUF_MEM *str, size_t len);
 int BUF_MEM_grow_clean(BUF_MEM *str, size_t len);
 size_t BUF_strnlen(const char *str, size_t maxlen);
 char *BUF_strdup(const char *str);
+
+/*
+ * Like strndup, but in addition, explicitly guarantees to never read past the
+ * first |siz| bytes of |str|.
+ */
 char *BUF_strndup(const char *str, size_t siz);
+
 void *BUF_memdup(const void *data, size_t siz);
 void BUF_reverse(unsigned char *out, const unsigned char *in, size_t siz);
 
