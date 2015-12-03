@@ -58,12 +58,13 @@
 
 #include <stdio.h>
 #include "cryptlib.h"
+#include <limits.h>
 #include <openssl/buffer.h>
 
 char *BUF_strdup(const char *str)
 {
     if (str == NULL)
-        return (NULL);
+        return NULL;
     return BUF_strndup(str, strlen(str));
 }
 
@@ -72,14 +73,20 @@ char *BUF_strndup(const char *str, size_t siz)
     char *ret;
 
     if (str == NULL)
-        return (NULL);
+        return NULL;
+
+    if (siz >= INT_MAX)
+        return NULL;
 
     ret = OPENSSL_malloc(siz + 1);
     if (ret == NULL) {
         BUFerr(BUF_F_BUF_STRNDUP, ERR_R_MALLOC_FAILURE);
-        return (NULL);
+        return NULL;
     }
-    BUF_strlcpy(ret, str, siz + 1);
+
+    memcpy(ret, str, siz);
+    ret[siz] = '\0';
+
     return (ret);
 }
 
@@ -87,13 +94,13 @@ void *BUF_memdup(const void *data, size_t siz)
 {
     void *ret;
 
-    if (data == NULL)
-        return (NULL);
+    if (data == NULL || siz >= INT_MAX)
+        return NULL;
 
     ret = OPENSSL_malloc(siz);
     if (ret == NULL) {
         BUFerr(BUF_F_BUF_MEMDUP, ERR_R_MALLOC_FAILURE);
-        return (NULL);
+        return NULL;
     }
     return memcpy(ret, data, siz);
 }

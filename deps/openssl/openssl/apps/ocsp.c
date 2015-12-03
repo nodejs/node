@@ -1220,8 +1220,8 @@ static OCSP_RESPONSE *query_responder(BIO *err, BIO *cbio, char *path,
         return NULL;
     }
 
-    if (BIO_get_fd(cbio, &fd) <= 0) {
-        BIO_puts(err, "Can't get connection fd\n");
+    if (BIO_get_fd(cbio, &fd) < 0) {
+        BIO_puts(bio_err, "Can't get connection fd\n");
         goto err;
     }
 
