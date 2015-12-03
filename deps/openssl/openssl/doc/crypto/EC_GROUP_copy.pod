@@ -158,7 +158,7 @@ EC_GROUP_get0_seed returns a pointer to the seed that was used to generate the p
 specified. EC_GROUP_get_seed_len returns the length of the seed or 0 if the seed is not specified.
 
 EC_GROUP_set_seed returns the length of the seed that has been set. If the supplied seed is NULL, or the supplied seed length is
-0, the the return value will be 1. On error 0 is returned.
+0, the return value will be 1. On error 0 is returned.
 
 EC_GROUP_cmp returns 0 if the curves are equal, 1 if they are not equal, or -1 on error.
 

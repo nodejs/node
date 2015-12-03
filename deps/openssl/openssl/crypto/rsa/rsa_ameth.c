@@ -268,7 +268,7 @@ static X509_ALGOR *rsa_mgf1_decode(X509_ALGOR *alg)
 {
     const unsigned char *p;
     int plen;
-    if (alg == NULL)
+    if (alg == NULL || alg->parameter == NULL)
         return NULL;
     if (OBJ_obj2nid(alg->algorithm) != NID_mgf1)
         return NULL;

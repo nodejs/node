@@ -1,1 +1,1 @@
-../crypto/sha/shatest.c
+openssl-1.0.2e/../crypto/sha/shatest.c
