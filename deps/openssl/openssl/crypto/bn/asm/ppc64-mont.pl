@@ -94,6 +94,8 @@ if ($flavour =~ /32/) {
 	$POP=	"ld";
 } else { die "nonsense $flavour"; }
 
+$LITTLE_ENDIAN = ($flavour=~/le$/) ? 4 : 0;
+
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}ppc-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/ppc-xlate.pl" and -f $xlate) or
@@ -294,12 +296,12 @@ $code.=<<___ if ($SIZE_T==8);
 
 	extrdi	$t0,$a0,32,32		; lwz	$t0,4($ap)
 	extrdi	$t1,$a0,32,0		; lwz	$t1,0($ap)
-	lwz	$t2,12($ap)		; load a[1] as 32-bit word pair
-	lwz	$t3,8($ap)
-	lwz	$t4,4($np)		; load n[0] as 32-bit word pair
-	lwz	$t5,0($np)
-	lwz	$t6,12($np)		; load n[1] as 32-bit word pair
-	lwz	$t7,8($np)
+	lwz	$t2,`12^$LITTLE_ENDIAN`($ap)	; load a[1] as 32-bit word pair
+	lwz	$t3,`8^$LITTLE_ENDIAN`($ap)
+	lwz	$t4,`4^$LITTLE_ENDIAN`($np)	; load n[0] as 32-bit word pair
+	lwz	$t5,`0^$LITTLE_ENDIAN`($np)
+	lwz	$t6,`12^$LITTLE_ENDIAN`($np)	; load n[1] as 32-bit word pair
+	lwz	$t7,`8^$LITTLE_ENDIAN`($np)
 ___
 $code.=<<___ if ($SIZE_T==4);
 	lwz	$a0,0($ap)		; pull ap[0,1] value
@@ -463,14 +465,14 @@ $code.=<<___;
 L1st:
 ___
 $code.=<<___ if ($SIZE_T==8);
-	lwz	$t0,4($ap)		; load a[j] as 32-bit word pair
-	lwz	$t1,0($ap)
-	lwz	$t2,12($ap)		; load a[j+1] as 32-bit word pair
-	lwz	$t3,8($ap)
-	lwz	$t4,4($np)		; load n[j] as 32-bit word pair
-	lwz	$t5,0($np)
-	lwz	$t6,12($np)		; load n[j+1] as 32-bit word pair
-	lwz	$t7,8($np)
+	lwz	$t0,`4^$LITTLE_ENDIAN`($ap)	; load a[j] as 32-bit word pair
+	lwz	$t1,`0^$LITTLE_ENDIAN`($ap)
+	lwz	$t2,`12^$LITTLE_ENDIAN`($ap)	; load a[j+1] as 32-bit word pair
+	lwz	$t3,`8^$LITTLE_ENDIAN`($ap)
+	lwz	$t4,`4^$LITTLE_ENDIAN`($np)	; load n[j] as 32-bit word pair
+	lwz	$t5,`0^$LITTLE_ENDIAN`($np)
+	lwz	$t6,`12^$LITTLE_ENDIAN`($np)	; load n[j+1] as 32-bit word pair
+	lwz	$t7,`8^$LITTLE_ENDIAN`($np)
 ___
 $code.=<<___ if ($SIZE_T==4);
 	lwz	$t0,0($ap)		; load a[j..j+3] as 32-bit word pairs
@@ -505,14 +507,14 @@ $code.=<<___;
 ___
 } else {
 $code.=<<___;
-	lwz	$t1,`$FRAME+0`($sp)
-	lwz	$t0,`$FRAME+4`($sp)
-	lwz	$t3,`$FRAME+8`($sp)
-	lwz	$t2,`$FRAME+12`($sp)
-	lwz	$t5,`$FRAME+16`($sp)
-	lwz	$t4,`$FRAME+20`($sp)
-	lwz	$t7,`$FRAME+24`($sp)
-	lwz	$t6,`$FRAME+28`($sp)
+	lwz	$t1,`$FRAME+0^$LITTLE_ENDIAN`($sp)
+	lwz	$t0,`$FRAME+4^$LITTLE_ENDIAN`($sp)
+	lwz	$t3,`$FRAME+8^$LITTLE_ENDIAN`($sp)
+	lwz	$t2,`$FRAME+12^$LITTLE_ENDIAN`($sp)
+	lwz	$t5,`$FRAME+16^$LITTLE_ENDIAN`($sp)
+	lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
+	lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
+	lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
 ___
 }
 $code.=<<___;
@@ -651,8 +653,8 @@ $code.=<<___;
 
 	fmadd	$T1a,$N1,$na,$T1a
 	fmadd	$T1b,$N1,$nb,$T1b
-	 lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
-	 lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
+	 lwz	$t3,`$FRAME+32^$LITTLE_ENDIAN`($sp)	; permuted $t1
+	 lwz	$t2,`$FRAME+36^$LITTLE_ENDIAN`($sp)	; permuted $t0
 	 addc	$t4,$t4,$carry
 	 adde	$t5,$t5,$c1
 	 srwi	$carry,$t4,16
@@ -673,8 +675,8 @@ $code.=<<___;
 
 	fmadd	$T1a,$N0,$nc,$T1a
 	fmadd	$T1b,$N0,$nd,$T1b
-	 lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
-	 lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
+	 lwz	$t7,`$FRAME+40^$LITTLE_ENDIAN`($sp)	; permuted $t3
+	 lwz	$t6,`$FRAME+44^$LITTLE_ENDIAN`($sp)	; permuted $t2
 	 addc	$t2,$t2,$carry
 	 adde	$t3,$t3,$c1
 	 srwi	$carry,$t2,16
@@ -686,8 +688,8 @@ $code.=<<___;
 	 insrwi	$carry,$t3,16,0
 	fmadd	$T3a,$N2,$nc,$T3a
 	fmadd	$T3b,$N2,$nd,$T3b
-	 lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
-	 lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
+	 lwz	$t1,`$FRAME+48^$LITTLE_ENDIAN`($sp)	; permuted $t5
+	 lwz	$t0,`$FRAME+52^$LITTLE_ENDIAN`($sp)	; permuted $t4
 	 addc	$t6,$t6,$carry
 	 adde	$t7,$t7,$c1
 	 srwi	$carry,$t6,16
@@ -699,8 +701,8 @@ $code.=<<___;
 
 	fctid	$T0a,$T0a
 	fctid	$T0b,$T0b
-	 lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
-	 lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
+	 lwz	$t5,`$FRAME+56^$LITTLE_ENDIAN`($sp)	; permuted $t7
+	 lwz	$t4,`$FRAME+60^$LITTLE_ENDIAN`($sp)	; permuted $t6
 	 addc	$t0,$t0,$carry
 	 adde	$t1,$t1,$c1
 	 srwi	$carry,$t0,16
@@ -787,14 +789,14 @@ $code.=<<___;
 ___
 } else {
 $code.=<<___;
-	lwz	$t1,`$FRAME+0`($sp)
-	lwz	$t0,`$FRAME+4`($sp)
-	lwz	$t3,`$FRAME+8`($sp)
-	lwz	$t2,`$FRAME+12`($sp)
-	lwz	$t5,`$FRAME+16`($sp)
-	lwz	$t4,`$FRAME+20`($sp)
-	lwz	$t7,`$FRAME+24`($sp)
-	lwz	$t6,`$FRAME+28`($sp)
+	lwz	$t1,`$FRAME+0^$LITTLE_ENDIAN`($sp)
+	lwz	$t0,`$FRAME+4^$LITTLE_ENDIAN`($sp)
+	lwz	$t3,`$FRAME+8^$LITTLE_ENDIAN`($sp)
+	lwz	$t2,`$FRAME+12^$LITTLE_ENDIAN`($sp)
+	lwz	$t5,`$FRAME+16^$LITTLE_ENDIAN`($sp)
+	lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
+	lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
+	lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
 	stfd	$dota,`$FRAME+64`($sp)
 	stfd	$dotb,`$FRAME+72`($sp)
 
@@ -823,14 +825,14 @@ $code.=<<___;
 	 stw	$t0,12($tp)		; tp[j-1]
 	 stw	$t4,8($tp)
 
-	lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
-	lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
-	lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
-	lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
-	lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
-	lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
-	lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
-	lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
+	lwz	$t3,`$FRAME+32^$LITTLE_ENDIAN`($sp)	; permuted $t1
+	lwz	$t2,`$FRAME+36^$LITTLE_ENDIAN`($sp)	; permuted $t0
+	lwz	$t7,`$FRAME+40^$LITTLE_ENDIAN`($sp)	; permuted $t3
+	lwz	$t6,`$FRAME+44^$LITTLE_ENDIAN`($sp)	; permuted $t2
+	lwz	$t1,`$FRAME+48^$LITTLE_ENDIAN`($sp)	; permuted $t5
+	lwz	$t0,`$FRAME+52^$LITTLE_ENDIAN`($sp)	; permuted $t4
+	lwz	$t5,`$FRAME+56^$LITTLE_ENDIAN`($sp)	; permuted $t7
+	lwz	$t4,`$FRAME+60^$LITTLE_ENDIAN`($sp)	; permuted $t6
 
 	addc	$t2,$t2,$carry
 	adde	$t3,$t3,$c1
@@ -857,10 +859,10 @@ $code.=<<___;
 	 stw	$t2,20($tp)		; tp[j]
 	 stwu	$t0,16($tp)
 
-	lwz	$t7,`$FRAME+64`($sp)
-	lwz	$t6,`$FRAME+68`($sp)
-	lwz	$t5,`$FRAME+72`($sp)
-	lwz	$t4,`$FRAME+76`($sp)
+	lwz	$t7,`$FRAME+64^$LITTLE_ENDIAN`($sp)
+	lwz	$t6,`$FRAME+68^$LITTLE_ENDIAN`($sp)
+	lwz	$t5,`$FRAME+72^$LITTLE_ENDIAN`($sp)
+	lwz	$t4,`$FRAME+76^$LITTLE_ENDIAN`($sp)
 
 	addc	$t6,$t6,$carry
 	adde	$t7,$t7,$c1
@@ -1165,23 +1167,23 @@ ___
 $code.=<<___;
 	fmadd	$T1a,$N1,$na,$T1a
 	fmadd	$T1b,$N1,$nb,$T1b
-	 lwz	$t1,`$FRAME+0`($sp)
-	 lwz	$t0,`$FRAME+4`($sp)
+	 lwz	$t1,`$FRAME+0^$LITTLE_ENDIAN`($sp)
+	 lwz	$t0,`$FRAME+4^$LITTLE_ENDIAN`($sp)
 	fmadd	$T2a,$N2,$na,$T2a
 	fmadd	$T2b,$N2,$nb,$T2b
-	 lwz	$t3,`$FRAME+8`($sp)
-	 lwz	$t2,`$FRAME+12`($sp)
+	 lwz	$t3,`$FRAME+8^$LITTLE_ENDIAN`($sp)
+	 lwz	$t2,`$FRAME+12^$LITTLE_ENDIAN`($sp)
 	fmadd	$T3a,$N3,$na,$T3a
 	fmadd	$T3b,$N3,$nb,$T3b
-	 lwz	$t5,`$FRAME+16`($sp)
-	 lwz	$t4,`$FRAME+20`($sp)
+	 lwz	$t5,`$FRAME+16^$LITTLE_ENDIAN`($sp)
+	 lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
 	 addc	$t0,$t0,$carry
 	 adde	$t1,$t1,$c1
 	 srwi	$carry,$t0,16
 	fmadd	$T0a,$N0,$na,$T0a
 	fmadd	$T0b,$N0,$nb,$T0b
-	 lwz	$t7,`$FRAME+24`($sp)
-	 lwz	$t6,`$FRAME+28`($sp)
+	 lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
+	 lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
 	 srwi	$c1,$t1,16
 	 insrwi	$carry,$t1,16,0
 
@@ -1218,8 +1220,8 @@ $code.=<<___;
 	fctid	$T1a,$T1a
 	 addc	$t0,$t0,$t2
 	 adde	$t4,$t4,$t3
-	 lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
-	 lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
+	 lwz	$t3,`$FRAME+32^$LITTLE_ENDIAN`($sp)	; permuted $t1
+	 lwz	$t2,`$FRAME+36^$LITTLE_ENDIAN`($sp)	; permuted $t0
 	fctid	$T1b,$T1b
 	 addze	$carry,$carry
 	 addze	$c1,$c1
@@ -1229,19 +1231,19 @@ $code.=<<___;
 	 addc	$t2,$t2,$carry
 	 adde	$t3,$t3,$c1
 	 srwi	$carry,$t2,16
-	 lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
-	 lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
+	 lwz	$t7,`$FRAME+40^$LITTLE_ENDIAN`($sp)	; permuted $t3
+	 lwz	$t6,`$FRAME+44^$LITTLE_ENDIAN`($sp)	; permuted $t2
 	fctid	$T2b,$T2b
 	 srwi	$c1,$t3,16
 	 insrwi	$carry,$t3,16,0
-	 lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
-	 lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
+	 lwz	$t1,`$FRAME+48^$LITTLE_ENDIAN`($sp)	; permuted $t5
+	 lwz	$t0,`$FRAME+52^$LITTLE_ENDIAN`($sp)	; permuted $t4
 	fctid	$T3a,$T3a
 	 addc	$t6,$t6,$carry
 	 adde	$t7,$t7,$c1
 	 srwi	$carry,$t6,16
-	 lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
-	 lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
+	 lwz	$t5,`$FRAME+56^$LITTLE_ENDIAN`($sp)	; permuted $t7
+	 lwz	$t4,`$FRAME+60^$LITTLE_ENDIAN`($sp)	; permuted $t6
 	fctid	$T3b,$T3b
 
 	 insrwi	$t2,$t6,16,0		; 64..95 bits
@@ -1354,14 +1356,14 @@ $code.=<<___;
 ___
 } else {
 $code.=<<___;
-	lwz	$t1,`$FRAME+0`($sp)
-	lwz	$t0,`$FRAME+4`($sp)
-	lwz	$t3,`$FRAME+8`($sp)
-	lwz	$t2,`$FRAME+12`($sp)
-	lwz	$t5,`$FRAME+16`($sp)
-	lwz	$t4,`$FRAME+20`($sp)
-	lwz	$t7,`$FRAME+24`($sp)
-	lwz	$t6,`$FRAME+28`($sp)
+	lwz	$t1,`$FRAME+0^$LITTLE_ENDIAN`($sp)
+	lwz	$t0,`$FRAME+4^$LITTLE_ENDIAN`($sp)
+	lwz	$t3,`$FRAME+8^$LITTLE_ENDIAN`($sp)
+	lwz	$t2,`$FRAME+12^$LITTLE_ENDIAN`($sp)
+	lwz	$t5,`$FRAME+16^$LITTLE_ENDIAN`($sp)
+	lwz	$t4,`$FRAME+20^$LITTLE_ENDIAN`($sp)
+	lwz	$t7,`$FRAME+24^$LITTLE_ENDIAN`($sp)
+	lwz	$t6,`$FRAME+28^$LITTLE_ENDIAN`($sp)
 	stfd	$dota,`$FRAME+64`($sp)
 	stfd	$dotb,`$FRAME+72`($sp)
 
@@ -1397,14 +1399,14 @@ $code.=<<___;
 	 stw	$t0,4($tp)		; tp[j-1]
 	 stw	$t4,0($tp)
 
-	lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
-	lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
-	lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
-	lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
-	lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
-	lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
-	lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
-	lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
+	lwz	$t3,`$FRAME+32^$LITTLE_ENDIAN`($sp)	; permuted $t1
+	lwz	$t2,`$FRAME+36^$LITTLE_ENDIAN`($sp)	; permuted $t0
+	lwz	$t7,`$FRAME+40^$LITTLE_ENDIAN`($sp)	; permuted $t3
+	lwz	$t6,`$FRAME+44^$LITTLE_ENDIAN`($sp)	; permuted $t2
+	lwz	$t1,`$FRAME+48^$LITTLE_ENDIAN`($sp)	; permuted $t5
+	lwz	$t0,`$FRAME+52^$LITTLE_ENDIAN`($sp)	; permuted $t4
+	lwz	$t5,`$FRAME+56^$LITTLE_ENDIAN`($sp)	; permuted $t7
+	lwz	$t4,`$FRAME+60^$LITTLE_ENDIAN`($sp)	; permuted $t6
 
 	addc	$t2,$t2,$carry
 	adde	$t3,$t3,$c1
@@ -1433,12 +1435,12 @@ $code.=<<___;
 
 	addc	$t2,$t2,$t6
 	adde	$t0,$t0,$t7
-	 lwz	$t7,`$FRAME+64`($sp)
-	 lwz	$t6,`$FRAME+68`($sp)
+	 lwz	$t7,`$FRAME+64^$LITTLE_ENDIAN`($sp)
+	 lwz	$t6,`$FRAME+68^$LITTLE_ENDIAN`($sp)
 	addze	$carry,$carry
 	addze	$c1,$c1
-	 lwz	$t5,`$FRAME+72`($sp)
-	 lwz	$t4,`$FRAME+76`($sp)
+	 lwz	$t5,`$FRAME+72^$LITTLE_ENDIAN`($sp)
+	 lwz	$t4,`$FRAME+76^$LITTLE_ENDIAN`($sp)
 
 	addc	$t6,$t6,$carry
 	adde	$t7,$t7,$c1

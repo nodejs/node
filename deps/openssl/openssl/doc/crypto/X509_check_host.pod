@@ -135,6 +135,6 @@ L<X509_VERIFY_PARAM_set1_ipasc(3)|X509_VERIFY_PARAM_set1_ipasc(3)>
 
 =head1 HISTORY
 
-These functions were added in OpenSSL 1.1.0.
+These functions were added in OpenSSL 1.0.2.
 
 =cut

@@ -135,10 +135,10 @@ gcm_gmult_v8:
 #endif
 	vext.8		$IN,$t1,$t1,#8
 
-	vpmull.p64	$Xl,$H,$IN		@ H.lo·Xi.lo
+	vpmull.p64	$Xl,$H,$IN		@ H.loÂ·Xi.lo
 	veor		$t1,$t1,$IN		@ Karatsuba pre-processing
-	vpmull2.p64	$Xh,$H,$IN		@ H.hi·Xi.hi
-	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)·(Xi.lo+Xi.hi)
+	vpmull2.p64	$Xh,$H,$IN		@ H.hiÂ·Xi.hi
+	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)Â·(Xi.lo+Xi.hi)
 
 	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
 	veor		$t2,$Xl,$Xh
@@ -226,7 +226,7 @@ $code.=<<___;
 #endif
 	vext.8		$In,$t1,$t1,#8
 	veor		$IN,$IN,$Xl		@ I[i]^=Xi
-	vpmull.p64	$Xln,$H,$In		@ H·Ii+1
+	vpmull.p64	$Xln,$H,$In		@ HÂ·Ii+1
 	veor		$t1,$t1,$In		@ Karatsuba pre-processing
 	vpmull2.p64	$Xhn,$H,$In
 	b		.Loop_mod2x_v8
@@ -235,14 +235,14 @@ $code.=<<___;
 .Loop_mod2x_v8:
 	vext.8		$t2,$IN,$IN,#8
 	subs		$len,$len,#32		@ is there more data?
-	vpmull.p64	$Xl,$H2,$IN		@ H^2.lo·Xi.lo
+	vpmull.p64	$Xl,$H2,$IN		@ H^2.loÂ·Xi.lo
 	cclr		$inc,lo			@ is it time to zero $inc?
 
 	 vpmull.p64	$Xmn,$Hhl,$t1
 	veor		$t2,$t2,$IN		@ Karatsuba pre-processing
-	vpmull2.p64	$Xh,$H2,$IN		@ H^2.hi·Xi.hi
+	vpmull2.p64	$Xh,$H2,$IN		@ H^2.hiÂ·Xi.hi
 	veor		$Xl,$Xl,$Xln		@ accumulate
-	vpmull2.p64	$Xm,$Hhl,$t2		@ (H^2.lo+H^2.hi)·(Xi.lo+Xi.hi)
+	vpmull2.p64	$Xm,$Hhl,$t2		@ (H^2.lo+H^2.hi)Â·(Xi.lo+Xi.hi)
 	 vld1.64	{$t0},[$inp],$inc	@ load [rotated] I[i+2]
 
 	veor		$Xh,$Xh,$Xhn
@@ -267,7 +267,7 @@ $code.=<<___;
 	 vext.8		$In,$t1,$t1,#8
 	 vext.8		$IN,$t0,$t0,#8
 	veor		$Xl,$Xm,$t2
-	 vpmull.p64	$Xln,$H,$In		@ H·Ii+1
+	 vpmull.p64	$Xln,$H,$In		@ HÂ·Ii+1
 	veor		$IN,$IN,$Xh		@ accumulate $IN early
 
 	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
@@ -291,10 +291,10 @@ $code.=<<___;
 	veor		$IN,$IN,$Xl		@ inp^=Xi
 	veor		$t1,$t0,$t2		@ $t1 is rotated inp^Xi
 
-	vpmull.p64	$Xl,$H,$IN		@ H.lo·Xi.lo
+	vpmull.p64	$Xl,$H,$IN		@ H.loÂ·Xi.lo
 	veor		$t1,$t1,$IN		@ Karatsuba pre-processing
-	vpmull2.p64	$Xh,$H,$IN		@ H.hi·Xi.hi
-	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)·(Xi.lo+Xi.hi)
+	vpmull2.p64	$Xh,$H,$IN		@ H.hiÂ·Xi.hi
+	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)Â·(Xi.lo+Xi.hi)
 
 	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
 	veor		$t2,$Xl,$Xh

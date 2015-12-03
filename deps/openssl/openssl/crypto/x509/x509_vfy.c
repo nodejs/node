@@ -249,7 +249,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
         if (ctx->param->flags & X509_V_FLAG_TRUSTED_FIRST) {
             ok = ctx->get_issuer(&xtmp, ctx, x);
             if (ok < 0)
-                return ok;
+                goto end;
             /*
              * If successful for now free up cert so it will be picked up
              * again later.
@@ -347,14 +347,15 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
             ok = ctx->get_issuer(&xtmp, ctx, x);
 
             if (ok < 0)
-                return ok;
+                goto end;
             if (ok == 0)
                 break;
             x = xtmp;
             if (!sk_X509_push(ctx->chain, x)) {
                 X509_free(xtmp);
                 X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
-                return 0;
+                ok = 0;
+                goto end;
             }
             num++;
         }
@@ -752,6 +753,10 @@ static int check_hosts(X509 *x, X509_VERIFY_PARAM_ID *id)
     int n = sk_OPENSSL_STRING_num(id->hosts);
     char *name;
 
+    if (id->peername != NULL) {
+        OPENSSL_free(id->peername);
+        id->peername = NULL;
+    }
     for (i = 0; i < n; ++i) {
         name = sk_OPENSSL_STRING_value(id->hosts, i);
         if (X509_check_host(x, name, 0, id->hostflags, &id->peername) > 0)

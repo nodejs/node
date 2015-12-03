@@ -192,7 +192,7 @@ to use the pointer value at all, as this kind of reference is a guarantee
 that the structure can not be deallocated until the reference is released.
 
 However, a structural reference provides no guarantee that the ENGINE is
-initiliased and able to use any of its cryptographic
+initialised and able to use any of its cryptographic
 implementations. Indeed it's quite possible that most ENGINEs will not
 initialise at all in typical environments, as ENGINEs are typically used to
 support specialised hardware. To use an ENGINE's functionality, you need a
@@ -201,8 +201,8 @@ specialised form of structural reference, because each functional reference
 implicitly contains a structural reference as well - however to avoid
 difficult-to-find programming bugs, it is recommended to treat the two
 kinds of reference independently. If you have a functional reference to an
-ENGINE, you have a guarantee that the ENGINE has been initialised ready to
-perform cryptographic operations and will remain uninitialised
+ENGINE, you have a guarantee that the ENGINE has been initialised and
+is ready to perform cryptographic operations, and will remain initialised
 until after you have released your reference.
 
 I<Structural references>
@@ -370,7 +370,7 @@ I<Using a specific ENGINE implementation>
 Here we'll assume an application has been configured by its user or admin
 to want to use the "ACME" ENGINE if it is available in the version of
 OpenSSL the application was compiled with. If it is available, it should be
-used by default for all RSA, DSA, and symmetric cipher operation, otherwise
+used by default for all RSA, DSA, and symmetric cipher operations, otherwise
 OpenSSL should use its builtin software as per usual. The following code
 illustrates how to approach this;
 
@@ -401,7 +401,7 @@ I<Automatically using builtin ENGINE implementations>
 
 Here we'll assume we want to load and register all ENGINE implementations
 bundled with OpenSSL, such that for any cryptographic algorithm required by
-OpenSSL - if there is an ENGINE that implements it and can be initialise,
+OpenSSL - if there is an ENGINE that implements it and can be initialised,
 it should be used. The following code illustrates how this can work;
 
  /* Load all bundled ENGINEs into memory and make them visible */

@@ -1050,6 +1050,11 @@ int ssl3_get_server_hello(SSL *s)
         SSLerr(SSL_F_SSL3_GET_SERVER_HELLO, SSL_R_UNKNOWN_CIPHER_RETURNED);
         goto f_err;
     }
+    /* Set version disabled mask now we know version */
+    if (!SSL_USE_TLS1_2_CIPHERS(s))
+        ct->mask_ssl = SSL_TLSV1_2;
+    else
+        ct->mask_ssl = 0;
     /*
      * If it is a disabled cipher we didn't send it in client hello, so
      * return an error.
@@ -1699,6 +1704,12 @@ int ssl3_get_key_exchange(SSL *s)
         }
         p += i;
 
+        if (BN_is_zero(dh->p)) {
+            SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_P_VALUE);
+            goto f_err;
+        }
+
+
         if (2 > n - param_len) {
             SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_LENGTH_TOO_SHORT);
             goto f_err;
@@ -1718,6 +1729,11 @@ int ssl3_get_key_exchange(SSL *s)
             goto err;
         }
         p += i;
+
+        if (BN_is_zero(dh->g)) {
+            SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_G_VALUE);
+            goto f_err;
+        }
 
         if (2 > n - param_len) {
             SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_LENGTH_TOO_SHORT);
@@ -1739,6 +1755,11 @@ int ssl3_get_key_exchange(SSL *s)
         }
         p += i;
         n -= param_len;
+
+        if (BN_is_zero(dh->pub_key)) {
+            SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_PUB_KEY_VALUE);
+            goto f_err;
+        }
 
 # ifndef OPENSSL_NO_RSA
         if (alg_a & SSL_aRSA)
@@ -1935,14 +1956,20 @@ int ssl3_get_key_exchange(SSL *s)
             q = md_buf;
             for (num = 2; num > 0; num--) {
                 EVP_MD_CTX_set_flags(&md_ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
-                EVP_DigestInit_ex(&md_ctx, (num == 2)
-                                  ? s->ctx->md5 : s->ctx->sha1, NULL);
-                EVP_DigestUpdate(&md_ctx, &(s->s3->client_random[0]),
-                                 SSL3_RANDOM_SIZE);
-                EVP_DigestUpdate(&md_ctx, &(s->s3->server_random[0]),
-                                 SSL3_RANDOM_SIZE);
-                EVP_DigestUpdate(&md_ctx, param, param_len);
-                EVP_DigestFinal_ex(&md_ctx, q, &size);
+                if (EVP_DigestInit_ex(&md_ctx,
+                                      (num == 2) ? s->ctx->md5 : s->ctx->sha1,
+                                      NULL) <= 0
+                        || EVP_DigestUpdate(&md_ctx, &(s->s3->client_random[0]),
+                                            SSL3_RANDOM_SIZE) <= 0
+                        || EVP_DigestUpdate(&md_ctx, &(s->s3->server_random[0]),
+                                            SSL3_RANDOM_SIZE) <= 0
+                        || EVP_DigestUpdate(&md_ctx, param, param_len) <= 0
+                        || EVP_DigestFinal_ex(&md_ctx, q, &size) <= 0) {
+                    SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE,
+                           ERR_R_INTERNAL_ERROR);
+                    al = SSL_AD_INTERNAL_ERROR;
+                    goto f_err;
+                }
                 q += size;
                 j += size;
             }
@@ -1961,12 +1988,16 @@ int ssl3_get_key_exchange(SSL *s)
         } else
 #endif
         {
-            EVP_VerifyInit_ex(&md_ctx, md, NULL);
-            EVP_VerifyUpdate(&md_ctx, &(s->s3->client_random[0]),
-                             SSL3_RANDOM_SIZE);
-            EVP_VerifyUpdate(&md_ctx, &(s->s3->server_random[0]),
-                             SSL3_RANDOM_SIZE);
-            EVP_VerifyUpdate(&md_ctx, param, param_len);
+            if (EVP_VerifyInit_ex(&md_ctx, md, NULL) <= 0
+                    || EVP_VerifyUpdate(&md_ctx, &(s->s3->client_random[0]),
+                                        SSL3_RANDOM_SIZE) <= 0
+                    || EVP_VerifyUpdate(&md_ctx, &(s->s3->server_random[0]),
+                                        SSL3_RANDOM_SIZE) <= 0
+                    || EVP_VerifyUpdate(&md_ctx, param, param_len) <= 0) {
+                al = SSL_AD_INTERNAL_ERROR;
+                SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, ERR_R_EVP_LIB);
+                goto f_err;
+            }
             if (EVP_VerifyFinal(&md_ctx, p, (int)n, pkey) <= 0) {
                 /* bad signature */
                 al = SSL_AD_DECRYPT_ERROR;
@@ -2208,6 +2239,7 @@ int ssl3_get_new_session_ticket(SSL *s)
     long n;
     const unsigned char *p;
     unsigned char *d;
+    unsigned long ticket_lifetime_hint;
 
     n = s->method->ssl_get_message(s,
                                    SSL3_ST_CR_SESSION_TICKET_A,
@@ -2225,6 +2257,19 @@ int ssl3_get_new_session_ticket(SSL *s)
     }
 
     p = d = (unsigned char *)s->init_msg;
+
+    n2l(p, ticket_lifetime_hint);
+    n2s(p, ticklen);
+    /* ticket_lifetime_hint + ticket_length + ticket */
+    if (ticklen + 6 != n) {
+        al = SSL_AD_DECODE_ERROR;
+        SSLerr(SSL_F_SSL3_GET_NEW_SESSION_TICKET, SSL_R_LENGTH_MISMATCH);
+        goto f_err;
+    }
+
+    /* Server is allowed to change its mind and send an empty ticket. */
+    if (ticklen == 0)
+        return 1;
 
     if (s->session->session_id_length > 0) {
         int i = s->session_ctx->session_cache_mode;
@@ -2257,14 +2302,6 @@ int ssl3_get_new_session_ticket(SSL *s)
         s->session = new_sess;
     }
 
-    n2l(p, s->session->tlsext_tick_lifetime_hint);
-    n2s(p, ticklen);
-    /* ticket_lifetime_hint + ticket_length + ticket */
-    if (ticklen + 6 != n) {
-        al = SSL_AD_DECODE_ERROR;
-        SSLerr(SSL_F_SSL3_GET_NEW_SESSION_TICKET, SSL_R_LENGTH_MISMATCH);
-        goto f_err;
-    }
     if (s->session->tlsext_tick) {
         OPENSSL_free(s->session->tlsext_tick);
         s->session->tlsext_ticklen = 0;
@@ -2275,6 +2312,7 @@ int ssl3_get_new_session_ticket(SSL *s)
         goto err;
     }
     memcpy(s->session->tlsext_tick, p, ticklen);
+    s->session->tlsext_tick_lifetime_hint = ticket_lifetime_hint;
     s->session->tlsext_ticklen = ticklen;
     /*
      * There are two ways to detect a resumed ticket session. One is to set
@@ -2462,6 +2500,7 @@ int ssl3_send_client_key_exchange(SSL *s)
                     || (pkey->pkey.rsa == NULL)) {
                     SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
                            ERR_R_INTERNAL_ERROR);
+                    EVP_PKEY_free(pkey);
                     goto err;
                 }
                 rsa = pkey->pkey.rsa;
@@ -2927,6 +2966,11 @@ int ssl3_send_client_key_exchange(SSL *s)
 
             pkey_ctx = EVP_PKEY_CTX_new(pub_key =
                                         X509_get_pubkey(peer_cert), NULL);
+            if (pkey_ctx == NULL) {
+                SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
+                       ERR_R_MALLOC_FAILURE);
+                goto err;
+            }
             /*
              * If we have send a certificate, and certificate key
              *
@@ -2936,10 +2980,13 @@ int ssl3_send_client_key_exchange(SSL *s)
 
             /* Otherwise, generate ephemeral key pair */
 
-            EVP_PKEY_encrypt_init(pkey_ctx);
-            /* Generate session key */
-            if (RAND_bytes(premaster_secret, 32) <= 0) {
+            if (pkey_ctx == NULL
+                    || EVP_PKEY_encrypt_init(pkey_ctx) <= 0
+                    /* Generate session key */
+                    || RAND_bytes(premaster_secret, 32) <= 0) {
                 EVP_PKEY_CTX_free(pkey_ctx);
+                SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
+                       ERR_R_INTERNAL_ERROR);
                 goto err;
             }
             /*
@@ -2960,13 +3007,18 @@ int ssl3_send_client_key_exchange(SSL *s)
              * data
              */
             ukm_hash = EVP_MD_CTX_create();
-            EVP_DigestInit(ukm_hash,
-                           EVP_get_digestbynid(NID_id_GostR3411_94));
-            EVP_DigestUpdate(ukm_hash, s->s3->client_random,
-                             SSL3_RANDOM_SIZE);
-            EVP_DigestUpdate(ukm_hash, s->s3->server_random,
-                             SSL3_RANDOM_SIZE);
-            EVP_DigestFinal_ex(ukm_hash, shared_ukm, &md_len);
+            if (EVP_DigestInit(ukm_hash,
+                               EVP_get_digestbynid(NID_id_GostR3411_94)) <= 0
+                    || EVP_DigestUpdate(ukm_hash, s->s3->client_random,
+                                        SSL3_RANDOM_SIZE) <= 0
+                    || EVP_DigestUpdate(ukm_hash, s->s3->server_random,
+                                        SSL3_RANDOM_SIZE) <= 0
+                    || EVP_DigestFinal_ex(ukm_hash, shared_ukm, &md_len) <= 0) {
+                EVP_MD_CTX_destroy(ukm_hash);
+                SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
+                       ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
             EVP_MD_CTX_destroy(ukm_hash);
             if (EVP_PKEY_CTX_ctrl
                 (pkey_ctx, -1, EVP_PKEY_OP_ENCRYPT, EVP_PKEY_CTRL_SET_IV, 8,
@@ -2982,7 +3034,7 @@ int ssl3_send_client_key_exchange(SSL *s)
             *(p++) = V_ASN1_SEQUENCE | V_ASN1_CONSTRUCTED;
             msglen = 255;
             if (EVP_PKEY_encrypt(pkey_ctx, tmp, &msglen, premaster_secret, 32)
-                < 0) {
+                <= 0) {
                 SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,
                        SSL_R_LIBRARY_BUG);
                 goto err;
@@ -3177,7 +3229,10 @@ int ssl3_send_client_verify(SSL *s)
         pkey = s->cert->key->privatekey;
 /* Create context from key and test if sha1 is allowed as digest */
         pctx = EVP_PKEY_CTX_new(pkey, NULL);
-        EVP_PKEY_sign_init(pctx);
+        if (pctx == NULL || EVP_PKEY_sign_init(pctx) <= 0) {
+            SSLerr(SSL_F_SSL3_SEND_CLIENT_VERIFY, ERR_R_INTERNAL_ERROR);
+            goto err;
+        }
         if (EVP_PKEY_CTX_set_signature_md(pctx, EVP_sha1()) > 0) {
             if (!SSL_USE_SIGALGS(s))
                 s->method->ssl3_enc->cert_verify_mac(s,
@@ -3365,7 +3420,6 @@ int ssl3_send_client_certificate(SSL *s)
          * If we get an error, we need to ssl->rwstate=SSL_X509_LOOKUP;
          * return(-1); We then get retied later
          */
-        i = 0;
         i = ssl_do_client_cert_cb(s, &x509, &pkey);
         if (i < 0) {
             s->rwstate = SSL_X509_LOOKUP;
