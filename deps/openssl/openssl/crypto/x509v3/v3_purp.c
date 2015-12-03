@@ -380,6 +380,14 @@ static void setup_crldp(X509 *x)
         setup_dp(x, sk_DIST_POINT_value(x->crldp, i));
 }
 
+#define V1_ROOT (EXFLAG_V1|EXFLAG_SS)
+#define ku_reject(x, usage) \
+        (((x)->ex_flags & EXFLAG_KUSAGE) && !((x)->ex_kusage & (usage)))
+#define xku_reject(x, usage) \
+        (((x)->ex_flags & EXFLAG_XKUSAGE) && !((x)->ex_xkusage & (usage)))
+#define ns_reject(x, usage) \
+        (((x)->ex_flags & EXFLAG_NSCERT) && !((x)->ex_nscert & (usage)))
+
 static void x509v3_cache_extensions(X509 *x)
 {
     BASIC_CONSTRAINTS *bs;
@@ -499,7 +507,8 @@ static void x509v3_cache_extensions(X509 *x)
     if (!X509_NAME_cmp(X509_get_subject_name(x), X509_get_issuer_name(x))) {
         x->ex_flags |= EXFLAG_SI;
         /* If SKID matches AKID also indicate self signed */
-        if (X509_check_akid(x, x->akid) == X509_V_OK)
+        if (X509_check_akid(x, x->akid) == X509_V_OK &&
+            !ku_reject(x, KU_KEY_CERT_SIGN))
             x->ex_flags |= EXFLAG_SS;
     }
     x->altname = X509_get_ext_d2i(x, NID_subject_alt_name, NULL, NULL);
@@ -537,14 +546,6 @@ static void x509v3_cache_extensions(X509 *x)
  * 3 basicConstraints absent but self signed V1.
  * 4 basicConstraints absent but keyUsage present and keyCertSign asserted.
  */
-
-#define V1_ROOT (EXFLAG_V1|EXFLAG_SS)
-#define ku_reject(x, usage) \
-        (((x)->ex_flags & EXFLAG_KUSAGE) && !((x)->ex_kusage & (usage)))
-#define xku_reject(x, usage) \
-        (((x)->ex_flags & EXFLAG_XKUSAGE) && !((x)->ex_xkusage & (usage)))
-#define ns_reject(x, usage) \
-        (((x)->ex_flags & EXFLAG_NSCERT) && !((x)->ex_nscert & (usage)))
 
 static int check_ca(const X509 *x)
 {

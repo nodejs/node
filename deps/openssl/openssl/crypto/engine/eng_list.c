@@ -260,6 +260,7 @@ int ENGINE_add(ENGINE *e)
     }
     if ((e->id == NULL) || (e->name == NULL)) {
         ENGINEerr(ENGINE_F_ENGINE_ADD, ENGINE_R_ID_OR_NAME_MISSING);
+        return 0;
     }
     CRYPTO_w_lock(CRYPTO_LOCK_ENGINE);
     if (!engine_list_add(e)) {

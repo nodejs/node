@@ -72,6 +72,7 @@ EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
                          long length)
 {
     EVP_PKEY *ret;
+    const unsigned char *p = *pp;
 
     if ((a == NULL) || (*a == NULL)) {
         if ((ret = EVP_PKEY_new()) == NULL) {
@@ -94,21 +95,23 @@ EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
     }
 
     if (!ret->ameth->old_priv_decode ||
-        !ret->ameth->old_priv_decode(ret, pp, length)) {
+        !ret->ameth->old_priv_decode(ret, &p, length)) {
         if (ret->ameth->priv_decode) {
             PKCS8_PRIV_KEY_INFO *p8 = NULL;
-            p8 = d2i_PKCS8_PRIV_KEY_INFO(NULL, pp, length);
+            p8 = d2i_PKCS8_PRIV_KEY_INFO(NULL, &p, length);
             if (!p8)
                 goto err;
             EVP_PKEY_free(ret);
             ret = EVP_PKCS82PKEY(p8);
             PKCS8_PRIV_KEY_INFO_free(p8);
-
+            if (ret == NULL)
+                goto err;
         } else {
             ASN1err(ASN1_F_D2I_PRIVATEKEY, ERR_R_ASN1_LIB);
             goto err;
         }
     }
+    *pp = p;
     if (a != NULL)
         (*a) = ret;
     return (ret);
@@ -136,6 +139,7 @@ EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **a, const unsigned char **pp,
      * input is surrounded by an ASN1 SEQUENCE.
      */
     inkey = d2i_ASN1_SEQUENCE_ANY(NULL, &p, length);
+    p = *pp;
     /*
      * Since we only need to discern "traditional format" RSA and DSA keys we
      * can just count the elements.
@@ -146,7 +150,7 @@ EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **a, const unsigned char **pp,
         keytype = EVP_PKEY_EC;
     else if (sk_ASN1_TYPE_num(inkey) == 3) { /* This seems to be PKCS8, not
                                               * traditional format */
-        PKCS8_PRIV_KEY_INFO *p8 = d2i_PKCS8_PRIV_KEY_INFO(NULL, pp, length);
+        PKCS8_PRIV_KEY_INFO *p8 = d2i_PKCS8_PRIV_KEY_INFO(NULL, &p, length);
         EVP_PKEY *ret;
 
         sk_ASN1_TYPE_pop_free(inkey, ASN1_TYPE_free);
@@ -157,6 +161,9 @@ EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **a, const unsigned char **pp,
         }
         ret = EVP_PKCS82PKEY(p8);
         PKCS8_PRIV_KEY_INFO_free(p8);
+        if (ret == NULL)
+            return NULL;
+        *pp = p;
         if (a) {
             *a = ret;
         }

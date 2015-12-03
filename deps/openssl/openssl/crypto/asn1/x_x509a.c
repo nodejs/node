@@ -163,10 +163,13 @@ int X509_add1_reject_object(X509 *x, ASN1_OBJECT *obj)
     if (!(objtmp = OBJ_dup(obj)))
         return 0;
     if (!(aux = aux_get(x)))
-        return 0;
+        goto err;
     if (!aux->reject && !(aux->reject = sk_ASN1_OBJECT_new_null()))
-        return 0;
+        goto err;
     return sk_ASN1_OBJECT_push(aux->reject, objtmp);
+ err:
+    ASN1_OBJECT_free(objtmp);
+    return 0;
 }
 
 void X509_trust_clear(X509 *x)

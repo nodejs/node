@@ -5,9 +5,19 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.2d and OpenSSL 1.0.2e [3 Dec 2015]
+
+      o BN_mod_exp may produce incorrect results on x86_64 (CVE-2015-3193)
+      o Certificate verify crash with missing PSS parameter (CVE-2015-3194)
+      o X509_ATTRIBUTE memory leak (CVE-2015-3195)
+      o Rewrite EVP_DecodeUpdate (base64 decoding) to fix several bugs
+      o In DSA_generate_parameters_ex, if the provided seed is too short,
+        return an error
+
   Major changes between OpenSSL 1.0.2c and OpenSSL 1.0.2d [9 Jul 2015]
 
       o Alternate chains certificate forgery (CVE-2015-1793)
+      o Race condition handling PSK identify hint (CVE-2015-3196)
 
   Major changes between OpenSSL 1.0.2b and OpenSSL 1.0.2c [12 Jun 2015]
 

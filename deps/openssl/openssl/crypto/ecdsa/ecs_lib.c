@@ -276,7 +276,7 @@ void *ECDSA_get_ex_data(EC_KEY *d, int idx)
     return (CRYPTO_get_ex_data(&ecdsa->ex_data, idx));
 }
 
-ECDSA_METHOD *ECDSA_METHOD_new(ECDSA_METHOD *ecdsa_meth)
+ECDSA_METHOD *ECDSA_METHOD_new(const ECDSA_METHOD *ecdsa_meth)
 {
     ECDSA_METHOD *ret;
 
