@@ -1890,6 +1890,9 @@ int MAIN(int argc, char **argv)
         EVP_PKEY_free(key);
     if (pass)
         OPENSSL_free(pass);
+#ifndef OPENSSL_NO_SRP
+    OPENSSL_free(srp_arg.srppassin);
+#endif
     if (vpm)
         X509_VERIFY_PARAM_free(vpm);
     if (cbuf != NULL) {

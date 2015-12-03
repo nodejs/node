@@ -235,8 +235,7 @@ extern "C" {
 
 /*
  * ExtensionType value for TLS padding extension.
- * http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml
- * http://tools.ietf.org/html/draft-agl-tls-padding-03
+ * http://tools.ietf.org/html/draft-agl-tls-padding
  */
 # define TLSEXT_TYPE_padding     21
 
@@ -261,20 +260,19 @@ extern "C" {
 #  define TLSEXT_TYPE_next_proto_neg              13172
 # endif
 
-/* NameType value from RFC 3546 */
+/* NameType value from RFC3546 */
 # define TLSEXT_NAMETYPE_host_name 0
-/* status request value from RFC 3546 */
+/* status request value from RFC3546 */
 # define TLSEXT_STATUSTYPE_ocsp 1
 
-/* ECPointFormat values from draft-ietf-tls-ecc-12 */
+/* ECPointFormat values from RFC4492 */
 # define TLSEXT_ECPOINTFORMAT_first                      0
 # define TLSEXT_ECPOINTFORMAT_uncompressed               0
 # define TLSEXT_ECPOINTFORMAT_ansiX962_compressed_prime  1
 # define TLSEXT_ECPOINTFORMAT_ansiX962_compressed_char2  2
 # define TLSEXT_ECPOINTFORMAT_last                       2
 
-/* Signature and hash algorithms from RFC 5246 */
-
+/* Signature and hash algorithms from RFC5246 */
 # define TLSEXT_signature_anonymous                      0
 # define TLSEXT_signature_rsa                            1
 # define TLSEXT_signature_dsa                            2
@@ -404,7 +402,6 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_CK_DHE_DSS_WITH_RC4_128_SHA                0x03000066
 
 /* AES ciphersuites from RFC3268 */
-
 # define TLS1_CK_RSA_WITH_AES_128_SHA                    0x0300002F
 # define TLS1_CK_DH_DSS_WITH_AES_128_SHA                 0x03000030
 # define TLS1_CK_DH_RSA_WITH_AES_128_SHA                 0x03000031
@@ -570,7 +567,7 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_TXT_DHE_RSA_WITH_AES_256_SHA               "DHE-RSA-AES256-SHA"
 # define TLS1_TXT_ADH_WITH_AES_256_SHA                   "ADH-AES256-SHA"
 
-/* ECC ciphersuites from draft-ietf-tls-ecc-01.txt (Mar 15, 2001) */
+/* ECC ciphersuites from RFC4492 */
 # define TLS1_TXT_ECDH_ECDSA_WITH_NULL_SHA               "ECDH-ECDSA-NULL-SHA"
 # define TLS1_TXT_ECDH_ECDSA_WITH_RC4_128_SHA            "ECDH-ECDSA-RC4-SHA"
 # define TLS1_TXT_ECDH_ECDSA_WITH_DES_192_CBC3_SHA       "ECDH-ECDSA-DES-CBC3-SHA"

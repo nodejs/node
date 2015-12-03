@@ -373,12 +373,13 @@ static int ssl23_client_hello(SSL *s)
 
     buf = (unsigned char *)s->init_buf->data;
     if (s->state == SSL23_ST_CW_CLNT_HELLO_A) {
-#if 0
-        /* don't reuse session-id's */
+        /*
+         * Since we're sending s23 client hello, we're not reusing a session, as
+         * we'd be using the method from the saved session instead
+         */
         if (!ssl_get_new_session(s, 0)) {
-            return (-1);
+            return -1;
         }
-#endif
 
         p = s->s3->client_random;
         if (ssl_fill_hello_random(s, 0, p, SSL3_RANDOM_SIZE) <= 0)
@@ -439,9 +440,6 @@ static int ssl23_client_hello(SSL *s)
             /*
              * put in the session-id length (zero since there is no reuse)
              */
-#if 0
-            s->session->session_id_length = 0;
-#endif
             s2n(0, d);
 
             if (s->options & SSL_OP_NETSCAPE_CHALLENGE_BUG)
@@ -729,6 +727,8 @@ static int ssl23_get_server_hello(SSL *s)
             goto err;
         }
 
+        s->session->ssl_version = s->version;
+
         /* ensure that TLS_MAX_VERSION is up-to-date */
         OPENSSL_assert(s->version <= TLS_MAX_VERSION);
 
@@ -783,13 +783,6 @@ static int ssl23_get_server_hello(SSL *s)
         goto err;
     }
     s->init_num = 0;
-
-    /*
-     * Since, if we are sending a ssl23 client hello, we are not reusing a
-     * session-id
-     */
-    if (!ssl_get_new_session(s, 0))
-        goto err;
 
     return (SSL_connect(s));
  err:

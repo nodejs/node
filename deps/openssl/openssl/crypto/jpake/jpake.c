@@ -218,6 +218,9 @@ static int verify_zkp(const JPAKE_STEP_PART *p, const BIGNUM *zkpg,
     BIGNUM *t3 = BN_new();
     int ret = 0;
 
+    if (h == NULL || t1 == NULL || t2 == NULL || t3 == NULL)
+        goto end;
+
     zkp_hash(h, zkpg, p, ctx->p.peer_name);
 
     /* t1 = g^b */
@@ -233,6 +236,7 @@ static int verify_zkp(const JPAKE_STEP_PART *p, const BIGNUM *zkpg,
     else
         JPAKEerr(JPAKE_F_VERIFY_ZKP, JPAKE_R_ZKP_VERIFY_FAILED);
 
+end:
     /* cleanup */
     BN_free(t3);
     BN_free(t2);

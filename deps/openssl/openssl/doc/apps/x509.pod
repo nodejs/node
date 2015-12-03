@@ -529,7 +529,8 @@ very rare and their use is discouraged). The options ending in
 "space" additionally place a space after the separator to make it
 more readable. The B<sep_multiline> uses a linefeed character for
 the RDN separator and a spaced B<+> for the AVA separator. It also
-indents the fields by four characters.
+indents the fields by four characters. If no field separator is specified
+then B<sep_comma_plus_space> is used by default.
 
 =item B<dn_rev>
 
