@@ -10,7 +10,8 @@ is opened. All objects which emit events are instances of `events.EventEmitter`.
 You can access this module by doing: `require("events");`
 
 Typically, event names are represented by a camel-cased string, however,
-there aren't any strict restrictions on that, as any string will be accepted.
+there aren't any strict restrictions on that, as any valid property key will be
+accepted.
 
 Functions can then be attached to objects, to be executed when an event
 is emitted. These functions are called _listeners_. Inside a listener
@@ -59,7 +60,7 @@ Returns the number of listeners for a given event.
 
 ### Event: 'newListener'
 
-* `event` {String} The event name
+* `event` {String|Symbol} The event name
 * `listener` {Function} The event handler function
 
 This event is emitted *before* a listener is added. When this event is
@@ -70,7 +71,7 @@ added.
 
 ### Event: 'removeListener'
 
-* `event` {String} The event name
+* `event` {String|Symbol} The event name
 * `listener` {Function} The event handler function
 
 This event is emitted *after* a listener is removed.  When this event is
