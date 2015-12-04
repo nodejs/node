@@ -142,6 +142,9 @@ def files(action):
 
   if 'true' == variables.get('node_install_npm'): npm_files(action)
 
+  headers(action)
+
+def headers(action):
   action([
     'common.gypi',
     'config.gypi',
@@ -194,8 +197,13 @@ def run(args):
   install_path = dst_dir + node_prefix + '/'
 
   cmd = args[1] if len(args) > 1 else 'install'
-  if cmd == 'install': return files(install)
-  if cmd == 'uninstall': return files(uninstall)
+  if os.environ.get('HEADERS_ONLY'):
+    if cmd == 'install': return headers(install)
+    if cmd == 'uninstall': return headers(uninstall)
+  else:
+    if cmd == 'install': return files(install)
+    if cmd == 'uninstall': return files(uninstall)
+
   raise RuntimeError('Bad command: %s\n' % cmd)
 
 if __name__ == '__main__':
