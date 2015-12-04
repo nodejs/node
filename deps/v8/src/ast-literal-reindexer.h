@@ -17,6 +17,7 @@ class AstLiteralReindexer final : public AstVisitor {
 
   int count() const { return next_index_; }
   void Reindex(Expression* pattern);
+  int NextIndex() { return next_index_++; }
 
  private:
 #define DEFINE_VISIT(type) virtual void Visit##type(type* node) override;

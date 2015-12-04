@@ -3,54 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/compiler/coalesced-live-ranges.h"
+#include "test/unittests/compiler/live-range-builder.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-
-// Utility offering shorthand syntax for building up a range by providing its ID
-// and pairs (start, end) specifying intervals. Circumvents current incomplete
-// support for C++ features such as instantiation lists, on OS X and Android.
-class TestRangeBuilder {
- public:
-  explicit TestRangeBuilder(Zone* zone) : id_(-1), pairs_(), zone_(zone) {}
-
-  TestRangeBuilder& Id(int id) {
-    id_ = id;
-    return *this;
-  }
-  TestRangeBuilder& Add(int start, int end) {
-    pairs_.push_back({start, end});
-    return *this;
-  }
-
-  LiveRange* Build(int start, int end) { return Add(start, end).Build(); }
-
-  LiveRange* Build() {
-    LiveRange* range = new (zone_) LiveRange(id_, MachineType::kRepTagged);
-    // Traverse the provided interval specifications backwards, because that is
-    // what LiveRange expects.
-    for (int i = static_cast<int>(pairs_.size()) - 1; i >= 0; --i) {
-      Interval pair = pairs_[i];
-      LifetimePosition start = LifetimePosition::FromInt(pair.first);
-      LifetimePosition end = LifetimePosition::FromInt(pair.second);
-      CHECK(start < end);
-      range->AddUseInterval(start, end, zone_);
-    }
-
-    pairs_.clear();
-    return range;
-  }
-
- private:
-  typedef std::pair<int, int> Interval;
-  typedef std::vector<Interval> IntervalList;
-  int id_;
-  IntervalList pairs_;
-  Zone* zone_;
-};
 
 
 class CoalescedLiveRangesTest : public TestWithZone {
@@ -100,8 +58,9 @@ void CoalescedLiveRangesTest::RemoveConflicts(LiveRange* range) {
   LiveRangeIDs seen(zone());
   for (auto c = conflicts.Current(); c != nullptr;
        c = conflicts.RemoveCurrentAndGetNext()) {
-    EXPECT_FALSE(seen.count(c->id()) > 0);
-    seen.insert(c->id());
+    int id = c->TopLevel()->vreg();
+    EXPECT_FALSE(seen.count(id) > 0);
+    seen.insert(c->TopLevel()->vreg());
   }
 }
 
@@ -118,7 +77,7 @@ bool CoalescedLiveRangesTest::IsRangeConflictingWith(const LiveRange* range,
   auto conflicts = ranges().GetConflicts(range);
   for (auto conflict = conflicts.Current(); conflict != nullptr;
        conflict = conflicts.GetNext()) {
-    found_ids.insert(conflict->id());
+    found_ids.insert(conflict->TopLevel()->vreg());
   }
   return found_ids == ids;
 }

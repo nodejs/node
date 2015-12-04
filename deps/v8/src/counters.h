@@ -571,11 +571,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
   SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
-  SC(string_ctor_calls, V8.StringConstructorCalls)                    \
-  SC(string_ctor_conversions, V8.StringConstructorConversions)        \
-  SC(string_ctor_cached_number, V8.StringConstructorCachedNumber)     \
-  SC(string_ctor_string_value, V8.StringConstructorStringValue)       \
-  SC(string_ctor_gc_required, V8.StringConstructorGCRequired)         \
   /* Amount of evaled source code. */                                 \
   SC(total_eval_size, V8.TotalEvalSize)                               \
   /* Amount of loaded source code. */                                 \

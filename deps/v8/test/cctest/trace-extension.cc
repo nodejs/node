@@ -25,9 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(mythria): Remove this after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "test/cctest/trace-extension.h"
 
-#include "src/sampler.h"
+#include "src/profiler/sampler.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -41,20 +44,35 @@ const char* TraceExtension::kSource =
     "native function js_entry_sp_level2();";
 
 
-v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate, v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::NewFromUtf8(isolate, "trace"))) {
+v8::Local<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Local<v8::String> name) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  if (name->Equals(context, v8::String::NewFromUtf8(isolate, "trace",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+          .FromJust()) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::Trace);
-  } else if (name->Equals(v8::String::NewFromUtf8(isolate, "js_trace"))) {
+  } else if (name->Equals(context,
+                          v8::String::NewFromUtf8(isolate, "js_trace",
+                                                  v8::NewStringType::kNormal)
+                              .ToLocalChecked())
+                 .FromJust()) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSTrace);
-  } else if (name->Equals(v8::String::NewFromUtf8(isolate, "js_entry_sp"))) {
+  } else if (name->Equals(context,
+                          v8::String::NewFromUtf8(isolate, "js_entry_sp",
+                                                  v8::NewStringType::kNormal)
+                              .ToLocalChecked())
+                 .FromJust()) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySP);
-  } else if (name->Equals(v8::String::NewFromUtf8(isolate,
-                                                  "js_entry_sp_level2"))) {
+  } else if (name->Equals(context,
+                          v8::String::NewFromUtf8(isolate, "js_entry_sp_level2",
+                                                  v8::NewStringType::kNormal)
+                              .ToLocalChecked())
+                 .FromJust()) {
     return v8::FunctionTemplate::New(isolate, TraceExtension::JSEntrySPLevel2);
   } else {
     CHECK(false);
-    return v8::Handle<v8::FunctionTemplate>();
+    return v8::Local<v8::FunctionTemplate>();
   }
 }
 

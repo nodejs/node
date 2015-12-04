@@ -191,12 +191,12 @@ static void InitializeVM() {
   RESET();                                                                     \
   START_AFTER_RESET();
 
-#define RUN()                                                \
-  CpuFeatures::FlushICache(buf, masm.SizeOfGeneratedCode()); \
-  {                                                          \
-    void (*test_function)(void);                             \
-    memcpy(&test_function, &buf, sizeof(buf));               \
-    test_function();                                         \
+#define RUN()                                                       \
+  Assembler::FlushICache(isolate, buf, masm.SizeOfGeneratedCode()); \
+  {                                                                 \
+    void (*test_function)(void);                                    \
+    memcpy(&test_function, &buf, sizeof(buf));                      \
+    test_function();                                                \
   }
 
 #define END()                                                                  \

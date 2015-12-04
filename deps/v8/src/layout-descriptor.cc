@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/layout-descriptor.h"
+
 #include <sstream>
 
-#include "src/v8.h"
-
 #include "src/base/bits.h"
-#include "src/layout-descriptor.h"
+#include "src/handles-inl.h"
 
 using v8::base::bits::CountTrailingZeros32;
 

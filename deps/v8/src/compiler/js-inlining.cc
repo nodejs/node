@@ -6,6 +6,7 @@
 
 #include "src/ast.h"
 #include "src/ast-numbering.h"
+#include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
@@ -14,6 +15,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
@@ -136,18 +138,17 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
     switch (use->opcode()) {
       case IrOpcode::kParameter: {
         int index = 1 + ParameterIndexOf(use->op());
+        DCHECK_LE(index, inlinee_context_index);
         if (index < inliner_inputs && index < inlinee_context_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
           Replace(use, call->InputAt(index));
         } else if (index == inlinee_context_index) {
+          // The projection is requesting the inlinee function context.
           Replace(use, context);
-        } else if (index < inlinee_context_index) {
+        } else {
           // Call has fewer arguments than required, fill with undefined.
           Replace(use, jsgraph_->UndefinedConstant());
-        } else {
-          // We got too many arguments, discard for now.
-          // TODO(sigurds): Fix to treat arguments array correctly.
         }
         break;
       }
@@ -178,33 +179,37 @@ Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
       case IrOpcode::kDeoptimize:
       case IrOpcode::kTerminate:
       case IrOpcode::kThrow:
-        jsgraph_->graph()->end()->AppendInput(jsgraph_->zone(), input);
-        jsgraph_->graph()->end()->set_op(
-            jsgraph_->common()->End(jsgraph_->graph()->end()->InputCount()));
+        NodeProperties::MergeControlToEnd(jsgraph_->graph(), jsgraph_->common(),
+                                          input);
         break;
       default:
         UNREACHABLE();
         break;
     }
   }
-  DCHECK_NE(0u, values.size());
   DCHECK_EQ(values.size(), effects.size());
   DCHECK_EQ(values.size(), controls.size());
-  int const input_count = static_cast<int>(controls.size());
-  Node* control_output = jsgraph_->graph()->NewNode(
-      jsgraph_->common()->Merge(input_count), input_count, &controls.front());
-  values.push_back(control_output);
-  effects.push_back(control_output);
-  Node* value_output = jsgraph_->graph()->NewNode(
-      jsgraph_->common()->Phi(kMachAnyTagged, input_count),
-      static_cast<int>(values.size()), &values.front());
-  Node* effect_output = jsgraph_->graph()->NewNode(
-      jsgraph_->common()->EffectPhi(input_count),
-      static_cast<int>(effects.size()), &effects.front());
 
-  ReplaceWithValue(call, value_output, effect_output, control_output);
-
-  return Changed(value_output);
+  // Depending on whether the inlinee produces a value, we either replace value
+  // uses with said value or kill value uses if no value can be returned.
+  if (values.size() > 0) {
+    int const input_count = static_cast<int>(controls.size());
+    Node* control_output = jsgraph_->graph()->NewNode(
+        jsgraph_->common()->Merge(input_count), input_count, &controls.front());
+    values.push_back(control_output);
+    effects.push_back(control_output);
+    Node* value_output = jsgraph_->graph()->NewNode(
+        jsgraph_->common()->Phi(kMachAnyTagged, input_count),
+        static_cast<int>(values.size()), &values.front());
+    Node* effect_output = jsgraph_->graph()->NewNode(
+        jsgraph_->common()->EffectPhi(input_count),
+        static_cast<int>(effects.size()), &effects.front());
+    ReplaceWithValue(call, value_output, effect_output, control_output);
+    return Changed(value_output);
+  } else {
+    ReplaceWithValue(call, call, call, jsgraph_->Dead());
+    return Changed(call);
+  }
 }
 
 
@@ -243,9 +248,8 @@ Reduction JSInliner::Reduce(Node* node) {
   HeapObjectMatcher match(call.jsfunction());
   if (!match.HasValue()) return NoChange();
 
-  if (!match.Value().handle()->IsJSFunction()) return NoChange();
-  Handle<JSFunction> function =
-      Handle<JSFunction>::cast(match.Value().handle());
+  if (!match.Value()->IsJSFunction()) return NoChange();
+  Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
   if (mode_ == kRestrictedInlining && !function->shared()->force_inline()) {
     return NoChange();
   }
@@ -296,12 +300,18 @@ Reduction JSInliner::Reduce(Node* node) {
   CompilationInfo info(&parse_info);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
 
-  if (!Compiler::ParseAndAnalyze(info.parse_info())) return NoChange();
-  if (!Compiler::EnsureDeoptimizationSupport(&info)) return NoChange();
+  if (!Compiler::ParseAndAnalyze(info.parse_info())) {
+    TRACE("Not inlining %s into %s because parsing failed\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    if (info_->isolate()->has_pending_exception()) {
+      info_->isolate()->clear_pending_exception();
+    }
+    return NoChange();
+  }
 
-  if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {
-    // For now do not inline functions that use their arguments array.
-    TRACE("Not inlining %s into %s because inlinee uses arguments array\n",
+  if (!Compiler::EnsureDeoptimizationSupport(&info)) {
+    TRACE("Not inlining %s into %s because deoptimization support failed\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();

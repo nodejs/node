@@ -174,9 +174,11 @@ class CompareICState {
   //   ... < GENERIC
   //   SMI < NUMBER
   //   INTERNALIZED_STRING < STRING
+  //   INTERNALIZED_STRING < UNIQUE_NAME
   //   KNOWN_OBJECT < OBJECT
   enum State {
     UNINITIALIZED,
+    BOOLEAN,
     SMI,
     NUMBER,
     STRING,

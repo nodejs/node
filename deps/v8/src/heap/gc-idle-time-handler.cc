@@ -26,42 +26,24 @@ void GCIdleTimeAction::Print() {
     case DO_NOTHING:
       PrintF("no action");
       break;
-    case DO_INCREMENTAL_MARKING:
-      PrintF("incremental marking with step %" V8_PTR_PREFIX "d / ms",
-             parameter);
+    case DO_INCREMENTAL_STEP:
+      PrintF("incremental step");
       if (additional_work) {
         PrintF("; finalized marking");
       }
       break;
-    case DO_SCAVENGE:
-      PrintF("scavenge");
-      break;
     case DO_FULL_GC:
       PrintF("full GC");
-      break;
-    case DO_FINALIZE_SWEEPING:
-      PrintF("finalize sweeping");
       break;
   }
 }
 
 
-void GCIdleTimeHandler::HeapState::Print() {
+void GCIdleTimeHeapState::Print() {
   PrintF("contexts_disposed=%d ", contexts_disposed);
   PrintF("contexts_disposal_rate=%f ", contexts_disposal_rate);
   PrintF("size_of_objects=%" V8_PTR_PREFIX "d ", size_of_objects);
   PrintF("incremental_marking_stopped=%d ", incremental_marking_stopped);
-  PrintF("sweeping_in_progress=%d ", sweeping_in_progress);
-  PrintF("has_low_allocation_rate=%d", has_low_allocation_rate);
-  PrintF("mark_compact_speed=%" V8_PTR_PREFIX "d ",
-         mark_compact_speed_in_bytes_per_ms);
-  PrintF("incremental_marking_speed=%" V8_PTR_PREFIX "d ",
-         incremental_marking_speed_in_bytes_per_ms);
-  PrintF("scavenge_speed=%" V8_PTR_PREFIX "d ", scavenge_speed_in_bytes_per_ms);
-  PrintF("new_space_size=%" V8_PTR_PREFIX "d ", used_new_space_size);
-  PrintF("new_space_capacity=%" V8_PTR_PREFIX "d ", new_space_capacity);
-  PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
-         new_space_allocation_throughput_in_bytes_per_ms);
 }
 
 
@@ -108,63 +90,6 @@ size_t GCIdleTimeHandler::EstimateFinalIncrementalMarkCompactTime(
   size_t result =
       size_of_objects / final_incremental_mark_compact_speed_in_bytes_per_ms;
   return Min(result, kMaxFinalIncrementalMarkCompactTimeInMs);
-}
-
-
-bool GCIdleTimeHandler::ShouldDoScavenge(
-    size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,
-    size_t scavenge_speed_in_bytes_per_ms,
-    size_t new_space_allocation_throughput_in_bytes_per_ms) {
-  if (idle_time_in_ms >= kMinBackgroundIdleTime) {
-    // It is better to do full GC for the background tab.
-    return false;
-  }
-  size_t new_space_allocation_limit =
-      kMaxScheduledIdleTime * scavenge_speed_in_bytes_per_ms;
-
-  // If the limit is larger than the new space size, then scavenging used to be
-  // really fast. We can take advantage of the whole new space.
-  if (new_space_allocation_limit > new_space_size) {
-    new_space_allocation_limit = new_space_size;
-  }
-
-  // We do not know the allocation throughput before the first scavenge.
-  // TODO(hpayer): Estimate allocation throughput before the first scavenge.
-  if (new_space_allocation_throughput_in_bytes_per_ms > 0) {
-    // We have to trigger scavenge before we reach the end of new space.
-    size_t adjust_limit = new_space_allocation_throughput_in_bytes_per_ms *
-                          kTimeUntilNextIdleEvent;
-    if (adjust_limit > new_space_allocation_limit) {
-      new_space_allocation_limit = 0;
-    } else {
-      new_space_allocation_limit -= adjust_limit;
-    }
-  }
-
-  if (new_space_allocation_throughput_in_bytes_per_ms <
-      kLowAllocationThroughput) {
-    new_space_allocation_limit =
-        Min(new_space_allocation_limit,
-            static_cast<size_t>(new_space_size * kConservativeTimeRatio));
-  }
-
-  // The allocated new space limit to trigger a scavange has to be at least
-  // kMinimumNewSpaceSizeToPerformScavenge.
-  if (new_space_allocation_limit < kMinimumNewSpaceSizeToPerformScavenge) {
-    new_space_allocation_limit = kMinimumNewSpaceSizeToPerformScavenge;
-  }
-
-  if (scavenge_speed_in_bytes_per_ms == 0) {
-    scavenge_speed_in_bytes_per_ms = kInitialConservativeScavengeSpeed;
-  }
-
-  if (new_space_allocation_limit <= used_new_space_size) {
-    if (used_new_space_size / scavenge_speed_in_bytes_per_ms <=
-        idle_time_in_ms) {
-      return true;
-    }
-  }
-  return false;
 }
 
 
@@ -228,7 +153,7 @@ GCIdleTimeAction GCIdleTimeHandler::NothingOrDone(double idle_time_in_ms) {
 // (5) If incremental marking is in progress, we perform a marking step. Note,
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
-                                            HeapState heap_state) {
+                                            GCIdleTimeHeapState heap_state) {
   if (static_cast<int>(idle_time_in_ms) <= 0) {
     if (heap_state.incremental_marking_stopped) {
       if (ShouldDoContextDisposalMarkCompact(
@@ -247,30 +172,11 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     return NothingOrDone(idle_time_in_ms);
   }
 
-  if (ShouldDoScavenge(
-          static_cast<size_t>(idle_time_in_ms), heap_state.new_space_capacity,
-          heap_state.used_new_space_size,
-          heap_state.scavenge_speed_in_bytes_per_ms,
-          heap_state.new_space_allocation_throughput_in_bytes_per_ms)) {
-    return GCIdleTimeAction::Scavenge();
-  }
-
-  if (heap_state.sweeping_in_progress) {
-    if (heap_state.sweeping_completed) {
-      return GCIdleTimeAction::FinalizeSweeping();
-    } else {
-      return NothingOrDone(idle_time_in_ms);
-    }
-  }
-
   if (!FLAG_incremental_marking || heap_state.incremental_marking_stopped) {
     return GCIdleTimeAction::Done();
   }
 
-  size_t step_size = EstimateMarkingStepSize(
-      static_cast<size_t>(kIncrementalMarkingStepTimeInMs),
-      heap_state.incremental_marking_speed_in_bytes_per_ms);
-  return GCIdleTimeAction::IncrementalMarking(step_size);
+  return GCIdleTimeAction::IncrementalStep();
 }
 
 

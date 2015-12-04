@@ -175,6 +175,15 @@ class ConstructFrameConstants : public AllStatic {
 };
 
 
+class InterpreterFrameConstants : public AllStatic {
+ public:
+  // Register file pointer relative.
+  static const int kLastParamFromRegisterPointer =
+      StandardFrameConstants::kFixedFrameSize + kPointerSize;
+  static const int kFunctionFromRegisterPointer = kPointerSize;
+};
+
+
 // Abstract base class for all stack frames.
 class StackFrame BASE_EMBEDDED {
  public:
@@ -515,16 +524,9 @@ class StandardFrame: public StackFrame {
 
 class FrameSummary BASE_EMBEDDED {
  public:
-  FrameSummary(Object* receiver,
-               JSFunction* function,
-               Code* code,
-               int offset,
-               bool is_constructor)
-      : receiver_(receiver, function->GetIsolate()),
-        function_(function),
-        code_(code),
-        offset_(offset),
-        is_constructor_(is_constructor) { }
+  FrameSummary(Object* receiver, JSFunction* function, Code* code, int offset,
+               bool is_constructor);
+
   Handle<Object> receiver() { return receiver_; }
   Handle<JSFunction> function() { return function_; }
   Handle<Code> code() { return code_; }
@@ -573,6 +575,10 @@ class JavaScriptFrame: public StandardFrame {
 
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
+
+  // Determines whether this frame includes inlined activations. To get details
+  // about the inlined frames use {GetFunctions} and {Summarize}.
+  bool HasInlinedFrames();
 
   // Returns the original constructor function that was used in the constructor
   // call to this frame. Note that this is only valid on constructor frames.

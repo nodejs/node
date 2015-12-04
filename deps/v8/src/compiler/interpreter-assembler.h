@@ -9,13 +9,16 @@
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
 #include "src/base/smart-pointers.h"
+#include "src/builtins.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/unique.h"
+#include "src/runtime/runtime.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
+class CallInterfaceDescriptor;
 class Isolate;
 class Zone;
 
@@ -36,6 +39,12 @@ class InterpreterAssembler {
 
   Handle<Code> GenerateCode();
 
+  // Returns the count immediate for bytecode operand |operand_index| in the
+  // current bytecode.
+  Node* BytecodeOperandCount(int operand_index);
+  // Returns the index immediate for bytecode operand |operand_index| in the
+  // current bytecode.
+  Node* BytecodeOperandIdx(int operand_index);
   // Returns the Imm8 immediate for bytecode operand |operand_index| in the
   // current bytecode.
   Node* BytecodeOperandImm8(int operand_index);
@@ -51,14 +60,61 @@ class InterpreterAssembler {
   Node* LoadRegister(Node* reg_index);
   Node* StoreRegister(Node* value, Node* reg_index);
 
+  // Returns the location in memory of the register |reg_index| in the
+  // interpreter register file.
+  Node* RegisterLocation(Node* reg_index);
+
   // Constants.
   Node* Int32Constant(int value);
+  Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
-  Node* HeapConstant(Unique<HeapObject> object);
+  Node* HeapConstant(Handle<HeapObject> object);
+  Node* BooleanConstant(bool value);
 
   // Tag and untag Smi values.
   Node* SmiTag(Node* value);
   Node* SmiUntag(Node* value);
+
+  // Basic arithmetic operations.
+  Node* IntPtrAdd(Node* a, Node* b);
+  Node* IntPtrSub(Node* a, Node* b);
+  Node* WordShl(Node* value, int shift);
+
+  // Load constant at |index| in the constant pool.
+  Node* LoadConstantPoolEntry(Node* index);
+
+  // Load a field from an object on the heap.
+  Node* LoadObjectField(Node* object, int offset);
+
+  // Load |slot_index| from a context.
+  Node* LoadContextSlot(Node* context, int slot_index);
+
+  // Load |slot_index| from the current context.
+  Node* LoadContextSlot(int slot_index);
+
+  // Load the TypeFeedbackVector for the current function.
+  Node* LoadTypeFeedbackVector();
+
+  // Call JSFunction or Callable |function| with |arg_count| (not including
+  // receiver) and the first argument located at |first_arg|.
+  Node* CallJS(Node* function, Node* first_arg, Node* arg_count);
+
+  // Call an IC code stub.
+  Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
+               Node* arg2, Node* arg3, Node* arg4);
+  Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node* arg1,
+               Node* arg2, Node* arg3, Node* arg4, Node* arg5);
+
+  // Call runtime function.
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1);
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
+
+  // Jump relative to the current bytecode by |jump_offset|.
+  void Jump(Node* jump_offset);
+
+  // Jump relative to the current bytecode by |jump_offset| if the
+  // word values |lhs| and |rhs| are equal.
+  void JumpIfWordEqual(Node* lhs, Node* rhs, Node* jump_offset);
 
   // Returns from the function.
   void Return();
@@ -81,8 +137,10 @@ class InterpreterAssembler {
   Node* BytecodeArrayTaggedPointer();
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   Node* BytecodeOffset();
-  // Returns a pointer to first entry in the interpreter dispatch table.
+  // Returns a raw pointer to first entry in the interpreter dispatch table.
   Node* DispatchTableRawPointer();
+  // Returns a tagged pointer to the current context.
+  Node* ContextTaggedPointer();
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   Node* RegisterFrameOffset(Node* index);
@@ -91,20 +149,29 @@ class InterpreterAssembler {
   Node* BytecodeOperand(int operand_index);
   Node* BytecodeOperandSignExtended(int operand_index);
 
+  Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node** args);
+  Node* CallJSBuiltin(int context_index, Node* receiver, Node** js_args,
+                      int js_arg_count);
+
   // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
   // update BytecodeOffset() itself.
   Node* Advance(int delta);
+  Node* Advance(Node* delta);
 
-  // Sets the end node of the graph.
-  void SetEndInput(Node* input);
+  // Starts next instruction dispatch at |new_bytecode_offset|.
+  void DispatchTo(Node* new_bytecode_offset);
+
+  // Adds an end node of the graph.
+  void AddEndInput(Node* input);
 
   // Private helpers which delegate to RawMachineAssembler.
   Isolate* isolate();
   Schedule* schedule();
+  Zone* zone();
 
   interpreter::Bytecode bytecode_;
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
-  Node* end_node_;
+  ZoneVector<Node*> end_nodes_;
   Node* accumulator_;
   bool code_generated_;
 

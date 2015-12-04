@@ -5,6 +5,10 @@
 #ifndef V8_COMPILATION_CACHE_H_
 #define V8_COMPILATION_CACHE_H_
 
+#include "src/allocation.h"
+#include "src/handles.h"
+#include "src/objects.h"
+
 namespace v8 {
 namespace internal {
 
