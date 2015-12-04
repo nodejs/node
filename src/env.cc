@@ -1,6 +1,13 @@
 #include "env.h"
 #include "env-inl.h"
 #include "v8.h"
+
+#if defined(_MSC_VER)
+#define getpid GetCurrentProcessId
+#else
+#include <unistd.h>
+#endif
+
 #include <stdio.h>
 
 namespace node {
