@@ -1,5 +1,19 @@
 # Node.js ChangeLog
 
+## 2015-12-04, Version 0.12.9 (LTS), @rvagg
+
+Security Update
+
+### Notable changes
+
+* http: Fix CVE-2015-8027, a bug whereby an HTTP socket may no longer have a parser associated with it but a pipelined request attempts trigger a pause or resume on the non-existent parser, a potential denial-of-service vulnerability. (Fedor Indutny)
+* openssl: Upgrade to 1.0.1q, fixes CVE-2015-3194 "Certificate verify crash with missing PSS parameter", a potential denial-of-service vector for Node.js TLS servers using client certificate authentication; TLS clients are also impacted. Details are available at <http://openssl.org/news/secadv/20151203.txt>. (Ben Noordhuis) https://github.com/nodejs/node/pull/4133
+
+### Commits
+
+* [8d24a14f2c] - deps: upgrade to openssl 1.0.1q (Ben Noordhuis) https://github.com/nodejs/node/pull/4133
+* [dfc6f4a9af] - http: fix pipeline regression (Fedor Indutny)
+
 ## 2015-12-04, Version 0.10.41 (Maintenance), @rvagg
 
 Security Update
