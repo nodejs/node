@@ -84,7 +84,13 @@ parser.add_option("--fully-static",
     action="store_true",
     dest="fully_static",
     help="Generate an executable without external dynamic libraries. This "
-         "will not work on OSX when using default compilation environment")
+         "will not work on OSX when using the default compilation environment")
+
+parser.add_option("--partly-static",
+    action="store_true",
+    dest="partly_static",
+    help="Generate an executable with libgcc and libstdc++ libraries. This "
+         "will not work on OSX when using the default compilation environment")
 
 parser.add_option("--link-module",
     action="append",
@@ -794,12 +800,19 @@ def configure_openssl(o):
   configure_library('openssl', o)
 
 
-def configure_fullystatic(o):
-  if options.fully_static:
-    o['libraries'] += ['-static']
+def configure_static(o):
+  if options.fully_static or options.partly_static:
     if flavor == 'mac':
       print("Generation of static executable will not work on OSX "
-            "when using default compilation environment")
+            "when using the default compilation environment")
+      return
+
+    if options.fully_static:
+      o['libraries'] += ['-static']
+    elif options.partly_static:
+      o['libraries'] += ['-static-libgcc', '-static-libstdc++']
+      if options.enable_asan:
+        o['libraries'] += ['-static-libasan']
 
 
 def configure_winsdk(o):
@@ -1097,7 +1110,7 @@ configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
 configure_intl(output)
-configure_fullystatic(output)
+configure_static(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults
