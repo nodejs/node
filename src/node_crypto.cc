@@ -644,7 +644,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   if (!ret)
     goto done;
 
-done:
+ done:
   if (extra_certs != nullptr)
     sk_X509_pop_free(extra_certs, X509_free);
   if (extra != nullptr)
