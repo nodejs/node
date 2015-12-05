@@ -164,7 +164,7 @@ Returns emitter, so calls can be chained.
 Removes a listener from the listener array for the specified event.
 **Caution**: changes array indices in the listener array behind the listener.
 
-    const callback = function(stream) {
+    function callback(stream) {
       console.log('someone connected!');
     };
     server.on('connection', callback);
