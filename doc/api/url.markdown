@@ -86,7 +86,7 @@ Here's how the formatting process works:
 * `href` will be ignored.
 * `path` will be ignored.
 * `protocol` is treated the same with or without the trailing `:` (colon).
-  * The protocols `http`, `https`, `ftp`, `gopher`, `file` will be
+  * The protocols `http`, `https`, `ftp`, `gopher`, `file`, `ni` will be
     postfixed with `://` (colon-slash-slash).
   * All other protocols `mailto`, `xmpp`, `aim`, `sftp`, `foo`, etc will
     be postfixed with `:` (colon).
