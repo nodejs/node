@@ -20,9 +20,16 @@
       'type': 'none',
       'toolsets': [ 'target' ],
       'direct_dependent_settings': {
-        'defines': [
-          'UCONFIG_NO_CONVERSION=1',
+        'conditions': [
+          [
+           'icu_small == "true"', {
+             'defines': [ 'UCONFIG_NO_CONVERSION=1' ]
+           }
+          ]
         ]
+        # 'defines': [
+        #   'UCONFIG_NO_CONVERSION=1',
+        # ]
       },
     },
     {
@@ -122,6 +129,17 @@
             '<@(icu_src_i18n)'
           ],
           'conditions': [
+            ['icu_small == "false"', {
+              'sources': [
+                '<@(icu_src_io)'
+              ],
+              'include_dirs': [
+                '../../deps/icu/source/io'
+              ],
+              'defines': [
+                'U_IO_IMPLEMENTATION=1'
+              ]
+            }],
             [ 'icu_ver_major == 55', { 'sources!': [
               ## Strip out the following for ICU 55 only.
               ## add more conditions in the future?
@@ -163,16 +181,25 @@
               '../../deps/icu/source/i18n/uspoof_wsconf.h',
             ]}]],
           'include_dirs': [
-            '../../deps/icu/source/i18n',
+            '../../deps/icu/source/i18n'
           ],
           'defines': [
-            'U_I18N_IMPLEMENTATION=1',
+            'U_I18N_IMPLEMENTATION=1'
           ],
           'dependencies': [ 'icuucx', 'icu_implementation', 'icu_uconfig', 'icu_uconfig_target' ],
           'direct_dependent_settings': {
             'include_dirs': [
-              '../../deps/icu/source/i18n',
+              '../../deps/icu/source/i18n'
             ],
+            'conditions': [
+              [
+                'icu_small == "false"', {
+                  'include_dirs': [
+                    '../../deps/icu/source/io'
+                  ]
+                }
+              ]
+            ]
           },
           'export_dependent_settings': [ 'icuucx', 'icu_uconfig_target' ],
         }],

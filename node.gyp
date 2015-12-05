@@ -79,6 +79,7 @@
       'lib/internal/socket_list.js',
       'lib/internal/util.js',
       'lib/internal/streams/lazy_transform.js',
+      'lib/internal/l10n.js'
     ],
   },
 
@@ -111,6 +112,7 @@
         'src/handle_wrap.cc',
         'src/js_stream.cc',
         'src/node.cc',
+        'src/node_l10n.c',
         'src/node_buffer.cc',
         'src/node_constants.cc',
         'src/node_contextify.cc',
@@ -138,6 +140,7 @@
         'src/udp_wrap.cc',
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
+        'src/node_l10n.h',
         'src/async-wrap.h',
         'src/async-wrap-inl.h',
         'src/base-object.h',
@@ -215,9 +218,14 @@
           'defines': [ 'NODE_HAVE_I18N_SUPPORT=1' ],
           'dependencies': [
             '<(icu_gyp_path):icui18n',
-            '<(icu_gyp_path):icuuc',
+            '<(icu_gyp_path):icuuc'
           ],
           'conditions': [
+            [ 'icu_small=="false"', {
+              'dependencies': [
+                'deps/l10n/l10n.gyp:noderes'
+              ]
+            }],
             [ 'icu_small=="true"', {
               'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
           }]],

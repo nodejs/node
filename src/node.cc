@@ -42,6 +42,7 @@
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
+#include "node_l10n.h"
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
@@ -3264,6 +3265,8 @@ static void ParseArgs(int* argc,
   new_v8_argv[0] = argv[0];
   new_argv[0] = argv[0];
 
+  bool print_help = FALSE, eval_fail = FALSE;
+
   unsigned int index = 1;
   while (index < nargs && argv[index][0] == '-') {
     const char* const arg = argv[index];
@@ -3275,8 +3278,10 @@ static void ParseArgs(int* argc,
       printf("%s\n", NODE_VERSION);
       exit(0);
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
-      PrintHelp();
-      exit(0);
+      // PrintHelp();
+      // exit(0);
+      print_help = TRUE;
+      break;
     } else if (strcmp(arg, "--eval") == 0 ||
                strcmp(arg, "-e") == 0 ||
                strcmp(arg, "--print") == 0 ||
@@ -3290,8 +3295,10 @@ static void ParseArgs(int* argc,
         args_consumed += 1;
         eval_string = argv[index + 1];
         if (eval_string == nullptr) {
-          fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
-          exit(9);
+          // fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+          // exit(9);
+          eval_fail = TRUE;
+          break;
         }
       } else if ((index + 1 < nargs) &&
                  argv[index + 1] != nullptr &&
@@ -3352,6 +3359,31 @@ static void ParseArgs(int* argc,
 
     new_exec_argc += args_consumed;
     index += args_consumed;
+  }
+
+  // Move ICU Initialization here before we init the L10N stuff... so we
+  // can handle PrintHelp and arg errors also...
+  #if defined(NODE_HAVE_I18N_SUPPORT)
+    if (icu_data_dir == nullptr) {
+      // if the parameter isn't given, use the env variable.
+      icu_data_dir = secure_getenv("NODE_ICU_DATA");
+    }
+    // Initialize ICU.
+    // If icu_data_dir is nullptr here, it will load the 'minimal' data.
+    if (!i18n::InitializeICUDirectory(icu_data_dir)) {
+      FatalError(nullptr, "Could not initialize ICU "
+                       "(check NODE_ICU_DATA or --icu-data-dir parameters)");
+    }
+  #endif
+
+  L10N_INIT(nullptr, icu_data_dir);
+  if (print_help) {
+    PrintHelp();
+    exit(0);
+  }
+  if (eval_fail) {
+    fprintf(stderr, "node: -e|--eval requires an argument\n");
+    exit(9);
   }
 
   // Copy remaining arguments.
@@ -3786,18 +3818,18 @@ void Init(int* argc,
   }
 #endif
 
-#if defined(NODE_HAVE_I18N_SUPPORT)
-  if (icu_data_dir == nullptr) {
-    // if the parameter isn't given, use the env variable.
-    icu_data_dir = secure_getenv("NODE_ICU_DATA");
-  }
-  // Initialize ICU.
-  // If icu_data_dir is nullptr here, it will load the 'minimal' data.
-  if (!i18n::InitializeICUDirectory(icu_data_dir)) {
-    FatalError(nullptr, "Could not initialize ICU "
-                     "(check NODE_ICU_DATA or --icu-data-dir parameters)");
-  }
-#endif
+// #if defined(NODE_HAVE_I18N_SUPPORT)
+//   if (icu_data_dir == nullptr) {
+//     // if the parameter isn't given, use the env variable.
+//     icu_data_dir = secure_getenv("NODE_ICU_DATA");
+//   }
+//   // Initialize ICU.
+//   // If icu_data_dir is nullptr here, it will load the 'minimal' data.
+//   if (!i18n::InitializeICUDirectory(icu_data_dir)) {
+//     FatalError(nullptr, "Could not initialize ICU "
+//                      "(check NODE_ICU_DATA or --icu-data-dir parameters)");
+//   }
+// #endif
   // The const_cast doesn't violate conceptual const-ness.  V8 doesn't modify
   // the argv array or the elements it points to.
   if (v8_argc > 1)
