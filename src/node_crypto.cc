@@ -530,46 +530,32 @@ int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
 }
 
 
-// Read a file that contains our certificate in "PEM" format,
-// possibly followed by a sequence of CA certificates that should be
-// sent to the peer in the Certificate message.
-//
-// Taken from OpenSSL - editted for style.
 int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
-                                  BIO* in,
+                                  X509* x,
+                                  STACK_OF(X509)* extra_certs,
                                   X509** cert,
                                   X509** issuer) {
-  int ret = 0;
-  X509* x = nullptr;
-
-  x = PEM_read_bio_X509_AUX(in, nullptr, CryptoPemCallback, nullptr);
-
-  if (x == nullptr) {
-    SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_PEM_LIB);
-    goto end;
-  }
-
-  ret = SSL_CTX_use_certificate(ctx, x);
+  int ret = SSL_CTX_use_certificate(ctx, x);
 
   if (ret) {
     // If we could set up our certificate, now proceed to
     // the CA certificates.
-    X509 *ca;
     int r;
-    unsigned long err;
 
     if (ctx->extra_certs != nullptr) {
       sk_X509_pop_free(ctx->extra_certs, X509_free);
       ctx->extra_certs = nullptr;
     }
 
-    while ((ca = PEM_read_bio_X509(in, nullptr, CryptoPemCallback, nullptr))) {
+    for (int i = 0; i < sk_X509_num(extra_certs); i++) {
+      X509* ca = sk_X509_value(extra_certs, i);
+
       // NOTE: Increments reference count on `ca`
       r = SSL_CTX_add1_chain_cert(ctx, ca);
 
       if (!r) {
-        X509_free(ca);
         ret = 0;
+        *issuer = nullptr;
         goto end;
       }
       // Note that we must not free r if it was successfully
@@ -581,16 +567,6 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       if (*issuer != nullptr || X509_check_issued(ca, x) != X509_V_OK)
         continue;
       *issuer = ca;
-    }
-
-    // When the while loop ends, it's usually just EOF.
-    err = ERR_peek_last_error();
-    if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-        ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
-      ERR_clear_error();
-    } else  {
-      // some real error
-      ret = 0;
     }
   }
 
@@ -608,8 +584,74 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   }
 
  end:
-  if (x != nullptr)
+  if (ret && x != nullptr) {
     *cert = x;
+    CRYPTO_add(&(*cert)->references, 1, CRYPTO_LOCK_X509);
+  }
+  return ret;
+}
+
+
+// Read a file that contains our certificate in "PEM" format,
+// possibly followed by a sequence of CA certificates that should be
+// sent to the peer in the Certificate message.
+//
+// Taken from OpenSSL - editted for style.
+int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
+                                  BIO* in,
+                                  X509** cert,
+                                  X509** issuer) {
+  X509* x = nullptr;
+
+  x = PEM_read_bio_X509_AUX(in, nullptr, CryptoPemCallback, nullptr);
+
+  if (x == nullptr) {
+    SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_PEM_LIB);
+    return 0;
+  }
+
+  X509* extra = nullptr;
+  int ret = 0;
+  unsigned long err = 0;
+
+  // Read extra certs
+  STACK_OF(X509)* extra_certs = sk_X509_new_null();
+  if (extra_certs == nullptr) {
+    // XXX(indutny): Is there a need for SSLerr here?
+    goto done;
+  }
+
+  while ((extra = PEM_read_bio_X509(in, nullptr, CryptoPemCallback, nullptr))) {
+    if (sk_X509_push(extra_certs, extra))
+      continue;
+
+    // Failure, free all certs
+    goto done;
+  }
+  extra = nullptr;
+
+  // When the while loop ends, it's usually just EOF.
+  err = ERR_peek_last_error();
+  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+    ERR_clear_error();
+  } else  {
+    // some real error
+    goto done;
+  }
+
+  ret = SSL_CTX_use_certificate_chain(ctx, x, extra_certs, cert, issuer);
+  if (!ret)
+    goto done;
+
+done:
+  if (extra_certs != nullptr)
+    sk_X509_pop_free(extra_certs, X509_free);
+  if (extra != nullptr)
+    X509_free(extra);
+  if (x != nullptr)
+    X509_free(x);
+
   return ret;
 }
 
@@ -898,7 +940,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   PKCS12* p12 = nullptr;
   EVP_PKEY* pkey = nullptr;
   X509* cert = nullptr;
-  STACK_OF(X509)* extraCerts = nullptr;
+  STACK_OF(X509)* extra_certs = nullptr;
   char* pass = nullptr;
   bool ret = false;
 
@@ -924,27 +966,22 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (d2i_PKCS12_bio(in, &p12) &&
-      PKCS12_parse(p12, pass, &pkey, &cert, &extraCerts) &&
-      SSL_CTX_use_certificate(sc->ctx_, cert) &&
+      PKCS12_parse(p12, pass, &pkey, &cert, &extra_certs) &&
+      SSL_CTX_use_certificate_chain(sc->ctx_,
+                                    cert,
+                                    extra_certs,
+                                    &sc->cert_,
+                                    &sc->issuer_) &&
       SSL_CTX_use_PrivateKey(sc->ctx_, pkey)) {
-    // set extra certs
-    while (X509* x509 = sk_X509_pop(extraCerts)) {
-      if (!sc->ca_store_) {
-        sc->ca_store_ = X509_STORE_new();
-        SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
-      }
-
-      X509_STORE_add_cert(sc->ca_store_, x509);
-      SSL_CTX_add_client_CA(sc->ctx_, x509);
-      X509_free(x509);
-    }
-
-    EVP_PKEY_free(pkey);
-    X509_free(cert);
-    sk_X509_free(extraCerts);
-
     ret = true;
   }
+
+  if (pkey != nullptr)
+    EVP_PKEY_free(pkey);
+  if (cert != nullptr)
+    X509_free(cert);
+  if (extra_certs != nullptr)
+    sk_X509_free(extra_certs);
 
   PKCS12_free(p12);
   BIO_free_all(in);
