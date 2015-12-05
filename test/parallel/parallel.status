@@ -7,9 +7,10 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-cluster-net-send                : PASS,FLAKY
-test-tls-ticket-cluster              : PASS,FLAKY
 test-child-process-fork-regr-gh-2847 : PASS,FLAKY
+test-cluster-net-send                : PASS,FLAKY
+test-cluster-shared-leak             : PASS,FLAKY
+test-tls-ticket-cluster              : PASS,FLAKY
 
 [$system==linux]
 test-http-client-timeout-event       : PASS,FLAKY
