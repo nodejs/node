@@ -23,7 +23,7 @@ attached to.
 Use `require('events')` to access the EventEmitter class.
 
 ```javascript
-var EventEmitter = require('events');
+const EventEmitter = require('events');
 ```
 
 When an `EventEmitter` instance experiences an error, the typical action is
@@ -164,7 +164,7 @@ Returns emitter, so calls can be chained.
 Removes a listener from the listener array for the specified event.
 **Caution**: changes array indices in the listener array behind the listener.
 
-    var callback = function(stream) {
+    function callback(stream) {
       console.log('someone connected!');
     };
     server.on('connection', callback);
