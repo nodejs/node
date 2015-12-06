@@ -70,7 +70,6 @@ function test(testOptions, cb) {
   });
   server.on('OCSPRequest', function(cert, issuer, callback) {
     ++ocspCount;
-    console.log(cert, issuer);
     assert.ok(Buffer.isBuffer(cert));
     assert.ok(Buffer.isBuffer(issuer));
 
