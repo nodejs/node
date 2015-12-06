@@ -334,6 +334,22 @@ try {
 }
 assert.ok(threw, 'wrong constructor validation');
 
+// Validate that a class constructor works with throws()
+threw = false;
+
+try {
+  const ClassError = class {};
+
+  assert.throws(() => {
+    throw new RangeError();
+  }, ClassError);
+} catch (e) {
+  assert(e instanceof RangeError);
+  threw = true;
+}
+
+assert.ok(threw, 'wrong constructor validation');
+
 // use a RegExp to validate error message
 a.throws(makeBlock(thrower, TypeError), /test/);
 
