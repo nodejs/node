@@ -116,7 +116,7 @@ var tests = [
   { ocsp: false }
 ];
 
-if (common.hasFipsCrypto) {
+if (!common.hasFipsCrypto) {
   tests.push({ pfx: pfx, passphrase: 'sample', response: 'hello pfx' });
 }
 
