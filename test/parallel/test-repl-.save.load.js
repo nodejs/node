@@ -61,6 +61,14 @@ putIn.write = function(data) {
 };
 putIn.run(['.load ' + loadFile]);
 
+// throw error on loading directory
+loadFile = common.tmpDir;
+putIn.write = function(data) {
+  assert.equal(data, 'Failed to load:' + loadFile + ' is not a valid file\n');
+  putIn.write = function() {};
+};
+putIn.run(['.load ' + loadFile]);
+
 // clear the REPL
 putIn.run(['.clear']);
 
