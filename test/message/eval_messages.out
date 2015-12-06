@@ -7,7 +7,7 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at doNTCallback0 (node.js:*:*)
+    at nextTickCallbackWith0Args (node.js:*:*)
     at process._tickCallback (node.js:*:*)
 42
 42
@@ -20,7 +20,7 @@ Error: hello
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at doNTCallback0 (node.js:*:*)
+    at nextTickCallbackWith0Args (node.js:*:*)
     at process._tickCallback (node.js:*:*)
 [eval]:1
 throw new Error("hello")
@@ -31,7 +31,7 @@ Error: hello
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at doNTCallback0 (node.js:*:*)
+    at nextTickCallbackWith0Args (node.js:*:*)
     at process._tickCallback (node.js:*:*)
 100
 [eval]:1
@@ -43,7 +43,7 @@ ReferenceError: y is not defined
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at doNTCallback0 (node.js:*:*)
+    at nextTickCallbackWith0Args (node.js:*:*)
     at process._tickCallback (node.js:*:*)
 [eval]:1
 var ______________________________________________; throw 10
