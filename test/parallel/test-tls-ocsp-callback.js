@@ -22,11 +22,14 @@ var constants = require('constants');
 var fs = require('fs');
 var join = require('path').join;
 
-test({ response: false }, function() {
-  test({ response: 'hello world' }, function() {
-    test({ ocsp: false });
-  });
-});
+var pfx = fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
+
+var tests = [
+  { response: false },
+  { response: 'hello world' },
+  { ocsp: false },
+  { pfx: pfx, passphrase: 'sample', response: 'hello pfx' }
+];
 
 function test(testOptions, cb) {
 
@@ -47,6 +50,13 @@ function test(testOptions, cb) {
   var ocspResponse;
   var session;
 
+  if (testOptions.pfx) {
+    delete options.key;
+    delete options.cert;
+    options.pfx = testOptions.pfx;
+    options.passphrase = testOptions.passphrase;
+  }
+
   var server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
       // We're ok with getting ECONNRESET in this test, but it's
@@ -60,6 +70,7 @@ function test(testOptions, cb) {
   });
   server.on('OCSPRequest', function(cert, issuer, callback) {
     ++ocspCount;
+    console.log(cert, issuer);
     assert.ok(Buffer.isBuffer(cert));
     assert.ok(Buffer.isBuffer(issuer));
 
@@ -106,3 +117,13 @@ function test(testOptions, cb) {
     assert.equal(ocspCount, 1);
   });
 }
+
+function runTests(i) {
+  if (i === tests.length) return;
+
+  test(tests[i], common.mustCall(function() {
+    runTests(i + 1);
+  }));
+}
+
+runTests(0);
