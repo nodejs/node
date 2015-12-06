@@ -24,13 +24,6 @@ var join = require('path').join;
 
 var pfx = fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
 
-var tests = [
-  { response: false },
-  { response: 'hello world' },
-  { ocsp: false },
-  { pfx: pfx, passphrase: 'sample', response: 'hello pfx' }
-];
-
 function test(testOptions, cb) {
 
   var keyFile = join(common.fixturesDir, 'keys', 'agent1-key.pem');
@@ -115,6 +108,16 @@ function test(testOptions, cb) {
     assert.equal(clientSecure, requestCount);
     assert.equal(ocspCount, 1);
   });
+}
+
+var tests = [
+  { response: false },
+  { response: 'hello world' },
+  { ocsp: false }
+];
+
+if (common.hasFipsCrypto) {
+  tests.push({ pfx: pfx, passphrase: 'sample', response: 'hello pfx' });
 }
 
 function runTests(i) {
