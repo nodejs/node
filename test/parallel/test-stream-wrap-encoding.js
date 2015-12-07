@@ -5,9 +5,7 @@ const assert = require('assert');
 const StreamWrap = require('_stream_wrap');
 const Duplex = require('stream').Duplex;
 
-var done = false;
-
-var stream = new Duplex({
+const stream = new Duplex({
   read: function() {
   },
   write: function() {
@@ -16,7 +14,7 @@ var stream = new Duplex({
 
 stream.setEncoding('ascii');
 
-var wrap = new StreamWrap(stream);
+const wrap = new StreamWrap(stream);
 
 wrap.on('error', common.mustCall(function(err) {
   assert(/StringDecoder/.test(err.message));
