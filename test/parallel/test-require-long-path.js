@@ -2,22 +2,50 @@
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-// make a path that is more than 260 chars long.
-const dirNameLen = Math.max(260 - common.tmpDir.length, 1);
-const dirName = path.join(common.tmpDir, 'x'.repeat(dirNameLen));
-const fullDirPath = path.resolve(dirName);
+// when it fails test again under real OS tmp dir on Linux when it is
+// readable/writable to avoid failing tests on ecryptfs filesystems:
+// https://github.com/nodejs/node/issues/2255
+// it follows advice in comments to:
+// https://github.com/nodejs/node/pull/3925
+// https://github.com/nodejs/node/pull/3929
+try {
+  common.refreshTmpDir();
+  testRequireLongPath(common.tmpDir);
+  common.refreshTmpDir();
+} catch (e) {
+  if (process.platform == 'linux') {
+    fs.accessSync(os.tmpdir(), fs.R_OK | fs.W_OK);
+    const tmpDir = path.join(os.tmpdir(),
+      `node-${process.version}-test-${1e6 * Math.random() | 0}`);
+    fs.mkdirSync(tmpDir);
+    testRequireLongPath(tmpDir);
+    fs.rmdirSync(tmpDir);
+  } else {
+    throw e;
+  }
+}
 
-const indexFile = path.join(fullDirPath, 'index.js');
-const otherFile = path.join(fullDirPath, 'other.js');
+function testRequireLongPath(tmpDir) {
 
-common.refreshTmpDir();
+  // make a path that is more than 260 chars long.
+  const dirNameLen = Math.max(260 - tmpDir.length, 1);
+  const dirName = path.join(tmpDir, 'x'.repeat(dirNameLen));
+  const fullDirPath = path.resolve(dirName);
 
-fs.mkdirSync(fullDirPath);
-fs.writeFileSync(indexFile, 'require("./other");');
-fs.writeFileSync(otherFile, '');
+  const indexFile = path.join(fullDirPath, 'index.js');
+  const otherFile = path.join(fullDirPath, 'other.js');
 
-require(indexFile);
-require(otherFile);
+  fs.mkdirSync(fullDirPath);
+  fs.writeFileSync(indexFile, 'require("./other");');
+  fs.writeFileSync(otherFile, '');
 
-common.refreshTmpDir();
+  require(indexFile);
+  require(otherFile);
+
+  fs.unlinkSync(indexFile);
+  fs.unlinkSync(otherFile);
+  fs.rmdirSync(fullDirPath);
+
+}
