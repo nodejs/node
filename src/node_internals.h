@@ -172,7 +172,7 @@ inline MUST_USE_RESULT bool ParseArrayIndex(v8::Local<v8::Value> arg,
     return true;
   }
 
-  int32_t tmp_i = arg->Int32Value();
+  int32_t tmp_i = arg->Uint32Value();
 
   if (tmp_i < 0)
     return false;
