@@ -535,6 +535,15 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                   STACK_OF(X509)* extra_certs,
                                   X509** cert,
                                   X509** issuer) {
+  if (*issuer != nullptr) {
+    X509_free(*issuer);
+    *issuer = nullptr;
+  }
+  if (*cert != nullptr) {
+    X509_free(*cert);
+    *cert = nullptr;
+  }
+
   int ret = SSL_CTX_use_certificate(ctx, x);
 
   if (ret) {
@@ -566,6 +575,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       // Find issuer
       if (*issuer != nullptr || X509_check_issued(ca, x) != X509_V_OK)
         continue;
+
       *issuer = ca;
     }
   }
@@ -579,14 +589,19 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       // no need to free `store`
     } else {
       // Increment issuer reference count
-      CRYPTO_add(&(*issuer)->references, 1, CRYPTO_LOCK_X509);
+      *issuer = X509_dup(*issuer);
+      if (*issuer == nullptr) {
+        ret = 0;
+        goto end;
+      }
     }
   }
 
  end:
   if (ret && x != nullptr) {
-    *cert = x;
-    CRYPTO_add(&(*cert)->references, 1, CRYPTO_LOCK_X509);
+    *cert = X509_dup(x);
+    if (*cert == nullptr)
+      ret = 0;
   }
   return ret;
 }
