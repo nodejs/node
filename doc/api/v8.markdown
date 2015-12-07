@@ -3,7 +3,7 @@
     Stability: 2 - Stable
 
 This module exposes events and interfaces specific to the version of [V8][]
-built with node.js.  These interfaces are subject to change by upstream and are
+built with Node.js.  These interfaces are subject to change by upstream and are
 therefore not covered under the stability index.
 
 ## getHeapStatistics()
@@ -27,7 +27,7 @@ Set additional V8 command line flags.  Use with care; changing settings
 after the VM has started may result in unpredictable behavior, including
 crashes and data loss.  Or it may simply do nothing.
 
-The V8 options available for a version of node.js may be determined by running
+The V8 options available for a version of Node.js may be determined by running
 `node --v8-options`.  An unofficial, community-maintained list of options
 and their effects is available [here][].
 
