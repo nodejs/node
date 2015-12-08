@@ -17,8 +17,8 @@ to ever `require('buffer')`.
 Converting between Buffers and JavaScript string objects requires an explicit
 encoding method.  The different string encodings are:
 
-* `'ascii'` - for 7-bit ASCII data only.  This encoding method is very fast,
-  and will strip the high bit if set.
+* `'ascii'` - for 7-bit ASCII data only.  This encoding method is very fast and
+  will strip the high bit if set.
 
 * `'utf8'` - Multibyte encoded Unicode characters. Many web pages and other
   document formats use UTF-8.
