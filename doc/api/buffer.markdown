@@ -2,7 +2,7 @@
 
     Stability: 2 - Stable
 
-Pure JavaScript is Unicode friendly but not nice to binary data.  When
+Pure JavaScript is Unicode-friendly but not nice to binary data.  When
 dealing with TCP streams or the file system, it's necessary to handle octet
 streams. Node.js has several strategies for manipulating, creating, and
 consuming octet streams.
@@ -15,23 +15,23 @@ The `Buffer` class is a global, making it very rare that one would need
 to ever `require('buffer')`.
 
 Converting between Buffers and JavaScript string objects requires an explicit
-encoding method.  Here are the different string encodings.
+encoding method.  The different string encodings are:
 
-* `'ascii'` - for 7 bit ASCII data only.  This encoding method is very fast, and
+* `'ascii'` - for 7-bit ASCII data only.  This encoding method is very fast and
   will strip the high bit if set.
 
 * `'utf8'` - Multibyte encoded Unicode characters. Many web pages and other
   document formats use UTF-8.
 
-* `'utf16le'` - 2 or 4 bytes, little endian encoded Unicode characters.
+* `'utf16le'` - 2 or 4 bytes, little-endian encoded Unicode characters.
   Surrogate pairs (U+10000 to U+10FFFF) are supported.
 
 * `'ucs2'` - Alias of `'utf16le'`.
 
 * `'base64'` - Base64 string encoding.
 
-* `'binary'` - A way of encoding the buffer into a one-byte (i.e. `latin-1`)
-  encoded string. The string `'latin-1'` is not supported. Instead simply pass
+* `'binary'` - A way of encoding the buffer into a one-byte (`latin-1`)
+  encoded string. The string `'latin-1'` is not supported. Instead, pass
   `'binary'` to use `'latin-1'` encoding.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
@@ -45,8 +45,8 @@ Creating a typed array from a `Buffer` works with the following caveats:
    with elements `[1,2,3,4]`, not a `Uint32Array` with a single element
    `[0x1020304]` or `[0x4030201]`.
 
-NOTE: Node.js v0.8 simply retained a reference to the buffer in `array.buffer`
-instead of cloning it.
+NOTE: Node.js v0.8 retained a reference to the buffer in `array.buffer` instead
+of cloning it.
 
 While more efficient, it introduces subtle incompatibilities with the typed
 arrays specification.  `ArrayBuffer#slice()` makes a copy of the slice while
@@ -74,9 +74,9 @@ Copies the passed `buffer` data onto a new `Buffer` instance.
 * `size` Number
 
 Allocates a new buffer of `size` bytes.  `size` must be less than
-1,073,741,824 bytes (1 GB) on 32 bits architectures or
-2,147,483,648 bytes (2 GB) on 64 bits architectures,
-otherwise a [`RangeError`][] is thrown.
+1,073,741,824 bytes (1 GB) on 32-bit architectures or
+2,147,483,648 bytes (2 GB) on 64-bit architectures.
+Otherwise, a [`RangeError`][] is thrown.
 
 Unlike `ArrayBuffers`, the underlying memory for buffers is not initialized. So
 the contents of a newly created `Buffer` are unknown and could contain
@@ -208,14 +208,14 @@ Example: copy an ASCII string into a buffer, one byte at a time:
 
     // Node.js
 
-Returns a boolean of whether `this` and `otherBuffer` have the same
+Returns a boolean indicating whether `this` and `otherBuffer` have the same
 bytes.
 
 ### buf.compare(otherBuffer)
 
 * `otherBuffer` {Buffer}
 
-Returns a number indicating whether `this` comes before or after or is
+Returns a number indicating whether `this` comes before, after, or is
 the same as the `otherBuffer` in sort order.
 
 
@@ -227,7 +227,7 @@ the same as the `otherBuffer` in sort order.
 * `sourceEnd` Number, Optional, Default: `buffer.length`
 
 Copies data from a region of this buffer to a region in the target buffer even
-if the target memory region overlaps with the source. If `undefined` the
+if the target memory region overlaps with the source. If `undefined`, the
 `targetStart` and `sourceStart` parameters default to `0` while `sourceEnd`
 defaults to `buffer.length`.
 
@@ -326,7 +326,7 @@ use [`buf.slice`][] to create a new buffer.
 * `noAssert` Boolean, Optional, Default: false
 * Return: Number
 
-Reads a 64 bit double from the buffer at the specified offset with specified
+Reads a 64-bit double from the buffer at the specified offset with specified
 endian format.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
@@ -356,7 +356,7 @@ Example:
 * `noAssert` Boolean, Optional, Default: false
 * Return: Number
 
-Reads a 32 bit float from the buffer at the specified offset with specified
+Reads a 32-bit float from the buffer at the specified offset with specified
 endian format.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
@@ -381,7 +381,7 @@ Example:
 * `noAssert` Boolean, Optional, Default: false
 * Return: Number
 
-Reads a signed 8 bit integer from the buffer at the specified offset.
+Reads a signed 8-bit integer from the buffer at the specified offset.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
 may be beyond the end of the buffer. Defaults to `false`.
@@ -396,7 +396,7 @@ complement signed values.
 * `noAssert` Boolean, Optional, Default: false
 * Return: Number
 
-Reads a signed 16 bit integer from the buffer at the specified offset with
+Reads a signed 16-bit integer from the buffer at the specified offset with
 specified endian format.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
@@ -412,7 +412,7 @@ complement signed values.
 * `noAssert` Boolean, Optional, Default: false
 * Return: Number
 
-Reads a signed 32 bit integer from the buffer at the specified offset with
+Reads a signed 32-bit integer from the buffer at the specified offset with
 specified endian format.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
@@ -447,7 +447,7 @@ may be beyond the end of the buffer. Defaults to `false`.
 * `noAssert` Boolean, Optional, Default: false
 * Return: Number
 
-Reads an unsigned 8 bit integer from the buffer at the specified offset.
+Reads an unsigned 8-bit integer from the buffer at the specified offset.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
 may be beyond the end of the buffer. Defaults to `false`.
@@ -477,7 +477,7 @@ Example:
 * `noAssert` Boolean, Optional, Default: false
 * Return: Number
 
-Reads an unsigned 16 bit integer from the buffer at the specified offset with
+Reads an unsigned 16-bit integer from the buffer at the specified offset with
 specified endian format.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
@@ -513,7 +513,7 @@ Example:
 * `noAssert` Boolean, Optional, Default: false
 * Return: Number
 
-Reads an unsigned 32 bit integer from the buffer at the specified offset with
+Reads an unsigned 32-bit integer from the buffer at the specified offset with
 specified endian format.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
@@ -604,7 +604,7 @@ See `buffer.write()` example, above.
 
 ### buf.toJSON()
 
-Returns a JSON-representation of the Buffer instance.  `JSON.stringify`
+Returns a JSON representation of the Buffer instance.  `JSON.stringify`
 implicitly calls this function when stringifying a Buffer instance.
 
 Example:
@@ -650,7 +650,7 @@ The method will not write partial characters.
 * `noAssert` Boolean, Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
-format. Note, `value` must be a valid 64 bit double.
+format. `value` must be a valid 64-bit double.
 
 Set `noAssert` to true to skip validation of `value` and `offset`. This means
 that `value` may be too large for the specific function and `offset` may be
@@ -679,7 +679,7 @@ Example:
 * `noAssert` Boolean, Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
-format. Note, behavior is unspecified if `value` is not a 32 bit float.
+format. Behavior is unspecified if `value` is not a 32-bit float.
 
 Set `noAssert` to true to skip validation of `value` and `offset`. This means
 that `value` may be too large for the specific function and `offset` may be
@@ -706,8 +706,8 @@ Example:
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
 
-Writes `value` to the buffer at the specified offset. Note, `value` must be a
-valid signed 8 bit integer.
+Writes `value` to the buffer at the specified offset. `value` must be a
+valid signed 8-bit integer.
 
 Set `noAssert` to true to skip validation of `value` and `offset`. This means
 that `value` may be too large for the specific function and `offset` may be
@@ -725,7 +725,7 @@ signed integer into `buffer`.
 * `noAssert` Boolean, Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
-format. Note, `value` must be a valid signed 16 bit integer.
+format. `value` must be a valid signed 16-bit integer.
 
 Set `noAssert` to true to skip validation of `value` and `offset`. This means
 that `value` may be too large for the specific function and `offset` may be
@@ -743,7 +743,7 @@ complement signed integer into `buffer`.
 * `noAssert` Boolean, Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
-format. Note, `value` must be a valid signed 32 bit integer.
+format. `value` must be a valid signed 32-bit integer.
 
 Set `noAssert` to true to skip validation of `value` and `offset`. This means
 that `value` may be too large for the specific function and `offset` may be
@@ -778,8 +778,8 @@ to `false`.
 * `offset` Number
 * `noAssert` Boolean, Optional, Default: false
 
-Writes `value` to the buffer at the specified offset. Note, `value` must be a
-valid unsigned 8 bit integer.
+Writes `value` to the buffer at the specified offset. `value` must be a
+valid unsigned 8-bit integer.
 
 Set `noAssert` to true to skip validation of `value` and `offset`. This means
 that `value` may be too large for the specific function and `offset` may be
@@ -806,7 +806,7 @@ Example:
 * `noAssert` Boolean, Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
-format. Note, `value` must be a valid unsigned 16 bit integer.
+format. `value` must be a valid unsigned 16-bit integer.
 
 Set `noAssert` to true to skip validation of `value` and `offset`. This means
 that `value` may be too large for the specific function and `offset` may be
@@ -837,7 +837,7 @@ Example:
 * `noAssert` Boolean, Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
-format. Note, `value` must be a valid unsigned 32 bit integer.
+format. `value` must be a valid unsigned 32-bit integer.
 
 Set `noAssert` to true to skip validation of `value` and `offset`. This means
 that `value` may be too large for the specific function and `offset` may be
@@ -886,7 +886,7 @@ be overridden by user modules. See [`util.inspect()`][] for more details on
 `buffer.inspect()` behavior.
 
 Note that this is a property on the buffer module returned by
-`require('buffer')`, not on the Buffer global, or a buffer instance.
+`require('buffer')`, not on the Buffer global or a buffer instance.
 
 ## ES6 iteration
 
@@ -901,7 +901,7 @@ Buffers can be iterated over using `for..of` syntax:
     // 2
     // 3
 
-Additionally, `buffer.values()`, `buffer.keys()` and `buffer.entries()`
+Additionally, the `buffer.values()`, `buffer.keys()`, and `buffer.entries()`
 methods can be used to create iterators.
 
 ## Class: SlowBuffer
@@ -914,7 +914,7 @@ larger allocated object. This approach improves both performance and memory
 usage since v8 does not need to track and cleanup as many `Persistent` objects.
 
 In the case where a developer may need to retain a small chunk of memory from a
-pool for an indeterminate amount of time it may be appropriate to create an
+pool for an indeterminate amount of time, it may be appropriate to create an
 un-pooled Buffer instance using SlowBuffer and copy out the relevant bits.
 
     // need to keep around a few small chunks of memory
@@ -929,8 +929,8 @@ un-pooled Buffer instance using SlowBuffer and copy out the relevant bits.
       store.push(sb);
     });
 
-Though this should be used sparingly and only be a last resort *after* a developer
-has actively observed undue memory retention in their applications.
+This should be used only as a last resort *after* a developer has observed
+undue memory retention in their applications.
 
 [`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
 [`buf.fill(0)`]: #buffer_buf_fill_value_offset_end
