@@ -1,6 +1,6 @@
 # Addons
 
-Addons are dynamically linked shared objects. They can provide glue to C and
+Addons are dynamically-linked shared objects. They can provide glue to C and
 C++ libraries. The API (at the moment) is rather complex, involving
 knowledge of several libraries:
 
@@ -11,11 +11,11 @@ knowledge of several libraries:
 
  - [libuv][], C event loop library. Anytime one needs to wait for a file
    descriptor to become readable, wait for a timer, or wait for a signal
-   to be received one will need to interface with libuv. That is, if you
+   to be received, one will need to interface with libuv. That is, if you
    perform any I/O, libuv will need to be used.
 
- - Internal Node.js libraries. Most importantly is the `node::ObjectWrap`
-   class which you will likely want to derive from.
+ - Internal Node.js libraries. The most important class is `node::ObjectWrap`
+   which you will likely want to derive from.
 
  - Others. Look in `deps/` for what else is available.
 
@@ -28,7 +28,7 @@ be used as a starting-point for your own Addon.
 
 ## Hello world
 
-To get started let's make a small Addon which is the C++ equivalent of
+To get started, let's make a small Addon which is the C++ equivalent of
 the following JavaScript code:
 
     module.exports.hello = function() { return 'world'; };
@@ -68,11 +68,11 @@ Note that all Node.js addons must export an initialization function:
 There is no semi-colon after `NODE_MODULE` as it's not a function (see
 `node.h`).
 
-The `module_name` needs to match the filename of the final binary (minus the
-.node suffix).
+The `module_name` needs to match the filename of the final binary (excluding
+the .node suffix).
 
 The source code needs to be built into `addon.node`, the binary Addon. To
-do this we create a file called `binding.gyp` which describes the configuration
+do this, we create a file called `binding.gyp` which describes the configuration
 to build your module in a JSON-like format. This file gets compiled by
 [node-gyp][].
 
@@ -89,13 +89,13 @@ The next step is to generate the appropriate project build files for the
 current platform. Use `node-gyp configure` for that.
 
 Now you will have either a `Makefile` (on Unix platforms) or a `vcxproj` file
-(on Windows) in the `build/` directory. Next invoke the `node-gyp build`
+(on Windows) in the `build/` directory. Next, invoke the `node-gyp build`
 command.
 
 Now you have your compiled `.node` bindings file! The compiled bindings end up
 in `build/Release/`.
 
-You can now use the binary addon in an Node.js project `hello.js` by pointing
+You can now use the binary addon in a Node.js project `hello.js` by pointing
 `require` to the recently built `hello.node` module:
 
     // hello.js
@@ -114,7 +114,7 @@ Below are some addon patterns to help you get started. Consult the online
 [Embedder's Guide][] for an explanation of several concepts used such as
 handles, scopes, function templates, etc.
 
-In order to use these examples you need to compile them using `node-gyp`.
+In order to use these examples, you need to compile them using `node-gyp`.
 Create the following `binding.gyp` file:
 
     {
@@ -127,7 +127,7 @@ Create the following `binding.gyp` file:
     }
 
 In cases where there is more than one `.cc` file, simply add the file name to
-the `sources` array, e.g.:
+the `sources` array. For example:
 
     "sources": ["addon.cc", "myexample.cc"]
 
@@ -234,7 +234,7 @@ the full `module` object as the second argument. This allows the addon
 to completely overwrite `exports` with a single function instead of
 adding the function as a property of `exports`.
 
-To test it run the following JavaScript snippet:
+To test it, run the following JavaScript snippet:
 
     // test.js
     var addon = require('./build/Release/addon');
@@ -344,8 +344,8 @@ To test:
 
 ### Wrapping C++ objects
 
-Here we will create a wrapper for a C++ object/class `MyObject` that can be
-instantiated in JavaScript through the `new` operator. First prepare the main
+Here, we will create a wrapper for a C++ object/class `MyObject` that can be
+instantiated in JavaScript through the `new` operator. First, prepare the main
 module `addon.cc`:
 
     // addon.cc
@@ -365,7 +365,7 @@ module `addon.cc`:
 
     }  // namespace demo
 
-Then in `myobject.h` make your wrapper inherit from `node::ObjectWrap`:
+Then, in `myobject.h`, make your wrapper inherit from `node::ObjectWrap`:
 
     // myobject.h
     #ifndef MYOBJECT_H
@@ -394,7 +394,7 @@ Then in `myobject.h` make your wrapper inherit from `node::ObjectWrap`:
 
     #endif
 
-And in `myobject.cc` implement the various methods that you want to expose.
+And in `myobject.cc`, implement the various methods that you want to expose.
 Here we expose the method `plusOne` by adding it to the constructor's
 prototype:
 
@@ -480,7 +480,8 @@ Test it with:
 ### Factory of wrapped objects
 
 This is useful when you want to be able to create native objects without
-explicitly instantiating them with the `new` operator in JavaScript, e.g.
+explicitly instantiating them with the `new` operator in JavaScript. For
+example:
 
     var obj = addon.createObject();
     // instead of:
@@ -515,8 +516,9 @@ Let's register our `createObject` method in `addon.cc`:
 
     }  // namespace demo
 
-In `myobject.h` we now introduce the static method `NewInstance` that takes
-care of instantiating the object (i.e. it does the job of `new` in JavaScript):
+In `myobject.h`, we now introduce the static method `NewInstance` that takes
+care of instantiating the object. In other words, it does the job of `new` in
+JavaScript:
 
     // myobject.h
     #ifndef MYOBJECT_H
@@ -644,9 +646,9 @@ Test it with:
 ### Passing wrapped objects around
 
 In addition to wrapping and returning C++ objects, you can pass them around
-by unwrapping them with Node.js's `node::ObjectWrap::Unwrap` helper function.
-In the following `addon.cc` we introduce a function `add()` that can take on two
-`MyObject` objects:
+by unwrapping them with the Node.js helper function `node::ObjectWrap::Unwrap`.
+In the following `addon.cc`, we introduce a function `add()` that can take on
+two `MyObject` objects:
 
     // addon.cc
     #include <node.h>
@@ -690,7 +692,7 @@ In the following `addon.cc` we introduce a function `add()` that can take on two
 
     }  // namespace demo
 
-To make things interesting we introduce a public method in `myobject.h` so we
+To make things interesting, we introduce a public method in `myobject.h` so we
 can probe private values after unwrapping the object:
 
     // myobject.h
@@ -721,7 +723,7 @@ can probe private values after unwrapping the object:
 
     #endif
 
-The implementation of `myobject.cc` is similar as before:
+The implementation of `myobject.cc` is similar to before:
 
     // myobject.cc
     #include <node.h>
@@ -804,10 +806,10 @@ Test it with:
 * `callback`: `void (*)(void*)` - A pointer to the function to call at exit.
 * `args`: `void*` - A pointer to pass to the callback at exit.
 
-Registers exit hooks that run after the event loop has ended, but before the VM
+Registers exit hooks that run after the event loop has ended but before the VM
 is killed.
 
-Callbacks are run in last-in, first-out order. AtExit takes two parameters:
+Callbacks are run in last-in first-out order. AtExit takes two parameters:
 a pointer to a callback function to run at exit, and a pointer to untyped
 context data to be passed to that callback.
 
