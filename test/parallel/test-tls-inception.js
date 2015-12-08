@@ -14,7 +14,7 @@ var net = require('net');
 
 var options, a, b;
 
-var body = new Buffer(4000).fill('A');
+var body = new Buffer(400000).fill('A');
 
 options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
@@ -32,7 +32,7 @@ a = tls.createServer(options, function(socket) {
   dest.pipe(socket);
   socket.pipe(dest);
 
-  dest.on('close', function() {
+  dest.on('end', function() {
     socket.destroy();
   });
 });
