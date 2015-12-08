@@ -15,6 +15,8 @@ var net = require('net');
 var options, a, b, portA, portB;
 var gotHello = false;
 
+var body = new Buffer(4000).fill('A');
+
 options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
@@ -38,7 +40,7 @@ a = tls.createServer(options, function(socket) {
 
 // the "target" server
 b = tls.createServer(options, function(socket) {
-  socket.end('hello');
+  socket.end(body);
 });
 
 process.on('exit', function() {
@@ -59,11 +61,13 @@ a.listen(common.PORT, function() {
       rejectUnauthorized: false
     });
     ssl.setEncoding('utf8');
+    var buf = '';
     ssl.once('data', function(data) {
-      assert.equal('hello', data);
+      buf += data;
       gotHello = true;
     });
     ssl.on('end', function() {
+      assert.equal(buf, body);
       ssl.end();
       a.close();
       b.close();
