@@ -10,7 +10,7 @@ var server = http.createServer(function(req, res) {
     args.statusCode = 201;
     args.statusMessage = 'changed to show we can';
     args.headers['Flush-Head'] = 'event-was-called';
-  })
+  });
   res.writeHead(200, {
     'Content-Type': 'text/plain'
   });
@@ -28,7 +28,7 @@ server.addListener('listening', function() {
   var req = http.request(options, function(res) {
     assert.ok(res.statusCode === 201,
               'Response status code was not overridden from 200 to 201.');
-    assert.ok(res.statusMessage === 'changed to show we can', 
+    assert.ok(res.statusMessage === 'changed to show we can',
               'Response status message was not overridden.');
     assert.ok('flush-head' in res.headers,
               'Response headers didn\'t contain the flush-head header, ' +
