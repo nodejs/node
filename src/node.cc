@@ -3043,7 +3043,9 @@ static void ParseArgs(int* argc,
       SSL3_ENABLE = true;
 #endif
     } else if (strcmp(arg, "--allow-insecure-server-dhparam") == 0) {
+#if HAVE_OPENSSL
       ALLOW_INSECURE_SERVER_DHPARAM = true;
+#endif
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
