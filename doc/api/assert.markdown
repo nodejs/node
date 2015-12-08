@@ -62,8 +62,9 @@ Tests shallow, coercive equality with the equal comparison operator ( `==` ).
 
 ## assert.fail(actual, expected, message, operator)
 
-Throws an exception that displays the values for `actual` and `expected`
-separated by the provided operator.
+Throws an `AssertionError`. If `message` is falsy, it displays the values for
+`actual` and `expected` separated by the provided `operator`. Otherwise, it
+displays `message` (and does not use `actual`, `expected`, and `operator`).
 
 ## assert.ifError(value)
 
