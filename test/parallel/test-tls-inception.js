@@ -61,11 +61,13 @@ a.listen(common.PORT, function() {
       rejectUnauthorized: false
     });
     ssl.setEncoding('utf8');
+    var buf = '';
     ssl.once('data', function(data) {
-      assert.equal(body.toString(), data);
+      buf += data;
       gotHello = true;
     });
     ssl.on('end', function() {
+      assert.equal(buf, body);
       ssl.end();
       a.close();
       b.close();
