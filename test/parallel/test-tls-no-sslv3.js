@@ -19,6 +19,8 @@ if (common.opensslCli === false) {
 var cert = fs.readFileSync(common.fixturesDir + '/test_cert.pem');
 var key = fs.readFileSync(common.fixturesDir + '/test_key.pem');
 var server = tls.createServer({ cert: cert, key: key }, common.fail);
+var errors = [];
+var stderr = '';
 
 server.listen(common.PORT, '127.0.0.1', function() {
   var address = this.address().address + ':' + this.address().port;
@@ -34,13 +36,25 @@ server.listen(common.PORT, '127.0.0.1', function() {
   if (common.isWindows)
     args.push('-no_rand_screen');
 
-  var client = spawn(common.opensslCli, args, { stdio: 'inherit' });
+  var client = spawn(common.opensslCli, args, { stdio: 'pipe' });
+  client.stdout.pipe(process.stdout);
+  client.stderr.pipe(process.stderr);
+  client.stderr.setEncoding('utf8');
+  client.stderr.on('data', data => stderr += data);
+
   client.once('exit', common.mustCall(function(exitCode) {
     assert.equal(exitCode, 1);
     server.close();
   }));
 });
 
-server.once('clientError', common.mustCall(function(err, conn) {
-  assert(/:wrong version number/.test(err.message));
-}));
+server.on('clientError', err => errors.push(err));
+
+process.on('exit', function() {
+  if (/unknown option -ssl3/.test(stderr)) {
+    console.log('1..0 # Skipped: `openssl s_client -ssl3` not supported.');
+  } else {
+    assert.equal(errors.length, 1);
+    assert(/:wrong version number/.test(errors[0].message));
+  }
+});
