@@ -95,9 +95,9 @@ parser.add_option("--partly-static",
 parser.add_option("--enable-vtune-profiling",
     action="store_true",
     dest="enable_vtune_profiling",
-    help="Enable profiling support for Intel Vtune profiler to profile"
+    help="Enable profiling support for Intel VTune profiler to profile"
          "JavaScript code executed in nodejs. This feature is only available "
-         "for ia32, x32 or x64 platform.")
+         "for x32, x86 and x64 architectures.")
 
 
 parser.add_option("--link-module",
@@ -692,8 +692,8 @@ def configure_node(o):
     o['variables']['node_enable_v8_vtunejit'] = b(options.enable_vtune_profiling)
   elif options.enable_vtune_profiling:
     raise Exception(
-       'vtune profiler for JavaScript is only supported on x86, x32 or x64 '
-       'platform.')
+       'The VTune profiler for JavaScript is only supported on x32, x86 and x64 '
+       'architectures.')
   else:
     o['variables']['node_enable_v8_vtunejit'] = 'false'
 
