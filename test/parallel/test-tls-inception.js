@@ -12,8 +12,7 @@ var fs = require('fs');
 var path = require('path');
 var net = require('net');
 
-var options, a, b, portA, portB;
-var gotHello = false;
+var options, a, b;
 
 var body = new Buffer(4000).fill('A');
 
@@ -43,10 +42,6 @@ b = tls.createServer(options, function(socket) {
   socket.end(body);
 });
 
-process.on('exit', function() {
-  assert(gotHello);
-});
-
 a.listen(common.PORT, function() {
   b.listen(common.PORT + 1, function() {
     options = {
@@ -62,15 +57,14 @@ a.listen(common.PORT, function() {
     });
     ssl.setEncoding('utf8');
     var buf = '';
-    ssl.once('data', function(data) {
+    ssl.on('data', function(data) {
       buf += data;
-      gotHello = true;
     });
-    ssl.on('end', function() {
+    ssl.on('end', common.mustCall(function() {
       assert.equal(buf, body);
       ssl.end();
       a.close();
       b.close();
-    });
+    }));
   });
 });
