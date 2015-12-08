@@ -33,7 +33,7 @@ set i18n_arg=
 set download_arg=
 set release_urls_arg=
 set build_release=
-set enable_vtune_profiling=
+set enable_vtune_arg=
 set configure_flags=
 
 :next-arg
@@ -68,7 +68,7 @@ if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
-if /i "%1"=="enable-vtune"  set enable_vtune_profiling="--enable-vtune-profiling"&goto arg-ok
+if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 
 echo Warning: ignoring invalid command line option `%1`.
 
@@ -93,6 +93,7 @@ if defined noetw set configure_flags=%configure_flags% --without-etw& set noetw_
 if defined noperfctr set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
 if defined release_urlbase set release_urlbase_arg=--release-urlbase=%release_urlbase%
 if defined download_arg set configure_flags=%configure_flags% %download_arg%
+if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
 
 if "%i18n_arg%"=="full-icu" set configure_flags=%configure_flags% --with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set configure_flags=%configure_flags% --with-intl=small-icu
@@ -169,8 +170,8 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-echo configure %configure_flags% %enable_vtune_profiling% --dest-cpu=%target_arch% --tag=%TAG%
-python configure %configure_flags% %enable_vtune_profiling% --dest-cpu=%target_arch% --tag=%TAG%
+echo configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
+python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -268,7 +269,7 @@ echo   vcbuild.bat debug          : builds debug build
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
 echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
-echo   vcbuild.bat enable-vtune   : builds nodejs with Intel Vtune profiling support to profile JavaScript
+echo   vcbuild.bat enable-vtune   : builds nodejs with Intel VTune profiling support to profile JavaScript
 goto exit
 
 :exit
