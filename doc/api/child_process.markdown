@@ -10,9 +10,9 @@ It is possible to stream data through a child's `stdin`, `stdout`, and
 line-buffered I/O internally.  That doesn't affect Node.js but it means
 data you send to the child process may not be immediately consumed.)
 
-To create a child process use `require('child_process').spawn()` or
+To create a child process, use `require('child_process').spawn()` or
 `require('child_process').fork()`.  The semantics of each are slightly
-different, and explained [below][].
+different as explained [below][].
 
 For scripting purposes you may find the [synchronous counterparts][] more
 convenient.
@@ -54,11 +54,11 @@ Emitted when:
 
 1. The process could not be spawned, or
 2. The process could not be killed, or
-3. Sending a message to the child process failed for whatever reason.
+3. Sending a message to the child process failed.
 
-Note that the `'exit'` event may or may not fire after an error has occurred. If
-you are listening on both events to fire a function, remember to guard against
-calling your function twice.
+Note that the `'exit'` event may or may not fire after an error has occurred.
+If you are listening on both events to fire a function, remember to guard
+against calling your function twice.
 
 See also [`ChildProcess#kill()`][] and [`ChildProcess#send()`][].
 
@@ -76,8 +76,7 @@ of the signal, otherwise `null`.
 Note that the child process stdio streams might still be open.
 
 Also, note that Node.js establishes signal handlers for `SIGINT` and
-`SIGTERM`, so it will not terminate due to receipt of those signals,
-it will exit.
+`SIGTERM`. It will not terminate due to receipt of those signals. It will exit.
 
 See `waitpid(2)`.
 
@@ -103,8 +102,8 @@ gracefully once there are no other connections keeping it alive. After calling
 this method the `.connected` flag will be set to `false` in both the parent and
 child, and it is no longer possible to send messages.
 
-The `'disconnect'` event will be emitted when there are no messages in the process
-of being received, most likely immediately.
+The `'disconnect'` event will be emitted when there are no messages in the
+process of being received, most likely immediately.
 
 Note that you can also call `process.disconnect()` in the child process when the
 child process has any open IPC channels with the parent (i.e [`fork()`][]).
@@ -128,9 +127,9 @@ be sent `'SIGTERM'`. See `signal(7)` for a list of available signals.
 
 May emit an `'error'` event when the signal cannot be delivered. Sending a
 signal to a child process that has already exited is not an error but may
-have unforeseen consequences: if the PID (the process ID) has been reassigned
-to another process, the signal will be delivered to that process instead.
-What happens next is anyone's guess.
+have unforeseen consequences. Specifically, if the process identifier (PID) has
+been reassigned to another process, the signal will be delivered to that
+process instead. What happens next is anyone's guess.
 
 Note that while the function is called `kill`, the signal delivered to the
 child process may not actually kill it.  `kill` really just sends a signal
@@ -142,7 +141,7 @@ See `kill(2)`
 
 * {Integer}
 
-The PID of the child process.
+The process identifier (PID) of the child process.
 
 Example:
 
@@ -183,7 +182,7 @@ And then the child script, `'sub.js'` might look like this:
 
     process.send({ foo: 'bar' });
 
-In the child the `process` object will have a `send()` method, and `process`
+In the child, the `process` object will have a `send()` method, and `process`
 will emit objects each time it receives a message on its channel.
 
 There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
