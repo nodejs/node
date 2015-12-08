@@ -30,7 +30,7 @@ valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'ppc', 'ppc64', 'x32',
               'x64', 'x86')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
-valid_arm_fpu = ('vfp', 'vfpv2', 'vfpv3', 'vfpv3-d16', 'neon')
+valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
@@ -623,7 +623,7 @@ def configure_arm(o):
   else:
     arm_float_abi = 'default'
 
-  arm_fpu = 'vfpv2'
+  arm_fpu = 'vfp'
 
   if is_arch_armv7():
     arm_fpu = 'vfpv3'
