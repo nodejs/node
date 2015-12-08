@@ -653,7 +653,12 @@ It includes
 
 * `responseCode` {Number}
 * `responseMessage` {String}
-* `headers` {Object}
+* `headers` {Object|Array}
+
+The headers member will be either an object of the form
+`{header-names: header value}`
+or an array of the form
+`[['header-name', 'header-value'] ...]`
 
 ### Event: 'close'
 
