@@ -441,6 +441,19 @@ accuracy. For example:
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
 may be beyond the end of the buffer. Defaults to `false`.
 
+### buf.includes(value[, byteOffset][, encoding])
+
+* `value` String, Buffer or Number
+* `byteOffset` Number, Optional, Default: 0
+* `encoding` String, Optional, Default: 'utf8'
+
+Operates similar to
+[Array#includes()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes).
+Accepts a String, Buffer or Number. Strings are interpreted as UTF8 unless
+overridden with the `encoding` argument. Buffers will use the entire buffer.
+So in order to compare a partial Buffer use `Buffer#slice()`. Numbers can range
+from 0 to 255.
+
 ### buf.readUInt8(offset[, noAssert])
 
 * `offset` Number
