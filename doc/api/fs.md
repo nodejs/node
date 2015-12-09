@@ -345,6 +345,12 @@ added: v0.11.15
 Synchronous version of [`fs.access()`][]. This throws if any accessibility
 checks fail, and does nothing otherwise.
 
+## fs.accessibleSync(path[, mode])
+
+Returns false if any accessibility checks fail, and returns true otherwise.
+This version is faster and more convenient to use than [`fs.accessSync()`][]
+if you don't need to know why the file is not accessible.
+
 ## fs.appendFile(file, data[, options], callback)
 <!-- YAML
 added: v0.6.7

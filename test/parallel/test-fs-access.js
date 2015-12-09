@@ -106,6 +106,8 @@ assert.doesNotThrow(function() {
   fs.accessSync(__filename);
 });
 
+assert.equal(fs.accessibleSync(__filename), true, 'file should be accessible');
+
 assert.doesNotThrow(function() {
   var mode = fs.F_OK | fs.R_OK | fs.W_OK;
 
@@ -117,6 +119,9 @@ assert.throws(function() {
 }, function(err) {
   return err.code === 'ENOENT' && err.path === doesNotExist;
 });
+
+assert.equal(fs.accessibleSync(doesNotExist), false,
+  'file should not be accessible');
 
 process.on('exit', function() {
   removeFile(readOnlyFile);
