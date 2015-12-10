@@ -19,8 +19,8 @@ Use `require('console').Console` or `console.Console` to access this class.
     var Console = require('console').Console;
     var Console = console.Console;
 
-You can use `Console` class to custom simple logger like `console`, but with
-different output streams.
+You can use the `Console` class to create a simple logger like `console` but
+with different output streams.
 
 ### new Console(stdout[, stderr])
 
@@ -61,8 +61,8 @@ is blocking:
 
     $ node script.js 2> error.log | tee info.log
 
-In daily use, the blocking/non-blocking dichotomy is not something you
-should worry about unless you log huge amounts of data.
+Typically, the blocking/non-blocking dichotomy is not something you should
+worry about unless you log huge amounts of data.
 
 ### console.assert(value[, message][, ...])
 
@@ -71,19 +71,21 @@ Similar to [`assert.ok()`][], but the error message is formatted as
 
 ### console.dir(obj[, options])
 
-Uses [`util.inspect()`][] on `obj` and prints resulting string to stdout. This function
-bypasses any custom `inspect()` function on `obj`. An optional *options* object
-may be passed that alters certain aspects of the formatted string:
+Uses [`util.inspect()`][] on `obj` and prints the resulting string to stdout.
+This function bypasses any custom `inspect()` function on `obj`. An optional
+`options` object may be passed that alters certain aspects of the formatted
+string:
 
 - `showHidden` - if `true` then the object's non-enumerable and symbol
 properties will be shown too. Defaults to `false`.
 
 - `depth` - tells `inspect` how many times to recurse while formatting the
 object. This is useful for inspecting large complicated objects. Defaults to
-`2`. To make it recurse indefinitely pass `null`.
+`2`. To make it recurse indefinitely, pass `null`.
 
 - `colors` - if `true`, then the output will be styled with ANSI color codes.
-Defaults to `false`. Colors are customizable, see [customizing `util.inspect()` colors][].
+Defaults to `false`. Colors are customizable; see
+[customizing `util.inspect()` colors][].
 
 ### console.error([data][, ...])
 
@@ -96,14 +98,15 @@ Same as [`console.log()`][].
 ### console.log([data][, ...])
 
 Prints to stdout with newline. This function can take multiple arguments in a
-`printf()`-like way. Example:
+`printf()`-like way:
 
     var count = 5;
     console.log('count: %d', count);
     // prints 'count: 5'
 
-If formatting elements are not found in the first string then [`util.inspect()`][]
-is used on each argument.  See [`util.format()`][] for more information.
+If formatting elements are not found in the first string then
+[`util.inspect()`][] is used on each argument.  See [`util.format()`][] for more
+information.
 
 ### console.time(label)
 
@@ -114,11 +117,8 @@ milliseconds. Timer durations are accurate to the sub-millisecond.
 
 ### console.timeEnd(label)
 
-Stops a timer that was previously started by calling
-[`console.time()`][] and prints the result to the
-console.
-
-Example:
+Stops a timer that was previously started by calling [`console.time()`][] and
+prints the result to the console:
 
     console.time('100-elements');
     for (var i = 0; i < 100; i++) {
