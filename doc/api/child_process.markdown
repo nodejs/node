@@ -127,9 +127,9 @@ be sent `'SIGTERM'`. See `signal(7)` for a list of available signals.
 
 May emit an `'error'` event when the signal cannot be delivered. Sending a
 signal to a child process that has already exited is not an error but may
-have unforeseen consequences. Specifically, if the process ID (PID) has been
-reassigned to another process, the signal will be delivered to that process
-instead. What happens next is anyone's guess.
+have unforeseen consequences. Specifically, if the process identifier (PID) has
+been reassigned to another process, the signal will be delivered to that
+process instead. What happens next is anyone's guess.
 
 Note that while the function is called `kill`, the signal delivered to the
 child process may not actually kill it.  `kill` really just sends a signal
@@ -141,7 +141,7 @@ See `kill(2)`
 
 * {Integer}
 
-The process ID (PID) of the child process.
+The process identifier (PID) of the child process.
 
 Example:
 
