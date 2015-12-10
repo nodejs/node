@@ -208,9 +208,6 @@ Example: copy an ASCII string into a buffer, one byte at a time:
 
     // Node.js
 
-Returns a boolean indicating whether `this` and `otherBuffer` have the same
-bytes.
-
 ### buf.compare(otherBuffer)
 
 * `otherBuffer` {Buffer}
@@ -266,6 +263,8 @@ region in the same buffer
 ### buf.equals(otherBuffer)
 
 * `otherBuffer` {Buffer}
+
+Returns a boolean indicating whether `this` and `otherBuffer` have the same bytes.
 
 ### buf.fill(value[, offset][, end])
 
