@@ -14,8 +14,8 @@ knowledge of several libraries:
    to be received, one will need to interface with libuv. That is, if you
    perform any I/O, libuv will need to be used.
 
- - Internal Node.js libraries. The most important is the `node::ObjectWrap`
-   class which you will likely want to derive from.
+ - Internal Node.js libraries. The most important class is `node::ObjectWrap`
+   which you will likely want to derive from.
 
  - Others. Look in `deps/` for what else is available.
 
