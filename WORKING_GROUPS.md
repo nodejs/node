@@ -31,6 +31,7 @@ back in to the TSC.
 * [Post-mortem](#post-mortem)
 * [Intl](#intl)
 * [HTTP](#http)
+* [Documentation](#documentation)
 
 #### Process:
 
@@ -269,6 +270,22 @@ Its responsibilities are:
   to be generated when needed
 + Defining and adding common structures to the dumps generated
   in order to support tools that want to introspect those dumps
+
+### [Documentation](https://github.com/nodejs/docs)
+
+The Documentation working group exists to support the improvement of Node.js
+documentation, both in the core API documentation, and elsewhere, such as the
+Node.js website. Its intent is to work closely with Evangelism, Website, and
+Intl working groups to make excellent documentation available and accessible
+to all.
+
+Its responsibilities are:
+
+* Defining and maintaining documentation style and content standards.
+* Producing documentation in a format acceptable for the Website WG to consume.
+* Ensuring that Node's documentation addresses a wide variety of audiences.
+* Creating and operating a process for documentation review that produces
+  quality documentation and avoids impeding the progress of Core work.
 
 ## Starting a WG
 
