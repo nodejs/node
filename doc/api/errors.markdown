@@ -486,5 +486,5 @@ often a sign that a connected socket was not `.end()`'d appropriately.
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
-[V8's stack trace API]: https://code.google.com/p/v8-wiki/wiki/JavaScriptStackTraceApi
+[V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [vm]: vm.html
