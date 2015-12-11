@@ -71,8 +71,8 @@ Similar to [`assert.ok()`][], but the error message is formatted as
 
 ### console.dir(obj[, options])
 
-Uses [`util.inspect()`][] on `obj` and prints resulting string to stdout. This
-function bypasses any custom `inspect()` function on `obj`. An optional
+Uses [`util.inspect()`][] on `obj` and prints the resulting string to stdout.
+This function bypasses any custom `inspect()` function on `obj`. An optional
 `options` object may be passed that alters certain aspects of the formatted
 string:
 
