@@ -2,7 +2,7 @@
 
 /*
  * The goal of this test is to make sure that errors thrown within domains
- * are handled correctly. It checks that the process 'uncaughtException' event
+ * are handled correctly. It checks that the process' 'uncaughtException' event
  * is emitted when appropriate, and not emitted when it shouldn't. It also
  * checks that the proper domain error handlers are called when they should
  * be called, and not called when they shouldn't.
@@ -56,7 +56,7 @@ function test3() {
   /*
    * This test creates two nested domains: d3 and d4. d4 doesn't register an
    * error handler, but d3 does. The error is handled by the d3 domain and thus
-   * and 'uncaughtException' event should _not_ be emitted.
+   * an 'uncaughtException' event should _not_ be emitted.
    */
   var d3 = domain.create();
   var d4 = domain.create();
@@ -110,7 +110,7 @@ tests.push({
 
 function test5() {
   /*
-   * This test creates two nested domains: d7 and d4. d8 _does_ register an
+   * This test creates two nested domains: d7 and d8. d8 _does_ register an
    * error handler, so throwing within that domain should not emit an uncaught
    * exception.
    */
@@ -169,7 +169,7 @@ if (process.argv[2] === 'child') {
 } else {
   // Run each test's function in a child process. Listen on
   // messages sent by each child process and compare expected
-  // messages defined for each ttest from the actual received messages.
+  // messages defined for each test with the actual received messages.
   tests.forEach(function doTest(test, testIndex) {
     var testProcess = child_process.fork(__filename, ['child', testIndex]);
 
@@ -180,7 +180,7 @@ if (process.argv[2] === 'child') {
       test.messagesReceived.push(msg);
     });
 
-    testProcess.on('exit', function onExit() {
+    testProcess.on('disconnect', common.mustCall(function onExit() {
       // Make sure that all expected messages were sent from the
       // child process
       test.expectedMessages.forEach(function(expectedMessage) {
@@ -200,6 +200,6 @@ if (process.argv[2] === 'child') {
           }
         });
       }
-    })
+    }));
   });
 }
