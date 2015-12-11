@@ -6458,6 +6458,8 @@ TEST(DestructuringPositiveTests) {
     "a",
     "{ x : y }",
     "{ x : y = 1 }",
+    "{ get, set }",
+    "{ get = 1, set = 2 }",
     "[a]",
     "[a = 1]",
     "[a,b,c]",
