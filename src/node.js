@@ -950,7 +950,10 @@
     var source = NativeModule.getSource(this.id);
     source = NativeModule.wrap(source);
 
-    var fn = runInThisContext(source, { filename: this.filename });
+    var fn = runInThisContext(source, {
+      filename: this.filename,
+      lineOffset: -1
+    });
     fn(this.exports, NativeModule.require, this, this.filename);
 
     this.loaded = true;
