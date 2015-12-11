@@ -169,4 +169,4 @@ debugger. The syntax is:
 * `node debug -p <pid>` - Connects to the process via the `pid`
 * `node debug <URI>` - Connects to the process via the URI such as localhost:5858
 
-[TCP protocol]: http://code.google.com/p/v8/wiki/DebuggerProtocol
+[TCP protocol]: https://github.com/v8/v8/wiki/Debugging-Protocol
