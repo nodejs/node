@@ -4146,7 +4146,9 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif
 
-  const int thread_pool_size = 4;
+  // The value zero chooses a suitable default based on the current number of
+  // processors online.
+  const int thread_pool_size = 0;
   default_platform = v8::platform::CreateDefaultPlatform(thread_pool_size);
   V8::InitializePlatform(default_platform);
   V8::Initialize();
