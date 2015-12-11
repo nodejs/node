@@ -21,6 +21,8 @@
 
 var assert = require('assert');
 
+var common = require('../common');
+
 /*
  * The goal of this test is to make sure that:
  *
@@ -131,50 +133,23 @@ if (process.argv[2] === 'child') {
       });
 
       child.on('exit', function onChildExited(exitCode, signal) {
-        // If the top-level domain's error handler does not throw,
-        // the process must exit gracefully, whether or not
-        // --abort-on-uncaught-exception was passed on the command line
-        var expectedExitCode = 0;
-        // On some platforms with KSH being the default shell (like SmartOS),
-        // when a process aborts, KSH exits with an exit code that is greater
-        // than 256, and thus the exit code emitted with the 'exit' event is
-        // null and the signal is set to SIGABRT. For these platforms only,
-        // and when the test is expected to abort, check the actual signal
-        // with the expected signal instead of the exit code.
-        var expectedSignal;
-
-        // When throwing errors from the top-level domain error handler
-        // outside of a try/catch block, the process should not exit gracefully
         if (!options.useTryCatch && options.throwInDomainErrHandler) {
-          expectedExitCode = 7;
           if (cmdLineOption === '--abort-on-uncaught-exception') {
-            // If the top-level domain's error handler throws, and only if
-            // --abort-on-uncaught-exception is passed on the command line,
-            // the process must abort.
-            expectedExitCode = 134;
-
-            // On linux, v8 raises SIGTRAP when aborting because
-            // the "debug break" flag is on by default
-            if (process.platform === 'linux')
-              expectedExitCode = 133;
-
-            if (process.platform === 'sunos') {
-              expectedExitCode = null;
-              expectedSignal = 'SIGABRT';
-            }
-
-            // On Windows, v8's OS::Abort also triggers a debug breakpoint
-            // which makes the process exit with code -2147483645
-            if (process.platform === 'win32') {
-              expectedExitCode = -2147483645;
-            }
+            assert(common.nodeProcessAborted(exitCode, signal),
+              'process should have aborted, but did not');
+          } else {
+            // By default, uncaught exceptions make node exit with an exit
+            // code of 7.
+            assert.equal(exitCode, 7);
+            assert.equal(signal, null);
           }
+        } else {
+          // If the top-level domain's error handler does not throw,
+          // the process must exit gracefully, whether or not
+          // --abort_on_uncaught_exception was passed on the command line
+          assert.equal(exitCode, 0);
+          assert.equal(signal, null);
         }
-
-        if (expectedSignal)
-          assert.equal(signal, expectedSignal)
-
-        assert.equal(exitCode, expectedExitCode);
       });
     }
   }
