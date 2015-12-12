@@ -22,7 +22,8 @@ back in to the TSC.
 * [Streams](#streams)
 * [Build](#build)
 * [Tracing](#tracing)
-* [i18n](#i18n)
+* [Global](#global)
+ * Particular [i18n WGs](#i18n)
 * [Evangelism](#evangelism)
 * [Roadmap](#roadmap)
 * [Docker](#docker)
@@ -91,9 +92,24 @@ Its responsibilities are:
 * Documentation of tracing and debugging techniques.
 * Fostering a tracing and debugging ecosystem.
 
-### i18n
+### [Global](https://github.com/nodejs/global)
 
-The i18n working groups handle more than just translations. They
+The Global working group's purpose is to facilitate communication
+and coordination among the various [i18n](#i18n) WGs.
+
+Its responsibilities are:
+* Providing communication among the [i18n](#i18n) WGs, perhaps such as suggested in [this issue](https://github.com/nodejs/Intl/issues/9)
+* Providing best practices around naming, creation and maintenance of specific i18n WGs
+* Ensuring that the i18n WGs members can influence the greater Node community despite language and time zone differences
+* Facilitating liasons with other WGs that must work cross-language such as:
+ - [Website](#Website) (support of site translation)
+ - [Evangelism](#Evangelism) (support of local outreach)
+ - [docs](https://github.com/nodejs/docs) (support of doc translation)
+ - [Intl](#Intl) (discussion of technical globalization concerns)
+
+#### i18n
+
+The particular i18n working groups handle more than just translations. They
 are endpoints for community members to collaborate with each
 other in their language of choice.
 
