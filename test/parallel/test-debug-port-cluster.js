@@ -17,14 +17,15 @@ child.stderr.on('data', function(data) {
   var lines = data.toString().replace(/\r/g, '').trim().split('\n');
   var line = lines[0];
 
-  lines.forEach(function(ln) { console.log('> ' + ln); } );
-
-  if (line === 'all workers are running') {
-    assertOutputLines();
-    process.exit();
-  } else {
-    outputLines = outputLines.concat(lines);
-  }
+  lines.forEach((ln, i) => {
+    console.log(i + '> ' + ln);
+    if (ln === 'all workers are running') {
+      assertOutputLines();
+      process.exit();
+    } else {
+      outputLines.push(ln);
+    }
+  });
 });
 
 process.on('exit', function onExit() {
