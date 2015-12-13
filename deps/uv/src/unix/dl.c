@@ -39,10 +39,8 @@ int uv_dlopen(const char* filename, uv_lib_t* lib) {
 
 
 void uv_dlclose(uv_lib_t* lib) {
-  if (lib->errmsg) {
-    uv__free(lib->errmsg);
-    lib->errmsg = NULL;
-  }
+  uv__free(lib->errmsg);
+  lib->errmsg = NULL;
 
   if (lib->handle) {
     /* Ignore errors. No good way to signal them without leaking memory. */
@@ -67,8 +65,7 @@ const char* uv_dlerror(const uv_lib_t* lib) {
 static int uv__dlerror(uv_lib_t* lib) {
   const char* errmsg;
 
-  if (lib->errmsg)
-    uv__free(lib->errmsg);
+  uv__free(lib->errmsg);
 
   errmsg = dlerror();
 

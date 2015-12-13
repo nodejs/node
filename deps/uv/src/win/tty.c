@@ -208,7 +208,7 @@ static void uv_tty_capture_initial_style(CONSOLE_SCREEN_BUFFER_INFO* info) {
   static int style_captured = 0;
 
   /* Only do this once.
-  /* Assumption: Caller has acquired uv_tty_output_lock. */
+     Assumption: Caller has acquired uv_tty_output_lock. */
   if (style_captured)
     return;
 

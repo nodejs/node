@@ -276,7 +276,7 @@ TEST_IMPL(threadpool_cancel_work) {
 
 TEST_IMPL(threadpool_cancel_fs) {
   struct cancel_info ci;
-  uv_fs_t reqs[25];
+  uv_fs_t reqs[26];
   uv_loop_t* loop;
   unsigned n;
   uv_buf_t iov;
@@ -305,6 +305,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_read(loop, reqs + n++, 0, &iov, 1, 0, fs_cb));
   ASSERT(0 == uv_fs_scandir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_readlink(loop, reqs + n++, "/", fs_cb));
+  ASSERT(0 == uv_fs_realpath(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_rename(loop, reqs + n++, "/", "/", fs_cb));
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_sendfile(loop, reqs + n++, 0, 0, 0, 0, fs_cb));
