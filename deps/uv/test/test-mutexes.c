@@ -25,6 +25,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static uv_cond_t condvar;
+static uv_mutex_t mutex;
+static uv_rwlock_t rwlock;
+static int step;
 
 /* The mutex and rwlock tests are really poor.
  * They're very basic sanity checks and nothing more.
@@ -63,60 +67,96 @@ TEST_IMPL(thread_rwlock) {
 }
 
 
+/* Call when holding |mutex|. */
+static void synchronize_nowait(void) {
+  step += 1;
+  uv_cond_signal(&condvar);
+}
+
+
+/* Call when holding |mutex|. */
+static void synchronize(void) {
+  int current;
+
+  synchronize_nowait();
+  /* Wait for the other thread.  Guard against spurious wakeups. */
+  for (current = step; current == step; uv_cond_wait(&condvar, &mutex));
+  ASSERT(step == current + 1);
+}
+
+
+static void thread_rwlock_trylock_peer(void* unused) {
+  (void) &unused;
+
+  uv_mutex_lock(&mutex);
+
+  /* Write lock held by other thread. */
+  ASSERT(UV_EBUSY == uv_rwlock_tryrdlock(&rwlock));
+  ASSERT(UV_EBUSY == uv_rwlock_trywrlock(&rwlock));
+  synchronize();
+
+  /* Read lock held by other thread. */
+  ASSERT(0 == uv_rwlock_tryrdlock(&rwlock));
+  uv_rwlock_rdunlock(&rwlock);
+  ASSERT(UV_EBUSY == uv_rwlock_trywrlock(&rwlock));
+  synchronize();
+
+  /* Acquire write lock. */
+  ASSERT(0 == uv_rwlock_trywrlock(&rwlock));
+  synchronize();
+
+  /* Release write lock and acquire read lock. */
+  uv_rwlock_wrunlock(&rwlock);
+  ASSERT(0 == uv_rwlock_tryrdlock(&rwlock));
+  synchronize();
+
+  uv_rwlock_rdunlock(&rwlock);
+  synchronize_nowait();  /* Signal main thread we're going away. */
+  uv_mutex_unlock(&mutex);
+}
+
+
 TEST_IMPL(thread_rwlock_trylock) {
-  uv_rwlock_t rwlock;
-  int r;
+  uv_thread_t thread;
 
-  r = uv_rwlock_init(&rwlock);
-  ASSERT(r == 0);
+  ASSERT(0 == uv_cond_init(&condvar));
+  ASSERT(0 == uv_mutex_init(&mutex));
+  ASSERT(0 == uv_rwlock_init(&rwlock));
 
-  /* No locks held. */
+  uv_mutex_lock(&mutex);
+  ASSERT(0 == uv_thread_create(&thread, thread_rwlock_trylock_peer, NULL));
 
-  r = uv_rwlock_trywrlock(&rwlock);
-  ASSERT(r == 0);
+  /* Hold write lock. */
+  ASSERT(0 == uv_rwlock_trywrlock(&rwlock));
+  synchronize();  /* Releases the mutex to the other thread. */
 
-  /* Write lock held. */
-
-  r = uv_rwlock_tryrdlock(&rwlock);
-  ASSERT(r == UV_EBUSY);
-  r = uv_rwlock_trywrlock(&rwlock);
-  ASSERT(r == UV_EBUSY);
-
+  /* Release write lock and acquire read lock.  Pthreads doesn't support
+   * the notion of upgrading or downgrading rwlocks, so neither do we.
+   */
   uv_rwlock_wrunlock(&rwlock);
+  ASSERT(0 == uv_rwlock_tryrdlock(&rwlock));
+  synchronize();
 
-  /* No locks held. */
-
-  r = uv_rwlock_tryrdlock(&rwlock);
-  ASSERT(r == 0);
-
-  /* One read lock held. */
-
-  r = uv_rwlock_tryrdlock(&rwlock);
-  ASSERT(r == 0);
-
-  /* Two read locks held. */
-
-  r = uv_rwlock_trywrlock(&rwlock);
-  ASSERT(r == UV_EBUSY);
-
+  /* Release read lock. */
   uv_rwlock_rdunlock(&rwlock);
+  synchronize();
 
-  /* One read lock held. */
+  /* Write lock held by other thread. */
+  ASSERT(UV_EBUSY == uv_rwlock_tryrdlock(&rwlock));
+  ASSERT(UV_EBUSY == uv_rwlock_trywrlock(&rwlock));
+  synchronize();
 
+  /* Read lock held by other thread. */
+  ASSERT(0 == uv_rwlock_tryrdlock(&rwlock));
   uv_rwlock_rdunlock(&rwlock);
+  ASSERT(UV_EBUSY == uv_rwlock_trywrlock(&rwlock));
+  synchronize();
 
-  /* No read locks held. */
-
-  r = uv_rwlock_trywrlock(&rwlock);
-  ASSERT(r == 0);
-
-  /* Write lock held. */
-
-  uv_rwlock_wrunlock(&rwlock);
-
-  /* No locks held. */
-
+  ASSERT(0 == uv_thread_join(&thread));
   uv_rwlock_destroy(&rwlock);
+  uv_mutex_unlock(&mutex);
+  uv_mutex_destroy(&mutex);
+  uv_cond_destroy(&condvar);
 
   return 0;
 }

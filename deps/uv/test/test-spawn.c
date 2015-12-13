@@ -960,11 +960,11 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   options.stdio_count = 2;
 
   /* Create a pipe that'll cause a collision. */
-  _snprintf(name,
-            sizeof(name),
-            "\\\\.\\pipe\\uv\\%p-%d",
-            &out,
-            GetCurrentProcessId());
+  snprintf(name,
+           sizeof(name),
+           "\\\\.\\pipe\\uv\\%p-%d",
+           &out,
+           GetCurrentProcessId());
   pipe_handle = CreateNamedPipeA(name,
                                 PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
                                 PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,

@@ -50,8 +50,10 @@ TEST_DECLARE   (ipc_listen_before_write)
 TEST_DECLARE   (ipc_listen_after_write)
 #ifndef _WIN32
 TEST_DECLARE   (ipc_send_recv_pipe)
+TEST_DECLARE   (ipc_send_recv_pipe_inprocess)
 #endif
 TEST_DECLARE   (ipc_send_recv_tcp)
+TEST_DECLARE   (ipc_send_recv_tcp_inprocess)
 TEST_DECLARE   (ipc_tcp_connection)
 TEST_DECLARE   (tcp_ping_pong)
 TEST_DECLARE   (tcp_ping_pong_v6)
@@ -252,6 +254,7 @@ TEST_DECLARE   (fs_unlink_readonly)
 TEST_DECLARE   (fs_chown)
 TEST_DECLARE   (fs_link)
 TEST_DECLARE   (fs_readlink)
+TEST_DECLARE   (fs_realpath)
 TEST_DECLARE   (fs_symlink)
 TEST_DECLARE   (fs_symlink_dir)
 TEST_DECLARE   (fs_utime)
@@ -334,6 +337,7 @@ HELPER_DECLARE (tcp6_echo_server)
 HELPER_DECLARE (udp4_echo_server)
 HELPER_DECLARE (pipe_echo_server)
 
+TEST_DECLARE   (queue_foreach_delete)
 
 TASK_LIST_START
   TEST_ENTRY_CUSTOM (platform_output, 0, 1, 5000)
@@ -380,8 +384,10 @@ TASK_LIST_START
   TEST_ENTRY  (ipc_listen_after_write)
 #ifndef _WIN32
   TEST_ENTRY  (ipc_send_recv_pipe)
+  TEST_ENTRY  (ipc_send_recv_pipe_inprocess)
 #endif
   TEST_ENTRY  (ipc_send_recv_tcp)
+  TEST_ENTRY  (ipc_send_recv_tcp_inprocess)
   TEST_ENTRY  (ipc_tcp_connection)
 
   TEST_ENTRY  (tcp_ping_pong)
@@ -671,6 +677,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_utime)
   TEST_ENTRY  (fs_futime)
   TEST_ENTRY  (fs_readlink)
+  TEST_ENTRY  (fs_realpath)
   TEST_ENTRY  (fs_symlink)
   TEST_ENTRY  (fs_symlink_dir)
   TEST_ENTRY  (fs_stat_missing_path)
@@ -714,6 +721,9 @@ TASK_LIST_START
   TEST_ENTRY  (dlerror)
   TEST_ENTRY  (ip4_addr)
   TEST_ENTRY  (ip6_addr_link_local)
+
+  TEST_ENTRY  (queue_foreach_delete)
+
 #if 0
   /* These are for testing the test runner. */
   TEST_ENTRY  (fail_always)

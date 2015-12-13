@@ -153,11 +153,14 @@ TEST_IMPL(tty_file) {
     ASSERT(0 == close(fd));
   }
 
+/* Bug on AIX where '/dev/random' returns 1 from isatty() */
+#ifndef _AIX
   fd = open("/dev/random", O_RDONLY);
   if (fd != -1) {
     ASSERT(UV_EINVAL == uv_tty_init(&loop, &tty, fd, 1));
     ASSERT(0 == close(fd));
   }
+#endif /* _AIX */
 
   fd = open("/dev/zero", O_RDONLY);
   if (fd != -1) {

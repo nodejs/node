@@ -83,6 +83,7 @@ static int fchown_cb_count;
 static int link_cb_count;
 static int symlink_cb_count;
 static int readlink_cb_count;
+static int realpath_cb_count;
 static int utime_cb_count;
 static int futime_cb_count;
 
@@ -164,6 +165,35 @@ static void readlink_cb(uv_fs_t* req) {
   ASSERT(req->result == 0);
   ASSERT(strcmp(req->ptr, "test_file_symlink2") == 0);
   readlink_cb_count++;
+  uv_fs_req_cleanup(req);
+}
+
+
+static void realpath_cb(uv_fs_t* req) {
+  char test_file_abs_buf[PATHMAX];
+  size_t test_file_abs_size = sizeof(test_file_abs_buf);
+  ASSERT(req->fs_type == UV_FS_REALPATH);
+#ifdef _WIN32
+  /*
+   * Windows XP and Server 2003 don't support GetFinalPathNameByHandleW()
+   */
+  if (req->result == UV_ENOSYS) {
+    realpath_cb_count++;
+    uv_fs_req_cleanup(req);
+    return;
+  }
+#endif
+  ASSERT(req->result == 0);
+
+  uv_cwd(test_file_abs_buf, &test_file_abs_size);
+#ifdef _WIN32
+  strcat(test_file_abs_buf, "\\test_file");
+  ASSERT(stricmp(req->ptr, test_file_abs_buf) == 0);
+#else
+  strcat(test_file_abs_buf, "/test_file");
+  ASSERT(strcmp(req->ptr, test_file_abs_buf) == 0);
+#endif
+  realpath_cb_count++;
   uv_fs_req_cleanup(req);
 }
 
@@ -1565,11 +1595,43 @@ TEST_IMPL(fs_readlink) {
 }
 
 
+TEST_IMPL(fs_realpath) {
+  uv_fs_t req;
+
+  loop = uv_default_loop();
+  ASSERT(0 == uv_fs_realpath(loop, &req, "no_such_file", dummy_cb));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+  ASSERT(dummy_cb_count == 1);
+  ASSERT(req.ptr == NULL);
+#ifdef _WIN32
+  /*
+   * Windows XP and Server 2003 don't support GetFinalPathNameByHandleW()
+   */
+  if (req.result == UV_ENOSYS) {
+    uv_fs_req_cleanup(&req);
+    RETURN_SKIP("realpath is not supported on Windows XP");
+  }
+#endif
+  ASSERT(req.result == UV_ENOENT);
+  uv_fs_req_cleanup(&req);
+
+  ASSERT(UV_ENOENT == uv_fs_realpath(NULL, &req, "no_such_file", NULL));
+  ASSERT(req.ptr == NULL);
+  ASSERT(req.result == UV_ENOENT);
+  uv_fs_req_cleanup(&req);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(fs_symlink) {
   int r;
   uv_fs_t req;
   uv_file file;
   uv_file link;
+  char test_file_abs_buf[PATHMAX];
+  size_t test_file_abs_size;
 
   /* Setup. */
   unlink("test_file");
@@ -1577,6 +1639,14 @@ TEST_IMPL(fs_symlink) {
   unlink("test_file_symlink2");
   unlink("test_file_symlink_symlink");
   unlink("test_file_symlink2_symlink");
+  test_file_abs_size = sizeof(test_file_abs_buf);
+#ifdef _WIN32
+  uv_cwd(test_file_abs_buf, &test_file_abs_size);
+  strcat(test_file_abs_buf, "\\test_file");
+#else
+  uv_cwd(test_file_abs_buf, &test_file_abs_size);
+  strcat(test_file_abs_buf, "/test_file");
+#endif
 
   loop = uv_default_loop();
 
@@ -1647,6 +1717,24 @@ TEST_IMPL(fs_symlink) {
   ASSERT(strcmp(req.ptr, "test_file_symlink") == 0);
   uv_fs_req_cleanup(&req);
 
+  r = uv_fs_realpath(NULL, &req, "test_file_symlink_symlink", NULL);
+#ifdef _WIN32
+  /*
+   * Windows XP and Server 2003 don't support GetFinalPathNameByHandleW()
+   */
+  if (r == UV_ENOSYS) {
+    uv_fs_req_cleanup(&req);
+    RETURN_SKIP("realpath is not supported on Windows XP");
+  }
+#endif
+  ASSERT(r == 0);
+#ifdef _WIN32
+  ASSERT(stricmp(req.ptr, test_file_abs_buf) == 0);
+#else
+  ASSERT(strcmp(req.ptr, test_file_abs_buf) == 0);
+#endif
+  uv_fs_req_cleanup(&req);
+
   /* async link */
   r = uv_fs_symlink(loop,
                     &req,
@@ -1687,6 +1775,20 @@ TEST_IMPL(fs_symlink) {
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(readlink_cb_count == 1);
 
+  r = uv_fs_realpath(loop, &req, "test_file", realpath_cb);
+#ifdef _WIN32
+  /*
+   * Windows XP and Server 2003 don't support GetFinalPathNameByHandleW()
+   */
+  if (r == UV_ENOSYS) {
+    uv_fs_req_cleanup(&req);
+    RETURN_SKIP("realpath is not supported on Windows XP");
+  }
+#endif
+  ASSERT(r == 0);
+  uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(realpath_cb_count == 1);
+
   /*
    * Run the loop just to check we don't have make any extraneous uv_ref()
    * calls. This should drop out immediately.
@@ -1710,12 +1812,15 @@ TEST_IMPL(fs_symlink_dir) {
   int r;
   char* test_dir;
   uv_dirent_t dent;
+  static char test_dir_abs_buf[PATHMAX];
+  size_t test_dir_abs_size;
 
   /* set-up */
   unlink("test_dir/file1");
   unlink("test_dir/file2");
   rmdir("test_dir");
   rmdir("test_dir_symlink");
+  test_dir_abs_size = sizeof(test_dir_abs_buf);
 
   loop = uv_default_loop();
 
@@ -1723,16 +1828,16 @@ TEST_IMPL(fs_symlink_dir) {
   uv_fs_req_cleanup(&req);
 
 #ifdef _WIN32
-  {
-    static char src_path_buf[PATHMAX];
-    size_t size;
-    size = sizeof(src_path_buf);
-    strcpy(src_path_buf, "\\\\?\\");
-    uv_cwd(src_path_buf + 4, &size);
-    strcat(src_path_buf, "\\test_dir\\");
-    test_dir = src_path_buf;
-  }
+  strcpy(test_dir_abs_buf, "\\\\?\\");
+  uv_cwd(test_dir_abs_buf + 4, &test_dir_abs_size);
+  test_dir_abs_size += 4;
+  strcat(test_dir_abs_buf, "\\test_dir\\");
+  test_dir_abs_size += strlen("\\test_dir\\");
+  test_dir = test_dir_abs_buf;
 #else
+  uv_cwd(test_dir_abs_buf, &test_dir_abs_size);
+  strcat(test_dir_abs_buf, "/test_dir");
+  test_dir_abs_size += strlen("/test_dir");
   test_dir = "test_dir";
 #endif
 
@@ -1764,6 +1869,25 @@ TEST_IMPL(fs_symlink_dir) {
   ASSERT(strcmp(req.ptr, test_dir + 4) == 0);
 #else
   ASSERT(strcmp(req.ptr, test_dir) == 0);
+#endif
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_realpath(NULL, &req, "test_dir_symlink", NULL);
+#ifdef _WIN32
+  /*
+   * Windows XP and Server 2003 don't support GetFinalPathNameByHandleW()
+   */
+  if (r == UV_ENOSYS) {
+    uv_fs_req_cleanup(&req);
+    RETURN_SKIP("realpath is not supported on Windows XP");
+  }
+#endif
+  ASSERT(r == 0);
+#ifdef _WIN32
+  ASSERT(strlen(req.ptr) == test_dir_abs_size - 5);
+  ASSERT(strnicmp(req.ptr, test_dir + 4, test_dir_abs_size - 5) == 0);
+#else
+  ASSERT(strcmp(req.ptr, test_dir_abs_buf) == 0);
 #endif
   uv_fs_req_cleanup(&req);
 

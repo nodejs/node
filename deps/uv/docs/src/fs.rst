@@ -279,6 +279,16 @@ API
 
     Equivalent to :man:`readlink(2)`.
 
+.. c:function:: int uv_fs_realpath(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
+
+    Equivalent to :man:`realpath(3)` on Unix. Windows uses ``GetFinalPathNameByHandle()``.
+
+    .. note::
+      This function is not implemented on Windows XP and Windows Server 2003.
+      On these systems, UV_ENOSYS is returned.
+
+    .. versionadded:: 1.8.0
+
 .. c:function:: int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
 .. c:function:: int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
 

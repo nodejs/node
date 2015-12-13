@@ -410,8 +410,10 @@ int uv__udp_send(uv_udp_send_t* req,
   if (nbufs > ARRAY_SIZE(req->bufsml))
     req->bufs = uv__malloc(nbufs * sizeof(bufs[0]));
 
-  if (req->bufs == NULL)
+  if (req->bufs == NULL) {
+    uv__req_unregister(handle->loop, req);
     return -ENOMEM;
+  }
 
   memcpy(req->bufs, bufs, nbufs * sizeof(bufs[0]));
   handle->send_queue_size += uv__count_bufs(req->bufs, req->nbufs);

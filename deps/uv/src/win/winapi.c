@@ -46,6 +46,7 @@ sSleepConditionVariableSRW pSleepConditionVariableSRW;
 sWakeAllConditionVariable pWakeAllConditionVariable;
 sWakeConditionVariable pWakeConditionVariable;
 sCancelSynchronousIo pCancelSynchronousIo;
+sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
 
 
 void uv_winapi_init() {
@@ -139,4 +140,7 @@ void uv_winapi_init() {
 
   pCancelSynchronousIo = (sCancelSynchronousIo)
     GetProcAddress(kernel32_module, "CancelSynchronousIo");
+
+  pGetFinalPathNameByHandleW = (sGetFinalPathNameByHandleW)
+    GetProcAddress(kernel32_module, "GetFinalPathNameByHandleW");
 }

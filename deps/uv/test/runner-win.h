@@ -19,9 +19,6 @@
  * IN THE SOFTWARE.
  */
 
-/* Don't complain about _snprintf being insecure. */
-#define _CRT_SECURE_NO_WARNINGS
-
 /* Don't complain about write(), fileno() etc. being deprecated. */
 #pragma warning(disable : 4996)
 
@@ -30,10 +27,9 @@
 #include <windows.h>
 #include <stdio.h>
 
-
-/* Windows has no snprintf, only _snprintf. */
-#define snprintf _snprintf
-
+#if !defined(snprintf) && defined(_MSC_VER) && _MSC_VER < 1900
+extern int snprintf(char*, size_t, const char*, ...);
+#endif
 
 typedef struct {
   HANDLE process;

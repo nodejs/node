@@ -25,7 +25,6 @@
 #include "task.h"
 
 #include <errno.h>
-#include <stdio.h>
 #include <sys/resource.h>
 #include <unistd.h>
 
@@ -45,19 +44,19 @@ TEST_IMPL(emfile) {
   uv_loop_t* loop;
   int first_fd;
 
+  /* Lower the file descriptor limit and use up all fds save one. */
+  limits.rlim_cur = limits.rlim_max = maxfd + 1;
+  if (setrlimit(RLIMIT_NOFILE, &limits)) {
+    ASSERT(errno == EPERM);  /* Valgrind blocks the setrlimit() call. */
+    RETURN_SKIP("setrlimit(RLIMIT_NOFILE) failed, running under valgrind?");
+  }
+
   loop = uv_default_loop();
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   ASSERT(0 == uv_tcp_init(loop, &server_handle));
   ASSERT(0 == uv_tcp_init(loop, &client_handle));
   ASSERT(0 == uv_tcp_bind(&server_handle, (const struct sockaddr*) &addr, 0));
   ASSERT(0 == uv_listen((uv_stream_t*) &server_handle, 8, connection_cb));
-
-  /* Lower the file descriptor limit and use up all fds save one. */
-  limits.rlim_cur = limits.rlim_max = maxfd + 1;
-  if (setrlimit(RLIMIT_NOFILE, &limits)) {
-    perror("setrlimit(RLIMIT_NOFILE)");
-    ASSERT(0);
-  }
 
   /* Remember the first one so we can clean up afterwards. */
   do

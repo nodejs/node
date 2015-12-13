@@ -4678,6 +4678,12 @@ typedef VOID (WINAPI* sWakeConditionVariable)
 typedef BOOL (WINAPI* sCancelSynchronousIo)
              (HANDLE hThread);
 
+typedef DWORD (WINAPI* sGetFinalPathNameByHandleW)
+             (HANDLE hFile,
+              LPWSTR lpszFilePath,
+              DWORD cchFilePath,
+              DWORD dwFlags);
+
 /* Ntdll function pointers */
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
 extern sNtDeviceIoControlFile pNtDeviceIoControlFile;
@@ -4699,5 +4705,6 @@ extern sSleepConditionVariableSRW pSleepConditionVariableSRW;
 extern sWakeAllConditionVariable pWakeAllConditionVariable;
 extern sWakeConditionVariable pWakeConditionVariable;
 extern sCancelSynchronousIo pCancelSynchronousIo;
+extern sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
 
 #endif /* UV_WIN_WINAPI_H_ */
