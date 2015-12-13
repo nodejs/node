@@ -1481,8 +1481,6 @@ void AppendExceptionLine(Environment* env,
   arrow[off + 1] = '\0';
 
   Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
-  Local<Value> msg;
-  Local<Value> stack;
 
   // Allocation failed, just print it out
   if (arrow_str.IsEmpty() || err_obj.IsEmpty() || !err_obj->IsNativeError())
