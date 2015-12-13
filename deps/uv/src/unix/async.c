@@ -78,11 +78,17 @@ void uv__async_close(uv_async_t* handle) {
 static void uv__async_event(uv_loop_t* loop,
                             struct uv__async* w,
                             unsigned int nevents) {
+  QUEUE queue;
   QUEUE* q;
   uv_async_t* h;
 
-  QUEUE_FOREACH(q, &loop->async_handles) {
+  QUEUE_MOVE(&loop->async_handles, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
     h = QUEUE_DATA(q, uv_async_t, queue);
+
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->async_handles, q);
 
     if (cmpxchgi(&h->pending, 1, 0) == 0)
       continue;

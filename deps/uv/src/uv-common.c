@@ -141,11 +141,7 @@ static const char* uv__unknown_err_code(int err) {
   char buf[32];
   char* copy;
 
-#ifndef _WIN32
   snprintf(buf, sizeof(buf), "Unknown system error %d", err);
-#else
-  _snprintf(buf, sizeof(buf), "Unknown system error %d", err);
-#endif
   copy = uv__strdup(buf);
 
   return copy != NULL ? copy : "Unknown system error";
@@ -341,19 +337,25 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 
 
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
+  QUEUE queue;
   QUEUE* q;
   uv_handle_t* h;
 
-  QUEUE_FOREACH(q, &loop->handle_queue) {
+  QUEUE_MOVE(&loop->handle_queue, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
     h = QUEUE_DATA(q, uv_handle_t, handle_queue);
+
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->handle_queue, q);
+
     if (h->flags & UV__HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
   }
 }
 
 
-#ifndef NDEBUG
-static void uv__print_handles(uv_loop_t* loop, int only_active) {
+static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
   const char* type;
   QUEUE* q;
   uv_handle_t* h;
@@ -374,7 +376,7 @@ static void uv__print_handles(uv_loop_t* loop, int only_active) {
       default: type = "<unknown>";
     }
 
-    fprintf(stderr,
+    fprintf(stream,
             "[%c%c%c] %-8s %p\n",
             "R-"[!(h->flags & UV__HANDLE_REF)],
             "A-"[!(h->flags & UV__HANDLE_ACTIVE)],
@@ -385,15 +387,14 @@ static void uv__print_handles(uv_loop_t* loop, int only_active) {
 }
 
 
-void uv_print_all_handles(uv_loop_t* loop) {
-  uv__print_handles(loop, 0);
+void uv_print_all_handles(uv_loop_t* loop, FILE* stream) {
+  uv__print_handles(loop, 0, stream);
 }
 
 
-void uv_print_active_handles(uv_loop_t* loop) {
-  uv__print_handles(loop, 1);
+void uv_print_active_handles(uv_loop_t* loop, FILE* stream) {
+  uv__print_handles(loop, 1, stream);
 }
-#endif
 
 
 void uv_ref(uv_handle_t* handle) {

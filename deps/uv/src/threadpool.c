@@ -223,13 +223,8 @@ void uv__work_done(uv_async_t* handle) {
   int err;
 
   loop = container_of(handle, uv_loop_t, wq_async);
-  QUEUE_INIT(&wq);
-
   uv_mutex_lock(&loop->wq_mutex);
-  if (!QUEUE_EMPTY(&loop->wq)) {
-    q = QUEUE_HEAD(&loop->wq);
-    QUEUE_SPLIT(&loop->wq, q, &wq);
-  }
+  QUEUE_MOVE(&loop->wq, &wq);
   uv_mutex_unlock(&loop->wq_mutex);
 
   while (!QUEUE_EMPTY(&wq)) {

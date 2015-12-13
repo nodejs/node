@@ -115,7 +115,11 @@ static void fs_event_cb_dir(uv_fs_event_t* handle, const char* filename,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_RENAME);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "file1") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "file1") == 0);
+  #endif
   ASSERT(0 == uv_fs_event_stop(handle));
   uv_close((uv_handle_t*)handle, close_cb);
 }
@@ -178,8 +182,12 @@ static void fs_event_cb_dir_multi_file(uv_fs_event_t* handle,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE || UV_RENAME);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strncmp(filename, file_prefix, sizeof(file_prefix) - 1) == 0);
+  #else
   ASSERT(filename == NULL ||
          strncmp(filename, file_prefix, sizeof(file_prefix) - 1) == 0);
+  #endif
 
   if (fs_event_created + fs_event_removed == fs_event_file_count) {
     /* Once we've processed all create events, delete all files */
@@ -250,8 +258,16 @@ static void fs_event_cb_dir_multi_file_in_subdir(uv_fs_event_t* handle,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE || UV_RENAME);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strncmp(filename,
+                 file_prefix_in_subdir,
+                 sizeof(file_prefix_in_subdir) - 1) == 0);
+  #else
   ASSERT(filename == NULL ||
-         strncmp(filename, file_prefix_in_subdir, sizeof(file_prefix_in_subdir) - 1) == 0);
+         strncmp(filename,
+                 file_prefix_in_subdir,
+                 sizeof(file_prefix_in_subdir) - 1) == 0);
+  #endif
 
   if (fs_event_created + fs_event_removed == fs_event_file_count) {
     /* Once we've processed all create events, delete all files */
@@ -270,7 +286,11 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "file2") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "file2") == 0);
+  #endif
   ASSERT(0 == uv_fs_event_stop(handle));
   uv_close((uv_handle_t*)handle, close_cb);
 }
@@ -293,7 +313,11 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "watch_file") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "watch_file") == 0);
+  #endif
 
   /* Regression test for SunOS: touch should generate just one event. */
   {
@@ -487,7 +511,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   r = uv_timer_init(loop, &timer);
   ASSERT(r == 0);
 
-  r = uv_timer_start(&timer, timer_cb_touch, 1, 0);
+  r = uv_timer_start(&timer, timer_cb_touch, 10, 0);
   ASSERT(r == 0);
 
   ASSERT(timer_cb_touch_called == 0);

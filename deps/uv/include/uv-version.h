@@ -31,8 +31,8 @@
  */
 
 #define UV_VERSION_MAJOR 1
-#define UV_VERSION_MINOR 7
-#define UV_VERSION_PATCH 5
+#define UV_VERSION_MINOR 8
+#define UV_VERSION_PATCH 0
 #define UV_VERSION_IS_RELEASE 1
 #define UV_VERSION_SUFFIX ""
 
