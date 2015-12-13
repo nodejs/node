@@ -129,6 +129,7 @@ int uv_translate_sys_error(int sys_errno) {
     case ERROR_NETWORK_UNREACHABLE:         return UV_ENETUNREACH;
     case WSAENETUNREACH:                    return UV_ENETUNREACH;
     case WSAENOBUFS:                        return UV_ENOBUFS;
+    case ERROR_BAD_PATHNAME:                return UV_ENOENT;
     case ERROR_DIRECTORY:                   return UV_ENOENT;
     case ERROR_FILE_NOT_FOUND:              return UV_ENOENT;
     case ERROR_INVALID_NAME:                return UV_ENOENT;

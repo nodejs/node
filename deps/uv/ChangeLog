@@ -1,3 +1,102 @@
+2015.12.15, Version 1.8.0 (Stable), 5467299450ecf61635657557b6e01aaaf6c3fdf4
+
+Changes since version 1.7.5:
+
+* unix: fix memory leak in uv_interface_addresses (Jianghua Yang)
+
+* unix: make uv_guess_handle work properly for AIX (Gireesh Punathil)
+
+* fs: undo uv__req_init when uv__malloc failed (Jianghua Yang)
+
+* build: remove unused 'component' GYP option (Saúl Ibarra Corretgé)
+
+* include: remove duplicate extern declaration (Jianghua Yang)
+
+* win: use the MSVC provided snprintf where possible (Jason Williams)
+
+* win, test: fix compilation warning (Saúl Ibarra Corretgé)
+
+* win: fix compilation with VS < 2012 (Ryan Johnston)
+
+* stream: support empty uv_try_write on unix (Fedor Indutny)
+
+* unix: fix request handle leak in uv__udp_send (Jianghua Yang)
+
+* src: replace QUEUE_SPLIT with QUEUE_MOVE (Ben Noordhuis)
+
+* unix: use QUEUE_MOVE when iterating over lists (Ben Noordhuis)
+
+* unix: squelch harmless valgrind warning (Ben Noordhuis)
+
+* test: don't abort on setrlimit() failure (Ben Noordhuis)
+
+* unix: only undo fs req registration in async mode (Ben Noordhuis)
+
+* unix: fix uv__getiovmax return value (HungMingWu)
+
+* unix: make work with Solaris Studio. (Adam Stylinski)
+
+* test: fix fs_event_watch_file_currentdir flakiness (Santiago Gimeno)
+
+* unix: skip prohibited syscalls on tvOS and watchOS (Nathan Corvino)
+
+* test: use FQDN in getaddrinfo_fail test (Wink Saville)
+
+* docs: clarify documentation of uv_tcp_init_ex (Andrius Bentkus)
+
+* win: fix comment (Miodrag Milanovic)
+
+* doc: fix typo in README (Angel Leon)
+
+* darwin: abort() if (un)locking fs mutex fails (Ben Noordhuis)
+
+* pipe: enable inprocess uv_write2 on Windows (Louis DeJardin)
+
+* win: properly return UV_EBADF when _close() fails (Nicholas Vavilov)
+
+* test: skip process_title for AIX (Imran Iqbal)
+
+* misc: expose handle print APIs (Petka Antonov)
+
+* include: add stdio.h to uv.h (Saúl Ibarra Corretgé)
+
+* misc: remove unnecessary null pointer checks (Ian Kronquist)
+
+* test,freebsd: skip udp_dual_stack if not supported (Santiago Gimeno)
+
+* linux: don't retry dup2/dup3 on EINTR (Ben Noordhuis)
+
+* unix: don't retry dup2/dup3 on EINTR (Ben Noordhuis)
+
+* test: fix -Wtautological-pointer-compare warnings (Saúl Ibarra Corretgé)
+
+* win: map ERROR_BAD_PATHNAME to UV_ENOENT (Tony Kelman)
+
+* test: fix test/test-tty.c for AIX (Imran Iqbal)
+
+* android: support api level less than 21 (kkdaemon)
+
+* fsevents: fix race on simultaneous init+close (Fedor Indutny)
+
+* linux,fs: fix p{read,write}v with a 64bit offset (Saúl Ibarra Corretgé)
+
+* fs: add uv_fs_realpath() (Yuval Brik)
+
+* win: fix path for removed and renamed fs events (Joran Dirk Greef)
+
+* win: do not read more from stream than available (Jeremy Whitlock)
+
+* test: test that uv_close() doesn't corrupt QUEUE (Andrey Mazo)
+
+* unix: fix uv_fs_event_stop() from fs_event_cb (Andrey Mazo)
+
+* test: fix self-deadlocks in thread_rwlock_trylock (Ben Noordhuis)
+
+* src: remove non ascii character (sztomi)
+
+* test: fix test udp_multicast_join6 for AIX (Imran Iqbal)
+
+
 2015.09.23, Version 1.7.5 (Stable), a8c1136de2cabf25b143021488cbaab05834daa8
 
 Changes since version 1.7.4:

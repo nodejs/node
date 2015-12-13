@@ -119,7 +119,7 @@ Git tags are signed with the developer's key, they can be verified as follows:
     $ git verify-tag v1.6.1
 
 Starting with libuv 1.7.0, the tarballs stored in the
-[downloads site](http://dist.libuv.org/dist/) are signed and an accomanying
+[downloads site](http://dist.libuv.org/dist/) are signed and an accompanying
 signature file sit alongside each. Once both the release tarball and the
 signature file are downloaded, the file can be verified as follows:
 
