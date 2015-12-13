@@ -270,6 +270,11 @@ static void uv__write_int(int fd, int val) {
 }
 
 
+#if !(defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH))
+/* execvp is marked __WATCHOS_PROHIBITED __TVOS_PROHIBITED, so must be
+ * avoided. Since this isn't called on those targets, the function
+ * doesn't even need to be defined for them.
+ */
 static void uv__process_child_init(const uv_process_options_t* options,
                                    int stdio_count,
                                    int (*pipes)[2],
@@ -375,11 +380,16 @@ static void uv__process_child_init(const uv_process_options_t* options,
   uv__write_int(error_fd, -errno);
   _exit(127);
 }
+#endif
 
 
 int uv_spawn(uv_loop_t* loop,
              uv_process_t* process,
              const uv_process_options_t* options) {
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  /* fork is marked __WATCHOS_PROHIBITED __TVOS_PROHIBITED. */
+  return -ENOSYS;
+#else
   int signal_pipe[2] = { -1, -1 };
   int (*pipes)[2];
   int stdio_count;
@@ -528,6 +538,7 @@ error:
   }
 
   return err;
+#endif
 }
 
 

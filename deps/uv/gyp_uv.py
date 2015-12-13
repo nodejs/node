@@ -83,9 +83,6 @@ if __name__ == '__main__':
   if not any(a.startswith('-Duv_library=') for a in args):
     args.append('-Duv_library=static_library')
 
-  if not any(a.startswith('-Dcomponent=') for a in args):
-    args.append('-Dcomponent=static_library')
-
   # Some platforms (OpenBSD for example) don't have multiprocessing.synchronize
   # so gyp must be run with --no-parallel
   if not gyp_parallel_support:

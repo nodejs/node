@@ -288,3 +288,41 @@ API
     .. note::
         Not every platform can support nanosecond resolution; however, this value will always
         be in nanoseconds.
+
+.. c:function:: void uv_print_all_handles(uv_loop_t* loop, FILE* stream)
+
+    Prints all handles associated with the given `loop` to the given `stream`.
+
+    Example:
+
+    ::
+
+        uv_print_all_handles(uv_default_loop(), stderr);
+        /*
+        [--I] signal   0x1a25ea8
+        [-AI] async    0x1a25cf0
+        [R--] idle     0x1a7a8c8
+        */
+
+    The format is `[flags] handle-type handle-address`. For `flags`:
+
+    - `R` is printed for a handle that is referenced
+    - `A` is printed for a handle that is active
+    - `I` is printed for a handle that is internal
+
+    .. warning::
+        This function is meant for ad hoc debugging, there is no API/ABI
+        stability guarantees.
+
+    .. versionadded:: 1.8.0
+
+.. c:function:: void uv_print_active_handles(uv_loop_t* loop, FILE* stream)
+
+    This is the same as :c:func:`uv_print_all_handles` except only active handles
+    are printed.
+
+    .. warning::
+        This function is meant for ad hoc debugging, there is no API/ABI
+        stability guarantees.
+
+    .. versionadded:: 1.8.0

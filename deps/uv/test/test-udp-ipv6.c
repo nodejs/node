@@ -26,6 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
+
 #define CHECK_HANDLE(handle)                \
   ASSERT((uv_udp_t*)(handle) == &server     \
       || (uv_udp_t*)(handle) == &client     \
@@ -42,6 +46,18 @@ static uv_timer_t timeout;
 static int send_cb_called;
 static int recv_cb_called;
 static int close_cb_called;
+
+#ifdef __FreeBSD__
+static int can_ipv6_ipv4_dual() {
+  int v6only;
+  size_t size = sizeof(int);
+
+  if (sysctlbyname("net.inet6.ip6.v6only", &v6only, &size, NULL, 0))
+    return 0;
+
+  return v6only != 1;
+}
+#endif
 
 
 static void alloc_cb(uv_handle_t* handle,
@@ -149,6 +165,11 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
 TEST_IMPL(udp_dual_stack) {
   if (!can_ipv6())
     RETURN_SKIP("IPv6 not supported");
+
+#ifdef __FreeBSD__
+  if (!can_ipv6_ipv4_dual())
+    RETURN_SKIP("IPv6-IPv4 dual stack not supported");
+#endif
 
   do_test(ipv6_recv_ok, 0);
 
