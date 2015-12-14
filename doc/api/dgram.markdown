@@ -9,14 +9,14 @@ Datagram sockets are available through `require('dgram')`.
 Important note: the behavior of [`dgram.Socket#bind()`][] has changed in v0.10
 and is always asynchronous now.  If you have code that looks like this:
 
-    var s = dgram.createSocket('udp4');
+    const s = dgram.createSocket('udp4');
     s.bind(1234);
     s.addMembership('224.0.0.114');
 
 You have to change it to this:
 
-    var s = dgram.createSocket('udp4');
-    s.bind(1234, function() {
+    const s = dgram.createSocket('udp4');
+    s.bind(1234, () => {
       s.addMembership('224.0.0.114');
     });
 
@@ -49,7 +49,7 @@ are created.
 Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and
 `rinfo` is an object with the sender's address information:
 
-    socket.on('message', function(msg, rinfo) {
+    socket.on('message', (msg, rinfo) => {
       console.log('Received %d bytes from %s:%d\n',
                   msg.length, rinfo.address, rinfo.port);
     });
@@ -92,24 +92,22 @@ binding a closed socket), an [`Error`][] may be thrown by this method.
 
 Example of a UDP server listening on port 41234:
 
-    var dgram = require("dgram");
+    const dgram = require('dgram');
 
-    var server = dgram.createSocket("udp4");
+    const server = dgram.createSocket('udp4');
 
-    server.on("error", function (err) {
-      console.log("server error:\n" + err.stack);
+    server.on('error', (err) => {
+      console.log(`server error:\n${err.stack}`);
       server.close();
     });
 
-    server.on("message", function (msg, rinfo) {
-      console.log("server got: " + msg + " from " +
-        rinfo.address + ":" + rinfo.port);
+    server.on('message', (msg, rinfo) => {
+      console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
     });
 
-    server.on("listening", function () {
+    server.on('listening', () => {
       var address = server.address();
-      console.log("server listening " +
-          address.address + ":" + address.port);
+      console.log(`server listening ${address.address}:${address.port}`);
     });
 
     server.bind(41234);
@@ -189,10 +187,10 @@ be calculated with respect to [byte length][] and not the character position.
 
 Example of sending a UDP packet to a random port on `localhost`;
 
-    var dgram = require('dgram');
-    var message = new Buffer("Some bytes");
-    var client = dgram.createSocket("udp4");
-    client.send(message, 0, message.length, 41234, "localhost", function(err) {
+    const dgram = require('dgram');
+    const message = new Buffer('Some bytes');
+    const client = dgram.createSocket('udp4');
+    client.send(message, 0, message.length, 41234, 'localhost', (err) => {
       client.close();
     });
 

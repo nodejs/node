@@ -10,13 +10,12 @@ in one-to-one correspondence.  As an example, `foo.js` loads the module
 
 The contents of `foo.js`:
 
-    var circle = require('./circle.js');
-    console.log( 'The area of a circle of radius 4 is '
-               + circle.area(4));
+    const circle = require('./circle.js');
+    console.log( `The area of a circle of radius 4 is ${circle.area(4)}`);
 
 The contents of `circle.js`:
 
-    var PI = Math.PI;
+    const PI = Math.PI;
 
     exports.area = function (r) {
       return PI * r * r;
@@ -40,9 +39,9 @@ instead of `exports`.
 
 Below, `bar.js` makes use of the `square` module, which exports a constructor:
 
-    var square = require('./square.js');
+    const square = require('./square.js');
     var mySquare = square(2);
-    console.log('The area of my square is ' + mySquare.area());
+    console.log(`The area of my square is ${mySquare.area()}`);
 
 The `square` module is defined in `square.js`:
 
@@ -233,7 +232,7 @@ Consider this situation:
 
     console.log('a starting');
     exports.done = false;
-    var b = require('./b.js');
+    const b = require('./b.js');
     console.log('in a, b.done = %j', b.done);
     exports.done = true;
     console.log('a done');
@@ -242,7 +241,7 @@ Consider this situation:
 
     console.log('b starting');
     exports.done = false;
-    var a = require('./a.js');
+    const a = require('./a.js');
     console.log('in b, a.done = %j', a.done);
     exports.done = true;
     console.log('b done');
@@ -250,8 +249,8 @@ Consider this situation:
 `main.js`:
 
     console.log('main starting');
-    var a = require('./a.js');
-    var b = require('./b.js');
+    const a = require('./a.js');
+    const b = require('./b.js');
     console.log('in main, a.done=%j, b.done=%j', a.done, b.done);
 
 When `main.js` loads `a.js`, then `a.js` in turn loads `b.js`.  At that
@@ -425,20 +424,20 @@ which is probably not what you want to do.
 
 For example suppose we were making a module called `a.js`
 
-    var EventEmitter = require('events');
+    const EventEmitter = require('events');
 
     module.exports = new EventEmitter();
 
     // Do some work, and after some time emit
     // the 'ready' event from the module itself.
-    setTimeout(function() {
+    setTimeout(() => {
       module.exports.emit('ready');
     }, 1000);
 
 Then in another file we could do
 
-    var a = require('./a');
-    a.on('ready', function() {
+    const a = require('./a');
+    a.on('ready', () => {
       console.log('module a is ready');
     });
 
@@ -448,13 +447,13 @@ done in any callbacks.  This does not work:
 
 x.js:
 
-    setTimeout(function() {
-      module.exports = { a: "hello" };
+    setTimeout(() => {
+      module.exports = { a: 'hello' };
     }, 0);
 
 y.js:
 
-    var x = require('./x');
+    const x = require('./x');
     console.log(x.a);
 
 #### exports alias

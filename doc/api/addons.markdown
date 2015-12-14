@@ -99,7 +99,7 @@ You can now use the binary addon in a Node.js project `hello.js` by pointing
 `require` to the recently built `hello.node` module:
 
     // hello.js
-    var addon = require('./build/Release/addon');
+    const addon = require('./build/Release/addon');
 
     console.log(addon.hello()); // 'world'
 
@@ -189,7 +189,7 @@ function calls and return a result. This is the main and only needed source
 You can test it with the following JavaScript snippet:
 
     // test.js
-    var addon = require('./build/Release/addon');
+    const addon = require('./build/Release/addon');
 
     console.log( 'This should be eight:', addon.add(3,5) );
 
@@ -237,7 +237,7 @@ adding the function as a property of `exports`.
 To test it, run the following JavaScript snippet:
 
     // test.js
-    var addon = require('./build/Release/addon');
+    const addon = require('./build/Release/addon');
 
     addon(function(msg){
       console.log(msg); // 'hello world'
@@ -282,7 +282,7 @@ the string passed to `createObject()`:
 To test it in JavaScript:
 
     // test.js
-    var addon = require('./build/Release/addon');
+    const addon = require('./build/Release/addon');
 
     var obj1 = addon('hello');
     var obj2 = addon('world');
@@ -336,7 +336,7 @@ wraps a C++ function:
 To test:
 
     // test.js
-    var addon = require('./build/Release/addon');
+    const addon = require('./build/Release/addon');
 
     var fn = addon();
     console.log(fn()); // 'hello world'
@@ -470,7 +470,7 @@ prototype:
 Test it with:
 
     // test.js
-    var addon = require('./build/Release/addon');
+    const addon = require('./build/Release/addon');
 
     var obj = new addon.MyObject(10);
     console.log( obj.plusOne() ); // 11
@@ -630,7 +630,7 @@ The implementation is similar to the above in `myobject.cc`:
 Test it with:
 
     // test.js
-    var createObject = require('./build/Release/addon');
+    const createObject = require('./build/Release/addon');
 
     var obj = createObject(10);
     console.log( obj.plusOne() ); // 11
@@ -792,7 +792,7 @@ The implementation of `myobject.cc` is similar to before:
 Test it with:
 
     // test.js
-    var addon = require('./build/Release/addon');
+    const addon = require('./build/Release/addon');
 
     var obj1 = addon.createObject(10);
     var obj2 = addon.createObject(20);
@@ -866,7 +866,7 @@ The file `addon.cc` implements AtExit below:
 Test in JavaScript by running:
 
     // test.js
-    var addon = require('./build/Release/addon');
+    const addon = require('./build/Release/addon');
 
 [online]: https://v8docs.nodesource.com/
 [libuv]: https://github.com/libuv/libuv

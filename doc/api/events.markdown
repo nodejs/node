@@ -24,7 +24,7 @@ attached to.
 Use `require('events')` to access the EventEmitter class.
 
 ```javascript
-var EventEmitter = require('events');
+const EventEmitter = require('events');
 ```
 
 When an `EventEmitter` instance experiences an error, the typical action is
@@ -107,7 +107,7 @@ This can be useful to increment/decrement max listeners to avoid the warning
 while not being irresponsible and setting a too big number.
 
     emitter.setMaxListeners(emitter.getMaxListeners() + 1);
-    emitter.once('event', function () {
+    emitter.once('event', () => {
       // do stuff
       emitter.setMaxListeners(Math.max(emitter.getMaxListeners() - 1, 0));
     });
@@ -122,7 +122,7 @@ Returns the number of listeners listening to the `type` of event.
 
 Returns a copy of the array of listeners for the specified event.
 
-    server.on('connection', function (stream) {
+    server.on('connection', (stream) => {
       console.log('someone connected!');
     });
     console.log(util.inspect(server.listeners('connection'))); // [ [Function] ]
@@ -134,7 +134,7 @@ No checks are made to see if the `listener` has already been added. Multiple
 calls passing the same combination of `event` and `listener` will result in the
 `listener` being added multiple times.
 
-    server.on('connection', function (stream) {
+    server.on('connection', (stream) => {
       console.log('someone connected!');
     });
 
@@ -146,7 +146,7 @@ Adds a **one time** listener for the event. This listener is
 invoked only the next time the event is fired, after which
 it is removed.
 
-    server.once('connection', function (stream) {
+    server.once('connection', (stream) => {
       console.log('Ah, we have our first user!');
     });
 

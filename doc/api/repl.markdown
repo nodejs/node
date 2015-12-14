@@ -85,8 +85,8 @@ a variable to the REPL explicitly by assigning it to the `context` object
 associated with each `REPLServer`.  For example:
 
     // repl_test.js
-    var repl = require('repl'),
-        msg = 'message';
+    const repl = require('repl');
+    var msg = 'message';
 
     repl.start('> ').context.m = msg;
 
@@ -152,7 +152,7 @@ to signal `'end'` on the `input` stream.
 
 Example of listening for `exit`:
 
-    replServer.on('exit', function () {
+    replServer.on('exit', () => {
       console.log('Got "exit" event from repl!');
       process.exit();
     });
@@ -173,7 +173,7 @@ Example of listening for `reset`:
     someExtension.extend(r.context);
 
     // When a new context is created extend it as well.
-    replServer.on('reset', function (context) {
+    replServer.on('reset', (context) => {
       console.log('repl has a new context');
       someExtension.extend(context);
     });
@@ -196,13 +196,13 @@ If a function is provided instead of an object for `cmd`, it is treated as the
 Example of defining a command:
 
     // repl_test.js
-    var repl = require('repl');
+    const repl = require('repl');
 
     var replServer = repl.start();
     replServer.defineCommand('sayhello', {
       help: 'Say hello',
       action: function(name) {
-        this.write('Hello, ' + name + '!\n');
+        this.write(`Hello, ${name}!\n');
         this.displayPrompt();
       }
     });
@@ -277,9 +277,9 @@ will share the same global object but will have unique I/O.
 
 Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
 
-    var net = require('net'),
-        repl = require('repl'),
-        connections = 0;
+    const net = require('net');
+    const repl = require('repl');
+    var connections = 0;
 
     repl.start({
       prompt: 'Node.js via stdin> ',
@@ -287,24 +287,24 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
       output: process.stdout
     });
 
-    net.createServer(function (socket) {
+    net.createServer((socket) => {
       connections += 1;
       repl.start({
         prompt: 'Node.js via Unix socket> ',
         input: socket,
         output: socket
-      }).on('exit', function() {
+      }).on('exit', () => {
         socket.end();
       })
     }).listen('/tmp/node-repl-sock');
 
-    net.createServer(function (socket) {
+    net.createServer((socket) => {
       connections += 1;
       repl.start({
         prompt: 'Node.js via TCP socket> ',
         input: socket,
         output: socket
-      }).on('exit', function() {
+      }).on('exit', () => {
         socket.end();
       });
     }).listen(5001);

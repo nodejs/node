@@ -41,7 +41,7 @@ assertion.
 
     assert.doesNotThrow(
       function() {
-        throw new TypeError("Wrong value");
+        throw new TypeError('Wrong value');
       },
       SyntaxError
     );
@@ -51,7 +51,7 @@ is thrown instead.
 
     assert.doesNotThrow(
       function() {
-        throw new TypeError("Wrong value");
+        throw new TypeError('Wrong value');
       },
       TypeError
     );
@@ -102,7 +102,7 @@ Validate instanceof using constructor:
 
     assert.throws(
       function() {
-        throw new Error("Wrong value");
+        throw new Error('Wrong value');
       },
       Error
     );
@@ -111,7 +111,7 @@ Validate error message using [`RegExp`][]:
 
     assert.throws(
       function() {
-        throw new Error("Wrong value");
+        throw new Error('Wrong value');
       },
       /value/
     );
@@ -120,14 +120,14 @@ Custom error validation:
 
     assert.throws(
       function() {
-        throw new Error("Wrong value");
+        throw new Error('Wrong value');
       },
       function(err) {
         if ( (err instanceof Error) && /value/.test(err) ) {
           return true;
         }
       },
-      "unexpected error"
+      'unexpected error'
     );
 
 [`assert.deepEqual`]: #assert_assert_deepequal_actual_expected_message

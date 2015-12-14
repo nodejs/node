@@ -50,9 +50,9 @@ Almost all Node.js programs, no matter how simple, use Streams in some
 way. Here is an example of using Streams in an Node.js program:
 
 ```javascript
-var http = require('http');
+const http = require('http');
 
-var server = http.createServer(function (req, res) {
+var server = http.createServer( (req, res) => {
   // req is an http.IncomingMessage, which is a Readable Stream
   // res is an http.ServerResponse, which is a Writable Stream
 
@@ -62,18 +62,18 @@ var server = http.createServer(function (req, res) {
   req.setEncoding('utf8');
 
   // Readable streams emit 'data' events once a listener is added
-  req.on('data', function (chunk) {
+  req.on('data', (chunk) => {
     body += chunk;
   });
 
   // the end event tells you that you have entire body
-  req.on('end', function () {
+  req.on('end', () => {
     try {
       var data = JSON.parse(body);
     } catch (er) {
       // uh oh!  bad json!
       res.statusCode = 400;
-      return res.end('error: ' + er.message);
+      return res.end(`error: ${er.message}`);
     }
 
     // write back something interesting to the user:
@@ -176,7 +176,7 @@ possible, this is the best way to do so.
 
 ```javascript
 var readable = getReadableStreamSomehow();
-readable.on('data', function(chunk) {
+readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
 });
 ```
@@ -191,10 +191,10 @@ or by calling `read()` repeatedly until you get to the end.
 
 ```javascript
 var readable = getReadableStreamSomehow();
-readable.on('data', function(chunk) {
+readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
 });
-readable.on('end', function() {
+readable.on('end', () => {
   console.log('there will be no more data.');
 });
 ```
@@ -216,7 +216,7 @@ hadn't already.
 
 ```javascript
 var readable = getReadableStreamSomehow();
-readable.on('readable', function() {
+readable.on('readable', () => {
   // there is some data to read now
 });
 ```
@@ -234,12 +234,12 @@ In the former case, `.read()` will return that data. In the latter case,
 is an empty file:
 
 ```javascript
-var fs = require('fs');
+const fs = require('fs');
 var rr = fs.createReadStream('foo.txt');
-rr.on('readable', function() {
+rr.on('readable', () => {
   console.log('readable:', rr.read());
 });
-rr.on('end', function() {
+rr.on('end', () => {
   console.log('end');
 });
 ```
@@ -280,11 +280,11 @@ available will remain in the internal buffer.
 
 ```javascript
 var readable = getReadableStreamSomehow();
-readable.on('data', function(chunk) {
+readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
   readable.pause();
   console.log('there will be no more data for 1 second');
-  setTimeout(function() {
+  setTimeout(() => {
     console.log('now data will start flowing again');
     readable.resume();
   }, 1000);
@@ -335,7 +335,7 @@ end.
 
 ```javascript
 reader.pipe(writer, { end: false });
-reader.on('end', function() {
+reader.on('end', () => {
   writer.end('Goodbye\n');
 });
 ```
@@ -366,7 +366,7 @@ drained.
 
 ```javascript
 var readable = getReadableStreamSomehow();
-readable.on('readable', function() {
+readable.on('readable', () => {
   var chunk;
   while (null !== (chunk = readable.read())) {
     console.log('got %d bytes of data', chunk.length);
@@ -395,7 +395,7 @@ data.
 ```javascript
 var readable = getReadableStreamSomehow();
 readable.resume();
-readable.on('end', function() {
+readable.on('end', () => {
   console.log('got to the end, but did not read anything');
 });
 ```
@@ -420,7 +420,7 @@ as strings, always use this method.
 ```javascript
 var readable = getReadableStreamSomehow();
 readable.setEncoding('utf8');
-readable.on('data', function(chunk) {
+readable.on('data', (chunk) => {
   assert.equal(typeof chunk, 'string');
   console.log('got %d characters of string data', chunk.length);
 });
@@ -443,7 +443,7 @@ var writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt',
 // but only for the first second
 readable.pipe(writable);
-setTimeout(function() {
+setTimeout(() => {
   console.log('stop writing to file.txt');
   readable.unpipe(writable);
   console.log('manually close the file stream');
@@ -471,7 +471,7 @@ for Stream Implementors, below.)
 // Pull off a header delimited by \n\n
 // use unshift() if we get too much
 // Call the callback with (error, header, stream)
-var StringDecoder = require('string_decoder').StringDecoder;
+const StringDecoder = require('string_decoder').StringDecoder;
 function parseHeader(stream, callback) {
   stream.on('error', callback);
   stream.on('readable', onReadable);
@@ -528,12 +528,12 @@ as a convenience for interacting with old Node.js programs and libraries.
 For example:
 
 ```javascript
-var OldReader = require('./old-api-module.js').OldReader;
-var oreader = new OldReader;
-var Readable = require('stream').Readable;
-var myReader = new Readable().wrap(oreader);
+const OldReader = require('./old-api-module.js').OldReader;
+const Readable = require('stream').Readable;
+const oreader = new OldReader;
+const myReader = new Readable().wrap(oreader);
 
-myReader.on('readable', function() {
+myReader.on('readable', () => {
   myReader.read(); // etc.
 });
 ```
@@ -615,10 +615,10 @@ to the underlying system, this event is emitted.
 ```javascript
 var writer = getWritableStreamSomehow();
 for (var i = 0; i < 100; i ++) {
-  writer.write('hello, #' + i + '!\n');
+  writer.write('hello, #${i}!\n');
 }
 writer.end('this is the end\n');
-writer.on('finish', function() {
+writer.on('finish', () => {
   console.error('all writes are now complete.');
 });
 ```
@@ -633,7 +633,7 @@ stream, adding this writable to its set of destinations.
 ```javascript
 var writer = getWritableStreamSomehow();
 var reader = getReadableStreamSomehow();
-writer.on('pipe', function(src) {
+writer.on('pipe', (src) => {
   console.error('something is piping into the writer');
   assert.equal(src, reader);
 });
@@ -650,7 +650,7 @@ readable stream, removing this writable from its set of destinations.
 ```javascript
 var writer = getWritableStreamSomehow();
 var reader = getReadableStreamSomehow();
-writer.on('unpipe', function(src) {
+writer.on('unpipe', (src) => {
   console.error('something has stopped piping into the writer');
   assert.equal(src, reader);
 });
@@ -955,8 +955,8 @@ This is a basic example of a Readable stream.  It emits the numerals
 from 1 to 1,000,000 in ascending order, and then ends.
 
 ```javascript
-var Readable = require('stream').Readable;
-var util = require('util');
+const Readable = require('stream').Readable;
+const util = require('util');
 util.inherits(Counter, Readable);
 
 function Counter(opt) {
@@ -995,8 +995,8 @@ below for a better implementation.
 // Using Readable directly for this is sub-optimal.  See the
 // alternative example below under the Transform section.
 
-var Readable = require('stream').Readable;
-var util = require('util');
+const Readable = require('stream').Readable;
+const util = require('util');
 
 util.inherits(SimpleProtocol, Readable);
 
@@ -1012,13 +1012,13 @@ function SimpleProtocol(source, options) {
   this._source = source;
 
   var self = this;
-  source.on('end', function() {
+  source.on('end', () => {
     self.push(null);
   });
 
   // give it a kick whenever the source is readable
   // read(0) will not consume any bytes
-  source.on('readable', function() {
+  source.on('readable', () => {
     self.read(0);
   });
 
@@ -1210,8 +1210,8 @@ would be piped into the parser, which is a more idiomatic Node.js stream
 approach.
 
 ```javascript
-var util = require('util');
-var Transform = require('stream').Transform;
+const util = require('util');
+const Transform = require('stream').Transform;
 util.inherits(SimpleProtocol, Transform);
 
 function SimpleProtocol(options) {
@@ -1518,10 +1518,10 @@ For example, consider the following code:
 
 ```javascript
 // WARNING!  BROKEN!
-net.createServer(function(socket) {
+net.createServer((socket) => {
 
   // we add an 'end' method, but never consume the data
-  socket.on('end', function() {
+  socket.on('end', () => {
     // It will never get here.
     socket.end('I got your message (but didnt read it)\n');
   });
@@ -1538,9 +1538,9 @@ start the flow of data:
 
 ```javascript
 // Workaround
-net.createServer(function(socket) {
+net.createServer((socket) => {
 
-  socket.on('end', function() {
+  socket.on('end', () => {
     socket.end('I got your message (but didnt read it)\n');
   });
 
@@ -1589,9 +1589,9 @@ respectively. These options can be used to implement parsers and
 serializers with Transform streams.
 
 ```javascript
-var util = require('util');
-var StringDecoder = require('string_decoder').StringDecoder;
-var Transform = require('stream').Transform;
+const util = require('util');
+const StringDecoder = require('string_decoder').StringDecoder;
+const Transform = require('stream').Transform;
 util.inherits(JSONParseStream, Transform);
 
 // Gets \n-delimited JSON string data, and emits the parsed objects

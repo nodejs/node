@@ -16,8 +16,8 @@ directly without `require`.
 
 Use `require('console').Console` or `console.Console` to access this class.
 
-    var Console = require('console').Console;
-    var Console = console.Console;
+    const Console = require('console').Console;
+    const Console = console.Console;
 
 You can use the `Console` class to create a simple logger like `console` but
 with different output streams.
@@ -29,10 +29,10 @@ Create a new `Console` by passing one or two writable stream instances.
 is used for warning or error output. If `stderr` isn't passed, the warning
 and error output will be sent to the `stdout`.
 
-    var output = fs.createWriteStream('./stdout.log');
-    var errorOutput = fs.createWriteStream('./stderr.log');
+    const output = fs.createWriteStream('./stdout.log');
+    const errorOutput = fs.createWriteStream('./stderr.log');
     // custom simple logger
-    var logger = new Console(output, errorOutput);
+    const logger = new Console(output, errorOutput);
     // use it like console
     var count = 5;
     logger.log('count: %d', count);

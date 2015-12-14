@@ -27,9 +27,9 @@ For example, suppose `myscript.js` looked like this:
     x = 5;
     setTimeout(function () {
       debugger;
-      console.log("world");
+      console.log('world');
     }, 1000);
-    console.log("hello");
+    console.log('hello');
 
 Then once the debugger is run, it will break on line 4.
 
@@ -46,15 +46,15 @@ Then once the debugger is run, it will break on line 4.
       1 x = 5;
       2 setTimeout(function () {
       3   debugger;
-      4   console.log("world");
+      4   console.log('world');
       5 }, 1000);
     debug> next
     break in /home/indutny/Code/git/indutny/myscript.js:4
       2 setTimeout(function () {
       3   debugger;
-      4   console.log("world");
+      4   console.log('world');
       5 }, 1000);
-      6 console.log("hello");
+      6 console.log('hello');
     debug> repl
     Press Ctrl + C to leave debug repl
     > x
@@ -65,9 +65,9 @@ Then once the debugger is run, it will break on line 4.
     < world
     break in /home/indutny/Code/git/indutny/myscript.js:5
       3   debugger;
-      4   console.log("world");
+      4   console.log('world');
       5 }, 1000);
-      6 console.log("hello");
+      6 console.log('hello');
       7
     debug> quit
     %

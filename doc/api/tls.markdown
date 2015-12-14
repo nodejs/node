@@ -243,11 +243,11 @@ established after addition of event listener.
 Here's an example for using TLS session resumption:
 
     var tlsSessionStore = {};
-    server.on('newSession', function(id, data, cb) {
+    server.on('newSession', (id, data, cb) => {
       tlsSessionStore[id.toString('hex')] = data;
       cb();
     });
-    server.on('resumeSession', function(id, cb) {
+    server.on('resumeSession', (id, cb) => {
       cb(null, tlsSessionStore[id.toString('hex')] || null);
     });
 
@@ -615,10 +615,10 @@ The `callback` parameter will be added as a listener for the
 
 Here is an example of a client of echo server as described previously:
 
-    var tls = require('tls');
-    var fs = require('fs');
+    const tls = require('tls');
+    const fs = require('fs');
 
-    var options = {
+    const options = {
       // These are necessary only if using the client certificate authentication
       key: fs.readFileSync('client-key.pem'),
       cert: fs.readFileSync('client-cert.pem'),
@@ -627,40 +627,40 @@ Here is an example of a client of echo server as described previously:
       ca: [ fs.readFileSync('server-cert.pem') ]
     };
 
-    var socket = tls.connect(8000, options, function() {
+    var socket = tls.connect(8000, options, () => {
       console.log('client connected',
                   socket.authorized ? 'authorized' : 'unauthorized');
       process.stdin.pipe(socket);
       process.stdin.resume();
     });
     socket.setEncoding('utf8');
-    socket.on('data', function(data) {
+    socket.on('data', (data) => {
       console.log(data);
     });
-    socket.on('end', function() {
+    socket.on('end', () => {
       server.close();
     });
 
 Or
 
-    var tls = require('tls');
-    var fs = require('fs');
+    const tls = require('tls');
+    const fs = require('fs');
 
-    var options = {
+    const options = {
       pfx: fs.readFileSync('client.pfx')
     };
 
-    var socket = tls.connect(8000, options, function() {
+    var socket = tls.connect(8000, options, () => {
       console.log('client connected',
                   socket.authorized ? 'authorized' : 'unauthorized');
       process.stdin.pipe(socket);
       process.stdin.resume();
     });
     socket.setEncoding('utf8');
-    socket.on('data', function(data) {
+    socket.on('data', (data) => {
       console.log(data);
     });
-    socket.on('end', function() {
+    socket.on('end', () => {
       server.close();
     });
 
@@ -856,10 +856,10 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
 
 Here is a simple example echo server:
 
-    var tls = require('tls');
-    var fs = require('fs');
+    const tls = require('tls');
+    const fs = require('fs');
 
-    var options = {
+    const options = {
       key: fs.readFileSync('server-key.pem'),
       cert: fs.readFileSync('server-cert.pem'),
 
@@ -870,23 +870,23 @@ Here is a simple example echo server:
       ca: [ fs.readFileSync('client-cert.pem') ]
     };
 
-    var server = tls.createServer(options, function(socket) {
+    var server = tls.createServer(options, (socket) => {
       console.log('server connected',
                   socket.authorized ? 'authorized' : 'unauthorized');
-      socket.write("welcome!\n");
+      socket.write('welcome!\n');
       socket.setEncoding('utf8');
       socket.pipe(socket);
     });
-    server.listen(8000, function() {
+    server.listen(8000, () => {
       console.log('server bound');
     });
 
 Or
 
-    var tls = require('tls');
-    var fs = require('fs');
+    const tls = require('tls');
+    const fs = require('fs');
 
-    var options = {
+    const options = {
       pfx: fs.readFileSync('server.pfx'),
 
       // This is necessary only if using the client certificate authentication.
@@ -894,14 +894,14 @@ Or
 
     };
 
-    var server = tls.createServer(options, function(socket) {
+    var server = tls.createServer(options, (socket) => {
       console.log('server connected',
                   socket.authorized ? 'authorized' : 'unauthorized');
-      socket.write("welcome!\n");
+      socket.write('welcome!\n');
       socket.setEncoding('utf8');
       socket.pipe(socket);
     });
-    server.listen(8000, function() {
+    server.listen(8000, () => {
       console.log('server bound');
     });
 You can test this server by connecting to it with `openssl s_client`:
