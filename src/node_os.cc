@@ -200,7 +200,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   ret = Object::New(env->isolate());
 
   if (err == UV_ENOSYS) {
-    args.GetReturnValue().Set(ret);
+    return args.GetReturnValue().Set(ret);
   } else if (err) {
     return env->ThrowUVException(err, "uv_interface_addresses");
   }
