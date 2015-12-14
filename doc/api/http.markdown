@@ -1061,7 +1061,8 @@ even if there is no data being written to the request body.
 
 If any error is encountered during the request (be that with DNS resolution,
 TCP level errors, or actual HTTP parse errors) an `'error'` event is emitted
-on the returned request object.
+on the returned request object. If no `'error'` listeners are registered
+the error will be thrown.
 
 There are a few special headers that should be noted.
 
