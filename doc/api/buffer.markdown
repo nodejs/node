@@ -104,8 +104,8 @@ Example:
 
     str = '\u00bd + \u00bc = \u00be';
 
-    console.log(str + ": " + str.length + " characters, " +
-      Buffer.byteLength(str, 'utf8') + " bytes");
+    console.log(`${str}: ${str.length} characters, ` +
+                `${Buffer.byteLength(str, 'utf8')} bytes`);
 
     // ½ + ¼ = ¾: 9 characters, 12 bytes
 
@@ -277,7 +277,7 @@ and `end` (defaults to `buffer.length`) are not given it will fill the entire
 buffer.
 
     var b = new Buffer(50);
-    b.fill("h");
+    b.fill('h');
 
 ### buf.indexOf(value[, byteOffset])
 
@@ -301,7 +301,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
     buf = new Buffer(1234);
 
     console.log(buf.length);
-    buf.write("some string", 0, "ascii");
+    buf.write('some string', 0, 'ascii');
     console.log(buf.length);
 
     // 1234
@@ -313,7 +313,7 @@ modify the length of a buffer should therefore treat `length` as read-only and
 use [`buf.slice`][] to create a new buffer.
 
     buf = new Buffer(10);
-    buf.write("abcdefghj", 0, "ascii");
+    buf.write('abcdefghj', 0, 'ascii');
     console.log(buf.length); // 10
     buf = buf.slice(0,5);
     console.log(buf.length); // 5
@@ -639,7 +639,7 @@ The method will not write partial characters.
 
     buf = new Buffer(256);
     len = buf.write('\u00bd + \u00bc = \u00be', 0);
-    console.log(len + " bytes: " + buf.toString('utf8', 0, len));
+    console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 
 ### buf.writeDoubleBE(value, offset[, noAssert])
 ### buf.writeDoubleLE(value, offset[, noAssert])
