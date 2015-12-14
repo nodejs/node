@@ -45,9 +45,9 @@ ever created (and only when `isatty(1)` is true).
 Emitted by `refreshSize()` when either of the `columns` or `rows` properties
 has changed.
 
-    process.stdout.on('resize', function() {
+    process.stdout.on('resize', () => {
       console.log('screen size has changed!');
-      console.log(process.stdout.columns + 'x' + process.stdout.rows);
+      console.log(`${process.stdout.columns}x${process.stdout.rows}`);
     });
 
 ### ws.columns

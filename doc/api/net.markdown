@@ -45,14 +45,14 @@ Returns an object with three properties, e.g.
 
 Example:
 
-    var server = net.createServer(function (socket) {
-      socket.end("goodbye\n");
+    var server = net.createServer((socket) => {
+      socket.end('goodbye\n');
     });
 
     // grab a random port.
-    server.listen(function() {
+    server.listen(() => {
       address = server.address();
-      console.log("opened server on %j", address);
+      console.log('opened server on %j', address);
     });
 
 Don't call `server.address()` until the `'listening'` event has been emitted.
@@ -184,10 +184,10 @@ One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
 would be to wait a second and then try again. This can be done with
 
-    server.on('error', function (e) {
+    server.on('error', (e) => {
       if (e.code == 'EADDRINUSE') {
         console.log('Address in use, retrying...');
-        setTimeout(function () {
+        setTimeout(() => {
           server.close();
           server.listen(PORT, HOST);
         }, 1000);
@@ -512,24 +512,23 @@ The `connectListener` parameter will be added as a listener for the
 
 Here is an example of a client of the previously described echo server:
 
-    var net = require('net');
-    var client = net.connect({port: 8124},
-        function() { //'connect' listener
+    const net = require('net');
+    const client = net.connect({port: 8124}, () => { //'connect' listener
       console.log('connected to server!');
       client.write('world!\r\n');
     });
-    client.on('data', function(data) {
+    client.on('data', (data) => {
       console.log(data.toString());
       client.end();
     });
-    client.on('end', function() {
+    client.on('end', () => {
       console.log('disconnected from server');
     });
 
 To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
-    var client = net.connect({path: '/tmp/echo.sock'});
+    const client = net.connect({path: '/tmp/echo.sock'});
 
 ## net.connect(path[, connectListener])
 
@@ -562,24 +561,24 @@ The `connectListener` parameter will be added as a listener for the
 
 Here is an example of a client of the previously described echo server:
 
-    var net = require('net');
-    var client = net.connect({port: 8124},
-        function() { //'connect' listener
+    const net = require('net');
+    const client = net.connect({port: 8124},
+        () => { //'connect' listener
       console.log('connected to server!');
       client.write('world!\r\n');
     });
-    client.on('data', function(data) {
+    client.on('data', (data) => {
       console.log(data.toString());
       client.end();
     });
-    client.on('end', function() {
+    client.on('end', () => {
       console.log('disconnected from server');
     });
 
 To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
-    var client = net.connect({path: '/tmp/echo.sock'});
+    const client = net.connect({path: '/tmp/echo.sock'});
 
 ## net.createConnection(path[, connectListener])
 
@@ -624,16 +623,16 @@ original process. To begin reading data from a paused socket, call [`resume()`][
 Here is an example of an echo server which listens for connections
 on port 8124:
 
-    var net = require('net');
-    var server = net.createServer(function(c) { //'connection' listener
+    const net = require('net');
+    const server = net.createServer((c) => { //'connection' listener
       console.log('client connected');
-      c.on('end', function() {
+      c.on('end', () => {
         console.log('client disconnected');
       });
       c.write('hello\r\n');
       c.pipe(c);
     });
-    server.listen(8124, function() { //'listening' listener
+    server.listen(8124, () => { //'listening' listener
       console.log('server bound');
     });
 
@@ -644,7 +643,7 @@ Test this by using `telnet`:
 To listen on the socket `/tmp/echo.sock` the third line from the last would
 just be changed to
 
-    server.listen('/tmp/echo.sock', function() { //'listening' listener
+    server.listen('/tmp/echo.sock', () => { //'listening' listener
 
 Use `nc` to connect to a UNIX domain socket server:
 

@@ -29,9 +29,9 @@ implicitly by the event loop draining.
 
 Example of listening for `'exit'`:
 
-    process.on('exit', function(code) {
+    process.on('exit', (code) => {
       // do *NOT* do this
-      setTimeout(function() {
+      setTimeout(() => {
         console.log('This will not run');
       }, 0);
       console.log('About to exit with code:', code);
@@ -71,11 +71,11 @@ event tells you when the list of unhandled rejections shrinks.
 For example using the rejection detection hooks in order to keep a map of all
 the rejected promise reasons at a given time:
 
-    var unhandledRejections = new Map();
-    process.on('unhandledRejection', function(reason, p) {
+    const unhandledRejections = new Map();
+    process.on('unhandledRejection', (reason, p) => {
       unhandledRejections.set(p, reason);
     });
-    process.on('rejectionHandled', function(p) {
+    process.on('rejectionHandled', (p) => {
       unhandledRejections.delete(p);
     });
 
@@ -93,11 +93,11 @@ a stack trace and exit) will not occur.
 
 Example of listening for `'uncaughtException'`:
 
-    process.on('uncaughtException', function(err) {
-      console.log('Caught exception: ' + err);
+    process.on('uncaughtException', (err) => {
+      console.log(`Caught exception: ${err}`);
     });
 
-    setTimeout(function() {
+    setTimeout(() => {
       console.log('This will still run.');
     }, 500);
 
@@ -138,7 +138,7 @@ instance).
 
 Here is an example that logs every unhandled rejection to the console
 
-    process.on('unhandledRejection', function(reason, p) {
+    process.on('unhandledRejection', (reason, p) => {
         console.log("Unhandled Rejection at: Promise ", p, " reason: ", reason);
         // application specific logging, throwing an error, or other logic here
     });
@@ -146,8 +146,8 @@ Here is an example that logs every unhandled rejection to the console
 For example, here is a rejection that will trigger the `'unhandledRejection'`
 event:
 
-    somePromise.then(function(res) {
-      return reportToUser(JSON.pasre(res)); // note the typo
+    somePromise.then((res) => {
+      return reportToUser(JSON.parse(res)); // note the typo
     }); // no `.catch` or `.then`
 
 Here is an example of a coding pattern that will also trigger
@@ -226,7 +226,7 @@ Example of listening for `SIGINT`:
     // Start reading from stdin so we don't exit.
     process.stdin.resume();
 
-    process.on('SIGINT', function() {
+    process.on('SIGINT', () => {
       console.log('Got SIGINT.  Press Control-D to exit.');
     });
 
@@ -285,8 +285,8 @@ An array containing the command line arguments.  The first element will be
 next elements will be any additional command line arguments.
 
     // print process.argv
-    process.argv.forEach(function(val, index, array) {
-      console.log(index + ': ' + val);
+    process.argv.forEach((val, index, array) => {
+      console.log(`${index}: ${val}`);
     });
 
 This will generate:
@@ -302,13 +302,13 @@ This will generate:
 
 Changes the current working directory of the process or throws an exception if that fails.
 
-    console.log('Starting directory: ' + process.cwd());
+    console.log(`Starting directory: ${process.cwd()}`);
     try {
       process.chdir('/tmp');
-      console.log('New directory: ' + process.cwd());
+      console.log(`New directory: ${process.cwd()}`);
     }
     catch (err) {
-      console.log('chdir: ' + err);
+      console.log(`chdir: ${err}`);
     }
 
 ## process.config
@@ -350,7 +350,7 @@ If `process.connected` is false, it is no longer possible to send messages.
 
 Returns the current working directory of the process.
 
-    console.log('Current directory: ' + process.cwd());
+    console.log(`Current directory: ${process.cwd()}`);
 
 ## process.disconnect()
 
@@ -450,7 +450,7 @@ Gets the effective group identity of the process. (See getegid(2).)
 This is the numerical group id, not the group name.
 
     if (process.getegid) {
-      console.log('Current gid: ' + process.getegid());
+      console.log(`Current gid: ${process.getegid()}`);
     }
 
 
@@ -463,7 +463,7 @@ Gets the effective user identity of the process. (See geteuid(2).)
 This is the numerical userid, not the username.
 
     if (process.geteuid) {
-      console.log('Current uid: ' + process.geteuid());
+      console.log(`Current uid: ${process.geteuid()}`);
     }
 
 ## process.getgid()
@@ -475,7 +475,7 @@ Gets the group identity of the process. (See getgid(2).)
 This is the numerical group id, not the group name.
 
     if (process.getgid) {
-      console.log('Current gid: ' + process.getgid());
+      console.log(`Current gid: ${process.getgid()}`);
     }
 
 ## process.getgroups()
@@ -495,7 +495,7 @@ Gets the user identity of the process. (See getuid(2).)
 This is the numerical userid, not the username.
 
     if (process.getuid) {
-      console.log('Current uid: ' + process.getuid());
+      console.log(`Current uid: ${process.getuid()}`);
     }
 
 ## process.hrtime()
@@ -511,7 +511,7 @@ a diff reading, useful for benchmarks and measuring intervals:
     var time = process.hrtime();
     // [ 1800216, 25 ]
 
-    setTimeout(function() {
+    setTimeout(() => {
       var diff = process.hrtime(time);
       // [ 1, 552 ]
 
@@ -556,11 +556,11 @@ something other than kill the target process.
 
 Example of sending a signal to yourself:
 
-    process.on('SIGHUP', function() {
+    process.on('SIGHUP', () => {
       console.log('Got SIGHUP signal.');
     });
 
-    setTimeout(function() {
+    setTimeout(() => {
       console.log('Exiting.');
       process.exit(0);
     }, 100);
@@ -584,7 +584,7 @@ As with `require.main`, it will be `undefined` if there was no entry script.
 Returns an object describing the memory usage of the Node.js process
 measured in bytes.
 
-    var util = require('util');
+    const util = require('util');
 
     console.log(util.inspect(process.memoryUsage()));
 
@@ -609,7 +609,7 @@ efficient.  It runs before any additional I/O events (including
 timers) fire in subsequent ticks of the event loop.
 
     console.log('start');
-    process.nextTick(function() {
+    process.nextTick(() => {
       console.log('nextTick callback');
     });
     console.log('scheduled');
@@ -625,7 +625,7 @@ but before any I/O has occurred.
     function MyThing(options) {
       this.setupOptions(options);
 
-      process.nextTick(function() {
+      process.nextTick(() => {
         this.startDoingStuff();
       }.bind(this));
     }
@@ -677,14 +677,14 @@ happening, just like a `while(true);` loop.
 
 The PID of the process.
 
-    console.log('This process is pid ' + process.pid);
+    console.log(`This process is pid ${process.pid}`);
 
 ## process.platform
 
 What platform you're running on:
 `'darwin'`, `'freebsd'`, `'linux'`, `'sunos'` or `'win32'`
 
-    console.log('This platform is ' + process.platform);
+    console.log(`This platform is ${process.platform}`);
 
 ## process.release
 
@@ -738,13 +738,13 @@ This accepts either a numerical ID or a groupname string. If a groupname
 is specified, this method blocks while resolving it to a numerical ID.
 
     if (process.getegid && process.setegid) {
-      console.log('Current gid: ' + process.getegid());
+      console.log(`Current gid: ${process.getegid()}`);
       try {
         process.setegid(501);
-        console.log('New gid: ' + process.getegid());
+        console.log(`New gid: ${process.getegid()}`);
       }
       catch (err) {
-        console.log('Failed to set gid: ' + err);
+        console.log(`Failed to set gid: ${err}`);
       }
     }
 
@@ -758,13 +758,13 @@ This accepts either a numerical ID or a username string.  If a username
 is specified, this method blocks while resolving it to a numerical ID.
 
     if (process.geteuid && process.seteuid) {
-      console.log('Current uid: ' + process.geteuid());
+      console.log(`Current uid: ${process.geteuid()}`);
       try {
         process.seteuid(501);
-        console.log('New uid: ' + process.geteuid());
+        console.log(`New uid: ${process.geteuid()}`);
       }
       catch (err) {
-        console.log('Failed to set uid: ' + err);
+        console.log(`Failed to set uid: ${err}`);
       }
     }
 
@@ -778,13 +778,13 @@ a numerical ID or a groupname string. If a groupname is specified, this method
 blocks while resolving it to a numerical ID.
 
     if (process.getgid && process.setgid) {
-      console.log('Current gid: ' + process.getgid());
+      console.log(`Current gid: ${process.getgid()}`);
       try {
         process.setgid(501);
-        console.log('New gid: ' + process.getgid());
+        console.log(`New gid: ${process.getgid()}`);
       }
       catch (err) {
-        console.log('Failed to set gid: ' + err);
+        console.log(`Failed to set gid: ${err}`);
       }
     }
 
@@ -808,13 +808,13 @@ a numerical ID or a username string.  If a username is specified, this method
 blocks while resolving it to a numerical ID.
 
     if (process.getuid && process.setuid) {
-      console.log('Current uid: ' + process.getuid());
+      console.log(`Current uid: ${process.getuid()}`);
       try {
         process.setuid(501);
-        console.log('New uid: ' + process.getuid());
+        console.log(`New uid: ${process.getuid()}`);
       }
       catch (err) {
-        console.log('Failed to set uid: ' + err);
+        console.log(`Failed to set uid: ${err}`);
       }
     }
 
@@ -836,14 +836,14 @@ Example of opening standard input and listening for both events:
 
     process.stdin.setEncoding('utf8');
 
-    process.stdin.on('readable', function() {
+    process.stdin.on('readable', () => {
       var chunk = process.stdin.read();
       if (chunk !== null) {
-        process.stdout.write('data: ' + chunk);
+        process.stdout.write(`data: ${chunk}`);
       }
     });
 
-    process.stdin.on('end', function() {
+    process.stdin.on('end', () => {
       process.stdout.write('end');
     });
 
@@ -865,7 +865,7 @@ A `Writable Stream` to `stdout` (on fd `1`).
 For example, a `console.log` equivalent could look like this:
 
     console.log = function(msg) {
-      process.stdout.write(msg + '\n');
+      process.stdout.write(`${msg}\n`);
     };
 
 `process.stderr` and `process.stdout` are unlike other streams in Node.js in
@@ -909,11 +909,11 @@ Sets or reads the process's file mode creation mask. Child processes inherit
 the mask from the parent process. Returns the old mask if `mask` argument is
 given, otherwise returns the current mask.
 
-    var oldmask, newmask = 0022;
-
-    oldmask = process.umask(newmask);
-    console.log('Changed umask from: ' + oldmask.toString(8) +
-                ' to ' + newmask.toString(8));
+    const newmask = 0o022;
+    const oldmask = process.umask(newmask);
+    console.log(
+      `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
+    );
 
 
 ## process.uptime()
@@ -924,7 +924,7 @@ Number of seconds Node.js has been running.
 
 A compiled-in property that exposes `NODE_VERSION`.
 
-    console.log('Version: ' + process.version);
+    console.log(`Version: ${process.version}`);
 
 ## process.versions
 

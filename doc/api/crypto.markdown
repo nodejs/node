@@ -280,9 +280,9 @@ associated with the private key being set.
 
 Example (obtaining a shared secret):
 
-    var crypto = require('crypto');
-    var alice = crypto.createECDH('secp256k1');
-    var bob = crypto.createECDH('secp256k1');
+    const crypto = require('crypto');
+    const alice = crypto.createECDH('secp256k1');
+    const bob = crypto.createECDH('secp256k1');
 
     // Note: This is a shortcut way to specify one of Alice's previous private
     // keys. It would be unwise to use such a predictable private key in a real
@@ -294,8 +294,8 @@ Example (obtaining a shared secret):
     // Bob uses a newly generated cryptographically strong pseudorandom key pair
     bob.generateKeys();
 
-    var alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
-    var bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
+    const alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
+    const bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 
     // alice_secret and bob_secret should be the same shared secret value
     console.log(alice_secret === bob_secret);
@@ -535,20 +535,20 @@ algorithms.
 
 Example: this program that takes the sha256 sum of a file
 
-    var filename = process.argv[2];
-    var crypto = require('crypto');
-    var fs = require('fs');
+    const filename = process.argv[2];
+    const crypto = require('crypto');
+    const fs = require('fs');
 
-    var shasum = crypto.createHash('sha256');
+    const shasum = crypto.createHash('sha256');
 
-    var s = fs.ReadStream(filename);
-    s.on('data', function(d) {
+    const s = fs.ReadStream(filename);
+    s.on('data', (d) => {
       shasum.update(d);
     });
 
-    s.on('end', function() {
+    s.on('end', () => {
       var d = shasum.digest('hex');
-      console.log(d + '  ' + filename);
+      console.log(`${d}  ${filename}`);
     });
 
 ## crypto.createHmac(algorithm, key)
@@ -581,7 +581,7 @@ Returns an array with the names of the supported ciphers.
 
 Example:
 
-    var ciphers = crypto.getCiphers();
+    const ciphers = crypto.getCiphers();
     console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
 
 ## crypto.getCurves()
@@ -590,7 +590,7 @@ Returns an array with the names of the supported elliptic curves.
 
 Example:
 
-    var curves = crypto.getCurves();
+    const curves = crypto.getCurves();
     console.log(curves); // ['secp256k1', 'secp384r1', ...]
 
 ## crypto.getDiffieHellman(group_name)
@@ -608,15 +608,15 @@ and communication time.
 
 Example (obtaining a shared secret):
 
-    var crypto = require('crypto');
-    var alice = crypto.getDiffieHellman('modp14');
-    var bob = crypto.getDiffieHellman('modp14');
+    const crypto = require('crypto');
+    const alice = crypto.getDiffieHellman('modp14');
+    const bob = crypto.getDiffieHellman('modp14');
 
     alice.generateKeys();
     bob.generateKeys();
 
-    var alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
-    var bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
+    const alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
+    const bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 
     /* alice_secret and bob_secret should be the same */
     console.log(alice_secret == bob_secret);
@@ -627,7 +627,7 @@ Returns an array with the names of the supported hash algorithms.
 
 Example:
 
-    var hashes = crypto.getHashes();
+    const hashes = crypto.getHashes();
     console.log(hashes); // ['sha', 'sha1', 'sha1WithRSAEncryption', ...]
 
 ## crypto.pbkdf2(password, salt, iterations, keylen[, digest], callback)
@@ -711,7 +711,7 @@ NOTE: All paddings are defined in `constants` module.
 Generates cryptographically strong pseudo-random data. Usage:
 
     // async
-    crypto.randomBytes(256, function(ex, buf) {
+    crypto.randomBytes(256, (ex, buf) => {
       if (ex) throw ex;
       console.log('Have %d bytes of random data: %s', buf.length, buf);
     });
