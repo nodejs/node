@@ -168,11 +168,15 @@ if (process.argv[2] === 'child') {
             // On some platforms with KSH being the default shell
             // (like SmartOS), when a process aborts, KSH exits with an exit
             // code that is greater than 256, and thus the exit code emitted
-            // with the 'exit' event is null and the signal is set to either
-            // SIGABRT or SIGILL.
+            // with the 'exit' event is null and the signal is set to
+            // SIGABRT, SIGILL, or SIGTRAP (depending on compiler).
             if (process.platform === 'sunos') {
               expectedExitCode = null;
               expectedSignal = ['SIGABRT', 'SIGILL'];
+            }
+            if (process.platform === 'aix') {
+              expectedExitCode = null;
+              expectedSignal = ['SIGTRAP'];
             }
 
             // On Windows, v8's base::OS::Abort also triggers a debug breakpoint
