@@ -1,5 +1,44 @@
 # Node.js ChangeLog
 
+## 2015-12-??, Version 5.3.0? Release
+
+* [[`6ca5ea3860`](https://github.com/v5.2.0/node/commit/6ca5ea3860)] - 2015-12-09, Version 5.2.0 (Stable) (Rod Vagg) [nodejs/node#4181](https://github.com/nodejs/node/pull/4181)
+* [[`da5cdc2207`](https://github.com/v5.2.0/node/commit/da5cdc2207)] - **assert**: accommodate ES6 classes that extend Error (Rich Trott) [nodejs/node#4166](https://github.com/nodejs/node/pull/4166)
+* [[`67e181986a`](https://github.com/v5.2.0/node/commit/67e181986a)] - **(SEMVER-MINOR)** **buffer**: add includes() for parity with TypedArray (Alexander Martin) [nodejs/node#3567](https://github.com/nodejs/node/pull/3567)
+* [[`84dea1bd0c`](https://github.com/v5.2.0/node/commit/84dea1bd0c)] - **configure**: fix arm vfpv2 (Jörg Krause) [nodejs/node#4203](https://github.com/nodejs/node/pull/4203)
+* [[`a7f5dfd14c`](https://github.com/v5.2.0/node/commit/a7f5dfd14c)] - **configure**: use __ARM_ARCH to determine arm version (João Reis) [nodejs/node#4123](https://github.com/nodejs/node/pull/4123)
+* [[`0e3912be0b`](https://github.com/v5.2.0/node/commit/0e3912be0b)] - **configure**: respect CC_host in host arch detection (João Reis) [nodejs/node#4117](https://github.com/nodejs/node/pull/4117)
+* [[`36ac3d642e`](https://github.com/v5.2.0/node/commit/36ac3d642e)] - **deps**: backport 8d6a228 from the v8's upstream (Fedor Indutny) [nodejs/node#4259](https://github.com/nodejs/node/pull/4259)
+* [[`69b94ec55c`](https://github.com/v5.2.0/node/commit/69b94ec55c)] - **deps**: upgrade libuv to 1.8.0 (Saúl Ibarra Corretgé) [nodejs/node#4276](https://github.com/nodejs/node/pull/4276)
+* [[`671347cf13`](https://github.com/v5.2.0/node/commit/671347cf13)] - **doc**: fixup socket.remoteAddress (Arthur Gautier) [nodejs/node#4198](https://github.com/nodejs/node/pull/4198)
+* [[`f050cab3d8`](https://github.com/v5.2.0/node/commit/f050cab3d8)] - **doc**: copyedit console doc (Rich Trott) [nodejs/node#4225](https://github.com/nodejs/node/pull/4225)
+* [[`1a21a5368b`](https://github.com/v5.2.0/node/commit/1a21a5368b)] - **doc**: move description of 'equals' method to right place (janriemer) [nodejs/node#4227](https://github.com/nodejs/node/pull/4227)
+* [[`9a9c5259bf`](https://github.com/v5.2.0/node/commit/9a9c5259bf)] - **doc**: Fixing broken links to the v8 wiki (Tom Gallacher) [nodejs/node#4241](https://github.com/nodejs/node/pull/4241)
+* [[`37ed05b8c1`](https://github.com/v5.2.0/node/commit/37ed05b8c1)] - **doc**: copyedit child_process doc (Rich Trott) [nodejs/node#4188](https://github.com/nodejs/node/pull/4188)
+* [[`e47ae5808b`](https://github.com/v5.2.0/node/commit/e47ae5808b)] - **doc**: copyedit buffer doc (Rich Trott) [nodejs/node#4187](https://github.com/nodejs/node/pull/4187)
+* [[`70fb06a90b`](https://github.com/v5.2.0/node/commit/70fb06a90b)] - **doc**: clarify assert.fail doc (Rich Trott) [nodejs/node#4186](https://github.com/nodejs/node/pull/4186)
+* [[`e3187cc81e`](https://github.com/v5.2.0/node/commit/e3187cc81e)] - **doc**: copyedit addons doc (Rich Trott) [nodejs/node#4185](https://github.com/nodejs/node/pull/4185)
+* [[`931ab967ff`](https://github.com/v5.2.0/node/commit/931ab967ff)] - **doc**: add calvinmetcalf to collaborators (Calvin Metcalf) [nodejs/node#4218](https://github.com/nodejs/node/pull/4218)
+* [[`01ce23148b`](https://github.com/v5.2.0/node/commit/01ce23148b)] - **doc**: add mcollina to collaborators (Matteo Collina) [nodejs/node#4220](https://github.com/nodejs/node/pull/4220)
+* [[`bd8753aabf`](https://github.com/v5.2.0/node/commit/bd8753aabf)] - **doc**: add rmg to collaborators (Ryan Graham) [nodejs/node#4219](https://github.com/nodejs/node/pull/4219)
+* [[`73a9a6fc92`](https://github.com/v5.2.0/node/commit/73a9a6fc92)] - **doc**: harmonize description of `ca` argument (Ben Noordhuis) [nodejs/node#4213](https://github.com/nodejs/node/pull/4213)
+* [[`dfc8bedbc5`](https://github.com/v5.2.0/node/commit/dfc8bedbc5)] - **doc**: change references from node to Node.js (Roman Klauke) [nodejs/node#4177](https://github.com/nodejs/node/pull/4177)
+* [[`425a3545d2`](https://github.com/v5.2.0/node/commit/425a3545d2)] - **(SEMVER-MINOR)** **domains**: fix handling of uncaught exceptions (Julien Gilli) [nodejs/node#3654](https://github.com/nodejs/node/pull/3654)
+* [[`acef181fde`](https://github.com/v5.2.0/node/commit/acef181fde)] - **(SEMVER-MINOR)** **https**: support disabling session caching (Fedor Indutny) [nodejs/node#4252](https://github.com/nodejs/node/pull/4252)
+* [[`d3c498b1b7`](https://github.com/v5.2.0/node/commit/d3c498b1b7)] - **node**: remove unused variables in AppendExceptionLine (Yazhong Liu) [nodejs/node#4264](https://github.com/nodejs/node/pull/4264)
+* [[`aad6b9f0eb`](https://github.com/v5.2.0/node/commit/aad6b9f0eb)] - **repl**: display error message when loading directory (Prince J Wesley) [nodejs/node#4170](https://github.com/nodejs/node/pull/4170)
+* [[`213ede6cee`](https://github.com/v5.2.0/node/commit/213ede6cee)] - **repl**: fix require('3rdparty') regression (Ben Noordhuis) [nodejs/node#4215](https://github.com/nodejs/node/pull/4215)
+* [[`b799a74709`](https://github.com/v5.2.0/node/commit/b799a74709)] - **src**: fix line numbers on core errors (cjihrig) [nodejs/node#4254](https://github.com/nodejs/node/pull/4254)
+* [[`c311b61430`](https://github.com/v5.2.0/node/commit/c311b61430)] - **src**: fix deprecation message for ErrnoException (Martin von Gagern) [nodejs/node#4269](https://github.com/nodejs/node/pull/4269)
+* [[`7598ed6cc0`](https://github.com/v5.2.0/node/commit/7598ed6cc0)] - **test**: parallelize test-repl-persistent-history (Jeremiah Senkpiel) [nodejs/node#4247](https://github.com/nodejs/node/pull/4247)
+* [[`668449ad14`](https://github.com/v5.2.0/node/commit/668449ad14)] - **test**: use regular timeout times for ARMv8 (Jeremiah Senkpiel) [nodejs/node#4248](https://github.com/nodejs/node/pull/4248)
+* [[`23e7703c85`](https://github.com/v5.2.0/node/commit/23e7703c85)] - **test**: fix http-many-ended-pipelines flakiness (Santiago Gimeno) [nodejs/node#4041](https://github.com/nodejs/node/pull/4041)
+* [[`3b94991bda`](https://github.com/v5.2.0/node/commit/3b94991bda)] - **test**: fix tls-inception flakiness (Santiago Gimeno) [nodejs/node#4195](https://github.com/nodejs/node/pull/4195)
+* [[`86a3bd09b0`](https://github.com/v5.2.0/node/commit/86a3bd09b0)] - **test**: fix tls-inception (Santiago Gimeno) [nodejs/node#4195](https://github.com/nodejs/node/pull/4195)
+* [[`1e89830a11`](https://github.com/v5.2.0/node/commit/1e89830a11)] - **test**: don't assume openssl s_client supports -ssl3 (Ben Noordhuis) [nodejs/node#4204](https://github.com/nodejs/node/pull/4204)
+* [[`c5b4f6bc99`](https://github.com/v5.2.0/node/commit/c5b4f6bc99)] - **(SEMVER-MINOR)** **tls**: introduce `secureContext` for `tls.connect` (Fedor Indutny) [nodejs/node#4246](https://github.com/nodejs/node/pull/4246)
+* [[`e0bb118a1d`](https://github.com/v5.2.0/node/commit/e0bb118a1d)] - **tls_wrap**: inherit from the `AsyncWrap` first (Fedor Indutny) [nodejs/node#4268](https://github.com/nodejs/node/pull/4268)
+
 ## 2015-12-09, Version 5.2.0 (Stable), @rvagg
 
 ### Notable changes
