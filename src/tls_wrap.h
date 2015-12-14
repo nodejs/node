@@ -21,9 +21,9 @@ namespace crypto {
   class SecureContext;
 }
 
-class TLSWrap : public crypto::SSLWrap<TLSWrap>,
-                public StreamBase,
-                public AsyncWrap {
+class TLSWrap : public AsyncWrap,
+                public crypto::SSLWrap<TLSWrap>,
+                public StreamBase {
  public:
   ~TLSWrap() override;
 
