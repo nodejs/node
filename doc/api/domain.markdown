@@ -55,8 +55,8 @@ d.on('error', function(er) {
   // This is no better than process.on('uncaughtException')!
   console.log('error, but oh well', er.message);
 });
-d.run(function() {
-  require('http').createServer(function(req, res) {
+d.run(() => {
+  require('http').createServer((req, res) => {
     handleRequest(req, res);
   }).listen(PORT);
 });
@@ -69,8 +69,8 @@ appropriately, and handle errors with much greater safety.
 ```javascript
 // Much better!
 
-var cluster = require('cluster');
-var PORT = +process.env.PORT || 1337;
+const cluster = require('cluster');
+const PORT = +process.env.PORT || 1337;
 
 if (cluster.isMaster) {
   // In real life, you'd probably use more than just 2 workers,
@@ -88,7 +88,7 @@ if (cluster.isMaster) {
   cluster.fork();
   cluster.fork();
 
-  cluster.on('disconnect', function(worker) {
+  cluster.on('disconnect', (worker) => {
     console.error('disconnect!');
     cluster.fork();
   });
@@ -98,14 +98,14 @@ if (cluster.isMaster) {
   //
   // This is where we put our bugs!
 
-  var domain = require('domain');
+  const domain = require('domain');
 
   // See the cluster documentation for more details about using
   // worker processes to serve requests.  How it works, caveats, etc.
 
-  var server = require('http').createServer(function(req, res) {
+  var server = require('http').createServer((req, res) => {
     var d = domain.create();
-    d.on('error', function(er) {
+    d.on('error', (er) => {
       console.error('error', er.stack);
 
       // Note: we're in dangerous territory!
@@ -115,7 +115,7 @@ if (cluster.isMaster) {
 
       try {
         // make sure we close down within 30 seconds
-        var killtimer = setTimeout(function() {
+        var killtimer = setTimeout(() => {
           process.exit(1);
         }, 30000);
         // But don't keep the process open just for that!
@@ -146,7 +146,7 @@ if (cluster.isMaster) {
     d.add(res);
 
     // Now run the handler function in the domain.
-    d.run(function() {
+    d.run(() => {
       handleRequest(req, res);
     });
   });
@@ -159,7 +159,7 @@ function handleRequest(req, res) {
   switch(req.url) {
     case '/error':
       // We do some async stuff, and then...
-      setTimeout(function() {
+      setTimeout(() => {
         // Whoops!
         flerb.bark();
       });
@@ -231,16 +231,16 @@ For example:
 // create a top-level domain for the server
 var serverDomain = domain.create();
 
-serverDomain.run(function() {
+serverDomain.run(() => {
   // server is created in the scope of serverDomain
-  http.createServer(function(req, res) {
+  http.createServer((req, res) => {
     // req and res are also created in the scope of serverDomain
     // however, we'd prefer to have a separate domain for each request.
     // create it first thing, and add req and res to it.
     var reqd = domain.create();
     reqd.add(req);
     reqd.add(res);
-    reqd.on('error', function(er) {
+    reqd.on('error', (er) => {
       console.error('Error', er, req.url);
       try {
         res.writeHead(500);
@@ -282,13 +282,13 @@ Example:
 
 ```
 var d = domain.create();
-d.on('error', function(er) {
+d.on('error', (er) => {
   console.error('Caught error!', er);
 });
-d.run(function() {
-  process.nextTick(function() {
-    setTimeout(function() { // simulating some various async stuff
-      fs.open('non-existent file', 'r', function(er, fd) {
+d.run(() => {
+  process.nextTick(() => {
+    setTimeout(() => { // simulating some various async stuff
+      fs.open('non-existent file', 'r', (er, fd) => {
         if (er) throw er;
         // proceed...
       });
@@ -350,7 +350,7 @@ thrown will be routed to the domain's `'error'` event.
       }));
     }
 
-    d.on('error', function(er) {
+    d.on('error', (er) => {
       // an error occurred somewhere.
       // if we throw it now, it will crash the program
       // with the normal line number and stack message.
@@ -386,7 +386,7 @@ with a single error handler in a single place.
       }));
     }
 
-    d.on('error', function(er) {
+    d.on('error', (er) => {
       // an error occurred somewhere.
       // if we throw it now, it will crash the program
       // with the normal line number and stack message.

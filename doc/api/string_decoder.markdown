@@ -6,7 +6,7 @@ To use this module, do `require('string_decoder')`. StringDecoder decodes a
 buffer to a string. It is a simple interface to `buffer.toString()` but provides
 additional support for utf8.
 
-    var StringDecoder = require('string_decoder').StringDecoder;
+    const StringDecoder = require('string_decoder').StringDecoder;
     var decoder = new StringDecoder('utf8');
 
     var cent = new Buffer([0xC2, 0xA2]);

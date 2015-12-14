@@ -280,7 +280,7 @@ associated with the private key being set.
 
 Example (obtaining a shared secret):
 
-    var crypto = require('crypto');
+    const crypto = require('crypto');
     var alice = crypto.createECDH('secp256k1');
     var bob = crypto.createECDH('secp256k1');
 
@@ -536,19 +536,19 @@ algorithms.
 Example: this program that takes the sha256 sum of a file
 
     var filename = process.argv[2];
-    var crypto = require('crypto');
-    var fs = require('fs');
+    const crypto = require('crypto');
+    const fs = require('fs');
 
     var shasum = crypto.createHash('sha256');
 
     var s = fs.ReadStream(filename);
-    s.on('data', function(d) {
+    s.on('data', (d) => {
       shasum.update(d);
     });
 
-    s.on('end', function() {
+    s.on('end', () => {
       var d = shasum.digest('hex');
-      console.log(d + '  ' + filename);
+      console.log(`${d}  ${filename}`);
     });
 
 ## crypto.createHmac(algorithm, key)
@@ -608,7 +608,7 @@ and communication time.
 
 Example (obtaining a shared secret):
 
-    var crypto = require('crypto');
+    const crypto = require('crypto');
     var alice = crypto.getDiffieHellman('modp14');
     var bob = crypto.getDiffieHellman('modp14');
 
@@ -711,7 +711,7 @@ NOTE: All paddings are defined in `constants` module.
 Generates cryptographically strong pseudo-random data. Usage:
 
     // async
-    crypto.randomBytes(256, function(ex, buf) {
+    crypto.randomBytes(256, (ex, buf) => {
       if (ex) throw ex;
       console.log('Have %d bytes of random data: %s', buf.length, buf);
     });

@@ -4,7 +4,7 @@
 
 You can access this module with:
 
-    var zlib = require('zlib');
+    const zlib = require('zlib');
 
 This provides bindings to Gzip/Gunzip, Deflate/Inflate, and
 DeflateRaw/InflateRaw classes.  Each class takes the same options, and
@@ -16,7 +16,7 @@ Compressing or decompressing a file can be done by piping an
 fs.ReadStream into a zlib stream, then into an fs.WriteStream.
 
     var gzip = zlib.createGzip();
-    var fs = require('fs');
+    const fs = require('fs');
     var inp = fs.createReadStream('input.txt');
     var out = fs.createWriteStream('input.txt.gz');
 
@@ -48,9 +48,9 @@ ought to be cached.  See [Memory Usage Tuning][] below for more information
 on the speed/memory/compression tradeoffs involved in zlib usage.
 
     // client request example
-    var zlib = require('zlib');
-    var http = require('http');
-    var fs = require('fs');
+    const zlib = require('zlib');
+    const http = require('http');
+    const fs = require('fs');
     var request = http.get({ host: 'izs.me',
                              path: '/',
                              port: 80,
@@ -75,9 +75,9 @@ on the speed/memory/compression tradeoffs involved in zlib usage.
     // server example
     // Running a gzip operation on every request is quite expensive.
     // It would be much more efficient to cache the compressed buffer.
-    var zlib = require('zlib');
-    var http = require('http');
-    var fs = require('fs');
+    const zlib = require('zlib');
+    const http = require('http');
+    const fs = require('fs');
     http.createServer(function(request, response) {
       var raw = fs.createReadStream('index.html');
       var acceptEncoding = request.headers['accept-encoding'];

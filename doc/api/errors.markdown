@@ -47,12 +47,12 @@ it will crash the process as an unhandled exception unless [domains][] are
 employed appropriately or [`process.on('uncaughtException')`][] has a handler.
 
 ```javascript
-var net = require('net');
+const net = require('net');
 
 var connection = net.connect('localhost');
 
 // adding an 'error' event handler to a stream:
-connection.on('error', function(err) {
+connection.on('error', (err) => {
   // if the connection is reset by the server, or if it can't
   // connect at all, or on any sort of error encountered by
   // the connection, the error will be sent here.
@@ -67,11 +67,11 @@ provided by Node.js -- even user created event emitters and streams will throw
 errors when no error handlers are attached. An example:
 
 ```javascript
-var EventEmitter = require('events');
+const EventEmitter = require('events');
 
 var ee = new EventEmitter();
 
-setImmediate(function() {
+setImmediate(() => {
   // this will crash the process because no 'error' event
   // handler has been added.
   ee.emit('error', new Error('This will crash'));
@@ -92,14 +92,14 @@ at least **one** argument -- `error` -- that will either be `null` (if no error
 was encountered) or an `Error` instance.  For instance:
 
 ```javascript
-var fs = require('fs');
+const fs = require('fs');
 
 fs.readFile('/some/file/that/does-not-exist', function nodeStyleCallback(err, data) {
   console.log(err)  // Error: ENOENT
   console.log(data) // undefined / null
 });
 
-fs.readFile('/some/file/that/does-exist', function(err, data) {
+fs.readFile('/some/file/that/does-exist', (err, data) => {
   console.log(err)  // null
   console.log(data) // <Buffer: ba dd ca fe>
 })
@@ -111,10 +111,10 @@ inside their node style callback:
 
 ```javascript
 // THIS WILL NOT WORK:
-var fs = require('fs');
+const fs = require('fs');
 
 try {
-  fs.readFile('/some/file/that/does-not-exist', function(err, data) {
+  fs.readFile('/some/file/that/does-not-exist', (err, data) => {
     // mistaken assumption: throwing here...
     if (err) {
       throw err;
@@ -240,7 +240,7 @@ calls a JavaScript function, the frame representing the `cheetahify` call will *
 be present in stacktraces:
 
 ```javascript
-var cheetahify = require('./native-binding.node');
+const cheetahify = require('./native-binding.node');
 
 function makeFaster() {
   // cheetahify *synchronously* calls speedy.
@@ -331,7 +331,7 @@ program.
 
 ```javascript
 try {
-  require("vm").runInThisContext("binary ! isNotOk");
+  require('vm').runInThisContext('binary ! isNotOk');
 } catch(err) {
   // err will be a SyntaxError
 }

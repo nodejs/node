@@ -64,10 +64,10 @@ a `'close'` event or a special `'agentRemove'` event. This means that if
 you intend to keep one HTTP request open for a long time and don't
 want it to stay in the pool you can do something along the lines of:
 
-    http.get(options, function(res) {
+    http.get(options, (res)=> {
       // Do stuff
-    }).on("socket", function (socket) {
-      socket.emit("agentRemove");
+    }).on('socket', (socket)=> {
+      socket.emit('agentRemove');
     });
 
 Alternatively, you could just opt out of pooling entirely using
@@ -78,7 +78,7 @@ Alternatively, you could just opt out of pooling entirely using
       port: 80,
       path: '/',
       agent: false  // create a new agent just for this one request
-    }, function (res) {
+    }, (res)=> {
       // Do stuff with response
     })
 
@@ -103,7 +103,7 @@ of these values set to their respective defaults.
 To configure any of them, you must create your own [`http.Agent`][] object.
 
 ```javascript
-var http = require('http');
+const http = require('http');
 var keepAliveAgent = new http.Agent({ keepAlive: true });
 options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
@@ -202,19 +202,19 @@ their connections closed.
 
 A client server pair that show you how to listen for the `'connect'` event.
 
-    var http = require('http');
-    var net = require('net');
-    var url = require('url');
+    const http = require('http');
+    const net = require('net');
+    const url = require('url');
 
     // Create an HTTP tunneling proxy
-    var proxy = http.createServer(function (req, res) {
+    var proxy = http.createServer( (req, res)=> {
       res.writeHead(200, {'Content-Type': 'text/plain'});
       res.end('okay');
     });
-    proxy.on('connect', function(req, cltSocket, head) {
+    proxy.on('connect', (req, cltSocket, head)=> {
       // connect to an origin server
-      var srvUrl = url.parse('http://' + req.url);
-      var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, function() {
+      var srvUrl = url.parse(`http://${req.url}`);
+      var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, ()=> {
         cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                         'Proxy-agent: Node.js-Proxy\r\n' +
                         '\r\n');
@@ -225,7 +225,7 @@ A client server pair that show you how to listen for the `'connect'` event.
     });
 
     // now that proxy is running
-    proxy.listen(1337, '127.0.0.1', function() {
+    proxy.listen(1337, '127.0.0.1', ()=> {
 
       // make a request to a tunneling proxy
       var options = {
@@ -238,7 +238,7 @@ A client server pair that show you how to listen for the `'connect'` event.
       var req = http.request(options);
       req.end();
 
-      req.on('connect', function(res, socket, head) {
+      req.on('connect', (res, socket, head)=> {
         console.log('got connected!');
 
         // make a request over an HTTP tunnel
@@ -246,10 +246,10 @@ A client server pair that show you how to listen for the `'connect'` event.
                      'Host: www.google.com:80\r\n' +
                      'Connection: close\r\n' +
                      '\r\n');
-        socket.on('data', function(chunk) {
+        socket.on('data', (chunk)=> {
           console.log(chunk.toString());
         });
-        socket.on('end', function() {
+        socket.on('end', ()=> {
           proxy.close();
         });
       });
@@ -292,14 +292,14 @@ their connections closed.
 
 A client server pair that show you how to listen for the `'upgrade'` event.
 
-    var http = require('http');
+    const http = require('http');
 
     // Create an HTTP server
-    var srv = http.createServer(function (req, res) {
+    var srv = http.createServer( (req, res)=> {
       res.writeHead(200, {'Content-Type': 'text/plain'});
       res.end('okay');
     });
-    srv.on('upgrade', function(req, socket, head) {
+    srv.on('upgrade', (req, socket, head)=> {
       socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                    'Upgrade: WebSocket\r\n' +
                    'Connection: Upgrade\r\n' +
@@ -309,7 +309,7 @@ A client server pair that show you how to listen for the `'upgrade'` event.
     });
 
     // now that server is running
-    srv.listen(1337, '127.0.0.1', function() {
+    srv.listen(1337, '127.0.0.1', ()=> {
 
       // make a request
       var options = {
@@ -324,7 +324,7 @@ A client server pair that show you how to listen for the `'upgrade'` event.
       var req = http.request(options);
       req.end();
 
-      req.on('upgrade', function(res, socket, upgradeHead) {
+      req.on('upgrade', (res, socket, upgradeHead)=> {
         console.log('got upgraded!');
         socket.end();
         process.exit(0);
@@ -606,7 +606,7 @@ emit trailers, with a list of the header fields in its value. E.g.,
     response.writeHead(200, { 'Content-Type': 'text/plain',
                               'Trailer': 'Content-MD5' });
     response.write(fileData);
-    response.addTrailers({'Content-MD5': "7895bf4b8828b55ceaf47747b4bca667"});
+    response.addTrailers({'Content-MD5': '7895bf4b8828b55ceaf47747b4bca667'});
     response.end();
 
 Attempting to set a trailer field name that contains invalid characters will
@@ -649,7 +649,7 @@ Removes a header that's queued for implicit sending.
 
 Example:
 
-    response.removeHeader("Content-Encoding");
+    response.removeHeader('Content-Encoding');
 
 ### response.sendDate
 
@@ -667,11 +667,11 @@ here if you need to send multiple headers with the same name.
 
 Example:
 
-    response.setHeader("Content-Type", "text/html");
+    response.setHeader('Content-Type', 'text/html');
 
 or
 
-    response.setHeader("Set-Cookie", ["type=ninja", "language=javascript"]);
+    response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 
 Attempting to set a header field name that contains invalid characters will
 result in a [`TypeError`][] being thrown.
@@ -964,12 +964,12 @@ is that it sets the method to GET and calls `req.end()` automatically.
 
 Example:
 
-    http.get("http://www.google.com/index.html", function(res) {
-      console.log("Got response: " + res.statusCode);
+    http.get('http://www.google.com/index.html', (res)=> {
+      console.log(`Got response: ${res.statusCode}`);
       // consume response body
       res.resume();
-    }).on('error', function(e) {
-      console.log("Got error: " + e.message);
+    }).on('error', (e)=> {
+      console.log(`Got error: ${e.message}`);
     });
 
 ## http.globalAgent
@@ -1037,20 +1037,20 @@ Example:
       }
     };
 
-    var req = http.request(options, function(res) {
-      console.log('STATUS: ' + res.statusCode);
-      console.log('HEADERS: ' + JSON.stringify(res.headers));
+    var req = http.request(options, (res)=> {
+      console.log(`STATUS: ${res.statusCode}`);
+      console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
       res.setEncoding('utf8');
-      res.on('data', function (chunk) {
-        console.log('BODY: ' + chunk);
+      res.on('data', (chunk)=> {
+        console.log(`BODY: ${chunk}`);
       });
-      res.on('end', function() {
+      res.on('end', ()=> {
         console.log('No more data in response.')
       })
     });
 
-    req.on('error', function(e) {
-      console.log('problem with request: ' + e.message);
+    req.on('error', (e)=> {
+      console.log(`problem with request: ${e.message}`);
     });
 
     // write data to request body
