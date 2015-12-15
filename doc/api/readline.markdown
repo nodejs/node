@@ -11,7 +11,7 @@ program to gracefully exit:
 
     const readline = require('readline');
 
-    var rl = readline.createInterface({
+    const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
     });
@@ -211,8 +211,8 @@ Example of listening for `SIGTSTP`:
 Here's an example of how to use all these together to craft a tiny command
 line interface:
 
-    const readline = require('readline'),
-        rl = readline.createInterface(process.stdin, process.stdout);
+    const readline = require('readline');
+    const rl = readline.createInterface(process.stdin, process.stdout);
 
     rl.setPrompt('OHAI> ');
     rl.prompt();
@@ -292,7 +292,7 @@ Also `completer` can be run in async mode if it accepts two arguments:
 [`process.stdout`][] in order to accept user input:
 
     const readline = require('readline');
-    var rl = readline.createInterface({
+    const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
     });

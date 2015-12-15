@@ -513,8 +513,7 @@ The `connectListener` parameter will be added as a listener for the
 Here is an example of a client of the previously described echo server:
 
     const net = require('net');
-    var client = net.connect({port: 8124},
-        () => { //'connect' listener
+    const client = net.connect({port: 8124}, () => { //'connect' listener
       console.log('connected to server!');
       client.write('world!\r\n');
     });
@@ -529,7 +528,7 @@ Here is an example of a client of the previously described echo server:
 To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
-    var client = net.connect({path: '/tmp/echo.sock'});
+    const client = net.connect({path: '/tmp/echo.sock'});
 
 ## net.connect(path[, connectListener])
 
@@ -563,7 +562,7 @@ The `connectListener` parameter will be added as a listener for the
 Here is an example of a client of the previously described echo server:
 
     const net = require('net');
-    var client = net.connect({port: 8124},
+    const client = net.connect({port: 8124},
         () => { //'connect' listener
       console.log('connected to server!');
       client.write('world!\r\n');
@@ -579,7 +578,7 @@ Here is an example of a client of the previously described echo server:
 To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
-    var client = net.connect({path: '/tmp/echo.sock'});
+    const client = net.connect({path: '/tmp/echo.sock'});
 
 ## net.createConnection(path[, connectListener])
 
@@ -625,7 +624,7 @@ Here is an example of an echo server which listens for connections
 on port 8124:
 
     const net = require('net');
-    var server = net.createServer((c) => { //'connection' listener
+    const server = net.createServer((c) => { //'connection' listener
       console.log('client connected');
       c.on('end', () => {
         console.log('client disconnected');

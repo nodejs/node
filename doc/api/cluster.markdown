@@ -131,7 +131,7 @@ In a worker you can also use `process.on('error')`.
 
 Similar to the `cluster.on('exit')` event, but specific to this worker.
 
-    var worker = cluster.fork();
+    const worker = cluster.fork();
     worker.on('exit', (code, signal) => {
       if( signal ) {
         console.log(`worker was killed by signal: ${signal}`);
@@ -612,7 +612,7 @@ A reference to the current worker object. Not available in the master process.
       cluster.fork();
       cluster.fork();
     } else if (cluster.isWorker) {
-      console.log('I am worker #' + cluster.worker.id);
+      console.log(`I am worker #${cluster.worker.id}`);
     }
 
 ## cluster.workers

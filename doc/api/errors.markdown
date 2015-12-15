@@ -49,7 +49,7 @@ employed appropriately or [`process.on('uncaughtException')`][] has a handler.
 ```javascript
 const net = require('net');
 
-var connection = net.connect('localhost');
+const connection = net.connect('localhost');
 
 // adding an 'error' event handler to a stream:
 connection.on('error', (err) => {
@@ -69,7 +69,7 @@ errors when no error handlers are attached. An example:
 ```javascript
 const EventEmitter = require('events');
 
-var ee = new EventEmitter();
+const ee = new EventEmitter();
 
 setImmediate(() => {
   // this will crash the process because no 'error' event

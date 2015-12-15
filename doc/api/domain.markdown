@@ -48,7 +48,7 @@ For example, this is not a good idea:
 // XXX WARNING!  BAD IDEA!
 
 var d = require('domain').create();
-d.on('error', function(er) {
+d.on('error', (er) => {
   // The error won't crash the process, but what it does is worse!
   // Though we've prevented abrupt process restarting, we are leaking
   // resources like crazy if this ever happens.
@@ -103,7 +103,7 @@ if (cluster.isMaster) {
   // See the cluster documentation for more details about using
   // worker processes to serve requests.  How it works, caveats, etc.
 
-  var server = require('http').createServer((req, res) => {
+  const server = require('http').createServer((req, res) => {
     var d = domain.create();
     d.on('error', (er) => {
       console.error('error', er.stack);
@@ -229,7 +229,9 @@ For example:
 
 ```
 // create a top-level domain for the server
-var serverDomain = domain.create();
+const domain = require('domain');
+const http = require('http');
+const serverDomain = domain.create();
 
 serverDomain.run(() => {
   // server is created in the scope of serverDomain
@@ -281,7 +283,9 @@ This is the most basic way to use a domain.
 Example:
 
 ```
-var d = domain.create();
+const domain = require('domain');
+const fs = require('fs');
+const d = domain.create();
 d.on('error', (er) => {
   console.error('Caught error!', er);
 });
@@ -341,7 +345,7 @@ thrown will be routed to the domain's `'error'` event.
 
 #### Example
 
-    var d = domain.create();
+    const d = domain.create();
 
     function readSomeFile(filename, cb) {
       fs.readFile(filename, 'utf8', d.bind(function(er, data) {
@@ -370,7 +374,7 @@ with a single error handler in a single place.
 
 #### Example
 
-    var d = domain.create();
+    const d = domain.create();
 
     function readSomeFile(filename, cb) {
       fs.readFile(filename, 'utf8', d.intercept(function(data) {

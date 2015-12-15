@@ -71,7 +71,7 @@ event tells you when the list of unhandled rejections shrinks.
 For example using the rejection detection hooks in order to keep a map of all
 the rejected promise reasons at a given time:
 
-    var unhandledRejections = new Map();
+    const unhandledRejections = new Map();
     process.on('unhandledRejection', (reason, p) => {
       unhandledRejections.set(p, reason);
     });
@@ -909,11 +909,11 @@ Sets or reads the process's file mode creation mask. Child processes inherit
 the mask from the parent process. Returns the old mask if `mask` argument is
 given, otherwise returns the current mask.
 
-    var oldmask, newmask = 0022;
-
-    oldmask = process.umask(newmask);
-    console.log('Changed umask from: ' + oldmask.toString(8) +
-                ' to ' + newmask.toString(8));
+    const newmask = 0022;
+    const oldmask = process.umask(newmask);
+    console.log(
+      `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
+    );
 
 
 ## process.uptime()

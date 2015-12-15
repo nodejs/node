@@ -64,9 +64,9 @@ a `'close'` event or a special `'agentRemove'` event. This means that if
 you intend to keep one HTTP request open for a long time and don't
 want it to stay in the pool you can do something along the lines of:
 
-    http.get(options, (res)=> {
+    http.get(options, (res) => {
       // Do stuff
-    }).on('socket', (socket)=> {
+    }).on('socket', (socket) => {
       socket.emit('agentRemove');
     });
 
@@ -78,7 +78,7 @@ Alternatively, you could just opt out of pooling entirely using
       port: 80,
       path: '/',
       agent: false  // create a new agent just for this one request
-    }, (res)=> {
+    }, (res) => {
       // Do stuff with response
     })
 
@@ -207,14 +207,14 @@ A client server pair that show you how to listen for the `'connect'` event.
     const url = require('url');
 
     // Create an HTTP tunneling proxy
-    var proxy = http.createServer( (req, res)=> {
+    var proxy = http.createServer( (req, res) => {
       res.writeHead(200, {'Content-Type': 'text/plain'});
       res.end('okay');
     });
-    proxy.on('connect', (req, cltSocket, head)=> {
+    proxy.on('connect', (req, cltSocket, head) => {
       // connect to an origin server
       var srvUrl = url.parse(`http://${req.url}`);
-      var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, ()=> {
+      var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, () => {
         cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                         'Proxy-agent: Node.js-Proxy\r\n' +
                         '\r\n');
@@ -225,7 +225,7 @@ A client server pair that show you how to listen for the `'connect'` event.
     });
 
     // now that proxy is running
-    proxy.listen(1337, '127.0.0.1', ()=> {
+    proxy.listen(1337, '127.0.0.1', () => {
 
       // make a request to a tunneling proxy
       var options = {
@@ -238,7 +238,7 @@ A client server pair that show you how to listen for the `'connect'` event.
       var req = http.request(options);
       req.end();
 
-      req.on('connect', (res, socket, head)=> {
+      req.on('connect', (res, socket, head) => {
         console.log('got connected!');
 
         // make a request over an HTTP tunnel
@@ -246,10 +246,10 @@ A client server pair that show you how to listen for the `'connect'` event.
                      'Host: www.google.com:80\r\n' +
                      'Connection: close\r\n' +
                      '\r\n');
-        socket.on('data', (chunk)=> {
+        socket.on('data', (chunk) => {
           console.log(chunk.toString());
         });
-        socket.on('end', ()=> {
+        socket.on('end', () => {
           proxy.close();
         });
       });
@@ -295,11 +295,11 @@ A client server pair that show you how to listen for the `'upgrade'` event.
     const http = require('http');
 
     // Create an HTTP server
-    var srv = http.createServer( (req, res)=> {
+    var srv = http.createServer( (req, res) => {
       res.writeHead(200, {'Content-Type': 'text/plain'});
       res.end('okay');
     });
-    srv.on('upgrade', (req, socket, head)=> {
+    srv.on('upgrade', (req, socket, head) => {
       socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                    'Upgrade: WebSocket\r\n' +
                    'Connection: Upgrade\r\n' +
@@ -309,7 +309,7 @@ A client server pair that show you how to listen for the `'upgrade'` event.
     });
 
     // now that server is running
-    srv.listen(1337, '127.0.0.1', ()=> {
+    srv.listen(1337, '127.0.0.1', () => {
 
       // make a request
       var options = {
@@ -324,7 +324,7 @@ A client server pair that show you how to listen for the `'upgrade'` event.
       var req = http.request(options);
       req.end();
 
-      req.on('upgrade', (res, socket, upgradeHead)=> {
+      req.on('upgrade', (res, socket, upgradeHead) => {
         console.log('got upgraded!');
         socket.end();
         process.exit(0);
@@ -964,11 +964,11 @@ is that it sets the method to GET and calls `req.end()` automatically.
 
 Example:
 
-    http.get('http://www.google.com/index.html', (res)=> {
+    http.get('http://www.google.com/index.html', (res) => {
       console.log(`Got response: ${res.statusCode}`);
       // consume response body
       res.resume();
-    }).on('error', (e)=> {
+    }).on('error', (e) => {
       console.log(`Got error: ${e.message}`);
     });
 
@@ -1037,19 +1037,19 @@ Example:
       }
     };
 
-    var req = http.request(options, (res)=> {
+    var req = http.request(options, (res) => {
       console.log(`STATUS: ${res.statusCode}`);
       console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
       res.setEncoding('utf8');
-      res.on('data', (chunk)=> {
+      res.on('data', (chunk) => {
         console.log(`BODY: ${chunk}`);
       });
-      res.on('end', ()=> {
+      res.on('end', () => {
         console.log('No more data in response.')
       })
     });
 
-    req.on('error', (e)=> {
+    req.on('error', (e) => {
       console.log(`problem with request: ${e.message}`);
     });
 

@@ -15,24 +15,24 @@ is a readable/writable Stream.
 Compressing or decompressing a file can be done by piping an
 fs.ReadStream into a zlib stream, then into an fs.WriteStream.
 
-    var gzip = zlib.createGzip();
+    const gzip = zlib.createGzip();
     const fs = require('fs');
-    var inp = fs.createReadStream('input.txt');
-    var out = fs.createWriteStream('input.txt.gz');
+    const inp = fs.createReadStream('input.txt');
+    const out = fs.createWriteStream('input.txt.gz');
 
     inp.pipe(gzip).pipe(out);
 
 Compressing or decompressing data in one step can be done by using
 the convenience methods.
 
-    var input = '.................................';
+    const input = '.................................';
     zlib.deflate(input, function(err, buffer) {
       if (!err) {
         console.log(buffer.toString('base64'));
       }
     });
 
-    var buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
+    const buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
     zlib.unzip(buffer, function(err, buffer) {
       if (!err) {
         console.log(buffer.toString());
@@ -51,11 +51,11 @@ on the speed/memory/compression tradeoffs involved in zlib usage.
     const zlib = require('zlib');
     const http = require('http');
     const fs = require('fs');
-    var request = http.get({ host: 'izs.me',
+    const request = http.get({ host: 'izs.me',
                              path: '/',
                              port: 80,
                              headers: { 'accept-encoding': 'gzip,deflate' } });
-    request.on('response', function(response) {
+    request.on('response', (response) => {
       var output = fs.createWriteStream('izs.me_index.html');
 
       switch (response.headers['content-encoding']) {
@@ -78,7 +78,7 @@ on the speed/memory/compression tradeoffs involved in zlib usage.
     const zlib = require('zlib');
     const http = require('http');
     const fs = require('fs');
-    http.createServer(function(request, response) {
+    http.createServer((request, response) => {
       var raw = fs.createReadStream('index.html');
       var acceptEncoding = request.headers['accept-encoding'];
       if (!acceptEncoding) {

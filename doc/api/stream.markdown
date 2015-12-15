@@ -529,9 +529,9 @@ For example:
 
 ```javascript
 const OldReader = require('./old-api-module.js').OldReader;
-var oreader = new OldReader;
 const Readable = require('stream').Readable;
-var myReader = new Readable().wrap(oreader);
+const oreader = new OldReader;
+const myReader = new Readable().wrap(oreader);
 
 myReader.on('readable', () => {
   myReader.read(); // etc.

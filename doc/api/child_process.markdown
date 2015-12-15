@@ -166,8 +166,7 @@ a `'message'` event on the child.
 For example:
 
     const cp = require('child_process');
-
-    var n = cp.fork(`${__dirname}/sub.js`);
+    const n = cp.fork(`${__dirname}/sub.js`);
 
     n.on('message', (m) => {
       console.log('PARENT got message:', m);
@@ -215,7 +214,7 @@ Here is an example of sending a server:
     const child = require('child_process').fork('child.js');
 
     // Open up the server object and send the handle.
-    var server = require('net').createServer();
+    const server = require('net').createServer();
     server.on('connection', (socket) => {
       socket.end('handled by parent');
     });
@@ -251,7 +250,7 @@ process.
     const special = require('child_process').fork('child.js', ['special']);
 
     // Open up the server and send sockets to child
-    var server = require('net').createServer();
+    const server = require('net').createServer();
     server.on('connection', (socket) => {
 
       // if this is a VIP
@@ -320,7 +319,7 @@ the parent's `child.stdio[1]` is a stream, all other values in the array are
     const fs = require('fs');
     const child_process = require('child_process');
 
-    child = child_process.spawn('ls', {
+    const child = child_process.spawn('ls', {
         stdio: [
           0, // use parents stdin for child
           'pipe', // pipe child's stdout to parent
@@ -380,7 +379,7 @@ callback or returning an EventEmitter).
 Runs a command in a shell and buffers the output.
 
     const exec = require('child_process').exec;
-    var child = exec('cat *.js bad_file | wc -l',
+    const child = exec('cat *.js bad_file | wc -l',
       (error, stdout, stderr) => {
         console.log(`stdout: ${stdout}`);
         console.log(`stderr: ${stderr}`);
@@ -508,7 +507,7 @@ process, the default is `process.env`.
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
 
     const spawn = require('child_process').spawn;
-    var ls = spawn('ls', ['-lh', '/usr']);
+    const ls = spawn('ls', ['-lh', '/usr']);
 
     ls.stdout.on('data', (data) => {
       console.log(`stdout: ${data}`);
@@ -526,8 +525,8 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit cod
 Example: A very elaborate way to run 'ps ax | grep ssh'
 
     const spawn = require('child_process').spawn;
-    var ps = spawn('ps', ['ax']);
-    var grep = spawn('grep', ['ssh']);
+    const ps = spawn('ps', ['ax']);
+    const grep = spawn('grep', ['ssh']);
 
     ps.stdout.on('data', (data) => {
       grep.stdin.write(data);
@@ -562,7 +561,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
 Example of checking for failed exec:
 
     const spawn = require('child_process').spawn;
-    var child = spawn('bad_command');
+    const child = spawn('bad_command');
 
     child.on('error', (err) => {
       console.log('Failed to start child process.');
@@ -588,10 +587,10 @@ file:
 
      const fs = require('fs');
      const spawn = require('child_process').spawn;
-     var out = fs.openSync('./out.log', 'a');
-     var err = fs.openSync('./out.log', 'a');
+     const out = fs.openSync('./out.log', 'a');
+     const err = fs.openSync('./out.log', 'a');
 
-     var child = spawn('prg', [], {
+     const child = spawn('prg', [], {
        detached: true,
        stdio: [ 'ignore', out, err ]
      });

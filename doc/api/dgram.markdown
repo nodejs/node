@@ -9,13 +9,13 @@ Datagram sockets are available through `require('dgram')`.
 Important note: the behavior of [`dgram.Socket#bind()`][] has changed in v0.10
 and is always asynchronous now.  If you have code that looks like this:
 
-    var s = dgram.createSocket('udp4');
+    const s = dgram.createSocket('udp4');
     s.bind(1234);
     s.addMembership('224.0.0.114');
 
 You have to change it to this:
 
-    var s = dgram.createSocket('udp4');
+    const s = dgram.createSocket('udp4');
     s.bind(1234, () => {
       s.addMembership('224.0.0.114');
     });
@@ -94,7 +94,7 @@ Example of a UDP server listening on port 41234:
 
     const dgram = require('dgram');
 
-    var server = dgram.createSocket('udp4');
+    const server = dgram.createSocket('udp4');
 
     server.on('error', (err) => {
       console.log(`server error:\n${err.stack}`);
@@ -188,8 +188,8 @@ be calculated with respect to [byte length][] and not the character position.
 Example of sending a UDP packet to a random port on `localhost`;
 
     const dgram = require('dgram');
-    var message = new Buffer('Some bytes');
-    var client = dgram.createSocket('udp4');
+    const message = new Buffer('Some bytes');
+    const client = dgram.createSocket('udp4');
     client.send(message, 0, message.length, 41234, 'localhost', (err) => {
       client.close();
     });
