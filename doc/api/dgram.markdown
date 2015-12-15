@@ -1,4 +1,4 @@
-# UDP / Datagram Sockets
+# Datagram / UDP Sockets
 
     Stability: 2 - Stable
 
