@@ -634,7 +634,9 @@ Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
 ## fs.realpathSync(path[, cache])
 
-Synchronous realpath(2). Returns the resolved path.
+Synchronous realpath(2). Returns the resolved path. `cache` is an
+object literal of mapped paths that can be used to force a specific path
+resolution or avoid additional `fs.stat` calls for known real paths.
 
 ## fs.rename(oldPath, newPath, callback)
 
