@@ -1399,6 +1399,15 @@ ssize_t DecodeWrite(Isolate* isolate,
   return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
 }
 
+bool IsExceptionDecorated(Environment* env, Local<Value> er) {
+  if (!er.IsEmpty() && er->IsObject()) {
+    Local<Object> err_obj = er.As<Object>();
+    Local<Value> decorated = err_obj->GetHiddenValue(env->decorated_string());
+    return !decorated.IsEmpty() && decorated->IsTrue();
+  }
+  return false;
+}
+
 void AppendExceptionLine(Environment* env,
                          Local<Value> er,
                          Local<Message> message) {
@@ -1508,6 +1517,7 @@ static void ReportException(Environment* env,
 
   Local<Value> trace_value;
   Local<Value> arrow;
+  const bool decorated = IsExceptionDecorated(env, er);
 
   if (er->IsUndefined() || er->IsNull()) {
     trace_value = Undefined(env->isolate());
@@ -1522,7 +1532,7 @@ static void ReportException(Environment* env,
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
-    if (arrow.IsEmpty() || !arrow->IsString()) {
+    if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
       PrintErrorString("%s\n", *trace);
     } else {
       node::Utf8Value arrow_string(env->isolate(), arrow);
@@ -1554,7 +1564,7 @@ static void ReportException(Environment* env,
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
 
-      if (arrow.IsEmpty() || !arrow->IsString()) {
+      if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
         PrintErrorString("%s: %s\n", *name_string, *message_string);
       } else {
         node::Utf8Value arrow_string(env->isolate(), arrow);
