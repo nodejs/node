@@ -956,7 +956,7 @@
   };
 
   NativeModule.wrapper = [
-    '(function (exports, require, module, __filename, __dirname) {\n',
+    '(function (exports, require, module, __filename, __dirname) { ',
     '\n});'
   ];
 
@@ -966,7 +966,7 @@
 
     var fn = runInThisContext(source, {
       filename: this.filename,
-      lineOffset: -1
+      lineOffset: 0
     });
     fn(this.exports, NativeModule.require, this, this.filename);
 
