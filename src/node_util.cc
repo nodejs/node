@@ -52,6 +52,21 @@ static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(obj->GetHiddenValue(name));
 }
 
+static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!args[0]->IsObject())
+    return env->ThrowTypeError("obj must be an object");
+
+  if (!args[1]->IsString())
+    return env->ThrowTypeError("name must be a string");
+
+  Local<Object> obj = args[0].As<Object>();
+  Local<String> name = args[1].As<String>();
+
+  args.GetReturnValue().Set(obj->SetHiddenValue(name, args[2]));
+}
+
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -63,6 +78,7 @@ void Initialize(Local<Object> target,
 #undef V
 
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
+  env->SetMethod(target, "setHiddenValue", SetHiddenValue);
 }
 
 }  // namespace util
