@@ -3,6 +3,8 @@
 const common = require('../common');
 const assert = require('assert');
 const internalUtil = require('internal/util');
+const spawnSync = require('child_process').spawnSync;
+const path = require('path');
 
 assert.doesNotThrow(function() {
   internalUtil.decorateErrorStack();
@@ -17,17 +19,37 @@ internalUtil.decorateErrorStack(obj);
 assert.strictEqual(obj.stack, undefined);
 
 // Verify that the stack is decorated when possible
+function checkStack(stack) {
+  const matches = stack.match(/var foo bar;/g);
+  assert.strictEqual(Array.isArray(matches), true);
+  assert.strictEqual(matches.length, 1);
+}
 let err;
+const badSyntaxPath =
+    path.resolve(__dirname, '..', 'fixtures', 'syntax', 'bad_syntax')
+        .replace(/\\/g, '\\\\');
 
 try {
-  require('../fixtures/syntax/bad_syntax');
+  require(badSyntaxPath);
 } catch (e) {
   err = e;
-  assert(!/var foo bar;/.test(err.stack));
-  internalUtil.decorateErrorStack(err);
 }
 
-assert(/var foo bar;/.test(err.stack));
+assert(typeof err, 'object');
+checkStack(err.stack);
+
+// Verify that the stack is only decorated once
+internalUtil.decorateErrorStack(err);
+internalUtil.decorateErrorStack(err);
+checkStack(err.stack);
+
+// Verify that the stack is only decorated once for uncaught exceptions
+const args = [
+  '-e',
+  `require('${badSyntaxPath}')`
+];
+const result = spawnSync(process.argv[0], args, { encoding: 'utf8' });
+checkStack(result.stderr);
 
 // Verify that the stack is unchanged when there is no arrow message
 err = new Error('foo');
