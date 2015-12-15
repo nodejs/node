@@ -77,6 +77,11 @@ class ExternString: public ResourceType {
       ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                      data,
                                                                      length);
+                                                                     
+      //workaround for possible V8 bug
+      if (length > 268435440)
+        return scope.Escape(String::Empty(isolate));
+        
       MaybeLocal<String> str = String::NewExternal(isolate, h_str);
       isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
 
