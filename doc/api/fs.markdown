@@ -253,6 +253,8 @@ Any specified file descriptor has to have been opened for appending.
 
 _Note: Specified file descriptors will not be closed automatically._
 
+_Note: Do not use `appendFile` to write to a single file from multiple places in an application.  It will open a file descriptor *per call*, not one *per file*.  (Non-specified) file descriptors are closed automatically, but will stay open for milliseconds on a busy host.  Under non-trivial load, the application will quickly exceed the number of file descriptors allowed by the OS, causing seemingly unrelated file and network failures. 
+
 ## fs.appendFileSync(file, data[, options])
 
 The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
