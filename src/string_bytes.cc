@@ -62,6 +62,10 @@ class ExternString: public ResourceType {
       return length_;
     }
 
+    // Maximum length in bytes that V8 can handle. 
+    // This equals to 268435440 bytes = (256 * 1024 * 1024) - 16
+    static const size_t kMaxLength = (1 << 28) - 16;
+    
     static Local<String> NewFromCopy(Isolate* isolate,
                                      const TypeName* data,
                                      size_t length) {
@@ -69,6 +73,10 @@ class ExternString: public ResourceType {
 
       if (length == 0)
         return scope.Escape(String::Empty(isolate));
+
+      // V8 aborts if we try to allocate a string that is too large.
+      if (length > kMaxLength)
+        return Local<String>();
 
       TypeName* new_data = new TypeName[length];
       memcpy(new_data, data, length * sizeof(*new_data));
@@ -87,6 +95,10 @@ class ExternString: public ResourceType {
       if (length == 0)
         return scope.Escape(String::Empty(isolate));
 
+      // V8 aborts if we try to allocate a string that is too large.
+      if (length > kMaxLength)
+        return Local<String>();
+        
       ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                      data,
                                                                      length);
