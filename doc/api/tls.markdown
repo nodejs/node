@@ -598,7 +598,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
     OpenSSL and are defined in the constant [SSL_METHODS][].
 
   - `secureContext`: An optional TLS context object from
-     `tls.createSecureContext( ... )`. Could it be used for caching client
+     `tls.createSecureContext( ... )`. It could be used for caching client
      certificates, key, and CA certificates.
 
   - `session`: A `Buffer` instance, containing TLS session.
