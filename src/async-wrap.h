@@ -70,6 +70,9 @@ class AsyncWrap : public BaseObject {
 
   virtual size_t self_size() const = 0;
 
+  // Implement for any class that has multiple inheritance.
+  virtual AsyncWrap* async_wrap_cast();
+
  private:
   inline AsyncWrap();
   inline bool ran_init_callback() const;
