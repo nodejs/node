@@ -909,19 +909,53 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 }
 #endif
 
+static bool DomainHasErrorHandler(const Environment* env,
+                                  const Local<Object>& domain) {
+  HandleScope scope(env->isolate());
 
-static bool IsDomainActive(const Environment* env) {
-  if (!env->using_domains()) {
-    return false;
-  }
-
-  Local<Array> domain_array = env->domain_array().As<Array>();
-  uint32_t domains_array_length = domain_array->Length();
-  if (domains_array_length == 0)
+  Local<Value> domain_event_listeners_v = domain->Get(env->events_string());
+  if (!domain_event_listeners_v->IsObject())
     return false;
 
-  Local<Value> domain_v = domain_array->Get(0);
-  return !domain_v->IsNull();
+  Local<Object> domain_event_listeners_o =
+      domain_event_listeners_v.As<Object>();
+
+  Local<Value> domain_error_listeners_v =
+      domain_event_listeners_o->Get(env->error_string());
+
+  if (domain_error_listeners_v->IsFunction() ||
+      (domain_error_listeners_v->IsArray() &&
+      domain_error_listeners_v.As<Array>()->Length() > 0))
+    return true;
+
+  return false;
+}
+
+static bool TopDomainHasErrorHandler(const Environment* env) {
+  HandleScope scope(env->isolate());
+
+  if (!env->using_domains())
+    return false;
+
+  Local<Array> domains_stack_array = env->domains_stack_array().As<Array>();
+  if (domains_stack_array->Length() == 0)
+    return false;
+
+  uint32_t domains_stack_length = domains_stack_array->Length();
+  if (domains_stack_length == 0)
+    return false;
+
+  Local<Value> top_domain_v =
+      domains_stack_array->Get(domains_stack_length - 1);
+
+  if (!top_domain_v->IsObject())
+    return false;
+
+  Local<Object> top_domain = top_domain_v.As<Object>();
+  if (DomainHasErrorHandler(env, top_domain))
+    return true;
+
+  return false;
 }
 
 
@@ -933,7 +967,7 @@ bool ShouldAbortOnUncaughtException(v8::Isolate* isolate) {
   bool isEmittingTopLevelDomainError =
     process_object->Get(emitting_top_level_domain_error_key)->BooleanValue();
 
-  return !IsDomainActive(env) || isEmittingTopLevelDomainError;
+  return isEmittingTopLevelDomainError || !TopDomainHasErrorHandler(env);
 }
 
 
@@ -961,8 +995,10 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
 
   assert(args[0]->IsArray());
   assert(args[1]->IsObject());
+  assert(args[2]->IsArray());
 
   env->set_domain_array(args[0].As<Array>());
+  env->set_domains_stack_array(args[2].As<Array>());
 
   Local<Object> domain_flag_obj = args[1].As<Object>();
   Environment::DomainFlag* domain_flag = env->domain_flag();
