@@ -32,7 +32,13 @@ var gotUpgrade = false;
 
 srv.listen(common.PORT, '127.0.0.1', function() {
 
-  var req = http.get({ port: common.PORT });
+  var req = http.get({
+    port: common.PORT,
+    headers: {
+      connection: 'upgrade',
+      upgrade: 'websocket'
+    }
+  });
   req.on('upgrade', function(res, socket, upgradeHead) {
     var recvData = upgradeHead;
     socket.on('data', function(d) {
