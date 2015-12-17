@@ -13,7 +13,7 @@ assert.equal(util.inspect(undefined), 'undefined');
 assert.equal(util.inspect(null), 'null');
 assert.equal(util.inspect(/foo(bar\n)?/gi), '/foo(bar\\n)?/gi');
 assert.equal(util.inspect(new Date('Sun, 14 Feb 2010 11:48:40 GMT')),
-  new Date('2010-02-14T12:48:40+01:00').toString());
+  new Date('2010-02-14T12:48:40+01:00').toISOString());
 
 assert.equal(util.inspect('\n\u0001'), "'\\n\\u0001'");
 
@@ -220,7 +220,7 @@ assert.equal(util.inspect(value), '{ /123/gi aprop: 42 }');
 // Dates with properties
 value = new Date('Sun, 14 Feb 2010 11:48:40 GMT');
 value.aprop = 42;
-assert.equal(util.inspect(value), '{ Sun, 14 Feb 2010 11:48:40 GMT aprop: 42 }'
+assert.equal(util.inspect(value), '{ 2010-02-14T11:48:40.000Z aprop: 42 }'
 );
 
 // test the internal isDate implementation
@@ -310,6 +310,12 @@ assert.equal(util.inspect(Object.create(Date.prototype)), 'Date {}');
 assert.doesNotThrow(function() {
   var d = new Date();
   d.toUTCString = null;
+  util.inspect(d);
+});
+
+assert.doesNotThrow(function() {
+  var d = new Date();
+  d.toISOString = null;
   util.inspect(d);
 });
 
