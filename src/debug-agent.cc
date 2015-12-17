@@ -321,6 +321,8 @@ void Agent::EnqueueMessage(AgentMessage* message) {
 void Agent::MessageHandler(const v8::Debug::Message& message) {
   Isolate* isolate = message.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr)
+    return;  // Called from a non-node context.
   Agent* a = env->debugger_agent();
   CHECK_NE(a, nullptr);
   CHECK_EQ(isolate, a->parent_env()->isolate());
