@@ -36,6 +36,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
     port: common.PORT,
     host: '127.0.0.1',
     headers: {
+      'connection': 'upgrade',
       'upgrade': 'websocket'
     }
   };
