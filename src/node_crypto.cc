@@ -618,6 +618,10 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                   X509** issuer) {
   X509* x = nullptr;
 
+  // Just to ensure that `ERR_peek_last_error` below will return only errors
+  // that we are interested in
+  ERR_clear_error();
+
   x = PEM_read_bio_X509_AUX(in, nullptr, CryptoPemCallback, nullptr);
 
   if (x == nullptr) {
