@@ -611,7 +611,7 @@ defaults to `'utf8'`. The `start` and `end` parameters default to `0` and
     buf.toString('utf8',0,5); // outputs: abcde
     buf.toString(undefined,0,5); // encoding defaults to 'utf8', outputs abcde
 
-See `buffer.write()` example, above.
+See `buf.write()` example, below.
 
 
 ### buf.toJSON()
