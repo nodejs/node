@@ -870,7 +870,7 @@ Test in JavaScript by running:
 
 [online]: https://v8docs.nodesource.com/
 [libuv]: https://github.com/libuv/libuv
-[download]: https://github.com/rvagg/node-addon-examples
+[download]: https://github.com/nodejs/node-addon-examples
 [node-gyp]: https://github.com/nodejs/node-gyp
 [v8 reference]: http://izs.me/v8-docs/main.html
 [Embedder's Guide]: https://code.google.com/apis/v8/embed.html
