@@ -100,6 +100,13 @@ Process v8 profiler output generated using the v8 option \fB\-\-prof\fR
 Print v8 command line options.
 
 .TP
+.BR \-\-v8\-pool\-size =\fInum\fR
+Set v8's thread pool size which will be used to allocate background jobs.
+If set to 0 then v8 will choose an appropriate size of the thread pool based
+on the number of online processors. If the value provided is larger than v8's
+max then the largest value will be chosen.
+
+.TP
 .BR \-\-tls\-cipher\-list =\fIlist\fR
 Specify an alternative default TLS cipher list. (Requires Node.js to be built with crypto support. (Default))
 
@@ -114,7 +121,6 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.) (
 .TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
-
 
 .SH ENVIRONMENT VARIABLES
 
