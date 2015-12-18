@@ -148,6 +148,8 @@ static const char** preload_modules = nullptr;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
+static const int v8_default_thread_pool_size = 4;
+static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
 static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
@@ -177,7 +179,6 @@ static uv_async_t dispatch_debug_messages_async;
 
 static node::atomic<Isolate*> node_isolate;
 static v8::Platform* default_platform;
-
 
 static void PrintErrorString(const char* format, ...) {
   va_list ap;
@@ -3319,6 +3320,7 @@ static void PrintHelp() {
          "  --zero-fill-buffers   automatically zero-fill all newly allocated\n"
          "                        Buffer and SlowBuffer instances\n"
          "  --v8-options          print v8 command line options\n"
+         "  --v8-pool-size=num    set v8's thread pool size\n"
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
 #if NODE_FIPS_MODE
@@ -3466,6 +3468,8 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
+    } else if (strncmp(arg, "--v8-pool-size=", 15) == 0) {
+      v8_thread_pool_size = atoi(arg + 15);
 #if HAVE_OPENSSL
     } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
       default_cipher_list = arg + 18;
@@ -4285,8 +4289,7 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif
 
-  const int thread_pool_size = 4;
-  default_platform = v8::platform::CreateDefaultPlatform(thread_pool_size);
+  default_platform = v8::platform::CreateDefaultPlatform(v8_thread_pool_size);
   V8::InitializePlatform(default_platform);
   V8::Initialize();
 
