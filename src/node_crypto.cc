@@ -653,12 +653,6 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
     goto done;
   }
 
-  // Free previous certs
-  if (*cert != nullptr) {
-    X509_free(*cert);
-    *cert = nullptr;
-  }
-
   ret = SSL_CTX_use_certificate_chain(ctx, x, extra_certs, cert, issuer);
   if (!ret)
     goto done;
