@@ -22,7 +22,7 @@ console.log('We should do ' + todo + ' requests');
 
 var http = require('http');
 var server = http.createServer(serverHandler);
-server.listen(PORT, getall);
+server.listen(PORT, runTest);
 
 function getall() {
   if (count >= todo)
@@ -51,8 +51,10 @@ function getall() {
   setImmediate(getall);
 }
 
-for (var i = 0; i < 10; i++)
-  getall();
+function runTest() {
+  for (var i = 0; i < 10; i++)
+    getall();
+}
 
 function afterGC() {
   countGC ++;
