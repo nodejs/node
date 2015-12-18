@@ -252,6 +252,11 @@ readable: null
 end
 ```
 
+
+#### readable.bytesRead
+
+The amount of read bytes. If `objectMode` is `true`, the value is 0 always.
+
 #### readable.isPaused()
 
 * Return: `Boolean`
