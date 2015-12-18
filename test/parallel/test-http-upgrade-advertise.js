@@ -17,11 +17,7 @@ function fire() {
 
   const test = tests.shift();
 
-  var once = false;
-
   const done = common.mustCall(function done(result) {
-    assert(!once);
-    once = true;
     assert.equal(result, test.expected);
 
     fire();
@@ -55,6 +51,4 @@ const server = http.createServer(function(req, res) {
              'Connection: upgrade\r\n' +
              'Upgrade: h2c\r\n\r\n' +
              'ohai');
-}).listen(common.PORT, function() {
-  fire();
-});
+}).listen(common.PORT, fire);
