@@ -535,14 +535,8 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                   STACK_OF(X509)* extra_certs,
                                   X509** cert,
                                   X509** issuer) {
-  if (*issuer != nullptr) {
-    X509_free(*issuer);
-    *issuer = nullptr;
-  }
-  if (*cert != nullptr) {
-    X509_free(*cert);
-    *cert = nullptr;
-  }
+  CHECK_EQ(*issuer, nullptr);
+  CHECK_EQ(*cert, nullptr);
 
   int ret = SSL_CTX_use_certificate(ctx, x);
 
@@ -636,7 +630,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   // Read extra certs
   STACK_OF(X509)* extra_certs = sk_X509_new_null();
   if (extra_certs == nullptr) {
-    // XXX(indutny): Is there a need for SSLerr here?
+    SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_MALLOC_FAILURE);
     goto done;
   }
 
@@ -657,6 +651,12 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   } else  {
     // some real error
     goto done;
+  }
+
+  // Free previous certs
+  if (*cert != nullptr) {
+    X509_free(*cert);
+    *cert = nullptr;
   }
 
   ret = SSL_CTX_use_certificate_chain(ctx, x, extra_certs, cert, issuer);
@@ -687,6 +687,16 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   BIO* bio = LoadBIO(env, args[0]);
   if (!bio)
     return;
+
+  // Free previous certs
+  if (sc->issuer_ != nullptr) {
+    X509_free(sc->issuer_);
+    sc->issuer_ = nullptr;
+  }
+  if (sc->cert_ != nullptr) {
+    X509_free(sc->cert_);
+    sc->cert_ = nullptr;
+  }
 
   int rv = SSL_CTX_use_certificate_chain(sc->ctx_,
                                          bio,
@@ -982,6 +992,16 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     pass = new char[passlen + 1];
     memcpy(pass, Buffer::Data(args[1]), passlen);
     pass[passlen] = '\0';
+  }
+
+  // Free previous certs
+  if (sc->issuer_ != nullptr) {
+    X509_free(sc->issuer_);
+    sc->issuer_ = nullptr;
+  }
+  if (sc->cert_ != nullptr) {
+    X509_free(sc->cert_);
+    sc->cert_ = nullptr;
   }
 
   if (d2i_PKCS12_bio(in, &p12) &&
