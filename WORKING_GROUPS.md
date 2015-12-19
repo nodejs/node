@@ -31,6 +31,7 @@ back in to the TSC.
 * [Post-mortem](#post-mortem)
 * [Intl](#intl)
 * [HTTP](#http)
+* [Inclusivity](#inclusivity)
 
 #### Process:
 
@@ -269,6 +270,29 @@ Its responsibilities are:
   to be generated when needed
 + Defining and adding common structures to the dumps generated
   in order to support tools that want to introspect those dumps
+
+### [Inclusivity](https://github.com/nodejs/inclusivity)
+
+The Inclusivity Working Group seeks to increase inclusivity and diversity
+for the Node.js project:
+  - *Increasing inclusivity* means making the Node.js project a safe and
+    friendly place for people from diverse backgrounds.
+  - *Increasing diversity* means actively onboarding people from diverse
+    backgrounds to the Node.js project and maintaining their participation.
+
+Its responsibilites are:
+
++ Foster a welcoming environment that ensures participants are valued and can
+feel confident contributing or joining discussions, regardless of any aspect of 
+their identity.
++ Proactively seek and propose concrete steps the project can take to increase
+inclusivity.
++ Serve as a resource for the development and enforcement of workflows that 
+protect community members and projects from harassment and abuse.
++ Acknowledge and celebrate existing diversity accomplishments within the
+project while seeking to build upon them.
++ Identify ways to measure diversity and inclusivity within the project and
+report them at regular intervals.
 
 ## Starting a WG
 
