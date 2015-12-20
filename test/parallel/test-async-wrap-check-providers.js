@@ -18,6 +18,10 @@ let keyList = pkeys.slice();
 // Drop NONE
 keyList.splice(0, 1);
 
+// TODO(mscdex): remove this when we can easily test with a dummy nss module
+if (~keyList.indexOf('NSSREQWRAP'))
+  keyList.splice(keyList.indexOf('NSSREQWRAP'), 1);
+
 if (!process.oldDNS) {
   const unused = ['GETADDRINFOREQWRAP', 'GETNAMEINFOREQWRAP', 'QUERYWRAP'];
   keyList = keyList.filter(function(k) { return unused.indexOf(k) === -1; });
