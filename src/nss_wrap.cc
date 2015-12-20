@@ -56,6 +56,7 @@ size_t NSSReqWrap::self_size() const {
 
 
 void NSSReqWrap::NameWork(uv_work_t* req) {
+#ifndef _WIN32
   NSSReqWrap* req_wrap = static_cast<NSSReqWrap*>(req->data);
 
   nss_gethostbyname3_r ghbn3 = req_wrap->module->ghbn3;
@@ -327,6 +328,7 @@ void NSSReqWrap::NameWork(uv_work_t* req) {
     if (tmpbuf4 != nullptr)
       free(tmpbuf4);
   }
+#endif
 }
 
 
@@ -403,6 +405,7 @@ void NSSReqWrap::NameAfter(uv_work_t* req, int status) {
 
 
 void NSSReqWrap::AddrWork(uv_work_t* req) {
+#ifndef _WIN32
   NSSReqWrap* req_wrap = static_cast<NSSReqWrap*>(req->data);
 
   nss_gethostbyaddr2_r ghba2 = req_wrap->module->ghba2;
@@ -464,6 +467,7 @@ void NSSReqWrap::AddrWork(uv_work_t* req) {
     }
     free(tmpbuf);
   }
+#endif
 }
 
 
