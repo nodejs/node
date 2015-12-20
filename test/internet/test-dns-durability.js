@@ -1,5 +1,7 @@
 'use strict';
 
+var common = require('../common');
+
 if (process.oldDNS)
   process.exit(0);
 
