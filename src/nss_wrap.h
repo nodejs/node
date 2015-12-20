@@ -7,7 +7,7 @@
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "async-wrap.h"
-#include "nss_module.h"
+#include "nss_module.h"  // NOLINT(build/include_order)
 
 #include <nss.h>
 
@@ -77,7 +77,6 @@ class NSSReqWrap : public ReqWrap<uv_work_t> {
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 };
-
 }
 }
 

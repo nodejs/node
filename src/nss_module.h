@@ -6,7 +6,7 @@
 #include "node.h"
 #include "base-object.h"
 #include "base-object-inl.h"
-#include "nss_wrap.h"
+#include "nss_wrap.h"  // NOLINT(build/include_order)
 
 #include <nss.h>
 
@@ -15,18 +15,18 @@ namespace nss_module {
 
 typedef enum nss_status (*nss_gethostbyname4_r)
   (const char* name, struct gaih_addrtuple** pat,
-   char* buffer, size_t buflen, int* errnop,
-   int* h_errnop, int32_t* ttlp);
+  char* buffer, size_t buflen, int* errnop,
+  int* h_errnop, int32_t* ttlp);
 
 typedef enum nss_status (*nss_gethostbyname3_r)
   (const char* name, int af, struct hostent* host,
-   char* buffer, size_t buflen, int* errnop,
-   int* h_errnop, int32_t* ttlp, char** canonname);
+  char* buffer, size_t buflen, int* errnop,
+  int* h_errnop, int32_t* ttlp, char** canonname);
 
 typedef enum nss_status (*nss_gethostbyaddr2_r)
   (const void* addr, socklen_t len, int af,
-   struct hostent* host, char* buffer, size_t buflen,
-   int* errnop, int* h_errnop, int32_t* ttlp);
+  struct hostent* host, char* buffer, size_t buflen,
+  int* errnop, int* h_errnop, int32_t* ttlp);
 
 class NSSModule : public BaseObject {
  private:
@@ -59,7 +59,6 @@ class NSSModule : public BaseObject {
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 };
-
 }
 }
 

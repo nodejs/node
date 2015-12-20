@@ -57,7 +57,7 @@ void NSSModule::New(const FunctionCallbackInfo<Value>& args) {
   int name_len = 5 + module_len + 17 + 1;
   char* name = static_cast<char*>(malloc(name_len));
 
-  sprintf(name, "libnss_%s.so.2", module_string);
+  snprintf(name, name_len, "libnss_%s.so.2", module_string);
 
   uv_lib_t* lib = static_cast<uv_lib_t*>(malloc(sizeof(uv_lib_t)));
   if (lib == nullptr)
@@ -70,7 +70,7 @@ void NSSModule::New(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError(env->isolate(), err_msg);
   }
 
-  sprintf(name, "_nss_%s_gethostbyname3_r", module_string);
+  snprintf(name, name_len, "_nss_%s_gethostbyname3_r", module_string);
 
   nss_gethostbyname3_r ghbn3 = nullptr;
   nss_gethostbyname4_r ghbn4 = nullptr;
@@ -84,7 +84,7 @@ void NSSModule::New(const FunctionCallbackInfo<Value>& args) {
     status = uv_dlsym(lib,
                       static_cast<const char*>(name),
                       reinterpret_cast<void**>(&ghbn3));
-    // TODO: resort to gethostbyname_r which does AF_UNSPEC?
+    // TODO(mscdex): resort to gethostbyname_r which does AF_UNSPEC?
   }
 
   // No need to obtain the parallel gethostbyname if we do not at least have the
@@ -210,7 +210,6 @@ void NSSModule::Initialize(Handle<Object> target,
   env->SetProtoMethod(nssmodule_tmpl, "queryAddr", NSSModule::QueryAddr);
   target->Set(class_name, nssmodule_tmpl->GetFunction());
 }
-
 }
 }
 

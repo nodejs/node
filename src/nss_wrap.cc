@@ -63,7 +63,7 @@ void NSSReqWrap::NameWork(uv_work_t* req) {
   const char* hostname = req_wrap->host;
   uint8_t orig_family = req_wrap->family;
 
-  // TODO: allow configurable ttl?
+  // TODO(mscdex): allow configurable ttl?
   int32_t ttl = INT32_MAX;
   int err;
   int rc6;
@@ -347,7 +347,6 @@ void NSSReqWrap::NameAfter(uv_work_t* req, int status) {
     naddrs = 0;
 
   Local<Array> results = Array::New(env->isolate());
-  //results = Array::New(env->isolate(), naddrs);
 
   if (naddrs > 0) {
     char* cur_addr;
@@ -413,7 +412,7 @@ void NSSReqWrap::AddrWork(uv_work_t* req) {
                         ? sizeof(struct in_addr)
                         : sizeof(struct in6_addr));
 
-  // TODO: allow configurable ttl?
+  // TODO(mscdex): allow configurable ttl?
   int32_t ttl = INT32_MAX;
   int err;
   int rc;
@@ -454,13 +453,14 @@ void NSSReqWrap::AddrWork(uv_work_t* req) {
       return;
     }
 
-    if (result.h_name == nullptr)
+    if (result.h_name == nullptr) {
       req_wrap->results = nullptr;
-    else {
+    } else {
       uint32_t name_len = strlen(result.h_name);
       req_wrap->error = NSS_REQ_ERR_SUCCESS;
-      req_wrap->results = static_cast<char*>(malloc(name_len + 1));
-      strcpy(req_wrap->results, result.h_name);
+      int results_len = name_len + 1;
+      req_wrap->results = static_cast<char*>(malloc(results_len));
+      snprintf(req_wrap->results, results_len, "%s", result.h_name);
     }
     free(tmpbuf);
   }
@@ -481,8 +481,9 @@ void NSSReqWrap::AddrAfter(uv_work_t* req, int status) {
   if (req_wrap->error == NSS_REQ_ERR_SUCCESS) {
     result = v8::String::NewFromUtf8(env->isolate(), req_wrap->results);
     free(req_wrap->results);
-  } else
+  } else {
     result = v8::Null(env->isolate());
+  }
 
   Local<Value> argv[2] = {
     Integer::New(env->isolate(), req_wrap->error),
@@ -552,7 +553,6 @@ void NSSReqWrap::Initialize(Handle<Object> target,
   nw->SetClassName(class_name);
   target->Set(class_name, nw->GetFunction());
 }
-
 }
 }
 
