@@ -116,6 +116,10 @@ Stop watching for changes on the given `fs.FSWatcher`.
 
 Emitted when the ReadStream's file is opened.
 
+### readStream.path
+
+The path to the file the stream is reading from.
+
 ## Class: fs.Stats
 
 Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and their
@@ -195,6 +199,10 @@ Emitted when the WriteStream's file is opened.
 
 The number of bytes written so far. Does not include data that is still queued
 for writing.
+
+### writeStream.path
+
+The path to the file the stream is writing to.
 
 ## fs.access(path[, mode], callback)
 
