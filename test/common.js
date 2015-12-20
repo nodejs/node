@@ -190,12 +190,41 @@ if (exports.isWindows) {
                                   'faketime');
 }
 
-var ifaces = os.networkInterfaces();
-exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
-  return /lo/.test(name) && ifaces[name].some(function(info) {
-    return info.family === 'IPv6';
-  });
-});
+exports.hasIPv6 = (function() {
+  var interfaces = os.networkInterfaces();
+  var ifkeys = Object.keys(interfaces);
+  var hasIPv6LL = false;
+  var hasIPv4 = false;
+
+  for (var i = 0, addrs; i < ifkeys.length; ++i) {
+    addrs = interfaces[ifkeys[i]];
+    for (var j = 0, addr; j < addrs.length; ++j) {
+      addr = addrs[j];
+      // Do not consider loopback addresses
+      if (!addr.internal) {
+        switch (addr.family) {
+          case 'IPv4':
+            // Also do not consider link-local addresses
+            if (addr.address.slice(0, 8) !== '169.254.')
+              hasIPv4 = true;
+            break;
+          case 'IPv6':
+            if (addr.address.slice(0, 6) === 'fe80::')
+              hasIPv6LL = true;
+            else
+              return true;
+            break;
+        }
+      }
+    }
+  }
+
+  // Only consider IPv6 link-local addresses if there are no IPv4 addresses
+  if (!hasIPv4 && hasIPv6LL)
+    return true;
+
+  return false;
+})();
 
 function protoCtrChain(o) {
   var result = [];
@@ -449,42 +478,6 @@ exports.getServiceName = function getServiceName(port, protocol) {
   }
 
   return serviceName;
-};
-
-exports.hasIPv6 = function() {
-  var interfaces = require('os').networkInterfaces();
-  var ifkeys = Object.keys(interfaces);
-  var hasIPv6LL = false;
-  var hasIPv4 = false;
-
-  for (var i = 0, addrs; i < ifkeys.length; ++i) {
-    addrs = interfaces[ifkeys[i]];
-    for (var j = 0, addr; j < addrs.length; ++j) {
-      addr = addrs[j];
-      // Do not consider loopback addresses
-      if (!addr.internal) {
-        switch (addr.family) {
-          case 'IPv4':
-            // Also do not consider link-local addresses
-            if (addr.address.slice(0, 8) !== '169.254.')
-              hasIPv4 = true;
-            break;
-          case 'IPv6':
-            if (addr.address.slice(0, 6) === 'fe80::')
-              hasIPv6LL = true;
-            else
-              return true;
-            break;
-        }
-      }
-    }
-  }
-
-  // Only consider IPv6 link-local addresses if there are no IPv4 addresses
-  if (!hasIPv4 && hasIPv6LL)
-    return true;
-
-  return false;
 };
 
 exports.hasMultiLocalhost = function hasMultiLocalhost() {
