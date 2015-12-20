@@ -8,7 +8,25 @@
 #include "base-object-inl.h"
 #include "nss_wrap.h"  // NOLINT(build/include_order)
 
-#include <nss.h>
+// nss_status and gaih_addrtuple are copied here from nss.h because at least
+// GLIBC<2.9 does not define gaih_addrtuple there and those two definitions are
+// all that nss.h contains right now
+// Possible results of lookup using a nss_* function.
+enum nss_status {
+  NSS_STATUS_TRYAGAIN = -2,
+  NSS_STATUS_UNAVAIL,
+  NSS_STATUS_NOTFOUND,
+  NSS_STATUS_SUCCESS,
+  NSS_STATUS_RETURN
+};
+// Data structure used for the 'gethostbyname4_r' function.
+struct gaih_addrtuple {
+  struct gaih_addrtuple *next;
+  char *name;
+  int family;
+  uint32_t addr[4];
+  uint32_t scopeid;
+};
 
 namespace node {
 namespace nss_module {

@@ -9,8 +9,6 @@
 #include "async-wrap.h"
 #include "nss_module.h"  // NOLINT(build/include_order)
 
-#include <nss.h>
-
 #if defined(__ANDROID__) || \
     defined(__MINGW32__) || \
     defined(__OpenBSD__) || \
