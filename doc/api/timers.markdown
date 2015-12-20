@@ -37,6 +37,8 @@ The entire callback queue is processed every event loop iteration. If you queue
 an immediate from inside an executing callback, that immediate won't fire
 until the next event loop iteration.
 
+If `callback` is not a function `setImmediate()` will throw immediately.
+
 ## setInterval(callback, delay[, arg][, ...])
 
 To schedule the repeated execution of `callback` every `delay` milliseconds.
@@ -46,6 +48,8 @@ you can also pass arguments to the callback.
 To follow browser behavior, when using delays larger than 2147483647
 milliseconds (approximately 25 days) or less than 1, Node.js will use 1 as the
 `delay`.
+
+If `callback` is not a function `setInterval()` will throw immediately.
 
 ## setTimeout(callback, delay[, arg][, ...])
 
@@ -61,6 +65,8 @@ time specified.
 To follow browser behavior, when using delays larger than 2147483647
 milliseconds (approximately 25 days) or less than 1, the timeout is executed
 immediately, as if the `delay` was set to 1.
+
+If `callback` is not a function `setTimeout()` will throw immediately.
 
 ## unref()
 
