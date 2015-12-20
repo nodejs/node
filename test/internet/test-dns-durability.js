@@ -58,7 +58,9 @@ function UDPServerReply(replybuf, expbuf) {
   var timer = setTimeout(function() {
     throw new Error(format('Timeout on UDP test (%s)', testName));
   }, 100);
-  UDPServer.once('message', function(buf, rinfo) {
+  UDPServer.removeAllListeners('message');
+  // Listen for multiple connections in case client retries request
+  UDPServer.on('message', function(buf, rinfo) {
     clearTimeout(timer);
     if (expbuf)
       assert.deepEqual(buf, expbuf);
@@ -77,7 +79,9 @@ function TCPServerReply(replybuf, expbuf) {
       return s.once('readable', readN.bind(null, s, n, cb));
     cb(r);
   }
-  TCPServer.once('connection', function(s) {
+  TCPServer.removeAllListeners('connection');
+  // Listen for multiple connections in case client retries request
+  TCPServer.on('connection', function(s) {
     readN(s, 2, function readLength(buf) {
       readN(s, buf.readUInt16BE(0), function readBytes(buf) {
         clearTimeout(timer);
