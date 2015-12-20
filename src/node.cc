@@ -3279,11 +3279,7 @@ static void PrintHelp() {
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
 #endif
-         "  --trace-deprecation  show stack traces on deprecations\n"
-         "  --trace-sync-io      show stack trace when use of sync IO\n"
-         "                       is detected after the first tick\n"
          "  --use-old-dns        use c-ares for DNS resolution\n"
-         "  --v8-options         print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
          "                        (overrides NODE_ICU_DATA)\n"
