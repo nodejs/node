@@ -57,7 +57,11 @@ void NSSModule::New(const FunctionCallbackInfo<Value>& args) {
   int name_len = 5 + module_len + 17 + 1;
   char* name = static_cast<char*>(malloc(name_len));
 
+#ifdef BSD
+  snprintf(name, name_len, "nss_%s.so.1", module_string);
+#else
   snprintf(name, name_len, "libnss_%s.so.2", module_string);
+#endif
 
   uv_lib_t* lib = static_cast<uv_lib_t*>(malloc(sizeof(uv_lib_t)));
   if (lib == nullptr)
