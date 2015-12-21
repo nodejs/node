@@ -65,11 +65,6 @@ void NSSReqWrap::Unref() {
 }
 
 
-size_t NSSReqWrap::self_size() const {
-  return sizeof(*this);
-}
-
-
 void NSSReqWrap::NameWork(uv_work_t* req) {
 #ifndef _WIN32
   NSSReqWrap* req_wrap = static_cast<NSSReqWrap*>(req->data);

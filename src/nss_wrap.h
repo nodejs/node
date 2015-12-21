@@ -55,11 +55,11 @@ class NSSReqWrap : public ReqWrap<uv_work_t> {
 
   ~NSSReqWrap();
 
+  size_t self_size() const override { return sizeof(*this); }
+
   void Ref();
 
   void Unref();
-
-  size_t self_size() const override;
 
   static void NameWork(uv_work_t* req);
 
