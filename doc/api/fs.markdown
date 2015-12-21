@@ -98,7 +98,7 @@ See more details in [fs.watch][].
 
 ### Event: 'error'
 
-* `error` {Error object}
+* `error` {Error}
 
 Emitted when an error occurs.
 
@@ -112,7 +112,7 @@ Stop watching for changes on the given `fs.FSWatcher`.
 
 ### Event: 'open'
 
-* `fd` {Integer} file descriptor used by the ReadStream.
+* `fd` {Number} Integer file descriptor used by the ReadStream.
 
 Emitted when the ReadStream's file is opened.
 
@@ -187,7 +187,7 @@ on Unix systems, it never was.
 
 ### Event: 'open'
 
-* `fd` {Integer} file descriptor used by the WriteStream.
+* `fd` {Number} Integer file descriptor used by the WriteStream.
 
 Emitted when the WriteStream's file is opened.
 
@@ -227,7 +227,7 @@ fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
 
-* `file` {String | Integer} filename or file descriptor
+* `file` {String | Number} filename or file descriptor
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
@@ -876,7 +876,7 @@ the end of the file.
 
 ## fs.writeFile(file, data[, options], callback)
 
-* `file` {String | Integer} filename or file descriptor
+* `file` {String | Number} filename or file descriptor
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`

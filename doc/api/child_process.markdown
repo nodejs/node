@@ -48,7 +48,7 @@ and the `.connected` property is false.
 
 ### Event:  'error'
 
-* `err` {Error Object} the error.
+* `err` {Error} the error.
 
 Emitted when:
 
@@ -84,7 +84,7 @@ See `waitpid(2)`.
 ### Event: 'message'
 
 * `message` {Object} a parsed JSON object or primitive value.
-* `sendHandle` {Handle object} a [net.Socket][] or [net.Server][] object, or
+* `sendHandle` {Handle} a [net.Socket][] or [net.Server][] object, or
   undefined.
 
 Messages sent by `.send(message, [sendHandle])` are obtained using the
@@ -140,7 +140,7 @@ See `kill(2)`
 
 ### child.pid
 
-* {Integer}
+* {Number}
 
 The PID of the child process.
 
@@ -155,7 +155,7 @@ Example:
 ### child.send(message[, sendHandle][, callback])
 
 * `message` {Object}
-* `sendHandle` {Handle object}
+* `sendHandle` {Handle}
 * `callback` {Function}
 * Return: Boolean
 
@@ -279,7 +279,7 @@ It is also recommended not to use `.maxConnections` in this condition.
 
 ### child.stderr
 
-* {Stream object}
+* {Stream}
 
 A `Readable Stream` that represents the child process's `stderr`.
 
@@ -291,7 +291,7 @@ to the same object, or null.
 
 ### child.stdin
 
-* {Stream object}
+* {Stream}
 
 A `Writable Stream` that represents the child process's `stdin`.
 If the child is waiting to read all its input, it will not continue until this
@@ -339,7 +339,7 @@ the parent's `child.stdio[1]` is a stream, all other values in the array are
 
 ### child.stdout
 
-* {Stream object}
+* {Stream}
 
 A `Readable Stream` that represents the child process's `stdout`.
 
@@ -375,7 +375,7 @@ callback or returning an EventEmitter).
   * `error` {Error}
   * `stdout` {Buffer}
   * `stderr` {Buffer}
-* Return: ChildProcess object
+* Return: {ChildProcess}
 
 Runs a command in a shell and buffers the output.
 
@@ -433,7 +433,7 @@ the existing process and uses a shell to execute the command.*
   * `error` {Error}
   * `stdout` {Buffer}
   * `stderr` {Buffer}
-* Return: ChildProcess object
+* Return: {ChildProcess}
 
 This is similar to [`child_process.exec()`][] except it does not execute a
 subshell but rather the specified file directly. This makes it slightly
@@ -456,7 +456,7 @@ leaner than [`child_process.exec()`][]. It has the same options.
     (default is false)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-* Return: ChildProcess object
+* Return: {ChildProcess}
 
 This is a special case of the [`child_process.spawn()`][] functionality for
 spawning Node.js processes. In addition to having all the methods in a normal
@@ -490,7 +490,7 @@ current process.*
     [below](#child_process_options_detached))
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-* return: {ChildProcess object}
+* return: {ChildProcess}
 
 Launches a new process with the given `command`, with  command line arguments in
 `args`. If omitted, `args` defaults to an empty Array.
@@ -676,7 +676,7 @@ configuration at startup.
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
+  * `input` {String | Buffer} The value which will be passed as stdin to the spawned process
     - supplying this value will override `stdio[0]`
   * `stdio` {Array} Child's stdio configuration. (Default: 'pipe')
     - `stderr` by default will be output to the parent process' stderr unless

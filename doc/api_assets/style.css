@@ -347,8 +347,12 @@ a code {
   color: inherit;
 }
 
-span.type {
-  color: #222;
+span.type, a.type {
+  font-size: 0.9em;
+  padding: 0.2em 0.4em;
+  line-height: 1.5em;
+  font-family: Monaco, Consolas, "Lucida Console", monospace;
+  margin: 0;
 }
 
 #content {

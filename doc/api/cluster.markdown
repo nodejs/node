@@ -315,7 +315,7 @@ it is [kill][].
 
 ### worker.process
 
-* {ChildProcess object}
+* {ChildProcess}
 
 All workers are created using `child_process.fork()`, the returned object
 from this function is stored as `.process`. In a worker, the global `process`
@@ -330,9 +330,9 @@ disconnection.
 ### worker.send(message[, sendHandle][, callback])
 
 * `message` {Object}
-* `sendHandle` {Handle object}
+* `sendHandle` {Handle}
 * `callback` {Function}
-* Return: Boolean
+* Return: {Boolean}
 
 Send a message to a worker or master, optionally with a handle.
 
@@ -374,7 +374,7 @@ exit, the master may choose not to respawn a worker based on this value.
 
 ## Event: 'disconnect'
 
-* `worker` {Worker object}
+* `worker` {Worker}
 
 Emitted after the worker IPC channel has disconnected. This can occur when a
 worker exits gracefully, is killed, or is disconnected manually (such as with
@@ -390,7 +390,7 @@ long-living connections.
 
 ## Event: 'exit'
 
-* `worker` {Worker object}
+* `worker` {Worker}
 * `code` {Number} the exit code, if it exited normally.
 * `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
   the process to be killed.
@@ -409,7 +409,7 @@ See [child_process event: 'exit'][].
 
 ## Event: 'fork'
 
-* `worker` {Worker object}
+* `worker` {Worker}
 
 When a new worker is forked the cluster module will emit a 'fork' event.
 This can be used to log worker activity, and create your own timeout.
@@ -432,7 +432,7 @@ This can be used to log worker activity, and create your own timeout.
 
 ## Event: 'listening'
 
-* `worker` {Worker object}
+* `worker` {Worker}
 * `address` {Object}
 
 After calling `listen()` from a worker, when the 'listening' event is emitted on
@@ -465,7 +465,7 @@ See [child_process event: 'message'][].
 
 ## Event: 'online'
 
-* `worker` {Worker object}
+* `worker` {Worker}
 
 After forking a new worker, the worker should respond with an online message.
 When the master receives an online message it will emit this event.
@@ -505,7 +505,7 @@ This can only be called from the master process.
 ## cluster.fork([env])
 
 * `env` {Object} Key/value pairs to add to worker process environment.
-* return {Worker object}
+* return {Worker}
 
 Spawn a new worker process.
 

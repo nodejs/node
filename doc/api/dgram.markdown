@@ -32,7 +32,7 @@ on this socket.
 
 ### Event: 'error'
 
-* `exception` Error object
+* `exception` {Error}
 
 Emitted when an error occurs.
 
@@ -43,8 +43,8 @@ are created.
 
 ### Event: 'message'
 
-* `msg` Buffer object. The message
-* `rinfo` Object. Remote address information
+* `msg` {Buffer} The message
+* `rinfo` {Object} Remote address information
 
 Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and
 `rinfo` is an object with the sender's address information:
@@ -56,8 +56,8 @@ Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and
 
 ### socket.addMembership(multicastAddress[, multicastInterface])
 
-* `multicastAddress` String
-* `multicastInterface` String, Optional
+* `multicastAddress` {String}
+* `multicastInterface` {String} - Optional
 
 Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket option.
 
@@ -71,9 +71,9 @@ this object will contain `address` , `family` and `port`.
 
 ### socket.bind([port][, address][, callback])
 
-* `port` Integer, Optional
-* `address` String, Optional
-* `callback` Function with no parameters, Optional. Callback when
+* `port` {Number} integer - Optional
+* `address` {String} Optional
+* `callback` {Function} with no parameters, Optional. Callback when
   binding is done.
 
 For UDP sockets, listen for datagrams on a named `port` and optional
@@ -118,7 +118,7 @@ Example of a UDP server listening on port 41234:
 ### socket.bind(options[, callback])
 
 * `options` {Object} - Required. Supports the following properties:
-  * `port` {Number} - Required.
+  * `port` {Number} integer - Required.
   * `address` {String} - Optional.
   * `exclusive` {Boolean} - Optional.
 * `callback` {Function} - Optional.
@@ -147,8 +147,8 @@ provided, it is added as a listener for the ['close'][] event.
 
 ### socket.dropMembership(multicastAddress[, multicastInterface])
 
-* `multicastAddress` String
-* `multicastInterface` String, Optional
+* `multicastAddress` {String}
+* `multicastInterface` {String} - Optional
 
 Opposite of `addMembership` - tells the kernel to leave a multicast group with
 `IP_DROP_MEMBERSHIP` socket option. This is automatically called by the kernel
@@ -160,12 +160,12 @@ interfaces.
 
 ### socket.send(buf, offset, length, port, address[, callback])
 
-* `buf` Buffer object or string.  Message to be sent
-* `offset` Integer. Offset in the buffer where the message starts.
-* `length` Integer. Number of bytes in the message.
-* `port` Integer. Destination port.
-* `address` String. Destination hostname or IP address.
-* `callback` Function. Called when the message has been sent. Optional.
+* `buf` {Buffer|String} Message to be sent
+* `offset` {Number} Integer. Offset in the buffer where the message starts.
+* `length` {Number} Integer. Number of bytes in the message.
+* `port` {Number} Integer. Destination port.
+* `address` {String} Destination hostname or IP address.
+* `callback` {Function} Called when the message has been sent. Optional.
 
 For UDP sockets, the destination port and address must be specified.  A string
 may be supplied for the `address` parameter, and it will be resolved with DNS.
@@ -225,21 +225,21 @@ informing the source that the data did not reach its intended recipient).
 
 ### socket.setBroadcast(flag)
 
-* `flag` Boolean
+* `flag` {Boolean}
 
 Sets or clears the `SO_BROADCAST` socket option.  When this option is set, UDP packets
 may be sent to a local interface's broadcast address.
 
 ### socket.setMulticastLoopback(flag)
 
-* `flag` Boolean
+* `flag` {Boolean}
 
 Sets or clears the `IP_MULTICAST_LOOP` socket option.  When this option is set, multicast
 packets will also be received on the local interface.
 
 ### socket.setMulticastTTL(ttl)
 
-* `ttl` Integer
+* `ttl` {Number} Integer
 
 Sets the `IP_MULTICAST_TTL` socket option.  TTL stands for "Time to Live," but in this
 context it specifies the number of IP hops that a packet is allowed to go through,
@@ -251,7 +251,7 @@ systems is 1.
 
 ### socket.setTTL(ttl)
 
-* `ttl` Integer
+* `ttl` {Number} Integer
 
 Sets the `IP_TTL` socket option.  TTL stands for "Time to Live," but in this context it
 specifies the number of IP hops that a packet is allowed to go through.  Each router or
@@ -279,9 +279,9 @@ active socket in the event system. If the socket is already `unref`d calling
 Returns `socket`.
 
 ## dgram.createSocket(options[, callback])
-* `options` Object
-* `callback` Function. Attached as a listener to `message` events.
-* Returns: Socket object
+* `options` {Object}
+* `callback` {Function} Attached as a listener to `message` events.
+* Returns: {dgram.Socket}
 
 The `options` object should contain a `type` field of either `udp4` or `udp6`
 and an optional boolean `reuseAddr` field.
@@ -299,10 +299,10 @@ with `socket.address().address` and `socket.address().port`.
 
 ## dgram.createSocket(type[, callback])
 
-* `type` String. Either 'udp4' or 'udp6'
-* `callback` Function. Attached as a listener to `message` events.
+* `type` {String} Either 'udp4' or 'udp6'
+* `callback` {Function} Attached as a listener to `message` events.
   Optional
-* Returns: Socket object
+* Returns: {dgram.Socket}
 
 Creates a datagram Socket of the specified types.  Valid types are `udp4`
 and `udp6`.

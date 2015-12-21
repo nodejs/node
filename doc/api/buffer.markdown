@@ -59,7 +59,7 @@ It can be constructed in a variety of ways.
 
 ### new Buffer(array)
 
-* `array` Array
+* `array` {Array}
 
 Allocates a new buffer using an `array` of octets.
 
@@ -71,7 +71,7 @@ Copies the passed `buffer` data onto a new `Buffer` instance.
 
 ### new Buffer(size)
 
-* `size` Number
+* `size` {Number}
 
 Allocates a new buffer of `size` bytes.  `size` must be less than
 1,073,741,824 bytes (1 GB) on 32 bits architectures or
@@ -84,17 +84,17 @@ sensitive data. Use `buf.fill(0)` to initialize a buffer to zeroes.
 
 ### new Buffer(str[, encoding])
 
-* `str` String - string to encode.
-* `encoding` String - encoding to use, Optional.
+* `str` {String} - string to encode.
+* `encoding` {String} - encoding to use, Optional.
 
 Allocates a new buffer containing the given `str`.
 `encoding` defaults to `'utf8'`.
 
 ### Class Method: Buffer.byteLength(string[, encoding])
 
-* `string` String
-* `encoding` String, Optional, Default: 'utf8'
-* Return: Number
+* `string` {String}
+* `encoding` {String} - Optional, Default: 'utf8'
+* Return: {Number}
 
 Gives the actual byte length of a string. `encoding` defaults to `'utf8'`.
 This is not the same as `String.prototype.length` since that returns the
@@ -162,8 +162,8 @@ Example: build a single buffer from a list of three buffers:
 
 ### Class Method: Buffer.isBuffer(obj)
 
-* `obj` Object
-* Return: Boolean
+* `obj` {Object}
+* Return: {Boolean}
 
 Tests if `obj` is a `Buffer`.
 
@@ -221,10 +221,10 @@ the same as the `otherBuffer` in sort order.
 
 ### buf.copy(targetBuffer[, targetStart][, sourceStart][, sourceEnd])
 
-* `targetBuffer` Buffer object - Buffer to copy into
-* `targetStart` Number, Optional, Default: 0
-* `sourceStart` Number, Optional, Default: 0
-* `sourceEnd` Number, Optional, Default: `buffer.length`
+* `targetBuffer` {Buffer} - Buffer to copy into
+* `targetStart` {Number} - Optional, Default: 0
+* `sourceStart` {Number} - Optional, Default: 0
+* `sourceEnd` {Number} - Optional, Default: `buffer.length`
 
 Copies data from a region of this buffer to a region in the target buffer even
 if the target memory region overlaps with the source. If `undefined` the
@@ -282,9 +282,9 @@ buffer.
 
 ### buf.indexOf(value[, byteOffset])
 
-* `value` String, Buffer or Number
-* `byteOffset` Number, Optional, Default: 0
-* Return: Number
+* `value` {String | Buffer | Number}
+* `byteOffset` {Number} - Optional, Default: 0
+* Return: {Number}
 
 Operates similar to [Array#indexOf()][]. Accepts a String, Buffer or Number.
 Strings are interpreted as UTF8. Buffers will use the entire buffer. So in order
@@ -293,7 +293,7 @@ to compare a partial Buffer use `Buffer#slice()`. Numbers can range from 0 to
 
 ### buf.length
 
-* Number
+* {Number}
 
 The size of the buffer in bytes.  Note that this is not necessarily the size
 of the contents. `length` refers to the amount of memory allocated for the
@@ -322,9 +322,9 @@ use `buf.slice` to create a new buffer.
 ### buf.readDoubleBE(offset[, noAssert])
 ### buf.readDoubleLE(offset[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
+* Return: {Number}
 
 Reads a 64 bit double from the buffer at the specified offset with specified
 endian format.
@@ -352,9 +352,9 @@ Example:
 ### buf.readFloatBE(offset[, noAssert])
 ### buf.readFloatLE(offset[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
+* Return: {Number}
 
 Reads a 32 bit float from the buffer at the specified offset with specified
 endian format.
@@ -377,9 +377,9 @@ Example:
 
 ### buf.readInt8(offset[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
+* Return: {Number}
 
 Reads a signed 8 bit integer from the buffer at the specified offset.
 
@@ -392,9 +392,9 @@ complement signed values.
 ### buf.readInt16BE(offset[, noAssert])
 ### buf.readInt16LE(offset[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
+* Return: {Number}
 
 Reads a signed 16 bit integer from the buffer at the specified offset with
 specified endian format.
@@ -408,9 +408,9 @@ complement signed values.
 ### buf.readInt32BE(offset[, noAssert])
 ### buf.readInt32LE(offset[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
+* Return: {Number}
 
 Reads a signed 32 bit integer from the buffer at the specified offset with
 specified endian format.
@@ -443,9 +443,9 @@ may be beyond the end of the buffer. Defaults to `false`.
 
 ### buf.readUInt8(offset[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
+* Return: {Number}
 
 Reads an unsigned 8 bit integer from the buffer at the specified offset.
 
@@ -473,9 +473,9 @@ Example:
 ### buf.readUInt16BE(offset[, noAssert])
 ### buf.readUInt16LE(offset[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
+* Return: {Number}
 
 Reads an unsigned 16 bit integer from the buffer at the specified offset with
 specified endian format.
@@ -509,9 +509,9 @@ Example:
 ### buf.readUInt32BE(offset[, noAssert])
 ### buf.readUInt32LE(offset[, noAssert])
 
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
-* Return: Number
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
+* Return: {Number}
 
 Reads an unsigned 32 bit integer from the buffer at the specified offset with
 specified endian format.
@@ -581,9 +581,9 @@ byte from the original Buffer.
 
 ### buf.toString([encoding][, start][, end])
 
-* `encoding` String, Optional, Default: 'utf8'
-* `start` Number, Optional, Default: 0
-* `end` Number, Optional, Default: `buffer.length`
+* `encoding` {String} - Optional, Default: 'utf8'
+* `start` {Number} - Optional, Default: 0
+* `end` {Number} - Optional, Default: `buffer.length`
 
 Decodes and returns a string from buffer data encoded using the specified
 character set encoding. If `encoding` is `undefined` or `null`, then `encoding`
@@ -626,10 +626,10 @@ Example:
 
 ### buf.write(string[, offset][, length][, encoding])
 
-* `string` String - data to be written to buffer
-* `offset` Number, Optional, Default: 0
-* `length` Number, Optional, Default: `buffer.length - offset`
-* `encoding` String, Optional, Default: 'utf8'
+* `string` {String} - data to be written to buffer
+* `offset` {Number} - Optional, Default: 0
+* `length` {Number} - Optional, Default: `buffer.length - offset`
+* `encoding` {String} - Optional, Default: 'utf8'
 
 Writes `string` to the buffer at `offset` using the given encoding.
 `offset` defaults to `0`, `encoding` defaults to `'utf8'`. `length` is
@@ -645,9 +645,9 @@ The method will not write partial characters.
 ### buf.writeDoubleBE(value, offset[, noAssert])
 ### buf.writeDoubleLE(value, offset[, noAssert])
 
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
+* `value` {Number}
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
 format. Note, `value` must be a valid 64 bit double.
@@ -674,9 +674,9 @@ Example:
 ### buf.writeFloatBE(value, offset[, noAssert])
 ### buf.writeFloatLE(value, offset[, noAssert])
 
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
+* `value` {Number}
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
 format. Note, behavior is unspecified if `value` is not a 32 bit float.
@@ -702,9 +702,9 @@ Example:
 
 ### buf.writeInt8(value, offset[, noAssert])
 
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
+* `value` {Number}
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
 
 Writes `value` to the buffer at the specified offset. Note, `value` must be a
 valid signed 8 bit integer.
@@ -720,9 +720,9 @@ signed integer into `buffer`.
 ### buf.writeInt16BE(value, offset[, noAssert])
 ### buf.writeInt16LE(value, offset[, noAssert])
 
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
+* `value` {Number}
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
 format. Note, `value` must be a valid signed 16 bit integer.
@@ -738,9 +738,9 @@ complement signed integer into `buffer`.
 ### buf.writeInt32BE(value, offset[, noAssert])
 ### buf.writeInt32LE(value, offset[, noAssert])
 
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
+* `value` {Number}
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
 format. Note, `value` must be a valid signed 32 bit integer.
@@ -774,9 +774,9 @@ to `false`.
 
 ### buf.writeUInt8(value, offset[, noAssert])
 
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
+* `value` {Number}
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
 
 Writes `value` to the buffer at the specified offset. Note, `value` must be a
 valid unsigned 8 bit integer.
@@ -832,9 +832,9 @@ Example:
 ### buf.writeUInt32BE(value, offset[, noAssert])
 ### buf.writeUInt32LE(value, offset[, noAssert])
 
-* `value` Number
-* `offset` Number
-* `noAssert` Boolean, Optional, Default: false
+* `value` {Number}
+* `offset` {Number}
+* `noAssert` {Boolean} - Optional, Default: false
 
 Writes `value` to the buffer at the specified offset with specified endian
 format. Note, `value` must be a valid unsigned 32 bit integer.
@@ -879,7 +879,7 @@ to `false`.
 
 ## buffer.INSPECT_MAX_BYTES
 
-* Number, Default: 50
+* {Number} - Default: 50
 
 How many bytes will be returned when `buffer.inspect()` is called. This can
 be overridden by user modules. See [util.inspect()][] for more details on

@@ -19,14 +19,14 @@ event is not emitted until all connections are ended.
 
 ### Event: 'connection'
 
-* {Socket object} The connection object
+* {net.Socket} The connection object
 
 Emitted when a new connection is made. `socket` is an instance of
 `net.Socket`.
 
 ### Event: 'error'
 
-* {Error Object}
+* {Error}
 
 Emitted when an error occurs.  The ['close'][] event will be called directly
 following this event.  See example in discussion of `server.listen`.
@@ -280,7 +280,7 @@ caveat that the user is required to `end()` their side now.
 
 ### Event: 'error'
 
-* {Error object}
+* {Error}
 
 Emitted when an error occurs.  The `'close'` event will be called directly
 following this event.

@@ -2,6 +2,7 @@ var fs = require('fs');
 var marked = require('marked');
 var path = require('path');
 var preprocess = require('./preprocess.js');
+var typeParser = require('./type-parser.js');
 
 module.exports = toHTML;
 
@@ -106,7 +107,8 @@ function parseLists(input) {
       output.push({ type: 'html', text: tok.text });
       return;
     }
-    if (state === null) {
+    if (state === null ||
+      (state === 'AFTERHEADING' && tok.type === 'heading')) {
       if (tok.type === 'heading') {
         state = 'AFTERHEADING';
       }
@@ -156,9 +158,15 @@ function parseLists(input) {
 function parseListItem(text) {
   var parts = text.split('`');
   var i;
+  var typeMatches;
 
   for (i = 0; i < parts.length; i += 2) {
-    parts[i] = parts[i].replace(/\{([^\}]+)\}/, '<span class="type">$1</span>');
+    typeMatches = parts[i].match(/\{([^\}]+)\}/g);
+    if (typeMatches) {
+      typeMatches.forEach(function(typeMatch) {
+        parts[i] = parts[i].replace(typeMatch, typeParser.toLink(typeMatch));
+      });
+    }
   }
 
   //XXX maybe put more stuff here?
@@ -219,4 +227,3 @@ function getId(text) {
   }
   return text;
 }
-

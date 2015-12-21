@@ -201,7 +201,7 @@ readable.on('end', function() {
 
 #### Event: 'error'
 
-* {Error Object}
+* {Error}
 
 Emitted if there was an error receiving data.
 
@@ -254,7 +254,7 @@ end
 
 #### readable.isPaused()
 
-* Return: `Boolean`
+* Return: {Boolean}
 
 This method returns whether or not the `readable` has been **explicitly**
 paused by client code (using `readable.pause()` without a corresponding
@@ -293,7 +293,7 @@ readable.on('data', function(chunk) {
 
 #### readable.pipe(destination[, options])
 
-* `destination` {[Writable][] Stream} The destination for writing data
+* `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
   * `end` {Boolean} End the writer when the reader ends. Default = `true`
 
@@ -346,7 +346,7 @@ the process exits, regardless of the specified options.
 #### readable.read([size])
 
 * `size` {Number} Optional argument to specify how much data to read.
-* Return {String | Buffer | null}
+* Return {String | Buffer | Null}
 
 The `read()` method pulls some data out of the internal buffer and
 returns it.  If there is no data available, then it will return
@@ -428,7 +428,7 @@ readable.on('data', function(chunk) {
 
 #### readable.unpipe([destination])
 
-* `destination` {[Writable][] Stream} Optional specific stream to unpipe
+* `destination` {stream.Writable} Optional specific stream to unpipe
 
 This method will remove the hooks set up for a previous `pipe()` call.
 
@@ -603,7 +603,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 
 #### Event: 'error'
 
-* {Error object}
+* {Error}
 
 Emitted if there was an error when writing or piping data.
 
@@ -625,7 +625,7 @@ writer.on('finish', function() {
 
 #### Event: 'pipe'
 
-* `src` {[Readable][] Stream} source stream that is piping to this writable
+* `src` {stream.Readable} source stream that is piping to this writable
 
 This is emitted whenever the `pipe()` method is called on a readable
 stream, adding this writable to its set of destinations.
@@ -642,7 +642,7 @@ reader.pipe(writer);
 
 #### Event: 'unpipe'
 
-* `src` {[Readable][] Stream} The source stream that [unpiped][] this writable
+* `src` {stream.Readable} The source stream that [unpiped][] this writable
 
 This is emitted whenever the [`unpipe()`][] method is called on a
 readable stream, removing this writable from its set of destinations.
@@ -893,7 +893,7 @@ becomes available.  There is no need, for example to "wait" until
 
 #### readable.push(chunk[, encoding])
 
-* `chunk` {Buffer | null | String} Chunk of data to push into the read queue
+* `chunk` {Buffer | Null | String} Chunk of data to push into the read queue
 * `encoding` {String} Encoding of String chunks.  Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * return {Boolean} Whether or not more pushes should be performed
@@ -1467,7 +1467,7 @@ var writable = new stream.Writable({
 <!--type=misc-->
 
 Both Writable and Readable streams will buffer data on an internal
-object which can be retrieved from `_writableState.getBuffer()` or 
+object which can be retrieved from `_writableState.getBuffer()` or
 `_readableState.buffer`, respectively.
 
 The amount of data that will potentially be buffered depends on the

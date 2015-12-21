@@ -502,7 +502,7 @@ loading.
 
 ### module.parent
 
-* {Module Object}
+* {Object} Module
 
 The module that first required this one.
 
