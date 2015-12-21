@@ -7,7 +7,7 @@ var http = require('http');
 // ServerResponse.prototype.statusCode
 
 var testsComplete = 0;
-var tests = [200, 202, 300, 404, 500];
+var tests = [200, 202, 300, 404, 451, 500];
 var testIdx = 0;
 
 var s = http.createServer(function(req, res) {
@@ -42,6 +42,6 @@ function nextTest() {
 
 
 process.on('exit', function() {
-  assert.equal(4, testsComplete);
+  assert.equal(5, testsComplete);
 });
 
