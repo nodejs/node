@@ -11,8 +11,6 @@ namespace node {
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::GCCallbackFlags;
-using v8::GCEpilogueCallback;
-using v8::GCPrologueCallback;
 using v8::GCType;
 using v8::HandleScope;
 using v8::Isolate;
