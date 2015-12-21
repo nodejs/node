@@ -26,6 +26,13 @@ void* _mempcpy(void* dest, const void* src, size_t len) {
 }
 #endif
 
+#ifndef INADDRSZ
+#  define INADDRSZ 4
+#endif
+#ifndef IN6ADDRSZ
+#  define IN6ADDRSZ 16
+#endif
+
 NSSReqWrap::NSSReqWrap(Environment* env,
                        Local<Object> req_wrap_obj,
                        char* host_val,
