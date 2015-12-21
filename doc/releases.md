@@ -1,11 +1,11 @@
 Node.js Release Process
 =====================
 
-This document describes the technical aspects of the node.js release process. The intended audience is those who have been authorized by the Node.js Foundation Technical Steering Committee (TSC) to create, promote and sign official release builds for node.js, hosted on <https://nodejs.org>.
+This document describes the technical aspects of the Node.js release process. The intended audience is those who have been authorized by the Node.js Foundation Technical Steering Committee (TSC) to create, promote, and sign official release builds for Node.js, hosted on <https://nodejs.org/>.
 
 ## Who can make a release?
 
-Release authorization is given by the node.js TSC. Once authorized, an individual must be have the following:
+Release authorization is given by the Node.js TSC. Once authorized, an individual must be have the following:
 
 ### 1. Jenkins Release Access
 
@@ -17,23 +17,23 @@ There are three relevant Jenkins jobs that should be used for a release flow:
 
 **c.** **Release builds:** **[iojs+release](https://ci.nodejs.org/job/iojs+release/)** does all of the work to build all required release assets. Promotion of the release files is a manual step once they are ready (see below).
 
-The [Node.js build team](https://github.com/nodejs/build) is able to provide this access to individuals authorized by the TC.
+The [Node.js build team](https://github.com/nodejs/build) is able to provide this access to individuals authorized by the TSC.
 
 ### 2. <nodejs.org> Access
 
-The _dist_ user on nodejs.org controls the assets available in <https://nodejs.org/download/> (note that <https://nodejs.org/dist/> is an alias for <https://nodejs.org/download/release/>).
+The _dist_ user on nodejs.org controls the assets available in <https://nodejs.org/download/>. <https://nodejs.org/dist/> is an alias for <https://nodejs.org/download/release/>.
 
-The Jenkins release build slaves upload their artifacts to the web server as the _staging_ user, the _dist_ user has access to move these assets to public access (the _staging_ user does not, for security purposes).
+The Jenkins release build slaves upload their artifacts to the web server as the _staging_ user. The _dist_ user has access to move these assets to public access while, for security, the _staging_ user does not.
 
 Nightly builds are promoted automatically on the server by a cron task for the _dist_ user.
 
-Release builds require manual promotion by an individual with SSH access to the server as the _dist_ user. The [Node.js build team](https://github.com/nodejs/build) is able to provide this access to individuals authorized by the TC.
+Release builds require manual promotion by an individual with SSH access to the server as the _dist_ user. The [Node.js build team](https://github.com/nodejs/build) is able to provide this access to individuals authorized by the TSC.
 
 ### 3. A Publicly Listed GPG Key
 
-A SHASUMS256.txt file is produced for every promoted build, nightly and releases. Additionally for releases, this file is signed by the individual responsible for that release. In order to be able to verify downloaded binaries, the public should be able to check that the SHASUMS256.txt file has been signed by someone who has been authorized to create a release.
+A SHASUMS256.txt file is produced for every promoted build, nightly, and releases. Additionally for releases, this file is signed by the individual responsible for that release. In order to be able to verify downloaded binaries, the public should be able to check that the SHASUMS256.txt file has been signed by someone who has been authorized to create a release.
 
-The GPG keys should be fetchable from a known third-party keyserver, currently the SKS Keyservers at <https://sks-keyservers.net> are recommended. Use the [submission](https://sks-keyservers.net/i/#submit) form to submit a new GPG key. Keys should be fetchable via:
+The GPG keys should be fetchable from a known third-party keyserver. The SKS Keyservers at <https://sks-keyservers.net> are recommended. Use the [submission](https://sks-keyservers.net/i/#submit) form to submit a new GPG key. Keys should be fetchable via:
 
 ```
 gpg --keyserver pool.sks-keyservers.net --recv-keys <FINGERPRINT>
@@ -48,7 +48,7 @@ Additionally, full GPG key fingerprints for individuals authorized to release sh
 Notes:
 
  - Dates listed below as _"YYYY-MM-DD"_ should be the date of the release **as UTC**. Use `date -u +'%Y-%m-%d'` to find out what this is.
- - Version strings are listed below as _"vx.y.z"_, substitute for the release version.
+ - Version strings are listed below as _"vx.y.z"_. Substitute for the release version.
 
 ### 1. Ensure that HEAD Is Stable
 
@@ -56,7 +56,7 @@ Run a **[node-test-pull-request](https://ci.nodejs.org/job/node-test-pull-reques
 
 ### 2. Produce a Nightly Build _(optional)_
 
-If there is a reason to produce a test release for the purpose of having others try out installers or specifics of builds, produce a nightly build using **[iojs+release](https://ci.nodejs.org/job/iojs+release/)** and wait for it to drop in <https://nodejs.org/download/nightly/>. Follow the directions and enter a proper length commit sha, a date string and select "nightly" for "disttype".
+If there is a reason to produce a test release for the purpose of having others try out installers or specifics of builds, produce a nightly build using **[iojs+release](https://ci.nodejs.org/job/iojs+release/)** and wait for it to drop in <https://nodejs.org/download/nightly/>. Follow the directions and enter a proper length commit SHA, enter a date string, and select "nightly" for "disttype".
 
 This is particularly recommended if there has been recent work relating to the OS X or Windows installers as they are not tested in any way by CI.
 
@@ -123,7 +123,7 @@ This macro is used to signal an ABI version for native addons. It currently has 
 
 The general rule is to bump this version when there are _breaking ABI_ changes and also if there are non-trivial API changes. The rules are not yet strictly defined, so if in doubt, please confer with someone that will have a more informed perspective, such as a member of the NAN team.
 
-**Note** that it is current TSC policy to bump major version when ABI changes. If you see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC, commits may need to be reverted or a major version bump may need to happen.
+**Note** that it is current TSC policy to bump major version when ABI changes. If you see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC. Commits may need to be reverted or a major version bump may need to happen.
 
 ### 5. Create Release Commit
 
@@ -141,7 +141,7 @@ Notable changes:
 
 ### 6. Push to GitHub
 
-Note that it is not essential that the release builds be created from the Node.js repository, they may be created from your own fork if you desire. It is preferable, but not essential that the commits remain the same between that used to build and the tagged commit in the Node.js repository.
+Note that it is not essential that the release builds be created from the Node.js repository. They may be created from your own fork if you desire. It is preferable, but not essential, that the commits remain the same between that used to build and the tagged commit in the Node.js repository.
 
 ### 7. Produce Release Builds
 
@@ -149,11 +149,11 @@ Use **[iojs+release](https://ci.nodejs.org/job/iojs+release/)** to produce relea
 
 Artifacts from each slave are uploaded to Jenkins and are available if further testing is required. Use this opportunity particularly to test OS X and Windows installers if there are any concerns. Click through to the individual slaves for a run to find the artifacts.
 
-All release slaves should achieve "SUCCESS" (and be green, not red). A release with failures should not be promoted, there are likely problems to be investigated.
+All release slaves should achieve "SUCCESS" (and be green, not red). A release with failures should not be promoted as there are likely problems to be investigated.
 
 You can rebuild the release as many times as you need prior to promoting them if you encounter problems.
 
-Note that you do not have to wait for the ARM builds if they are take longer than the others. It is only necessary to have the main Linux (x64 and x86), OS X .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers and docs (both produced currently by an OS X slave). i.e. the slaves with "arm" in their name don't need to have finished to progress to the next step. However, **if you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
+Note that you do not have to wait for the ARM builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), OS X .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers and docs (both produced currently by an OS X slave). That is, the slaves with "arm" in their name don't need to have finished to progress to the next step. However, **if you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
 
 ### 8. Tag and Sign the Release Commit
 
@@ -188,29 +188,29 @@ This sets up the branch so that nightly builds are produced with the next versio
 
 **It is important that the same individual who signed the release tag be the one to promote the builds as the SHASUMS256.txt file needs to be signed with the same GPG key!**
 
-When you are confident that the build slaves have properly produced usable artifacts and uploaded them to the web server you can promote them to release status. This is done by interacting with the web server via the _dist_ user.
+When you are confident that the build slaves have properly produced usable artifacts and uploaded them to the web server, you can promote them to release status. This is done by interacting with the web server via the _dist_ user.
 
 The _tools/release.sh_ script should be used to promote and sign the build. When run, it will perform the following actions:
 
-**a.** Select a GPG key from your private keys, it will use a command similar to: `gpg --list-secret-keys` to list your keys. If you don't have any keys, it will bail (why are you releasing? Your tag should be signed!). If you have only one key, it will use that. If you have more than one key it will ask you to select one from the list. Be sure to use the same key that you signed your git tag with.
+**a.** Select a GPG key from your private keys. It will use a command similar to: `gpg --list-secret-keys` to list your keys. If you don't have any keys, it will bail. (Why are you releasing? Your tag should be signed!) If you have only one key, it will use that. If you have more than one key it will ask you to select one from the list. Be sure to use the same key that you signed your git tag with.
 
 **b.** Log in to the server via SSH and check for releases that can be promoted, along with the list of artifacts. It will use the `dist-promotable` command on the server to find these. You will be asked, for each promotable release, whether you want to proceed. If there is more than one release to promote (there shouldn't be), be sure to only promote the release you are responsible for.
 
 **c.** Log in to the server via SSH and run the promote script for the given release. The command on the server will be similar to: `dist-promote vx.y.z`. After this step, the release artifacts will be available for download and a SHASUMS256.txt file will be present. The release will still be unsigned, however.
 
-**d.** Download SHASUMS256.txt to your computer using SCP into a temporary directory.
+**d.** Use `scp` to download SHASUMS256.txt to a temporary directory on your computer.
 
-**e.** Sign the SHASUMS256.txt file using a command similar to: `gpg --default-key YOURKEY --clearsign /path/to/SHASUMS256.txt`. You will be prompted by GPG for your password for this to work. The signed file will be named SHASUMS256.txt.asc.
+**e.** Sign the SHASUMS256.txt file using a command similar to: `gpg --default-key YOURKEY --clearsign /path/to/SHASUMS256.txt`. You will be prompted by GPG for your password. The signed file will be named SHASUMS256.txt.asc.
 
-**f.** Output an ASCII armored version of your public GPG key, using a command similar to: `gpg --default-key YOURKEY --armor --export --output /path/to/SHASUMS256.txt.gpg`. This does not require your password and is mainly a convenience for users although not the recommended way to get a copy of your key.
+**f.** Output an ASCII armored version of your public GPG key using a command similar to: `gpg --default-key YOURKEY --armor --export --output /path/to/SHASUMS256.txt.gpg`. This does not require your password and is mainly a convenience for users, although not the recommended way to get a copy of your key.
 
 **g.** Upload the SHASUMS256.txt\* files back to the server into the release directory.
 
-If you didn't wait for ARM builds in the previous step before promoting the release, you should re-run _tools/release.sh_ after the ARM builds have finished and it will move the ARM artifacts into the correct location and you will be prompted to re-sign SHASUMS256.txt.
+If you didn't wait for ARM builds in the previous step before promoting the release, you should re-run _tools/release.sh_ after the ARM builds have finished. That will move the ARM artifacts into the correct location. You will be prompted to re-sign SHASUMS256.txt.
 
 ### 11. Check the Release
 
-Your release should be available at <https://nodejs.org/dist/vx.y.z/> and also <https://nodejs.org/dist/latest/>. Check that the appropriate files are in place, you may also want to check that the binaries are working as appropriate and have the right internal version strings. Check that the API docs are available at <https://nodejs.org/api/>. Check that the release catalog files are correct at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
+Your release should be available at <https://nodejs.org/dist/vx.y.z/> and <https://nodejs.org/dist/latest/>. Check that the appropriate files are in place. You may want to check that the binaries are working as appropriate and have the right internal version strings. Check that the API docs are available at <https://nodejs.org/api/>. Check that the release catalog files are correct at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
 
 ### 12. Announce
 
