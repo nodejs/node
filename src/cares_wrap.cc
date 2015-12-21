@@ -922,18 +922,11 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     struct addrinfo *address;
     int n = 0;
 
-    // Count the number of responses.
-    for (address = res; address; address = address->ai_next) {
-      n++;
-    }
-
     // Create the response array.
-    Local<Array> results = Array::New(env->isolate(), n);
+    Local<Array> results = Array::New(env->isolate());
 
     char ip[INET6_ADDRSTRLEN];
     const char *addr;
-
-    n = 0;
 
     // Iterate over the IPv4 responses again this time creating javascript
     // strings for each IP and filling the results array.

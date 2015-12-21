@@ -2,19 +2,19 @@ prefix parallel
 
 # To mark a test as flaky, list the test name in the appropriate section
 # below, without ".js", followed by ": PASS,FLAKY". Example:
-# sample-test                       : PASS,FLAKY
+# sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-tls-ticket-cluster           : PASS,FLAKY
+test-cluster-net-send                : PASS,FLAKY
+test-tls-ticket-cluster              : PASS,FLAKY
+test-child-process-fork-regr-gh-2847 : PASS,FLAKY
 
 [$system==linux]
-test-cluster-worker-forced-exit   : PASS,FLAKY
-test-http-client-timeout-event    : PASS,FLAKY
-test-tls-no-sslv3                 : PASS,FLAKY
-test-child-process-buffering      : PASS,FLAKY
-test-child-process-exit-code      : PASS,FLAKY
+test-http-client-timeout-event       : PASS,FLAKY
+test-child-process-buffering         : PASS,FLAKY
+test-child-process-exit-code         : PASS,FLAKY
 
 [$system==macos]
 

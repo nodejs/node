@@ -9,7 +9,7 @@ if (!common.hasCrypto) {
 var tls = require('tls');
 
 var fs = require('fs');
-var cipher_list = ['RC4-SHA', 'AES256-SHA'];
+var cipher_list = ['AES128-SHA256', 'AES256-SHA256'];
 var cipher_version_pattern = /TLS|SSL/;
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),

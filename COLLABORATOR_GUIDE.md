@@ -8,6 +8,7 @@
 * [Landing Pull Requests](#landing-pull-requests)
  - [Technical HOWTO](#technical-howto)
  - [I Just Made a Mistake](#i-just-made-a-mistake)
+ - [Long Term Support](#long-term-support)
 
 This document contains information for Collaborators of the Node.js
 project regarding maintaining the code, documentation and issues.
@@ -227,3 +228,93 @@ messages. However, you are only allowed to force push to any Node.js
 branch within 10 minutes from your original push. If someone else
 pushes to the branch or the 10 minute period passes, consider the
 commit final.
+
+### Long Term Support
+
+#### What is LTS?
+
+Long Term Support (often referred to as *LTS*) guarantees application developers
+a 30 month support cycle with specific versions of Node.js.
+
+You can find more information [in the full LTS plan](https://github.com/nodejs/lts#lts-plan).
+
+#### How does LTS work?
+
+Once a stable branch enters LTS, changes in that branch are limited to bug
+fixes, security updates, possible npm updates, documentation updates, and
+certain performance improvements that can be demonstrated to not break existing
+applications. Semver-minor changes are only permitted if required for bug fixes
+and then only on a case-by-case basis with LTS WG and possibly Core Technical
+Committee (CTC) review. Semver-major changes are permitted only if required for
+security related fixes.
+
+Once a stable branch moves into Maintenance mode, only **critical** bugs,
+**critical** security fixes, and documentation updates will be permitted.
+
+#### Landing semver-minor commits in LTS
+
+The default policy is to not land semver-minor or higher commits in any LTS
+branch. However, the LTS WG or CTC can evaluate any individual semver-minor
+commit and decide whether a special exception ought to be made. It is
+expected that such exceptions would be evaluated, in part, on the scope
+and impact of the changes on the code, the risk to ecosystem stability
+incurred by accepting the change, and the expected benefit that landing the
+commit will have for the ecosystem.
+
+Any collaborator who feels a semver-minor commit should be landed in an LTS
+branch should attach the `lts-agenda` label to the pull request. The LTS WG
+will discuss the issue and, if necessary, will escalate the issue up to the
+CTC for further discussion.
+
+#### How are LTS Branches Managed?
+
+There are currently three LTS branches: `v4.x`, `v0.10`, and `v0.12`. Each
+of these is paired with a "staging" branch: `v4.x-staging`, `v0.10-staging`,
+and `v0.12-staging`.
+
+As commits land in `master`, they are cherry-picked back to each staging
+branch as appropriate. If the commit applies only to the LTS branch, the
+PR must be opened against the *staging* branch. Commits are selectively
+pulled from the staging branch into the LTS branch only when a release is
+being prepared and may be pulled into the LTS branch in a different order
+than they were landed in staging.
+
+Any collaborator may land commits into a staging branch, but only the release
+team should land commits into the LTS branch while preparing a new
+LTS release.
+
+#### How can I help?
+
+When you send your pull request, consider including information about
+whether your change is breaking. If you think your patch can be backported,
+please feel free to include that information in the PR thread.
+
+Several LTS related issue and PR labels have been provided:
+
+* `lts-watch-v4.x` - tells the LTS WG that the issue/PR needs to be considered
+  for landing in the `v4.x-staging` branch.
+* `lts-watch-v0.10` - tells the LTS WG that the issue/PR needs to be considered
+  for landing in the `v0.10-staging` branch.
+* `lts-watch-v0.12` - tells the LTS WG that the issue/PR needs to be considered
+  for landing in the `v0.12-staging` branch.
+* `land-on-v4.x` - tells the release team that the commit should be landed
+  in a future v4.x release
+* `land-on-v0.10` - tells the release team that the commit should be landed
+  in a future v0.10 release
+* `land-on-v0.12` - tells the release team that the commit should be landed
+  in a future v0.12 release
+
+Any collaborator can attach these labels to any PR/issue. As commits are
+landed into the staging branches, the `lts-watch-` label will be removed.
+Likewise, as commits are landed in a LTS release, the `land-on-` label will
+be removed.
+
+Collaborators are encouraged to help the LTS WG by attaching the appropriate
+`lts-watch-` label to any PR that may impact an LTS release.
+
+#### How is an LTS release cut?
+
+When the LTS working group determines that a new LTS release is required,
+selected commits will be picked from the staging branch to be included in the
+release. This process of making a release will be a collaboration between the
+LTS working group and the Release team.

@@ -1,5 +1,5 @@
 if (require.main === module) {
-  console.log("0..1")
+  console.log("1..1")
   console.log("ok 1 trivial pass")
   return
 }

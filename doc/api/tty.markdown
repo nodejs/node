@@ -15,18 +15,6 @@ in a TTY context is to check `process.stdout.isTTY`:
     $ node -p -e "Boolean(process.stdout.isTTY)" | cat
     false
 
-
-## tty.isatty(fd)
-
-Returns `true` or `false` depending on if the `fd` is associated with a
-terminal.
-
-
-## tty.setRawMode(mode)
-
-    Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
-
-
 ## Class: ReadStream
 
 A `net.Socket` subclass that represents the readable portion of a tty. In normal
@@ -44,22 +32,11 @@ of the `tty.ReadStream` instance.
 `tty.ReadStream` to act either as a raw device or default. `isRaw` will be set
 to the resulting mode.
 
-
 ## Class: WriteStream
 
 A `net.Socket` subclass that represents the writable portion of a tty. In normal
 circumstances, `process.stdout` will be the only `tty.WriteStream` instance
 ever created (and only when `isatty(1)` is true).
-
-### ws.columns
-
-A `Number` that gives the number of columns the TTY currently has. This property
-gets updated on "resize" events.
-
-### ws.rows
-
-A `Number` that gives the number of rows the TTY currently has. This property
-gets updated on "resize" events.
 
 ### Event: 'resize'
 
@@ -73,5 +50,23 @@ has changed.
       console.log(process.stdout.columns + 'x' + process.stdout.rows);
     });
 
+### ws.columns
+
+A `Number` that gives the number of columns the TTY currently has. This property
+gets updated on "resize" events.
+
+### ws.rows
+
+A `Number` that gives the number of rows the TTY currently has. This property
+gets updated on "resize" events.
+
+## tty.isatty(fd)
+
+Returns `true` or `false` depending on if the `fd` is associated with a
+terminal.
+
+## tty.setRawMode(mode)
+
+    Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
 
 [tty.ReadStream#setRawMode]: #tty_rs_setrawmode_mode

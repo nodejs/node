@@ -20,47 +20,26 @@ You have to change it to this:
       s.addMembership('224.0.0.114');
     });
 
-
-## dgram.createSocket(type[, callback])
-
-* `type` String. Either 'udp4' or 'udp6'
-* `callback` Function. Attached as a listener to `message` events.
-  Optional
-* Returns: Socket object
-
-Creates a datagram Socket of the specified types.  Valid types are `udp4`
-and `udp6`.
-
-Takes an optional callback which is added as a listener for `message` events.
-
-Call `socket.bind()` if you want to receive datagrams. `socket.bind()` will
-bind to the "all interfaces" address on a random port (it does the right thing
-for both `udp4` and `udp6` sockets). You can then retrieve the address and port
-with `socket.address().address` and `socket.address().port`.
-
-## dgram.createSocket(options[, callback])
-* `options` Object
-* `callback` Function. Attached as a listener to `message` events.
-* Returns: Socket object
-
-The `options` object should contain a `type` field of either `udp4` or `udp6`
-and an optional boolean `reuseAddr` field.
-
-When `reuseAddr` is `true` `socket.bind()` will reuse the address, even if
-another process has already bound a socket on it. `reuseAddr` defaults to
-`false`.
-
-Takes an optional callback which is added as a listener for `message` events.
-
-Call `socket.bind()` if you want to receive datagrams. `socket.bind()` will
-bind to the "all interfaces" address on a random port (it does the right thing
-for both `udp4` and `udp6` sockets). You can then retrieve the address and port
-with `socket.address().address` and `socket.address().port`.
-
 ## Class: dgram.Socket
 
 The dgram Socket class encapsulates the datagram functionality.  It
 should be created via `dgram.createSocket(...)`
+
+### Event: 'close'
+
+Emitted after a socket is closed with `close()`.  No new `message` events will be emitted
+on this socket.
+
+### Event: 'error'
+
+* `exception` Error object
+
+Emitted when an error occurs.
+
+### Event: 'listening'
+
+Emitted when a socket starts listening for datagrams.  This happens as soon as UDP sockets
+are created.
 
 ### Event: 'message'
 
@@ -75,88 +54,20 @@ Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and
                   msg.length, rinfo.address, rinfo.port);
     });
 
-### Event: 'listening'
+### socket.addMembership(multicastAddress[, multicastInterface])
 
-Emitted when a socket starts listening for datagrams.  This happens as soon as UDP sockets
-are created.
+* `multicastAddress` String
+* `multicastInterface` String, Optional
 
-### Event: 'close'
+Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket option.
 
-Emitted after a socket is closed with `close()`.  No new `message` events will be emitted
-on this socket.
+If `multicastInterface` is not specified, the OS will try to add membership to all valid
+interfaces.
 
-### Event: 'error'
+### socket.address()
 
-* `exception` Error object
-
-Emitted when an error occurs.
-
-### socket.send(buf, offset, length, port, address[, callback])
-
-* `buf` Buffer object or string.  Message to be sent
-* `offset` Integer. Offset in the buffer where the message starts.
-* `length` Integer. Number of bytes in the message.
-* `port` Integer. Destination port.
-* `address` String. Destination hostname or IP address.
-* `callback` Function. Called when the message has been sent. Optional.
-
-For UDP sockets, the destination port and address must be specified.  A string
-may be supplied for the `address` parameter, and it will be resolved with DNS.
-
-If the address is omitted or is an empty string, `'0.0.0.0'` or `'::0'` is used
-instead.  Depending on the network configuration, those defaults may or may not
-work; it's best to be explicit about the destination address.
-
-If the socket has not been previously bound with a call to `bind`, it gets
-assigned a random port number and is bound to the "all interfaces" address
-(`'0.0.0.0'` for `udp4` sockets, `'::0'` for `udp6` sockets.)
-
-An optional callback may be specified to detect DNS errors or for determining
-when it's safe to reuse the `buf` object.  Note that DNS lookups delay the time
-to send for at least one tick.  The only way to know for sure that the datagram
-has been sent is by using a callback. If an error occurs and a callback is
-given, the error will be the first argument to the callback. If a callback is
-not given, the error is emitted as an `'error'` event on the `socket` object.
-
-With consideration for multi-byte characters, `offset` and `length` will
-be calculated with respect to
-[byte length](buffer.html#buffer_class_method_buffer_bytelength_string_encoding)
-and not the character position.
-
-Example of sending a UDP packet to a random port on `localhost`;
-
-    var dgram = require('dgram');
-    var message = new Buffer("Some bytes");
-    var client = dgram.createSocket("udp4");
-    client.send(message, 0, message.length, 41234, "localhost", function(err) {
-      client.close();
-    });
-
-**A Note about UDP datagram size**
-
-The maximum size of an `IPv4/v6` datagram depends on the `MTU` (_Maximum Transmission Unit_)
-and on the `Payload Length` field size.
-
-- The `Payload Length` field is `16 bits` wide, which means that a normal payload
-  cannot be larger than 64K octets including internet header and data
-  (65,507 bytes = 65,535 − 8 bytes UDP header − 20 bytes IP header);
-  this is generally true for loopback interfaces, but such long datagrams
-  are impractical for most hosts and networks.
-
-- The `MTU` is the largest size a given link layer technology can support for datagrams.
-  For any link, `IPv4` mandates a minimum `MTU` of `68` octets, while the recommended `MTU`
-  for IPv4 is `576` (typically recommended as the `MTU` for dial-up type applications),
-  whether they arrive whole or in fragments.
-
-  For `IPv6`, the minimum `MTU` is `1280` octets, however, the mandatory minimum
-  fragment reassembly buffer size is `1500` octets.
-  The value of `68` octets is very small, since most current link layer technologies have
-  a minimum `MTU` of `1500` (like Ethernet).
-
-Note that it's impossible to know in advance the MTU of each link through which
-a packet might travel, and that generally sending a datagram greater than
-the (receiver) `MTU` won't work (the packet gets silently dropped, without
-informing the source that the data did not reach its intended recipient).
+Returns an object containing the address information for a socket.  For UDP sockets,
+this object will contain `address` , `family` and `port`.
 
 ### socket.bind([port][, address][, callback])
 
@@ -204,7 +115,6 @@ Example of a UDP server listening on port 41234:
     server.bind(41234);
     // server listening 0.0.0.0:41234
 
-
 ### socket.bind(options[, callback])
 
 * `options` {Object} - Required. Supports the following properties:
@@ -230,65 +140,10 @@ shown below.
       exclusive: true
     });
 
-
 ### socket.close([callback])
 
 Close the underlying socket and stop listening for data on it. If a callback is
-provided, it is added as a listener for the ['close'](#dgram_event_close) event.
-
-### socket.address()
-
-Returns an object containing the address information for a socket.  For UDP sockets,
-this object will contain `address` , `family` and `port`.
-
-### socket.setBroadcast(flag)
-
-* `flag` Boolean
-
-Sets or clears the `SO_BROADCAST` socket option.  When this option is set, UDP packets
-may be sent to a local interface's broadcast address.
-
-### socket.setTTL(ttl)
-
-* `ttl` Integer
-
-Sets the `IP_TTL` socket option.  TTL stands for "Time to Live," but in this context it
-specifies the number of IP hops that a packet is allowed to go through.  Each router or
-gateway that forwards a packet decrements the TTL.  If the TTL is decremented to 0 by a
-router, it will not be forwarded.  Changing TTL values is typically done for network
-probes or when multicasting.
-
-The argument to `setTTL()` is a number of hops between 1 and 255.  The default on most
-systems is 64.
-
-### socket.setMulticastTTL(ttl)
-
-* `ttl` Integer
-
-Sets the `IP_MULTICAST_TTL` socket option.  TTL stands for "Time to Live," but in this
-context it specifies the number of IP hops that a packet is allowed to go through,
-specifically for multicast traffic.  Each router or gateway that forwards a packet
-decrements the TTL. If the TTL is decremented to 0 by a router, it will not be forwarded.
-
-The argument to `setMulticastTTL()` is a number of hops between 0 and 255.  The default on most
-systems is 1.
-
-### socket.setMulticastLoopback(flag)
-
-* `flag` Boolean
-
-Sets or clears the `IP_MULTICAST_LOOP` socket option.  When this option is set, multicast
-packets will also be received on the local interface.
-
-### socket.addMembership(multicastAddress[, multicastInterface])
-
-* `multicastAddress` String
-* `multicastInterface` String, Optional
-
-Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket option.
-
-If `multicastInterface` is not specified, the OS will try to add membership to all valid
-interfaces.
+provided, it is added as a listener for the ['close'][] event.
 
 ### socket.dropMembership(multicastAddress[, multicastInterface])
 
@@ -303,13 +158,109 @@ this.
 If `multicastInterface` is not specified, the OS will try to drop membership to all valid
 interfaces.
 
-### socket.unref()
+### socket.send(buf, offset, length, port, address[, callback])
 
-Calling `unref` on a socket will allow the program to exit if this is the only
-active socket in the event system. If the socket is already `unref`d calling
-`unref` again will have no effect.
+* `buf` Buffer object or string.  Message to be sent
+* `offset` Integer. Offset in the buffer where the message starts.
+* `length` Integer. Number of bytes in the message.
+* `port` Integer. Destination port.
+* `address` String. Destination hostname or IP address.
+* `callback` Function. Called when the message has been sent. Optional.
 
-Returns `socket`.
+For UDP sockets, the destination port and address must be specified.  A string
+may be supplied for the `address` parameter, and it will be resolved with DNS.
+
+If the address is omitted or is an empty string, `'0.0.0.0'` or `'::0'` is used
+instead.  Depending on the network configuration, those defaults may or may not
+work; it's best to be explicit about the destination address.
+
+If the socket has not been previously bound with a call to `bind`, it gets
+assigned a random port number and is bound to the "all interfaces" address
+(`'0.0.0.0'` for `udp4` sockets, `'::0'` for `udp6` sockets.)
+
+An optional callback may be specified to detect DNS errors or for determining
+when it's safe to reuse the `buf` object.  Note that DNS lookups delay the time
+to send for at least one tick.  The only way to know for sure that the datagram
+has been sent is by using a callback. If an error occurs and a callback is
+given, the error will be the first argument to the callback. If a callback is
+not given, the error is emitted as an `'error'` event on the `socket` object.
+
+With consideration for multi-byte characters, `offset` and `length` will
+be calculated with respect to [byte length][] and not the character position.
+
+Example of sending a UDP packet to a random port on `localhost`;
+
+    var dgram = require('dgram');
+    var message = new Buffer("Some bytes");
+    var client = dgram.createSocket("udp4");
+    client.send(message, 0, message.length, 41234, "localhost", function(err) {
+      client.close();
+    });
+
+**A Note about UDP datagram size**
+
+The maximum size of an `IPv4/v6` datagram depends on the `MTU` (_Maximum Transmission Unit_)
+and on the `Payload Length` field size.
+
+- The `Payload Length` field is `16 bits` wide, which means that a normal payload
+  cannot be larger than 64K octets including internet header and data
+  (65,507 bytes = 65,535 − 8 bytes UDP header − 20 bytes IP header);
+  this is generally true for loopback interfaces, but such long datagrams
+  are impractical for most hosts and networks.
+
+- The `MTU` is the largest size a given link layer technology can support for datagrams.
+  For any link, `IPv4` mandates a minimum `MTU` of `68` octets, while the recommended `MTU`
+  for IPv4 is `576` (typically recommended as the `MTU` for dial-up type applications),
+  whether they arrive whole or in fragments.
+
+  For `IPv6`, the minimum `MTU` is `1280` octets, however, the mandatory minimum
+  fragment reassembly buffer size is `1500` octets.
+  The value of `68` octets is very small, since most current link layer technologies have
+  a minimum `MTU` of `1500` (like Ethernet).
+
+Note that it's impossible to know in advance the MTU of each link through which
+a packet might travel, and that generally sending a datagram greater than
+the (receiver) `MTU` won't work (the packet gets silently dropped, without
+informing the source that the data did not reach its intended recipient).
+
+### socket.setBroadcast(flag)
+
+* `flag` Boolean
+
+Sets or clears the `SO_BROADCAST` socket option.  When this option is set, UDP packets
+may be sent to a local interface's broadcast address.
+
+### socket.setMulticastLoopback(flag)
+
+* `flag` Boolean
+
+Sets or clears the `IP_MULTICAST_LOOP` socket option.  When this option is set, multicast
+packets will also be received on the local interface.
+
+### socket.setMulticastTTL(ttl)
+
+* `ttl` Integer
+
+Sets the `IP_MULTICAST_TTL` socket option.  TTL stands for "Time to Live," but in this
+context it specifies the number of IP hops that a packet is allowed to go through,
+specifically for multicast traffic.  Each router or gateway that forwards a packet
+decrements the TTL. If the TTL is decremented to 0 by a router, it will not be forwarded.
+
+The argument to `setMulticastTTL()` is a number of hops between 0 and 255.  The default on most
+systems is 1.
+
+### socket.setTTL(ttl)
+
+* `ttl` Integer
+
+Sets the `IP_TTL` socket option.  TTL stands for "Time to Live," but in this context it
+specifies the number of IP hops that a packet is allowed to go through.  Each router or
+gateway that forwards a packet decrements the TTL.  If the TTL is decremented to 0 by a
+router, it will not be forwarded.  Changing TTL values is typically done for network
+probes or when multicasting.
+
+The argument to `setTTL()` is a number of hops between 1 and 255.  The default
+on most systems is 64.
 
 ### socket.ref()
 
@@ -318,3 +269,50 @@ let the program exit if it's the only socket left (the default behavior). If
 the socket is `ref`d calling `ref` again will have no effect.
 
 Returns `socket`.
+
+### socket.unref()
+
+Calling `unref` on a socket will allow the program to exit if this is the only
+active socket in the event system. If the socket is already `unref`d calling
+`unref` again will have no effect.
+
+Returns `socket`.
+
+## dgram.createSocket(options[, callback])
+* `options` Object
+* `callback` Function. Attached as a listener to `message` events.
+* Returns: Socket object
+
+The `options` object should contain a `type` field of either `udp4` or `udp6`
+and an optional boolean `reuseAddr` field.
+
+When `reuseAddr` is `true` `socket.bind()` will reuse the address, even if
+another process has already bound a socket on it. `reuseAddr` defaults to
+`false`.
+
+Takes an optional callback which is added as a listener for `message` events.
+
+Call `socket.bind()` if you want to receive datagrams. `socket.bind()` will
+bind to the "all interfaces" address on a random port (it does the right thing
+for both `udp4` and `udp6` sockets). You can then retrieve the address and port
+with `socket.address().address` and `socket.address().port`.
+
+## dgram.createSocket(type[, callback])
+
+* `type` String. Either 'udp4' or 'udp6'
+* `callback` Function. Attached as a listener to `message` events.
+  Optional
+* Returns: Socket object
+
+Creates a datagram Socket of the specified types.  Valid types are `udp4`
+and `udp6`.
+
+Takes an optional callback which is added as a listener for `message` events.
+
+Call `socket.bind()` if you want to receive datagrams. `socket.bind()` will
+bind to the "all interfaces" address on a random port (it does the right thing
+for both `udp4` and `udp6` sockets). You can then retrieve the address and port
+with `socket.address().address` and `socket.address().port`.
+
+['close']: #dgram_event_close
+[byte length]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding

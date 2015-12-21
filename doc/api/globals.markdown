@@ -5,6 +5,81 @@
 These objects are available in all modules. Some of these objects aren't
 actually in the global scope but in the module scope - this will be noted.
 
+## Class: Buffer
+
+<!-- type=global -->
+
+* {Function}
+
+Used to handle binary data. See the [buffer section][]
+
+## __dirname
+
+<!-- type=var -->
+
+* {String}
+
+The name of the directory that the currently executing script resides in.
+
+Example: running `node example.js` from `/Users/mjr`
+
+    console.log(__dirname);
+    // /Users/mjr
+
+`__dirname` isn't actually a global but rather local to each module.
+
+## __filename
+
+<!-- type=var -->
+
+* {String}
+
+The filename of the code being executed.  This is the resolved absolute path
+of this code file.  For a main program this is not necessarily the same
+filename used in the command line.  The value inside a module is the path
+to that module file.
+
+Example: running `node example.js` from `/Users/mjr`
+
+    console.log(__filename);
+    // /Users/mjr/example.js
+
+`__filename` isn't actually a global but rather local to each module.
+
+## clearInterval(t)
+
+Stop a timer that was previously created with `setInterval()`. The callback
+will not execute.
+
+<!--type=global-->
+
+The timer functions are global variables. See the [timers][] section.
+
+## clearTimeout(t)
+
+Stop a timer that was previously created with `setTimeout()`. The callback will
+not execute.
+
+## console
+
+<!-- type=global -->
+
+* {Object}
+
+Used to print to stdout and stderr. See the [console][] section.
+
+## exports
+
+<!-- type=var -->
+
+A reference to the `module.exports` that is shorter to type.
+See [module system documentation][] for details on when to use `exports` and
+when to use `module.exports`.
+
+`exports` isn't actually a global but rather local to each module.
+
+See the [module system documentation][] for more information.
+
 ## global
 
 <!-- type=global -->
@@ -16,6 +91,20 @@ browsers if you're in the global scope `var something` will define a global
 variable. In Node.js this is different. The top-level scope is not the global
 scope; `var something` inside an Node.js module will be local to that module.
 
+## module
+
+<!-- type=var -->
+
+* {Object}
+
+A reference to the current module. In particular
+`module.exports` is used for defining what a module exports and makes
+available through `require()`.
+
+`module` isn't actually a global but rather local to each module.
+
+See the [module system documentation][] for more information.
+
 ## process
 
 <!-- type=global -->
@@ -23,22 +112,6 @@ scope; `var something` inside an Node.js module will be local to that module.
 * {Object}
 
 The process object. See the [process object][] section.
-
-## console
-
-<!-- type=global -->
-
-* {Object}
-
-Used to print to stdout and stderr. See the [console][] section.
-
-## Class: Buffer
-
-<!-- type=global -->
-
-* {Function}
-
-Used to handle binary data. See the [buffer section][]
 
 ## require()
 
@@ -48,11 +121,6 @@ Used to handle binary data. See the [buffer section][]
 
 To require modules. See the [Modules][] section.  `require` isn't actually a
 global but rather local to each module.
-
-### require.resolve()
-
-Use the internal `require()` machinery to look up the location of a module,
-but rather than loading the module, just return the resolved filename.
 
 ### require.cache
 
@@ -83,81 +151,10 @@ Since the Module system is locked, this feature will probably never go
 away.  However, it may have subtle bugs and complexities that are best
 left untouched.
 
-## __filename
+### require.resolve()
 
-<!-- type=var -->
-
-* {String}
-
-The filename of the code being executed.  This is the resolved absolute path
-of this code file.  For a main program this is not necessarily the same
-filename used in the command line.  The value inside a module is the path
-to that module file.
-
-Example: running `node example.js` from `/Users/mjr`
-
-    console.log(__filename);
-    // /Users/mjr/example.js
-
-`__filename` isn't actually a global but rather local to each module.
-
-## __dirname
-
-<!-- type=var -->
-
-* {String}
-
-The name of the directory that the currently executing script resides in.
-
-Example: running `node example.js` from `/Users/mjr`
-
-    console.log(__dirname);
-    // /Users/mjr
-
-`__dirname` isn't actually a global but rather local to each module.
-
-
-## module
-
-<!-- type=var -->
-
-* {Object}
-
-A reference to the current module. In particular
-`module.exports` is used for defining what a module exports and makes
-available through `require()`.
-
-`module` isn't actually a global but rather local to each module.
-
-See the [module system documentation][] for more information.
-
-## exports
-
-<!-- type=var -->
-
-A reference to the `module.exports` that is shorter to type.
-See [module system documentation][] for details on when to use `exports` and
-when to use `module.exports`.
-
-`exports` isn't actually a global but rather local to each module.
-
-See the [module system documentation][] for more information.
-
-## setTimeout(cb, ms)
-
-Run callback `cb` after *at least* `ms` milliseconds. The actual delay depends
-on external factors like OS timer granularity and system load.
-
-The timeout must be in the range of 1-2,147,483,647 inclusive. If the value is
-outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
-cannot span more than 24.8 days.
-
-Returns an opaque value that represents the timer.
-
-## clearTimeout(t)
-
-Stop a timer that was previously created with `setTimeout()`. The callback will
-not execute.
+Use the internal `require()` machinery to look up the location of a module,
+but rather than loading the module, just return the resolved filename.
 
 ## setInterval(cb, ms)
 
@@ -171,14 +168,16 @@ cannot span more than 24.8 days.
 
 Returns an opaque value that represents the timer.
 
-## clearInterval(t)
+## setTimeout(cb, ms)
 
-Stop a timer that was previously created with `setInterval()`. The callback
-will not execute.
+Run callback `cb` after *at least* `ms` milliseconds. The actual delay depends
+on external factors like OS timer granularity and system load.
 
-<!--type=global-->
+The timeout must be in the range of 1-2,147,483,647 inclusive. If the value is
+outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
+cannot span more than 24.8 days.
 
-The timer functions are global variables. See the [timers][] section.
+Returns an opaque value that represents the timer.
 
 [buffer section]: buffer.html
 [module system documentation]: modules.html

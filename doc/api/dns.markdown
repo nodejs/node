@@ -10,7 +10,7 @@ This module contains functions that belong to two different categories:
 name resolution, and that do not necessarily do any network communication.
 This category contains only one function: `dns.lookup()`. __Developers looking
 to perform name resolution in the same way that other applications on the same
-operating system behave should use [`dns.lookup()`][dns.lookup].__
+operating system behave should use [`dns.lookup()`][].__
 
 Here is an example that does a lookup of `www.google.com`.
 
@@ -22,8 +22,8 @@ Here is an example that does a lookup of `www.google.com`.
 
 2) Functions that connect to an actual DNS server to perform name resolution,
 and that _always_ use the network to perform DNS queries. This category
-contains all functions in the `dns` module but [`dns.lookup()`][dns.lookup]. These functions
-do not use the same set of configuration files than what [`dns.lookup()`][dns.lookup] uses.
+contains all functions in the `dns` module but [`dns.lookup()`][]. These functions
+do not use the same set of configuration files than what [`dns.lookup()`][] uses.
 For instance, _they do not use the configuration from `/etc/hosts`_. These
 functions should be used by developers who do not want to use the underlying
 operating system's facilities for name resolution, and instead want to
@@ -51,8 +51,12 @@ resolves the IP addresses which are returned.
     });
 
 There are subtle consequences in choosing one or another, please consult the
-[Implementation considerations section](#dns_implementation_considerations)
-for more information.
+[Implementation considerations section][] for more information.
+
+## dns.getServers()
+
+Returns an array of IP addresses as strings that are currently being used for
+resolution
 
 ## dns.lookup(hostname[, options], callback)
 
@@ -69,8 +73,8 @@ Alternatively, `options` can be an object containing these properties:
   `getaddrinfo` flags. If `hints` is not provided, then no flags are passed to
   `getaddrinfo`. Multiple flags can be passed through `hints` by logically
   `OR`ing their values.
-  See [supported `getaddrinfo` flags](#dns_supported_getaddrinfo_flags) below
-  for more information on supported flags.
+  See [supported `getaddrinfo` flags][] below for more information on supported
+  flags.
 * `all`: {Boolean} - When `true`, the callback returns all resolved addresses
   in an array, otherwise returns a single address. Defaults to `false`.
 
@@ -104,7 +108,7 @@ and vice versa.
 
 Its implementation can have subtle but important consequences on the behavior
 of any Node.js program. Please take some time to consult the [Implementation
-considerations section](#dns_implementation_considerations) before using it.
+considerations section][] before using it.
 
 ## dns.lookupService(address, port, callback)
 
@@ -144,40 +148,36 @@ one of the error codes listed below.
 
 ## dns.resolve4(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for IPv4 queries (`A` records).
+The same as [`dns.resolve()`][], but only for IPv4 queries (`A` records).
 `addresses` is an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 ## dns.resolve6(hostname, callback)
 
-The same as [`dns.resolve4()`](#dns_dns_resolve4_hostname_callback) except for IPv6 queries (an `AAAA` query).
+The same as [`dns.resolve4()`][] except for IPv6 queries (an `AAAA` query).
 
+## dns.resolveCname(hostname, callback)
+
+The same as [`dns.resolve()`][], but only for canonical name records (`CNAME`
+records). `addresses` is an array of the canonical name records available for
+`hostname` (e.g., `['bar.example.com']`).
 
 ## dns.resolveMx(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for mail exchange queries (`MX` records).
+The same as [`dns.resolve()`][], but only for mail exchange queries (`MX` records).
 
 `addresses` is an array of MX records, each with a priority and an exchange
 attribute (e.g. `[{'priority': 10, 'exchange': 'mx.example.com'},...]`).
 
-## dns.resolveTxt(hostname, callback)
+## dns.resolveNs(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for text queries (`TXT` records).
-`addresses` is a 2-d array of the text records available for `hostname` (e.g.,
-`[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
-one record. Depending on the use case, the could be either joined together or
-treated separately.
-
-## dns.resolveSrv(hostname, callback)
-
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for service records (`SRV` records).
-`addresses` is an array of the SRV records available for `hostname`. Properties
-of SRV records are priority, weight, port, and name (e.g.,
-`[{'priority': 10, 'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
+The same as [`dns.resolve()`][], but only for name server records (`NS` records).
+`addresses` is an array of the name server records available for `hostname`
+(e.g., `['ns1.example.com', 'ns2.example.com']`).
 
 ## dns.resolveSoa(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for start of authority record queries
+The same as [`dns.resolve()`][], but only for start of authority record queries
 (`SOA` record).
 
 `addresses` is an object with the following structure:
@@ -194,17 +194,20 @@ The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but on
 }
 ```
 
-## dns.resolveNs(hostname, callback)
+## dns.resolveSrv(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for name server records (`NS` records).
-`addresses` is an array of the name server records available for `hostname`
-(e.g., `['ns1.example.com', 'ns2.example.com']`).
+The same as [`dns.resolve()`][], but only for service records (`SRV` records).
+`addresses` is an array of the SRV records available for `hostname`. Properties
+of SRV records are priority, weight, port, and name (e.g.,
+`[{'priority': 10, 'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
 
-## dns.resolveCname(hostname, callback)
+## dns.resolveTxt(hostname, callback)
 
-The same as [`dns.resolve()`](#dns_dns_resolve_hostname_rrtype_callback), but only for canonical name records (`CNAME`
-records). `addresses` is an array of the canonical name records available for
-`hostname` (e.g., `['bar.example.com']`).
+The same as [`dns.resolve()`][], but only for text queries (`TXT` records).
+`addresses` is a 2-d array of the text records available for `hostname` (e.g.,
+`[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
+one record. Depending on the use case, the could be either joined together or
+treated separately.
 
 ## dns.reverse(ip, callback)
 
@@ -214,11 +217,6 @@ The callback has arguments `(err, hostnames)`.
 
 On error, `err` is an `Error` object, where `err.code` is
 one of the error codes listed below.
-
-## dns.getServers()
-
-Returns an array of IP addresses as strings that are currently being used for
-resolution
 
 ## dns.setServers(servers)
 
@@ -297,8 +295,7 @@ operations) will experience degraded performance. In order to mitigate this
 issue, one potential solution is to increase the size of libuv's threadpool by
 setting the 'UV_THREADPOOL_SIZE' environment variable to a value greater than
 4 (its current default value). For more information on libuv's threadpool, see
-[the official libuv
-documentation](http://docs.libuv.org/en/latest/threadpool.html).
+[the official libuv documentation][].
 
 ### dns.resolve, functions starting with dns.resolve and dns.reverse
 
@@ -313,5 +310,10 @@ processing that happens on libuv's threadpool that `dns.lookup()` can have.
 They do not use the same set of configuration files than what `dns.lookup()`
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
+[Implementation considerations section]: #dns_implementation_considerations
+[supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
+[`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
+[`dns.resolve4()`]: #dns_dns_resolve4_hostname_callback
+[the official libuv documentation]: http://docs.libuv.org/en/latest/threadpool.html
+[`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
 
-[dns.lookup]: #dns_dns_lookup_hostname_options_callback

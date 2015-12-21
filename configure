@@ -543,18 +543,13 @@ def cc_macros(cc=None):
 def is_arch_armv7():
   """Check for ARMv7 instructions"""
   cc_macros_cache = cc_macros()
-  return ('__ARM_ARCH_7__' in cc_macros_cache or
-          '__ARM_ARCH_7A__' in cc_macros_cache or
-          '__ARM_ARCH_7R__' in cc_macros_cache or
-          '__ARM_ARCH_7M__' in cc_macros_cache or
-          '__ARM_ARCH_7S__' in cc_macros_cache)
+  return cc_macros_cache.get('__ARM_ARCH') == '7'
 
 
 def is_arch_armv6():
   """Check for ARMv6 instructions"""
   cc_macros_cache = cc_macros()
-  return ('__ARM_ARCH_6__' in cc_macros_cache or
-          '__ARM_ARCH_6M__' in cc_macros_cache)
+  return cc_macros_cache.get('__ARM_ARCH') == '6'
 
 
 def is_arm_hard_float_abi():
@@ -575,7 +570,7 @@ def host_arch_cc():
     # would be xlc so hard code gcc
     k = cc_macros('gcc')
   else:
-    k = cc_macros()
+    k = cc_macros(os.environ.get('CC_host'))
 
   matchup = {
     '__aarch64__' : 'arm64',
@@ -749,11 +744,15 @@ def configure_library(lib, output):
     if pkg_cflags:
       output['include_dirs'] += (
           filter(None, map(str.strip, pkg_cflags.split('-I'))))
+    elif options.__dict__[shared_lib + '_includes']:
+      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
 
     # libpath needs to be provided ahead libraries
     if pkg_libpath:
-      output['libraries'] += (
-          filter(None, map(str.strip, pkg_cflags.split('-L'))))
+      output['libraries'] += [pkg_libpath]
+    elif options.__dict__[shared_lib + '_libpath']:
+      output['libraries'] += [
+          '-L%s' % options.__dict__[shared_lib + '_libpath']]
 
     default_libs = getattr(options, shared_lib + '_libname')
     default_libs = map('-l{0}'.format, default_libs.split(','))
@@ -769,7 +768,7 @@ def configure_v8(o):
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
-  o['variables']['v8_use_snapshot'] = 0 if options.without_snapshot else 1
+  o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
 
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)

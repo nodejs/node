@@ -27,6 +27,13 @@ back in to the TSC.
 * [Roadmap](#roadmap)
 * [Docker](#docker)
 * [Addon API](#addon-api)
+* [Benchmarking](#benchmarking)
+* [Post-mortem](#post-mortem)
+* [Intl](#intl)
+* [HTTP](#http)
+
+#### Process:
+
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
 
@@ -103,43 +110,56 @@ to date and of high quality.
 * Promotion of Node.js speakers for meetups and conferences in their
 language.
 
+Note that the i18n working groups are distinct from the [Intl](#Intl) working group.
+
 Each language community maintains its own membership.
 
-* [iojs-ar - Arabic (اللغة العربية)](https://github.com/nodejs/iojs-ar)
-* [iojs-bg - Bulgarian (български език)](https://github.com/nodejs/iojs-bg)
-* [iojs-bn - Bengali (বাংলা)](https://github.com/nodejs/iojs-bn)
-* [iojs-cn - Chinese (中文)](https://github.com/nodejs/iojs-cn)
-* [iojs-cs - Czech (Český Jazyk)](https://github.com/nodejs/iojs-cs)
-* [iojs-da - Danish (Dansk)](https://github.com/nodejs/iojs-da)
-* [iojs-de - German (Deutsch)](https://github.com/nodejs/iojs-de)
-* [iojs-el - Greek (Ελληνικά)](https://github.com/nodejs/iojs-el)
-* [iojs-es - Spanish (Español)](https://github.com/nodejs/iojs-es)
-* [iojs-fa - Persian (فارسی)](https://github.com/nodejs/iojs-fa)
-* [iojs-fi - Finnish (Suomi)](https://github.com/nodejs/iojs-fi)
-* [iojs-fr - French (Français)](https://github.com/nodejs/iojs-fr)
-* [iojs-he - Hebrew (עברית)](https://github.com/nodejs/iojs-he)
-* [iojs-hi - Hindi (फिजी बात)](https://github.com/nodejs/iojs-hi)
-* [iojs-hu - Hungarian (Magyar)](https://github.com/nodejs/iojs-hu)
-* [iojs-id - Indonesian (Bahasa Indonesia)](https://github.com/nodejs/iojs-id)
-* [iojs-it - Italian (Italiano)](https://github.com/nodejs/iojs-it)
-* [iojs-ja - Japanese (日本語)](https://github.com/nodejs/iojs-ja)
-* [iojs-ka - Georgian (ქართული)](https://github.com/nodejs/iojs-ka)
-* [iojs-ko - Korean (조선말)](https://github.com/nodejs/iojs-ko)
-* [iojs-mk - Macedonian (Mакедонски)](https://github.com/nodejs/iojs-mk)
-* [iojs-ms - Malay (بهاس ملايو)](https://github.com/nodejs/iojs-ms)
-* [iojs-nl - Dutch (Nederlands)](https://github.com/nodejs/iojs-nl)
-* [iojs-no - Norwegian (Norsk)](https://github.com/nodejs/iojs-no)
-* [iojs-pl - Polish (Język Polski)](https://github.com/nodejs/iojs-pl)
-* [iojs-pt - Portuguese (Português)](https://github.com/nodejs/iojs-pt)
-* [iojs-ro - Romanian (Română)](https://github.com/nodejs/iojs-ro)
-* [iojs-ru - Russian (Русский)](https://github.com/nodejs/iojs-ru)
-* [iojs-sv - Swedish (Svenska)](https://github.com/nodejs/iojs-sv)
-* [iojs-ta - Tamil (தமிழ்)](https://github.com/nodejs/iojs-ta)
-* [iojs-tr - Turkish (Türkçe)](https://github.com/nodejs/iojs-tr)
-* [iojs-tw - Taiwanese (Hō-ló)](https://github.com/nodejs/iojs-tw)
-* [iojs-uk - Ukrainian (Українська)](https://github.com/nodejs/iojs-uk)
-* [iojs-vi - Vietnamese (Tiếng Việtnam)](https://github.com/nodejs/iojs-vi)
+* [nodejs-ar - Arabic (اللغة العربية)](https://github.com/nodejs/nodejs-ar)
+* [nodejs-bg - Bulgarian (български език)](https://github.com/nodejs/nodejs-bg)
+* [nodejs-bn - Bengali (বাংলা)](https://github.com/nodejs/nodejs-bn)
+* [nodejs-zh-CN - Chinese (中文)](https://github.com/nodejs/nodejs-zh-CN)
+* [nodejs-cs - Czech (Český Jazyk)](https://github.com/nodejs/nodejs-cs)
+* [nodejs-da - Danish (Dansk)](https://github.com/nodejs/nodejs-da)
+* [nodejs-de - German (Deutsch)](https://github.com/nodejs/nodejs-de)
+* [nodejs-el - Greek (Ελληνικά)](https://github.com/nodejs/nodejs-el)
+* [nodejs-es - Spanish (Español)](https://github.com/nodejs/nodejs-es)
+* [nodejs-fa - Persian (فارسی)](https://github.com/nodejs/nodejs-fa)
+* [nodejs-fi - Finnish (Suomi)](https://github.com/nodejs/nodejs-fi)
+* [nodejs-fr - French (Français)](https://github.com/nodejs/nodejs-fr)
+* [nodejs-he - Hebrew (עברית)](https://github.com/nodejs/nodejs-he)
+* [nodejs-hi - Hindi (फिजी बात)](https://github.com/nodejs/nodejs-hi)
+* [nodejs-hu - Hungarian (Magyar)](https://github.com/nodejs/nodejs-hu)
+* [nodejs-id - Indonesian (Bahasa Indonesia)](https://github.com/nodejs/nodejs-id)
+* [nodejs-it - Italian (Italiano)](https://github.com/nodejs/nodejs-it)
+* [nodejs-ja - Japanese (日本語)](https://github.com/nodejs/nodejs-ja)
+* [nodejs-ka - Georgian (ქართული)](https://github.com/nodejs/nodejs-ka)
+* [nodejs-ko - Korean (조선말)](https://github.com/nodejs/nodejs-ko)
+* [nodejs-mk - Macedonian (Mакедонски)](https://github.com/nodejs/nodejs-mk)
+* [nodejs-ms - Malay (بهاس ملايو)](https://github.com/nodejs/nodejs-ms)
+* [nodejs-nl - Dutch (Nederlands)](https://github.com/nodejs/nodejs-nl)
+* [nodejs-no - Norwegian (Norsk)](https://github.com/nodejs/nodejs-no)
+* [nodejs-pl - Polish (Język Polski)](https://github.com/nodejs/nodejs-pl)
+* [nodejs-pt - Portuguese (Português)](https://github.com/nodejs/nodejs-pt)
+* [nodejs-ro - Romanian (Română)](https://github.com/nodejs/nodejs-ro)
+* [nodejs-ru - Russian (Русский)](https://github.com/nodejs/nodejs-ru)
+* [nodejs-sv - Swedish (Svenska)](https://github.com/nodejs/nodejs-sv)
+* [nodejs-ta - Tamil (தமிழ்)](https://github.com/nodejs/nodejs-ta)
+* [nodejs-tr - Turkish (Türkçe)](https://github.com/nodejs/nodejs-tr)
+* [nodejs-zh-TW - Taiwanese (Hō-ló)](https://github.com/nodejs/nodejs-zh-TW)
+* [nodejs-uk - Ukrainian (Українська)](https://github.com/nodejs/nodejs-uk)
+* [nodejs-vi - Vietnamese (Tiếng Việtnam)](https://github.com/nodejs/nodejs-vi)
 
+### [Intl](https://github.com/nodejs/Intl)
+
+The Intl Working Group is dedicated to support and improvement of
+Internationalization (i18n) and Localization (l10n) in Node. Its responsibilities are:
+
+1. Functionality & compliance (standards: ECMA, Unicode…)
+2. Support for Globalization and Internationalization issues that come up in the tracker
+3. Guidance and Best Practices
+4. Refinement of existing `Intl` implementation
+
+The Intl WG is not responsible for translation of content. That is the responsibility of the specific [i18n](#i18n) group for each language.
 
 ### [Evangelism](https://github.com/nodejs/evangelism)
 
@@ -154,6 +174,19 @@ Their responsibilities are:
 * Publishing regular update summaries and other promotional
 content.
 
+### [HTTP](https://github.com/nodejs/http)
+
+The HTTP working group is chartered for the support and improvement of the
+HTTP implementation in Node. It's responsibilities are:
+
+* Addressing HTTP issues on the Node.js issue tracker.
+* Authoring and editing HTTP documentation within the Node.js project.
+* Reviewing changes to HTTP functionality within the Node.js project.
+* Working with the ecosystem of HTTP related module developers to evolve the
+  HTTP implementation and APIs in core.
+* Advising the CTC on all HTTP related issues and discussions.
+* Messaging about the future of HTTP to give the community advance notice of
+  changes.
 
 ### [Roadmap](https://github.com/nodejs/roadmap)
 
@@ -204,6 +237,38 @@ Their responsibilities are:
 
 The current members can be found in their
 [README](https://github.com/nodejs/nan#collaborators).
+
+### [Benchmarking](https://github.com/nodejs/benchmarking)
+
+The purpose of the Benchmark working group is to gain consensus
+for an agreed set of benchmarks that can be used to:
+
++ track and evangelize performance gains made between Node releases
++ avoid performance regressions between releases
+
+Its responsibilities are:
+
++ Identify 1 or more benchmarks that reflect customer usage.
+   Likely need more than one to cover typical Node use cases
+   including low-latency and high concurrency
++ Work to get community consensus on the list chosen
++ Add regular execution of chosen benchmarks to Node builds
++ Track/publicize performance between builds/releases
+
+### [Post-mortem](https://github.com/nodejs/post-mortem)
+
+The Post-mortem Diagnostics working group is dedicated to the support
+and improvement of postmortem debugging for Node.js. It seeks to
+elevate the role of postmortem debugging for Node, to assist in the
+development of techniques and tools, and to make techniques and tools
+known and available to Node.js users.
+
+Its responsibilities are:
+
++ Defining and adding interfaces/APIs in order to allow dumps
+  to be generated when needed
++ Defining and adding common structures to the dumps generated
+  in order to support tools that want to introspect those dumps
 
 ## Starting a WG
 

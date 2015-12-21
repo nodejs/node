@@ -5,6 +5,11 @@
 HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
 
+## Class: https.Agent
+
+An Agent object for HTTPS similar to [http.Agent][].  See [https.request()][]
+for more information.
+
 ## Class: https.Server
 
 This class is a subclass of `tls.Server` and emits events same as
@@ -54,23 +59,49 @@ Or
       res.end("hello world\n");
     }).listen(8000);
 
-
-### server.listen(port[, host][, backlog][, callback])
-### server.listen(path[, callback])
-### server.listen(handle[, callback])
-
-See [http.listen()][] for details.
-
 ### server.close([callback])
 
 See [http.close()][] for details.
+
+### server.listen(handle[, callback])
+### server.listen(path[, callback])
+### server.listen(port[, host][, backlog][, callback])
+
+See [http.listen()][] for details.
+
+## https.get(options, callback)
+
+Like `http.get()` but for HTTPS.
+
+`options` can be an object or a string. If `options` is a string, it is
+automatically parsed with [url.parse()][].
+
+Example:
+
+    var https = require('https');
+
+    https.get('https://encrypted.google.com/', function(res) {
+      console.log("statusCode: ", res.statusCode);
+      console.log("headers: ", res.headers);
+
+      res.on('data', function(d) {
+        process.stdout.write(d);
+      });
+
+    }).on('error', function(e) {
+      console.error(e);
+    });
+
+## https.globalAgent
+
+Global instance of [https.Agent][] for all HTTPS client requests.
 
 ## https.request(options, callback)
 
 Makes a request to a secure web server.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()](url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost).
+automatically parsed with [url.parse()][].
 
 All options from [http.request()][] are valid.
 
@@ -164,7 +195,7 @@ Example:
       ...
     }
 
-Or does not use an `Agent`.
+Alternatively, opt out of connection pooling by not using an `Agent`.
 
 Example:
 
@@ -182,45 +213,12 @@ Example:
       ...
     }
 
-## https.get(options, callback)
-
-Like `http.get()` but for HTTPS.
-
-`options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()](url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost).
-
-Example:
-
-    var https = require('https');
-
-    https.get('https://encrypted.google.com/', function(res) {
-      console.log("statusCode: ", res.statusCode);
-      console.log("headers: ", res.headers);
-
-      res.on('data', function(d) {
-        process.stdout.write(d);
-      });
-
-    }).on('error', function(e) {
-      console.error(e);
-    });
-
-
-## Class: https.Agent
-
-An Agent object for HTTPS similar to [http.Agent][].  See [https.request()][]
-for more information.
-
-
-## https.globalAgent
-
-Global instance of [https.Agent][] for all HTTPS client requests.
-
 [http.Server#setTimeout()]: http.html#http_server_settimeout_msecs_callback
 [http.Server#timeout]: http.html#http_server_timeout
 [Agent]: #https_class_https_agent
 [globalAgent]: #https_https_globalagent
 [http.listen()]: http.html#http_server_listen_port_hostname_backlog_callback
+[url.parse()]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost
 [http.close()]: http.html#http_server_close_callback
 [http.Agent]: http.html#http_class_http_agent
 [http.request()]: http.html#http_http_request_options_callback

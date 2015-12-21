@@ -137,9 +137,17 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
   return opensslCli;
 }, enumerable: true });
 
-Object.defineProperty(exports, 'hasCrypto', {get: function() {
-  return process.versions.openssl ? true : false;
-}});
+Object.defineProperty(exports, 'hasCrypto', {
+  get: function() {
+    return process.versions.openssl ? true : false;
+  }
+});
+
+Object.defineProperty(exports, 'hasFipsCrypto', {
+  get: function() {
+    return process.config.variables.openssl_fips ? true : false;
+  }
+});
 
 if (exports.isWindows) {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
@@ -372,11 +380,6 @@ exports.mustCall = function(fn, expected) {
   };
 };
 
-exports.checkSpawnSyncRet = function(ret) {
-  assert.strictEqual(ret.status, 0);
-  assert.strictEqual(ret.error, undefined);
-};
-
 var etcServicesFileName = path.join('/etc', 'services');
 if (exports.isWindows) {
   etcServicesFileName = path.join(process.env.SystemRoot, 'System32', 'drivers',
@@ -445,4 +448,38 @@ exports.fileExists = function(pathname) {
 
 exports.fail = function(msg) {
   assert.fail(null, null, msg);
+};
+
+// Returns true if the exit code "exitCode" and/or signal name "signal"
+// represent the exit code and/or signal name of a node process that aborted,
+// false otherwise.
+exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
+  // Depending on the compiler used, node will exit with either
+  // exit code 132 (SIGILL), 133 (SIGTRAP) or 134 (SIGABRT).
+  var expectedExitCodes = [132, 133, 134];
+
+  // On platforms using KSH as the default shell (like SmartOS),
+  // when a process aborts, KSH exits with an exit code that is
+  // greater than 256, and thus the exit code emitted with the 'exit'
+  // event is null and the signal is set to either SIGILL, SIGTRAP,
+  // or SIGABRT (depending on the compiler).
+  const expectedSignals = ['SIGILL', 'SIGTRAP', 'SIGABRT'];
+
+  // On Windows, v8's base::OS::Abort triggers an access violation,
+  // which corresponds to exit code 3221225477 (0xC0000005)
+  if (process.platform === 'win32')
+    expectedExitCodes = [3221225477];
+
+  // When using --abort-on-uncaught-exception, V8 will use
+  // base::OS::Abort to terminate the process.
+  // Depending on the compiler used, the shell or other aspects of
+  // the platform used to build the node binary, this will actually
+  // make V8 exit by aborting or by raising a signal. In any case,
+  // one of them (exit code or signal) needs to be set to one of
+  // the expected exit codes or signals.
+  if (signal !== null) {
+    return expectedSignals.indexOf(signal) > -1;
+  } else {
+    return expectedExitCodes.indexOf(exitCode) > -1;
+  }
 };

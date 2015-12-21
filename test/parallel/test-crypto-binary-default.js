@@ -324,11 +324,13 @@ var rfc2202_sha1 = [
 ];
 
 for (var i = 0, l = rfc2202_md5.length; i < l; i++) {
-  assert.equal(rfc2202_md5[i]['hmac'],
-               crypto.createHmac('md5', rfc2202_md5[i]['key'])
-                   .update(rfc2202_md5[i]['data'])
-                   .digest('hex'),
-               'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
+  if (!common.hasFipsCrypto) {
+    assert.equal(rfc2202_md5[i]['hmac'],
+                 crypto.createHmac('md5', rfc2202_md5[i]['key'])
+                     .update(rfc2202_md5[i]['data'])
+                     .digest('hex'),
+                 'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
+  }
 }
 for (var i = 0, l = rfc2202_sha1.length; i < l; i++) {
   assert.equal(rfc2202_sha1[i]['hmac'],
@@ -339,15 +341,19 @@ for (var i = 0, l = rfc2202_sha1.length; i < l; i++) {
 }
 
 // Test hashing
-var a0 = crypto.createHash('sha1').update('Test123').digest('hex');
-var a1 = crypto.createHash('md5').update('Test123').digest('binary');
+var a1 = crypto.createHash('sha1').update('Test123').digest('hex');
 var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
 var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
-assert.equal(a0, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
-assert.equal(a1, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
-             '\u00bd\u008c', 'Test MD5 as binary');
+if (!common.hasFipsCrypto) {
+  var a0 = crypto.createHash('md5').update('Test123').digest('binary');
+  assert.equal(a0, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
+               '\u00bd\u008c', 'Test MD5 as binary');
+}
+
+assert.equal(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
+
 assert.equal(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
              'Test SHA256 as base64');
 
@@ -513,7 +519,7 @@ assert.throws(function() {
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
-var dh1 = crypto.createDiffieHellman(256);
+var dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
 var p1 = dh1.getPrime('buffer');
 var dh2 = crypto.createDiffieHellman(p1, 'base64');
 var key1 = dh1.generateKeys();

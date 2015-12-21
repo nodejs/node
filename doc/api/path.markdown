@@ -8,22 +8,115 @@ The file system is not consulted to check whether paths are valid.
 
 Use `require('path')` to use this module.  The following methods are provided:
 
-## path.normalize(p)
+## path.basename(p[, ext])
 
-Normalize a string path, taking care of `'..'` and `'.'` parts.
-
-When multiple slashes are found, they're replaced by a single one;
-when the path contains a trailing slash, it is preserved.
-On Windows backslashes are used.
+Return the last portion of a path.  Similar to the Unix `basename` command.
 
 Example:
 
-    path.normalize('/foo/bar//baz/asdf/quux/..')
+    path.basename('/foo/bar/baz/asdf/quux.html')
+    // returns
+    'quux.html'
+
+    path.basename('/foo/bar/baz/asdf/quux.html', '.html')
+    // returns
+    'quux'
+
+## path.delimiter
+
+The platform-specific path delimiter, `;` or `':'`.
+
+An example on *nix:
+
+    console.log(process.env.PATH)
+    // '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
+
+    process.env.PATH.split(path.delimiter)
+    // returns
+    ['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
+
+An example on Windows:
+
+    console.log(process.env.PATH)
+    // 'C:\Windows\system32;C:\Windows;C:\Program Files\node\'
+
+    process.env.PATH.split(path.delimiter)
+    // returns
+    ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
+
+## path.dirname(p)
+
+Return the directory name of a path.  Similar to the Unix `dirname` command.
+
+Example:
+
+    path.dirname('/foo/bar/baz/asdf/quux')
     // returns
     '/foo/bar/baz/asdf'
 
-*Note:* If the path string passed as argument is a zero-length string then `'.'`
-        will be returned, which represents the current working directory.
+## path.extname(p)
+
+Return the extension of the path, from the last '.' to end of string
+in the last portion of the path.  If there is no '.' in the last portion
+of the path or the first character of it is '.', then it returns
+an empty string.  Examples:
+
+    path.extname('index.html')
+    // returns
+    '.html'
+
+    path.extname('index.coffee.md')
+    // returns
+    '.md'
+
+    path.extname('index.')
+    // returns
+    '.'
+
+    path.extname('index')
+    // returns
+    ''
+
+    path.extname('.index')
+    // returns
+    ''
+
+## path.format(pathObject)
+
+Returns a path string from an object, the opposite of `path.parse` above.
+
+    path.format({
+        root : "/",
+        dir : "/home/user/dir",
+        base : "file.txt",
+        ext : ".txt",
+        name : "file"
+    })
+    // returns
+    '/home/user/dir/file.txt'
+
+## path.isAbsolute(path)
+
+Determines whether `path` is an absolute path. An absolute path will always
+resolve to the same location, regardless of the working directory.
+
+Posix examples:
+
+    path.isAbsolute('/foo/bar') // true
+    path.isAbsolute('/baz/..')  // true
+    path.isAbsolute('qux/')     // false
+    path.isAbsolute('.')        // false
+
+Windows examples:
+
+    path.isAbsolute('//server')  // true
+    path.isAbsolute('C:/foo/..') // true
+    path.isAbsolute('bar\\baz')  // false
+    path.isAbsolute('.')         // false
+
+*Note:* If the path string passed as parameter is a zero-length string, unlike
+        other path module functions, it will be used as-is and `false` will be
+        returned.
 
 ## path.join([path1][, path2][, ...])
 
@@ -46,6 +139,80 @@ Example:
         module functions, they will be ignored. If the joined path string is a
         zero-length string then `'.'` will be returned, which represents the
         current working directory.
+
+## path.normalize(p)
+
+Normalize a string path, taking care of `'..'` and `'.'` parts.
+
+When multiple slashes are found, they're replaced by a single one;
+when the path contains a trailing slash, it is preserved.
+On Windows backslashes are used.
+
+Example:
+
+    path.normalize('/foo/bar//baz/asdf/quux/..')
+    // returns
+    '/foo/bar/baz/asdf'
+
+*Note:* If the path string passed as argument is a zero-length string then `'.'`
+        will be returned, which represents the current working directory.
+
+## path.parse(pathString)
+
+Returns an object from a path string.
+
+An example on *nix:
+
+    path.parse('/home/user/dir/file.txt')
+    // returns
+    {
+        root : "/",
+        dir : "/home/user/dir",
+        base : "file.txt",
+        ext : ".txt",
+        name : "file"
+    }
+
+An example on Windows:
+
+    path.parse('C:\\path\\dir\\index.html')
+    // returns
+    {
+        root : "C:\\",
+        dir : "C:\\path\\dir",
+        base : "index.html",
+        ext : ".html",
+        name : "index"
+    }
+
+## path.posix
+
+Provide access to aforementioned `path` methods but always interact in a posix
+compatible way.
+
+## path.relative(from, to)
+
+Solve the relative path from `from` to `to`.
+
+At times we have two absolute paths, and we need to derive the relative
+path from one to the other.  This is actually the reverse transform of
+`path.resolve`, which means we see that:
+
+    path.resolve(from, path.relative(from, to)) == path.resolve(to)
+
+Examples:
+
+    path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb')
+    // returns
+    '..\\..\\impl\\bbb'
+
+    path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb')
+    // returns
+    '../../impl/bbb'
+
+*Note:* If the arguments to `relative` have zero-length strings then the current
+        working directory will be used instead of the zero-length strings. If
+        both the paths are the same then a zero-length string will be returned.
 
 ## path.resolve([from ...], to)
 
@@ -89,104 +256,6 @@ Examples:
 *Note:* If the arguments to `resolve` have zero-length strings then the current
         working directory will be used instead of them.
 
-## path.isAbsolute(path)
-
-Determines whether `path` is an absolute path. An absolute path will always
-resolve to the same location, regardless of the working directory.
-
-Posix examples:
-
-    path.isAbsolute('/foo/bar') // true
-    path.isAbsolute('/baz/..')  // true
-    path.isAbsolute('qux/')     // false
-    path.isAbsolute('.')        // false
-
-Windows examples:
-
-    path.isAbsolute('//server')  // true
-    path.isAbsolute('C:/foo/..') // true
-    path.isAbsolute('bar\\baz')  // false
-    path.isAbsolute('.')         // false
-
-*Note:* If the path string passed as parameter is a zero-length string, unlike
-        other path module functions, it will be used as-is and `false` will be
-        returned.
-
-## path.relative(from, to)
-
-Solve the relative path from `from` to `to`.
-
-At times we have two absolute paths, and we need to derive the relative
-path from one to the other.  This is actually the reverse transform of
-`path.resolve`, which means we see that:
-
-    path.resolve(from, path.relative(from, to)) == path.resolve(to)
-
-Examples:
-
-    path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb')
-    // returns
-    '..\\..\\impl\\bbb'
-
-    path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb')
-    // returns
-    '../../impl/bbb'
-
-*Note:* If the arguments to `relative` have zero-length strings then the current
-        working directory will be used instead of the zero-length strings. If
-        both the paths are the same then a zero-length string will be returned.
-
-## path.dirname(p)
-
-Return the directory name of a path.  Similar to the Unix `dirname` command.
-
-Example:
-
-    path.dirname('/foo/bar/baz/asdf/quux')
-    // returns
-    '/foo/bar/baz/asdf'
-
-## path.basename(p[, ext])
-
-Return the last portion of a path.  Similar to the Unix `basename` command.
-
-Example:
-
-    path.basename('/foo/bar/baz/asdf/quux.html')
-    // returns
-    'quux.html'
-
-    path.basename('/foo/bar/baz/asdf/quux.html', '.html')
-    // returns
-    'quux'
-
-## path.extname(p)
-
-Return the extension of the path, from the last '.' to end of string
-in the last portion of the path.  If there is no '.' in the last portion
-of the path or the first character of it is '.', then it returns
-an empty string.  Examples:
-
-    path.extname('index.html')
-    // returns
-    '.html'
-
-    path.extname('index.coffee.md')
-    // returns
-    '.md'
-
-    path.extname('index.')
-    // returns
-    '.'
-
-    path.extname('index')
-    // returns
-    ''
-
-    path.extname('.index')
-    // returns
-    ''
-
 ## path.sep
 
 The platform-specific file separator. `'\\'` or `'/'`.
@@ -202,75 +271,6 @@ An example on Windows:
     'foo\\bar\\baz'.split(path.sep)
     // returns
     ['foo', 'bar', 'baz']
-
-## path.delimiter
-
-The platform-specific path delimiter, `;` or `':'`.
-
-An example on *nix:
-
-    console.log(process.env.PATH)
-    // '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
-
-    process.env.PATH.split(path.delimiter)
-    // returns
-    ['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
-
-An example on Windows:
-
-    console.log(process.env.PATH)
-    // 'C:\Windows\system32;C:\Windows;C:\Program Files\node\'
-
-    process.env.PATH.split(path.delimiter)
-    // returns
-    ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
-
-## path.parse(pathString)
-
-Returns an object from a path string.
-
-An example on *nix:
-
-    path.parse('/home/user/dir/file.txt')
-    // returns
-    {
-        root : "/",
-        dir : "/home/user/dir",
-        base : "file.txt",
-        ext : ".txt",
-        name : "file"
-    }
-
-An example on Windows:
-
-    path.parse('C:\\path\\dir\\index.html')
-    // returns
-    {
-        root : "C:\\",
-        dir : "C:\\path\\dir",
-        base : "index.html",
-        ext : ".html",
-        name : "index"
-    }
-
-## path.format(pathObject)
-
-Returns a path string from an object, the opposite of `path.parse` above.
-
-    path.format({
-        root : "/",
-        dir : "/home/user/dir",
-        base : "file.txt",
-        ext : ".txt",
-        name : "file"
-    })
-    // returns
-    '/home/user/dir/file.txt'
-
-## path.posix
-
-Provide access to aforementioned `path` methods but always interact in a posix
-compatible way.
 
 ## path.win32
 

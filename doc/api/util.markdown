@@ -12,6 +12,12 @@ purposes, however, you are encouraged to write your own utilities.  We
 are not interested in any future additions to the `util` module that
 are unnecessary for node.js's internal functionality.
 
+## util.debug(string)
+
+    Stability: 0 - Deprecated: use console.error() instead.
+
+Deprecated predecessor of `console.error`.
+
 ## util.debuglog(section)
 
 * `section` {String} The section of the program to be debugged
@@ -42,6 +48,40 @@ environment variable set, then it will not print anything.
 
 You may separate multiple `NODE_DEBUG` environment variables with a
 comma.  For example, `NODE_DEBUG=fs,net,tls`.
+
+## util.deprecate(function, string)
+
+Marks that a method should not be used any more.
+
+    var util = require('util');
+
+    exports.puts = util.deprecate(function() {
+      for (var i = 0, len = arguments.length; i < len; ++i) {
+        process.stdout.write(arguments[i] + '\n');
+      }
+    }, 'util.puts: Use console.log instead');
+
+It returns a modified function which warns once by default.
+
+If `--no-deprecation` is set then this function is a NO-OP.  Configurable
+at run-time through the `process.noDeprecation` boolean (only effective
+when set before a module is loaded.)
+
+If `--trace-deprecation` is set, a warning and a stack trace are logged
+to the console the first time the deprecated API is used.  Configurable
+at run-time through the `process.traceDeprecation` boolean.
+
+If `--throw-deprecation` is set then the application throws an exception
+when the deprecated API is used.  Configurable at run-time through the
+`process.throwDeprecation` boolean.
+
+`process.throwDeprecation` takes precedence over `process.traceDeprecation`.
+
+## util.error([...])
+
+    Stability: 0 - Deprecated: Use console.error() instead.
+
+Deprecated predecessor of `console.error`.
 
 ## util.format(format[, ...])
 
@@ -74,12 +114,37 @@ Each argument is converted to a string with `util.inspect()`.
 
     util.format(1, 2, 3); // '1 2 3'
 
+## util.inherits(constructor, superConstructor)
 
-## util.log(string)
+Inherit the prototype methods from one [constructor][] into another.  The
+prototype of `constructor` will be set to a new object created from
+`superConstructor`.
 
-Output with timestamp on `stdout`.
+As an additional convenience, `superConstructor` will be accessible
+through the `constructor.super_` property.
 
-    require('util').log('Timestamped message.');
+    var util = require("util");
+    var EventEmitter = require("events");
+
+    function MyStream() {
+        EventEmitter.call(this);
+    }
+
+    util.inherits(MyStream, EventEmitter);
+
+    MyStream.prototype.write = function(data) {
+        this.emit("data", data);
+    }
+
+    var stream = new MyStream();
+
+    console.log(stream instanceof EventEmitter); // true
+    console.log(MyStream.super_ === EventEmitter); // true
+
+    stream.on("data", function(data) {
+        console.log('Received data: "' + data + '"');
+    })
+    stream.write("It works!"); // Received data: "It works!"
 
 ## util.inspect(object[, options])
 
@@ -164,7 +229,6 @@ formatted according to the returned Object. This is similar to how
     util.inspect(obj);
       // "{ bar: 'baz' }"
 
-
 ## util.isArray(object)
 
     Stability: 0 - Deprecated
@@ -182,20 +246,37 @@ Returns `true` if the given "object" is an `Array`. `false` otherwise.
     util.isArray({})
       // false
 
-## util.isRegExp(object)
+## util.isBoolean(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
+Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
 
     var util = require('util');
 
-    util.isRegExp(/some regexp/)
-      // true
-    util.isRegExp(new RegExp('another regexp'))
-      // true
-    util.isRegExp({})
+    util.isBoolean(1)
       // false
+    util.isBoolean(0)
+      // false
+    util.isBoolean(false)
+      // true
+
+## util.isBuffer(object)
+
+    Stability: 0 - Deprecated
+
+Use `Buffer.isBuffer()` instead.
+
+Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isBuffer({ length: 0 })
+      // false
+    util.isBuffer([])
+      // false
+    util.isBuffer(new Buffer('hello world'))
+      // true
 
 ## util.isDate(object)
 
@@ -227,19 +308,22 @@ Returns `true` if the given "object" is an `Error`. `false` otherwise.
     util.isError({ name: 'Error', message: 'an error occurred' })
       // false
 
-## util.isBoolean(object)
+## util.isFunction(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
+Returns `true` if the given "object" is a `Function`. `false` otherwise.
 
     var util = require('util');
 
-    util.isBoolean(1)
+    function Foo() {}
+    var Bar = function() {};
+
+    util.isFunction({})
       // false
-    util.isBoolean(0)
-      // false
-    util.isBoolean(false)
+    util.isFunction(Foo)
+      // true
+    util.isFunction(Bar)
       // true
 
 ## util.isNull(object)
@@ -289,6 +373,66 @@ Returns `true` if the given "object" is a `Number`. `false` otherwise.
     util.isNumber(NaN)
       // true
 
+## util.isObject(object)
+
+    Stability: 0 - Deprecated
+
+Returns `true` if the given "object" is strictly an `Object` __and__ not a
+`Function`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isObject(5)
+      // false
+    util.isObject(null)
+      // false
+    util.isObject({})
+      // true
+    util.isObject(function(){})
+      // false
+
+## util.isPrimitive(object)
+
+    Stability: 0 - Deprecated
+
+Returns `true` if the given "object" is a primitive type. `false` otherwise.
+
+    var util = require('util');
+
+    util.isPrimitive(5)
+      // true
+    util.isPrimitive('foo')
+      // true
+    util.isPrimitive(false)
+      // true
+    util.isPrimitive(null)
+      // true
+    util.isPrimitive(undefined)
+      // true
+    util.isPrimitive({})
+      // false
+    util.isPrimitive(function() {})
+      // false
+    util.isPrimitive(/^$/)
+      // false
+    util.isPrimitive(new Date())
+      // false
+
+## util.isRegExp(object)
+
+    Stability: 0 - Deprecated
+
+Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isRegExp(/some regexp/)
+      // true
+    util.isRegExp(new RegExp('another regexp'))
+      // true
+    util.isRegExp({})
+      // false
+
 ## util.isString(object)
 
     Stability: 0 - Deprecated
@@ -337,163 +481,11 @@ Returns `true` if the given "object" is `undefined`. `false` otherwise.
     util.isUndefined(null)
       // false
 
-## util.isObject(object)
+## util.log(string)
 
-    Stability: 0 - Deprecated
+Output with timestamp on `stdout`.
 
-Returns `true` if the given "object" is strictly an `Object` __and__ not a
-`Function`. `false` otherwise.
-
-    var util = require('util');
-
-    util.isObject(5)
-      // false
-    util.isObject(null)
-      // false
-    util.isObject({})
-      // true
-    util.isObject(function(){})
-      // false
-
-## util.isFunction(object)
-
-    Stability: 0 - Deprecated
-
-Returns `true` if the given "object" is a `Function`. `false` otherwise.
-
-    var util = require('util');
-
-    function Foo() {}
-    var Bar = function() {};
-
-    util.isFunction({})
-      // false
-    util.isFunction(Foo)
-      // true
-    util.isFunction(Bar)
-      // true
-
-## util.isPrimitive(object)
-
-    Stability: 0 - Deprecated
-
-Returns `true` if the given "object" is a primitive type. `false` otherwise.
-
-    var util = require('util');
-
-    util.isPrimitive(5)
-      // true
-    util.isPrimitive('foo')
-      // true
-    util.isPrimitive(false)
-      // true
-    util.isPrimitive(null)
-      // true
-    util.isPrimitive(undefined)
-      // true
-    util.isPrimitive({})
-      // false
-    util.isPrimitive(function() {})
-      // false
-    util.isPrimitive(/^$/)
-      // false
-    util.isPrimitive(new Date())
-      // false
-
-## util.isBuffer(object)
-
-    Stability: 0 - Deprecated
-
-Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
-
-    var util = require('util');
-
-    util.isBuffer({ length: 0 })
-      // false
-    util.isBuffer([])
-      // false
-    util.isBuffer(new Buffer('hello world'))
-      // true
-
-## util.inherits(constructor, superConstructor)
-
-Inherit the prototype methods from one
-[constructor](https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor)
-into another.  The prototype of `constructor` will be set to a new
-object created from `superConstructor`.
-
-As an additional convenience, `superConstructor` will be accessible
-through the `constructor.super_` property.
-
-    var util = require("util");
-    var EventEmitter = require("events");
-
-    function MyStream() {
-        EventEmitter.call(this);
-    }
-
-    util.inherits(MyStream, EventEmitter);
-
-    MyStream.prototype.write = function(data) {
-        this.emit("data", data);
-    }
-
-    var stream = new MyStream();
-
-    console.log(stream instanceof EventEmitter); // true
-    console.log(MyStream.super_ === EventEmitter); // true
-
-    stream.on("data", function(data) {
-        console.log('Received data: "' + data + '"');
-    })
-    stream.write("It works!"); // Received data: "It works!"
-
-
-## util.deprecate(function, string)
-
-Marks that a method should not be used any more.
-
-    var util = require('util');
-
-    exports.puts = util.deprecate(function() {
-      for (var i = 0, len = arguments.length; i < len; ++i) {
-        process.stdout.write(arguments[i] + '\n');
-      }
-    }, 'util.puts: Use console.log instead');
-
-It returns a modified function which warns once by default.
-
-If `--no-deprecation` is set then this function is a NO-OP.  Configurable
-at run-time through the `process.noDeprecation` boolean (only effective
-when set before a module is loaded.)
-
-If `--trace-deprecation` is set, a warning and a stack trace are logged
-to the console the first time the deprecated API is used.  Configurable
-at run-time through the `process.traceDeprecation` boolean.
-
-If `--throw-deprecation` is set then the application throws an exception
-when the deprecated API is used.  Configurable at run-time through the
-`process.throwDeprecation` boolean.
-
-`process.throwDeprecation` takes precedence over `process.traceDeprecation`.
-
-## util.debug(string)
-
-    Stability: 0 - Deprecated: use console.error() instead.
-
-Deprecated predecessor of `console.error`.
-
-## util.error([...])
-
-    Stability: 0 - Deprecated: Use console.error() instead.
-
-Deprecated predecessor of `console.error`.
-
-## util.puts([...])
-
-    Stability: 0 - Deprecated: Use console.log() instead.
-
-Deprecated predecessor of `console.log`.
+    require('util').log('Timestamped message.');
 
 ## util.print([...])
 
@@ -501,9 +493,16 @@ Deprecated predecessor of `console.log`.
 
 Deprecated predecessor of `console.log`.
 
-
 ## util.pump(readableStream, writableStream[, callback])
 
     Stability: 0 - Deprecated: Use readableStream.pipe(writableStream)
 
 Deprecated predecessor of `stream.pipe()`.
+
+## util.puts([...])
+
+    Stability: 0 - Deprecated: Use console.log() instead.
+
+Deprecated predecessor of `console.log`.
+
+[constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
