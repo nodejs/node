@@ -18,6 +18,14 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+#ifdef __GLIBC__
+#  define _mempcpy mempcpy
+#else
+void* _mempcpy(void* dest, const void* src, size_t len) {
+  return static_cast<char*>(memcpy(dest, src, len)) + len;
+}
+#endif
+
 NSSReqWrap::NSSReqWrap(Environment* env,
                        Local<Object> req_wrap_obj,
                        char* host_val,
@@ -160,9 +168,9 @@ void NSSReqWrap::NameWork(uv_work_t* req) {
          at2 = at2->next) {
       *family++ = at2->family;
       if (at2->family == AF_INET)
-        addrs = static_cast<char*>(mempcpy(addrs, at2->addr, INADDRSZ));
+        addrs = static_cast<char*>(_mempcpy(addrs, at2->addr, INADDRSZ));
       else if (at2->family == AF_INET6)
-        addrs = static_cast<char*>(mempcpy(addrs, at2->addr, IN6ADDRSZ));
+        addrs = static_cast<char*>(_mempcpy(addrs, at2->addr, IN6ADDRSZ));
     }
 
     free(tmpbuf6);
@@ -317,7 +325,7 @@ void NSSReqWrap::NameWork(uv_work_t* req) {
         for (int j = 0; th[i].h_addr_list[j] != NULL; ++j) {
           if (orig_family == 0)
             *family++ = th[i].h_addrtype;
-          addrs = static_cast<char*>(mempcpy(addrs, th[i].h_addr_list[j],
+          addrs = static_cast<char*>(_mempcpy(addrs, th[i].h_addr_list[j],
                                              th[i].h_length));
         }
       }
