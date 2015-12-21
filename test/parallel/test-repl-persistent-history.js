@@ -26,6 +26,7 @@ class ActionStream extends stream.Stream {
 
     function doAction() {
       const next = _iter.next();
+
       if (next.done) {
         // Close the repl. Note that it must have a clean prompt to do so.
         setImmediate(function() {
@@ -126,10 +127,10 @@ const tests = [{
     // Sometimes this test used to erase the fixture and I'm not sure why.
     const history = fs.readFileSync(historyFixturePath, 'utf8');
     assert.strictEqual(history,
-                       '\'you look fabulous today\'\n\'Stay Fresh~\'\n');
+                       '\'Stay Fresh~\'\n\'you look fabulous today\'');
     const historyCopy = fs.readFileSync(historyPath, 'utf8');
-    assert.strictEqual(historyCopy, '\'you look fabulous today\'' + os.EOL +
-                                    '\'Stay Fresh~\'' + os.EOL);
+    assert.strictEqual(historyCopy, '\'Stay Fresh~\'' + os.EOL +
+                                    '\'you look fabulous today\'');
   }
 },
 { // Requires the above testcase
@@ -138,6 +139,8 @@ const tests = [{
   expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
              prompt]
 },
+// the test below fails with:
+// AssertionError: '> \'you look fabulous today\'' === '> '
 {
   env: { NODE_REPL_HISTORY: historyPath,
          NODE_REPL_HISTORY_SIZE: 1 },
