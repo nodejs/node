@@ -31,7 +31,7 @@
         'os_posix': 1,
         'v8_postmortem_support%': 'true',
       }],
-      ['GENERATOR == "ninja" or OS== "mac"', {
+      ['GENERATOR == "ninja" or OS=="mac"', {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj',
         'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
       }, {
