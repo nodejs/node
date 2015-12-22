@@ -73,8 +73,13 @@ const historyPath = path.join(common.tmpDir, '.fixture_copy_repl_history');
 const historyPathFail = path.join(common.tmpDir, '.node_repl\u0000_history');
 const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
 const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
+const emptyHistoryPath = path.join(fixtures, '.empty-repl-history-file');
 const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
 
+const sameHistoryFilePaths = '\nThe old repl history file has the same name ' +
+                             'and location as the new one i.e., ' +
+                             path.join(common.tmpDir, '.node_repl_history') +
+                             ' and is empty.\nUsing it as is.\n';
 
 const tests = [{
   env: { NODE_REPL_HISTORY: '' },
@@ -92,6 +97,16 @@ const tests = [{
          NODE_REPL_HISTORY_FILE: oldHistoryPath },
   test: [UP],
   expected: [prompt, replDisabled, prompt]
+},
+{
+  env: { NODE_REPL_HISTORY_FILE: emptyHistoryPath },
+  test: [UP],
+  expected: [prompt, convertMsg, prompt]
+},
+{
+  env: { NODE_REPL_HISTORY_FILE: defaultHistoryPath },
+  test: [UP],
+  expected: [prompt, sameHistoryFilePaths, prompt]
 },
 {
   env: { NODE_REPL_HISTORY: historyPath },
