@@ -32,7 +32,7 @@ NSSModule::NSSModule(Environment* env,
 NSSModule::~NSSModule() {
   if (lib_ != nullptr) {
     uv_dlclose(lib_);
-    delete lib_;
+    free(lib_);
   }
 }
 
@@ -56,6 +56,9 @@ void NSSModule::New(const FunctionCallbackInfo<Value>& args) {
   // here.
   int name_len = 5 + module_len + 17 + 1;
   char* name = static_cast<char*>(malloc(name_len));
+  if (name == nullptr) {
+    return env->ThrowError("malloc failed");
+  }
 
 #ifdef BSD
   snprintf(name, name_len, "nss_%s.so.1", module_string);
@@ -64,8 +67,10 @@ void NSSModule::New(const FunctionCallbackInfo<Value>& args) {
 #endif
 
   uv_lib_t* lib = static_cast<uv_lib_t*>(malloc(sizeof(uv_lib_t)));
-  if (lib == nullptr)
+  if (lib == nullptr) {
+    free(name);
     return env->ThrowError("malloc failed");
+  }
 
   int status = uv_dlopen(name, lib);
   if (status == -1) {
@@ -119,7 +124,7 @@ void NSSModule::New(const FunctionCallbackInfo<Value>& args) {
 
   if (ghbn3 == nullptr && ghba2 == nullptr) {
     uv_dlclose(lib);
-    delete lib;
+    free(lib);
     return env->ThrowError("nss module missing needed gethostby*_r functions");
   }
 
@@ -158,6 +163,7 @@ void NSSModule::QueryName(const FunctionCallbackInfo<Value>& args) {
 
   req_wrap->module = nss;
   req_wrap->family = family;
+  req_wrap->req_.data = req_wrap;
 
   req_wrap->Ref();
   uv_queue_work(env->event_loop(),
@@ -188,6 +194,7 @@ void NSSModule::QueryAddr(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("wrong nss request type");
 
   req_wrap->module = nss;
+  req_wrap->req_.data = req_wrap;
 
   req_wrap->Ref();
   uv_queue_work(env->event_loop(),

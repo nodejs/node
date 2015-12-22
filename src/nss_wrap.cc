@@ -86,6 +86,7 @@ void NSSReqWrap::NameWork(uv_work_t* req) {
   char* tmpbuf6 = nullptr;
   size_t tmpbuf4len = 0;
   char* tmpbuf4 = nullptr;
+  char* tmpnewbuf;
   char* results;
 
   if (ghbn4 != nullptr && orig_family == 0) {
@@ -106,11 +107,13 @@ void NSSReqWrap::NameWork(uv_work_t* req) {
       if (rc6 != ERANGE || (err != NETDB_INTERNAL && err != TRY_AGAIN))
         break;
       tmpbuf6len *= 2;
-      tmpbuf6 = static_cast<char*>(realloc(tmpbuf6, tmpbuf6len));
-      if (tmpbuf6 == nullptr) {
+      tmpnewbuf = static_cast<char*>(realloc(tmpbuf6, tmpbuf6len));
+      if (tmpnewbuf == nullptr) {
+        free(tmpbuf6);
         req_wrap->error = NSS_REQ_ERR_MALLOC;
         return;
       }
+      tmpbuf6 = tmpnewbuf;
     }
 
     if (rc6 != 0 && err == NETDB_INTERNAL) {
@@ -195,11 +198,13 @@ void NSSReqWrap::NameWork(uv_work_t* req) {
         if (rc6 != ERANGE || (err != NETDB_INTERNAL && err != TRY_AGAIN))
           break;
         tmpbuf6len *= 2;
-        tmpbuf6 = static_cast<char*>(realloc(tmpbuf6, tmpbuf6len));
-        if (tmpbuf6 == nullptr) {
+        tmpnewbuf = static_cast<char*>(realloc(tmpbuf6, tmpbuf6len));
+        if (tmpnewbuf == nullptr) {
+          free(tmpbuf6);
           req_wrap->error = NSS_REQ_ERR_MALLOC;
           return;
         }
+        tmpbuf6 = tmpnewbuf;
       }
 
       if (rc6 != 0 && err == NETDB_INTERNAL) {
@@ -242,13 +247,15 @@ void NSSReqWrap::NameWork(uv_work_t* req) {
         if (rc4 != ERANGE || (err != NETDB_INTERNAL && err != TRY_AGAIN))
           break;
         tmpbuf4len *= 2;
-        tmpbuf4 = static_cast<char*>(realloc(tmpbuf4, tmpbuf4len));
-        if (tmpbuf4 == nullptr) {
+        tmpnewbuf = static_cast<char*>(realloc(tmpbuf4, tmpbuf4len));
+        if (tmpnewbuf == nullptr) {
+          free(tmpbuf4);
           if (orig_family == 0 && tmpbuf6 != nullptr)
             free(tmpbuf6);
           req_wrap->error = NSS_REQ_ERR_MALLOC;
           return;
         }
+        tmpbuf4 = tmpnewbuf;
       }
 
       if (rc4 != 0 && err == NETDB_INTERNAL) {
@@ -432,6 +439,7 @@ void NSSReqWrap::AddrWork(uv_work_t* req) {
   int status;
   size_t tmpbuflen = 1024;
   char* tmpbuf;
+  char* tmpnewbuf;
   struct hostent result;
 
   if (ghba2 != nullptr) {
@@ -448,11 +456,13 @@ void NSSReqWrap::AddrWork(uv_work_t* req) {
       if (rc != ERANGE || (err != NETDB_INTERNAL && err != TRY_AGAIN))
         break;
       tmpbuflen *= 2;
-      tmpbuf = static_cast<char*>(realloc(tmpbuf, tmpbuflen));
-      if (tmpbuf == nullptr) {
+      tmpnewbuf = static_cast<char*>(realloc(tmpbuf, tmpbuflen));
+      if (tmpnewbuf == nullptr) {
+        free(tmpbuf);
         req_wrap->error = NSS_REQ_ERR_MALLOC;
         return;
       }
+      tmpbuf = tmpnewbuf;
     }
 
     if ((rc != 0 && err == NETDB_INTERNAL) || status != NSS_STATUS_SUCCESS) {
