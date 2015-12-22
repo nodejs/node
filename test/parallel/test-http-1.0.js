@@ -19,7 +19,7 @@ function test(handler, request_generator, response_validator) {
     server.close();
     response_validator(server_response, client_got_eof, true);
   }
-  var timer = setTimeout(cleanup, 1000);
+  var timer = setTimeout(cleanup, common.platformTimeout(1000));
   process.on('exit', cleanup);
 
   server.listen(port);
