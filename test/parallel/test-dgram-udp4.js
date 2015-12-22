@@ -52,4 +52,4 @@ server.bind(server_port);
 
 timer = setTimeout(function() {
   throw new Error('Timeout');
-}, 200);
+}, common.platformTimeout(200));
