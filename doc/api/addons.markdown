@@ -32,7 +32,7 @@ involving knowledge of several components and APIs :
 
  - Node.js includes a number of other statically linked libraries including
    OpenSSL. These other libraries are located in the `deps/` directory in the
-   Node.js source tree. Only the v8 and OpenSSL symbols are purposefully
+   Node.js source tree. Only the V8 and OpenSSL symbols are purposefully
    re-exported by Node.js and may be used to various extents by Addons.
    See [Linking to Node.js' own dependencies][] for additional information.
 
@@ -152,9 +152,9 @@ similar to:
  
 ### Linking to Node.js' own dependencies
 
-Node.js uses a number of statically linked libraries such as v8, libuv and
-OpenSSL. All Addons are required to statically link to v8 and may link to any
-of the other dependencies as well. Typically, this is as simple as including
+Node.js uses a number of statically linked libraries such as V8, libuv and
+OpenSSL. All Addons are required to link to V8 and may link to any of the
+other dependencies as well. Typically, this is as simple as including
 the appropriate `#include <...>` statements (e.g. `#include <v8.h>`) and
 `node-gyp` will locate the appropriate headers automatically. However, there
 are a few caveats to be aware of:
@@ -197,7 +197,7 @@ of the V8 APIs.
 
 The [Native Abstrations for Node.js][] (or `nan`) provide a set of tools that
 Addon developers are recommended to use to keep compatibility between past and
-future releases of v8 and Node.js. See the `nan` [examples][] for an
+future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
 
 ## Addon examples
@@ -939,7 +939,7 @@ Test it with:
 
 An "AtExit" hook is a function that is invoked after the Node.js event loop
 has ended by before the JavaScript VM is terminated and Node.js shuts down.
-"AtExit" hooks are registered using the `node:AtExit` API.
+"AtExit" hooks are registered using the `node::AtExit` API.
 
 #### void AtExit(callback, args)
 
