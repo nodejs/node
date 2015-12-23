@@ -84,6 +84,8 @@ rules:
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#variables
   ## disallow use of undefined variables (globals)
   no-undef: 2
+  ## disallow declaration of variables that are not used in the code
+  no-unused-vars: [2, {"args": "none"}]
 
   # Custom rules in tools/eslint-rules
   require-buffer: 2
