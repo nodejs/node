@@ -5,7 +5,6 @@ var Readable = stream.Readable;
 var Writable = stream.Writable;
 var assert = require('assert');
 
-var util = require('util');
 var EE = require('events').EventEmitter;
 
 

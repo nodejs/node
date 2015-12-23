@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const repl = require('repl');
-const util = require('util');
 let found = false;
 
 process.on('exit', () => {
