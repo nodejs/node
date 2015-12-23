@@ -1,5 +1,47 @@
 # Node.js ChangeLog
 
+## 2015-12-22, Version 5.3.1 (Stable), @Fishrock123
+
+### Notable changes
+
+* **general**: Several minor performance improvements:
+  - **lib**: Use arrow functions instead of bind where possible (Minwoo Jung) [nodejs/node#3622](https://github.com/nodejs/node/pull/3622).
+  - **node**: Improved accessor perf of `process.env` (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780).
+  - **node**: Improved performance of `hrtime()` (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780).
+  - **node**: Improved GetActiveHandles performance (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780).
+* **module**: Errors during `require()` now provide more information (Brian White) [nodejs/node#4287](https://github.com/nodejs/node/pull/4287).
+
+### Known issues
+
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/node/issues/690)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/node/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
+* Unicode characters in filesystem paths are not handled consistently across platforms or Node.js APIs. See [#2088](https://github.com/nodejs/node/issues/2088), [#3401](https://github.com/nodejs/node/issues/3401) and [#3519](https://github.com/nodejs/node/issues/3519).
+
+### Commits
+
+* [[`dd935c2a5d`](https://github.com/v5.3.0/HEAD/commit/dd935c2a5d)] - **assert**: typed array deepequal performance fix (Claudio Rodriguez) [nodejs/node#4330](https://github.com/nodejs/node/pull/4330)
+* [[`6406dbb4b2`](https://github.com/v5.3.0/HEAD/commit/6406dbb4b2)] - **crypto**: load PFX chain the same way as regular one (Fedor Indutny) [nodejs/node#4165](https://github.com/nodejs/node/pull/4165)
+* [[`1a07eabe7b`](https://github.com/v5.3.0/HEAD/commit/1a07eabe7b)] - **debugger**: guard against call from non-node context (Ben Noordhuis) [nodejs/node#4328](https://github.com/nodejs/node/pull/4328)
+* [[`46c44c830f`](https://github.com/v5.3.0/HEAD/commit/46c44c830f)] - **doc**: fix, modernize examples in docs (James M Snell) [nodejs/node#4282](https://github.com/nodejs/node/pull/4282)
+* [[`1dd09a8fba`](https://github.com/v5.3.0/HEAD/commit/1dd09a8fba)] - **doc**: Typo in buffer.markdown referencing buf.write() (chrisjohn404) [nodejs/node#4324](https://github.com/nodejs/node/pull/4324)
+* [[`8c718543ad`](https://github.com/v5.3.0/HEAD/commit/8c718543ad)] - **doc**: fix link in addons.markdown (Nicholas Young) [nodejs/node#4331](https://github.com/nodejs/node/pull/4331)
+* [[`3f19d4a320`](https://github.com/v5.3.0/HEAD/commit/3f19d4a320)] - **fs**: use pushValueToArray for readdir(Sync) (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780)
+* [[`8168669b03`](https://github.com/v5.3.0/HEAD/commit/8168669b03)] - **http**: remove excess calls to removeSocket (Dave) [nodejs/node#4172](https://github.com/nodejs/node/pull/4172)
+* [[`645577f55f`](https://github.com/v5.3.0/HEAD/commit/645577f55f)] - **http**: Remove an unnecessary assignment (Bo Borgerson) [nodejs/node#4323](https://github.com/nodejs/node/pull/4323)
+* [[`369f795132`](https://github.com/v5.3.0/HEAD/commit/369f795132)] - **http_parser**: use pushValueToArray for headers (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780)
+* [[`7435491fab`](https://github.com/v5.3.0/HEAD/commit/7435491fab)] - **lib**: use arrow functions instead of bind (Minwoo Jung) [nodejs/node#3622](https://github.com/nodejs/node/pull/3622)
+* [[`72b6b4f70c`](https://github.com/v5.3.0/HEAD/commit/72b6b4f70c)] - **module**: always decorate thrown errors (Brian White) [nodejs/node#4287](https://github.com/nodejs/node/pull/4287)
+* [[`e80865835f`](https://github.com/v5.3.0/HEAD/commit/e80865835f)] - **node**: improve accessor perf of process.env (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780)
+* [[`b73bb71ab4`](https://github.com/v5.3.0/HEAD/commit/b73bb71ab4)] - **node**: improve performance of hrtime() (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780)
+* [[`4f078661f3`](https://github.com/v5.3.0/HEAD/commit/4f078661f3)] - **node**: improve GetActiveHandles performance (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780)
+* [[`89c32bc491`](https://github.com/v5.3.0/HEAD/commit/89c32bc491)] - **node**: fix erroneously named function call (Trevor Norris) [nodejs/node#3780](https://github.com/nodejs/node/pull/3780)
+* [[`1009a82d82`](https://github.com/v5.3.0/HEAD/commit/1009a82d82)] - **repl**: Fixed node repl history edge case. (Mudit Ameta) [nodejs/node#4108](https://github.com/nodejs/node/pull/4108)
+* [[`09c9110486`](https://github.com/v5.3.0/HEAD/commit/09c9110486)] - **repl**: use String#repeat instead of Array#join (Evan Lucas) [nodejs/node#3900](https://github.com/nodejs/node/pull/3900)
+* [[`2888ec3d57`](https://github.com/v5.3.0/HEAD/commit/2888ec3d57)] - **src**: remove forwards for v8::GC*logueCallback (Ali Ijaz Sheikh) [nodejs/node#4381](https://github.com/nodejs/node/pull/4381)
+* [[`569e5eb9bb`](https://github.com/v5.3.0/HEAD/commit/569e5eb9bb)] - **test**: fix flaky test-net-error-twice (Brian White) [nodejs/node#4342](https://github.com/nodejs/node/pull/4342)
+* [[`d187c6e800`](https://github.com/v5.3.0/HEAD/commit/d187c6e800)] - **test**: try other ipv6 localhost alternatives (Brian White) [nodejs/node#4325](https://github.com/nodejs/node/pull/4325)
+
 ## 2015-12-16, Version 5.3.0 (Stable), @cjihrig
 
 ### Notable changes

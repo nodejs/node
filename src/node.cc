@@ -1063,7 +1063,7 @@ void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsFunction());
 
-  env->set_add_properties_by_index_function(args[0].As<Function>());
+  env->set_push_values_to_array_function(args[0].As<Function>());
   env->process_object()->Delete(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject"));
 }
@@ -1399,6 +1399,15 @@ ssize_t DecodeWrite(Isolate* isolate,
   return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
 }
 
+bool IsExceptionDecorated(Environment* env, Local<Value> er) {
+  if (!er.IsEmpty() && er->IsObject()) {
+    Local<Object> err_obj = er.As<Object>();
+    Local<Value> decorated = err_obj->GetHiddenValue(env->decorated_string());
+    return !decorated.IsEmpty() && decorated->IsTrue();
+  }
+  return false;
+}
+
 void AppendExceptionLine(Environment* env,
                          Local<Value> er,
                          Local<Message> message) {
@@ -1508,6 +1517,7 @@ static void ReportException(Environment* env,
 
   Local<Value> trace_value;
   Local<Value> arrow;
+  const bool decorated = IsExceptionDecorated(env, er);
 
   if (er->IsUndefined() || er->IsNull()) {
     trace_value = Undefined(env->isolate());
@@ -1522,7 +1532,7 @@ static void ReportException(Environment* env,
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
-    if (arrow.IsEmpty() || !arrow->IsString()) {
+    if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
       PrintErrorString("%s\n", *trace);
     } else {
       node::Utf8Value arrow_string(env->isolate(), arrow);
@@ -1554,7 +1564,7 @@ static void ReportException(Environment* env,
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
 
-      if (arrow.IsEmpty() || !arrow->IsString()) {
+      if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
         PrintErrorString("%s: %s\n", *name_string, *message_string);
       } else {
         node::Utf8Value arrow_string(env->isolate(), arrow);
@@ -1607,28 +1617,22 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> ary = Array::New(args.GetIsolate());
   Local<Context> ctx = env->context();
-  Local<Function> fn = env->add_properties_by_index_function();
-  static const size_t argc = 8;
-  Local<Value> argv[argc];
-  size_t i = 0;
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
 
   for (auto w : *env->req_wrap_queue()) {
-    if (w->persistent().IsEmpty() == false) {
-      argv[i++ % argc] = w->object();
-      if ((i % argc) == 0) {
-        HandleScope scope(env->isolate());
-        fn->Call(ctx, ary, argc, argv).ToLocalChecked();
-        for (auto&& arg : argv) {
-          arg = Local<Value>();
-        }
-      }
+    if (w->persistent().IsEmpty())
+      continue;
+    argv[idx] = w->object();
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+      idx = 0;
     }
   }
 
-  const size_t remainder = i % argc;
-  if (remainder > 0) {
-    HandleScope scope(env->isolate());
-    fn->Call(ctx, ary, remainder, argv).ToLocalChecked();
+  if (idx > 0) {
+    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
   }
 
   args.GetReturnValue().Set(ary);
@@ -1641,7 +1645,10 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(env->isolate());
-  int i = 0;
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
 
   Local<String> owner_sym = env->owner_string();
 
@@ -1652,7 +1659,14 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
     Local<Value> owner = object->Get(owner_sym);
     if (owner->IsUndefined())
       owner = object;
-    ary->Set(i++, owner);
+    argv[idx] = owner;
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
+  }
+  if (idx > 0) {
+    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
   }
 
   args.GetReturnValue().Set(ary);
@@ -2128,22 +2142,23 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
 
   uint64_t t = uv_hrtime();
 
-  if (args.Length() > 0) {
-    // return a time diff tuple
-    if (!args[0]->IsArray()) {
+  if (!args[1]->IsUndefined()) {
+    if (!args[1]->IsArray()) {
       return env->ThrowTypeError(
-          "process.hrtime() only accepts an Array tuple.");
+          "process.hrtime() only accepts an Array tuple");
     }
-    Local<Array> inArray = Local<Array>::Cast(args[0]);
-    uint64_t seconds = inArray->Get(0)->Uint32Value();
-    uint64_t nanos = inArray->Get(1)->Uint32Value();
-    t -= (seconds * NANOS_PER_SEC) + nanos;
+    args.GetReturnValue().Set(true);
   }
 
-  Local<Array> tuple = Array::New(env->isolate(), 2);
-  tuple->Set(0, Integer::NewFromUnsigned(env->isolate(), t / NANOS_PER_SEC));
-  tuple->Set(1, Integer::NewFromUnsigned(env->isolate(), t % NANOS_PER_SEC));
-  args.GetReturnValue().Set(tuple);
+  Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
+  uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
+
+  // These three indices will contain the values for the hrtime tuple. The
+  // seconds value is broken into the upper/lower 32 bits and stored in two
+  // uint32 fields to be converted back in JS.
+  fields[0] = (t / NANOS_PER_SEC) >> 32;
+  fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
+  fields[2] = t % NANOS_PER_SEC;
 }
 
 extern "C" void node_module_register(void* m) {
@@ -2555,23 +2570,35 @@ static void EnvDeleter(Local<String> property,
 
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
-  Isolate* isolate = info.GetIsolate();
+  Environment* env = Environment::GetCurrent(info);
+  Isolate* isolate = env->isolate();
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
+
 #ifdef __POSIX__
   int size = 0;
   while (environ[size])
     size++;
 
-  Local<Array> envarr = Array::New(isolate, size);
+  Local<Array> envarr = Array::New(isolate);
 
   for (int i = 0; i < size; ++i) {
     const char* var = environ[i];
     const char* s = strchr(var, '=');
     const int length = s ? s - var : strlen(var);
-    Local<String> name = String::NewFromUtf8(isolate,
-                                             var,
-                                             String::kNormalString,
-                                             length);
-    envarr->Set(i, name);
+    argv[idx] = String::NewFromUtf8(isolate,
+                                    var,
+                                    String::kNormalString,
+                                    length);
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
+  }
+  if (idx > 0) {
+    fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
   }
 #else  // _WIN32
   WCHAR* environment = GetEnvironmentStringsW();
@@ -2579,7 +2606,6 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     return;  // This should not happen.
   Local<Array> envarr = Array::New(isolate);
   WCHAR* p = environment;
-  int i = 0;
   while (*p) {
     WCHAR *s;
     if (*p == L'=') {
@@ -2594,12 +2620,18 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     }
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
     const size_t two_byte_buffer_len = s - p;
-    Local<String> value = String::NewFromTwoByte(isolate,
-                                                 two_byte_buffer,
-                                                 String::kNormalString,
-                                                 two_byte_buffer_len);
-    envarr->Set(i++, value);
+    argv[idx] = String::NewFromTwoByte(isolate,
+                                       two_byte_buffer,
+                                       String::kNormalString,
+                                       two_byte_buffer_len);
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
     p = s + wcslen(s) + 1;
+  }
+  if (idx > 0) {
+    fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
   }
   FreeEnvironmentStringsW(environment);
 #endif

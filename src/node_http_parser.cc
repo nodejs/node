@@ -632,12 +632,23 @@ class Parser : public BaseObject {
   Local<Array> CreateHeaders() {
     // num_values_ is either -1 or the entry # of the last header
     // so num_values_ == 0 means there's a single header
-    Local<Array> headers = Array::New(env()->isolate(), 2 * num_values_);
+    Local<Array> headers = Array::New(env()->isolate());
+    Local<Function> fn = env()->push_values_to_array_function();
+    Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
+    int i = 0;
 
-    for (int i = 0; i < num_values_; ++i) {
-      headers->Set(2 * i, fields_[i].ToString(env()));
-      headers->Set(2 * i + 1, values_[i].ToString(env()));
-    }
+    do {
+      size_t j = 0;
+      while (i < num_values_ && j < ARRAY_SIZE(argv) / 2) {
+        argv[j * 2] = fields_[i].ToString(env());
+        argv[j * 2 + 1] = values_[i].ToString(env());
+        i++;
+        j++;
+      }
+      if (j > 0) {
+        fn->Call(env()->context(), headers, j * 2, argv).ToLocalChecked();
+      }
+    } while (i < num_values_);
 
     return headers;
   }

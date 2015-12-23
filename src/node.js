@@ -181,12 +181,27 @@
   }
 
   startup.setupProcessObject = function() {
-    process._setupProcessObject(setPropByIndex);
+    const _hrtime = process.hrtime;
+    const hrValues = new Uint32Array(3);
 
-    function setPropByIndex() {
+    process._setupProcessObject(pushValueToArray);
+
+    function pushValueToArray() {
       for (var i = 0; i < arguments.length; i++)
         this.push(arguments[i]);
     }
+
+    process.hrtime = function hrtime(ar) {
+      const ret = [0, 0];
+      if (_hrtime(hrValues, ar)) {
+        ret[0] = (hrValues[0] * 0x100000000 + hrValues[1]) - ar[0];
+        ret[1] = hrValues[2] - ar[1];
+      } else {
+        ret[0] = hrValues[0] * 0x100000000 + hrValues[1];
+        ret[1] = hrValues[2];
+      }
+      return ret;
+    };
   };
 
   startup.globalVariables = function() {

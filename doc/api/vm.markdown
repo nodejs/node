@@ -6,7 +6,7 @@
 
 You can access this module with:
 
-    var vm = require('vm');
+    const vm = require('vm');
 
 JavaScript code can be compiled and run immediately or compiled, saved, and run
 later.
@@ -48,8 +48,8 @@ and returns the result. Running code does not have access to local scope.
 Example: compile code that increments a global variable and sets one, then
 execute the code multiple times. These globals are contained in the sandbox.
 
-    var util = require('util');
-    var vm = require('vm');
+    const util = require('util');
+    const vm = require('vm');
 
     var sandbox = {
       animal: 'cat',
@@ -85,14 +85,14 @@ Example: compile code that sets a global variable, then execute the code
 multiple times in different contexts. These globals are set on and contained in
 the sandboxes.
 
-    var util = require('util');
-    var vm = require('vm');
+    const util = require('util');
+    const vm = require('vm');
 
-    var sandboxes = [{}, {}, {}];
+    const sandboxes = [{}, {}, {}];
 
-    var script = new vm.Script('globalVar = "set"');
+    const script = new vm.Script('globalVar = "set"');
 
-    sandboxes.forEach(function (sandbox) {
+    sandboxes.forEach((sandbox) => {
       script.runInNewContext(sandbox);
     });
 
@@ -114,11 +114,11 @@ current `global` object.
 Example of using `script.runInThisContext` to compile code once and run it
 multiple times:
 
-    var vm = require('vm');
+    const vm = require('vm');
 
     global.globalVar = 0;
 
-    var script = new vm.Script('globalVar += 1', { filename: 'myfile.vm' });
+    const script = new vm.Script('globalVar += 1', { filename: 'myfile.vm' });
 
     for (var i = 0; i < 1000; ++i) {
       script.runInThisContext();
@@ -176,10 +176,10 @@ returns the result. Running code does not have access to local scope. The
 
 Example: compile and execute different scripts in a single existing context.
 
-    var util = require('util');
-    var vm = require('vm');
+    const util = require('util');
+    const vm = require('vm');
 
-    var sandbox = { globalVar: 1 };
+    const sandbox = { globalVar: 1 };
     vm.createContext(sandbox);
 
     for (var i = 0; i < 10; ++i) {
@@ -198,7 +198,7 @@ separate process.
 `vm.runInDebugContext` compiles and executes `code` inside the V8 debug context.
 The primary use case is to get access to the V8 debug object:
 
-    var Debug = vm.runInDebugContext('Debug');
+    const Debug = vm.runInDebugContext('Debug');
     Debug.scripts().forEach(function(script) { console.log(script.name); });
 
 Note that the debug context and object are intrinsically tied to V8's debugger
@@ -217,10 +217,10 @@ the sandbox as the global object and returns the result.
 Example: compile and execute code that increments a global variable and sets a
 new one. These globals are contained in the sandbox.
 
-    var util = require('util');
-    var vm = require('vm');
+    const util = require('util');
+    const vm = require('vm');
 
-    var sandbox = {
+    const sandbox = {
       animal: 'cat',
       count: 2
     };
@@ -242,14 +242,14 @@ code does not have access to local scope, but does have access to the current
 
 Example of using `vm.runInThisContext` and `eval` to run the same code:
 
-    var vm = require('vm');
+    const vm = require('vm');
     var localVar = 'initial value';
 
-    var vmResult = vm.runInThisContext('localVar = "vm";');
+    const vmResult = vm.runInThisContext('localVar = "vm";');
     console.log('vmResult: ', vmResult);
     console.log('localVar: ', localVar);
 
-    var evalResult = eval('localVar = "eval";');
+    const evalResult = eval('localVar = "eval";');
     console.log('evalResult: ', evalResult);
     console.log('localVar: ', localVar);
 
