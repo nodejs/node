@@ -4,7 +4,6 @@ var assert = require('assert');
 
 var path = require('path');
 var fs = require('fs');
-var util = require('util');
 
 
 var filepath = path.join(common.tmpDir, 'write.txt');

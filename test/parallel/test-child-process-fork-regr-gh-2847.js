@@ -5,7 +5,6 @@ const assert = require('assert');
 
 const cluster = require('cluster');
 const net = require('net');
-const util = require('util');
 
 var connectcount = 0;
 var sendcount = 0;

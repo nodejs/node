@@ -1,6 +1,5 @@
 'use strict';
 var assert = require('assert');
-var util = require('util');
 var join = require('path').join;
 var fs = require('fs');
 var common = require('../common');
