@@ -2,15 +2,11 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
-const dns = require('dns');
 
 if (!common.hasIPv6) {
   console.log('1..0 # Skipped: no IPv6 support');
   return;
 }
-
-var serverGotEnd = false;
-var clientGotEnd = false;
 
 const hosts = common.localIPv6Hosts;
 var hostIdx = 0;
@@ -19,9 +15,7 @@ var localhostTries = 10;
 
 const server = net.createServer({allowHalfOpen: true}, function(socket) {
   socket.resume();
-  socket.on('end', function() {
-    serverGotEnd = true;
-  });
+  socket.on('end', common.mustCall(function() {}));
   socket.end();
 });
 
@@ -36,13 +30,12 @@ function tryConnect() {
   }, function() {
     console.error('client connect cb');
     client.resume();
-    client.on('end', function() {
-      clientGotEnd = true;
+    client.on('end', common.mustCall(function() {
       setTimeout(function() {
         assert(client.writable);
         client.end();
       }, 10);
-    });
+    }));
     client.on('close', function() {
       server.close();
     });
@@ -61,11 +54,4 @@ function tryConnect() {
     }
     throw err;
   });
-}
-
-process.on('exit', onExit);
-function onExit() {
-  console.error('exit', serverGotEnd, clientGotEnd);
-  assert(serverGotEnd);
-  assert(clientGotEnd);
 }
