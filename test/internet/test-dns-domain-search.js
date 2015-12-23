@@ -66,7 +66,9 @@ function UDPServerReply(replybuf, expbuf, nreqs) {
   var timer = setTimeout(function() {
     throw new Error(format('Timeout on UDP test (%s)', testName));
   }, 100);
-  UDPServer.once('message', function(buf, rinfo) {
+  UDPServer.removeAllListeners('message');
+  // Listen for multiple connections in case client retries request
+  UDPServer.on('message', function(buf, rinfo) {
     clearTimeout(timer);
     if (expbuf) {
       if (Array.isArray(expbuf)) {
@@ -81,8 +83,8 @@ function UDPServerReply(replybuf, expbuf, nreqs) {
       }
     }
     UDPServer.send(replybuf, 0, replybuf.length, rinfo.port, rinfo.address);
-    if (--nreqs > 0)
-      UDPServerReply(replybuf, expbuf, nreqs);
+    if (--nreqs === 0)
+      UDPServer.removeAllListeners('message');
   });
 }
 
@@ -103,7 +105,9 @@ function TCPServerReply(replybuf, expbuf, nreqs) {
       return s.once('readable', readN.bind(null, s, n, cb));
     cb(r);
   }
-  TCPServer.once('connection', function(s) {
+  TCPServer.removeAllListeners('connection');
+  // Listen for multiple connections in case client retries request
+  TCPServer.on('connection', function(s) {
     readN(s, 2, function readLength(buf) {
       readN(s, buf.readUInt16BE(0), function readBytes(buf) {
         clearTimeout(timer);
@@ -123,8 +127,8 @@ function TCPServerReply(replybuf, expbuf, nreqs) {
         lenbuf.writeUInt16BE(replybuf.length, 0);
         s.write(lenbuf);
         s.write(replybuf);
-        if (--nreqs > 0)
-          TCPServerReply(replybuf, expbuf, nreqs);
+        if (--nreqs === 0)
+          TCPServer.removeAllListeners('connection');
       });
     });
   });
