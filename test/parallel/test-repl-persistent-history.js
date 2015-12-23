@@ -7,7 +7,6 @@ const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
 const fs = require('fs');
-const util = require('util');
 const path = require('path');
 const os = require('os');
 
