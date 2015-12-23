@@ -51,7 +51,7 @@ UnaryMathFunction CreateExpFunction() {
 
   __ popq(rbx);
   __ popq(rax);
-  __ movsd(xmm0, result);
+  __ Movsd(xmm0, result);
   __ Ret();
 
   CodeDesc desc;
@@ -74,7 +74,7 @@ UnaryMathFunction CreateSqrtFunction() {
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   // xmm0: raw double input.
   // Move double input into registers.
-  __ sqrtsd(xmm0, xmm0);
+  __ Sqrtsd(xmm0, xmm0);
   __ Ret();
 
   CodeDesc desc;
@@ -95,7 +95,7 @@ ModuloFunction CreateModuloFunction() {
   byte* buffer = static_cast<byte*>(
       base::OS::Allocate(Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
-  Assembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
   // (e.g. the JavaScript nan-object).
@@ -107,8 +107,8 @@ ModuloFunction CreateModuloFunction() {
 
   // Compute x mod y.
   // Load y and x (use argument backing store as temporary storage).
-  __ movsd(Operand(rsp, kRegisterSize * 2), xmm1);
-  __ movsd(Operand(rsp, kRegisterSize), xmm0);
+  __ Movsd(Operand(rsp, kRegisterSize * 2), xmm1);
+  __ Movsd(Operand(rsp, kRegisterSize), xmm0);
   __ fld_d(Operand(rsp, kRegisterSize * 2));
   __ fld_d(Operand(rsp, kRegisterSize));
 
@@ -147,13 +147,13 @@ ModuloFunction CreateModuloFunction() {
   int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
   __ movq(rcx, kNaNValue);
   __ movq(Operand(rsp, kRegisterSize), rcx);
-  __ movsd(xmm0, Operand(rsp, kRegisterSize));
+  __ Movsd(xmm0, Operand(rsp, kRegisterSize));
   __ jmp(&return_result);
 
   // If result is valid, return that.
   __ bind(&valid_result);
   __ fstp_d(Operand(rsp, kRegisterSize));
-  __ movsd(xmm0, Operand(rsp, kRegisterSize));
+  __ Movsd(xmm0, Operand(rsp, kRegisterSize));
 
   // Clean up FPU stack and exceptions and return xmm0
   __ bind(&return_result);
@@ -333,8 +333,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ JumpIfNotSmi(rbx, &convert_hole);
   __ SmiToInteger32(rbx, rbx);
   __ Cvtlsi2sd(xmm0, rbx);
-  __ movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize),
-           xmm0);
+  __ Movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), xmm0);
   __ jmp(&entry);
   __ bind(&convert_hole);
 
@@ -604,38 +603,38 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   Label done;
 
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
-  __ movsd(double_scratch, Operand(kScratchRegister, 0 * kDoubleSize));
-  __ xorpd(result, result);
-  __ ucomisd(double_scratch, input);
+  __ Movsd(double_scratch, Operand(kScratchRegister, 0 * kDoubleSize));
+  __ Xorpd(result, result);
+  __ Ucomisd(double_scratch, input);
   __ j(above_equal, &done);
-  __ ucomisd(input, Operand(kScratchRegister, 1 * kDoubleSize));
-  __ movsd(result, Operand(kScratchRegister, 2 * kDoubleSize));
+  __ Ucomisd(input, Operand(kScratchRegister, 1 * kDoubleSize));
+  __ Movsd(result, Operand(kScratchRegister, 2 * kDoubleSize));
   __ j(above_equal, &done);
-  __ movsd(double_scratch, Operand(kScratchRegister, 3 * kDoubleSize));
-  __ movsd(result, Operand(kScratchRegister, 4 * kDoubleSize));
-  __ mulsd(double_scratch, input);
-  __ addsd(double_scratch, result);
-  __ movq(temp2, double_scratch);
-  __ subsd(double_scratch, result);
-  __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
+  __ Movsd(double_scratch, Operand(kScratchRegister, 3 * kDoubleSize));
+  __ Movsd(result, Operand(kScratchRegister, 4 * kDoubleSize));
+  __ Mulsd(double_scratch, input);
+  __ Addsd(double_scratch, result);
+  __ Movq(temp2, double_scratch);
+  __ Subsd(double_scratch, result);
+  __ Movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
   __ leaq(temp1, Operand(temp2, 0x1ff800));
   __ andq(temp2, Immediate(0x7ff));
   __ shrq(temp1, Immediate(11));
-  __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
+  __ Mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
   __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
   __ shlq(temp1, Immediate(52));
   __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
-  __ subsd(double_scratch, input);
-  __ movsd(input, double_scratch);
-  __ subsd(result, double_scratch);
-  __ mulsd(input, double_scratch);
-  __ mulsd(result, input);
-  __ movq(input, temp1);
-  __ mulsd(result, Operand(kScratchRegister, 7 * kDoubleSize));
-  __ subsd(result, double_scratch);
-  __ addsd(result, Operand(kScratchRegister, 8 * kDoubleSize));
-  __ mulsd(result, input);
+  __ Subsd(double_scratch, input);
+  __ Movsd(input, double_scratch);
+  __ Subsd(result, double_scratch);
+  __ Mulsd(input, double_scratch);
+  __ Mulsd(result, input);
+  __ Movq(input, temp1);
+  __ Mulsd(result, Operand(kScratchRegister, 7 * kDoubleSize));
+  __ Subsd(result, double_scratch);
+  __ Addsd(result, Operand(kScratchRegister, 8 * kDoubleSize));
+  __ Mulsd(result, input);
 
   __ bind(&done);
 }

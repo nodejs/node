@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(SimpleCall) {
   FunctionTester T("(function(foo,a) { return foo(a); })");
@@ -141,16 +143,6 @@ TEST(RuntimeCallCPP2) {
 }
 
 
-TEST(RuntimeCallJS) {
-  FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %to_number_fun(a); })");
-
-  T.CheckCall(T.Val(23), T.Val(23), T.undefined());
-  T.CheckCall(T.Val(4.2), T.Val(4.2), T.undefined());
-  T.CheckCall(T.Val(1), T.true_value(), T.undefined());
-}
-
-
 TEST(RuntimeCallInline) {
   FLAG_allow_natives_syntax = true;
   FunctionTester T("(function(a) { return %_IsSpecObject(a); })");
@@ -225,7 +217,9 @@ TEST(ContextLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
-  context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
+  CHECK(context->Global()
+            ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
+            .FromJust());
   CompileRun("var x = 24;");
   ExpectInt32("foo();", 24);
 }
@@ -247,7 +241,13 @@ TEST(BuiltinLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
-  context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
+  CHECK(context->Global()
+            ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
+            .FromJust());
   CompileRun("var x = 24;");
   ExpectObject("foo()", context->Global());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

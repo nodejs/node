@@ -20,7 +20,7 @@ class AstLiteralReindexer final : public AstVisitor {
   int NextIndex() { return next_index_++; }
 
  private:
-#define DEFINE_VISIT(type) virtual void Visit##type(type* node) override;
+#define DEFINE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
@@ -39,7 +39,7 @@ class AstLiteralReindexer final : public AstVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(AstLiteralReindexer);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_AST_LITERAL_REINDEXER

@@ -22,14 +22,11 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
       machine_(zone(), word, flags),
       common_(zone()),
       call_descriptor_(call_descriptor),
-      parameters_(nullptr),
+      parameters_(parameter_count(), zone()),
       current_block_(schedule()->start()) {
   int param_count = static_cast<int>(parameter_count());
-  // Add an extra input node for the JSFunction parameter to the start node.
-  Node* s = graph->NewNode(common_.Start(param_count + 1));
-  graph->SetStart(s);
-  if (parameter_count() == 0) return;
-  parameters_ = zone()->NewArray<Node*>(param_count);
+  // Add an extra input for the JSFunction parameter to the start node.
+  graph->SetStart(graph->NewNode(common_.Start(param_count + 1)));
   for (size_t i = 0; i < parameter_count(); ++i) {
     parameters_[i] =
         AddNode(common()->Parameter(static_cast<int>(i)), graph->start());
@@ -101,6 +98,22 @@ void RawMachineAssembler::Return(Node* value) {
 }
 
 
+void RawMachineAssembler::Return(Node* v1, Node* v2) {
+  Node* values[] = {v1, v2};
+  Node* ret = MakeNode(common()->Return(2), 2, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+
+void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3) {
+  Node* values[] = {v1, v2, v3};
+  Node* ret = MakeNode(common()->Return(3), 3, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+
 Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
                                  Node** args) {
   int param_count =
@@ -158,19 +171,6 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
 }
 
 
-Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
-                                             Node* context, Node* frame_state,
-                                             CallFunctionFlags flags) {
-  Callable callable = CodeFactory::CallFunction(isolate(), 0, flags);
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 1,
-      CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
-  Node* stub_code = HeapConstant(callable.code());
-  return AddNode(common()->Call(desc), stub_code, function, receiver, context,
-                 frame_state, graph()->start(), graph()->start());
-}
-
-
 Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
                                         Node* arg1, Node* context) {
   CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
@@ -198,6 +198,22 @@ Node* RawMachineAssembler::CallRuntime2(Runtime::FunctionId function,
 
   return AddNode(common()->Call(descriptor), centry, arg1, arg2, ref, arity,
                  context, graph()->start(), graph()->start());
+}
+
+
+Node* RawMachineAssembler::CallRuntime4(Runtime::FunctionId function,
+                                        Node* arg1, Node* arg2, Node* arg3,
+                                        Node* arg4, Node* context) {
+  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, 4, Operator::kNoProperties, false);
+
+  Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
+  Node* ref = AddNode(
+      common()->ExternalConstant(ExternalReference(function, isolate())));
+  Node* arity = Int32Constant(4);
+
+  return AddNode(common()->Call(descriptor), centry, arg1, arg2, arg3, arg4,
+                 ref, arity, context, graph()->start(), graph()->start());
 }
 
 

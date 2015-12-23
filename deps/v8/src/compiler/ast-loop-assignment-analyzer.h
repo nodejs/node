@@ -53,6 +53,7 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
 
  private:
   CompilationInfo* info_;
+  Zone* zone_;
   ZoneDeque<BitVector*> loop_stack_;
   LoopAssignmentAnalysis* result_;
 
@@ -70,8 +71,8 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstLoopAssignmentAnalyzer);
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_

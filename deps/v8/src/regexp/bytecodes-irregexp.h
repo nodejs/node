@@ -76,6 +76,8 @@ BYTECODE_ITERATOR(DECLARE_BYTECODES)
   static const int BC_##name##_LENGTH = length;
 BYTECODE_ITERATOR(DECLARE_BYTECODE_LENGTH)
 #undef DECLARE_BYTECODE_LENGTH
-} }
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_BYTECODES_IRREGEXP_H_

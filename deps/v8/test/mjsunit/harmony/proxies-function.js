@@ -118,10 +118,10 @@ function TestCall(isStrict, callTrap) {
   assertEquals(42, %Apply(f, null, [11, 31], 0, 2))
   assertSame(isStrict ? null : global_object, receiver)
   receiver = 333
-  assertEquals(42, %_CallFunction(o, 11, 31, f))
+  assertEquals(42, %_Call(f, o, 11, 31))
   assertSame(o, receiver)
   receiver = 333
-  assertEquals(42, %_CallFunction(null, 11, 31, f))
+  assertEquals(42, %_Call(f, null, 11, 31))
   assertSame(isStrict ? null : global_object, receiver)
 
   var ff = Function.prototype.bind.call(f, o, 12)
@@ -148,10 +148,10 @@ function TestCall(isStrict, callTrap) {
   assertEquals(24, %Apply(ff, {}, [12, 13], 0, 2))
   assertSame(o, receiver)
   receiver = 333
-  assertEquals(34, %_CallFunction({}, 22, ff))
+  assertEquals(34, %_Call(ff, {}, 22))
   assertSame(o, receiver)
   receiver = 333
-  assertEquals(34, %_CallFunction({}, 22, 3, ff))
+  assertEquals(34, %_Call(ff, {}, 22, 3))
   assertSame(o, receiver)
 
   var fff = Function.prototype.bind.call(ff, o, 30)
@@ -181,10 +181,10 @@ function TestCall(isStrict, callTrap) {
   assertEquals(42, %Apply(fff, {}, [12, 13], 0, 2))
   assertSame(o, receiver)
   receiver = 333
-  assertEquals(42, %_CallFunction({}, fff))
+  assertEquals(42, %_Call(fff, {}))
   assertSame(o, receiver)
   receiver = 333
-  assertEquals(42, %_CallFunction({}, 3, 4, 5, fff))
+  assertEquals(42, %_Call(fff, {}, 3, 4, 5))
   assertSame(o, receiver)
 
   var f = CreateFrozen({}, callTrap)
@@ -217,7 +217,7 @@ function TestCall(isStrict, callTrap) {
   assertEquals(27, %Apply(f, o, [12, 13, 14], 1, 2))
   assertSame(o, receiver)
   receiver = 333
-  assertEquals(42, %_CallFunction(o, 18, 24, f))
+  assertEquals(42, %_Call(f, o, 18, 24))
   assertSame(o, receiver)
 }
 
@@ -284,8 +284,8 @@ function TestCallThrow(callTrap) {
   assertThrows(function(){ %Call(f, {}, 1, 2) }, "myexn")
   assertThrows(function(){ %Apply({}, f, [], 3, 0) }, "myexn")
   assertThrows(function(){ %Apply({}, f, [3, 4], 0, 1) }, "myexn")
-  assertThrows(function(){ %_CallFunction({}, f) }, "myexn")
-  assertThrows(function(){ %_CallFunction({}, 1, 2, f) }, "myexn")
+  assertThrows(function(){ %_Call(f, {}) }, "myexn")
+  assertThrows(function(){ %_Call(f, {}, 1, 2) }, "myexn")
 
   var f = CreateFrozen({}, callTrap)
   assertThrows(function(){ f(11) }, "myexn")
@@ -297,8 +297,8 @@ function TestCallThrow(callTrap) {
   assertThrows(function(){ %Call(f, {}, 1, 2) }, "myexn")
   assertThrows(function(){ %Apply({}, f, [], 3, 0) }, "myexn")
   assertThrows(function(){ %Apply({}, f, [3, 4], 0, 1) }, "myexn")
-  assertThrows(function(){ %_CallFunction({}, f) }, "myexn")
-  assertThrows(function(){ %_CallFunction({}, 1, 2, f) }, "myexn")
+  assertThrows(function(){ %_Call(f, {}) }, "myexn")
+  assertThrows(function(){ %_Call(f, {}, 1, 2) }, "myexn")
 }
 
 TestCallThrow(function() { throw "myexn" })
@@ -697,7 +697,7 @@ function TestCalls() {
     function(f, x, y, o) { return f.apply(o, [x, y]) },
     function(f, x, y, o) { return Function.prototype.call.call(f, o, x, y) },
     function(f, x, y, o) { return Function.prototype.apply.call(f, o, [x, y]) },
-    function(f, x, y, o) { return %_CallFunction(o, x, y, f) },
+    function(f, x, y, o) { return %_Call(f, o, x, y) },
     function(f, x, y, o) { return %Call(f, o, x, y) },
     function(f, x, y, o) { return %Apply(f, o, [null, x, y, null], 1, 2) },
     function(f, x, y, o) { return %Apply(f, o, arguments, 2, 2) },

@@ -109,7 +109,7 @@
       'variables': {
         'js_files': [
           'd8.js',
-          'macros.py',
+          'js/macros.py',
         ],
       },
       'conditions': [

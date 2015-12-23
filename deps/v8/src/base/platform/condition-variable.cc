@@ -313,4 +313,5 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 
 #endif  // V8_OS_POSIX
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

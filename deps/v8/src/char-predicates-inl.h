@@ -85,6 +85,7 @@ inline bool IsRegExpNewline(uc16 c) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CHAR_PREDICATES_INL_H_

@@ -343,6 +343,28 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
 };
 
 
+class DebugFeatureTracker {
+ public:
+  enum Feature {
+    kActive = 1,
+    kBreakPoint = 2,
+    kStepping = 3,
+    kHeapSnapshot = 4,
+    kAllocationTracking = 5,
+    kProfiler = 6,
+    kLiveEdit = 7,
+  };
+
+  explicit DebugFeatureTracker(Isolate* isolate)
+      : isolate_(isolate), bitfield_(0) {}
+  void Track(Feature feature);
+
+ private:
+  Isolate* isolate_;
+  uint32_t bitfield_;
+};
+
+
 // This class contains the debugger support. The main purpose is to handle
 // setting break points in the code.
 //
@@ -368,7 +390,7 @@ class Debug {
   void SetMessageHandler(v8::Debug::MessageHandler handler);
   void EnqueueCommandMessage(Vector<const uint16_t> command,
                              v8::Debug::ClientData* client_data = NULL);
-  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
+  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
   Handle<Context> GetDebugContext();
   void HandleDebugBreak();
@@ -441,7 +463,7 @@ class Debug {
       BreakPositionAlignment position_aligment);
 
   // Check whether a global object is the debug global object.
-  bool IsDebugGlobal(GlobalObject* global);
+  bool IsDebugGlobal(JSGlobalObject* global);
 
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);
@@ -482,7 +504,7 @@ class Debug {
   inline bool in_debug_scope() const {
     return !!base::NoBarrier_Load(&thread_local_.current_debug_scope_);
   }
-  void set_disable_break(bool v) { break_disabled_ = v; }
+  void set_break_points_active(bool v) { break_points_active_ = v; }
 
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
   int break_id() { return thread_local_.break_id_; }
@@ -506,6 +528,8 @@ class Debug {
   }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }
+
+  DebugFeatureTracker* feature_tracker() { return &feature_tracker_; }
 
  private:
   explicit Debug(Isolate* isolate);
@@ -592,8 +616,8 @@ class Debug {
   bool is_active_;
   bool is_suppressed_;
   bool live_edit_enabled_;
-  bool has_break_points_;
   bool break_disabled_;
+  bool break_points_active_;
   bool in_debug_event_listener_;
   bool break_on_exception_;
   bool break_on_uncaught_exception_;
@@ -604,6 +628,9 @@ class Debug {
   // Note that this address is not GC safe.  It should be computed immediately
   // before returning to the DebugBreakCallHelper.
   Address after_break_target_;
+
+  // Used to collect histogram data on debugger feature usage.
+  DebugFeatureTracker feature_tracker_;
 
   // Per-thread data.
   class ThreadLocal {
@@ -763,6 +790,7 @@ class DebugCodegen : public AllStatic {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DEBUG_DEBUG_H_

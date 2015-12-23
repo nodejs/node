@@ -215,66 +215,89 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
+  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineType rep = RepresentationOf(store_rep.machine_type());
-  if (store_rep.write_barrier_kind() == kFullWriteBarrier) {
+
+  if (write_barrier_kind != kNoWriteBarrier) {
     DCHECK_EQ(kRepTagged, rep);
-    // TODO(dcarney): refactor RecordWrite function to take temp registers
-    //                and pass them here instead of using fixed regs
+    AddressingMode addressing_mode;
+    InstructionOperand inputs[3];
+    size_t input_count = 0;
+    inputs[input_count++] = g.UseUniqueRegister(base);
     if (g.CanBeImmediate(index)) {
-      InstructionOperand temps[] = {g.TempRegister(ecx), g.TempRegister()};
-      Emit(kIA32StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, ebx),
-           g.UseImmediate(index), g.UseFixed(value, ecx), arraysize(temps),
-           temps);
+      inputs[input_count++] = g.UseImmediate(index);
+      addressing_mode = kMode_MRI;
     } else {
-      InstructionOperand temps[] = {g.TempRegister(ecx), g.TempRegister(edx)};
-      Emit(kIA32StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, ebx),
-           g.UseFixed(index, ecx), g.UseFixed(value, edx), arraysize(temps),
-           temps);
+      inputs[input_count++] = g.UseUniqueRegister(index);
+      addressing_mode = kMode_MR1;
     }
-    return;
-  }
-  DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
-
-  ArchOpcode opcode;
-  switch (rep) {
-    case kRepFloat32:
-      opcode = kIA32Movss;
-      break;
-    case kRepFloat64:
-      opcode = kIA32Movsd;
-      break;
-    case kRepBit:  // Fall through.
-    case kRepWord8:
-      opcode = kIA32Movb;
-      break;
-    case kRepWord16:
-      opcode = kIA32Movw;
-      break;
-    case kRepTagged:  // Fall through.
-    case kRepWord32:
-      opcode = kIA32Movl;
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-
-  InstructionOperand val;
-  if (g.CanBeImmediate(value)) {
-    val = g.UseImmediate(value);
-  } else if (rep == kRepWord8 || rep == kRepBit) {
-    val = g.UseByteRegister(value);
+    inputs[input_count++] = (write_barrier_kind == kMapWriteBarrier)
+                                ? g.UseRegister(value)
+                                : g.UseUniqueRegister(value);
+    RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
+    switch (write_barrier_kind) {
+      case kNoWriteBarrier:
+        UNREACHABLE();
+        break;
+      case kMapWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsMap;
+        break;
+      case kPointerWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsPointer;
+        break;
+      case kFullWriteBarrier:
+        record_write_mode = RecordWriteMode::kValueIsAny;
+        break;
+    }
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    size_t const temp_count = arraysize(temps);
+    InstructionCode code = kArchStoreWithWriteBarrier;
+    code |= AddressingModeField::encode(addressing_mode);
+    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
-    val = g.UseRegister(value);
-  }
+    ArchOpcode opcode;
+    switch (rep) {
+      case kRepFloat32:
+        opcode = kIA32Movss;
+        break;
+      case kRepFloat64:
+        opcode = kIA32Movsd;
+        break;
+      case kRepBit:  // Fall through.
+      case kRepWord8:
+        opcode = kIA32Movb;
+        break;
+      case kRepWord16:
+        opcode = kIA32Movw;
+        break;
+      case kRepTagged:  // Fall through.
+      case kRepWord32:
+        opcode = kIA32Movl;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
 
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  InstructionCode code = opcode | AddressingModeField::encode(mode);
-  inputs[input_count++] = val;
-  Emit(code, 0, static_cast<InstructionOperand*>(NULL), input_count, inputs);
+    InstructionOperand val;
+    if (g.CanBeImmediate(value)) {
+      val = g.UseImmediate(value);
+    } else if (rep == kRepWord8 || rep == kRepBit) {
+      val = g.UseByteRegister(value);
+    } else {
+      val = g.UseRegister(value);
+    }
+
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+    AddressingMode addressing_mode =
+        g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+    InstructionCode code =
+        opcode | AddressingModeField::encode(addressing_mode);
+    inputs[input_count++] = val;
+    Emit(code, 0, static_cast<InstructionOperand*>(NULL), input_count, inputs);
+  }
 }
 
 
@@ -550,6 +573,18 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 void InstructionSelector::VisitWord32Clz(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kIA32Lzcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitWord32Ctz(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kIA32Tzcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitWord32Popcnt(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kIA32Popcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
@@ -831,20 +866,10 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
-void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
+void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
+                                               const CallDescriptor* descriptor,
+                                               Node* node) {
   IA32OperandGenerator g(this);
-  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
-
-  FrameStateDescriptor* frame_state_descriptor = nullptr;
-  if (descriptor->NeedsFrameState()) {
-    frame_state_descriptor =
-        GetFrameStateDescriptor(node->InputAt(descriptor->InputCount()));
-  }
-
-  CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
-
-  // Compute InstructionOperands for inputs and outputs.
-  InitializeCallBuffer(node, &buffer, true, true);
 
   // Prepare for C function call.
   if (descriptor->IsCFunctionCall()) {
@@ -855,8 +880,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
          0, nullptr, 0, nullptr, temp_count, temps);
 
     // Poke any stack arguments.
-    for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
-      if (Node* input = buffer.pushed_nodes[n]) {
+    for (size_t n = 0; n < arguments->size(); ++n) {
+      if (Node* input = (*arguments)[n]) {
         int const slot = static_cast<int>(n);
         InstructionOperand value = g.CanBeImmediate(node)
                                        ? g.UseImmediate(input)
@@ -866,7 +891,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     }
   } else {
     // Push any stack arguments.
-    for (Node* input : base::Reversed(buffer.pushed_nodes)) {
+    for (Node* input : base::Reversed(*arguments)) {
       // Skip any alignment holes in pushed nodes.
       if (input == nullptr) continue;
       // TODO(titzer): IA32Push cannot handle stack->stack double moves
@@ -881,124 +906,10 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
       Emit(kIA32Push, g.NoOutput(), value);
     }
   }
-
-  // Pass label of exception handler block.
-  CallDescriptor::Flags flags = descriptor->flags();
-  if (handler) {
-    DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
-    IfExceptionHint hint = OpParameter<IfExceptionHint>(handler->front());
-    if (hint == IfExceptionHint::kLocallyCaught) {
-      flags |= CallDescriptor::kHasLocalCatchHandler;
-    }
-    flags |= CallDescriptor::kHasExceptionHandler;
-    buffer.instruction_args.push_back(g.Label(handler));
-  }
-
-  // Select the appropriate opcode based on the call type.
-  InstructionCode opcode;
-  switch (descriptor->kind()) {
-    case CallDescriptor::kCallAddress:
-      opcode =
-          kArchCallCFunction |
-          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
-      break;
-    case CallDescriptor::kCallCodeObject:
-      opcode = kArchCallCodeObject | MiscField::encode(flags);
-      break;
-    case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction | MiscField::encode(flags);
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-
-  // Emit the call instruction.
-  size_t const output_count = buffer.outputs.size();
-  auto* outputs = output_count ? &buffer.outputs.front() : nullptr;
-  Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
-       &buffer.instruction_args.front())->MarkAsCall();
 }
 
 
-void InstructionSelector::VisitTailCall(Node* node) {
-  IA32OperandGenerator g(this);
-  CallDescriptor const* descriptor = OpParameter<CallDescriptor const*>(node);
-  DCHECK_NE(0, descriptor->flags() & CallDescriptor::kSupportsTailCalls);
-  DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kPatchableCallSite);
-  DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kNeedsNopAfterCall);
-
-  // TODO(turbofan): Relax restriction for stack parameters.
-
-  if (linkage()->GetIncomingDescriptor()->CanTailCall(node)) {
-    CallBuffer buffer(zone(), descriptor, nullptr);
-
-    // Compute InstructionOperands for inputs and outputs.
-    InitializeCallBuffer(node, &buffer, true, true);
-
-    // Select the appropriate opcode based on the call type.
-    InstructionCode opcode;
-    switch (descriptor->kind()) {
-      case CallDescriptor::kCallCodeObject:
-        opcode = kArchTailCallCodeObject;
-        break;
-      case CallDescriptor::kCallJSFunction:
-        opcode = kArchTailCallJSFunction;
-        break;
-      default:
-        UNREACHABLE();
-        return;
-    }
-    opcode |= MiscField::encode(descriptor->flags());
-
-    // Emit the tailcall instruction.
-    Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
-         &buffer.instruction_args.front());
-  } else {
-    FrameStateDescriptor* frame_state_descriptor =
-        descriptor->NeedsFrameState()
-            ? GetFrameStateDescriptor(
-                  node->InputAt(static_cast<int>(descriptor->InputCount())))
-            : nullptr;
-
-    CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
-
-    // Compute InstructionOperands for inputs and outputs.
-    InitializeCallBuffer(node, &buffer, true, true);
-
-    // Push any stack arguments.
-    for (Node* input : base::Reversed(buffer.pushed_nodes)) {
-      // TODO(titzer): Handle pushing double parameters.
-      InstructionOperand value =
-          g.CanBeImmediate(input)
-              ? g.UseImmediate(input)
-              : IsSupported(ATOM) ? g.UseRegister(input) : g.Use(input);
-      Emit(kIA32Push, g.NoOutput(), value);
-    }
-
-    // Select the appropriate opcode based on the call type.
-    InstructionCode opcode;
-    switch (descriptor->kind()) {
-      case CallDescriptor::kCallCodeObject:
-        opcode = kArchCallCodeObject;
-        break;
-      case CallDescriptor::kCallJSFunction:
-        opcode = kArchCallJSFunction;
-        break;
-      default:
-        UNREACHABLE();
-        return;
-    }
-    opcode |= MiscField::encode(descriptor->flags());
-
-    // Emit the call instruction.
-    size_t output_count = buffer.outputs.size();
-    auto* outputs = &buffer.outputs.front();
-    Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
-         &buffer.instruction_args.front())->MarkAsCall();
-    Emit(kArchRet, 0, nullptr, output_count, outputs);
-  }
-}
+bool InstructionSelector::IsTailCallAddressImmediate() { return true; }
 
 
 namespace {
@@ -1357,7 +1268,11 @@ InstructionSelector::SupportedMachineOperatorFlags() {
       MachineOperatorBuilder::kFloat32Min |
       MachineOperatorBuilder::kFloat64Max |
       MachineOperatorBuilder::kFloat64Min |
-      MachineOperatorBuilder::kWord32ShiftIsSafe;
+      MachineOperatorBuilder::kWord32ShiftIsSafe |
+      MachineOperatorBuilder::kWord32Ctz;
+  if (CpuFeatures::IsSupported(POPCNT)) {
+    flags |= MachineOperatorBuilder::kWord32Popcnt;
+  }
   if (CpuFeatures::IsSupported(SSE4_1)) {
     flags |= MachineOperatorBuilder::kFloat64RoundDown |
              MachineOperatorBuilder::kFloat64RoundTruncate;

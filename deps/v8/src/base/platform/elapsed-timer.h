@@ -92,6 +92,7 @@ class ElapsedTimer final {
 #endif
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_ELAPSED_TIMER_H_

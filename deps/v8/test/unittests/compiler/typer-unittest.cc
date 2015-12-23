@@ -11,9 +11,9 @@
 #include "test/cctest/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 // TODO(titzer): generate a large set of deterministic inputs for these tests.
 class TyperTest : public TypedGraphTest {
@@ -417,3 +417,7 @@ TEST_F(TyperTest, TypeRegressInt32Constant) {
     EXPECT_TRUE(type->Is(NewRange(i, i)));
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

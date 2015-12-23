@@ -208,7 +208,7 @@ const RegList kRegExpCalleeSaved =
     1 << 25 | 1 << 26 | 1 << 27 | 1 << 28 | 1 << 29 | 1 << 30 | 1 << 31;
 
 #endif  // V8_INTERPRETED_REGEXP
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_PPC_REGEXP_MACRO_ASSEMBLER_PPC_H_

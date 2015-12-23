@@ -617,7 +617,7 @@ class Isolate {
 
   // Returns the global object of the current context. It could be
   // a builtin object, or a JS global object.
-  inline Handle<GlobalObject> global_object();
+  inline Handle<JSGlobalObject> global_object();
 
   // Returns the global proxy object of the current context.
   JSObject* global_proxy() {
@@ -679,11 +679,11 @@ class Isolate {
   Handle<JSArray> GetDetailedFromSimpleStackTrace(
       Handle<JSObject> error_object);
 
-  // Returns if the top context may access the given global object. If
+  // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
   // set.
+  bool MayAccess(Handle<Context> accessing_context, Handle<JSObject> receiver);
 
-  bool MayAccess(Handle<JSObject> receiver);
   bool IsInternallyUsedPropertyName(Handle<Object> name);
   bool IsInternallyUsedPropertyName(Object* name);
 
@@ -1027,9 +1027,11 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  void* vector_store_virtual_register_address() {
-    return &vector_store_virtual_register_;
+  void* virtual_handler_register_address() {
+    return &virtual_handler_register_;
   }
+
+  void* virtual_slot_register_address() { return &virtual_slot_register_; }
 
   base::RandomNumberGenerator* random_number_generator();
 
@@ -1042,6 +1044,12 @@ class Isolate {
       next_optimization_id_ = 0;
     }
     return id;
+  }
+
+  void IncrementJsCallsFromApiCounter() { ++js_calls_from_api_counter_; }
+
+  unsigned int js_calls_from_api_counter() {
+    return js_calls_from_api_counter_;
   }
 
   // Get (and lazily initialize) the registry for per-isolate symbols.
@@ -1306,9 +1314,13 @@ class Isolate {
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
 
-  Address vector_store_virtual_register_;
+  Address virtual_handler_register_;
+  Address virtual_slot_register_;
 
   int next_optimization_id_;
+
+  // Counts javascript calls from the API. Wraps around on overflow.
+  unsigned int js_calls_from_api_counter_;
 
 #if TRACE_MAPS
   int next_unique_sfi_id_;
@@ -1556,6 +1568,7 @@ class CodeTracer final : public Malloced {
   int scope_depth_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ISOLATE_H_

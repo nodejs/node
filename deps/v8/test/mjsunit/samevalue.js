@@ -32,8 +32,8 @@
 var obj1 = {x: 10, y: 11, z: "test"};
 var obj2 = {x: 10, y: 11, z: "test"};
 
-var sameValue = natives.$sameValue;
-var sameValueZero = natives.$sameValueZero;
+var sameValue = Object.is;
+var sameValueZero = natives.ImportNow("SameValueZero");
 
 // Calls SameValue and SameValueZero and checks that their results match.
 function sameValueBoth(a, b) {

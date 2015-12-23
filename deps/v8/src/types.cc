@@ -173,7 +173,7 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
   if (type->IsRange()) return type->AsRange()->Lub();
   if (type->IsContext()) return kInternal & kTaggedPointer;
   if (type->IsArray()) return kOtherObject;
-  if (type->IsFunction()) return kOtherObject;  // TODO(rossberg): kFunction
+  if (type->IsFunction()) return kFunction;
   UNREACHABLE();
   return kNone;
 }
@@ -231,7 +231,6 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:
-    case JS_BUILTINS_OBJECT_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
@@ -248,7 +247,8 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
       if (map->is_undetectable()) return kUndetectable;
       return kOtherObject;
     case JS_FUNCTION_TYPE:
-      return kOtherObject;  // TODO(rossberg): there should be a Function type.
+      if (map->is_undetectable()) return kUndetectable;
+      return kFunction;
     case JS_REGEXP_TYPE:
       return kOtherObject;  // TODO(rossberg): there should be a RegExp type.
     case JS_PROXY_TYPE:

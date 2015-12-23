@@ -57,11 +57,6 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(mstarzinger): An arguments object materialized in the prologue can't
-  # be accessed indirectly. Either we drop that requirement or wait for support
-  # from the deoptimizer to do that.
-  'arguments-indirect': [PASS, NO_VARIANTS],
-
   # TODO(verwaest): Some tests are over-restrictive about object layout.
   'array-constructor-feedback': [PASS, NO_VARIANTS],
   'array-feedback': [PASS, NO_VARIANTS],
@@ -110,6 +105,7 @@
   'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
   'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-stepin-call-function-stub': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-stepin-positions': [PASS, NO_VARIANTS],  # only due to inlining.
   'regress/regress-3717': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
@@ -151,6 +147,9 @@
   # TODO(titzer): too slow in --turbo mode due to O(n^2) graph verification.
   'regress/regress-1122': [PASS, NO_VARIANTS],
 
+  # Assumptions about optimization need investigation in TurboFan.
+  'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
+
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
 
@@ -169,6 +168,9 @@
   ##############################################################################
   # Too slow in debug mode for GC stress mode.
   'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
+
+  # Too slow in debug mode and under turbofan.
+  'regress/regress-4595': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
@@ -197,7 +199,7 @@
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
-  'array-functions-prototype-misc': [PASS, ['mode == debug', SKIP]],
+  'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -248,9 +250,24 @@
   # BUG(v8:3838).
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
 
+  # BUG(v8:4458). TODO(mvstanton): reenable the test once --vector-stores is
+  # prermanently enabled.
+  'call-counts': [SKIP],
+
   # BUG(chromium:508074). Remove this once the issue is fixed.
   'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
   'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
+
+  # Slow tests.
+  'copy-on-write-assert': [PASS, SLOW],
+  'debug-scopes': [PASS, SLOW],
+  'es7/object-observe': [PASS, ['mode == debug', SLOW]],
+  'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
+  'readonly': [PASS, SLOW],
+  'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
+  'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
+  'strong/implicit-conversions': [PASS, SLOW],
+  'strong/load-element-mutate-backing-store': [PASS, SLOW],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -281,6 +298,7 @@
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
   'regress/regress-4121': [SKIP],
+  'compare-known-objects-slow': [SKIP],
   # Tests taking too long
   'debug-stepout-scope-part8': [SKIP],
   'mirror-object': [SKIP],
@@ -319,8 +337,14 @@
   # BUG(v8:4359)
   'strong/load-proxy': [SKIP],
 
-  # BUG(v8:4381)
-  'for-in-opt': [PASS, FAIL],
+  # Slow tests.
+  'array-constructor': [PASS, SLOW],
+  'json': [PASS, SLOW],
+  'regress/regress-446389': [PASS, SLOW],
+  'regress/regress-inline-getter-near-stack-limit': [PASS, SLOW],
+
+  # BUG(v8:3097)
+  'debug-references': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -543,6 +567,12 @@
 }],  # 'arch == mips'
 
 ##############################################################################
+['arch == x87', {
+  # Turbofan will hit the known issue that x87 changes sNaN to qNaN by default.
+  'regress/regress-undefined-nan': [SKIP],
+}],  # 'arch == x87'
+
+##############################################################################
 ['arch == mips64el or arch == mips64', {
 
   # Slow tests which times out in debug mode.
@@ -604,6 +634,9 @@
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
+
+  # BUG(v8:4495).
+  'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -671,6 +704,9 @@
   'readonly': [SKIP],
   'array-feedback': [SKIP],
 
+  # Bounds check triggers forced deopt for array constructors.
+  'array-constructor-feedback': [SKIP],
+
   # Deopting uses just enough memory to make this one OOM.
   'regress/regress-3976': [SKIP],
 
@@ -691,4 +727,318 @@
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
+
+['ignition == True', {
+  'asm/*': [SKIP],
+  'compiler/*': [SKIP],
+  'const*': [SKIP],
+  'debug-*': [SKIP],
+  'es6/*': [SKIP],
+  'es7/*': [SKIP],
+  'strong/*': [SKIP],
+  'harmony/*': [SKIP],
+  'regress/debug*': [SKIP],
+  'regress/regress-debug*': [SKIP],
+
+  'allocation-folding': [SKIP],
+  'api-call-after-bypassed-exception': [SKIP],
+  'apply-arguments-gc-safepoint': [SKIP],
+  'arguments-load-across-eval': [SKIP],
+  'arguments-read-and-assignment': [SKIP],
+  'array-bounds-check-removal': [SKIP],
+  'array-constructor': [SKIP],
+  'array-elements-from-array-prototype-chain': [SKIP],
+  'array-functions-prototype-misc': [SKIP],
+  'array-join': [SKIP],
+  'array-length-number-conversion': [SKIP],
+  'array-literal-feedback': [SKIP],
+  'array-literal-transitions': [SKIP],
+  'array-reduce': [SKIP],
+  'array-tostring': [SKIP],
+  'assert-opt-and-deopt': [SKIP],
+  'big-array-literal': [SKIP],
+  'break': [SKIP],
+  'call-runtime-tail': [SKIP],
+  'context-calls-maintained': [SKIP],
+  'contextual-calls': [SKIP],
+  'cross-realm-filtering': [SKIP],
+  'cyclic-array-to-string': [SKIP],
+  'd8-worker-sharedarraybuffer': [SKIP],
+  'deopt-minus-zero': [SKIP],
+  'deopt-with-fp-regs': [SKIP],
+  'deserialize-script-id': [SKIP],
+  'div-mul-minus-one': [SKIP],
+  'double-equals': [SKIP],
+  'double-intrinsics': [SKIP],
+  'elements-transition-hoisting': [SKIP],
+  'error-constructors': [SKIP],
+  'eval-enclosing-function-name': [SKIP],
+  'eval-stack-trace': [SKIP],
+  'fast-prototype': [SKIP],
+  'for-in-special-cases': [SKIP],
+  'function-call': [SKIP],
+  'get-caller-js-function': [SKIP],
+  'get-prototype-of': [SKIP],
+  'getter-in-prototype': [SKIP],
+  'getters-on-elements': [SKIP],
+  'global-hash': [SKIP],
+  'global-load-from-eval-in-with': [SKIP],
+  'global-vars-with': [SKIP],
+  'instanceof-2': [SKIP],
+  'math-floor-of-div-minus-zero': [SKIP],
+  'math-min-max': [SKIP],
+  'messages': [SKIP],
+  'mirror-object': [SKIP],
+  'numops-fuzz-part1': [SKIP],
+  'numops-fuzz-part2': [SKIP],
+  'numops-fuzz-part3': [SKIP],
+  'numops-fuzz-part4': [SKIP],
+  'object-literal-gc': [SKIP],
+  'osr-elements-kind': [SKIP],
+  'property-load-across-eval': [SKIP],
+  'proto-accessor': [SKIP],
+  'readonly': [SKIP],
+  'regress-3225': [SKIP],
+  'regress/clear-keyed-call': [SKIP],
+  'regress/regress-102153': [SKIP],
+  'regress/regress-1079': [SKIP],
+  'regress/regress-109195': [SKIP],
+  'regress/regress-1114040': [SKIP],
+  'regress/regress-1125': [SKIP],
+  'regress/regress-1129': [SKIP],
+  'regress/regress-117409': [SKIP],
+  'regress/regress-1177809': [SKIP],
+  'regress/regress-119609': [SKIP],
+  'regress/regress-1209': [SKIP],
+  'regress/regress-124594': [SKIP],
+  'regress/regress-124': [SKIP],
+  'regress/regress-125515': [SKIP],
+  'regress/regress-128018': [SKIP],
+  'regress/regress-131994': [SKIP],
+  'regress/regress-133211b': [SKIP],
+  'regress/regress-1365': [SKIP],
+  'regress/regress-1369': [SKIP],
+  'regress/regress-1403': [SKIP],
+  'regress/regress-1412': [SKIP],
+  'regress/regress-1415': [SKIP],
+  'regress/regress-1436': [SKIP],
+  'regress/regress-1493017': [SKIP],
+  'regress/regress-1523': [SKIP],
+  'regress/regress-1560': [SKIP],
+  'regress/regress-1586': [SKIP],
+  'regress/regress-1639-2': [SKIP],
+  'regress/regress-1639': [SKIP],
+  'regress/regress-166553': [SKIP],
+  'regress/regress-1708': [SKIP],
+  'regress/regress-1757': [SKIP],
+  'regress/regress-1790': [SKIP],
+  'regress/regress-1980': [SKIP],
+  'regress/regress-2054': [SKIP],
+  'regress/regress-2071': [SKIP],
+  'regress/regress-2132': [SKIP],
+  'regress/regress-2163': [SKIP],
+  'regress/regress-2318': [SKIP],
+  'regress/regress-2339': [SKIP],
+  'regress/regress-2444': [SKIP],
+  'regress/regress-244': [SKIP],
+  'regress/regress-2593': [SKIP],
+  'regress/regress-2594': [SKIP],
+  'regress/regress-2618': [SKIP],
+  'regress/regress-263': [SKIP],
+  'regress/regress-265': [SKIP],
+  'regress/regress-269': [SKIP],
+  'regress/regress-2790': [SKIP],
+  'regress/regress-2825': [SKIP],
+  'regress/regress-286': [SKIP],
+  'regress/regress-298269': [SKIP],
+  'regress/regress-3176': [SKIP],
+  'regress/regress-318420': [SKIP],
+  'regress/regress-320532': [SKIP],
+  'regress/regress-3281': [SKIP],
+  'regress/regress-331444': [SKIP],
+  'regress/regress-343609': [SKIP],
+  'regress/regress-347530': [SKIP],
+  'regress/regress-352982': [SKIP],
+  'regress/regress-354357': [SKIP],
+  'regress/regress-356053': [SKIP],
+  'regress/regress-357105': [SKIP],
+  'regress/regress-361025': [SKIP],
+  'regress/regress-3621': [SKIP],
+  'regress/regress-365172-3': [SKIP],
+  'regress/regress-370827': [SKIP],
+  'regress/regress-3709': [SKIP],
+  'regress/regress-377290': [SKIP],
+  'regress/regress-385565': [SKIP],
+  'regress/regress-3859': [SKIP],
+  'regress/regress-3884': [SKIP],
+  'regress/regress-3926': [SKIP],
+  'regress/regress-3960': [SKIP],
+  'regress/regress-3969': [SKIP],
+  'regress/regress-4023': [SKIP],
+  'regress/regress-4027': [SKIP],
+  'regress/regress-403292': [SKIP],
+  'regress/regress-410912': [SKIP],
+  'regress/regress-4121': [SKIP],
+  'regress/regress-419663': [SKIP],
+  'regress/regress-4255-4': [SKIP],
+  'regress/regress-430201': [SKIP],
+  'regress/regress-430201b': [SKIP],
+  'regress/regress-4309-3': [SKIP],
+  'regress/regress-4320': [SKIP],
+  'regress/regress-4325': [SKIP],
+  'regress/regress-436893': [SKIP],
+  'regress/regress-4374': [SKIP],
+  'regress/regress-4388': [SKIP],
+  'regress/regress-444805': [SKIP],
+  'regress/regress-446389': [SKIP],
+  'regress/regress-4515': [SKIP],
+  'regress/regress-4521': [SKIP],
+  'regress/regress-4525': [SKIP],
+  'regress/regress-453481': [SKIP],
+  'regress/regress-4534': [SKIP],
+  'regress/regress-454725': [SKIP],
+  'regress/regress-470804': [SKIP],
+  'regress/regress-476488': [SKIP],
+  'regress/regress-491536': [SKIP],
+  'regress/regress-514362': [SKIP],
+  'regress/regress-520029': [SKIP],
+  'regress/regress-542099': [SKIP],
+  'regress/regress-542100': [SKIP],
+  'regress/regress-580': [SKIP],
+  'regress/regress-618': [SKIP],
+  'regress/regress-643': [SKIP],
+  'regress/regress-69': [SKIP],
+  'regress/regress-70066': [SKIP],
+  'regress/regress-747': [SKIP],
+  'regress/regress-806473': [SKIP],
+  'regress/regress-842017': [SKIP],
+  'regress/regress-84234': [SKIP],
+  'regress/regress-88858': [SKIP],
+  'regress/regress-94425': [SKIP],
+  'regress/regress-94873': [SKIP],
+  'regress/regress-95485': [SKIP],
+  'regress/regress-97116b': [SKIP],
+  'regress/regress-97116': [SKIP],
+  'regress/regress-974': [SKIP],
+  'regress/regress-99167': [SKIP],
+  'regress/regress-998565': [SKIP],
+  'regress/regress-arguments-gc': [SKIP],
+  'regress/regress-assignment-in-test-context': [SKIP],
+  'regress/regress-cnlt-elements': [SKIP],
+  'regress/regress-cnlt-enum-indices': [SKIP],
+  'regress/regress-cntl-descriptors-enum': [SKIP],
+  'regress/regress-conditional-position': [SKIP],
+  'regress/regress-convert-enum': [SKIP],
+  'regress/regress-crbug-119800': [SKIP],
+  'regress/regress-crbug-135008': [SKIP],
+  'regress/regress-crbug-229923': [SKIP],
+  'regress/regress-crbug-242502': [SKIP],
+  'regress/regress-crbug-242924': [SKIP],
+  'regress/regress-crbug-245480': [SKIP],
+  'regress/regress-crbug-349079': [SKIP],
+  'regress/regress-crbug-350864': [SKIP],
+  'regress/regress-crbug-352058': [SKIP],
+  'regress/regress-crbug-357137': [SKIP],
+  'regress/regress-crbug-385002': [SKIP],
+  'regress/regress-crbug-387599': [SKIP],
+  'regress/regress-crbug-405922': [SKIP],
+  'regress/regress-crbug-409614': [SKIP],
+  'regress/regress-crbug-410033': [SKIP],
+  'regress/regress-crbug-412208': [SKIP],
+  'regress/regress-crbug-416558': [SKIP],
+  'regress/regress-crbug-424142': [SKIP],
+  'regress/regress-crbug-431602': [SKIP],
+  'regress/regress-crbug-432493': [SKIP],
+  'regress/regress-crbug-450642': [SKIP],
+  'regress/regress-crbug-465298': [SKIP],
+  'regress/regress-crbug-467180': [SKIP],
+  'regress/regress-crbug-467531': [SKIP],
+  'regress/regress-crbug-474297': [SKIP],
+  'regress/regress-crbug-480819': [SKIP],
+  'regress/regress-crbug-481896': [SKIP],
+  'regress/regress-crbug-485548-1': [SKIP],
+  'regress/regress-crbug-485548-2': [SKIP],
+  'regress/regress-crbug-487289': [SKIP],
+  'regress/regress-crbug-489293': [SKIP],
+  'regress/regress-crbug-489597': [SKIP],
+  'regress/regress-crbug-498142': [SKIP],
+  'regress/regress-crbug-500824': [SKIP],
+  'regress/regress-crbug-501809': [SKIP],
+  'regress/regress-crbug-506443': [SKIP],
+  'regress/regress-crbug-507070': [SKIP],
+  'regress/regress-crbug-527364': [SKIP],
+  'regress/regress-crbug-530598': [SKIP],
+  'regress/regress-crbug-546968': [SKIP],
+  'regress/regress-deopt-gcb': [SKIP],
+  'regress/regress-deopt-gc': [SKIP],
+  'regress/regress-embedded-cons-string': [SKIP],
+  'regress/regress-existing-shared-function-info': [SKIP],
+  'regress/regress-fast-literal-transition': [SKIP],
+  'regress/regress-force-representation': [SKIP],
+  'regress/regress-function-constructor-receiver': [SKIP],
+  'regress/regress-handle-illegal-redeclaration': [SKIP],
+  'regress/regress-inline-class-constructor': [SKIP],
+  'regress/regress-inlining-function-literal-context': [SKIP],
+  'regress/regress-lazy-deopt-reloc': [SKIP],
+  'regress/regress-map-invalidation-2': [SKIP],
+  'regress/regress-opt-after-debug-deopt': [SKIP],
+  'regress/regress-param-local-type': [SKIP],
+  'regress/regress-prepare-break-while-recompile': [SKIP],
+  'regress/regress-put-prototype-transition': [SKIP],
+  'regress/regress-sliced-external-cons-regexp': [SKIP],
+  'regress/regress-transcendental': [SKIP],
+  'regress/regress-typedarray-length': [SKIP],
+  'regress/splice-missing-wb': [SKIP],
+  'shift-for-integer-div': [SKIP],
+  'simple-constructor': [SKIP],
+  'sin-cos': [SKIP],
+  'smi-mul-const': [SKIP],
+  'smi-mul': [SKIP],
+  'sparse-array-reverse': [SKIP],
+  'stack-traces': [SKIP],
+  'strict-mode': [SKIP],
+  'string-case': [SKIP],
+  'string-external-cached': [SKIP],
+  'string-externalize': [SKIP],
+  'string-natives': [SKIP],
+  'string-replace-with-empty': [SKIP],
+  'string-slices': [SKIP],
+  'switch-opt': [SKIP],
+  'tools/profile': [SKIP],
+  'tools/profviz': [SKIP],
+  'try-finally-continue': [SKIP],
+  'try': [SKIP],
+  'unary-minus-deopt': [SKIP],
+  'undetectable-compare': [SKIP],
+  'unused-context-in-with': [SKIP],
+  'uri': [SKIP],
+  'value-wrapper': [SKIP],
+  'with-parameter-access': [SKIP],
+  'with-prototype': [SKIP],
+  'with-readonly': [SKIP],
+}],  # ignition == True
+
+['ignition == True and (arch == arm or arch == arm64)', {
+  'array-sort': [SKIP],
+  'date-parse': [SKIP],
+  'math-floor-part1': [SKIP],
+  'math-floor-part2': [SKIP],
+  'math-floor-part3': [SKIP],
+  'mul-exhaustive-part*': [SKIP],
+  'regress/regress-1167': [SKIP],
+  'regress/regress-165637': [SKIP],
+  'regress/regress-2249': [SKIP],
+  'regress/regress-319722-ArrayBuffer': [SKIP],
+  'regress/regress-542823': [SKIP],
+  'regress/regress-634-debug': [SKIP],
+  'regress/regress-78270': [SKIP],
+  'regress/regress-crbug-347903': [SKIP],
+  'regress/regress-crbug-505007-1': [SKIP],
+  'regress/regress-crbug-505007-2': [SKIP],
+  'regress/short-circuit': [SKIP],
+  'stack-traces-overflow': [SKIP],
+  'unicodelctest': [SKIP],
+  'unicodelctest-no-optimization': [SKIP],
+}],  # ignition == True and (arch == arm or arch == arm64)
+
 ]

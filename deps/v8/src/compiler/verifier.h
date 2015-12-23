@@ -56,8 +56,8 @@ class ScheduleVerifier {
  public:
   static void Run(Schedule* schedule);
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_VERIFIER_H_

@@ -164,7 +164,7 @@ bool PPCDebugger::GetValue(const char* desc, intptr_t* value) {
 
 
 bool PPCDebugger::GetFPDoubleValue(const char* desc, double* value) {
-  int regnum = FPRegisters::Number(desc);
+  int regnum = DoubleRegisters::Number(desc);
   if (regnum != kNoRegister) {
     *value = sim_->get_double_from_d_register(regnum);
     return true;
@@ -313,7 +313,8 @@ void PPCDebugger::Debug() {
           if (strcmp(arg1, "all") == 0) {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
-              PrintF("    %3s: %08" V8PRIxPTR, Registers::Name(i), value);
+              PrintF("    %3s: %08" V8PRIxPTR,
+                     Register::from_code(i).ToString(), value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -332,7 +333,7 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("     %3s: %08" V8PRIxPTR " %11" V8PRIdPTR,
-                     Registers::Name(i), value, value);
+                     Register::from_code(i).ToString(), value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -351,7 +352,8 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < DoubleRegister::kNumRegisters; i++) {
               dvalue = GetFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
-              PrintF("%3s: %f 0x%08x %08x\n", FPRegisters::Name(i), dvalue,
+              PrintF("%3s: %f 0x%08x %08x\n",
+                     DoubleRegister::from_code(i).ToString(), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
                      static_cast<uint32_t>(as_words & 0xffffffff));
             }
@@ -1847,6 +1849,36 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
         }
         break;
     }
+    case POPCNTW: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uintptr_t rs_val = get_register(rs);
+      uintptr_t count = 0;
+      int n = 0;
+      uintptr_t bit = 0x80000000;
+      for (; n < 32; n++) {
+        if (bit & rs_val) count++;
+        bit >>= 1;
+      }
+      set_register(ra, count);
+      break;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case POPCNTD: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uintptr_t rs_val = get_register(rs);
+      uintptr_t count = 0;
+      int n = 0;
+      uintptr_t bit = 0x8000000000000000UL;
+      for (; n < 64; n++) {
+        if (bit & rs_val) count++;
+        bit >>= 1;
+      }
+      set_register(ra, count);
+      break;
+    }
+#endif
     case SYNC: {
       // todo - simulate sync
       break;
@@ -2660,6 +2692,24 @@ void Simulator::ExecuteExt2(Instruction* instr) {
   if (ExecuteExt2_9bit_part1(instr)) return;
   if (ExecuteExt2_9bit_part2(instr)) return;
   ExecuteExt2_5bit(instr);
+}
+
+
+void Simulator::ExecuteExt3(Instruction* instr) {
+  int opcode = instr->Bits(10, 1) << 1;
+  switch (opcode) {
+    case FCFID: {
+      // fcfids
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double t_val = get_double_from_d_register(frb);
+      int64_t* frb_val_p = reinterpret_cast<int64_t*>(&t_val);
+      double frt_val = static_cast<float>(*frb_val_p);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+  }
+  UNIMPLEMENTED();  // Not used by V8.
 }
 
 
@@ -3578,8 +3628,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 
-    case EXT3:
-      UNIMPLEMENTED();
+    case EXT3: {
+      ExecuteExt3(instr);
+      break;
+    }
     case EXT4: {
       ExecuteExt4(instr);
       break;

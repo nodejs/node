@@ -1351,7 +1351,8 @@ class TestActivityControl : public v8::ActivityControl {
   int total_;
   int abort_count_;
 };
-}
+
+}  // namespace
 
 
 TEST(TakeHeapSnapshotAborting) {
@@ -1444,7 +1445,8 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
 
 i::List<TestRetainedObjectInfo*> TestRetainedObjectInfo::instances;
-}
+
+}  // namespace
 
 
 static const v8::HeapGraphNode* GetNode(const v8::HeapGraphNode* parent,
@@ -1696,9 +1698,6 @@ TEST(GlobalObjectFields) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* builtins =
-      GetProperty(global, v8::HeapGraphEdge::kInternal, "builtins");
-  CHECK(builtins);
   const v8::HeapGraphNode* native_context =
       GetProperty(global, v8::HeapGraphEdge::kInternal, "native_context");
   CHECK(native_context);
@@ -1981,21 +1980,24 @@ TEST(HiddenPropertiesFastCase) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
   const v8::HeapGraphNode* hidden_props =
-      GetProperty(c, v8::HeapGraphEdge::kInternal, "hidden_properties");
+      GetProperty(c, v8::HeapGraphEdge::kProperty, "<symbol>");
   CHECK(!hidden_props);
 
   v8::Handle<v8::Value> cHandle =
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "c"));
   CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
-  cHandle->ToObject(isolate)->SetHiddenValue(v8_str("key"), v8_str("val"));
+  cHandle->ToObject(isolate)
+      ->SetPrivate(env.local(),
+                   v8::Private::ForApi(env->GetIsolate(), v8_str("key")),
+                   v8_str("val"))
+      .FromJust();
 
   snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   global = GetGlobalObject(snapshot);
   c = GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
-  hidden_props = GetProperty(c, v8::HeapGraphEdge::kInternal,
-      "hidden_properties");
+  hidden_props = GetProperty(c, v8::HeapGraphEdge::kProperty, "<symbol>");
   CHECK(hidden_props);
 }
 
@@ -2496,22 +2498,23 @@ TEST(TrackHeapAllocations) {
 
 
 static const char* inline_heap_allocation_source =
-"function f_0(x) {\n"
-"  return f_1(x+1);\n"
-"}\n"
-"%NeverOptimizeFunction(f_0);\n"
-"function f_1(x) {\n"
-"  return new f_2(x+1);\n"
-"}\n"
-"function f_2(x) {\n"
-"  this.foo = x;\n"
-"}\n"
-"var instances = [];\n"
-"function start() {\n"
-"  instances.push(f_0(0));\n"
-"}\n"
-"\n"
-"for (var i = 0; i < 100; i++) start();\n";
+    "function f_0(x) {\n"
+    "  return f_1(x+1);\n"
+    "}\n"
+    "%NeverOptimizeFunction(f_0);\n"
+    "function f_1(x) {\n"
+    "  return new f_2(x+1);\n"
+    "}\n"
+    "%NeverOptimizeFunction(f_1);\n"
+    "function f_2(x) {\n"
+    "  this.foo = x;\n"
+    "}\n"
+    "var instances = [];\n"
+    "function start() {\n"
+    "  instances.push(f_0(0));\n"
+    "}\n"
+    "\n"
+    "for (var i = 0; i < 100; i++) start();\n";
 
 
 TEST(TrackBumpPointerAllocations) {

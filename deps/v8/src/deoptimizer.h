@@ -252,9 +252,9 @@ class TranslatedState {
 
   Isolate* isolate() { return isolate_; }
 
-  void Init(Address input_frame_pointer, JSFunction* input_frame_function,
-            TranslationIterator* iterator, FixedArray* literal_array,
-            RegisterValues* registers, FILE* trace_file);
+  void Init(Address input_frame_pointer, TranslationIterator* iterator,
+            FixedArray* literal_array, RegisterValues* registers,
+            FILE* trace_file);
 
  private:
   friend TranslatedValue;
@@ -262,7 +262,6 @@ class TranslatedState {
   TranslatedFrame CreateNextTranslatedFrame(TranslationIterator* iterator,
                                             FixedArray* literal_array,
                                             Address fp,
-                                            JSFunction* frame_function,
                                             FILE* trace_file);
   TranslatedValue CreateNextTranslatedValue(int frame_index, int value_index,
                                             TranslationIterator* iterator,
@@ -586,16 +585,11 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
-  void DoComputeJSFrame(TranslationIterator* iterator, int frame_index);
-  void DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
-                                      int frame_index);
-  void DoComputeConstructStubFrame(TranslationIterator* iterator,
-                                   int frame_index);
-  void DoComputeAccessorStubFrame(TranslationIterator* iterator,
-                                  int frame_index,
-                                  bool is_setter_stub_frame);
-  void DoComputeCompiledStubFrame(TranslationIterator* iterator,
-                                  int frame_index);
+  void DoComputeJSFrame(int frame_index);
+  void DoComputeArgumentsAdaptorFrame(int frame_index);
+  void DoComputeConstructStubFrame(int frame_index);
+  void DoComputeAccessorStubFrame(int frame_index, bool is_setter_stub_frame);
+  void DoComputeCompiledStubFrame(int frame_index);
 
   void WriteTranslatedValueToOutput(
       TranslatedFrame::iterator* iterator, int* input_index, int frame_index,

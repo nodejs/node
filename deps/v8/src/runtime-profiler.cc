@@ -108,7 +108,7 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
 void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
                                                 int loop_nesting_levels) {
   SharedFunctionInfo* shared = function->shared();
-  if (!FLAG_use_osr || function->IsBuiltin()) {
+  if (!FLAG_use_osr || function->shared()->IsBuiltin()) {
     return;
   }
 

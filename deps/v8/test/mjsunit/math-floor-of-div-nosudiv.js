@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --nouse-inlining --noenable-sudiv
+// Flags: --noenable-armv8
 
 // Use this function as reference. Make sure it is not inlined.
 function div(a, b) {

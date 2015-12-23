@@ -14,8 +14,9 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/register-configuration.h"
 #include "src/compiler/source-position.h"
+#include "src/macro-assembler.h"
+#include "src/register-configuration.h"
 #include "src/zone-allocator.h"
 
 namespace v8 {
@@ -30,7 +31,7 @@ class InstructionOperand {
 
   // TODO(dcarney): recover bit. INVALID can be represented as UNALLOCATED with
   // kInvalidVirtualRegister and some DCHECKS.
-  enum Kind { INVALID, UNALLOCATED, CONSTANT, IMMEDIATE, ALLOCATED };
+  enum Kind { INVALID, UNALLOCATED, CONSTANT, IMMEDIATE, EXPLICIT, ALLOCATED };
 
   InstructionOperand() : InstructionOperand(INVALID) {}
 
@@ -39,9 +40,25 @@ class InstructionOperand {
 #define INSTRUCTION_OPERAND_PREDICATE(name, type) \
   bool Is##name() const { return kind() == type; }
   INSTRUCTION_OPERAND_PREDICATE(Invalid, INVALID)
+  // UnallocatedOperands are place-holder operands created before register
+  // allocation. They later are assigned registers and become AllocatedOperands.
   INSTRUCTION_OPERAND_PREDICATE(Unallocated, UNALLOCATED)
+  // Constant operands participate in register allocation. They are allocated to
+  // registers but have a special "spilling" behavior. When a ConstantOperand
+  // value must be rematerialized, it is loaded from an immediate constant
+  // rather from an unspilled slot.
   INSTRUCTION_OPERAND_PREDICATE(Constant, CONSTANT)
+  // ImmediateOperands do not participate in register allocation and are only
+  // embedded directly in instructions, e.g. small integers and on some
+  // platforms Objects.
   INSTRUCTION_OPERAND_PREDICATE(Immediate, IMMEDIATE)
+  // ExplicitOperands do not participate in register allocation. They are
+  // created by the instruction selector for direct access to registers and
+  // stack slots, completely bypassing the register allocator. They are never
+  // associated with a virtual register
+  INSTRUCTION_OPERAND_PREDICATE(Explicit, EXPLICIT)
+  // AllocatedOperands are registers or stack slots that are assigned by the
+  // register allocator and are always associated with a virtual register.
   INSTRUCTION_OPERAND_PREDICATE(Allocated, ALLOCATED)
 #undef INSTRUCTION_OPERAND_PREDICATE
 
@@ -69,18 +86,18 @@ class InstructionOperand {
     return this->value_ < that.value_;
   }
 
-  bool EqualsModuloType(const InstructionOperand& that) const {
-    return this->GetValueModuloType() == that.GetValueModuloType();
+  bool EqualsCanonicalized(const InstructionOperand& that) const {
+    return this->GetCanonicalizedValue() == that.GetCanonicalizedValue();
   }
 
-  bool CompareModuloType(const InstructionOperand& that) const {
-    return this->GetValueModuloType() < that.GetValueModuloType();
+  bool CompareCanonicalized(const InstructionOperand& that) const {
+    return this->GetCanonicalizedValue() < that.GetCanonicalizedValue();
   }
 
  protected:
   explicit InstructionOperand(Kind kind) : value_(KindField::encode(kind)) {}
 
-  inline uint64_t GetValueModuloType() const;
+  inline uint64_t GetCanonicalizedValue() const;
 
   class KindField : public BitField64<Kind, 0, 3> {};
 
@@ -352,41 +369,43 @@ class ImmediateOperand : public InstructionOperand {
 };
 
 
-class AllocatedOperand : public InstructionOperand {
+class LocationOperand : public InstructionOperand {
  public:
-  // TODO(dcarney): machine_type makes this now redundant. Just need to know is
-  // the operand is a slot or a register.
-  enum AllocatedKind {
-    STACK_SLOT,
-    DOUBLE_STACK_SLOT,
-    REGISTER,
-    DOUBLE_REGISTER
-  };
+  enum LocationKind { REGISTER, STACK_SLOT };
 
-  AllocatedOperand(AllocatedKind kind, MachineType machine_type, int index)
-      : InstructionOperand(ALLOCATED) {
-    DCHECK_IMPLIES(kind == REGISTER || kind == DOUBLE_REGISTER, index >= 0);
+  LocationOperand(InstructionOperand::Kind operand_kind,
+                  LocationOperand::LocationKind location_kind,
+                  MachineType machine_type, int index)
+      : InstructionOperand(operand_kind) {
+    DCHECK_IMPLIES(location_kind == REGISTER, index >= 0);
     DCHECK(IsSupportedMachineType(machine_type));
-    value_ |= AllocatedKindField::encode(kind);
+    value_ |= LocationKindField::encode(location_kind);
     value_ |= MachineTypeField::encode(machine_type);
     value_ |= static_cast<int64_t>(index) << IndexField::kShift;
   }
 
   int index() const {
+    DCHECK(IsStackSlot() || IsDoubleStackSlot());
     return static_cast<int64_t>(value_) >> IndexField::kShift;
   }
 
-  AllocatedKind allocated_kind() const {
-    return AllocatedKindField::decode(value_);
+  Register GetRegister() const {
+    DCHECK(IsRegister());
+    return Register::from_code(static_cast<int64_t>(value_) >>
+                               IndexField::kShift);
+  }
+
+  DoubleRegister GetDoubleRegister() const {
+    DCHECK(IsDoubleRegister());
+    return DoubleRegister::from_code(static_cast<int64_t>(value_) >>
+                                     IndexField::kShift);
+  }
+
+  LocationKind location_kind() const {
+    return LocationKindField::decode(value_);
   }
 
   MachineType machine_type() const { return MachineTypeField::decode(value_); }
-
-  static AllocatedOperand* New(Zone* zone, AllocatedKind kind,
-                               MachineType machine_type, int index) {
-    return InstructionOperand::New(zone,
-                                   AllocatedOperand(kind, machine_type, index));
-  }
 
   static bool IsSupportedMachineType(MachineType machine_type) {
     if (RepresentationOf(machine_type) != machine_type) return false;
@@ -402,71 +421,99 @@ class AllocatedOperand : public InstructionOperand {
     }
   }
 
-  INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED);
+  static LocationOperand* cast(InstructionOperand* op) {
+    DCHECK(ALLOCATED == op->kind() || EXPLICIT == op->kind());
+    return static_cast<LocationOperand*>(op);
+  }
+
+  static const LocationOperand* cast(const InstructionOperand* op) {
+    DCHECK(ALLOCATED == op->kind() || EXPLICIT == op->kind());
+    return static_cast<const LocationOperand*>(op);
+  }
+
+  static LocationOperand cast(const InstructionOperand& op) {
+    DCHECK(ALLOCATED == op.kind() || EXPLICIT == op.kind());
+    return *static_cast<const LocationOperand*>(&op);
+  }
 
   STATIC_ASSERT(KindField::kSize == 3);
-  class AllocatedKindField : public BitField64<AllocatedKind, 3, 2> {};
+  class LocationKindField : public BitField64<LocationKind, 3, 2> {};
   class MachineTypeField : public BitField64<MachineType, 5, 16> {};
   class IndexField : public BitField64<int32_t, 35, 29> {};
+};
+
+
+class ExplicitOperand : public LocationOperand {
+ public:
+  ExplicitOperand(LocationKind kind, MachineType machine_type, int index);
+
+  static ExplicitOperand* New(Zone* zone, LocationKind kind,
+                              MachineType machine_type, int index) {
+    return InstructionOperand::New(zone,
+                                   ExplicitOperand(kind, machine_type, index));
+  }
+
+  INSTRUCTION_OPERAND_CASTS(ExplicitOperand, EXPLICIT);
+};
+
+
+class AllocatedOperand : public LocationOperand {
+ public:
+  AllocatedOperand(LocationKind kind, MachineType machine_type, int index)
+      : LocationOperand(ALLOCATED, kind, machine_type, index) {}
+
+  static AllocatedOperand* New(Zone* zone, LocationKind kind,
+                               MachineType machine_type, int index) {
+    return InstructionOperand::New(zone,
+                                   AllocatedOperand(kind, machine_type, index));
+  }
+
+  INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED);
 };
 
 
 #undef INSTRUCTION_OPERAND_CASTS
 
 
-#define ALLOCATED_OPERAND_LIST(V)       \
-  V(StackSlot, STACK_SLOT)              \
-  V(DoubleStackSlot, DOUBLE_STACK_SLOT) \
-  V(Register, REGISTER)                 \
-  V(DoubleRegister, DOUBLE_REGISTER)
+bool InstructionOperand::IsRegister() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::REGISTER &&
+         !IsFloatingPoint(LocationOperand::cast(this)->machine_type());
+}
 
+bool InstructionOperand::IsDoubleRegister() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::REGISTER &&
+         IsFloatingPoint(LocationOperand::cast(this)->machine_type());
+}
 
-#define ALLOCATED_OPERAND_IS(SubKind, kOperandKind)          \
-  bool InstructionOperand::Is##SubKind() const {             \
-    return IsAllocated() &&                                  \
-           AllocatedOperand::cast(this)->allocated_kind() == \
-               AllocatedOperand::kOperandKind;               \
-  }
-ALLOCATED_OPERAND_LIST(ALLOCATED_OPERAND_IS)
-#undef ALLOCATED_OPERAND_IS
+bool InstructionOperand::IsStackSlot() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::STACK_SLOT &&
+         !IsFloatingPoint(LocationOperand::cast(this)->machine_type());
+}
 
+bool InstructionOperand::IsDoubleStackSlot() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::STACK_SLOT &&
+         IsFloatingPoint(LocationOperand::cast(this)->machine_type());
+}
 
-// TODO(dcarney): these subkinds are now pretty useless, nuke.
-#define ALLOCATED_OPERAND_CLASS(SubKind, kOperandKind)                       \
-  class SubKind##Operand final : public AllocatedOperand {                   \
-   public:                                                                   \
-    explicit SubKind##Operand(MachineType machine_type, int index)           \
-        : AllocatedOperand(kOperandKind, machine_type, index) {}             \
-                                                                             \
-    static SubKind##Operand* New(Zone* zone, MachineType machine_type,       \
-                                 int index) {                                \
-      return InstructionOperand::New(zone,                                   \
-                                     SubKind##Operand(machine_type, index)); \
-    }                                                                        \
-                                                                             \
-    static SubKind##Operand* cast(InstructionOperand* op) {                  \
-      DCHECK_EQ(kOperandKind, AllocatedOperand::cast(op)->allocated_kind()); \
-      return reinterpret_cast<SubKind##Operand*>(op);                        \
-    }                                                                        \
-                                                                             \
-    static const SubKind##Operand* cast(const InstructionOperand* op) {      \
-      DCHECK_EQ(kOperandKind, AllocatedOperand::cast(op)->allocated_kind()); \
-      return reinterpret_cast<const SubKind##Operand*>(op);                  \
-    }                                                                        \
-                                                                             \
-    static SubKind##Operand cast(const InstructionOperand& op) {             \
-      DCHECK_EQ(kOperandKind, AllocatedOperand::cast(op).allocated_kind());  \
-      return *static_cast<const SubKind##Operand*>(&op);                     \
-    }                                                                        \
-  };
-ALLOCATED_OPERAND_LIST(ALLOCATED_OPERAND_CLASS)
-#undef ALLOCATED_OPERAND_CLASS
-
-
-uint64_t InstructionOperand::GetValueModuloType() const {
-  if (IsAllocated()) {
+uint64_t InstructionOperand::GetCanonicalizedValue() const {
+  if (IsAllocated() || IsExplicit()) {
     // TODO(dcarney): put machine type last and mask.
-    return AllocatedOperand::MachineTypeField::update(this->value_, kMachNone);
+    MachineType canonicalized_machine_type =
+        IsFloatingPoint(LocationOperand::cast(this)->machine_type())
+            ? kMachFloat64
+            : kMachNone;
+    return InstructionOperand::KindField::update(
+        LocationOperand::MachineTypeField::update(this->value_,
+                                                  canonicalized_machine_type),
+        LocationOperand::EXPLICIT);
   }
   return this->value_;
 }
@@ -476,7 +523,7 @@ uint64_t InstructionOperand::GetValueModuloType() const {
 struct CompareOperandModuloType {
   bool operator()(const InstructionOperand& a,
                   const InstructionOperand& b) const {
-    return a.CompareModuloType(b);
+    return a.CompareCanonicalized(b);
   }
 };
 
@@ -508,14 +555,14 @@ class MoveOperands final : public ZoneObject {
 
   // True if this move a move into the given destination operand.
   bool Blocks(const InstructionOperand& operand) const {
-    return !IsEliminated() && source().EqualsModuloType(operand);
+    return !IsEliminated() && source().EqualsCanonicalized(operand);
   }
 
   // A move is redundant if it's been eliminated or if its source and
   // destination are the same.
   bool IsRedundant() const {
     DCHECK_IMPLIES(!destination_.IsInvalid(), !destination_.IsConstant());
-    return IsEliminated() || source_.EqualsModuloType(destination_);
+    return IsEliminated() || source_.EqualsCanonicalized(destination_);
   }
 
   // We clear both operands to indicate move that's been eliminated.

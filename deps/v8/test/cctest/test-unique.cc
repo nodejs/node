@@ -32,9 +32,9 @@
 
 #include "src/v8.h"
 
+#include "src/crankshaft/unique.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
-#include "src/unique.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

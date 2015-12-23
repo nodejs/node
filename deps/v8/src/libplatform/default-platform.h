@@ -34,15 +34,13 @@ class DefaultPlatform : public Platform {
   bool PumpMessageLoop(v8::Isolate* isolate);
 
   // v8::Platform implementation.
-  virtual void CallOnBackgroundThread(
-      Task* task, ExpectedRuntime expected_runtime) override;
-  virtual void CallOnForegroundThread(v8::Isolate* isolate,
-                                      Task* task) override;
-  virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
-                                             double delay_in_seconds) override;
-  virtual void CallIdleOnForegroundThread(Isolate* isolate,
-                                          IdleTask* task) override;
-  virtual bool IdleTasksEnabled(Isolate* isolate) override;
+  void CallOnBackgroundThread(Task* task,
+                              ExpectedRuntime expected_runtime) override;
+  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override;
+  void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+                                     double delay_in_seconds) override;
+  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override;
+  bool IdleTasksEnabled(Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
 
  private:
@@ -68,7 +66,8 @@ class DefaultPlatform : public Platform {
 };
 
 
-} }  // namespace v8::platform
+}  // namespace platform
+}  // namespace v8
 
 
 #endif  // V8_LIBPLATFORM_DEFAULT_PLATFORM_H_

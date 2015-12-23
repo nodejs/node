@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
@@ -20,8 +21,9 @@
 #include "src/compiler/verifier.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
                         0, 1, 0, 0);
@@ -39,7 +41,7 @@ class LoopFinderTester : HandleAndZoneScope {
       : isolate(main_isolate()),
         common(main_zone()),
         graph(main_zone()),
-        jsgraph(main_isolate(), &graph, &common, NULL, NULL),
+        jsgraph(main_isolate(), &graph, &common, nullptr, nullptr, nullptr),
         start(graph.NewNode(common.Start(1))),
         end(graph.NewNode(common.End(1), start)),
         p0(graph.NewNode(common.Parameter(0), start)),
@@ -1012,3 +1014,7 @@ TEST(LaManyNested_64) { RunManyNestedLoops_i(64); }
 
 
 TEST(LaPhiTangle) { LoopFinderTester t; }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

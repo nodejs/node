@@ -74,17 +74,34 @@ const LanguageMode kLanguageModes[] = {SLOPPY, STRICT, STRONG};
 
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
-  JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
+  JSTypedLoweringTest()
+      : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {}
   ~JSTypedLoweringTest() override {}
 
  protected:
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
+    SimplifiedOperatorBuilder simplified(zone());
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
+                    &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, zone());
+    JSTypedLowering reducer(&graph_reducer, &deps_,
+                            JSTypedLowering::kDeoptimizationEnabled, &jsgraph,
+                            zone());
     return reducer.Reduce(node);
+  }
+
+  Node* FrameState(Handle<SharedFunctionInfo> shared, Node* outer_frame_state) {
+    Node* state_values = graph()->NewNode(common()->StateValues(0));
+    return graph()->NewNode(
+        common()->FrameState(BailoutId::None(),
+                             OutputFrameStateCombine::Ignore(),
+                             common()->CreateFrameStateFunctionInfo(
+                                 FrameStateType::kJavaScriptFunction, 1, 0,
+                                 shared, CALL_MAINTAINS_NATIVE_CONTEXT)),
+        state_values, state_values, state_values, NumberConstant(0),
+        UndefinedConstant(), outer_frame_state);
   }
 
   Handle<JSArrayBuffer> NewArrayBuffer(void* bytes, size_t byte_length) {
@@ -102,6 +119,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
 
  private:
   JSOperatorBuilder javascript_;
+  CompilationDependencies deps_;
 };
 
 
@@ -189,11 +207,10 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithString) {
   Reduction r = Reduce(graph()->NewNode(javascript()->UnaryNot(), input,
                                         context, graph()->start()));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsNumberEqual(IsLoadField(AccessBuilder::ForStringLength(zone()), input,
-                                graph()->start(), graph()->start()),
-                    IsNumberConstant(0.0)));
+  EXPECT_THAT(r.replacement(),
+              IsNumberEqual(IsLoadField(AccessBuilder::ForStringLength(), input,
+                                        graph()->start(), graph()->start()),
+                            IsNumberConstant(0.0)));
 }
 
 
@@ -388,8 +405,8 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
   EXPECT_THAT(
       r.replacement(),
       IsNumberLessThan(IsNumberConstant(0.0),
-                       IsLoadField(AccessBuilder::ForStringLength(zone()),
-                                   input, graph()->start(), graph()->start())));
+                       IsLoadField(AccessBuilder::ForStringLength(), input,
+                                   graph()->start(), graph()->start())));
 }
 
 
@@ -417,6 +434,56 @@ TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsToNumber(input, IsNumberConstant(BitEq(0.0)),
                                           graph()->start(), control));
+}
+
+
+// -----------------------------------------------------------------------------
+// JSToObject
+
+
+TEST_F(JSTypedLoweringTest, JSToObjectWithAny) {
+  Node* const input = Parameter(Type::Any(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToObject(), input,
+                                        context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsPhi(kMachAnyTagged, _, _, _));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToObjectWithReceiver) {
+  Node* const input = Parameter(Type::Receiver(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToObject(), input,
+                                        context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+
+// -----------------------------------------------------------------------------
+// JSToString
+
+
+TEST_F(JSTypedLoweringTest, JSToStringWithBoolean) {
+  Node* const input = Parameter(Type::Boolean(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToString(), input,
+                                        context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsSelect(kMachAnyTagged, input, IsHeapConstant(factory()->true_string()),
+               IsHeapConstant(factory()->false_string())));
 }
 
 
@@ -659,7 +726,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
       Node* effect = graph()->start();
       Node* control = graph()->start();
       Reduction r = Reduce(
-          graph()->NewNode(javascript()->LoadProperty(feedback, language_mode),
+          graph()->NewNode(javascript()->LoadProperty(language_mode, feedback),
                            base, key, vector, context, EmptyFrameState(),
                            EmptyFrameState(), effect, control));
 
@@ -703,7 +770,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
       Node* effect = graph()->start();
       Node* control = graph()->start();
       Reduction r = Reduce(
-          graph()->NewNode(javascript()->LoadProperty(feedback, language_mode),
+          graph()->NewNode(javascript()->LoadProperty(language_mode, feedback),
                            base, key, vector, context, EmptyFrameState(),
                            EmptyFrameState(), effect, control));
 
@@ -862,41 +929,6 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
 
 
 // -----------------------------------------------------------------------------
-// JSLoadGlobal
-
-
-TEST_F(JSTypedLoweringTest, JSLoadGlobalConstants) {
-  Handle<String> names[] = {
-      Handle<String>(isolate()->heap()->undefined_string(), isolate()),
-      Handle<String>(isolate()->heap()->infinity_string(), isolate()),
-      Handle<String>(isolate()->heap()->nan_string(), isolate())  // --
-  };
-  Matcher<Node*> matches[] = {
-      IsHeapConstant(
-          Handle<HeapObject>(isolate()->heap()->undefined_value(), isolate())),
-      IsNumberConstant(std::numeric_limits<double>::infinity()),
-      IsNumberConstant(IsNaN())  // --
-  };
-
-  VectorSlotPair feedback;
-  Node* global = UndefinedConstant();
-  Node* vector = UndefinedConstant();
-  Node* context = UndefinedConstant();
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-
-  for (size_t i = 0; i < arraysize(names); i++) {
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadGlobal(names[i], feedback), context, global, vector,
-        context, EmptyFrameState(), EmptyFrameState(), effect, control));
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), matches[i]);
-  }
-}
-
-
-// -----------------------------------------------------------------------------
 // JSLoadNamed
 
 
@@ -910,83 +942,12 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
   Node* const control = graph()->start();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
     Reduction const r = Reduce(
-        graph()->NewNode(javascript()->LoadNamed(name, feedback, language_mode),
+        graph()->NewNode(javascript()->LoadNamed(language_mode, name, feedback),
                          receiver, vector, context, EmptyFrameState(),
                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsLoadField(AccessBuilder::ForStringLength(zone()), receiver,
-                            effect, control));
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// JSLoadDynamicGlobal
-
-
-TEST_F(JSTypedLoweringTest, JSLoadDynamicGlobal) {
-  Node* const context = Parameter(Type::Any());
-  Node* const vector = UndefinedConstant();
-  Node* const frame_state = EmptyFrameState();
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Handle<String> name = factory()->object_string();
-  VectorSlotPair feedback;
-  for (int i = 0; i < DynamicGlobalAccess::kMaxCheckDepth; ++i) {
-    uint32_t bitset = 1 << i;  // Only single check.
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadDynamicGlobal(name, bitset, feedback,
-                                        NOT_INSIDE_TYPEOF),
-        vector, context, context, frame_state, frame_state, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(
-        r.replacement(),
-        IsPhi(kMachAnyTagged, _, _,
-              IsMerge(
-                  IsIfTrue(IsBranch(
-                      IsReferenceEqual(
-                          Type::Tagged(),
-                          IsLoadContext(
-                              ContextAccess(i, Context::EXTENSION_INDEX, false),
-                              context),
-                          IsNumberConstant(BitEq(0.0))),
-                      control)),
-                  _)));
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// JSLoadDynamicContext
-
-
-TEST_F(JSTypedLoweringTest, JSLoadDynamicContext) {
-  Node* const context = Parameter(Type::Any());
-  Node* const frame_state = EmptyFrameState();
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Handle<String> name = factory()->object_string();
-  for (int i = 0; i < DynamicContextAccess::kMaxCheckDepth; ++i) {
-    uint32_t bitset = 1 << i;  // Only single check.
-    Reduction r = Reduce(
-        graph()->NewNode(javascript()->LoadDynamicContext(name, bitset, 23, 42),
-                         context, context, frame_state, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(
-        r.replacement(),
-        IsPhi(kMachAnyTagged,
-              IsLoadContext(ContextAccess(23, 42, false), context), _,
-              IsMerge(
-                  IsIfTrue(IsBranch(
-                      IsReferenceEqual(
-                          Type::Tagged(),
-                          IsLoadContext(
-                              ContextAccess(i, Context::EXTENSION_INDEX, false),
-                              context),
-                          IsNumberConstant(BitEq(0.0))),
-                      control)),
-                  _)));
+    EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
+                                             receiver, effect, control));
   }
 }
 
@@ -1014,6 +975,72 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
                                              NOT_TENURED).code()),
                        lhs, rhs, context, frame_state0, effect, control));
   }
+}
+
+
+// -----------------------------------------------------------------------------
+// JSCreateArguments
+
+
+TEST_F(JSTypedLoweringTest, JSCreateArgumentsViaStub) {
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Node* const frame_state = FrameState(shared, graph()->start());
+  Reduction r = Reduce(
+      graph()->NewNode(javascript()->CreateArguments(
+                           CreateArgumentsParameters::kMappedArguments, 0),
+                       closure, context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsCall(_, IsHeapConstant(CodeFactory::ArgumentsAccess(
+                                           isolate(), false, false)
+                                           .code()),
+                     closure, IsNumberConstant(0), _, effect, control));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedMapped) {
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Node* const frame_state_outer = FrameState(shared, graph()->start());
+  Node* const frame_state_inner = FrameState(shared, frame_state_outer);
+  Reduction r = Reduce(
+      graph()->NewNode(javascript()->CreateArguments(
+                           CreateArgumentsParameters::kMappedArguments, 0),
+                       closure, context, frame_state_inner, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsFinishRegion(
+                  IsAllocate(IsNumberConstant(Heap::kSloppyArgumentsObjectSize),
+                             IsBeginRegion(effect), control),
+                  _));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedUnmapped) {
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Node* const frame_state_outer = FrameState(shared, graph()->start());
+  Node* const frame_state_inner = FrameState(shared, frame_state_outer);
+  Reduction r = Reduce(
+      graph()->NewNode(javascript()->CreateArguments(
+                           CreateArgumentsParameters::kUnmappedArguments, 0),
+                       closure, context, frame_state_inner, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsFinishRegion(
+                  IsAllocate(IsNumberConstant(Heap::kStrictArgumentsObjectSize),
+                             IsBeginRegion(effect), control),
+                  _));
 }
 
 
@@ -1087,11 +1114,47 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
 
 
 // -----------------------------------------------------------------------------
+// JSCreateFunctionContext
+
+
+TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = Parameter(Type::Any());
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r =
+      Reduce(graph()->NewNode(javascript()->CreateFunctionContext(8), closure,
+                              context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
+                                            8 + Context::MIN_CONTEXT_SLOTS)),
+                                        IsBeginRegion(effect), control),
+                             _));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaStub) {
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = Parameter(Type::Any());
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r =
+      Reduce(graph()->NewNode(javascript()->CreateFunctionContext(32), closure,
+                              context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsCall(_, IsHeapConstant(
+                            CodeFactory::FastNewContext(isolate(), 32).code()),
+                     closure, context, effect, control));
+}
+
+
+// -----------------------------------------------------------------------------
 // JSCreateWithContext
 
 
 TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
-  FLAG_turbo_allocate = true;
   Node* const object = Parameter(Type::Receiver());
   Node* const closure = Parameter(Type::Any());
   Node* const context = Parameter(Type::Any());
@@ -1103,10 +1166,74 @@ TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
                               closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
-              IsFinish(IsAllocate(IsNumberConstant(Context::SizeFor(
-                                      Context::MIN_CONTEXT_SLOTS)),
-                                  effect, control),
-                       _));
+              IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
+                                            Context::MIN_CONTEXT_SLOTS)),
+                                        IsBeginRegion(effect), control),
+                             _));
+}
+
+
+// -----------------------------------------------------------------------------
+// JSInstanceOf
+// Test that instanceOf is reduced if and only if the right-hand side is a
+// function constant. Functional correctness is ensured elsewhere.
+
+
+TEST_F(JSTypedLoweringTest, JSInstanceOfSpecializationWithoutSmiCheck) {
+  Node* const context = Parameter(Type::Any());
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+
+  // Reduce if left-hand side is known to be an object.
+  Node* instanceOf =
+      graph()->NewNode(javascript()->InstanceOf(), Parameter(Type::Object(), 0),
+                       HeapConstant(isolate()->object_function()), context,
+                       frame_state, effect, control);
+  Node* dummy = graph()->NewNode(javascript()->ToObject(), instanceOf, context,
+                                 frame_state, effect, control);
+  Reduction r = Reduce(instanceOf);
+  ASSERT_TRUE(r.Changed());
+  ASSERT_EQ(r.replacement(), dummy->InputAt(0));
+  ASSERT_NE(instanceOf, dummy->InputAt(0));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSInstanceOfSpecializationWithSmiCheck) {
+  Node* const context = Parameter(Type::Any());
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+
+  // Reduce if left-hand side could be a Smi.
+  Node* instanceOf =
+      graph()->NewNode(javascript()->InstanceOf(), Parameter(Type::Any(), 0),
+                       HeapConstant(isolate()->object_function()), context,
+                       frame_state, effect, control);
+  Node* dummy = graph()->NewNode(javascript()->ToObject(), instanceOf, context,
+                                 frame_state, effect, control);
+  Reduction r = Reduce(instanceOf);
+  ASSERT_TRUE(r.Changed());
+  ASSERT_EQ(r.replacement(), dummy->InputAt(0));
+  ASSERT_NE(instanceOf, dummy->InputAt(0));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSInstanceOfNoSpecialization) {
+  Node* const context = Parameter(Type::Any());
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+
+  // Do not reduce if right-hand side is not a function constant.
+  Node* instanceOf = graph()->NewNode(
+      javascript()->InstanceOf(), Parameter(Type::Any(), 0),
+      Parameter(Type::Any()), context, frame_state, effect, control);
+  Node* dummy = graph()->NewNode(javascript()->ToObject(), instanceOf, context,
+                                 frame_state, effect, control);
+  Reduction r = Reduce(instanceOf);
+  ASSERT_FALSE(r.Changed());
+  ASSERT_EQ(instanceOf, dummy->InputAt(0));
 }
 
 }  // namespace compiler

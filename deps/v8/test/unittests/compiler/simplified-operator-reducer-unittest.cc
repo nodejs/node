@@ -30,7 +30,8 @@ class SimplifiedOperatorReducerTest : public TypedGraphTest {
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone());
     JSOperatorBuilder javascript(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), &javascript, &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
+                    &machine);
     SimplifiedOperatorReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }

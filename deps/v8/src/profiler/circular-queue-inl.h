@@ -64,6 +64,7 @@ typename SamplingCircularQueue<T, L>::Entry* SamplingCircularQueue<T, L>::Next(
   return next;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_CIRCULAR_QUEUE_INL_H_

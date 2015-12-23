@@ -50,7 +50,7 @@ class OneByteStringStream {
   int pos_;
 };
 
-}
+}  // namespace
 
 class AstRawStringInternalizationKey : public HashTableKey {
  public:

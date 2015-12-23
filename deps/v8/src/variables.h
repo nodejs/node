@@ -124,6 +124,8 @@ class Variable: public ZoneObject {
     index_ = index;
   }
 
+  void SetFromEval() { is_from_eval_ = true; }
+
   static int CompareIndex(Variable* const* v, Variable* const* w);
 
   void RecordStrongModeReference(int start_position, int end_position) {
@@ -143,6 +145,16 @@ class Variable: public ZoneObject {
   }
   int strong_mode_reference_end_position() const {
     return strong_mode_reference_end_position_;
+  }
+  PropertyAttributes DeclarationPropertyAttributes() const {
+    int property_attributes = NONE;
+    if (IsImmutableVariableMode(mode_)) {
+      property_attributes |= READ_ONLY;
+    }
+    if (is_from_eval_) {
+      property_attributes |= EVAL_DECLARED;
+    }
+    return static_cast<PropertyAttributes>(property_attributes);
   }
 
  private:
@@ -164,6 +176,9 @@ class Variable: public ZoneObject {
   // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
+
+  // True if this variable is introduced by a sloppy eval
+  bool is_from_eval_;
 
   // Usage info.
   bool force_context_allocation_;  // set by variable resolver
@@ -193,6 +208,7 @@ class ClassVariable : public Variable {
   // checks for functions too.
   int declaration_group_start_;
 };
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VARIABLES_H_

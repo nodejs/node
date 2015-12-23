@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
@@ -12,8 +15,9 @@
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 class ContextSpecializationTester : public HandleAndZoneScope {
  public:
@@ -23,7 +27,8 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         javascript_(main_zone()),
         machine_(main_zone()),
         simplified_(main_zone()),
-        jsgraph_(main_isolate(), graph(), common(), &javascript_, &machine_),
+        jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
+                 &machine_),
         reducer_(main_zone(), graph()),
         spec_(&reducer_, jsgraph(), MaybeHandle<Context>()) {}
 
@@ -314,3 +319,7 @@ TEST(SpecializeJSFunction_ToConstant_uninit) {
     CHECK(T.Call(T.Val(-2.1), T.Val(0.0)).ToHandleChecked()->IsNaN());
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

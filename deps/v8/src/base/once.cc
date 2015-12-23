@@ -50,4 +50,5 @@ void CallOnceImpl(OnceType* once, PointerArgFunction init_func, void* arg) {
   }
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

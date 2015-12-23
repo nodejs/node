@@ -115,6 +115,7 @@ class Bignum {
   DISALLOW_COPY_AND_ASSIGN(Bignum);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BIGNUM_H_

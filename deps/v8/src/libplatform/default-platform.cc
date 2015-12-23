@@ -168,4 +168,5 @@ double DefaultPlatform::MonotonicallyIncreasingTime() {
   return base::TimeTicks::HighResolutionNow().ToInternalValue() /
          static_cast<double>(base::Time::kMicrosecondsPerSecond);
 }
-} }  // namespace v8::platform
+}  // namespace platform
+}  // namespace v8

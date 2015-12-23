@@ -125,7 +125,7 @@ ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 //   - Bool: a tagged pointer to either the canonical JS #false or
 //           the canonical JS #true object
 //   - Bit: an untagged integer 0 or 1, but word-sized
-class SimplifiedOperatorBuilder final {
+class SimplifiedOperatorBuilder final : public ZoneObject {
  public:
   explicit SimplifiedOperatorBuilder(Zone* zone);
 
@@ -140,6 +140,9 @@ class SimplifiedOperatorBuilder final {
   const Operator* NumberMultiply();
   const Operator* NumberDivide();
   const Operator* NumberModulus();
+  const Operator* NumberBitwiseOr();
+  const Operator* NumberBitwiseXor();
+  const Operator* NumberBitwiseAnd();
   const Operator* NumberShiftLeft();
   const Operator* NumberShiftRight();
   const Operator* NumberShiftRightLogical();
@@ -163,6 +166,7 @@ class SimplifiedOperatorBuilder final {
   const Operator* ChangeBoolToBit();
   const Operator* ChangeBitToBool();
 
+  const Operator* ObjectIsNumber();
   const Operator* ObjectIsSmi();
 
   const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);

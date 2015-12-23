@@ -721,5 +721,5 @@ RUNTIME_FUNCTION(Runtime_AtomicsIsLockFree) {
   uint32_t usize = NumberToUint32(*size);
   return isolate->heap()->ToBoolean(AtomicIsLockFree(usize));
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

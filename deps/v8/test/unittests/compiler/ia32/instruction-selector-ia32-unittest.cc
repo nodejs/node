@@ -249,7 +249,8 @@ TEST_P(InstructionSelectorMemoryAccessTest, LoadWithImmediateIndex) {
 TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
   StreamBuilder m(this, kMachInt32, kMachPtr, kMachInt32, memacc.type);
-  m.Store(memacc.type, m.Parameter(0), m.Parameter(1), m.Parameter(2));
+  m.Store(memacc.type, m.Parameter(0), m.Parameter(1), m.Parameter(2),
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -263,7 +264,8 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithImmediateBase) {
   const MemoryAccess memacc = GetParam();
   TRACED_FOREACH(int32_t, base, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32, memacc.type);
-    m.Store(memacc.type, m.Int32Constant(base), m.Parameter(0), m.Parameter(1));
+    m.Store(memacc.type, m.Int32Constant(base), m.Parameter(0), m.Parameter(1),
+            kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -284,8 +286,8 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithImmediateIndex) {
   const MemoryAccess memacc = GetParam();
   TRACED_FOREACH(int32_t, index, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachPtr, memacc.type);
-    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index),
-            m.Parameter(1));
+    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index), m.Parameter(1),
+            kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -319,7 +321,7 @@ class AddressingModeUnitTest : public InstructionSelectorTest {
   void Run(Node* base, Node* load_index, Node* store_index,
            AddressingMode mode) {
     Node* load = m->Load(kMachInt32, base, load_index);
-    m->Store(kMachInt32, base, store_index, load);
+    m->Store(kMachInt32, base, store_index, load, kNoWriteBarrier);
     m->Return(m->Int32Constant(0));
     Stream s = m->Build();
     ASSERT_EQ(2U, s.size());

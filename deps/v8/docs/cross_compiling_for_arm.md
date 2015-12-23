@@ -118,7 +118,7 @@ export ARM_TARGET_LIB=/opt/codesourcery/arm-2010.09-103/arm-none-linux-gnueabi/l
 
 cd target
 
-scons -Y$V8DIR wordsize=32 snapshot=nobuild arch=armsample=shell
+scons -Y$V8DIR wordsize=32 snapshot=nobuild arch=armsample=shell 
 rm $V8DIR/src/snapshot.cc
 
 cd ..

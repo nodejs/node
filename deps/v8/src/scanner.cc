@@ -1395,7 +1395,7 @@ bool Scanner::ScanRegExpFlags() {
   }
   literal.Complete();
 
-  next_.location.end_pos = source_pos() - 1;
+  next_.location.end_pos = source_pos();
   return true;
 }
 

@@ -50,50 +50,8 @@ namespace internal {
 bool CpuFeatures::SupportsCrankshaft() { return IsSupported(VFP3); }
 
 
-int Register::NumAllocatableRegisters() {
-  return kMaxNumAllocatableRegisters;
-}
-
-
-int DwVfpRegister::NumRegisters() {
+int DoubleRegister::NumRegisters() {
   return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
-}
-
-
-int DwVfpRegister::NumReservedRegisters() {
-  return kNumReservedRegisters;
-}
-
-
-int DwVfpRegister::NumAllocatableRegisters() {
-  return NumRegisters() - kNumReservedRegisters;
-}
-
-
-// static
-int DwVfpRegister::NumAllocatableAliasedRegisters() {
-  return LowDwVfpRegister::kMaxNumLowRegisters - kNumReservedRegisters;
-}
-
-
-int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
-  DCHECK(!reg.is(kDoubleRegZero));
-  DCHECK(!reg.is(kScratchDoubleReg));
-  if (reg.code() > kDoubleRegZero.code()) {
-    return reg.code() - kNumReservedRegisters;
-  }
-  return reg.code();
-}
-
-
-DwVfpRegister DwVfpRegister::FromAllocationIndex(int index) {
-  DCHECK(index >= 0 && index < NumAllocatableRegisters());
-  DCHECK(kScratchDoubleReg.code() - kDoubleRegZero.code() ==
-         kNumReservedRegisters - 1);
-  if (index >= kDoubleRegZero.code()) {
-    return from_code(index + kNumReservedRegisters);
-  }
-  return from_code(index);
 }
 
 
@@ -666,6 +624,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_ASSEMBLER_ARM_INL_H_

@@ -311,6 +311,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_CODE_STUBS_ARM_H_

@@ -44,6 +44,7 @@
       'extension': 'isolate',
       'inputs': [
         # Files that are known to be involved in this step.
+        '<(DEPTH)/tools/isolate_driver.py',
         '<(DEPTH)/tools/swarming_client/isolate.py',
         '<(DEPTH)/tools/swarming_client/run_isolated.py',
       ],
@@ -52,7 +53,7 @@
       ],
       'action': [
         'python',
-        '<(DEPTH)/tools/swarming_client/isolate.py',
+        '<(DEPTH)/tools/isolate_driver.py',
         '<(test_isolation_mode)',
         '--isolated', '<(PRODUCT_DIR)/<(RULE_INPUT_ROOT).isolated',
         '--isolate', '<(RULE_INPUT_PATH)',
@@ -66,8 +67,29 @@
         '--path-variable', 'DEPTH', '<(DEPTH)',
         '--path-variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
 
+        '--config-variable', 'CONFIGURATION_NAME=<(CONFIGURATION_NAME)',
         '--config-variable', 'OS=<(OS)',
+        '--config-variable', 'asan=<(asan)',
+        '--config-variable', 'cfi_vptr=<(cfi_vptr)',
+        '--config-variable', 'icu_use_data_file_flag=0',
+        '--config-variable', 'msan=<(msan)',
+        '--config-variable', 'tsan=<(tsan)',
+        '--config-variable', 'component=<(component)',
+        '--config-variable', 'target_arch=<(target_arch)',
+        '--config-variable', 'use_custom_libcxx=<(use_custom_libcxx)',
         '--config-variable', 'v8_use_external_startup_data=<(v8_use_external_startup_data)',
+        '--config-variable', 'v8_use_snapshot=<(v8_use_snapshot)',
+      ],
+      'conditions': [
+        ['OS=="win"', {
+          'action': [
+            '--config-variable', 'msvs_version=2013',
+          ],
+        }, {
+          'action': [
+            '--config-variable', 'msvs_version=0',
+          ],
+        }],
       ],
     },
   ],

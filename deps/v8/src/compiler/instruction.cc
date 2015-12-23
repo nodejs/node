@@ -74,11 +74,15 @@ std::ostream& operator<<(std::ostream& os,
         case UnallocatedOperand::NONE:
           return os;
         case UnallocatedOperand::FIXED_REGISTER:
-          return os << "(=" << conf->general_register_name(
-                                   unalloc->fixed_register_index()) << ")";
+          return os << "(="
+                    << conf->GetGeneralRegisterName(
+                           unalloc->fixed_register_index())
+                    << ")";
         case UnallocatedOperand::FIXED_DOUBLE_REGISTER:
-          return os << "(=" << conf->double_register_name(
-                                   unalloc->fixed_register_index()) << ")";
+          return os << "(="
+                    << conf->GetDoubleRegisterName(
+                           unalloc->fixed_register_index())
+                    << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
         case UnallocatedOperand::MUST_HAVE_SLOT:
@@ -101,25 +105,22 @@ std::ostream& operator<<(std::ostream& os,
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
     }
+    case InstructionOperand::EXPLICIT:
     case InstructionOperand::ALLOCATED: {
-      auto allocated = AllocatedOperand::cast(op);
-      switch (allocated.allocated_kind()) {
-        case AllocatedOperand::STACK_SLOT:
-          os << "[stack:" << StackSlotOperand::cast(op).index();
-          break;
-        case AllocatedOperand::DOUBLE_STACK_SLOT:
-          os << "[double_stack:" << DoubleStackSlotOperand::cast(op).index();
-          break;
-        case AllocatedOperand::REGISTER:
-          os << "["
-             << conf->general_register_name(RegisterOperand::cast(op).index())
-             << "|R";
-          break;
-        case AllocatedOperand::DOUBLE_REGISTER:
-          os << "["
-             << conf->double_register_name(
-                    DoubleRegisterOperand::cast(op).index()) << "|R";
-          break;
+      auto allocated = LocationOperand::cast(op);
+      if (op.IsStackSlot()) {
+        os << "[stack:" << LocationOperand::cast(op).index();
+      } else if (op.IsDoubleStackSlot()) {
+        os << "[double_stack:" << LocationOperand::cast(op).index();
+      } else if (op.IsRegister()) {
+        os << "[" << LocationOperand::cast(op).GetRegister().ToString() << "|R";
+      } else {
+        DCHECK(op.IsDoubleRegister());
+        os << "[" << LocationOperand::cast(op).GetDoubleRegister().ToString()
+           << "|R";
+      }
+      if (allocated.IsExplicit()) {
+        os << "|E";
       }
       switch (allocated.machine_type()) {
         case kRepWord32:
@@ -178,11 +179,11 @@ MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
   MoveOperands* to_eliminate = nullptr;
   for (auto curr : *this) {
     if (curr->IsEliminated()) continue;
-    if (curr->destination().EqualsModuloType(move->source())) {
+    if (curr->destination().EqualsCanonicalized(move->source())) {
       DCHECK(!replacement);
       replacement = curr;
       if (to_eliminate != nullptr) break;
-    } else if (curr->destination().EqualsModuloType(move->destination())) {
+    } else if (curr->destination().EqualsCanonicalized(move->destination())) {
       DCHECK(!to_eliminate);
       to_eliminate = curr;
       if (replacement != nullptr) break;
@@ -191,6 +192,16 @@ MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
   DCHECK_IMPLIES(replacement == to_eliminate, replacement == nullptr);
   if (replacement != nullptr) move->set_source(replacement->source());
   return to_eliminate;
+}
+
+
+ExplicitOperand::ExplicitOperand(LocationKind kind, MachineType machine_type,
+                                 int index)
+    : LocationOperand(EXPLICIT, kind, machine_type, index) {
+  DCHECK_IMPLIES(kind == REGISTER && !IsFloatingPoint(machine_type),
+                 Register::from_code(index).IsAllocatable());
+  DCHECK_IMPLIES(kind == REGISTER && IsFloatingPoint(machine_type),
+                 DoubleRegister::from_code(index).IsAllocatable());
 }
 
 
@@ -260,7 +271,7 @@ std::ostream& operator<<(std::ostream& os,
 
 void ReferenceMap::RecordReference(const AllocatedOperand& op) {
   // Do not record arguments as pointers.
-  if (op.IsStackSlot() && StackSlotOperand::cast(op).index() < 0) return;
+  if (op.IsStackSlot() && LocationOperand::cast(op).index() < 0) return;
   DCHECK(!op.IsDoubleRegister() && !op.IsDoubleStackSlot());
   reference_operands_.push_back(op);
 }
@@ -269,8 +280,9 @@ void ReferenceMap::RecordReference(const AllocatedOperand& op) {
 std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm) {
   os << "{";
   bool first = true;
-  PrintableInstructionOperand poi = {RegisterConfiguration::ArchDefault(),
-                                     InstructionOperand()};
+  PrintableInstructionOperand poi = {
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
+      InstructionOperand()};
   for (auto& op : pm.reference_operands_) {
     if (!first) {
       os << ";";
