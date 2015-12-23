@@ -4,7 +4,6 @@
 require('../common');
 var Stream = require('stream').Stream;
 var assert = require('assert');
-var util = require('util');
 
 var sourceStream = new Stream();
 var destStream = new Stream();

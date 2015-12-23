@@ -3,8 +3,7 @@
 require('../common');
 var assert = require('assert');
 
-var url = require('url'),
-    util = require('util');
+var url = require('url');
 
 // URLs to parse, and expected data
 // { url : parsed }
