@@ -381,3 +381,7 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
     return expectedExitCodes.indexOf(exitCode) > -1;
   }
 };
+
+// Skip test instead of fail when memory constrained
+exports.enoughTestMem = os.totalmem() > 0x20000000; /* 512MB */
+
