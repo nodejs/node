@@ -3,8 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 var path = require('path'),
-    fs = require('fs'),
-    util = require('util');
+    fs = require('fs');
 
 
 var filepath = path.join(common.tmpDir, 'write_pos.txt');
