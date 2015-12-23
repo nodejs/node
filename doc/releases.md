@@ -198,7 +198,7 @@ The _tools/release.sh_ script should be used to promote and sign the build. When
 
 **c.** Log in to the server via SSH and run the promote script for the given release. The command on the server will be similar to: `dist-promote vx.y.z`. After this step, the release artifacts will be available for download and a SHASUMS256.txt file will be present. The release will still be unsigned, however.
 
-**d.** Use SCP to download SHASUMS256.txt to a temporary directory on your computer.
+**d.** Use `scp` to download SHASUMS256.txt to a temporary directory on your computer.
 
 **e.** Sign the SHASUMS256.txt file using a command similar to: `gpg --default-key YOURKEY --clearsign /path/to/SHASUMS256.txt`. You will be prompted by GPG for your password. The signed file will be named SHASUMS256.txt.asc.
 
