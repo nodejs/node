@@ -271,8 +271,6 @@ assert.throws(makeBlock(a.deepStrictEqual, new Boolean(true), {}),
 function thrower(errorConstructor) {
   throw new errorConstructor('test');
 }
-var aethrow = makeBlock(thrower, a.AssertionError);
-aethrow = makeBlock(thrower, a.AssertionError);
 
 // the basic calls work
 assert.throws(makeBlock(thrower, a.AssertionError),
