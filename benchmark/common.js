@@ -86,7 +86,7 @@ function Benchmark(fn, options) {
   this.options = options;
   this.config = parseOpts(options);
   this._name = require.main.filename.split(/benchmark[\/\\]/).pop();
-  this._start = [0,0];
+  this._start = [0, 0];
   this._started = false;
 
   var self = this;
@@ -221,8 +221,8 @@ Benchmark.prototype.end = function(operations) {
   if (typeof operations !== 'number')
     throw new Error('called end() without specifying operation count');
 
-  var time = elapsed[0] + elapsed[1]/1e9;
-  var rate = operations/time;
+  var time = elapsed[0] + elapsed[1] / 1e9;
+  var rate = operations / time;
   this.report(rate);
 };
 
@@ -230,7 +230,7 @@ Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
 
   if (outputFormat == 'default')
-    console.log('%s: %s', heading, value.toFixed(5));
+    console.log('%s: %s ops/sec', heading, value.toFixed(5));
   else if (outputFormat == 'csv')
     console.log('%s,%s', heading, value.toFixed(5));
 
