@@ -36,12 +36,10 @@ if (process.argv[2] === 'child') {
       stderrOutput += data.toString();
     });
 
-    child.on('close', function onChildClosed() {
+    child.on('exit', function onChildExited(exitCode, signal) {
       assert(stderrOutput.indexOf(domainErrHandlerExMessage) !== -1);
       assert(stderrOutput.indexOf(internalExMessage) === -1);
-    });
 
-    child.on('exit', function onChildExited(exitCode, signal) {
       var expectedExitCode = 7;
       var expectedSignal = null;
 
