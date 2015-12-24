@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 
 process.on('uncaughtException', function() { });
 

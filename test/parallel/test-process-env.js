@@ -4,7 +4,7 @@
 // first things first, set the timezone; see tzset(3)
 process.env.TZ = 'Europe/Amsterdam';
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 

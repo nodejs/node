@@ -10,7 +10,7 @@
  * This behavior is a private implementation detail and should not be
  * considered public interface.
  */
-const common = require('../common');
+require('../common');
 const timers = require('timers');
 const assert = require('assert');
 

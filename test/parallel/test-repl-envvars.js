@@ -2,7 +2,7 @@
 
 // Flags: --expose-internals
 
-const common = require('../common');
+require('../common');
 const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
