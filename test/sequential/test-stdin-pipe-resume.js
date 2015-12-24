@@ -1,6 +1,6 @@
 'use strict';
 // This tests that piping stdin will cause it to resume() as well.
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 if (process.argv[2] === 'child') {

@@ -2,7 +2,7 @@
 // Test that having a bunch of streams piping in parallel
 // doesn't break anything.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var Stream = require('stream').Stream;
 var rr = [];

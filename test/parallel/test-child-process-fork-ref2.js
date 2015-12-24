@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var fork = require('child_process').fork;
 
