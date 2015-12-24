@@ -1,6 +1,6 @@
 /* eslint-disable max-len */
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var url = require('url'),

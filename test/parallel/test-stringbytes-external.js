@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 // minimum string size to overflow into external string space
 var EXTERN_APEX = 0xFBEE9;

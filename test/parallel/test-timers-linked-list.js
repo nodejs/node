@@ -1,8 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var L = require('_linklist');
-
+require('../common');
+const assert = require('assert');
+const L = require('_linklist');
 
 var list = { name: 'list' };
 var A = { name: 'A' };

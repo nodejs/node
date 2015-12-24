@@ -1,7 +1,7 @@
 'use strict';
 // Simple tests of most basic domain functionality.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 // timeouts call the callback directly from cc, so need to make sure the
