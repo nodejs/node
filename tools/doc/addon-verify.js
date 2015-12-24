@@ -51,6 +51,12 @@ function once(fn) {
 function verifyFiles(files, onprogress, ondone) {
   var dir = path.resolve(verifyDir, 'doc-' + id++);
 
+  // must have a .cc and a .js to be a valid test
+  if (!Object.keys(files).some((name) => /\.cc$/.test(name)) ||
+      !Object.keys(files).some((name) => /\.js$/.test(name))) {
+    return;
+  }
+
   files = Object.keys(files).map(function(name) {
     return {
       path: path.resolve(dir, name),
@@ -58,6 +64,7 @@ function verifyFiles(files, onprogress, ondone) {
       content: files[name]
     };
   });
+
   files.push({
     path: path.resolve(dir, 'binding.gyp'),
     content: JSON.stringify({
