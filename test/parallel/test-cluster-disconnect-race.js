@@ -1,5 +1,6 @@
 'use strict';
 
+// This code triggers an AssertionError on Linux in Node.js 5.3.0 and earlier.
 // Ref: https://github.com/nodejs/node/issues/4205
 
 const common = require('../common');
