@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
+require('../common');
+var assert = require('assert'),
     vm     = require('vm');
 
 assert.doesNotThrow(function() {

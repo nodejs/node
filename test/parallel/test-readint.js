@@ -2,7 +2,7 @@
 /*
  * Tests to verify we're reading in signed integers correctly
  */
-var common = require('../common');
+require('../common');
 var ASSERT = require('assert');
 
 /*

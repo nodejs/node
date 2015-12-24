@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const punycode = require('punycode');
 
 // This test verifies that line numbers in core modules are reported correctly.

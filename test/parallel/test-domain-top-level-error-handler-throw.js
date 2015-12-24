@@ -7,7 +7,7 @@
  * top-level error handler, not the one from the previous error.
  */
 
-const common = require('../common');
+require('../common');
 
 const domainErrHandlerExMessage = 'exception from domain error handler';
 const internalExMessage = 'You should NOT see me';

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var buffer = new Buffer([1, 2, 3, 4, 5]);

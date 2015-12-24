@@ -1,7 +1,7 @@
 'use strict';
 // tests zlib streams with truncated compressed input
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const zlib = require ('zlib');
 
