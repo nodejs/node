@@ -51,7 +51,7 @@ ipch/
 /npm.wxs
 /tools/msvs/npm.wixobj
 /tools/osx-pkg.pmdoc/index.xml
-/test/addons/doc-*/
+/test/addons/??_*/
 email.md
 deps/v8-*
 deps/icu

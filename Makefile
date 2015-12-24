@@ -105,12 +105,12 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
 test/addons/.docbuildstamp: doc/api/addons.markdown
-	$(RM) -r test/addons/doc-*/
+	$(RM) -r test/addons/??_*/
 	$(NODE) tools/doc/addon-verify.js
 	touch $@
 
 ADDONS_BINDING_GYPS := \
-	$(filter-out test/addons/doc-*/binding.gyp, \
+	$(filter-out test/addons/??_*/binding.gyp, \
 		$(wildcard test/addons/*/binding.gyp))
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
@@ -520,7 +520,7 @@ CPPLINT_EXCLUDE += src/node_win32_perfctr_provider.cc
 CPPLINT_EXCLUDE += src/queue.h
 CPPLINT_EXCLUDE += src/tree.h
 CPPLINT_EXCLUDE += src/v8abbr.h
-CPPLINT_EXCLUDE += $(wildcard test/addons/doc-*/*.cc test/addons/doc-*/*.h)
+CPPLINT_EXCLUDE += $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
 
 CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	deps/debugger-agent/include/* \
