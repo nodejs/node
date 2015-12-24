@@ -135,6 +135,7 @@ Valid `rrtype`s are:
  * `'SRV'` (service records)
  * `'SSHP'` (SSH host fingerprint records)
  * `'TXT'` (text records)
+ * `'*'` (any records)
 
 The `callback` has arguments `(err, addresses)`.  The type of each item in
 `addresses` is determined by the record type and is described in the
@@ -293,6 +294,22 @@ case, they could be either joined together or treated separately.
 
 ```
 [ 'v=spf1 ip4:0.0.0.0 ', '~all' ]
+```
+
+## dns.resolveAny(hostname, callback)
+
+The same as [`dns.resolve()`][], but for *any* records for `hostname`.
+
+`addresses` is an array of objects describing the records available for
+`hostname`.
+
+Each object may look like:
+
+```
+{
+  type: 'A',
+  data: '192.168.100.10'
+}
 ```
 
 ## dns.reverse(ip, callback)
