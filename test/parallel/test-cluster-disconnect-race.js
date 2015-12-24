@@ -4,6 +4,7 @@
 // Ref: https://github.com/nodejs/node/issues/4205
 
 const common = require('../common');
+const assert = require('assert');
 const net = require('net');
 const cluster = require('cluster');
 cluster.schedulingPolicy = cluster.SCHED_NONE;
@@ -17,6 +18,10 @@ if (cluster.isMaster) {
     worker1.disconnect();
     worker2.on('online', common.mustCall(worker2.disconnect));
   }));
+
+  cluster.on('exit', function(worker, code) {
+    assert.strictEqual(code, 0, 'worker exited with error');
+  });
 
   return;
 }
