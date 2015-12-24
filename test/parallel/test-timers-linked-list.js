@@ -2,7 +2,7 @@
 
 // Flags: --expose-internals
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const L = require('_linklist');
 const internalL = require('internal/linkedlist');

@@ -1,7 +1,7 @@
 'use strict';
 // Flags: --harmony_proxies
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var vm = require('vm');
 

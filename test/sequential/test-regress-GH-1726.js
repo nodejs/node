@@ -4,7 +4,7 @@
 // exit when its child exits.
 // https://github.com/joyent/node/issues/1726
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var ch = require('child_process');
 

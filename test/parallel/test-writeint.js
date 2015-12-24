@@ -2,7 +2,7 @@
 /*
  * Tests to verify we're writing signed integers correctly
  */
-var common = require('../common');
+require('../common');
 var ASSERT = require('assert');
 
 function test8(clazz) {

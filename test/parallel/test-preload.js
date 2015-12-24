@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
+require('../common');
+var assert = require('assert'),
     path = require('path'),
     child_process = require('child_process');
 

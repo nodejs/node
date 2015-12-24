@@ -1,7 +1,7 @@
 'use strict';
 // Make sure that sync writes to stderr get processed before exiting.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var util = require('util');
 

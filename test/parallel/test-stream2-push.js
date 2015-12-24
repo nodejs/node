@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var stream = require('stream');
 var Readable = stream.Readable;
 var Writable = stream.Writable;

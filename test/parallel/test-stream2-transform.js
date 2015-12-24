@@ -1,6 +1,6 @@
 'use strict';
+require('../common');
 var assert = require('assert');
-var common = require('../common');
 var PassThrough = require('_stream_passthrough');
 var Transform = require('_stream_transform');
 
