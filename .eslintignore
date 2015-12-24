@@ -1,5 +1,5 @@
 lib/punycode.js
-test/addons/doc-*/
+test/addons/??_*/
 test/fixtures
 test/**/node_modules
 test/disabled
