@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 
 // no warnings should happen!
 var trace = console.trace;

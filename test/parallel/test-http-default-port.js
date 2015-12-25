@@ -57,7 +57,7 @@ if (common.hasCrypto) {
     res.end('ok');
     this.close();
   }).listen(SSLPORT, function() {
-    var req = https.get({
+    https.get({
       host: 'localhost',
       rejectUnauthorized: false,
       headers: {

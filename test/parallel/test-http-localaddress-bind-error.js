@@ -17,7 +17,7 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(common.PORT, '127.0.0.1', function() {
-  var req = http.request({
+  http.request({
     host: 'localhost',
     port: common.PORT,
     path: '/',
