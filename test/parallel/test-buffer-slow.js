@@ -30,7 +30,7 @@ assert.strictEqual(SlowBuffer(0).length, 0);
 try {
   assert.strictEqual(SlowBuffer(buffer.kMaxLength).length, buffer.kMaxLength);
 } catch (e) {
-  assert.equal(e.message, 'Invalid array buffer length');
+  assert.equal(e.message, 'Array buffer allocation failed');
 }
 
 // should work with number-coercible values
