@@ -18,7 +18,7 @@ var server = http.Server(function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  var req = http.get({port: common.PORT}, function(res) {
+  http.get({port: common.PORT}, function(res) {
     server.close();
   });
 });
