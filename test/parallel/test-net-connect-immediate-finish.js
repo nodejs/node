@@ -11,7 +11,8 @@ client.once('error', common.mustCall(function(err) {
   assert.strictEqual(err.code, 'ENOTFOUND');
   assert.strictEqual(err.host, err.hostname);
   assert.strictEqual(err.host, '...');
-  assert.strictEqual(err.syscall, 'getaddrinfo');
+  if (process.oldDNS)
+    assert.strictEqual(err.syscall, 'getaddrinfo');
 }));
 
 client.end();

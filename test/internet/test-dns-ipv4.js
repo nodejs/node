@@ -37,7 +37,8 @@ function TEST(f) {
 }
 
 function checkWrap(req) {
-  assert.ok(typeof req === 'object');
+  if (process.oldDNS)
+    assert.ok(typeof req === 'object');
 }
 
 TEST(function test_resolve4(done) {

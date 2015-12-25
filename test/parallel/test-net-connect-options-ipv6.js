@@ -40,7 +40,8 @@ function tryConnect() {
       server.close();
     });
   }).on('error', function(err) {
-    if (err.syscall === 'getaddrinfo' && err.code === 'ENOTFOUND') {
+    if (err.code === 'ENOTFOUND' &&
+        (!process.oldDNS || err.syscall === 'getaddrinfo')) {
       if (host !== 'localhost' || --localhostTries === 0)
         host = hosts[++hostIdx];
       if (host)

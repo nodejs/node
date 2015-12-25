@@ -12,12 +12,12 @@ const zlib = require('zlib');
 const ChildProcess = require('child_process').ChildProcess;
 const StreamWrap = require('_stream_wrap').StreamWrap;
 const async_wrap = process.binding('async_wrap');
+const NSSReqWrap = process.binding('nss_wrap').NSSReqWrap;
 const pkeys = Object.keys(async_wrap.Providers);
 
 let keyList = pkeys.slice();
 // Drop NONE
 keyList.splice(0, 1);
-
 
 function init(id) {
   keyList = keyList.filter(e => e != pkeys[id]);
@@ -89,6 +89,17 @@ function checkTLS() {
 zlib.createGzip();
 
 new ChildProcess();
+
+if (common.isWindows || process.oldDNS)
+  keyList.splice(keyList.indexOf('NSSREQWRAP'), 1);
+
+if (!process.oldDNS) {
+  const unused = ['GETADDRINFOREQWRAP', 'GETNAMEINFOREQWRAP', 'QUERYWRAP'];
+  keyList = keyList.filter(function(k) { return unused.indexOf(k) === -1; });
+
+  if (!common.isWindows)
+    new NSSReqWrap('foobarbazhostname', -1);
+}
 
 process.on('exit', function() {
   if (keyList.length !== 0) {

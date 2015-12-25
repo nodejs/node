@@ -106,6 +106,8 @@ namespace node {
   V(fsevent_string, "FSEvent")                                                \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
+  V(hasbyaddr_string, "hasByAddr")                                            \
+  V(hasbyname_string, "hasByName")                                            \
   V(heap_total_string, "heapTotal")                                           \
   V(heap_used_string, "heapUsed")                                             \
   V(hostmaster_string, "hostmaster")                                          \

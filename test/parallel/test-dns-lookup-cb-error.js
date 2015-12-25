@@ -1,4 +1,8 @@
 'use strict';
+
+if (!process.oldDNS)
+  process.exit(0);
+
 var common = require('../common');
 var assert = require('assert');
 var cares = process.binding('cares_wrap');
