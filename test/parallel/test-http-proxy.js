@@ -25,7 +25,7 @@ var backend = http.createServer(function(req, res) {
 
 var proxy = http.createServer(function(req, res) {
   console.error('proxy req headers: ' + JSON.stringify(req.headers));
-  var proxy_req = http.get({
+  http.get({
     port: BACKEND_PORT,
     path: url.parse(req.url).pathname
   }, function(proxy_res) {
@@ -56,7 +56,7 @@ function startReq() {
   nlistening++;
   if (nlistening < 2) return;
 
-  var client = http.get({
+  http.get({
     port: PROXY_PORT,
     path: '/test'
   }, function(res) {
