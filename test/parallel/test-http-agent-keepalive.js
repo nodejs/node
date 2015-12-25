@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const Agent = require('_http_agent').Agent;
-const EventEmitter = require('events').EventEmitter;
 
 const agent = new Agent({
   keepAlive: true,

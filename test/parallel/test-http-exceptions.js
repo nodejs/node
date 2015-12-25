@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 var http = require('http');
 
 var server = http.createServer(function(req, res) {
@@ -11,9 +10,8 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  var req;
   for (var i = 0; i < 4; i += 1) {
-    req = http.get({ port: common.PORT, path: '/busy/' + i });
+    http.get({ port: common.PORT, path: '/busy/' + i });
   }
 });
 
