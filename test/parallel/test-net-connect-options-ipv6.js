@@ -47,7 +47,6 @@ function tryConnect() {
         tryConnect();
       else {
         console.log('1..0 # Skipped: no IPv6 localhost support');
-        process.removeListener('exit', onExit);
         server.close();
       }
       return;
