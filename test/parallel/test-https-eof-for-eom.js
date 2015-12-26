@@ -53,7 +53,7 @@ var bodyBuffer = '';
 
 server.listen(common.PORT, function() {
   console.log('1) Making Request');
-  var req = https.get({
+  https.get({
     port: common.PORT,
     rejectUnauthorized: false
   }, function(res) {

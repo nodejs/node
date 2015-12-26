@@ -110,7 +110,7 @@ function makeReq(path, port, error, host, ca) {
     path: path,
     ca: ca
   };
-  var whichCa = 0;
+
   if (!ca) {
     options.agent = agent0;
   } else {

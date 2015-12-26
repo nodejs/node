@@ -10,7 +10,6 @@ if (!common.hasCrypto) {
 const TOTAL_REQS = 2;
 
 const https = require('https');
-const crypto = require('crypto');
 
 const fs = require('fs');
 
