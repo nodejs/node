@@ -255,6 +255,9 @@ exports.spawnPwd = function(options) {
 };
 
 exports.platformTimeout = function(ms) {
+  if (process.config.target_defaults.default_configuration === 'Debug')
+    ms = 2 * ms;
+
   if (process.arch !== 'arm')
     return ms;
 
