@@ -9,7 +9,7 @@ var success_count = 0;
 var str = 'hello';
 
 // default encoding
-var child = exec('echo ' + str, function(err, stdout, stderr) {
+exec('echo ' + str, function(err, stdout, stderr) {
   assert.ok('string', typeof(stdout), 'Expected stdout to be a string');
   assert.ok('string', typeof(stderr), 'Expected stderr to be a string');
   assert.equal(str + os.EOL, stdout);

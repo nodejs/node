@@ -2,8 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 
-var spawn = require('child_process').spawn;
-
 var pwd_called = false;
 var childClosed = false;
 var childExited = false;
