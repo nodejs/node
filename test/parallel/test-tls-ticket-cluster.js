@@ -42,7 +42,6 @@ if (cluster.isMaster) {
 
   function fork() {
     var worker = cluster.fork();
-    var workerReqCount = 0;
     worker.on('message', function(msg) {
       console.error('[master] got %j', msg);
       if (msg === 'reused') {

@@ -11,7 +11,6 @@ var tls = require('tls');
 var fs = require('fs');
 var util = require('util');
 var join = require('path').join;
-var spawn = require('child_process').spawn;
 
 var options = {
   key: fs.readFileSync(join(common.fixturesDir, 'agent.key')),

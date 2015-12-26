@@ -14,8 +14,6 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var cert = null;
-
 assert.throws(function() {
   tls.createSecureContext(options);
 });

@@ -9,7 +9,6 @@ if (!common.hasCrypto) {
 const tls = require('tls');
 
 const fs = require('fs');
-const net = require('net');
 
 const sent = 'hello world';
 
