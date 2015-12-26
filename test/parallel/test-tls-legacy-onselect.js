@@ -17,10 +17,6 @@ function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
 }
 
-function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
-}
-
 var server = net.Server(function(raw) {
   var pair = tls.createSecurePair(null, true, false, false);
   pair.on('error', function() {});
