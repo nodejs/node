@@ -459,9 +459,9 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
               }
             }
           } else {
-            /* We already have the long name of the file, so just use it. */
-            filenamew = handle->filew;
-            sizew = -1;
+          /* Switched to using file_info->FileName for filename accuracy. handle->filew is a closest match not accurate path. */
+            filenamew = file_info->FileName;
+            sizew = file_info->FileNameLength / sizeof(WCHAR);
           }
 
           if (filenamew) {
