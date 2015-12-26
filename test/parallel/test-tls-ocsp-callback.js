@@ -41,7 +41,6 @@ function test(testOptions, cb) {
   var clientSecure = 0;
   var ocspCount = 0;
   var ocspResponse;
-  var session;
 
   if (testOptions.pfx) {
     delete options.key;

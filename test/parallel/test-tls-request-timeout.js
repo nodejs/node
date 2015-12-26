@@ -29,7 +29,7 @@ var server = tls.Server(options, function(socket) {
 });
 
 server.listen(common.PORT, function() {
-  var socket = tls.connect({
+  tls.connect({
     port: common.PORT,
     rejectUnauthorized: false
   });

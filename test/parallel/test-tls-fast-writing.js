@@ -20,7 +20,7 @@ var server = tls.createServer(options, onconnection);
 var gotChunk = false;
 var gotDrain = false;
 
-var timer = setTimeout(function() {
+setTimeout(function() {
   console.log('not ok - timed out');
   process.exit(1);
 }, common.platformTimeout(500));
