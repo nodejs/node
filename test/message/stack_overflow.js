@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-var assert = require('assert');
 
 Error.stackTraceLimit = 0;
 
