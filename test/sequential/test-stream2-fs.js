@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var R = require('_stream_readable');
 var assert = require('assert');
 
 var fs = require('fs');
@@ -41,7 +40,6 @@ var w = new TestWriter();
 w.on('results', function(res) {
   console.error(res, w.length);
   assert.equal(w.length, size);
-  var l = 0;
   assert.deepEqual(res.map(function(c) {
     return c.length;
   }), expectLengths);

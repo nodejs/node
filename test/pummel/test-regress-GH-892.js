@@ -17,11 +17,7 @@ var https = require('https');
 
 var fs = require('fs');
 
-var PORT = 8000;
-
-
 var bytesExpected = 1024 * 1024 * 32;
-var gotResponse = false;
 
 var started = false;
 

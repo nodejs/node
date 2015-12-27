@@ -157,7 +157,6 @@ test('pipe', function(t) {
                  'xxxxx' ];
 
   var w = new TestWriter();
-  var flush = true;
 
   w.on('end', function(received) {
     t.same(received, expect);
@@ -439,7 +438,6 @@ test('adding readable triggers data flow', function(t) {
       r.push(new Buffer('asdf'));
   };
 
-  var called = false;
   r.on('readable', function() {
     onReadable = true;
     r.read();

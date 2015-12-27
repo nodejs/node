@@ -44,7 +44,7 @@ monoTimer.ontimeout = function() {
 
 monoTimer.start(300, 0);
 
-var timer = setTimeout(function() {
+setTimeout(function() {
   timerFired = true;
 }, 200);
 

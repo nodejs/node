@@ -6,7 +6,6 @@ var fs = require('fs');
 var path = require('path');
 
 var f = path.join(common.fixturesDir, 'x.txt');
-var f2 = path.join(common.fixturesDir, 'x2.txt');
 
 console.log('watching for changes of ' + f);
 

@@ -3,9 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 
-var port = common.PORT + 1337;
 var buffer = '';
-var expected = [];
 var scriptToDebug = common.fixturesDir + '/empty.js';
 
 function fail() {
