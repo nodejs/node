@@ -7,7 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-child-process-fork-regr-gh-2847 : PASS,FLAKY
 test-cluster-net-send                : PASS,FLAKY
 test-cluster-shared-leak             : PASS,FLAKY
 test-tls-ticket-cluster              : PASS,FLAKY
