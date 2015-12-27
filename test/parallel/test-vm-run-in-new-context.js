@@ -29,7 +29,9 @@ code = 'foo = 1;' +
        'if (baz !== 3) throw new Error(\'test fail\');';
 foo = 2;
 obj = { foo: 0, baz: 3 };
+/* eslint-disable no-unused-vars */
 var baz = vm.runInNewContext(code, obj);
+/* eslint-enable no-unused-vars */
 assert.equal(1, obj.foo);
 assert.equal(2, obj.bar);
 assert.equal(2, foo);

@@ -1,16 +1,9 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 
-var port = common.PORT + 1337;
 var buffer = '';
-var expected = [];
-var scriptToDebug = common.fixturesDir + '/empty.js';
-
-function fail() {
-  assert(0); // `--debug-brk script.js` should not quit
-}
 
 // connect to debug agent
 var interfacer = spawn(process.execPath, ['debug', '-p', '655555']);

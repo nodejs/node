@@ -21,7 +21,6 @@ assert.throws(function() {
 
 
 console.error('undefined reference');
-var error;
 script = new Script('foo.bar = 5;');
 assert.throws(function() {
   script.runInNewContext();
@@ -41,7 +40,9 @@ code = 'foo = 1;' +
 foo = 2;
 obj = { foo: 0, baz: 3 };
 script = new Script(code);
+/* eslint-disable no-unused-vars */
 var baz = script.runInNewContext(obj);
+/* eslint-enable no-unused-vars */
 assert.equal(1, obj.foo);
 assert.equal(2, obj.bar);
 assert.equal(2, foo);
