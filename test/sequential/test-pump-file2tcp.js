@@ -28,7 +28,6 @@ server.listen(common.PORT, function() {
 });
 
 var buffer = '';
-var count = 0;
 
 server.on('listening', function() {
 });

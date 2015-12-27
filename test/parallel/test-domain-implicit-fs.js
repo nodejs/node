@@ -4,7 +4,6 @@
 require('../common');
 var assert = require('assert');
 var domain = require('domain');
-var events = require('events');
 var caught = 0;
 var expectCaught = 1;
 

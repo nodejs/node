@@ -91,12 +91,12 @@ function t() {
   expectedTimeouts--;
 }
 
-var w = setTimeout(t, 200);
-var x = setTimeout(t, 200);
+setTimeout(t, 200);
+setTimeout(t, 200);
 var y = setTimeout(t, 200);
 
 clearTimeout(y);
-var z = setTimeout(t, 200);
+setTimeout(t, 200);
 clearTimeout(y);
 
 

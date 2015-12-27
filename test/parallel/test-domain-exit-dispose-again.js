@@ -5,7 +5,7 @@
 // to that domain, including those whose callbacks are called from within
 // the same invocation of listOnTimeout, _are_ called.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var domain = require('domain');
 var disposalFailed = false;
