@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const stream = require('stream');
 
 const reader = new stream.Readable();
