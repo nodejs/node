@@ -32,7 +32,6 @@ var doogle = function() {
 };
 
 var spawn = require('child_process').spawn;
-var prefix = '/var/tmp/node';
 
 /*
  * We're going to use DTrace to stop us, gcore us, and set us running again
