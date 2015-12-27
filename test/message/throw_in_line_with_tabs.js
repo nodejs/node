@@ -1,7 +1,6 @@
 /* eslint-disable indent */
 'use strict';
 require('../common');
-var assert = require('assert');
 
 console.error('before');
 

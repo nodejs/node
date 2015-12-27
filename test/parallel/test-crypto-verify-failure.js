@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
@@ -20,8 +19,6 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var canSend = true;
-
 var server = tls.Server(options, function(socket) {
   setImmediate(function() {
     console.log('sending');
@@ -32,17 +29,15 @@ var server = tls.Server(options, function(socket) {
   });
 });
 
-var client;
-
 function verify() {
   console.log('verify');
-  var verified = crypto.createVerify('RSA-SHA1')
-                     .update('Test')
-                     .verify(certPem, 'asdfasdfas', 'base64');
+  crypto.createVerify('RSA-SHA1')
+    .update('Test')
+    .verify(certPem, 'asdfasdfas', 'base64');
 }
 
 server.listen(common.PORT, function() {
-  client = tls.connect({
+  tls.connect({
     port: common.PORT,
     rejectUnauthorized: false
   }, function() {

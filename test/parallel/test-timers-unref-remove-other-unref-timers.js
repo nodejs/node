@@ -7,7 +7,6 @@
  * considered public interface.
  */
 const common = require('../common');
-const assert = require('assert');
 const timers = require('timers');
 
 const foo = {

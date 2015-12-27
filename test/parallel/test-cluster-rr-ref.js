@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 

@@ -2,9 +2,7 @@
 // Make sure that the domain stack doesn't get out of hand.
 
 require('../common');
-var assert = require('assert');
 var domain = require('domain');
-var events = require('events');
 
 var a = domain.create();
 a.name = 'a';

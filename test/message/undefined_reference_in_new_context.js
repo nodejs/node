@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-var assert = require('assert');
 var vm = require('vm');
 
 console.error('before');
