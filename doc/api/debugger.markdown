@@ -4,9 +4,10 @@
 
 <!-- type=misc -->
 
-V8 comes with an extensive debugger which is accessible out-of-process via a
-simple [TCP protocol][]. Node.js has a built-in client for this debugger. To
-use this, start Node.js with the `debug` argument; a prompt will appear:
+Node.js includes a full-featured out-of-process debugging utility accessible
+via a simple [TCP-based protocol][] and built-in debugging client. To use it,
+start Node.js with the `debug` argument followed by the path to the script to
+debug; a prompt will be displayed indicating successful launch of the debugger:
 
     % node debug myscript.js
     < debugger listening on port 5858
@@ -17,11 +18,13 @@ use this, start Node.js with the `debug` argument; a prompt will appear:
       3   debugger;
     debug>
 
-Node.js's debugger client doesn't support the full range of commands, but
-simple step and inspection is possible. By putting the statement `debugger;`
-into the source code of your script, you will enable a breakpoint.
+Node.js's debugger client does not yet support the full range of commands, but
+simple step and inspection are possible.
 
-For example, suppose `myscript.js` looked like this:
+Inserting the statement `debugger;` into the source code of a script will
+enable a breakpoint at that position in the code.
+
+For example, suppose `myscript.js` is written as:
 
     // myscript.js
     x = 5;
@@ -31,7 +34,7 @@ For example, suppose `myscript.js` looked like this:
     }, 1000);
     console.log('hello');
 
-Then once the debugger is run, it will break on line 4.
+Once the debugger is run, a breakpoint will occur at line 4:
 
     % node debug myscript.js
     < debugger listening on port 5858
@@ -73,20 +76,20 @@ Then once the debugger is run, it will break on line 4.
     %
 
 
-The `repl` command allows you to evaluate code remotely. The `next` command
-steps over to the next line. There are a few other commands available and more
-to come. Type `help` to see others.
+The `repl` command allows code to be evaluated remotely. The `next` command
+steps over to the next line. Type `help` to see what other commands are
+available.
 
 ## Watchers
 
-You can watch expression and variable values while debugging your code.
-On every breakpoint each expression from the watchers list will be evaluated
-in the current context and displayed just before the breakpoint's source code
-listing.
+It is possible to watch expression and variable values while debugging. On
+every breakpoint, each expression from the watchers list will be evaluated
+in the current context and displayed immediately before the breakpoint's
+source code listing.
 
-To start watching an expression, type `watch("my_expression")`. `watchers`
-prints the active watchers. To remove a watcher, type
-`unwatch("my_expression")`.
+To begin watching an expression, type `watch('my_expression')`. The command
+`watchers` will print the active watchers. To remove a watcher, type
+`unwatch('my_expression')`.
 
 ## Commands reference
 
@@ -154,19 +157,20 @@ breakpoint)
 ### Various
 
 * `scripts` - List all loaded scripts
-* `version` - Display v8's version
+* `version` - Display V8's version
 
 ## Advanced Usage
 
-The V8 debugger can be enabled and accessed either by starting Node.js with
-the `--debug` command-line flag or by signaling an existing Node.js process
-with `SIGUSR1`.
+An alternative way of enabling and accessing the debugger is to start
+Node.js with the `--debug` command-line flag or by signaling an existing
+Node.js process with `SIGUSR1`.
 
-Once a process has been set in debug mode with this it can be connected to
-with the Node.js debugger. Either connect to the `pid` or the URI to the
-debugger. The syntax is:
+Once a process has been set in debug mode this way, it can be connected to
+using the Node.js debugger by either connecting to the `pid` of the running
+process or via URI reference to the listening debugger:
 
 * `node debug -p <pid>` - Connects to the process via the `pid`
-* `node debug <URI>` - Connects to the process via the URI such as localhost:5858
+* `node debug <URI>` - Connects to the process via the URI such as
+localhost:5858
 
-[TCP protocol]: https://github.com/v8/v8/wiki/Debugging-Protocol
+[TCP-based protocol]: https://github.com/v8/v8/wiki/Debugging-Protocol
