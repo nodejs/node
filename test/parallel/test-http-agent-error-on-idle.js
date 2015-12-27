@@ -21,7 +21,6 @@ function get(callback) {
   return http.get(requestParams, callback);
 }
 
-var destroy_queue = {};
 var server = http.createServer(function(req, res) {
   res.end('hello world');
 });

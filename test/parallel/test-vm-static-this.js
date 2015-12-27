@@ -25,7 +25,9 @@ code = 'foo = 1;' +
        'if (typeof baz !== \'undefined\') throw new Error(\'test fail\');';
 foo = 2;
 obj = { foo: 0, baz: 3 };
+/* eslint-disable no-unused-vars */
 var baz = vm.runInThisContext(code);
+/* eslint-enable no-unused-vars */
 assert.equal(0, obj.foo);
 assert.equal(2, bar);
 assert.equal(1, foo);
