@@ -79,7 +79,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     MacroAssembler* masm, int index, Register result, Label* miss) {
   __ Ldr(result, GlobalObjectMemOperand());
-  __ Ldr(result, FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ Ldr(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   __ Ldr(result, ContextMemOperand(result, index));
   // Load its initial map. The global functions all have initial maps.
   __ Ldr(result,
@@ -404,8 +404,8 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
 }
 
 
-void NamedStoreHandlerCompiler::GeneratePushMap(Register map_reg,
-                                                Register scratch) {
+void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
+    Register current_map, Register destination_map) {
   DCHECK(false);  // Not implemented.
 }
 

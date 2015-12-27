@@ -10,6 +10,7 @@ make sure settings are consistent between them, all setup should happen here.
 
 import os
 import sys
+import vs_toolchain
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 V8_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir))
@@ -50,3 +51,4 @@ def set_environment():
     # Update the environment based on v8.gyp_env
     gyp_env_path = os.path.join(os.path.dirname(V8_ROOT), 'v8.gyp_env')
     apply_gyp_environment(gyp_env_path)
+    vs_toolchain.SetEnvironmentAndGetRuntimeDllDirs()

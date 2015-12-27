@@ -133,7 +133,7 @@ PASS 'use strict'; if (0) { someGlobal = 'Shouldn\'t be able to assign this.'; }
 PASS 'use strict'; someGlobal = 'Shouldn\'t be able to assign this.';  threw exception ReferenceError: someGlobal is not defined.
 PASS 'use strict'; (function f(){ f = 'shouldn\'t be able to assign to function expression name'; })() threw exception TypeError: Assignment to constant variable..
 PASS 'use strict'; eval('var introducedVariable = "FAIL: variable introduced into containing scope";'); introducedVariable threw exception ReferenceError: introducedVariable is not defined.
-PASS 'use strict'; objectWithReadonlyProperty.prop = 'fail' threw exception TypeError: Cannot assign to read only property 'prop' of #<Object>.
+PASS 'use strict'; objectWithReadonlyProperty.prop = 'fail' threw exception TypeError: Cannot assign to read only property 'prop' of object '#<Object>'.
 PASS 'use strict'; delete objectWithReadonlyProperty.prop threw exception TypeError: Cannot delete property 'prop' of #<Object>.
 PASS 'use strict'; delete objectWithReadonlyProperty[readonlyPropName] threw exception TypeError: Cannot delete property 'prop' of #<Object>.
 PASS 'use strict'; ++eval threw exception SyntaxError: Unexpected eval or arguments in strict mode.
@@ -169,12 +169,12 @@ PASS 'use strict'; function f() { --(1, arguments) } threw exception ReferenceEr
 PASS (function(){'use strict'; function f() { --(1, arguments) }}) threw exception ReferenceError: Invalid left-hand side expression in prefix operation.
 PASS 'use strict'; function f() { (1, arguments)-- } threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
 PASS (function(){'use strict'; function f() { (1, arguments)-- }}) threw exception ReferenceError: Invalid left-hand side expression in postfix operation.
-FAIL 'use strict'; if (0) delete +a.b should throw an exception. Was use strict.
-FAIL (function(){'use strict'; if (0) delete +a.b}) should throw an exception. Was function (){'use strict'; if (0) delete +a.b}.
-FAIL 'use strict'; if (0) delete ++a.b should throw an exception. Was use strict.
-FAIL (function(){'use strict'; if (0) delete ++a.b}) should throw an exception. Was function (){'use strict'; if (0) delete ++a.b}.
-FAIL 'use strict'; if (0) delete void a.b should throw an exception. Was use strict.
-FAIL (function(){'use strict'; if (0) delete void a.b}) should throw an exception. Was function (){'use strict'; if (0) delete void a.b}.
+FAIL 'use strict'; undefined; if (0) delete +a.b should throw an exception. Was undefined.
+FAIL (function(){'use strict'; undefined; if (0) delete +a.b}) should throw an exception. Was function (){'use strict'; undefined; if (0) delete +a.b}.
+FAIL 'use strict'; undefined; if (0) delete ++a.b should throw an exception. Was undefined.
+FAIL (function(){'use strict'; undefined; if (0) delete ++a.b}) should throw an exception. Was function (){'use strict'; undefined; if (0) delete ++a.b}.
+FAIL 'use strict'; undefined; if (0) delete void a.b should throw an exception. Was undefined.
+FAIL (function(){'use strict'; undefined; if (0) delete void a.b}) should throw an exception. Was function (){'use strict'; undefined; if (0) delete void a.b}.
 PASS (function (a){'use strict'; a = false; return a !== arguments[0]; })(true) is true
 PASS (function (a){'use strict'; arguments[0] = false; return a !== arguments[0]; })(true) is true
 PASS (function (a){'use strict'; a=false; return arguments; })(true)[0] is true

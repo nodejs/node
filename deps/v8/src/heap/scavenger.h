@@ -48,8 +48,8 @@ class ScavengeVisitor : public ObjectVisitor {
  public:
   explicit ScavengeVisitor(Heap* heap) : heap_(heap) {}
 
-  void VisitPointer(Object** p);
-  void VisitPointers(Object** start, Object** end);
+  void VisitPointer(Object** p) override;
+  void VisitPointers(Object** start, Object** end) override;
 
  private:
   inline void ScavengePointer(Object** p);

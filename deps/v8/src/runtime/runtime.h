@@ -176,7 +176,7 @@ namespace internal {
   F(DebugPrintScopes, 0, 1)                    \
   F(GetThreadCount, 1, 1)                      \
   F(GetThreadDetails, 2, 1)                    \
-  F(SetDisableBreak, 1, 1)                     \
+  F(SetBreakPointsActive, 1, 1)                \
   F(GetBreakLocations, 2, 1)                   \
   F(SetFunctionBreakPoint, 3, 1)               \
   F(SetScriptBreakPoint, 4, 1)                 \
@@ -201,7 +201,7 @@ namespace internal {
   F(GetScript, 1, 1)                           \
   F(DebugCallbackSupportsStepping, 1, 1)       \
   F(DebugPrepareStepInIfStepping, 1, 1)        \
-  F(DebugPushPromise, 2, 1)                    \
+  F(DebugPushPromise, 3, 1)                    \
   F(DebugPopPromise, 0, 1)                     \
   F(DebugPromiseEvent, 1, 1)                   \
   F(DebugAsyncTaskEvent, 1, 1)                 \
@@ -225,14 +225,18 @@ namespace internal {
   F(InterpreterGreaterThan, 2, 1)         \
   F(InterpreterLessThanOrEqual, 2, 1)     \
   F(InterpreterGreaterThanOrEqual, 2, 1)  \
-  F(InterpreterToBoolean, 1, 1)
+  F(InterpreterToBoolean, 1, 1)           \
+  F(InterpreterLogicalNot, 1, 1)          \
+  F(InterpreterTypeOf, 1, 1)              \
+  F(InterpreterNewClosure, 2, 1)          \
+  F(InterpreterForInPrepare, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)                      \
   F(FunctionGetName, 1, 1)                                  \
   F(FunctionSetName, 2, 1)                                  \
   F(FunctionNameShouldPrintAsAnonymous, 1, 1)               \
-  F(FunctionMarkNameShouldPrintAsAnonymous, 1, 1)           \
+  F(CompleteFunctionConstruction, 3, 1)                     \
   F(FunctionIsArrow, 1, 1)                                  \
   F(FunctionIsConciseMethod, 1, 1)                          \
   F(FunctionRemovePrototype, 1, 1)                          \
@@ -256,7 +260,7 @@ namespace internal {
   F(Call, -1 /* >= 2 */, 1)                                 \
   F(Apply, 5, 1)                                            \
   F(GetOriginalConstructor, 0, 1)                           \
-  F(CallFunction, -1 /* receiver + n args + function */, 1) \
+  F(ConvertReceiver, 1, 1)                                  \
   F(IsConstructCall, 0, 1)                                  \
   F(IsFunction, 1, 1)
 
@@ -345,8 +349,6 @@ namespace internal {
   F(CallSiteIsConstructorRT, 1, 1)            \
   F(IS_VAR, 1, 1)                             \
   F(IncrementStatsCounter, 1, 1)              \
-  F(Likely, 1, 1)                             \
-  F(Unlikely, 1, 1)                           \
   F(HarmonyToString, 0, 1)                    \
   F(GetTypeFeedbackVector, 1, 1)              \
   F(GetCallerJSFunction, 0, 1)                \
@@ -399,7 +401,8 @@ namespace internal {
   F(RoundNumber, 1, 1)              \
   F(MathSqrt, 1, 1)                 \
   F(MathFround, 1, 1)               \
-  F(IsMinusZero, 1, 1)
+  F(IsMinusZero, 1, 1)              \
+  F(InitializeRNG, 0, 1)
 
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F)  \
@@ -495,7 +498,9 @@ namespace internal {
   F(InstanceOf, 2, 1)                                \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
-  F(IsAccessCheckNeeded, 1, 1)
+  F(IsAccessCheckNeeded, 1, 1)                       \
+  F(ObjectDefineProperties, 2, 1)                    \
+  F(ObjectDefineProperty, 3, 1)
 
 
 #define FOR_EACH_INTRINSIC_OBSERVE(F)            \
@@ -551,6 +556,8 @@ namespace internal {
   F(StringReplaceGlobalRegExpWithString, 4, 1) \
   F(StringSplit, 3, 1)                         \
   F(RegExpExec, 4, 1)                          \
+  F(RegExpFlags, 1, 1)                         \
+  F(RegExpSource, 1, 1)                        \
   F(RegExpConstructResult, 3, 1)               \
   F(RegExpInitializeAndCompile, 3, 1)          \
   F(MaterializeRegExpLiteral, 4, 1)            \
@@ -564,8 +571,7 @@ namespace internal {
   F(DeclareGlobals, 2, 1)                  \
   F(InitializeVarGlobal, 3, 1)             \
   F(InitializeConstGlobal, 2, 1)           \
-  F(DeclareLookupSlot, 2, 1)               \
-  F(DeclareReadOnlyLookupSlot, 2, 1)       \
+  F(DeclareLookupSlot, 3, 1)               \
   F(InitializeLegacyConstLookupSlot, 3, 1) \
   F(NewSloppyArguments_Generic, 1, 1)      \
   F(NewStrictArguments_Generic, 1, 1)      \
@@ -904,7 +910,6 @@ namespace internal {
   F(InternalizeString, 1, 1)                    \
   F(StringMatch, 3, 1)                          \
   F(StringCharCodeAtRT, 2, 1)                   \
-  F(CharFromCode, 1, 1)                         \
   F(StringCompare, 2, 1)                        \
   F(StringBuilderConcat, 3, 1)                  \
   F(StringBuilderJoin, 3, 1)                    \
@@ -1110,27 +1115,6 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 //---------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.
 
-class RuntimeState {
- public:
-  unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
-    return &to_upper_mapping_;
-  }
-  unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
-    return &to_lower_mapping_;
-  }
-
- private:
-  RuntimeState() {}
-  unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
-  unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
-
-  friend class Isolate;
-  friend class Runtime;
-
-  DISALLOW_COPY_AND_ASSIGN(RuntimeState);
-};
-
-
 class Runtime : public AllStatic {
  public:
   enum FunctionId {
@@ -1179,6 +1163,9 @@ class Runtime : public AllStatic {
   // Get the intrinsic function with the given function entry address.
   static const Function* FunctionForEntry(Address ref);
 
+  // Get the runtime intrinsic function table.
+  static const Function* RuntimeFunctionTable(Isolate* isolate);
+
   MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
       Isolate* isolate, Handle<JSReceiver> receiver, Handle<Object> key,
       LanguageMode language_mode);
@@ -1226,6 +1213,38 @@ class Runtime : public AllStatic {
   // runtime-scopes.cc then.
   static base::SmartArrayPointer<Handle<Object>> GetCallerArguments(
       Isolate* isolate, int prefix_argc, int* total_argc);
+};
+
+
+class RuntimeState {
+ public:
+  unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
+    return &to_upper_mapping_;
+  }
+  unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
+    return &to_lower_mapping_;
+  }
+
+  Runtime::Function* redirected_intrinsic_functions() {
+    return redirected_intrinsic_functions_.get();
+  }
+
+  void set_redirected_intrinsic_functions(
+      Runtime::Function* redirected_intrinsic_functions) {
+    redirected_intrinsic_functions_.Reset(redirected_intrinsic_functions);
+  }
+
+ private:
+  RuntimeState() {}
+  unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
+  unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
+
+  base::SmartArrayPointer<Runtime::Function> redirected_intrinsic_functions_;
+
+  friend class Isolate;
+  friend class Runtime;
+
+  DISALLOW_COPY_AND_ASSIGN(RuntimeState);
 };
 
 

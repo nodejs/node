@@ -1666,12 +1666,12 @@ class RegExpResultsCache : public AllStatic {
   // Attempt to retrieve a cached result.  On failure, 0 is returned as a Smi.
   // On success, the returned result is guaranteed to be a COW-array.
   static Object* Lookup(Heap* heap, String* key_string, Object* key_pattern,
-                        ResultsCacheType type);
+                        FixedArray** last_match_out, ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.
   static void Enter(Isolate* isolate, Handle<String> key_string,
                     Handle<Object> key_pattern, Handle<FixedArray> value_array,
-                    ResultsCacheType type);
+                    Handle<FixedArray> last_match_cache, ResultsCacheType type);
   static void Clear(FixedArray* cache);
   static const int kRegExpResultsCacheSize = 0x100;
 
@@ -1680,6 +1680,7 @@ class RegExpResultsCache : public AllStatic {
   static const int kStringOffset = 0;
   static const int kPatternOffset = 1;
   static const int kArrayOffset = 2;
+  static const int kLastMatchOffset = 3;
 };
 
 }  // namespace internal

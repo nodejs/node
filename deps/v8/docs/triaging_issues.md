@@ -1,4 +1,4 @@
-# How to get an issue triaged
+# How to get an issue triaged 
 * *V8 tracker*: Set the state to `Untriaged`
 * *Chromium tracker*: Set the state to `Untriaged` and add the label `Cr-Blink-JavaScript`
 

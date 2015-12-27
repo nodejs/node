@@ -525,21 +525,68 @@ static inline void ExpectUndefined(const char* code) {
 }
 
 
-static inline void DisableInlineAllocationSteps(v8::internal::NewSpace* space) {
-  space->LowerInlineAllocationLimit(0);
+static inline void CheckDoubleEquals(double expected, double actual) {
+  const double kEpsilon = 1e-10;
+  CHECK_LE(expected, actual + kEpsilon);
+  CHECK_GE(expected, actual - kEpsilon);
+}
+
+
+static int LenFromSize(int size) {
+  return (size - i::FixedArray::kHeaderSize) / i::kPointerSize;
+}
+
+
+static inline void CreatePadding(i::Heap* heap, int padding_size,
+                                 i::PretenureFlag tenure) {
+  const int max_number_of_objects = 20;
+  v8::internal::Handle<v8::internal::FixedArray>
+      big_objects[max_number_of_objects];
+  i::Isolate* isolate = heap->isolate();
+  int allocate_memory;
+  int length;
+  int free_memory = padding_size;
+  if (tenure == i::TENURED) {
+    int current_free_memory =
+        static_cast<int>(*heap->old_space()->allocation_limit_address() -
+                         *heap->old_space()->allocation_top_address());
+    CHECK(padding_size <= current_free_memory || current_free_memory == 0);
+  } else {
+    heap->new_space()->DisableInlineAllocationSteps();
+    int current_free_memory =
+        static_cast<int>(*heap->new_space()->allocation_limit_address() -
+                         *heap->new_space()->allocation_top_address());
+    CHECK(padding_size <= current_free_memory || current_free_memory == 0);
+  }
+  for (int i = 0; i < max_number_of_objects && free_memory > 0; i++) {
+    if (free_memory > i::Page::kMaxRegularHeapObjectSize) {
+      allocate_memory = i::Page::kMaxRegularHeapObjectSize;
+      length = LenFromSize(allocate_memory);
+    } else {
+      allocate_memory = free_memory;
+      length = LenFromSize(allocate_memory);
+      if (length <= 0) {
+        // Not enough room to create another fixed array. Let's create a filler.
+        heap->CreateFillerObjectAt(*heap->old_space()->allocation_top_address(),
+                                   free_memory);
+        break;
+      }
+    }
+    big_objects[i] = isolate->factory()->NewFixedArray(length, tenure);
+    CHECK((tenure == i::NOT_TENURED && heap->InNewSpace(*big_objects[i])) ||
+          (tenure == i::TENURED && heap->InOldSpace(*big_objects[i])));
+    free_memory -= allocate_memory;
+  }
 }
 
 
 // Helper function that simulates a full new-space in the heap.
 static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
-  DisableInlineAllocationSteps(space);
-  v8::internal::AllocationResult allocation = space->AllocateRawUnaligned(
-      v8::internal::Page::kMaxRegularHeapObjectSize);
-  if (allocation.IsRetry()) return false;
-  v8::internal::HeapObject* free_space = NULL;
-  CHECK(allocation.To(&free_space));
-  space->heap()->CreateFillerObjectAt(
-      free_space->address(), v8::internal::Page::kMaxRegularHeapObjectSize);
+  space->DisableInlineAllocationSteps();
+  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
+                                         *space->allocation_top_address());
+  if (space_remaining == 0) return false;
+  CreatePadding(space->heap(), space_remaining, i::NOT_TENURED);
   return true;
 }
 
@@ -547,17 +594,13 @@ static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
 // Helper function that simulates a fill new-space in the heap.
 static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
                                         int extra_bytes) {
-  DisableInlineAllocationSteps(space);
+  space->DisableInlineAllocationSteps();
   int space_remaining = static_cast<int>(*space->allocation_limit_address() -
                                          *space->allocation_top_address());
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return;
-  v8::internal::AllocationResult allocation =
-      space->AllocateRawUnaligned(new_linear_size);
-  v8::internal::HeapObject* free_space = NULL;
-  CHECK(allocation.To(&free_space));
-  space->heap()->CreateFillerObjectAt(free_space->address(), new_linear_size);
+  CreatePadding(space->heap(), new_linear_size, i::NOT_TENURED);
 }
 
 
@@ -600,7 +643,7 @@ static inline void SimulateIncrementalMarking(i::Heap* heap,
   while (!marking->IsComplete()) {
     marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
-      marking->MarkObjectGroups();
+      marking->FinalizeIncrementally();
     }
   }
   CHECK(marking->IsComplete());

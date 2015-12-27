@@ -11,23 +11,28 @@
 
 // Ecma-262 3rd 8.6.1
 enum PropertyAttributes {
-  NONE              = v8::None,
-  READ_ONLY         = v8::ReadOnly,
-  DONT_ENUM         = v8::DontEnum,
-  DONT_DELETE       = v8::DontDelete,
+  NONE = v8::None,
+  READ_ONLY = v8::ReadOnly,
+  DONT_ENUM = v8::DontEnum,
+  DONT_DELETE = v8::DontDelete,
 
-  SEALED            = DONT_DELETE,
-  FROZEN            = SEALED | READ_ONLY,
+  SEALED = DONT_DELETE,
+  FROZEN = SEALED | READ_ONLY,
 
-  STRING            = 8,  // Used to filter symbols and string names
-  SYMBOLIC          = 16,
-  PRIVATE_SYMBOL    = 32,
+  STRING = 8,  // Used to filter symbols and string names
+  SYMBOLIC = 16,
+  PRIVATE_SYMBOL = 32,
 
-  DONT_SHOW         = DONT_ENUM | SYMBOLIC | PRIVATE_SYMBOL,
-  ABSENT            = 64  // Used in runtime to indicate a property is absent.
+  DONT_SHOW = DONT_ENUM | SYMBOLIC | PRIVATE_SYMBOL,
+  ABSENT = 64,  // Used in runtime to indicate a property is absent.
   // ABSENT can never be stored in or returned from a descriptor's attributes
   // bitfield.  It is only used as a return value meaning the attributes of
   // a non-existent property.
+
+  // When creating a property, EVAL_DECLARED used to indicate that the property
+  // came from a sloppy-mode direct eval, and certain checks need to be done.
+  // Cannot be stored in or returned from a descriptor's attributes bitfield.
+  EVAL_DECLARED = 128
 };
 
 
@@ -371,6 +376,7 @@ class PropertyDetails BASE_EMBEDDED {
 std::ostream& operator<<(std::ostream& os,
                          const PropertyAttributes& attributes);
 std::ostream& operator<<(std::ostream& os, const PropertyDetails& details);
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROPERTY_DETAILS_H_

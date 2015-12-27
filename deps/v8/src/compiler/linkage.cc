@@ -18,7 +18,7 @@ namespace compiler {
 
 namespace {
 LinkageLocation regloc(Register reg) {
-  return LinkageLocation::ForRegister(Register::ToAllocationIndex(reg));
+  return LinkageLocation::ForRegister(reg.code());
 }
 
 
@@ -62,6 +62,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
       break;
     case CallDescriptor::kCallAddress:
       os << "Addr";
+      break;
+    case CallDescriptor::kLazyBailout:
+      os << "LazyBail";
       break;
   }
   return os;
@@ -224,7 +227,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kFinalizeClassDefinition:        // TODO(conradw): Is it safe?
     case Runtime::kForInDone:
     case Runtime::kForInStep:
-    case Runtime::kGetOriginalConstructor:
     case Runtime::kNewClosure:
     case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:
@@ -239,8 +241,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
       return 0;
     case Runtime::kInlineArguments:
     case Runtime::kInlineArgumentsLength:
-    case Runtime::kInlineCall:
-    case Runtime::kInlineCallFunction:
     case Runtime::kInlineDefaultConstructorCallSuper:
     case Runtime::kInlineGetCallerJSFunction:
     case Runtime::kInlineGetPrototype:
@@ -256,6 +256,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kInlineToPrimitive:
     case Runtime::kInlineToString:
       return 1;
+    case Runtime::kInlineCall:
     case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineThrowNotDateError:
       return 2;
@@ -351,12 +352,39 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 }
 
 
+CallDescriptor* Linkage::GetLazyBailoutDescriptor(Zone* zone) {
+  const size_t return_count = 0;
+  const size_t parameter_count = 0;
+
+  LocationSignature::Builder locations(zone, return_count, parameter_count);
+  MachineSignature::Builder types(zone, return_count, parameter_count);
+
+  // The target is ignored, but we need to give some values here.
+  MachineType target_type = kMachAnyTagged;
+  LinkageLocation target_loc = regloc(kJSFunctionRegister);
+  return new (zone) CallDescriptor(      // --
+      CallDescriptor::kLazyBailout,      // kind
+      target_type,                       // target MachineType
+      target_loc,                        // target location
+      types.Build(),                     // machine_sig
+      locations.Build(),                 // location_sig
+      0,                                 // stack_parameter_count
+      Operator::kNoThrow,                // properties
+      kNoCalleeSaved,                    // callee-saved
+      kNoCalleeSaved,                    // callee-saved fp
+      CallDescriptor::kNeedsFrameState,  // flags
+      "lazy-bailout");
+}
+
+
 CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int js_parameter_count,
                                              CallDescriptor::Flags flags) {
   const size_t return_count = 1;
   const size_t context_count = 1;
-  const size_t parameter_count = js_parameter_count + context_count;
+  const size_t num_args_count = 1;
+  const size_t parameter_count =
+      js_parameter_count + num_args_count + context_count;
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
   MachineSignature::Builder types(zone, return_count, parameter_count);
@@ -371,6 +399,11 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(spill_slot_index));
     types.AddParam(kMachAnyTagged);
   }
+
+  // Add JavaScript call argument count.
+  locations.AddParam(regloc(kJavaScriptCallArgCountRegister));
+  types.AddParam(kMachInt32);
+
   // Add context.
   locations.AddParam(regloc(kContextRegister));
   types.AddParam(kMachAnyTagged);
@@ -420,16 +453,18 @@ CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
 
   STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
   types.AddParam(kMachPtr);
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
+  // TODO(rmcilroy): Make the context param the one spilled to the stack once
+  // Turbofan supports modified stack arguments in tail calls.
+  locations.AddParam(
+      LinkageLocation::ForCallerFrameSlot(kInterpreterDispatchTableSpillSlot));
+#else
   locations.AddParam(regloc(kInterpreterDispatchTableRegister));
+#endif
 
   STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
   types.AddParam(kMachAnyTagged);
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
-  locations.AddParam(
-      LinkageLocation::ForCallerFrameSlot(kInterpreterContextSpillSlot));
-#else
   locations.AddParam(regloc(kContextRegister));
-#endif
 
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
   return new (zone) CallDescriptor(         // --
@@ -515,8 +550,9 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
 
   if (index == kOsrContextSpillSlotIndex) {
     // Context. Use the parameter location of the context spill slot.
-    // Parameter (arity + 1) is special for the context of the function frame.
-    int context_index = 1 + 1 + parameter_count;  // target + receiver + params
+    // Parameter (arity + 2) is special for the context of the function frame.
+    int context_index =
+        1 + 1 + 1 + parameter_count;  // target + receiver + params + #args
     return incoming_->GetInputLocation(context_index);
   } else if (index >= first_stack_slot) {
     // Local variable stored in this (callee) stack.

@@ -55,6 +55,7 @@ enum BignumDtoaMode {
 void BignumDtoa(double v, BignumDtoaMode mode, int requested_digits,
                 Vector<char> buffer, int* length, int* point);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BIGNUM_DTOA_H_

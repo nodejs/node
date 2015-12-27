@@ -96,7 +96,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterGreaterThanOrEqual) {
 
 
 RUNTIME_FUNCTION(Runtime_InterpreterStrictEquals) {
-  SealHandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   CONVERT_ARG_CHECKED(Object, y, 1);
@@ -105,7 +105,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterStrictEquals) {
 
 
 RUNTIME_FUNCTION(Runtime_InterpreterStrictNotEquals) {
-  SealHandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   CONVERT_ARG_CHECKED(Object, y, 1);
@@ -114,10 +114,84 @@ RUNTIME_FUNCTION(Runtime_InterpreterStrictNotEquals) {
 
 
 RUNTIME_FUNCTION(Runtime_InterpreterToBoolean) {
-  SealHandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   return isolate->heap()->ToBoolean(x->BooleanValue());
+}
+
+
+RUNTIME_FUNCTION(Runtime_InterpreterLogicalNot) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  return isolate->heap()->ToBoolean(!x->BooleanValue());
+}
+
+
+RUNTIME_FUNCTION(Runtime_InterpreterTypeOf) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  return Object::cast(*Object::TypeOf(isolate, x));
+}
+
+
+RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  CONVERT_SMI_ARG_CHECKED(pretenured_flag, 1);
+  Handle<Context> context(isolate->context(), isolate);
+  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
+      shared, context, static_cast<PretenureFlag>(pretenured_flag));
+}
+
+
+RUNTIME_FUNCTION(Runtime_InterpreterForInPrepare) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, property_names, 1);
+
+  Handle<Object> cache_type = property_names;
+  Handle<Map> cache_type_map = handle(property_names->map(), isolate);
+  Handle<Map> receiver_map = handle(receiver->map(), isolate);
+
+  Handle<FixedArray> cache_array;
+  int cache_length;
+
+  if (cache_type_map.is_identical_to(isolate->factory()->meta_map())) {
+    int enum_length = cache_type_map->EnumLength();
+    DescriptorArray* descriptors = receiver_map->instance_descriptors();
+    if (enum_length > 0 && descriptors->HasEnumCache()) {
+      cache_array = handle(descriptors->GetEnumCache(), isolate);
+      cache_length = cache_array->length();
+    } else {
+      cache_array = isolate->factory()->empty_fixed_array();
+      cache_length = 0;
+    }
+  } else {
+    cache_array = Handle<FixedArray>::cast(cache_type);
+    cache_length = cache_array->length();
+
+    STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+    if (receiver_map->instance_type() <= LAST_JS_PROXY_TYPE) {
+      DCHECK_GE(receiver_map->instance_type(), LAST_JS_PROXY_TYPE);
+      // Zero indicates proxy
+      cache_type = Handle<Object>(Smi::FromInt(0), isolate);
+    } else {
+      // One entails slow check
+      cache_type = Handle<Object>(Smi::FromInt(1), isolate);
+    }
+  }
+
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(4);
+  result->set(0, *receiver);
+  result->set(1, *cache_array);
+  result->set(2, *cache_type);
+  result->set(3, Smi::FromInt(cache_length));
+  return *result;
 }
 
 

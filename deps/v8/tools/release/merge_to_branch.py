@@ -47,10 +47,7 @@ class Preparation(Step):
     open(self.Config("ALREADY_MERGING_SENTINEL_FILE"), "a").close()
 
     self.InitialEnvironmentChecks(self.default_cwd)
-    if self._options.revert_master:
-      # FIXME(machenbach): Make revert master obsolete?
-      self["merge_to_branch"] = "master"
-    elif self._options.branch:
+    if self._options.branch:
       self["merge_to_branch"] = self._options.branch
     else:  # pragma: no cover
       self.Die("Please specify a branch to merge to")
@@ -110,10 +107,7 @@ class CreateCommitMessage(Step):
     if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")
 
-    if self._options.revert and not self._options.revert_master:
-      action_text = "Rollback of %s"
-    else:
-      action_text = "Merged %s"
+    action_text = "Merged %s"
 
     # The commit message title is added below after the version is specified.
     msg_pieces = [
@@ -146,17 +140,15 @@ class ApplyPatches(Step):
             % (commit_hash, self["merge_to_branch"]))
       patch = self.GitGetPatch(commit_hash)
       TextToFile(patch, self.Config("TEMPORARY_PATCH_FILE"))
-      self.ApplyPatch(self.Config("TEMPORARY_PATCH_FILE"), self._options.revert)
+      self.ApplyPatch(self.Config("TEMPORARY_PATCH_FILE"))
     if self._options.patch:
-      self.ApplyPatch(self._options.patch, self._options.revert)
+      self.ApplyPatch(self._options.patch)
 
 
 class PrepareVersion(Step):
   MESSAGE = "Prepare version file."
 
   def RunStep(self):
-    if self._options.revert_master:
-      return
     # This is used to calculate the patch level increment.
     self.ReadAndPersistVersion()
 
@@ -165,8 +157,6 @@ class IncrementVersion(Step):
   MESSAGE = "Increment version number."
 
   def RunStep(self):
-    if self._options.revert_master:
-      return
     new_patch = str(int(self["patch"]) + 1)
     if self.Confirm("Automatically increment V8_PATCH_LEVEL? (Saying 'n' will "
                     "fire up your EDITOR on %s so you can make arbitrary "
@@ -191,12 +181,7 @@ class CommitLocal(Step):
 
   def RunStep(self):
     # Add a commit message title.
-    if self._options.revert and self._options.revert_master:
-      # TODO(machenbach): Find a better convention if multiple patches are
-      # reverted in one CL.
-      self["commit_title"] = "Revert on master"
-    else:
-      self["commit_title"] = "Version %s (cherry-pick)" % self["version"]
+    self["commit_title"] = "Version %s (cherry-pick)" % self["version"]
     self["new_commit_msg"] = "%s\n\n%s" % (self["commit_title"],
                                            self["new_commit_msg"])
     TextToFile(self["new_commit_msg"], self.Config("COMMITMSG_FILE"))
@@ -217,8 +202,6 @@ class TagRevision(Step):
   MESSAGE = "Create the tag."
 
   def RunStep(self):
-    if self._options.revert_master:
-      return
     print "Creating tag %s" % self["version"]
     self.vc.Tag(self["version"],
                 self.vc.RemoteBranch(self["merge_to_branch"]),
@@ -230,12 +213,11 @@ class CleanUp(Step):
 
   def RunStep(self):
     self.CommonCleanup()
-    if not self._options.revert_master:
-      print "*** SUMMARY ***"
-      print "version: %s" % self["version"]
-      print "branch: %s" % self["merge_to_branch"]
-      if self["revision_list"]:
-        print "patches: %s" % self["revision_list"]
+    print "*** SUMMARY ***"
+    print "version: %s" % self["version"]
+    print "branch: %s" % self["merge_to_branch"]
+    if self["revision_list"]:
+      print "patches: %s" % self["revision_list"]
 
 
 class MergeToBranch(ScriptsBase):
@@ -246,9 +228,6 @@ class MergeToBranch(ScriptsBase):
   def _PrepareOptions(self, parser):
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--branch", help="The branch to merge to.")
-    group.add_argument("-R", "--revert-master",
-                       help="Revert specified patches from master.",
-                       default=False, action="store_true")
     parser.add_argument("revisions", nargs="*",
                         help="The revisions to merge.")
     parser.add_argument("-f", "--force",
@@ -256,14 +235,10 @@ class MergeToBranch(ScriptsBase):
                         default=False, action="store_true")
     parser.add_argument("-m", "--message",
                         help="A commit message for the patch.")
-    parser.add_argument("--revert",
-                        help="Revert specified patches.",
-                        default=False, action="store_true")
     parser.add_argument("-p", "--patch",
                         help="A patch file to apply as part of the merge.")
 
   def _ProcessOptions(self, options):
-    # TODO(machenbach): Add a test that covers revert from master
     if len(options.revisions) < 1:
       if not options.patch:
         print "Either a patch file or revision numbers must be specified"

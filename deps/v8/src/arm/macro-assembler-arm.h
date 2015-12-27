@@ -14,17 +14,18 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {kRegister_r0_Code};
-const Register kReturnRegister1 = {kRegister_r1_Code};
-const Register kJSFunctionRegister = {kRegister_r1_Code};
-const Register kContextRegister = {kRegister_r7_Code};
-const Register kInterpreterAccumulatorRegister = {kRegister_r0_Code};
-const Register kInterpreterRegisterFileRegister = {kRegister_r4_Code};
-const Register kInterpreterBytecodeOffsetRegister = {kRegister_r5_Code};
-const Register kInterpreterBytecodeArrayRegister = {kRegister_r6_Code};
-const Register kInterpreterDispatchTableRegister = {kRegister_r8_Code};
-const Register kRuntimeCallFunctionRegister = {kRegister_r1_Code};
-const Register kRuntimeCallArgCountRegister = {kRegister_r0_Code};
+const Register kReturnRegister0 = {Register::kCode_r0};
+const Register kReturnRegister1 = {Register::kCode_r1};
+const Register kJSFunctionRegister = {Register::kCode_r1};
+const Register kContextRegister = {Register::kCode_r7};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_r0};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_r4};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r5};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r6};
+const Register kInterpreterDispatchTableRegister = {Register::kCode_r8};
+const Register kJavaScriptCallArgCountRegister = {Register::kCode_r0};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_r1};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_r0};
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -36,9 +37,9 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 
 
 // Give alias names to registers
-const Register cp = { kRegister_r7_Code };  // JavaScript context pointer.
-const Register pp = { kRegister_r8_Code };  // Constant pool pointer.
-const Register kRootRegister = { kRegister_r10_Code };  // Roots array pointer.
+const Register cp = {Register::kCode_r7};  // JavaScript context pointer.
+const Register pp = {Register::kCode_r8};  // Constant pool pointer.
+const Register kRootRegister = {Register::kCode_r10};  // Roots array pointer.
 
 // Flags used for AllocateHeapNumber
 enum TaggingMode {
@@ -1564,6 +1565,7 @@ inline MemOperand GlobalObjectOperand()  {
 #endif
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_MACRO_ASSEMBLER_ARM_H_

@@ -5,9 +5,6 @@
 #ifndef V8_CCTEST_COMPILER_FUNCTION_TESTER_H_
 #define V8_CCTEST_COMPILER_FUNCTION_TESTER_H_
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/ast-numbering.h"
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
@@ -19,6 +16,7 @@
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -121,8 +119,8 @@ class FunctionTester : public InitializedHandleScope {
   }
 
   Handle<JSFunction> NewFunction(const char* source) {
-    return v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(CompileRun(source)));
+    return Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CompileRun(source))));
   }
 
   Handle<JSObject> NewObject(const char* source) {
@@ -176,6 +174,7 @@ class FunctionTester : public InitializedHandleScope {
     Pipeline pipeline(&info);
     Handle<Code> code = pipeline.GenerateCode();
     CHECK(!code.is_null());
+    info.dependencies()->Commit(code);
     info.context()->native_context()->AddOptimizedCode(*code);
     function->ReplaceCode(*code);
     return function;
@@ -212,8 +211,8 @@ class FunctionTester : public InitializedHandleScope {
     return function;
   }
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CCTEST_COMPILER_FUNCTION_TESTER_H_

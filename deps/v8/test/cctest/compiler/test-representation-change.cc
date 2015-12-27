@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <limits>
 
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
@@ -13,10 +15,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/representation-change.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-
-namespace v8 {  // for friendiness.
+namespace v8 {
 namespace internal {
 namespace compiler {
 
@@ -27,8 +26,8 @@ class RepresentationChangerTester : public HandleAndZoneScope,
       : GraphAndBuilders(main_zone()),
         javascript_(main_zone()),
         jsgraph_(main_isolate(), main_graph_, &main_common_, &javascript_,
-                 &main_machine_),
-        changer_(&jsgraph_, &main_simplified_, main_isolate()) {
+                 &main_simplified_, &main_machine_),
+        changer_(&jsgraph_, main_isolate()) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
     graph()->SetStart(s);
   }
@@ -100,9 +99,6 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     CHECK_EQ(n, c);
   }
 };
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
 
 
 static const MachineType all_reps[] = {kRepBit,     kRepWord32,  kRepWord64,
@@ -551,3 +547,7 @@ TEST(TypeErrors) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

@@ -43,6 +43,11 @@ void AstLiteralReindexer::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* node) {}
 
 
+void AstLiteralReindexer::VisitDoExpression(DoExpression* node) {
+  // TODO(caitp): literals in do expressions need re-indexing too.
+}
+
+
 void AstLiteralReindexer::VisitLiteral(Literal* node) {}
 
 
@@ -316,5 +321,5 @@ void AstLiteralReindexer::VisitFunctionLiteral(FunctionLiteral* node) {
 void AstLiteralReindexer::Reindex(Expression* pattern) {
   pattern->Accept(this);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

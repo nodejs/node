@@ -7,11 +7,10 @@
 
 #include "src/isolate.h"
 #include "src/messages.h"
+#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
-
-class StaticFeedbackVectorSpec;
 
 // Interface for handle based allocation.
 class Factory final {
@@ -80,6 +79,8 @@ class Factory final {
 
   template<class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
+
+  Handle<Name> InternalizeName(Handle<Name> name);
 
 
   // String creation functions.  Most of the string creation functions take
@@ -218,7 +219,7 @@ class Factory final {
 
   // Create a symbol.
   Handle<Symbol> NewSymbol();
-  Handle<Symbol> NewPrivateSymbol(Handle<Object> name);
+  Handle<Symbol> NewPrivateSymbol();
 
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
@@ -375,7 +376,7 @@ class Factory final {
                                           Handle<AllocationSite> site);
 
   // Global objects are pretenured and initialized based on a constructor.
-  Handle<GlobalObject> NewGlobalObject(Handle<JSFunction> constructor);
+  Handle<JSGlobalObject> NewJSGlobalObject(Handle<JSFunction> constructor);
 
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
@@ -506,8 +507,11 @@ class Factory final {
                                                  bool is_strict = false);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
-      Handle<SharedFunctionInfo> function_info,
-      Handle<Context> context,
+      Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
+      Handle<Context> context, PretenureFlag pretenure = TENURED);
+
+  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
+      Handle<SharedFunctionInfo> function_info, Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
@@ -616,6 +620,7 @@ class Factory final {
         &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
   }
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
+  WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
   // Allocates a new SharedFunctionInfo object.
@@ -625,10 +630,6 @@ class Factory final {
       Handle<TypeFeedbackVector> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
                                                    MaybeHandle<Code> code);
-
-  // Allocate a new type feedback vector
-  template <typename Spec>
-  Handle<TypeFeedbackVector> NewTypeFeedbackVector(const Spec* spec);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(MessageTemplate::Template message,
@@ -720,6 +721,7 @@ class Factory final {
   void ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type, int size);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FACTORY_H_

@@ -112,5 +112,5 @@ void ScavengeJob::ScheduleIdleTask(Heap* heap) {
     }
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

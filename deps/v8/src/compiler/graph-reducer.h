@@ -47,6 +47,11 @@ class Reducer {
   // Try to reduce a node if possible.
   virtual Reduction Reduce(Node* node) = 0;
 
+  // Invoked by the {GraphReducer} when all nodes are done.  Can be used to
+  // do additional reductions at the end, which in turn can cause a new round
+  // of reductions.
+  virtual void Finalize();
+
   // Helper functions for subclasses to produce reductions for a node.
   static Reduction NoChange() { return Reduction(); }
   static Reduction Replace(Node* node) { return Reduction(node); }

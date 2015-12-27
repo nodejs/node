@@ -93,6 +93,7 @@ class DiyFp {
   int e_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DIY_FP_H_

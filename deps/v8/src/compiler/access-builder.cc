@@ -3,6 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/compiler/access-builder.h"
+
+#include "src/contexts.h"
+#include "src/frames.h"
+#include "src/heap/heap.h"
+#include "src/type-cache.h"
 #include "src/types-inl.h"
 
 namespace v8 {
@@ -18,9 +23,18 @@ FieldAccess AccessBuilder::ForMap() {
 
 
 // static
+FieldAccess AccessBuilder::ForHeapNumberValue() {
+  FieldAccess access = {kTaggedBase, HeapNumber::kValueOffset,
+                        MaybeHandle<Name>(), TypeCache().Get().kFloat64,
+                        kMachFloat64};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForJSObjectProperties() {
   FieldAccess access = {kTaggedBase, JSObject::kPropertiesOffset,
-                        MaybeHandle<Name>(), Type::Any(), kMachAnyTagged};
+                        MaybeHandle<Name>(), Type::Internal(), kMachAnyTagged};
   return access;
 }
 
@@ -67,13 +81,10 @@ FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
 
 
 // static
-FieldAccess AccessBuilder::ForFixedArrayLength(Zone* zone) {
-  STATIC_ASSERT(FixedArray::kMaxLength <= 1 << 30);
-  FieldAccess access = {
-      kTaggedBase, FixedArray::kLengthOffset, MaybeHandle<Name>(),
-      Type::Intersect(Type::Range(0, FixedArray::kMaxLength, zone),
-                      Type::TaggedSigned(), zone),
-      kMachAnyTagged};
+FieldAccess AccessBuilder::ForFixedArrayLength() {
+  FieldAccess access = {kTaggedBase, FixedArray::kLengthOffset,
+                        MaybeHandle<Name>(),
+                        TypeCache::Get().kFixedArrayLengthType, kMachAnyTagged};
   return access;
 }
 
@@ -98,7 +109,7 @@ FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache() {
 // static
 FieldAccess AccessBuilder::ForMapBitField3() {
   FieldAccess access = {kTaggedBase, Map::kBitField3Offset, Handle<Name>(),
-                        Type::UntaggedUnsigned32(), kMachUint32};
+                        TypeCache::Get().kInt32, kMachInt32};
   return access;
 }
 
@@ -114,18 +125,39 @@ FieldAccess AccessBuilder::ForMapDescriptors() {
 // static
 FieldAccess AccessBuilder::ForMapInstanceType() {
   FieldAccess access = {kTaggedBase, Map::kInstanceTypeOffset, Handle<Name>(),
-                        Type::UntaggedUnsigned8(), kMachUint8};
+                        TypeCache::Get().kUint8, kMachUint8};
   return access;
 }
 
 
 // static
-FieldAccess AccessBuilder::ForStringLength(Zone* zone) {
-  FieldAccess access = {
-      kTaggedBase, String::kLengthOffset, Handle<Name>(),
-      Type::Intersect(Type::Range(0, String::kMaxLength, zone),
-                      Type::TaggedSigned(), zone),
-      kMachAnyTagged};
+FieldAccess AccessBuilder::ForMapPrototype() {
+  FieldAccess access = {kTaggedBase, Map::kPrototypeOffset, Handle<Name>(),
+                        Type::TaggedPointer(), kMachAnyTagged};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForStringLength() {
+  FieldAccess access = {kTaggedBase, String::kLengthOffset, Handle<Name>(),
+                        TypeCache::Get().kStringLengthType, kMachAnyTagged};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForJSGlobalObjectGlobalProxy() {
+  FieldAccess access = {kTaggedBase, JSGlobalObject::kGlobalProxyOffset,
+                        Handle<Name>(), Type::Receiver(), kMachAnyTagged};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForJSGlobalObjectNativeContext() {
+  FieldAccess access = {kTaggedBase, JSGlobalObject::kNativeContextOffset,
+                        Handle<Name>(), Type::Internal(), kMachAnyTagged};
   return access;
 }
 
@@ -134,6 +166,35 @@ FieldAccess AccessBuilder::ForStringLength(Zone* zone) {
 FieldAccess AccessBuilder::ForValue() {
   FieldAccess access = {kTaggedBase, JSValue::kValueOffset, Handle<Name>(),
                         Type::Any(), kMachAnyTagged};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForArgumentsLength() {
+  int offset =
+      JSObject::kHeaderSize + Heap::kArgumentsLengthIndex * kPointerSize;
+  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
+                        kMachAnyTagged};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForArgumentsCallee() {
+  int offset =
+      JSObject::kHeaderSize + Heap::kArgumentsCalleeIndex * kPointerSize;
+  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
+                        kMachAnyTagged};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForFixedArraySlot(size_t index) {
+  int offset = FixedArray::OffsetOfElementAt(static_cast<int>(index));
+  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
+                        kMachAnyTagged};
   return access;
 }
 
@@ -151,8 +212,14 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
 
 // static
 FieldAccess AccessBuilder::ForPropertyCellValue() {
+  return ForPropertyCellValue(Type::Tagged());
+}
+
+
+// static
+FieldAccess AccessBuilder::ForPropertyCellValue(Type* type) {
   FieldAccess access = {kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(),
-                        Type::Any(), kMachAnyTagged};
+                        type, kMachAnyTagged};
   return access;
 }
 
@@ -249,8 +316,8 @@ ElementAccess AccessBuilder::ForSeqStringChar(String::Encoding encoding) {
 
 // static
 FieldAccess AccessBuilder::ForStatsCounter() {
-  FieldAccess access = {kUntaggedBase, 0, MaybeHandle<Name>(), Type::Signed32(),
-                        kMachInt32};
+  FieldAccess access = {kUntaggedBase, 0, MaybeHandle<Name>(),
+                        TypeCache::Get().kInt32, kMachInt32};
   return access;
 }
 

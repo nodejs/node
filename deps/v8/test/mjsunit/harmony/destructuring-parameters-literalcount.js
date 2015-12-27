@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --harmony-destructuring
-// Flags: --harmony-arrow-functions --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 
 var t1 = [1];

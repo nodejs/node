@@ -202,6 +202,7 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VECTOR_H_

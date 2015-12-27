@@ -52,6 +52,7 @@ class TraceExtension : public v8::Extension {
   static const char* kSource;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

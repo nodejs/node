@@ -4,17 +4,19 @@
 
 // Flags: --harmony-sloppy --harmony-sloppy-let --harmony-destructuring
 
+// let is usable as a variable with var or legacy const, not let or ES6 const
 
-{
-  assertThrows(function() { return let; }, ReferenceError);
-  let let;
+(function (){
+  assertEquals(undefined, let);
+
+  var let;
 
   let = 5;
   assertEquals(5, let);
 
-  { let let = 1; assertEquals(1, let); }
+  (function() { var let = 1; assertEquals(1, let); })();
   assertEquals(5, let);
-}
+})();
 
 assertThrows(function() { return let; }, ReferenceError);
 
@@ -23,36 +25,36 @@ assertThrows(function() { return let; }, ReferenceError);
    for (let in [1, 2, 3, 4]) sum += Number(let);
    assertEquals(6, sum);
 
-   for (let let of [4, 5]) sum += let;
+   (function() { for (var let of [4, 5]) sum += let; })();
    assertEquals(15, sum);
 
-   for (let let in [6]) sum += Number([6][let]);
+   (function() { for (var let in [6]) sum += Number([6][let]); })();
    assertEquals(21, sum);
 
    for (let = 7; let < 8; let++) sum += let;
    assertEquals(28, sum);
    assertEquals(8, let);
 
-   for (let let = 8; let < 9; let++) sum += let;
+   (function() { for (var let = 8; let < 9; let++) sum += let; })();
    assertEquals(36, sum);
    assertEquals(8, let);
-})()
+})();
 
 assertThrows(function() { return let; }, ReferenceError);
 
-{
+(function () {
   let obj = {};
-  let {let} = {let() { return obj; }};
+  var {let} = {let() { return obj; }};
   let().x = 1;
   assertEquals(1, obj.x);
-}
+})();
 
-{
+(function () {
   let obj = {};
-  let [let] = [function() { return obj; }];
+  const [let] = [function() { return obj; }];
   let().x = 1;
   assertEquals(1, obj.x);
-}
+})();
 
 (function() {
   function let() {

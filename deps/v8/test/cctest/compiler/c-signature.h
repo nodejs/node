@@ -13,7 +13,7 @@ namespace compiler {
 
 #define FOREACH_CTYPE_MACHINE_TYPE_MAPPING(V) \
   V(void, kMachNone)                          \
-  V(bool, kMachBool)                          \
+  V(bool, kMachUint8)                         \
   V(int8_t, kMachInt8)                        \
   V(uint8_t, kMachUint8)                      \
   V(int16_t, kMachInt16)                      \
@@ -159,8 +159,8 @@ typedef CSignature2<uint32_t, uint32_t, uint32_t> CSignature_u_uu;
 typedef CSignature2<float, float, float> CSignature_f_ff;
 typedef CSignature2<double, double, double> CSignature_d_dd;
 typedef CSignature2<Object*, Object*, Object*> CSignature_o_oo;
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_C_SIGNATURE_H_

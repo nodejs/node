@@ -24,6 +24,7 @@ def main():
   print 'Moar clobbering...'
   print 'Remove build/android.gypi'
   print 'Cleanup after windows ninja switch attempt.'
+  print 'Switching to pinned msvs toolchain.'
   return 0
 
 

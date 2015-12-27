@@ -644,6 +644,7 @@ void Decoder<V>::DecodeAdvSIMDDataProcessing(Instruction* instr) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_DECODER_ARM64_INL_H_

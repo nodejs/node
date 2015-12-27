@@ -223,6 +223,7 @@ MaybeHandle<Object> BasicJsonStringifier::StringifyString(
     SerializeStringUnchecked_(object->GetFlatContent().ToOneByteVector(),
                               &no_extend);
     no_extend.Append('\"');
+    return no_extend.Finalize();
   } else {
     result = isolate->factory()
                  ->NewRawTwoByteString(worst_case_length)
@@ -233,8 +234,8 @@ MaybeHandle<Object> BasicJsonStringifier::StringifyString(
     SerializeStringUnchecked_(object->GetFlatContent().ToUC16Vector(),
                               &no_extend);
     no_extend.Append('\"');
+    return no_extend.Finalize();
   }
-  return result;
 }
 
 
@@ -524,7 +525,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   HandleScope handle_scope(isolate_);
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
-  DCHECK(!object->IsJSGlobalProxy() && !object->IsGlobalObject());
+  DCHECK(!object->IsJSGlobalProxy() && !object->IsJSGlobalObject());
 
   builder_.AppendCharacter('{');
   bool comma = false;
@@ -681,6 +682,7 @@ void BasicJsonStringifier::SerializeString(Handle<String> object) {
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_JSON_STRINGIFIER_H_

@@ -52,7 +52,10 @@ Reduction JSFrameSpecialization::ReduceParameter(Node* node) {
   if (index == Linkage::kJSFunctionCallClosureParamIndex) {
     object = frame()->function();
   } else if (index == parameters_count) {
-    // The Parameter index (arity + 1) is the context.
+    // The Parameter index (arity + 1) is the parameter count.
+    object = Smi::FromInt(parameters_count - 1);
+  } else if (index == parameters_count + 1) {
+    // The Parameter index (arity + 2) is the context.
     object = frame()->context();
   } else {
     // The Parameter index 0 is the receiver.

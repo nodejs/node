@@ -120,4 +120,5 @@ TEST(Unscopables) {
                   ->Int32Value(current_context)
                   .FromJust());
 }
-}
+
+}  // namespace

@@ -23,6 +23,7 @@ class IrregexpInterpreter {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_INTERPRETER_IRREGEXP_H_

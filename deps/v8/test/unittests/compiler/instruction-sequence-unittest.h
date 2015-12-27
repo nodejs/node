@@ -15,7 +15,7 @@ namespace compiler {
 
 class InstructionSequenceTest : public TestWithIsolateAndZone {
  public:
-  static const int kDefaultNRegs = 4;
+  static const int kDefaultNRegs = 8;
   static const int kNoValue = kMinInt;
 
   typedef RpoNumber Rpo;
@@ -36,6 +36,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     kFixedRegister,
     kSlot,
     kFixedSlot,
+    kExplicit,
     kImmediate,
     kNone,
     kConstant,
@@ -56,6 +57,11 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   };
 
   static TestOperand Same() { return TestOperand(kSameAsFirst, VReg()); }
+
+  static TestOperand ExplicitReg(int index) {
+    TestOperandType type = kExplicit;
+    return TestOperand(type, VReg(), index);
+  }
 
   static TestOperand Reg(VReg vreg, int index = kNoValue) {
     TestOperandType type = kRegister;

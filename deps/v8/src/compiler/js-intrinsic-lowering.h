@@ -7,10 +7,14 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class TypeCache;
+
+
 namespace compiler {
 
 // Forward declarations.
@@ -18,6 +22,7 @@ class CommonOperatorBuilder;
 class JSOperatorBuilder;
 class JSGraph;
 class MachineOperatorBuilder;
+class SimplifiedOperatorBuilder;
 
 
 // Lowers certain JS-level runtime calls.
@@ -50,15 +55,20 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceSeqStringGetChar(Node* node, String::Encoding encoding);
   Reduction ReduceSeqStringSetChar(Node* node, String::Encoding encoding);
   Reduction ReduceStringGetLength(Node* node);
-  Reduction ReduceUnLikely(Node* node, BranchHint hint);
   Reduction ReduceValueOf(Node* node);
   Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);
   Reduction ReduceGetTypeFeedbackVector(Node* node);
   Reduction ReduceGetCallerJSFunction(Node* node);
   Reduction ReduceThrowNotDateError(Node* node);
+  Reduction ReduceToInteger(Node* node);
+  Reduction ReduceToLength(Node* node);
+  Reduction ReduceToName(Node* node);
+  Reduction ReduceToNumber(Node* node);
   Reduction ReduceToObject(Node* node);
-  Reduction ReduceCallFunction(Node* node);
+  Reduction ReduceToPrimitive(Node* node);
+  Reduction ReduceToString(Node* node);
+  Reduction ReduceCall(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
@@ -69,15 +79,17 @@ class JSIntrinsicLowering final : public AdvancedReducer {
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   MachineOperatorBuilder* machine() const;
+  SimplifiedOperatorBuilder* simplified() const;
   DeoptimizationMode mode() const { return mode_; }
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  TypeCache const& type_cache() const { return type_cache_; }
 
   JSGraph* const jsgraph_;
   DeoptimizationMode const mode_;
-  SimplifiedOperatorBuilder simplified_;
+  TypeCache const& type_cache_;
 };
 
 }  // namespace compiler

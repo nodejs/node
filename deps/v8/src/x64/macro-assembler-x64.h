@@ -16,17 +16,18 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {kRegister_rax_Code};
-const Register kReturnRegister1 = {kRegister_rdx_Code};
-const Register kJSFunctionRegister = {kRegister_rdi_Code};
-const Register kContextRegister = {kRegister_rsi_Code};
-const Register kInterpreterAccumulatorRegister = {kRegister_rax_Code};
-const Register kInterpreterRegisterFileRegister = {kRegister_r11_Code};
-const Register kInterpreterBytecodeOffsetRegister = {kRegister_r12_Code};
-const Register kInterpreterBytecodeArrayRegister = {kRegister_r14_Code};
-const Register kInterpreterDispatchTableRegister = {kRegister_r15_Code};
-const Register kRuntimeCallFunctionRegister = {kRegister_rbx_Code};
-const Register kRuntimeCallArgCountRegister = {kRegister_rax_Code};
+const Register kReturnRegister0 = {Register::kCode_rax};
+const Register kReturnRegister1 = {Register::kCode_rdx};
+const Register kJSFunctionRegister = {Register::kCode_rdi};
+const Register kContextRegister = {Register::kCode_rsi};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_rax};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_r11};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r12};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r14};
+const Register kInterpreterDispatchTableRegister = {Register::kCode_r15};
+const Register kJavaScriptCallArgCountRegister = {Register::kCode_rax};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_rbx};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_rax};
 
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
@@ -342,8 +343,8 @@ class MacroAssembler: public Assembler {
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
-  // argument in register rsi.
-  void LeaveExitFrame(bool save_doubles = false);
+  // argument in register rsi (if pop_arguments == true).
+  void LeaveExitFrame(bool save_doubles = false, bool pop_arguments = true);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax (untouched).
@@ -806,11 +807,29 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, intptr_t x);
 
+  void Cvtss2sd(XMMRegister dst, XMMRegister src);
+  void Cvtss2sd(XMMRegister dst, const Operand& src);
+  void Cvtsd2ss(XMMRegister dst, XMMRegister src);
+  void Cvtsd2ss(XMMRegister dst, const Operand& src);
+
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
-  // xorps to clear the dst register before cvtsi2sd to solve this issue.
+  // xorpd to clear the dst register before cvtsi2sd to solve this issue.
   void Cvtlsi2sd(XMMRegister dst, Register src);
   void Cvtlsi2sd(XMMRegister dst, const Operand& src);
+
+  void Cvtqsi2ss(XMMRegister dst, Register src);
+  void Cvtqsi2ss(XMMRegister dst, const Operand& src);
+
+  void Cvtqsi2sd(XMMRegister dst, Register src);
+  void Cvtqsi2sd(XMMRegister dst, const Operand& src);
+
+  void Cvtsd2si(Register dst, XMMRegister src);
+
+  void Cvttsd2si(Register dst, XMMRegister src);
+  void Cvttsd2si(Register dst, const Operand& src);
+  void Cvttsd2siq(Register dst, XMMRegister src);
+  void Cvttsd2siq(Register dst, const Operand& src);
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
@@ -894,6 +913,65 @@ class MacroAssembler: public Assembler {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
+#define AVX_OP2_WITH_TYPE(macro_name, name, src_type) \
+  void macro_name(XMMRegister dst, src_type src) {    \
+    if (CpuFeatures::IsSupported(AVX)) {              \
+      CpuFeatureScope scope(this, AVX);               \
+      v##name(dst, dst, src);                         \
+    } else {                                          \
+      name(dst, src);                                 \
+    }                                                 \
+  }
+#define AVX_OP2_X(macro_name, name) \
+  AVX_OP2_WITH_TYPE(macro_name, name, XMMRegister)
+#define AVX_OP2_O(macro_name, name) \
+  AVX_OP2_WITH_TYPE(macro_name, name, const Operand&)
+#define AVX_OP2_XO(macro_name, name) \
+  AVX_OP2_X(macro_name, name)        \
+  AVX_OP2_O(macro_name, name)
+
+  AVX_OP2_XO(Addsd, addsd)
+  AVX_OP2_XO(Subsd, subsd)
+  AVX_OP2_XO(Mulsd, mulsd)
+  AVX_OP2_XO(Divsd, divsd)
+  AVX_OP2_X(Andpd, andpd)
+  AVX_OP2_X(Orpd, orpd)
+  AVX_OP2_X(Xorpd, xorpd)
+  AVX_OP2_X(Pcmpeqd, pcmpeqd)
+  AVX_OP2_WITH_TYPE(Psllq, psllq, byte)
+  AVX_OP2_WITH_TYPE(Psrlq, psrlq, byte)
+
+#undef AVX_OP2_O
+#undef AVX_OP2_X
+#undef AVX_OP2_XO
+#undef AVX_OP2_WITH_TYPE
+
+  void Movsd(XMMRegister dst, XMMRegister src);
+  void Movsd(XMMRegister dst, const Operand& src);
+  void Movsd(const Operand& dst, XMMRegister src);
+  void Movss(XMMRegister dst, XMMRegister src);
+  void Movss(XMMRegister dst, const Operand& src);
+  void Movss(const Operand& dst, XMMRegister src);
+
+  void Movd(XMMRegister dst, Register src);
+  void Movd(XMMRegister dst, const Operand& src);
+  void Movd(Register dst, XMMRegister src);
+  void Movq(XMMRegister dst, Register src);
+  void Movq(Register dst, XMMRegister src);
+
+  void Movaps(XMMRegister dst, XMMRegister src);
+  void Movapd(XMMRegister dst, XMMRegister src);
+  void Movmskpd(Register dst, XMMRegister src);
+
+  void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void Sqrtsd(XMMRegister dst, XMMRegister src);
+  void Sqrtsd(XMMRegister dst, const Operand& src);
+
+  void Ucomiss(XMMRegister src1, XMMRegister src2);
+  void Ucomiss(XMMRegister src1, const Operand& src2);
+  void Ucomisd(XMMRegister src1, XMMRegister src2);
+  void Ucomisd(XMMRegister src1, const Operand& src2);
+
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
@@ -936,8 +1014,23 @@ class MacroAssembler: public Assembler {
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
   void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
 
+  void Lzcntq(Register dst, Register src);
+  void Lzcntq(Register dst, const Operand& src);
+
   void Lzcntl(Register dst, Register src);
   void Lzcntl(Register dst, const Operand& src);
+
+  void Tzcntq(Register dst, Register src);
+  void Tzcntq(Register dst, const Operand& src);
+
+  void Tzcntl(Register dst, Register src);
+  void Tzcntl(Register dst, const Operand& src);
+
+  void Popcntl(Register dst, Register src);
+  void Popcntl(Register dst, const Operand& src);
+
+  void Popcntq(Register dst, Register src);
+  void Popcntq(Register dst, const Operand& src);
 
   // Non-x64 instructions.
   // Push/pop all general purpose registers.
@@ -1640,6 +1733,7 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 #define ACCESS_MASM(masm) masm->
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_MACRO_ASSEMBLER_X64_H_

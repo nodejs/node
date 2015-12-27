@@ -118,17 +118,6 @@ String* Context::catch_name() {
 }
 
 
-JSBuiltinsObject* Context::builtins() {
-  GlobalObject* object = global_object();
-  if (object->IsJSGlobalObject()) {
-    return JSGlobalObject::cast(object)->builtins();
-  } else {
-    DCHECK(object->IsJSBuiltinsObject());
-    return JSBuiltinsObject::cast(object);
-  }
-}
-
-
 Context* Context::script_context() {
   Context* current = this;
   while (!current->IsScriptContext()) {
@@ -144,7 +133,7 @@ Context* Context::native_context() {
   // The global object has a direct pointer to the native context. If the
   // following DCHECK fails, the native context is probably being accessed
   // indirectly during bootstrapping. This is unsupported.
-  DCHECK(global_object()->IsGlobalObject());
+  DCHECK(global_object()->IsJSGlobalObject());
   return global_object()->native_context();
 }
 
@@ -264,7 +253,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
     }
 
     // 1. Check global objects, subjects of with, and extension objects.
-    if ((context->IsNativeContext() || context->IsWithContext() ||
+    if ((context->IsNativeContext() ||
+         (context->IsWithContext() && ((flags & SKIP_WITH_CONTEXT) == 0)) ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
         context->extension_receiver() != nullptr) {
       Handle<JSReceiver> object(context->extension_receiver());
@@ -384,7 +374,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
     }
 
     // 3. Prepare to continue with the previous (next outermost) context.
-    if (context->IsNativeContext()) {
+    if (context->IsNativeContext() ||
+        ((flags & STOP_AT_DECLARATION_SCOPE) != 0 &&
+         context->is_declaration_context())) {
       follow_context_chain = false;
     } else {
       context = Handle<Context>(context->previous(), isolate);
@@ -581,10 +573,20 @@ bool Context::IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
   return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
-      isolate->bootstrapper()->IsActive() ||
-      object->IsGlobalObject();
+         isolate->bootstrapper()->IsActive() || object->IsJSGlobalObject();
 }
 #endif
+
+
+void Context::IncrementErrorsThrown() {
+  DCHECK(IsNativeContext());
+
+  int previous_value = errors_thrown()->value();
+  set_errors_thrown(Smi::FromInt(previous_value + 1));
+}
+
+
+int Context::GetErrorsThrown() { return errors_thrown()->value(); }
 
 }  // namespace internal
 }  // namespace v8

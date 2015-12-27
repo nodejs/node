@@ -506,9 +506,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     ElementsAccessorSubclass::ValidateImpl(holder);
   }
 
-  virtual bool IsPacked(Handle<JSObject> holder,
-                        Handle<FixedArrayBase> backing_store, uint32_t start,
-                        uint32_t end) final {
+  bool IsPacked(Handle<JSObject> holder, Handle<FixedArrayBase> backing_store,
+                uint32_t start, uint32_t end) final {
     return ElementsAccessorSubclass::IsPackedImpl(holder, backing_store, start,
                                                   end);
   }
@@ -518,7 +517,8 @@ class ElementsAccessorBase : public ElementsAccessor {
                            uint32_t end) {
     if (IsFastPackedElementsKind(kind())) return true;
     for (uint32_t i = start; i < end; i++) {
-      if (!ElementsAccessorSubclass::HasElementImpl(holder, i, backing_store)) {
+      if (!ElementsAccessorSubclass::HasElementImpl(holder, i, backing_store,
+                                                    NONE)) {
         return false;
       }
     }
@@ -543,20 +543,22 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
   }
 
-  virtual bool HasElement(Handle<JSObject> holder, uint32_t index,
-                          Handle<FixedArrayBase> backing_store) final {
+  bool HasElement(Handle<JSObject> holder, uint32_t index,
+                  Handle<FixedArrayBase> backing_store,
+                  PropertyAttributes filter) final {
     return ElementsAccessorSubclass::HasElementImpl(holder, index,
-                                                    backing_store);
+                                                    backing_store, filter);
   }
 
   static bool HasElementImpl(Handle<JSObject> holder, uint32_t index,
-                             Handle<FixedArrayBase> backing_store) {
+                             Handle<FixedArrayBase> backing_store,
+                             PropertyAttributes filter) {
     return ElementsAccessorSubclass::GetEntryForIndexImpl(
-               *holder, *backing_store, index) != kMaxUInt32;
+               *holder, *backing_store, index, filter) != kMaxUInt32;
   }
 
-  virtual Handle<Object> Get(Handle<FixedArrayBase> backing_store,
-                             uint32_t entry) final {
+  Handle<Object> Get(Handle<FixedArrayBase> backing_store,
+                     uint32_t entry) final {
     return ElementsAccessorSubclass::GetImpl(backing_store, entry);
   }
 
@@ -566,8 +568,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     return BackingStore::get(Handle<BackingStore>::cast(backing_store), index);
   }
 
-  virtual void Set(FixedArrayBase* backing_store, uint32_t entry,
-                   Object* value) final {
+  void Set(FixedArrayBase* backing_store, uint32_t entry, Object* value) final {
     ElementsAccessorSubclass::SetImpl(backing_store, entry, value);
   }
 
@@ -582,10 +583,9 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNREACHABLE();
   }
 
-  virtual void Reconfigure(Handle<JSObject> object,
-                           Handle<FixedArrayBase> store, uint32_t entry,
-                           Handle<Object> value,
-                           PropertyAttributes attributes) final {
+  void Reconfigure(Handle<JSObject> object, Handle<FixedArrayBase> store,
+                   uint32_t entry, Handle<Object> value,
+                   PropertyAttributes attributes) final {
     ElementsAccessorSubclass::ReconfigureImpl(object, store, entry, value,
                                               attributes);
   }
@@ -597,9 +597,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNREACHABLE();
   }
 
-  virtual void Add(Handle<JSObject> object, uint32_t index,
-                   Handle<Object> value, PropertyAttributes attributes,
-                   uint32_t new_capacity) final {
+  void Add(Handle<JSObject> object, uint32_t index, Handle<Object> value,
+           PropertyAttributes attributes, uint32_t new_capacity) final {
     ElementsAccessorSubclass::AddImpl(object, index, value, attributes,
                                       new_capacity);
   }
@@ -610,9 +609,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNREACHABLE();
   }
 
-  virtual uint32_t Push(Handle<JSArray> receiver,
-                        Handle<FixedArrayBase> backing_store, Arguments* args,
-                        uint32_t push_size) final {
+  uint32_t Push(Handle<JSArray> receiver, Handle<FixedArrayBase> backing_store,
+                Arguments* args, uint32_t push_size) final {
     return ElementsAccessorSubclass::PushImpl(receiver, backing_store, args,
                                               push_size);
   }
@@ -624,9 +622,9 @@ class ElementsAccessorBase : public ElementsAccessor {
     return 0;
   }
 
-  virtual uint32_t Unshift(Handle<JSArray> receiver,
-                           Handle<FixedArrayBase> backing_store,
-                           Arguments* args, uint32_t unshift_size) final {
+  uint32_t Unshift(Handle<JSArray> receiver,
+                   Handle<FixedArrayBase> backing_store, Arguments* args,
+                   uint32_t unshift_size) final {
     return ElementsAccessorSubclass::UnshiftImpl(receiver, backing_store, args,
                                                  unshift_size);
   }
@@ -638,9 +636,9 @@ class ElementsAccessorBase : public ElementsAccessor {
     return 0;
   }
 
-  virtual Handle<JSArray> Slice(Handle<JSObject> receiver,
-                                Handle<FixedArrayBase> backing_store,
-                                uint32_t start, uint32_t end) final {
+  Handle<JSArray> Slice(Handle<JSObject> receiver,
+                        Handle<FixedArrayBase> backing_store, uint32_t start,
+                        uint32_t end) final {
     return ElementsAccessorSubclass::SliceImpl(receiver, backing_store, start,
                                                end);
   }
@@ -652,10 +650,10 @@ class ElementsAccessorBase : public ElementsAccessor {
     return Handle<JSArray>();
   }
 
-  virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
-                                 Handle<FixedArrayBase> backing_store,
-                                 uint32_t start, uint32_t delete_count,
-                                 Arguments* args, uint32_t add_count) final {
+  Handle<JSArray> Splice(Handle<JSArray> receiver,
+                         Handle<FixedArrayBase> backing_store, uint32_t start,
+                         uint32_t delete_count, Arguments* args,
+                         uint32_t add_count) final {
     return ElementsAccessorSubclass::SpliceImpl(receiver, backing_store, start,
                                                 delete_count, args, add_count);
   }
@@ -668,8 +666,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     return Handle<JSArray>();
   }
 
-  virtual Handle<Object> Pop(Handle<JSArray> receiver,
-                             Handle<FixedArrayBase> backing_store) final {
+  Handle<Object> Pop(Handle<JSArray> receiver,
+                     Handle<FixedArrayBase> backing_store) final {
     return ElementsAccessorSubclass::PopImpl(receiver, backing_store);
   }
 
@@ -679,8 +677,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     return Handle<Object>();
   }
 
-  virtual Handle<Object> Shift(Handle<JSArray> receiver,
-                               Handle<FixedArrayBase> backing_store) final {
+  Handle<Object> Shift(Handle<JSArray> receiver,
+                       Handle<FixedArrayBase> backing_store) final {
     return ElementsAccessorSubclass::ShiftImpl(receiver, backing_store);
   }
 
@@ -690,7 +688,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     return Handle<Object>();
   }
 
-  virtual void SetLength(Handle<JSArray> array, uint32_t length) final {
+  void SetLength(Handle<JSArray> array, uint32_t length) final {
     ElementsAccessorSubclass::SetLengthImpl(array, length,
                                             handle(array->elements()));
   }
@@ -810,12 +808,12 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
   }
 
-  virtual void GrowCapacityAndConvert(Handle<JSObject> object,
-                                      uint32_t capacity) final {
+  void GrowCapacityAndConvert(Handle<JSObject> object,
+                              uint32_t capacity) final {
     ElementsAccessorSubclass::GrowCapacityAndConvertImpl(object, capacity);
   }
 
-  virtual void Delete(Handle<JSObject> obj, uint32_t entry) final {
+  void Delete(Handle<JSObject> obj, uint32_t entry) final {
     ElementsAccessorSubclass::DeleteImpl(obj, entry);
   }
 
@@ -826,9 +824,9 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNREACHABLE();
   }
 
-  virtual void CopyElements(Handle<FixedArrayBase> from, uint32_t from_start,
-                            ElementsKind from_kind, Handle<FixedArrayBase> to,
-                            uint32_t to_start, int copy_size) final {
+  void CopyElements(Handle<FixedArrayBase> from, uint32_t from_start,
+                    ElementsKind from_kind, Handle<FixedArrayBase> to,
+                    uint32_t to_start, int copy_size) final {
     DCHECK(!from.is_null());
     // NOTE: the ElementsAccessorSubclass::CopyElementsImpl() methods
     // violate the handlified function signature convention:
@@ -841,9 +839,9 @@ class ElementsAccessorBase : public ElementsAccessor {
                                                kPackedSizeNotKnown, copy_size);
   }
 
-  virtual void CopyElements(JSObject* from_holder, uint32_t from_start,
-                            ElementsKind from_kind, Handle<FixedArrayBase> to,
-                            uint32_t to_start, int copy_size) final {
+  void CopyElements(JSObject* from_holder, uint32_t from_start,
+                    ElementsKind from_kind, Handle<FixedArrayBase> to,
+                    uint32_t to_start, int copy_size) final {
     int packed_size = kPackedSizeNotKnown;
     bool is_packed = IsFastPackedElementsKind(from_kind) &&
         from_holder->IsJSArray();
@@ -868,25 +866,50 @@ class ElementsAccessorBase : public ElementsAccessor {
         from, from_start, *to, from_kind, to_start, packed_size, copy_size);
   }
 
-  virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
-                                           KeyAccumulator* accumulator,
-                                           FixedArray::KeyFilter filter) final {
+  static void CollectElementIndicesImpl(Handle<JSObject> object,
+                                        Handle<FixedArrayBase> backing_store,
+                                        KeyAccumulator* keys, uint32_t range,
+                                        PropertyAttributes filter,
+                                        uint32_t offset) {
+    uint32_t length = 0;
+    if (object->IsJSArray()) {
+      length = Smi::cast(JSArray::cast(*object)->length())->value();
+    } else {
+      length =
+          ElementsAccessorSubclass::GetCapacityImpl(*object, *backing_store);
+    }
+    if (range < length) length = range;
+    for (uint32_t i = offset; i < length; i++) {
+      if (!ElementsAccessorSubclass::HasElementImpl(object, i, backing_store,
+                                                    filter))
+        continue;
+      keys->AddKey(i);
+    }
+  }
+
+  void CollectElementIndices(Handle<JSObject> object,
+                             Handle<FixedArrayBase> backing_store,
+                             KeyAccumulator* keys, uint32_t range,
+                             PropertyAttributes filter, uint32_t offset) final {
+    ElementsAccessorSubclass::CollectElementIndicesImpl(
+        object, backing_store, keys, range, filter, offset);
+  };
+
+  void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
+                                   KeyAccumulator* accumulator,
+                                   AddKeyConversion convert) final {
     Handle<FixedArrayBase> from(receiver->elements());
     uint32_t add_length =
         ElementsAccessorSubclass::GetCapacityImpl(*receiver, *from);
     if (add_length == 0) return;
-    accumulator->PrepareForComparisons(add_length);
-    int prev_key_count = accumulator->GetLength();
+
     for (uint32_t i = 0; i < add_length; i++) {
       if (!ElementsAccessorSubclass::HasEntryImpl(*from, i)) continue;
       Handle<Object> value = ElementsAccessorSubclass::GetImpl(from, i);
       DCHECK(!value->IsTheHole());
       DCHECK(!value->IsAccessorPair());
       DCHECK(!value->IsExecutableAccessorInfo());
-      if (filter == FixedArray::NON_SYMBOL_KEYS && value->IsSymbol()) {
-        continue;
-      }
-      accumulator->AddKey(value, prev_key_count);
+      accumulator->AddKey(value, convert);
     }
   }
 
@@ -910,7 +933,8 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* backing_store,
-                                       uint32_t index) {
+                                       uint32_t index,
+                                       PropertyAttributes filter) {
     if (IsHoleyElementsKind(kind())) {
       return index < ElementsAccessorSubclass::GetCapacityImpl(holder,
                                                                backing_store) &&
@@ -924,11 +948,10 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
   }
 
-  virtual uint32_t GetEntryForIndex(JSObject* holder,
-                                    FixedArrayBase* backing_store,
-                                    uint32_t index) final {
+  uint32_t GetEntryForIndex(JSObject* holder, FixedArrayBase* backing_store,
+                            uint32_t index) final {
     return ElementsAccessorSubclass::GetEntryForIndexImpl(holder, backing_store,
-                                                          index);
+                                                          index, NONE);
   }
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase* backing_store,
@@ -936,8 +959,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     return PropertyDetails(NONE, DATA, 0, PropertyCellType::kNoCell);
   }
 
-  virtual PropertyDetails GetDetails(FixedArrayBase* backing_store,
-                                     uint32_t entry) final {
+  PropertyDetails GetDetails(FixedArrayBase* backing_store,
+                             uint32_t entry) final {
     return ElementsAccessorSubclass::GetDetailsImpl(backing_store, entry);
   }
 
@@ -1090,18 +1113,49 @@ class DictionaryElementsAccessor
   }
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder, FixedArrayBase* store,
-                                       uint32_t index) {
+                                       uint32_t index,
+                                       PropertyAttributes filter) {
     DisallowHeapAllocation no_gc;
-    SeededNumberDictionary* dict = SeededNumberDictionary::cast(store);
-    int entry = dict->FindEntry(index);
-    return entry == SeededNumberDictionary::kNotFound
-               ? kMaxUInt32
-               : static_cast<uint32_t>(entry);
+    SeededNumberDictionary* dictionary = SeededNumberDictionary::cast(store);
+    int entry = dictionary->FindEntry(index);
+    if (entry == SeededNumberDictionary::kNotFound) return kMaxUInt32;
+    if (filter != NONE) {
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      PropertyAttributes attr = details.attributes();
+      if ((attr & filter) != 0) return kMaxUInt32;
+    }
+    return static_cast<uint32_t>(entry);
   }
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase* backing_store,
                                         uint32_t entry) {
     return SeededNumberDictionary::cast(backing_store)->DetailsAt(entry);
+  }
+
+  static void CollectElementIndicesImpl(Handle<JSObject> object,
+                                        Handle<FixedArrayBase> backing_store,
+                                        KeyAccumulator* keys, uint32_t range,
+                                        PropertyAttributes filter,
+                                        uint32_t offset) {
+    Handle<SeededNumberDictionary> dictionary =
+        Handle<SeededNumberDictionary>::cast(backing_store);
+    int capacity = dictionary->Capacity();
+    for (int i = 0; i < capacity; i++) {
+      Object* k = dictionary->KeyAt(i);
+      if (!dictionary->IsKey(k)) continue;
+      if (k->FilterKey(filter)) continue;
+      if (dictionary->IsDeleted(i)) continue;
+      DCHECK(k->IsNumber());
+      DCHECK_LE(k->Number(), kMaxUInt32);
+      uint32_t index = static_cast<uint32_t>(k->Number());
+      if (index < offset) continue;
+      PropertyDetails details = dictionary->DetailsAt(i);
+      PropertyAttributes attr = details.attributes();
+      if ((attr & filter) != 0) continue;
+      keys->AddKey(index);
+    }
+
+    keys->SortCurrentElementsList();
   }
 };
 
@@ -1759,7 +1813,8 @@ class TypedElementsAccessor
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* backing_store,
-                                       uint32_t index) {
+                                       uint32_t index,
+                                       PropertyAttributes filter) {
     return index < AccessorClass::GetCapacityImpl(holder, backing_store)
                ? index
                : kMaxUInt32;
@@ -1893,14 +1948,15 @@ class SloppyArgumentsElementsAccessor
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* parameters,
-                                       uint32_t index) {
+                                       uint32_t index,
+                                       PropertyAttributes filter) {
     FixedArray* parameter_map = FixedArray::cast(parameters);
     Object* probe = GetParameterMapArg(parameter_map, index);
     if (!probe->IsTheHole()) return index;
 
     FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-    uint32_t entry =
-        ArgumentsAccessor::GetEntryForIndexImpl(holder, arguments, index);
+    uint32_t entry = ArgumentsAccessor::GetEntryForIndexImpl(holder, arguments,
+                                                             index, filter);
     if (entry == kMaxUInt32) return entry;
     return (parameter_map->length() - 2) + entry;
   }
@@ -2170,7 +2226,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
 
     // Optimize the case where there is one argument and the argument is a small
     // smi.
-    if (length > 0 && length < JSObject::kInitialMaxFastElementArray) {
+    if (length > 0 && length < JSArray::kInitialMaxFastElementArray) {
       ElementsKind elements_kind = array->GetElementsKind();
       JSArray::Initialize(array, length, length);
 

@@ -33,38 +33,44 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Modes for ArchStoreWithWriteBarrier below.
+enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
+
+
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
-#define ARCH_OPCODE_LIST(V)   \
-  V(ArchCallCodeObject)       \
-  V(ArchTailCallCodeObject)   \
-  V(ArchCallJSFunction)       \
-  V(ArchTailCallJSFunction)   \
-  V(ArchPrepareCallCFunction) \
-  V(ArchCallCFunction)        \
-  V(ArchJmp)                  \
-  V(ArchLookupSwitch)         \
-  V(ArchTableSwitch)          \
-  V(ArchNop)                  \
-  V(ArchDeoptimize)           \
-  V(ArchRet)                  \
-  V(ArchStackPointer)         \
-  V(ArchFramePointer)         \
-  V(ArchTruncateDoubleToI)    \
-  V(CheckedLoadInt8)          \
-  V(CheckedLoadUint8)         \
-  V(CheckedLoadInt16)         \
-  V(CheckedLoadUint16)        \
-  V(CheckedLoadWord32)        \
-  V(CheckedLoadWord64)        \
-  V(CheckedLoadFloat32)       \
-  V(CheckedLoadFloat64)       \
-  V(CheckedStoreWord8)        \
-  V(CheckedStoreWord16)       \
-  V(CheckedStoreWord32)       \
-  V(CheckedStoreWord64)       \
-  V(CheckedStoreFloat32)      \
-  V(CheckedStoreFloat64)      \
+#define ARCH_OPCODE_LIST(V)    \
+  V(ArchCallCodeObject)        \
+  V(ArchTailCallCodeObject)    \
+  V(ArchCallJSFunction)        \
+  V(ArchTailCallJSFunction)    \
+  V(ArchPrepareCallCFunction)  \
+  V(ArchCallCFunction)         \
+  V(ArchLazyBailout)           \
+  V(ArchJmp)                   \
+  V(ArchLookupSwitch)          \
+  V(ArchTableSwitch)           \
+  V(ArchNop)                   \
+  V(ArchDeoptimize)            \
+  V(ArchRet)                   \
+  V(ArchStackPointer)          \
+  V(ArchFramePointer)          \
+  V(ArchTruncateDoubleToI)     \
+  V(ArchStoreWithWriteBarrier) \
+  V(CheckedLoadInt8)           \
+  V(CheckedLoadUint8)          \
+  V(CheckedLoadInt16)          \
+  V(CheckedLoadUint16)         \
+  V(CheckedLoadWord32)         \
+  V(CheckedLoadWord64)         \
+  V(CheckedLoadFloat32)        \
+  V(CheckedLoadFloat64)        \
+  V(CheckedStoreWord8)         \
+  V(CheckedStoreWord16)        \
+  V(CheckedStoreWord32)        \
+  V(CheckedStoreWord64)        \
+  V(CheckedStoreFloat32)       \
+  V(CheckedStoreFloat64)       \
   TARGET_ARCH_OPCODE_LIST(V)
 
 enum ArchOpcode {

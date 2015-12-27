@@ -25,8 +25,6 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, Register type,
   //   type: holds the receiver instance type on entry.
   __ cmp(type, JS_GLOBAL_OBJECT_TYPE);
   __ j(equal, global_object);
-  __ cmp(type, JS_BUILTINS_OBJECT_TYPE);
-  __ j(equal, global_object);
   __ cmp(type, JS_GLOBAL_PROXY_TYPE);
   __ j(equal, global_object);
 }
@@ -341,7 +339,7 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
   Handle<TypeFeedbackVector> dummy_vector =
       TypeFeedbackVector::DummyVector(isolate);
   int slot = dummy_vector->GetIndex(
-      FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
+      FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
   __ push(Immediate(Smi::FromInt(slot)));
   __ push(Immediate(dummy_vector));
 
@@ -569,7 +567,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
     Handle<TypeFeedbackVector> dummy_vector =
         TypeFeedbackVector::DummyVector(masm->isolate());
     int slot = dummy_vector->GetIndex(
-        FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
+        FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
     __ push(Immediate(Smi::FromInt(slot)));
     __ push(Immediate(dummy_vector));
   }

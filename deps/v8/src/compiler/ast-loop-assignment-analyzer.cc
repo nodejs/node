@@ -13,13 +13,13 @@ namespace compiler {
 typedef class AstLoopAssignmentAnalyzer ALAA;  // for code shortitude.
 
 ALAA::AstLoopAssignmentAnalyzer(Zone* zone, CompilationInfo* info)
-    : info_(info), loop_stack_(zone) {
-  InitializeAstVisitor(info->isolate(), zone);
+    : info_(info), zone_(zone), loop_stack_(zone) {
+  InitializeAstVisitor(info->isolate());
 }
 
 
 LoopAssignmentAnalysis* ALAA::Analyze() {
-  LoopAssignmentAnalysis* a = new (zone()) LoopAssignmentAnalysis(zone());
+  LoopAssignmentAnalysis* a = new (zone_) LoopAssignmentAnalysis(zone_);
   result_ = a;
   VisitStatements(info()->literal()->body());
   result_ = NULL;
@@ -30,7 +30,7 @@ LoopAssignmentAnalysis* ALAA::Analyze() {
 void ALAA::Enter(IterationStatement* loop) {
   int num_variables = 1 + info()->scope()->num_parameters() +
                       info()->scope()->num_stack_slots();
-  BitVector* bits = new (zone()) BitVector(num_variables, zone());
+  BitVector* bits = new (zone_) BitVector(num_variables, zone_);
   if (info()->is_osr() && info()->osr_ast_id() == loop->OsrEntryId())
     bits->AddAll();
   loop_stack_.push_back(bits);
@@ -75,6 +75,12 @@ void ALAA::VisitSuperCallReference(SuperCallReference* leaf) {}
 // -- Pass-through nodes------------------------------------------------------
 // ---------------------------------------------------------------------------
 void ALAA::VisitBlock(Block* stmt) { VisitStatements(stmt->statements()); }
+
+
+void ALAA::VisitDoExpression(DoExpression* expr) {
+  Visit(expr->block());
+  Visit(expr->result());
+}
 
 
 void ALAA::VisitExpressionStatement(ExpressionStatement* stmt) {
@@ -255,7 +261,9 @@ void ALAA::VisitForInStatement(ForInStatement* loop) {
 
 
 void ALAA::VisitForOfStatement(ForOfStatement* loop) {
+  Visit(loop->assign_iterator());
   Enter(loop);
+  Visit(loop->assign_each());
   Visit(loop->each());
   Visit(loop->subject());
   Visit(loop->body());

@@ -216,7 +216,7 @@ class ScavengingVisitor : public StaticVisitorBase {
   template <ObjectContents object_contents, AllocationAlignment alignment>
   static inline void EvacuateObject(Map* map, HeapObject** slot,
                                     HeapObject* object, int object_size) {
-    SLOW_DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+    SLOW_DCHECK(object_size <= Page::kAllocatableMemory);
     SLOW_DCHECK(object->Size() == object_size);
     Heap* heap = map->GetHeap();
 
@@ -236,7 +236,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     // If promotion failed, we try to copy the object to the other semi-space
     if (SemiSpaceCopyObject<alignment>(map, slot, object, object_size)) return;
 
-    UNREACHABLE();
+    FatalProcessOutOfMemory("Scavenger: semi-space copy\n");
   }
 
 

@@ -178,6 +178,7 @@ class StringStream final {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringStream);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STRING_STREAM_H_

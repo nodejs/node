@@ -5,8 +5,6 @@
 #ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
@@ -52,6 +50,11 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   void GenerateCode() { Generate(); }
 
+  Handle<Code> GetCode() {
+    Generate();
+    return code_.ToHandleChecked();
+  }
+
  protected:
   virtual byte* Generate() {
     if (code_.is_null()) {
@@ -70,6 +73,209 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 };
 
 
+template <typename ReturnType>
+class BufferedRawMachineAssemblerTester
+    : public RawMachineAssemblerTester<int32_t> {
+ public:
+  BufferedRawMachineAssemblerTester(MachineType p0 = kMachNone,
+                                    MachineType p1 = kMachNone,
+                                    MachineType p2 = kMachNone,
+                                    MachineType p3 = kMachNone)
+      : BufferedRawMachineAssemblerTester(ComputeParameterCount(p0, p1, p2, p3),
+                                          p0, p1, p2, p3) {}
+
+
+  // The BufferedRawMachineAssemblerTester does not pass parameters directly
+  // to the constructed IR graph. Instead it passes a pointer to the parameter
+  // to the IR graph, and adds Load nodes to the IR graph to load the
+  // parameters from memory. Thereby it is possible to pass 64 bit parameters
+  // to the IR graph.
+  Node* Parameter(size_t index) {
+    CHECK(index >= 0 && index < 4);
+    return parameter_nodes_[index];
+  }
+
+
+  // The BufferedRawMachineAssemblerTester adds a Store node to the IR graph
+  // to store the graph's return value in memory. The memory address for the
+  // Store node is provided as a parameter. By storing the return value in
+  // memory it is possible to return 64 bit values.
+  void Return(Node* input) {
+    Store(MachineTypeForC<ReturnType>(),
+          RawMachineAssembler::Parameter(return_parameter_index_), input,
+          kNoWriteBarrier);
+    RawMachineAssembler::Return(Int32Constant(1234));
+  }
+
+  ReturnType Call() {
+    ReturnType return_value;
+    test_graph_signature_->VerifyParams();
+    CallHelper<int32_t>::Call(reinterpret_cast<void*>(&return_value));
+    return return_value;
+  }
+
+  template <typename P0>
+  ReturnType Call(P0 p0) {
+    ReturnType return_value;
+    test_graph_signature_->VerifyParams<P0>();
+    CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p0),
+                              reinterpret_cast<void*>(&return_value));
+    return return_value;
+  }
+
+  template <typename P0, typename P1>
+  ReturnType Call(P0 p0, P1 p1) {
+    ReturnType return_value;
+    test_graph_signature_->VerifyParams<P0, P1>();
+    CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p0),
+                              reinterpret_cast<void*>(&p1),
+                              reinterpret_cast<void*>(&return_value));
+    return return_value;
+  }
+
+  template <typename P0, typename P1, typename P2>
+  ReturnType Call(P0 p0, P1 p1, P2 p2) {
+    ReturnType return_value;
+    test_graph_signature_->VerifyParams<P0, P1, P2>();
+    CallHelper<int32_t>::Call(
+        reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
+        reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&return_value));
+    return return_value;
+  }
+
+  template <typename P0, typename P1, typename P2, typename P3>
+  ReturnType Call(P0 p0, P1 p1, P2 p2, P3 p3) {
+    ReturnType return_value;
+    test_graph_signature_->VerifyParams<P0, P1, P2, P3>();
+    CallHelper<int32_t>::Call(
+        reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
+        reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&p3),
+        reinterpret_cast<void*>(&return_value));
+    return return_value;
+  }
+
+ private:
+  BufferedRawMachineAssemblerTester(uint32_t return_parameter_index,
+                                    MachineType p0, MachineType p1,
+                                    MachineType p2, MachineType p3)
+      : RawMachineAssemblerTester<int32_t>(
+            kMachPtr, p0 == kMachNone ? kMachNone : kMachPtr,
+            p1 == kMachNone ? kMachNone : kMachPtr,
+            p2 == kMachNone ? kMachNone : kMachPtr,
+            p3 == kMachNone ? kMachNone : kMachPtr),
+        test_graph_signature_(
+            CSignature::New(main_zone(), kMachInt32, p0, p1, p2, p3)),
+        return_parameter_index_(return_parameter_index) {
+    parameter_nodes_[0] =
+        p0 == kMachNone ? nullptr : Load(p0, RawMachineAssembler::Parameter(0));
+    parameter_nodes_[1] =
+        p1 == kMachNone ? nullptr : Load(p1, RawMachineAssembler::Parameter(1));
+    parameter_nodes_[2] =
+        p2 == kMachNone ? nullptr : Load(p2, RawMachineAssembler::Parameter(2));
+    parameter_nodes_[3] =
+        p3 == kMachNone ? nullptr : Load(p3, RawMachineAssembler::Parameter(3));
+  }
+
+
+  static uint32_t ComputeParameterCount(MachineType p0, MachineType p1,
+                                        MachineType p2, MachineType p3) {
+    if (p0 == kMachNone) {
+      return 0;
+    }
+    if (p1 == kMachNone) {
+      return 1;
+    }
+    if (p2 == kMachNone) {
+      return 2;
+    }
+    if (p3 == kMachNone) {
+      return 3;
+    }
+    return 4;
+  }
+
+
+  CSignature* test_graph_signature_;
+  Node* parameter_nodes_[4];
+  uint32_t return_parameter_index_;
+};
+
+
+template <>
+class BufferedRawMachineAssemblerTester<void>
+    : public RawMachineAssemblerTester<void> {
+ public:
+  BufferedRawMachineAssemblerTester(MachineType p0 = kMachNone,
+                                    MachineType p1 = kMachNone,
+                                    MachineType p2 = kMachNone,
+                                    MachineType p3 = kMachNone)
+      : RawMachineAssemblerTester<void>(p0 == kMachNone ? kMachNone : kMachPtr,
+                                        p1 == kMachNone ? kMachNone : kMachPtr,
+                                        p2 == kMachNone ? kMachNone : kMachPtr,
+                                        p3 == kMachNone ? kMachNone : kMachPtr),
+        test_graph_signature_(
+            CSignature::New(RawMachineAssemblerTester<void>::main_zone(),
+                            kMachNone, p0, p1, p2, p3)) {
+    parameter_nodes_[0] =
+        p0 == kMachNone ? nullptr : Load(p0, RawMachineAssembler::Parameter(0));
+    parameter_nodes_[1] =
+        p1 == kMachNone ? nullptr : Load(p1, RawMachineAssembler::Parameter(1));
+    parameter_nodes_[2] =
+        p2 == kMachNone ? nullptr : Load(p2, RawMachineAssembler::Parameter(2));
+    parameter_nodes_[3] =
+        p3 == kMachNone ? nullptr : Load(p3, RawMachineAssembler::Parameter(3));
+  }
+
+
+  // The BufferedRawMachineAssemblerTester does not pass parameters directly
+  // to the constructed IR graph. Instead it passes a pointer to the parameter
+  // to the IR graph, and adds Load nodes to the IR graph to load the
+  // parameters from memory. Thereby it is possible to pass 64 bit parameters
+  // to the IR graph.
+  Node* Parameter(size_t index) {
+    CHECK(index >= 0 && index < 4);
+    return parameter_nodes_[index];
+  }
+
+
+  void Call() {
+    test_graph_signature_->VerifyParams();
+    CallHelper<void>::Call();
+  }
+
+  template <typename P0>
+  void Call(P0 p0) {
+    test_graph_signature_->VerifyParams<P0>();
+    CallHelper<void>::Call(reinterpret_cast<void*>(&p0));
+  }
+
+  template <typename P0, typename P1>
+  void Call(P0 p0, P1 p1) {
+    test_graph_signature_->VerifyParams<P0, P1>();
+    CallHelper<void>::Call(reinterpret_cast<void*>(&p0),
+                           reinterpret_cast<void*>(&p1));
+  }
+
+  template <typename P0, typename P1, typename P2>
+  void Call(P0 p0, P1 p1, P2 p2) {
+    test_graph_signature_->VerifyParams<P0, P1, P2>();
+    CallHelper<void>::Call(reinterpret_cast<void*>(&p0),
+                           reinterpret_cast<void*>(&p1),
+                           reinterpret_cast<void*>(&p2));
+  }
+
+  template <typename P0, typename P1, typename P2, typename P3>
+  void Call(P0 p0, P1 p1, P2 p2, P3 p3) {
+    test_graph_signature_->VerifyParams<P0, P1, P2, P3>();
+    CallHelper<void>::Call(
+        reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
+        reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&p3));
+  }
+
+ private:
+  CSignature* test_graph_signature_;
+  Node* parameter_nodes_[4];
+};
 static const bool USE_RESULT_BUFFER = true;
 static const bool USE_RETURN_REGISTER = false;
 static const int32_t CHECK_VALUE = 0x99BEEDCE;
@@ -105,7 +311,8 @@ class BinopTester {
 
   void AddReturn(Node* val) {
     if (use_result_buffer) {
-      T->Store(rep, T->PointerConstant(&result), T->Int32Constant(0), val);
+      T->Store(rep, T->PointerConstant(&result), T->Int32Constant(0), val,
+               kNoWriteBarrier);
       T->Return(T->Int32Constant(CHECK_VALUE));
     } else {
       T->Return(val);

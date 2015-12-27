@@ -1,6 +1,8 @@
+# Becoming a V8 committer
+
 ## What is a committer?
 
-Technically, a committer is someone who has write access to the V8 SVN repository. A committer can submit his or her own patches or patches from others.
+Technically, a committer is someone who has write access to the V8 Git repository. A committer can submit his or her own patches or patches from others.
 
 This privilege is granted with some expectation of responsibility: committers are people who care about the V8 project and want to help meet its goals. A committer is not just someone who can make changes, but someone who has demonstrated his or her ability to collaborate with the team, get the most knowledgeable people to review code, contribute high-quality code, and follow through to fix issues (in code or tests).
 

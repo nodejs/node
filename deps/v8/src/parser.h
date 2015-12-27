@@ -796,6 +796,8 @@ class ParserTraits {
       const Scanner::Location& params_loc,
       Scanner::Location* duplicate_loc, bool* ok);
 
+  V8_INLINE DoExpression* ParseDoExpression(bool* ok);
+
   void ReindexLiterals(const ParserFormalParameters& parameters);
 
   // Temporary glue; these functions will move to ParserBase.
@@ -925,7 +927,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   void SetCachedData(ParseInfo* info);
 
-  bool inside_with() const { return scope_->inside_with(); }
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
   }
@@ -971,6 +972,7 @@ class Parser : public ParserBase<ParserTraits> {
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 ZoneList<const AstRawString*>* names,
                                 bool* ok);
+  DoExpression* ParseDoExpression(bool* ok);
 
   struct DeclarationDescriptor {
     enum Kind { NORMAL, PARAMETER };
@@ -1031,7 +1033,7 @@ class Parser : public ParserBase<ParserTraits> {
     // Visiting functions for AST nodes make this an AstVisitor.
     AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-    virtual void Visit(AstNode* node) override;
+    void Visit(AstNode* node) override;
 
     void RecurseIntoSubpattern(AstNode* pattern, Expression* value) {
       Expression* old_value = current_value_;
@@ -1046,7 +1048,6 @@ class Parser : public ParserBase<ParserTraits> {
     AstValueFactory* ast_value_factory() const {
       return descriptor_->parser->ast_value_factory();
     }
-    bool inside_with() const { return descriptor_->parser->inside_with(); }
     Zone* zone() const { return descriptor_->parser->zone(); }
 
     Expression* pattern_;
@@ -1104,6 +1105,8 @@ class Parser : public ParserBase<ParserTraits> {
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, bool* ok);
 
+  void RewriteDoExpression(Expression* expr, bool* ok);
+
   FunctionLiteral* ParseFunctionLiteral(
       const AstRawString* name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
@@ -1123,8 +1126,8 @@ class Parser : public ParserBase<ParserTraits> {
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
 
-  // For harmony block scoping mode: Check if the scope has conflicting var/let
-  // declarations from different scopes. It covers for example
+  // Check if the scope has conflicting var/let declarations from different
+  // scopes. This covers for example
   //
   // function f() { { { var x; } let x; } }
   // function g() { { var x; let x; } }
@@ -1133,6 +1136,10 @@ class Parser : public ParserBase<ParserTraits> {
   // a scope where the name has also been let bound or the var declaration is
   // hoisted over such a scope.
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
+
+  // Insert initializer statements for var-bindings shadowing parameter bindings
+  // from a non-simple parameter list.
+  void InsertShadowingVarBindingInitializers(Block* block);
 
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
   void InsertSloppyBlockFunctionVarBindings(Scope* scope, bool* ok);
@@ -1147,7 +1154,6 @@ class Parser : public ParserBase<ParserTraits> {
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);
   IterationStatement* LookupContinueTarget(const AstRawString* label, bool* ok);
 
-  void AddAssertIsConstruct(ZoneList<Statement*>* body, int pos);
   Statement* BuildAssertIsCoercible(Variable* var);
 
   // Factory methods.
@@ -1192,6 +1198,9 @@ class Parser : public ParserBase<ParserTraits> {
                          ZoneList<v8::internal::Expression*>* args, int pos);
   Expression* SpreadCallNew(Expression* function,
                             ZoneList<v8::internal::Expression*>* args, int pos);
+
+  void SetLanguageMode(Scope* scope, LanguageMode mode);
+  void RaiseLanguageMode(LanguageMode mode);
 
   Scanner scanner_;
   PreParser* reusable_preparser_;
@@ -1243,6 +1252,7 @@ ZoneList<Statement*>* ParserTraits::ParseEagerFunctionBody(
   return parser_->ParseEagerFunctionBody(name, pos, parameters, kind,
                                          function_type, ok);
 }
+
 
 void ParserTraits::CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                    bool* ok) {
@@ -1373,6 +1383,14 @@ void ParserTraits::AddParameterInitializationBlock(
     }
   }
 }
-} }  // namespace v8::internal
+
+
+DoExpression* ParserTraits::ParseDoExpression(bool* ok) {
+  return parser_->ParseDoExpression(ok);
+}
+
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PARSER_H_

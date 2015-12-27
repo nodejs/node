@@ -18,14 +18,13 @@
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
 #include "src/compilation-statistics.h"
+#include "src/crankshaft/hydrogen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
-#include "src/hydrogen.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
-#include "src/lithium-allocator.h"
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/profiler/cpu-profiler.h"
@@ -317,9 +316,8 @@ static bool IsVisibleInStackTrace(JSFunction* fun,
   // exposed, in which case the native flag is set.
   // The --builtins-in-stack-traces command line flag allows including
   // internal call sites in the stack trace for debugging purposes.
-  if (!FLAG_builtins_in_stack_traces) {
-    if (receiver->IsJSBuiltinsObject()) return false;
-    if (fun->IsBuiltin()) return fun->shared()->native();
+  if (!FLAG_builtins_in_stack_traces && fun->shared()->IsBuiltin()) {
+    return fun->shared()->native();
   }
   return true;
 }
@@ -782,12 +780,12 @@ bool Isolate::IsInternallyUsedPropertyName(Object* name) {
 }
 
 
-bool Isolate::MayAccess(Handle<JSObject> receiver) {
+bool Isolate::MayAccess(Handle<Context> accessing_context,
+                        Handle<JSObject> receiver) {
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
-  DCHECK(context());
 
   {
     DisallowHeapAllocation no_gc;
@@ -801,7 +799,8 @@ bool Isolate::MayAccess(Handle<JSObject> receiver) {
 
       // Get the native context of current top context.
       // avoid using Isolate::native_context() because it uses Handle.
-      Context* native_context = context()->global_object()->native_context();
+      Context* native_context =
+          accessing_context->global_object()->native_context();
       if (receiver_context == native_context) return true;
 
       if (Context::cast(receiver_context)->security_token() ==
@@ -812,23 +811,34 @@ bool Isolate::MayAccess(Handle<JSObject> receiver) {
 
   HandleScope scope(this);
   Handle<Object> data;
-  v8::NamedSecurityCallback callback;
+  v8::AccessCheckCallback callback = nullptr;
+  v8::NamedSecurityCallback named_callback = nullptr;
   { DisallowHeapAllocation no_gc;
     AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
     if (!access_check_info) return false;
-    Object* fun_obj = access_check_info->named_callback();
-    callback = v8::ToCData<v8::NamedSecurityCallback>(fun_obj);
-    if (!callback) return false;
-    data = handle(access_check_info->data(), this);
+    Object* fun_obj = access_check_info->callback();
+    callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
+    if (!callback) {
+      fun_obj = access_check_info->named_callback();
+      named_callback = v8::ToCData<v8::NamedSecurityCallback>(fun_obj);
+      if (!named_callback) return false;
+      data = handle(access_check_info->data(), this);
+    }
   }
 
   LOG(this, ApiSecurityCheck());
 
-  // Leaving JavaScript.
-  VMState<EXTERNAL> state(this);
-  Handle<Object> key = factory()->undefined_value();
-  return callback(v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(key),
-                  v8::ACCESS_HAS, v8::Utils::ToLocal(data));
+  {
+    // Leaving JavaScript.
+    VMState<EXTERNAL> state(this);
+    if (callback) {
+      return callback(v8::Utils::ToLocal(accessing_context),
+                      v8::Utils::ToLocal(receiver));
+    }
+    Handle<Object> key = factory()->undefined_value();
+    return named_callback(v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(key),
+                          v8::ACCESS_HAS, v8::Utils::ToLocal(data));
+  }
 }
 
 
@@ -1331,7 +1341,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   for (int i = 1; i < elements_limit; i += 4) {
     Handle<JSFunction> fun =
         handle(JSFunction::cast(elements->get(i + 1)), this);
-    if (!fun->IsSubjectToDebugging()) continue;
+    if (!fun->shared()->IsSubjectToDebugging()) continue;
 
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
@@ -1778,8 +1788,10 @@ Isolate::Isolate(bool enable_serializer)
       deferred_handles_head_(NULL),
       optimizing_compile_dispatcher_(NULL),
       stress_deopt_count_(0),
-      vector_store_virtual_register_(NULL),
+      virtual_handler_register_(NULL),
+      virtual_slot_register_(NULL),
       next_optimization_id_(0),
+      js_calls_from_api_counter_(0),
 #if TRACE_MAPS
       next_unique_sfi_id_(0),
 #endif
@@ -1862,8 +1874,6 @@ void Isolate::ClearSerializerData() {
   external_reference_table_ = NULL;
   delete external_reference_map_;
   external_reference_map_ = NULL;
-  delete root_index_map_;
-  root_index_map_ = NULL;
 }
 
 
@@ -1922,6 +1932,9 @@ void Isolate::Deinit() {
   heap_profiler_ = NULL;
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
+
+  delete root_index_map_;
+  root_index_map_ = NULL;
 
   ClearSerializerData();
 }
@@ -2571,6 +2584,7 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
     SetUpSubregistry(registry, map, "for");
     SetUpSubregistry(registry, map, "for_api");
     SetUpSubregistry(registry, map, "keyFor");
+    SetUpSubregistry(registry, map, "private_api");
   }
   return Handle<JSObject>::cast(factory()->symbol_registry());
 }
@@ -2668,9 +2682,9 @@ void Isolate::RunMicrotasks() {
         SaveContext save(this);
         set_context(microtask_function->context()->native_context());
         MaybeHandle<Object> maybe_exception;
-        MaybeHandle<Object> result =
-            Execution::TryCall(microtask_function, factory()->undefined_value(),
-                               0, NULL, &maybe_exception);
+        MaybeHandle<Object> result = Execution::TryCall(
+            this, microtask_function, factory()->undefined_value(), 0, NULL,
+            &maybe_exception);
         // If execution is terminating, just bail out.
         Handle<Object> exception;
         if (result.is_null() && maybe_exception.is_null()) {

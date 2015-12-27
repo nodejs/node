@@ -5,10 +5,7 @@
 #ifndef V8_CCTEST_COMPILER_CALL_TESTER_H_
 #define V8_CCTEST_COMPILER_CALL_TESTER_H_
 
-#include "src/v8.h"
-
 #include "src/simulator.h"
-
 #include "test/cctest/compiler/c-signature.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -162,6 +159,13 @@ class CallHelper {
     return DoCall(FUNCTION_CAST<FType*>(Generate()), p1, p2, p3, p4);
   }
 
+  template <typename P1, typename P2, typename P3, typename P4, typename P5>
+  R Call(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
+    typedef R V8_CDECL FType(P1, P2, P3, P4, P5);
+    csig_->VerifyParams<P1, P2, P3, P4, P5>();
+    return DoCall(FUNCTION_CAST<FType*>(Generate()), p1, p2, p3, p4, p5);
+  }
+
  protected:
   CSignature* csig_;
 
@@ -207,11 +211,20 @@ class CallHelper {
         Simulator::CallArgument::End()};
     return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f), args));
   }
+  template <typename F, typename P1, typename P2, typename P3, typename P4,
+            typename P5>
+  R DoCall(F* f, P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
+    Simulator::CallArgument args[] = {
+        Simulator::CallArgument(p1), Simulator::CallArgument(p2),
+        Simulator::CallArgument(p3), Simulator::CallArgument(p4),
+        Simulator::CallArgument(p5), Simulator::CallArgument::End()};
+    return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f), args));
+  }
 #elif USE_SIMULATOR && (V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64)
   uintptr_t CallSimulator(byte* f, int64_t p1 = 0, int64_t p2 = 0,
-                          int64_t p3 = 0, int64_t p4 = 0) {
+                          int64_t p3 = 0, int64_t p4 = 0, int64_t p5 = 0) {
     Simulator* simulator = Simulator::current(isolate_);
-    return static_cast<uintptr_t>(simulator->Call(f, 4, p1, p2, p3, p4));
+    return static_cast<uintptr_t>(simulator->Call(f, 5, p1, p2, p3, p4, p5));
   }
 
 
@@ -242,13 +255,21 @@ class CallHelper {
         FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
         ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3),
         ParameterTraits<P4>::Cast(p4)));
+  }
+  template <typename F, typename P1, typename P2, typename P3, typename P4,
+            typename P5>
+  R DoCall(F* f, P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
+    return CastReturnValue<R>(CallSimulator(
+        FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
+        ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3),
+        ParameterTraits<P4>::Cast(p4), ParameterTraits<P5>::Cast(p5)));
   }
 #elif USE_SIMULATOR && \
     (V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_PPC)
   uintptr_t CallSimulator(byte* f, int32_t p1 = 0, int32_t p2 = 0,
-                          int32_t p3 = 0, int32_t p4 = 0) {
+                          int32_t p3 = 0, int32_t p4 = 0, int32_t p5 = 0) {
     Simulator* simulator = Simulator::current(isolate_);
-    return static_cast<uintptr_t>(simulator->Call(f, 4, p1, p2, p3, p4));
+    return static_cast<uintptr_t>(simulator->Call(f, 5, p1, p2, p3, p4, p5));
   }
   template <typename F>
   R DoCall(F* f) {
@@ -277,6 +298,14 @@ class CallHelper {
         FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
         ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3),
         ParameterTraits<P4>::Cast(p4)));
+  }
+  template <typename F, typename P1, typename P2, typename P3, typename P4,
+            typename P5>
+  R DoCall(F* f, P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
+    return CastReturnValue<R>(CallSimulator(
+        FUNCTION_ADDR(f), ParameterTraits<P1>::Cast(p1),
+        ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3),
+        ParameterTraits<P4>::Cast(p4), ParameterTraits<P5>::Cast(p5)));
   }
 #else
   template <typename F>
@@ -298,6 +327,11 @@ class CallHelper {
   template <typename F, typename P1, typename P2, typename P3, typename P4>
   R DoCall(F* f, P1 p1, P2 p2, P3 p3, P4 p4) {
     return f(p1, p2, p3, p4);
+  }
+  template <typename F, typename P1, typename P2, typename P3, typename P4,
+            typename P5>
+  R DoCall(F* f, P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
+    return f(p1, p2, p3, p4, p5);
   }
 #endif
 

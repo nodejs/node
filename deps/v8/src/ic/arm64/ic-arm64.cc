@@ -22,7 +22,6 @@ namespace internal {
 static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, Register type,
                                             Label* global_object) {
   __ Cmp(type, JS_GLOBAL_OBJECT_TYPE);
-  __ Ccmp(type, JS_BUILTINS_OBJECT_TYPE, ZFlag, ne);
   __ Ccmp(type, JS_GLOBAL_PROXY_TYPE, ZFlag, ne);
   __ B(eq, global_object);
 }
@@ -410,7 +409,7 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm, Register key,
   Handle<TypeFeedbackVector> dummy_vector =
       TypeFeedbackVector::DummyVector(masm->isolate());
   int slot_index = dummy_vector->GetIndex(
-      FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
+      FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ Mov(slot, Operand(Smi::FromInt(slot_index)));
 
@@ -700,7 +699,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
     Handle<TypeFeedbackVector> dummy_vector =
         TypeFeedbackVector::DummyVector(masm->isolate());
     int slot_index = dummy_vector->GetIndex(
-        FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
+        FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
     __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
     __ Mov(slot, Operand(Smi::FromInt(slot_index)));
   }

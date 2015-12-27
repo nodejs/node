@@ -158,12 +158,12 @@ bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
     ArrayLiteral* expr) const {
   // TODO(rossberg): Teach strong mode to FastCloneShallowArrayStub.
   return expr->depth() > 1 || expr->is_strong() ||
-         expr->values()->length() > JSObject::kInitialMaxFastElementArray;
+         expr->values()->length() > JSArray::kInitialMaxFastElementArray;
 }
 
 
 void FullCodeGenerator::Initialize() {
-  InitializeAstVisitor(info_->isolate(), info_->zone());
+  InitializeAstVisitor(info_->isolate());
   // The generation of debug code must match between the snapshot code and the
   // code that is generated later.  This is assumed by the debugger when it is
   // calculating PC offsets after generating a debug version of code.  Therefore
@@ -482,6 +482,63 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
+                                                const Callable& callable) {
+  ZoneList<Expression*>* args = expr->arguments();
+  int param_count = callable.descriptor().GetRegisterParameterCount();
+  DCHECK_EQ(args->length(), param_count);
+
+  if (param_count > 0) {
+    int last = param_count - 1;
+    // Put all but last arguments on stack.
+    for (int i = 0; i < last; i++) {
+      VisitForStackValue(args->at(i));
+    }
+    // The last argument goes to the accumulator.
+    VisitForAccumulatorValue(args->at(last));
+
+    // Move the arguments to the registers, as required by the stub.
+    __ Move(callable.descriptor().GetRegisterParameter(last),
+            result_register());
+    for (int i = last; i-- > 0;) {
+      __ Pop(callable.descriptor().GetRegisterParameter(i));
+    }
+  }
+  __ Call(callable.code(), RelocInfo::CODE_TARGET);
+  context()->Plug(result_register());
+}
+
+
+void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::NumberToString(isolate()));
+}
+
+
+void FullCodeGenerator::EmitToString(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToString(isolate()));
+}
+
+
+void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToLength(isolate()));
+}
+
+
+void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToNumber(isolate()));
+}
+
+
+void FullCodeGenerator::EmitToObject(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToObject(isolate()));
+}
+
+
+void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::RegExpConstructResult(isolate()));
+}
+
+
 bool RecordStatementPosition(MacroAssembler* masm, int pos) {
   if (pos == RelocInfo::kNoPosition) return false;
   masm->positions_recorder()->RecordStatementPosition(pos);
@@ -503,7 +560,10 @@ void FullCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
 
 
 void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
-  RecordStatementPosition(masm_, fun->end_position() - 1);
+  // For default constructors, start position equals end position, and there
+  // is no source code besides the class literal.
+  int pos = std::max(fun->start_position(), fun->end_position() - 1);
+  RecordStatementPosition(masm_, pos);
   if (info_->is_debug()) {
     // Always emit a debug break slot before a return.
     DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
@@ -742,6 +802,15 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
     VisitStatements(stmt->statements());
     __ bind(nested_block.break_label());
   }
+}
+
+
+void FullCodeGenerator::VisitDoExpression(DoExpression* expr) {
+  Comment cmnt(masm_, "[ Do Expression");
+  NestedStatement nested_block(this);
+  SetExpressionPosition(expr);
+  VisitBlock(expr->block());
+  EmitVariableLoad(expr->result());
 }
 
 
@@ -1273,8 +1342,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
     EmitClassDefineProperties(lit);
 
-    if (lit->scope() != NULL) {
-      DCHECK_NOT_NULL(lit->class_variable_proxy());
+    if (lit->class_variable_proxy() != nullptr) {
       EmitVariableAssignment(lit->class_variable_proxy()->var(),
                              Token::INIT_CONST, lit->ProxySlot());
     }
@@ -1298,9 +1366,9 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
   DCHECK(!fun_template.IsEmpty());
 
   // Instantiate the function and create a shared function info from it.
-  Handle<JSFunction> fun = Utils::OpenHandle(
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(Utils::OpenHandle(
       *fun_template->GetFunction(v8_isolate->GetCurrentContext())
-           .ToLocalChecked());
+           .ToLocalChecked()));
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
@@ -1354,6 +1422,66 @@ void FullCodeGenerator::ExitTryBlock(int handler_index) {
 
   // Drop context from operand stack.
   __ Drop(TryBlockConstant::kElementCount);
+}
+
+
+void FullCodeGenerator::VisitCall(Call* expr) {
+#ifdef DEBUG
+  // We want to verify that RecordJSReturnSite gets called on all paths
+  // through this function.  Avoid early returns.
+  expr->return_is_recorded_ = false;
+#endif
+
+  Comment cmnt(masm_, "[ Call");
+  Expression* callee = expr->expression();
+  Call::CallType call_type = expr->GetCallType(isolate());
+
+  switch (call_type) {
+    case Call::POSSIBLY_EVAL_CALL:
+      EmitPossiblyEvalCall(expr);
+      break;
+    case Call::GLOBAL_CALL:
+      EmitCallWithLoadIC(expr);
+      break;
+    case Call::LOOKUP_SLOT_CALL:
+      // Call to a lookup slot (dynamically introduced variable).
+      PushCalleeAndWithBaseObject(expr);
+      EmitCall(expr);
+      break;
+    case Call::NAMED_PROPERTY_CALL: {
+      Property* property = callee->AsProperty();
+      VisitForStackValue(property->obj());
+      EmitCallWithLoadIC(expr);
+      break;
+    }
+    case Call::KEYED_PROPERTY_CALL: {
+      Property* property = callee->AsProperty();
+      VisitForStackValue(property->obj());
+      EmitKeyedCallWithLoadIC(expr, property->key());
+      break;
+    }
+    case Call::NAMED_SUPER_PROPERTY_CALL:
+      EmitSuperCallWithLoadIC(expr);
+      break;
+    case Call::KEYED_SUPER_PROPERTY_CALL:
+      EmitKeyedSuperCallWithLoadIC(expr);
+      break;
+    case Call::SUPER_CALL:
+      EmitSuperConstructorCall(expr);
+      break;
+    case Call::OTHER_CALL:
+      // Call to an arbitrary expression not handled specially above.
+      VisitForStackValue(callee);
+      __ PushRoot(Heap::kUndefinedValueRootIndex);
+      // Emit function call.
+      EmitCall(expr);
+      break;
+  }
+
+#ifdef DEBUG
+  // RecordJSReturnSite should have been called.
+  DCHECK(expr->return_is_recorded_);
+#endif
 }
 
 

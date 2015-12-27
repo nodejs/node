@@ -68,6 +68,10 @@
 # endif
 #endif
 
+#if defined(__ARM_ARCH_8A__)
+# define CAN_USE_ARMV8_INSTRUCTIONS 1
+#endif
+
 
 // Target architecture detection. This may be set externally. If not, detect
 // in the same way as the host architecture, that is, target the native

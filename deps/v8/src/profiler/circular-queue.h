@@ -63,6 +63,7 @@ class SamplingCircularQueue {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_CIRCULAR_QUEUE_H_

@@ -67,10 +67,16 @@ class MoveOptimizerTest : public InstructionSequenceTest {
       case kConstant:
         return ConstantOperand(op.value_);
       case kFixedSlot:
-        return StackSlotOperand(kRepWord32, op.value_);
+        return AllocatedOperand(LocationOperand::STACK_SLOT, kRepWord32,
+                                op.value_);
       case kFixedRegister:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return RegisterOperand(kRepWord32, op.value_);
+        return AllocatedOperand(LocationOperand::REGISTER, kRepWord32,
+                                op.value_);
+      case kExplicit:
+        CHECK(0 <= op.value_ && op.value_ < num_general_registers());
+        return ExplicitOperand(LocationOperand::REGISTER, kRepWord32,
+                               op.value_);
       default:
         break;
     }
@@ -94,6 +100,30 @@ TEST_F(MoveOptimizerTest, RemovesRedundant) {
   auto move = last_instr->parallel_moves()[0];
   CHECK_EQ(1, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
+}
+
+
+TEST_F(MoveOptimizerTest, RemovesRedundantExplicit) {
+  int first_reg_index =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->GetAllocatableGeneralCode(0);
+  int second_reg_index =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->GetAllocatableGeneralCode(1);
+
+  StartBlock();
+  auto first_instr = EmitNop();
+  AddMove(first_instr, Reg(first_reg_index), ExplicitReg(second_reg_index));
+  auto last_instr = EmitNop();
+  AddMove(last_instr, Reg(second_reg_index), Reg(first_reg_index));
+  EndBlock(Last());
+
+  Optimize();
+
+  CHECK_EQ(0, NonRedundantSize(first_instr->parallel_moves()[0]));
+  auto move = last_instr->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(move));
+  CHECK(Contains(move, Reg(first_reg_index), ExplicitReg(second_reg_index)));
 }
 
 
@@ -176,6 +206,45 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
   CHECK(Contains(move, Reg(0), Reg(1)));
   CHECK(Contains(move, Reg(1), Reg(0)));
 }
+
+
+TEST_F(MoveOptimizerTest, GapsCanMoveOverInstruction) {
+  StartBlock();
+  int const_index = 1;
+  DefineConstant(const_index);
+  Instruction* ctant_def = LastInstruction();
+  AddMove(ctant_def, Reg(1), Reg(0));
+
+  Instruction* last = EmitNop();
+  AddMove(last, Const(const_index), Reg(0));
+  AddMove(last, Reg(0), Reg(1));
+  EndBlock(Last());
+  Optimize();
+
+  ParallelMove* inst1_start =
+      ctant_def->GetParallelMove(Instruction::GapPosition::START);
+  ParallelMove* inst1_end =
+      ctant_def->GetParallelMove(Instruction::GapPosition::END);
+  ParallelMove* last_start =
+      last->GetParallelMove(Instruction::GapPosition::START);
+  CHECK(inst1_start == nullptr || inst1_start->size() == 0);
+  CHECK(inst1_end == nullptr || inst1_end->size() == 0);
+  CHECK(last_start->size() == 2);
+  int redundants = 0;
+  int assignment = 0;
+  for (MoveOperands* move : *last_start) {
+    if (move->IsRedundant()) {
+      ++redundants;
+    } else {
+      ++assignment;
+      CHECK(move->destination().IsRegister());
+      CHECK(move->source().IsConstant());
+    }
+  }
+  CHECK_EQ(1, redundants);
+  CHECK_EQ(1, assignment);
+}
+
 
 }  // namespace compiler
 }  // namespace internal

@@ -276,6 +276,7 @@ class DateCache {
   base::TimezoneCache* tz_cache_;
 };
 
-} }   // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

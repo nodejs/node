@@ -77,6 +77,11 @@ char* SimpleStringBuilder::Finalize() {
 }
 
 
+std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot slot) {
+  return os << "#" << slot.id_;
+}
+
+
 size_t hash_value(BailoutId id) {
   base::hash<int> h;
   return h(id.id_);

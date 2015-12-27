@@ -346,10 +346,12 @@ class IncrementalStringBuilder {
       DCHECK(string->length() >= required_length);
     }
 
-    ~NoExtendString() {
+    Handle<String> Finalize() {
       Handle<SeqString> string = Handle<SeqString>::cast(string_);
       int length = NoExtend<DestChar>::written();
-      *string_.location() = *SeqString::Truncate(string, length);
+      Handle<String> result = SeqString::Truncate(string, length);
+      string_ = Handle<String>();
+      return result;
     }
 
    private:
@@ -429,7 +431,7 @@ void IncrementalStringBuilder::Append(SrcChar c) {
   }
   if (current_index_ == part_length_) Extend();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STRING_BUILDER_H_

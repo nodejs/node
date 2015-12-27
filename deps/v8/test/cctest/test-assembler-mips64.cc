@@ -2131,11 +2131,10 @@ TEST(movz_movn) {
     __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
     __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, c)) );
     __ lw(t0, MemOperand(a0, offsetof(TestFloat, rt)) );
-    __ li(t1, 0x0);
-    __ mtc1(t1, f12);
-    __ mtc1(t1, f10);
-    __ mtc1(t1, f16);
-    __ mtc1(t1, f14);
+    __ Move(f12, 0.0);
+    __ Move(f10, 0.0);
+    __ Move(f16, 0.0);
+    __ Move(f14, 0.0);
     __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, bold)) );
     __ swc1(f10, MemOperand(a0, offsetof(TestFloat, dold)) );
     __ sdc1(f16, MemOperand(a0, offsetof(TestFloat, bold1)) );
@@ -5490,6 +5489,37 @@ TEST(bal) {
   for (size_t i = 0; i < nr_test_cases; ++i) {
     CHECK_EQ(tc[i].expected_res, run_bal(tc[i].offset));
   }
+}
+
+
+TEST(Trampoline) {
+  // Private member of Assembler class.
+  static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, nullptr, 0);
+  Label done;
+  size_t nr_calls = kMaxBranchOffset / (2 * Instruction::kInstrSize) + 2;
+
+  for (size_t i = 0; i < nr_calls; ++i) {
+    __ BranchShort(&done, eq, a0, Operand(a1));
+  }
+  __ bind(&done);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, zero_reg);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  int64_t res =
+      reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, 42, 42, 0, 0, 0));
+  CHECK_EQ(res, 0);
 }
 
 

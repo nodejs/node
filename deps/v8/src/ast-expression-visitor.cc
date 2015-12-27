@@ -32,14 +32,20 @@ namespace internal {
   } while (false)
 
 
-AstExpressionVisitor::AstExpressionVisitor(Isolate* isolate, Zone* zone,
-                                           FunctionLiteral* root)
+AstExpressionVisitor::AstExpressionVisitor(Isolate* isolate, Expression* root)
     : root_(root), depth_(0) {
-  InitializeAstVisitor(isolate, zone);
+  InitializeAstVisitor(isolate);
 }
 
 
-void AstExpressionVisitor::Run() { RECURSE(VisitFunctionLiteral(root_)); }
+AstExpressionVisitor::AstExpressionVisitor(uintptr_t stack_limit,
+                                           Expression* root)
+    : root_(root), depth_(0) {
+  InitializeAstVisitor(stack_limit);
+}
+
+
+void AstExpressionVisitor::Run() { RECURSE(Visit(root_)); }
 
 
 void AstExpressionVisitor::VisitVariableDeclaration(VariableDeclaration* decl) {
@@ -196,6 +202,12 @@ void AstExpressionVisitor::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {}
 
 
+void AstExpressionVisitor::VisitDoExpression(DoExpression* expr) {
+  RECURSE(VisitBlock(expr->block()));
+  RECURSE(VisitVariableProxy(expr->result()));
+}
+
+
 void AstExpressionVisitor::VisitConditional(Conditional* expr) {
   RECURSE(Visit(expr->condition()));
   RECURSE(Visit(expr->then_expression()));
@@ -223,6 +235,9 @@ void AstExpressionVisitor::VisitObjectLiteral(ObjectLiteral* expr) {
   ZoneList<ObjectLiteralProperty*>* props = expr->properties();
   for (int i = 0; i < props->length(); ++i) {
     ObjectLiteralProperty* prop = props->at(i);
+    if (!prop->key()->IsLiteral()) {
+      RECURSE_EXPRESSION(Visit(prop->key()));
+    }
     RECURSE_EXPRESSION(Visit(prop->value()));
   }
 }
@@ -336,21 +351,47 @@ void AstExpressionVisitor::VisitDeclarations(ZoneList<Declaration*>* decls) {
 }
 
 
-void AstExpressionVisitor::VisitClassLiteral(ClassLiteral* expr) {}
+void AstExpressionVisitor::VisitClassLiteral(ClassLiteral* expr) {
+  VisitExpression(expr);
+  if (expr->extends() != nullptr) {
+    RECURSE_EXPRESSION(Visit(expr->extends()));
+  }
+  RECURSE_EXPRESSION(Visit(expr->constructor()));
+  ZoneList<ObjectLiteralProperty*>* props = expr->properties();
+  for (int i = 0; i < props->length(); ++i) {
+    ObjectLiteralProperty* prop = props->at(i);
+    if (!prop->key()->IsLiteral()) {
+      RECURSE_EXPRESSION(Visit(prop->key()));
+    }
+    RECURSE_EXPRESSION(Visit(prop->value()));
+  }
+}
 
 
-void AstExpressionVisitor::VisitSpread(Spread* expr) {}
+void AstExpressionVisitor::VisitSpread(Spread* expr) {
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(Visit(expr->expression()));
+}
 
 
 void AstExpressionVisitor::VisitEmptyParentheses(EmptyParentheses* expr) {}
 
 
 void AstExpressionVisitor::VisitSuperPropertyReference(
-    SuperPropertyReference* expr) {}
-
-
-void AstExpressionVisitor::VisitSuperCallReference(SuperCallReference* expr) {}
+    SuperPropertyReference* expr) {
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_var()));
+  RECURSE_EXPRESSION(Visit(expr->home_object()));
 }
 
 
-}  // namespace v8::internal
+void AstExpressionVisitor::VisitSuperCallReference(SuperCallReference* expr) {
+  VisitExpression(expr);
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_var()));
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->new_target_var()));
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_function_var()));
+}
+
+
+}  // namespace internal
+}  // namespace v8

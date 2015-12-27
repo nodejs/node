@@ -481,6 +481,7 @@ void HeapTypeConfig::range_set_double(i::Handle<HeapTypeConfig::Range> range,
   i::Handle<Object> number = isolate->factory()->NewNumber(value);
   range->set(index + 2, *number);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPES_INL_H_

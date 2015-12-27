@@ -5,6 +5,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
@@ -93,7 +94,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
   input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
   input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
+  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
     input_->SetDoubleRegister(i, 0.0);
   }
 
@@ -142,8 +143,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Everything but pc, lr and ip which will be saved but not restored.
   RegList restored_regs = kJSCallerSaved | kCalleeSaved | ip.bit();
 
-  const int kDoubleRegsSize =
-      kDoubleSize * DwVfpRegister::kMaxNumAllocatableRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kMaxNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
   DCHECK(kDoubleRegZero.code() == 14);
@@ -152,11 +152,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Check CPU flags for number of registers, setting the Z condition flag.
   __ CheckFor32DRegs(ip);
 
-  // Push registers d0-d13, and possibly d16-d31, on the stack.
+  // Push registers d0-d15, and possibly d16-d31, on the stack.
   // If d16-d31 are not pushed, decrease the stack pointer instead.
   __ vstm(db_w, sp, d16, d31, ne);
   __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
-  __ vstm(db_w, sp, d0, d13);
+  __ vstm(db_w, sp, d0, d15);
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
   // TODO(1588) Note that using pc with stm is deprecated, so we should perhaps
@@ -211,9 +211,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Copy VFP registers to
   // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
   int double_regs_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < DwVfpRegister::kMaxNumAllocatableRegisters; ++i) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    int dst_offset = code * kDoubleSize + double_regs_offset;
+    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
     __ vldr(d0, sp, src_offset);
     __ vstr(d0, r1, dst_offset);
   }

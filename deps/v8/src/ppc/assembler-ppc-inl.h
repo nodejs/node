@@ -720,7 +720,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
   }
   UNREACHABLE();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_ASSEMBLER_PPC_INL_H_

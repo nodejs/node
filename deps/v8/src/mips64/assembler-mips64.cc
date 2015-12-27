@@ -64,28 +64,6 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 
-const char* DoubleRegister::AllocationIndexToString(int index) {
-  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-  const char* const names[] = {
-    "f0",
-    "f2",
-    "f4",
-    "f6",
-    "f8",
-    "f10",
-    "f12",
-    "f14",
-    "f16",
-    "f18",
-    "f20",
-    "f22",
-    "f24",
-    "f26"
-  };
-  return names[index];
-}
-
-
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
 
@@ -229,31 +207,31 @@ MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
 static const int kNegOffset = 0x00008000;
 // daddiu(sp, sp, 8) aka Pop() operation or part of Pop(r)
 // operations as post-increment of sp.
-const Instr kPopInstruction = DADDIU | (kRegister_sp_Code << kRsShift)
-      | (kRegister_sp_Code << kRtShift)
-      | (kPointerSize & kImm16Mask);  // NOLINT
+const Instr kPopInstruction = DADDIU | (Register::kCode_sp << kRsShift) |
+                              (Register::kCode_sp << kRtShift) |
+                              (kPointerSize & kImm16Mask);  // NOLINT
 // daddiu(sp, sp, -8) part of Push(r) operation as pre-decrement of sp.
-const Instr kPushInstruction = DADDIU | (kRegister_sp_Code << kRsShift)
-      | (kRegister_sp_Code << kRtShift)
-      | (-kPointerSize & kImm16Mask);  // NOLINT
+const Instr kPushInstruction = DADDIU | (Register::kCode_sp << kRsShift) |
+                               (Register::kCode_sp << kRtShift) |
+                               (-kPointerSize & kImm16Mask);  // NOLINT
 // sd(r, MemOperand(sp, 0))
-const Instr kPushRegPattern = SD | (kRegister_sp_Code << kRsShift)
-      |  (0 & kImm16Mask);  // NOLINT
+const Instr kPushRegPattern =
+    SD | (Register::kCode_sp << kRsShift) | (0 & kImm16Mask);  // NOLINT
 //  ld(r, MemOperand(sp, 0))
-const Instr kPopRegPattern = LD | (kRegister_sp_Code << kRsShift)
-      |  (0 & kImm16Mask);  // NOLINT
+const Instr kPopRegPattern =
+    LD | (Register::kCode_sp << kRsShift) | (0 & kImm16Mask);  // NOLINT
 
-const Instr kLwRegFpOffsetPattern = LW | (kRegister_fp_Code << kRsShift)
-      |  (0 & kImm16Mask);  // NOLINT
+const Instr kLwRegFpOffsetPattern =
+    LW | (Register::kCode_fp << kRsShift) | (0 & kImm16Mask);  // NOLINT
 
-const Instr kSwRegFpOffsetPattern = SW | (kRegister_fp_Code << kRsShift)
-      |  (0 & kImm16Mask);  // NOLINT
+const Instr kSwRegFpOffsetPattern =
+    SW | (Register::kCode_fp << kRsShift) | (0 & kImm16Mask);  // NOLINT
 
-const Instr kLwRegFpNegOffsetPattern = LW | (kRegister_fp_Code << kRsShift)
-      |  (kNegOffset & kImm16Mask);  // NOLINT
+const Instr kLwRegFpNegOffsetPattern = LW | (Register::kCode_fp << kRsShift) |
+                                       (kNegOffset & kImm16Mask);  // NOLINT
 
-const Instr kSwRegFpNegOffsetPattern = SW | (kRegister_fp_Code << kRsShift)
-      |  (kNegOffset & kImm16Mask);  // NOLINT
+const Instr kSwRegFpNegOffsetPattern = SW | (Register::kCode_fp << kRsShift) |
+                                       (kNegOffset & kImm16Mask);  // NOLINT
 // A mask for the Rt register for push, pop, lw, sw instructions.
 const Instr kRtMask = kRtFieldMask;
 const Instr kLwSwInstrTypeMask = 0xffe00000;
@@ -314,21 +292,21 @@ void Assembler::CodeTargetAlign() {
 
 Register Assembler::GetRtReg(Instr instr) {
   Register rt;
-  rt.code_ = (instr & kRtFieldMask) >> kRtShift;
+  rt.reg_code = (instr & kRtFieldMask) >> kRtShift;
   return rt;
 }
 
 
 Register Assembler::GetRsReg(Instr instr) {
   Register rs;
-  rs.code_ = (instr & kRsFieldMask) >> kRsShift;
+  rs.reg_code = (instr & kRsFieldMask) >> kRsShift;
   return rs;
 }
 
 
 Register Assembler::GetRdReg(Instr instr) {
   Register rd;
-  rd.code_ = (instr & kRdFieldMask) >> kRdShift;
+  rd.reg_code = (instr & kRdFieldMask) >> kRdShift;
   return rd;
 }
 
@@ -1366,9 +1344,11 @@ void Assembler::bgezalc(Register rt, int16_t offset) {
 
 
 void Assembler::bgezall(Register rs, int16_t offset) {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK(kArchVariant != kMips64r6);
   DCHECK(!(rs.is(zero_reg)));
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   GenInstrImmediate(REGIMM, rs, BGEZALL, offset);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
@@ -1431,15 +1411,19 @@ void Assembler::bnezc(Register rs, int32_t offset) {
 
 
 void Assembler::j(int64_t target) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   GenInstrJump(J, static_cast<uint32_t>(target >> 2) & kImm26Mask);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
 void Assembler::j(Label* target) {
   uint64_t imm = jump_offset(target);
   if (target->is_bound()) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     GenInstrJump(static_cast<Opcode>(kJRawMark),
                  static_cast<uint32_t>(imm >> 2) & kImm26Mask);
+    BlockTrampolinePoolFor(1);  // For associated delay slot.
   } else {
     j(imm);
   }
@@ -1449,8 +1433,11 @@ void Assembler::j(Label* target) {
 void Assembler::jal(Label* target) {
   uint64_t imm = jump_offset(target);
   if (target->is_bound()) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    positions_recorder()->WriteRecordedPositions();
     GenInstrJump(static_cast<Opcode>(kJalRawMark),
                  static_cast<uint32_t>(imm >> 2) & kImm26Mask);
+    BlockTrampolinePoolFor(1);  // For associated delay slot.
   } else {
     jal(imm);
   }
@@ -1472,8 +1459,10 @@ void Assembler::jr(Register rs) {
 
 
 void Assembler::jal(int64_t target) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   positions_recorder()->WriteRecordedPositions();
   GenInstrJump(JAL, static_cast<uint32_t>(target >> 2) & kImm26Mask);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
@@ -2211,14 +2200,14 @@ void Assembler::movn(Register rd, Register rs, Register rt) {
 
 void Assembler::movt(Register rd, Register rs, uint16_t cc) {
   Register rt;
-  rt.code_ = (cc & 0x0007) << 2 | 1;
+  rt.reg_code = (cc & 0x0007) << 2 | 1;
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, MOVCI);
 }
 
 
 void Assembler::movf(Register rd, Register rs, uint16_t cc) {
   Register rt;
-  rt.code_ = (cc & 0x0007) << 2 | 0;
+  rt.reg_code = (cc & 0x0007) << 2 | 0;
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, MOVCI);
 }
 
@@ -2300,6 +2289,16 @@ void Assembler::clz(Register rd, Register rs) {
     GenInstrRegister(SPECIAL2, rs, rd, rd, 0, CLZ);
   } else {
     GenInstrRegister(SPECIAL, rs, zero_reg, rd, 1, CLZ_R6);
+  }
+}
+
+
+void Assembler::dclz(Register rd, Register rs) {
+  if (kArchVariant != kMips64r6) {
+    // dclz instr requires same GPR number in 'rd' and 'rt' fields.
+    GenInstrRegister(SPECIAL2, rs, rd, rd, 0, DCLZ);
+  } else {
+    GenInstrRegister(SPECIAL, rs, zero_reg, rd, 1, DCLZ_R6);
   }
 }
 
@@ -2520,7 +2519,7 @@ void Assembler::movz_d(FPURegister fd, FPURegister fs, Register rt) {
 void Assembler::movt_s(FPURegister fd, FPURegister fs, uint16_t cc) {
   DCHECK(kArchVariant == kMips64r2);
   FPURegister ft;
-  ft.code_ = (cc & 0x0007) << 2 | 1;
+  ft.reg_code = (cc & 0x0007) << 2 | 1;
   GenInstrRegister(COP1, S, ft, fs, fd, MOVF);
 }
 
@@ -2528,7 +2527,7 @@ void Assembler::movt_s(FPURegister fd, FPURegister fs, uint16_t cc) {
 void Assembler::movt_d(FPURegister fd, FPURegister fs, uint16_t cc) {
   DCHECK(kArchVariant == kMips64r2);
   FPURegister ft;
-  ft.code_ = (cc & 0x0007) << 2 | 1;
+  ft.reg_code = (cc & 0x0007) << 2 | 1;
   GenInstrRegister(COP1, D, ft, fs, fd, MOVF);
 }
 
@@ -2536,7 +2535,7 @@ void Assembler::movt_d(FPURegister fd, FPURegister fs, uint16_t cc) {
 void Assembler::movf_s(FPURegister fd, FPURegister fs, uint16_t cc) {
   DCHECK(kArchVariant == kMips64r2);
   FPURegister ft;
-  ft.code_ = (cc & 0x0007) << 2 | 0;
+  ft.reg_code = (cc & 0x0007) << 2 | 0;
   GenInstrRegister(COP1, S, ft, fs, fd, MOVF);
 }
 
@@ -2544,7 +2543,7 @@ void Assembler::movf_s(FPURegister fd, FPURegister fs, uint16_t cc) {
 void Assembler::movf_d(FPURegister fd, FPURegister fs, uint16_t cc) {
   DCHECK(kArchVariant == kMips64r2);
   FPURegister ft;
-  ft.code_ = (cc & 0x0007) << 2 | 0;
+  ft.reg_code = (cc & 0x0007) << 2 | 0;
   GenInstrRegister(COP1, D, ft, fs, fd, MOVF);
 }
 

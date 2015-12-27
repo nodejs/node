@@ -28,10 +28,10 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 PASS RegExp('/').source is "\\/"
 PASS RegExp('').source is "(?:)"
-PASS RegExp.prototype.source is "(?:)"
+FAIL RegExp.prototype.source should be (?:). Threw exception TypeError: RegExp.prototype.source getter called on non-RegExp object
 PASS RegExp('/').toString() is "/\\//"
 PASS RegExp('').toString() is "/(?:)/"
-PASS RegExp.prototype.toString() is "/(?:)/"
+FAIL RegExp.prototype.toString() should be /(?:)/. Threw exception TypeError: Method RegExp.prototype.toString called on incompatible receiver [object Object]
 PASS testForwardSlash("^/$", "/"); is true
 PASS testForwardSlash("^/$", "/"); is true
 PASS testForwardSlash("^\/$", "/"); is true
@@ -57,4 +57,5 @@ PASS var o = new RegExp(); o.toString() === '/'+o.source+'/' && eval(o.toString(
 PASS successfullyParsed is true
 
 TEST COMPLETE
+
 

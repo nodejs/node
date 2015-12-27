@@ -329,6 +329,7 @@ DateParser::DateToken DateParser::ParseES5DateTime(
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DATEPARSER_INL_H_
