@@ -31,16 +31,22 @@ if (process.argv[2] !== 'child') {
 } else {
   console.error('[%d] worker', process.pid);
 
+  var socket;
+  var cbcalls = 0;
+  function socketConnected() {
+    if (++cbcalls === 2)
+      process.send('handle', socket);
+  }
+
   var server = net.createServer(function(c) {
     process.once('message', function(msg) {
       assert.equal(msg, 'got');
       c.end('hello');
     });
+    socketConnected();
   });
   server.listen(common.PORT, function() {
-    var socket = net.connect(common.PORT, '127.0.0.1', function() {
-      process.send('handle', socket);
-    });
+    socket = net.connect(common.PORT, '127.0.0.1', socketConnected);
   });
 
   process.on('disconnect', function() {
