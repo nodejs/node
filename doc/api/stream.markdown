@@ -761,7 +761,7 @@ of stream class you are writing:
       <p>[Writable](#stream_class_stream_writable_1)</p>
     </td>
     <td>
-      <p><code>[_write][]</code>, <code>_writev</code></p>
+      <p><code>[_write][]</code>, <code>[_writev][]</code></p>
     </td>
   </tr>
   <tr>
@@ -772,7 +772,7 @@ of stream class you are writing:
       <p>[Duplex](#stream_class_stream_duplex_1)</p>
     </td>
     <td>
-      <p><code>[_read][]</code>, <code>[_write][]</code>, <code>_writev</code></p>
+      <p><code>[_read][]</code>, <code>[_write][]</code>, <code>[_writev][]</code></p>
     </td>
   </tr>
   <tr>
@@ -783,7 +783,7 @@ of stream class you are writing:
       <p>[Transform](#stream_class_stream_transform_1)</p>
     </td>
     <td>
-      <p><code>_transform</code>, <code>_flush</code></p>
+      <p><code>[_transform][]</code>, <code>[_flush][]</code></p>
     </td>
   </tr>
 </table>
@@ -1728,3 +1728,12 @@ horribly wrong.
 [Writable]: #stream_class_stream_writable
 [zlib streams]: zlib.html
 [zlib]: zlib.html
+[_transform]: #stream_transform_transform_chunk_encoding_callback
+[`_transform()`]: #stream_transform_transform_chunk_encoding_callback
+[`_transform(chunk, encoding, callback)`]: #stream_transform_transform_chunk_encoding_callback
+[_flush]: #stream_transform_flush_callback
+[`_flush()`]: #stream_transform_flush_callback
+[`_flush(callback)`]: #stream_transform_flush_callback
+[_writev]: #stream_writable_writev_chunks_callback
+[`_writev()`]: #stream_writable_writev_chunks_callback
+[`_writev(chunks, callback)`]: #stream_writable_writev_chunks_callback
