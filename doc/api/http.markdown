@@ -398,7 +398,7 @@ Returns `request`.
 
 ## Class: http.Server
 
-This is an [`EventEmitter`][] with the following events:
+This class inherits from [`net.Server`][] and has the following additional events:
 
 ### Event: 'checkContinue'
 
@@ -1104,6 +1104,7 @@ There are a few special headers that should be noted.
 [`http.Server`]: #http_class_http_server
 [`http.ServerResponse`]: #http_class_http_serverresponse
 [`message.headers`]: #http_message_headers
+[`net.Server`]: net.html#net_class_net_server
 [`net.Server.close()`]: net.html#net_server_close_callback
 [`net.Server.listen()`]: net.html#net_server_listen_handle_callback
 [`net.Server.listen(path)`]: net.html#net_server_listen_path_callback
