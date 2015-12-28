@@ -7,6 +7,12 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const cluster = require('cluster');
+
+if (common.isWindows) {
+  console.log('1..0 # Skipped: This test does not apply to Windows.');
+  return;
+}
+
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
 if (cluster.isMaster) {
@@ -19,9 +25,9 @@ if (cluster.isMaster) {
     worker2.on('online', common.mustCall(worker2.disconnect));
   }));
 
-  cluster.on('exit', function(worker, code) {
+  cluster.on('exit', common.mustCall(function(worker, code) {
     assert.strictEqual(code, 0, 'worker exited with error');
-  });
+  }, 2));
 
   return;
 }
