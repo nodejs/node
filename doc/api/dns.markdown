@@ -46,14 +46,13 @@ addresses that are returned.
       });
     });
 
-There are subtle consequences in choosing one over the other another,
-please consult the [Implementation considerations section][] for more
-information.
+There are subtle consequences in choosing one over the other, please consult
+the [Implementation considerations section][] for more information.
 
 ## dns.getServers()
 
-Returns the array of string-encoded IP addresses that are currently being used
-for name resolution.
+Returns an array of IP address strings that are currently being used for name
+resolution.
 
 ## dns.lookup(hostname[, options], callback)
 
@@ -129,7 +128,7 @@ On error, `err` is an [`Error`][] object, where `err.code` is the error code.
     const dns = require('dns');
     dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
       console.log(hostname, service);
-         // Prints: localhost ssh
+        // Prints: localhost ssh
     });
 
 ## dns.resolve(hostname[, rrtype], callback)
@@ -195,7 +194,7 @@ contain an array of name server records available for `hostname`
 
 Uses the DNS protocol to resolve a start of authority record (`SOA` record) for
 the `hostname`. The `addresses` argument passed to the `callback` function will
-be an object with following properties:
+be an object with the following properties:
 
 * `nsname`
 * `hostmaster`
@@ -219,7 +218,7 @@ be an object with following properties:
 
 Uses the DNS protocol to resolve service records (`SRV` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
-be an array of objects with the properties:
+be an array of objects with the following properties:
 
 * `priority`
 * `weight`
