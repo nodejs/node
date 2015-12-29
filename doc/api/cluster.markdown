@@ -46,7 +46,7 @@ server in a worker.
 
 <!--type=misc-->
 
-The worker processes are spawned using the [`child_process.fork`][] method,
+The worker processes are spawned using the [`child_process.fork()`][] method,
 so that they can communicate with the parent via IPC and pass server
 handles back and forth.
 
@@ -230,7 +230,7 @@ Causes `.suicide` to be set.
 Note that after a server is closed, it will no longer accept new connections,
 but connections may be accepted by any other listening worker. Existing
 connections will be allowed to close as usual. When no more connections exist,
-see [server.close()][], the IPC channel to the worker will close allowing it to
+see [`server.close()`][], the IPC channel to the worker will close allowing it to
 die gracefully.
 
 The above applies *only* to server connections, client connections are not
