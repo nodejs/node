@@ -242,6 +242,7 @@ inline Environment::~Environment() {
   isolate_data()->Put();
 
   delete[] heap_statistics_buffer_;
+  delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
 }
 
@@ -373,6 +374,17 @@ inline void Environment::set_heap_statistics_buffer(uint32_t* pointer) {
   CHECK_EQ(heap_statistics_buffer_, nullptr);  // Should be set only once.
   heap_statistics_buffer_ = pointer;
 }
+
+inline uint32_t* Environment::heap_space_statistics_buffer() const {
+  CHECK_NE(heap_space_statistics_buffer_, nullptr);
+  return heap_space_statistics_buffer_;
+}
+
+inline void Environment::set_heap_space_statistics_buffer(uint32_t* pointer) {
+  CHECK_EQ(heap_space_statistics_buffer_, nullptr);  // Should be set only once.
+  heap_space_statistics_buffer_ = pointer;
+}
+
 
 inline char* Environment::http_parser_buffer() const {
   return http_parser_buffer_;

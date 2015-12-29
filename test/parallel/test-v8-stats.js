@@ -15,3 +15,22 @@ assert.deepEqual(Object.keys(s).sort(), keys);
 keys.forEach(function(key) {
   assert.equal(typeof s[key], 'number');
 });
+
+
+const expectedHeapSpaces = [
+  'new_space',
+  'old_space',
+  'code_space',
+  'map_space',
+  'large_object_space'
+];
+const heapSpaceStatistics = v8.getHeapSpaceStatistics();
+const actualHeapSpaceNames = heapSpaceStatistics.map(s => s.space_name);
+assert.deepEqual(actualHeapSpaceNames.sort(), expectedHeapSpaces.sort());
+heapSpaceStatistics.forEach(heapSpace => {
+  assert.strictEqual(typeof heapSpace.space_name, 'string');
+  assert.strictEqual(typeof heapSpace.space_size, 'number');
+  assert.strictEqual(typeof heapSpace.space_used_size, 'number');
+  assert.strictEqual(typeof heapSpace.space_available_size, 'number');
+  assert.strictEqual(typeof heapSpace.physical_space_size, 'number');
+});
