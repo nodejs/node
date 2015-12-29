@@ -461,6 +461,9 @@ class Environment {
   inline uint32_t* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(uint32_t* pointer);
 
+  inline uint32_t* heap_space_statistics_buffer() const;
+  inline void set_heap_space_statistics_buffer(uint32_t* pointer);
+
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
 
@@ -561,6 +564,7 @@ class Environment {
   int handle_cleanup_waiting_;
 
   uint32_t* heap_statistics_buffer_ = nullptr;
+  uint32_t* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
 
