@@ -51,7 +51,7 @@ the [Implementation considerations section][] for more information.
 
 ## dns.getServers()
 
-Returns an array of IP address strings that are currently being used for name
+Returns an array of IP address strings that are being used for name
 resolution.
 
 ## dns.lookup(hostname[, options], callback)
