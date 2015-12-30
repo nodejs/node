@@ -273,14 +273,14 @@ function test_deep_symlink_mix(callback) {
   }
 
   /*
-  /tmp/node-test-realpath-f1 -> ../tmp/node-test-realpath-d1/foo
-  /tmp/node-test-realpath-d1 -> ../node-test-realpath-d2
-  /tmp/node-test-realpath-d2/foo -> ../node-test-realpath-f2
+  /tmp/node-test-realpath-f1 -> $tmpDir/node-test-realpath-d1/foo
+  /tmp/node-test-realpath-d1 -> $tmpDir/node-test-realpath-d2
+  /tmp/node-test-realpath-d2/foo -> $tmpDir/node-test-realpath-f2
   /tmp/node-test-realpath-f2
     -> /node/test/fixtures/nested-index/one/realpath-c
   /node/test/fixtures/nested-index/one/realpath-c
     -> /node/test/fixtures/nested-index/two/realpath-c
-  /node/test/fixtures/nested-index/two/realpath-c -> ../../cycles/root.js
+  /node/test/fixtures/nested-index/two/realpath-c -> $tmpDir/cycles/root.js
   /node/test/fixtures/cycles/root.js (hard)
   */
   var entry = tmp('node-test-realpath-f1');
@@ -289,16 +289,16 @@ function test_deep_symlink_mix(callback) {
   fs.mkdirSync(tmp('node-test-realpath-d2'), 0o700);
   try {
     [
-      [entry, '../' + common.tmpDirName + '/node-test-realpath-d1/foo'],
+      [entry, common.tmpDir + '/node-test-realpath-d1/foo'],
       [tmp('node-test-realpath-d1'),
-          '../' + common.tmpDirName + '/node-test-realpath-d2'],
+        common.tmpDir + '/node-test-realpath-d2'],
       [tmp('node-test-realpath-d2/foo'), '../node-test-realpath-f2'],
       [tmp('node-test-realpath-f2'), fixturesAbsDir +
-           '/nested-index/one/realpath-c'],
+        '/nested-index/one/realpath-c'],
       [fixturesAbsDir + '/nested-index/one/realpath-c', fixturesAbsDir +
-            '/nested-index/two/realpath-c'],
+        '/nested-index/two/realpath-c'],
       [fixturesAbsDir + '/nested-index/two/realpath-c',
-        '../../../' + common.tmpDirName + '/cycles/root.js']
+        common.tmpDir + '/cycles/root.js']
     ].forEach(function(t) {
       try { fs.unlinkSync(t[0]); } catch (e) {}
       fs.symlinkSync(t[1], t[0]);
