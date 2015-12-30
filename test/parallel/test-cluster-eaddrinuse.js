@@ -5,7 +5,6 @@
 
 var common = require('../common');
 var assert = require('assert');
-var cluster = require('cluster');
 var fork = require('child_process').fork;
 var net = require('net');
 
