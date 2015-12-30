@@ -2128,17 +2128,7 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
 // and nanoseconds, to avoid any integer overflow possibility.
 // Pass in an Array from a previous hrtime() call to instead get a time diff.
 void Hrtime(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   uint64_t t = uv_hrtime();
-
-  if (!args[1]->IsUndefined()) {
-    if (!args[1]->IsArray()) {
-      return env->ThrowTypeError(
-          "process.hrtime() only accepts an Array tuple");
-    }
-    args.GetReturnValue().Set(true);
-  }
 
   Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
   uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
