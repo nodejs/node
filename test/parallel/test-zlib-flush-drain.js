@@ -2,7 +2,6 @@
 require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
-const path = require('path');
 
 const bigData = new Buffer(10240).fill('x');
 
