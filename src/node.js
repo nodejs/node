@@ -192,15 +192,23 @@
     }
 
     process.hrtime = function hrtime(ar) {
-      const ret = [0, 0];
-      if (_hrtime(hrValues, ar)) {
-        ret[0] = (hrValues[0] * 0x100000000 + hrValues[1]) - ar[0];
-        ret[1] = hrValues[2] - ar[1];
-      } else {
-        ret[0] = hrValues[0] * 0x100000000 + hrValues[1];
-        ret[1] = hrValues[2];
+      _hrtime(hrValues);
+
+      if (typeof ar !== 'undefined') {
+        if (Array.isArray(ar)) {
+          return [
+            (hrValues[0] * 0x100000000 + hrValues[1]) - ar[0],
+            hrValues[2] - ar[1]
+          ];
+        }
+
+        throw new TypeError('process.hrtime() only accepts an Array tuple');
       }
-      return ret;
+
+      return [
+        hrValues[0] * 0x100000000 + hrValues[1],
+        hrValues[2]
+      ];
     };
   };
 
