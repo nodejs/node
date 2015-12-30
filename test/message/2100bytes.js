@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-var util = require('util');
 
 console.log([
   '_______________________________________________50',
