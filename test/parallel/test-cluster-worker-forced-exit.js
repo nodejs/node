@@ -2,7 +2,6 @@
 require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
-var net = require('net');
 
 var SENTINEL = 42;
 

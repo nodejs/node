@@ -4,7 +4,6 @@ var assert = require('assert');
 var http = require('http');
 var net = require('net');
 var PORT = common.PORT;
-var spawn = require('child_process').spawn;
 var cluster = require('cluster');
 
 console.error('Cluster listen fd test', process.argv[2] || 'runner');
