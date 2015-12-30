@@ -144,8 +144,9 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 test-ci: | build-addons
-	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) addons message parallel sequential
+	$(PYTHON) tools/test.py -p tap --logfile test.tap -J --mode=release \
+		--flaky-tests=$(FLAKY_TESTS) $(TEST_CI_ARGS) \
+		addons message parallel sequential
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
