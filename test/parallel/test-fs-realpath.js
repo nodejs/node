@@ -236,11 +236,10 @@ function test_relative_input_cwd(callback) {
     return runNextTest();
   }
 
-  // we need to get the relative path to the tmp dir from cwd.
-  // When the test runner is running it, that will be .../node/test
-  // but it's more common to run `./node test/.../`, so detect it here.
+  // we need to calculate the relative path to the tmp dir from cwd
   var entrydir = process.cwd();
-  var entry = common.tmpDir.substr(entrydir.length + 1) + '/cycles/realpath-3a';
+  var entry = path.relative(entrydir,
+      path.join(common.tmpDir + '/cycles/realpath-3a'));
   var expected = common.tmpDir + '/cycles/root.js';
   [
     [entry, '../cycles/realpath-3b'],
