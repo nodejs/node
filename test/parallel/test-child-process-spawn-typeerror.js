@@ -111,13 +111,36 @@ assert.doesNotThrow(function() { execFile(cmd, a, o, u); });
 assert.doesNotThrow(function() { execFile(cmd, n, o, c); });
 assert.doesNotThrow(function() { execFile(cmd, a, n, c); });
 assert.doesNotThrow(function() { execFile(cmd, a, o, n); });
+assert.doesNotThrow(function() { execFile(cmd, u, u, u); });
+assert.doesNotThrow(function() { execFile(cmd, u, u, c); });
+assert.doesNotThrow(function() { execFile(cmd, u, o, u); });
+assert.doesNotThrow(function() { execFile(cmd, a, u, u); });
+assert.doesNotThrow(function() { execFile(cmd, n, n, n); });
+assert.doesNotThrow(function() { execFile(cmd, n, n, c); });
+assert.doesNotThrow(function() { execFile(cmd, n, o, n); });
+assert.doesNotThrow(function() { execFile(cmd, a, n, n); });
+assert.doesNotThrow(function() { execFile(cmd, a, u); });
+assert.doesNotThrow(function() { execFile(cmd, a, n); });
+assert.doesNotThrow(function() { execFile(cmd, o, u); });
+assert.doesNotThrow(function() { execFile(cmd, o, n); });
+assert.doesNotThrow(function() { execFile(cmd, c, u); });
+assert.doesNotThrow(function() { execFile(cmd, c, n); });
 
 // string is invalid in arg position (this may seem strange, but is
 // consistent across node API, cf. `net.createServer('not options', 'not
 // callback')`
 assert.throws(function() { execFile(cmd, s, o, c); }, TypeError);
-assert.doesNotThrow(function() { execFile(cmd, a, s, c); });
-assert.doesNotThrow(function() { execFile(cmd, a, o, s); });
+assert.throws(function() { execFile(cmd, a, s, c); }, TypeError);
+assert.throws(function() { execFile(cmd, a, o, s); }, TypeError);
+assert.throws(function() { execFile(cmd, a, s); }, TypeError);
+assert.throws(function() { execFile(cmd, o, s); }, TypeError);
+assert.throws(function() { execFile(cmd, u, u, s); }, TypeError);
+assert.throws(function() { execFile(cmd, n, n, s); }, TypeError);
+assert.throws(function() { execFile(cmd, a, u, s); }, TypeError);
+assert.throws(function() { execFile(cmd, a, n, s); }, TypeError);
+assert.throws(function() { execFile(cmd, u, o, s); }, TypeError);
+assert.throws(function() { execFile(cmd, n, o, s); }, TypeError);
+assert.doesNotThrow(function() { execFile(cmd, c, s); });
 
 
 // verify that fork has same argument parsing behaviour as spawn
@@ -131,6 +154,12 @@ assert.doesNotThrow(function() { fork(empty); });
 assert.doesNotThrow(function() { fork(empty, a); });
 assert.doesNotThrow(function() { fork(empty, a, o); });
 assert.doesNotThrow(function() { fork(empty, o); });
+assert.doesNotThrow(function() { fork(empty, u, u); });
+assert.doesNotThrow(function() { fork(empty, u, o); });
+assert.doesNotThrow(function() { fork(empty, a, u); });
+assert.doesNotThrow(function() { fork(empty, n, n); });
+assert.doesNotThrow(function() { fork(empty, n, o); });
+assert.doesNotThrow(function() { fork(empty, a, n); });
 
 assert.throws(function() { fork(empty, s); }, TypeError);
-assert.doesNotThrow(function() { fork(empty, a, s); }, TypeError);
+assert.throws(function() { fork(empty, a, s); }, TypeError);
