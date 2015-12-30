@@ -5,9 +5,14 @@
 Applications running in Node.js will generally experience four categories of
 errors:
 
-- JavaScript errors caused by improper JavaScript language syntax
-  ([`SyntaxError`][]), use of undefined variables ([`ReferenceError`][]),
-  passing arguments of the wrong type ([`TypeError`][]), and so on;
+- Standard JavaScript errors such as:
+  - [`EvalError`][]: thrown when a call to `eval()` fails.
+  - [`SyntaxError`][]: thrown in response to improper JavaScript language
+    syntax.
+  - [`RangeError`][]: thrown when a value is not within an expected range
+  - [`ReferenceError`][]: thrown when using undefined variables
+  - [`TypeError`][]: thrown when passing arguments of the wrong type
+  - [`URIError`][]: thrown when a global URI handling function is misused.
 - System errors triggered by underlying operating system constraints such
   as attempting to open a file that does not exist, attempting to send data
   over a closed socket, etc;
@@ -87,7 +92,9 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
 
 - A handful of typically asynchronous methods in the Node.js API may still
   use the `throw` mechanism to raise exceptions that must be handled using
-  `try / catch`.
+  `try / catch`. There is no comprehensive list of such methods; please
+  refer to the documentation of each method to determine the appropriate
+  error handling mechanism required.
 
 The use of the `'error'` event mechanism is most common for [stream-based][]
 and [event emitter-based][] APIs, which themselves represent a series of
@@ -155,7 +162,7 @@ use `throw` inside a Node.js style callback:
       });
     } catch(err) {
       // This will not catch the throw!
-      console.log(err); // Error: ENOENT
+      console.log(err);
     }
 
 This will not work because the callback function passed to `fs.readFile()` is
