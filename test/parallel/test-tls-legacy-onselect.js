@@ -9,13 +9,7 @@ if (!common.hasCrypto) {
 var tls = require('tls');
 var net = require('net');
 
-var fs = require('fs');
-
 var success = false;
-
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
-}
 
 var server = net.Server(function(raw) {
   var pair = tls.createSecurePair(null, true, false, false);

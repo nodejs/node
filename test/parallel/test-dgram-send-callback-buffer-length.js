@@ -2,9 +2,7 @@
 var common = require('../common');
 var assert = require('assert');
 
-var fs = require('fs');
 var dgram = require('dgram');
-var callbacks = 0;
 var client, timer, buf, len, offset;
 
 

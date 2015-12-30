@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-var EventEmitter = require('events').EventEmitter;
 var PassThrough = require('stream').PassThrough;
 var assert = require('assert');
 var inherits = require('util').inherits;
@@ -16,7 +15,7 @@ inherits(FakeInput, PassThrough);
 
 var fi = new FakeInput();
 var fo = new FakeInput();
-var rli = new Interface({ input: fi, output: fo, terminal: true });
+new Interface({ input: fi, output: fo, terminal: true });
 
 var keys = [];
 fi.on('keypress', function(s, k) {

@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 
 var net = require('net'),
-    util = require('util'),
     http = require('http');
 
 var errorCount = 0;

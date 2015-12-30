@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const readdirDir = common.tmpDir;

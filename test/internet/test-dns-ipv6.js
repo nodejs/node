@@ -3,9 +3,7 @@ var common = require('../common');
 var assert = require('assert'),
     dns = require('dns'),
     net = require('net'),
-    isIP = net.isIP,
     isIPv6 = net.isIPv6;
-var util = require('util');
 
 var expected = 0,
     completed = 0,

@@ -1,8 +1,7 @@
 'use strict';
 var common = require('../common');
 var net = require('net'),
-    cp = require('child_process'),
-    util = require('util');
+    cp = require('child_process');
 
 if (process.argv[2] === 'server') {
   // Server
