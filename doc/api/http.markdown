@@ -192,6 +192,17 @@ The request implements the [Writable Stream][] interface. This is an
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
+### Event: 'checkExpectation'
+
+`function (request, response) { }`
+
+Emitted each time a request with an http Expect header is received, where the
+value is not 100-continue. If this event isn't listened for, the server will
+automatically respond with a 417 Expectation Failed as appropriate.
+
+Note that when this event is emitted and handled, the `request` event will
+not be emitted.
+
 ### Event: 'connect'
 
 `function (response, socket, head) { }`
