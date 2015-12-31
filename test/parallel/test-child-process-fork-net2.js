@@ -117,47 +117,29 @@ if (process.argv[2] === 'child') {
   });
 
   var closeEmitted = false;
-  server.on('close', function() {
-    console.error('[m] server close');
+  server.on('close', common.mustCall(function() {
     closeEmitted = true;
 
-    console.error('[m] killing child processes');
     child1.kill();
     child2.kill();
     child3.kill();
-  });
+  }));
 
   server.listen(common.PORT, '127.0.0.1');
 
-  var timeElapsed = 0;
   var closeServer = function() {
-    console.error('[m] closeServer');
-    var startTime = Date.now();
-    server.on('close', function() {
-      console.error('[m] emit(close)');
-      timeElapsed = Date.now() - startTime;
-    });
-
-    console.error('[m] calling server.close');
     server.close();
 
     setTimeout(function() {
       assert(!closeEmitted);
-      console.error('[m] sending close to children');
       child1.send('close');
       child2.send('close');
       child3.disconnect();
     }, 200);
   };
 
-  var min = 190;
-  var max = common.platformTimeout(2000);
   process.on('exit', function() {
     assert.equal(disconnected, count);
     assert.equal(connected, count);
-    assert.ok(closeEmitted);
-    assert.ok(timeElapsed >= min && timeElapsed <= max,
-              `timeElapsed was not between ${min} and ${max} ms:` +
-              `${timeElapsed}`);
   });
 }
