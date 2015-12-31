@@ -1339,7 +1339,10 @@ def ProcessOptions(options):
       print "The test group to run (n) must be smaller than number of groups (m)."
       return False
   if options.J:
-    options.j = multiprocessing.cpu_count()
+    # inherit JOBS from environment if provided. some virtualised systems
+    # tends to exaggerate the number of available cpus/cores.
+    cores = os.environ.get('JOBS')
+    options.j = int(cores) if cores is not None else multiprocessing.cpu_count()
   if options.flaky_tests not in ["run", "skip", "dontcare"]:
     print "Unknown flaky-tests mode %s" % options.flaky_tests
     return False
