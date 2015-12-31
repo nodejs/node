@@ -175,7 +175,7 @@ replace the existing process and uses a shell to execute the command.*
 
 ### child_process.execFile(file[, args][, options][, callback])
 
-* `file` {String} The filename of the program to run
+* `file` {String} A path to an executable file
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
@@ -193,20 +193,20 @@ replace the existing process and uses a shell to execute the command.*
   * `stderr` {Buffer}
 * Return: ChildProcess object
 
-The `child_process.execFile()` method is similar to [`child_process.exec()`][]
-except that it does not first spawn a shell. Rather, the specified `command` is
-spawned directly as a new process making it slightly more efficient than
-[`child_process.exec()`][]. The same options are support by both
-`child_process.exec()` and `child_process.execFile()`.
+The `child_process.execFile()` function is similar to [`child_process.exec()`][]
+except that it does not spawn a shell. Rather, the specified executable `file`
+is spawned directly as a new process making it slightly more efficient than
+[`child_process.exec()`][].
 
-    const exec = require('child_process').execFile;
-    const child = execFile('cat *.js bad_file | wc -l',
-      (error, stdout, stderr) => {
-        console.log(`stdout: ${stdout}`);
-        console.log(`stderr: ${stderr}`);
-        if (error !== null) {
-          console.log(`exec error: ${error}`);
-        }
+The same options as `child_process.exec()` are supported. Since a shell is not
+spawned, behaviors such as I/O redirection and file globbing are not supported.
+
+    const execFile = require('child_process').execFile;
+    const child = execFile('node', ['--version'], (error, stdout, stderr) => {
+      if (error) {
+        throw error;
+      }
+      console.log(stdout);
     });
 
 ### child_process.fork(modulePath[, args][, options])
