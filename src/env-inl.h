@@ -88,6 +88,15 @@ inline void Environment::AsyncHooks::set_enable_callbacks(uint32_t flag) {
   fields_[kEnableCallbacks] = flag;
 }
 
+inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env) :
+    env_(env) {
+  env_->set_in_async_callback(true);
+}
+
+inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
+  env_->set_in_async_callback(false);
+}
+
 inline Environment::DomainFlag::DomainFlag() {
   for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
 }
@@ -206,6 +215,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
                                 uv_loop_t* loop)
     : isolate_(context->GetIsolate()),
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
+      in_async_callback_(false),
       timer_base_(uv_now(loop)),
       using_domains_(false),
       printed_error_(false),
@@ -321,6 +331,14 @@ inline uv_loop_t* Environment::event_loop() const {
 
 inline Environment::AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
+}
+
+inline bool Environment::in_async_callback() const {
+  return in_async_callback_;
+}
+
+inline void Environment::set_in_async_callback(bool value) {
+  in_async_callback_ = value;
 }
 
 inline Environment::DomainFlag* Environment::domain_flag() {

@@ -3196,6 +3196,8 @@ void LoadEnvironment(Environment* env) {
   // thrown during process startup.
   try_catch.SetVerbose(true);
 
+  Environment::AsyncCallbackScope async_scope(env);
+
   env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
 
   Local<Value> arg = env->process_object();

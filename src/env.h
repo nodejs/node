@@ -305,6 +305,15 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
 
+  class AsyncCallbackScope {
+   public:
+    explicit AsyncCallbackScope(Environment* env);
+    ~AsyncCallbackScope();
+
+   private:
+    Environment* env_;
+  };
+
   class DomainFlag {
    public:
     inline uint32_t* fields();
@@ -435,6 +444,9 @@ class Environment {
   inline void FinishHandleCleanup(uv_handle_t* handle);
 
   inline AsyncHooks* async_hooks();
+  inline bool in_async_callback() const;
+  inline void set_in_async_callback(bool value);
+
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
   inline ArrayBufferAllocatorInfo* array_buffer_allocator_info();
@@ -542,6 +554,7 @@ class Environment {
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
   AsyncHooks async_hooks_;
+  bool in_async_callback_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
   ArrayBufferAllocatorInfo array_buffer_allocator_info_;
