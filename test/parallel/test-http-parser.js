@@ -90,6 +90,8 @@ function expectBody(expected) {
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser.execute(request, 0, request.length);
 
+  /*
+   * DISABLED
   //
   // Check that if we throw an error in the callbacks that error will be
   // thrown from parser.execute()
@@ -104,6 +106,7 @@ function expectBody(expected) {
   assert.throws(function() {
     parser.execute(request, 0, request.length);
   }, Error, 'hello world');
+  */
 })();
 
 

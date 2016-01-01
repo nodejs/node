@@ -33,6 +33,7 @@ namespace node {
   V(UDPWRAP)                                                                  \
   V(UDPSENDWRAP)                                                              \
   V(WRITEWRAP)                                                                \
+  V(HTTP)                                                                     \
   V(ZLIB)
 
 class Environment;
