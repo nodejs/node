@@ -18,6 +18,7 @@ if (cluster.isMaster) {
     conn = net.connect(common.PORT, common.mustCall(function() {
       worker1.send('die');
       worker2.send('die');
+      worker2.on('error', function(e) {});
     }));
     conn.on('error', function(e) {
       // ECONNRESET is OK
