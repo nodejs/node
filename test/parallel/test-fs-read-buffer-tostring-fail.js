@@ -6,7 +6,6 @@ const fs = require('fs');
 const path = require('path');
 const Buffer = require('buffer').Buffer;
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
-const kMaxLength = process.binding('buffer').kMaxLength;
 
 var fd;
 

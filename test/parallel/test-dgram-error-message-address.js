@@ -20,7 +20,6 @@ socket_ipv4.bind(common.PORT, '1.1.1.1');
 
 // IPv6 Test
 var socket_ipv6 = dgram.createSocket('udp6');
-var family_ipv6 = 'IPv6';
 
 socket_ipv6.on('listening', common.fail);
 
