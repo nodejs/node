@@ -11,7 +11,7 @@ const readline = require('readline');
 const iStream = new PassThrough();
 const oStream = new PassThrough();
 
-const rli = readline.createInterface({
+readline.createInterface({
   terminal: true,
   input: iStream,
   output: oStream,
