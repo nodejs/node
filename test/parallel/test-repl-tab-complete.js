@@ -4,7 +4,6 @@
 
 var common = require('../common');
 var assert = require('assert');
-var util = require('util');
 var repl = require('repl');
 var referenceErrors = 0;
 var expectedReferenceErrors = 0;

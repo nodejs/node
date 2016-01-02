@@ -4,7 +4,6 @@ var R = require('_stream_readable');
 var assert = require('assert');
 
 var util = require('util');
-var EE = require('events').EventEmitter;
 
 var ondataCalled = 0;
 
@@ -25,7 +24,7 @@ TestReader.prototype._read = function(n) {
   this._buffer = new Buffer(0);
 };
 
-var reader = new TestReader();
+new TestReader();
 setImmediate(function() {
   assert.equal(ondataCalled, 1);
   console.log('ok');
