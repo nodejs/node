@@ -3,7 +3,6 @@
 require('../common');
 const assert = require('assert');
 const Buffer = require('buffer').Buffer;
-const Bp = Buffer.prototype;
 
 function FakeBuffer() { }
 FakeBuffer.__proto__ = Buffer;

@@ -16,7 +16,7 @@ common.ArrayStream.prototype.write = function(output) {
 };
 
 const putIn = new common.ArrayStream();
-const testMe = repl.start('', putIn);
+repl.start('', putIn);
 let file = path.resolve(__dirname, '../fixtures/syntax/bad_syntax');
 
 if (common.isWindows)

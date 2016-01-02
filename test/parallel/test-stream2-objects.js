@@ -167,8 +167,6 @@ test('read(0) for object streams', function(t) {
   r.push('foobar');
   r.push(null);
 
-  var v = r.read(0);
-
   r.pipe(toArray(function(array) {
     assert.deepEqual(array, ['foobar']);
 

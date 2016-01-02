@@ -10,7 +10,6 @@ var options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
 var child = spawn(process.execPath, args, options);
 
 var outputLines = [];
-var outputTimerId;
 var waitingForDebuggers = false;
 
 var pids = null;

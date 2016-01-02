@@ -13,8 +13,6 @@ const assert = require('assert');
 const domain = require('domain');
 const child_process = require('child_process');
 
-const uncaughtExceptions = {};
-
 const tests = [];
 
 function test1() {

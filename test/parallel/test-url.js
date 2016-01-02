@@ -1514,9 +1514,6 @@ relativeTests2.forEach(function(relativeTest) {
 //if format and parse are inverse operations then
 //resolveObject(parse(x), y) == parse(resolve(x, y))
 
-//host and hostname are special, in this case a '' value is important
-var emptyIsImportant = {'host': true, 'hostname': ''};
-
 //format: [from, path, expected]
 relativeTests.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]),

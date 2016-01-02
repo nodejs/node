@@ -303,12 +303,9 @@ test('passthrough event emission', function(t) {
   var pt = new PassThrough();
   var emits = 0;
   pt.on('readable', function() {
-    var state = pt._readableState;
     console.error('>>> emit readable %d', emits);
     emits++;
   });
-
-  var i = 0;
 
   pt.write(new Buffer('foog'));
 

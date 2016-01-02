@@ -39,8 +39,6 @@ process.nextTick(run);
 
 
 test('buffers', function(t) {
-  // have a length
-  var len = 16;
   var list = [ new Buffer('foog'),
                new Buffer('bark'),
                new Buffer('bazy'),
@@ -69,8 +67,6 @@ test('buffers', function(t) {
 });
 
 test('strings', function(t) {
-  // have a length
-  var len = 16;
   var list = [ 'foog',
                'bark',
                'bazy',

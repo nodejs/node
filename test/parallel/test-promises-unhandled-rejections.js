@@ -185,12 +185,11 @@ asyncTest('When re-throwing new errors in a promise catch, only the' +
 asyncTest('Test params of unhandledRejection for a synchronously-rejected' +
           'promise', function(done) {
   var e = new Error();
-  var e2 = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
     assert.strictEqual(promise, promise);
   });
-  var promise = Promise.reject(e);
+  Promise.reject(e);
 });
 
 asyncTest('When re-throwing new errors in a promise catch, only the ' +
@@ -629,7 +628,7 @@ asyncTest('Promise unhandledRejection handler does not interfere with domain' +
       assert.strictEqual(domainReceivedError, domainError);
       d.dispose();
     });
-    var a = Promise.reject(e);
+    Promise.reject(e);
     process.nextTick(function() {
       throw domainError;
     });
