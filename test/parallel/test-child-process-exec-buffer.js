@@ -18,7 +18,7 @@ exec('echo ' + str, function(err, stdout, stderr) {
 });
 
 // no encoding (Buffers expected)
-var child = exec('echo ' + str, {
+exec('echo ' + str, {
   encoding: null
 }, function(err, stdout, stderr) {
   assert.ok(stdout instanceof Buffer, 'Expected stdout to be a Buffer');

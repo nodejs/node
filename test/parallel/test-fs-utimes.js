@@ -48,7 +48,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
 // would be even better though (node doesn't have such functionality yet)
 function runTest(atime, mtime, callback) {
 
-  var fd, err;
+  var fd;
   //
   // test synchronized code paths, these functions throw on failure
   //

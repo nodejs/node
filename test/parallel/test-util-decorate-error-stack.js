@@ -1,6 +1,6 @@
 // Flags: --expose_internals
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const internalUtil = require('internal/util');
 
