@@ -15,11 +15,6 @@ function listener2() {
   count++;
 }
 
-function listener3() {
-  console.log('listener3');
-  count++;
-}
-
 function remove1() {
   assert(0);
 }

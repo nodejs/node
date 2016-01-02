@@ -124,7 +124,7 @@ function run_test_2() {
 
 
 function run_test_3() {
-  var file, buffer, options;
+  var file, options;
 
   var data = '\u2026\u2026',    // 3 bytes * 2 = 6 bytes in UTF-8
       fileData;
@@ -167,7 +167,7 @@ function run_test_3() {
 
 
 function run_test_4() {
-  var file, options;
+  var options;
 
   options = { start: -5,
               flags: 'r+' };

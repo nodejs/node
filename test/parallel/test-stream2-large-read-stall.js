@@ -53,9 +53,6 @@ function push() {
     setTimeout(push);
 }
 
-// start the flow
-var ret = r.read(0);
-
 process.on('exit', function() {
   assert.equal(pushes, PUSHCOUNT + 1);
   assert(endEmitted);

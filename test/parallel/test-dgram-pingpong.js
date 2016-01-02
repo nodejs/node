@@ -11,7 +11,6 @@ function pingPongTest(port, host) {
   var callbacks = 0;
   var N = 500;
   var count = 0;
-  var sent_final_ping = false;
 
   var server = dgram.createSocket('udp4', function(msg, rinfo) {
     if (debug) console.log('server got: ' + msg +
@@ -48,7 +47,6 @@ function pingPongTest(port, host) {
       if (count < N) {
         client.send(buf, 0, buf.length, port, 'localhost');
       } else {
-        sent_final_ping = true;
         client.send(buf, 0, buf.length, port, 'localhost', function() {
           client.close();
         });

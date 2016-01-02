@@ -8,7 +8,7 @@ var repl = require('repl');
 common.globalCheck = false;
 
 const putIn = new common.ArrayStream();
-var testMe = repl.start('', putIn, null, true);
+repl.start('', putIn, null, true);
 
 test1();
 
