@@ -38,7 +38,6 @@ var Stream = require('stream').Stream;
 })();
 
 (function testErrorWithRemovedListenerThrows() {
-  var EE = require('events').EventEmitter;
   var R = Stream.Readable;
   var W = Stream.Writable;
 
@@ -73,7 +72,6 @@ var Stream = require('stream').Stream;
 })();
 
 (function testErrorWithRemovedListenerThrows() {
-  var EE = require('events').EventEmitter;
   var R = Stream.Readable;
   var W = Stream.Writable;
 

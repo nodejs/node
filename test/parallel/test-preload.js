@@ -82,7 +82,6 @@ child_process.exec(nodeBinary + ' '
   });
 
 // https://github.com/nodejs/node/issues/1691
-var originalCwd = process.cwd();
 process.chdir(path.join(__dirname, '../fixtures/'));
 child_process.exec(nodeBinary + ' '
   + '--expose_debug_as=v8debug '
