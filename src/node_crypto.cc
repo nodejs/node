@@ -116,14 +116,6 @@ static X509_NAME *cnnic_ev_name =
     d2i_X509_NAME(nullptr, &cnnic_ev_p,
                   sizeof(CNNIC_EV_ROOT_CA_SUBJECT_DATA)-1);
 
-// Forcibly clear OpenSSL's error stack on return. This stops stale errors
-// from popping up later in the lifecycle of crypto operations where they
-// would cause spurious failures. It's a rather blunt method, though.
-// ERR_clear_error() isn't necessarily cheap either.
-struct ClearErrorOnReturn {
-  ~ClearErrorOnReturn() { ERR_clear_error(); }
-};
-
 static uv_mutex_t* locks;
 
 const char* const root_certs[] = {
