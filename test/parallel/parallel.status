@@ -13,9 +13,6 @@ test-cluster-shared-leak             : PASS,FLAKY
 test-tls-ticket-cluster              : PASS,FLAKY
 
 [$system==linux]
-test-http-client-timeout-event       : PASS,FLAKY
-test-child-process-buffering         : PASS,FLAKY
-test-child-process-exit-code         : PASS,FLAKY
 
 [$system==macos]
 
