@@ -31,7 +31,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-
 TLSWrap::TLSWrap(Environment* env,
                  Kind kind,
                  StreamBase* stream,
@@ -401,6 +400,8 @@ void TLSWrap::ClearOut() {
   if (ssl_ == nullptr)
     return;
 
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   char out[kClearOutChunkSize];
   int read;
   for (;;) {
@@ -459,6 +460,8 @@ bool TLSWrap::ClearIn() {
 
   if (ssl_ == nullptr)
     return false;
+
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int written = 0;
   while (clear_in_->Length() > 0) {
@@ -587,6 +590,8 @@ int TLSWrap::DoWrite(WriteWrap* w,
   if (ssl_ == nullptr)
     return UV_EPROTO;
 
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   int written = 0;
   for (i = 0; i < count; i++) {
     written = SSL_write(ssl_, bufs[i].base, bufs[i].len);
@@ -702,8 +707,11 @@ void TLSWrap::DoRead(ssize_t nread,
 
 
 int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   if (ssl_ != nullptr && SSL_shutdown(ssl_) == 0)
     SSL_shutdown(ssl_);
+
   shutdown_ = true;
   EncOut();
   return stream_->DoShutdown(req_wrap);
