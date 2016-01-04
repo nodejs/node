@@ -170,10 +170,23 @@ var TIMEZONE_NAME_CHECK_RE = UNDEFINED;
 
 function GetTimezoneNameCheckRE() {
   if (IS_UNDEFINED(TIMEZONE_NAME_CHECK_RE)) {
-    TIMEZONE_NAME_CHECK_RE =
-        new GlobalRegExp('^([A-Za-z]+)/([A-Za-z]+)(?:_([A-Za-z]+))*$');
+    TIMEZONE_NAME_CHECK_RE = new GlobalRegExp(
+      '^([A-Za-z]+)/([A-Za-z_-]+)((?:\/[A-Za-z_-]+)+)*$')
   }
   return TIMEZONE_NAME_CHECK_RE;
+}
+
+/**
+ * Matches valid location parts of IANA time zone names.
+ */
+var TIMEZONE_NAME_LOCATION_PART_RE = UNDEFINED;
+
+function GetTimezoneNameLocationPartRE() {
+  if (IS_UNDEFINED(TIMEZONE_NAME_LOCATION_PART_RE)) {
+    TIMEZONE_NAME_LOCATION_PART_RE =
+        new GlobalRegExp('^([A-Za-z]+)((?:[_-][A-Za-z]+)+)*$');
+  }
+  return TIMEZONE_NAME_LOCATION_PART_RE;
 }
 
 /**
@@ -670,6 +683,34 @@ function addWECPropertyIfDefined(object, property, value) {
 function toTitleCaseWord(word) {
   return %StringToUpperCase(%_CallFunction(word, 0, 1, StringSubstr)) +
          %StringToLowerCase(%_CallFunction(word, 1, StringSubstr));
+}
+
+/**
+ * Returns titlecased location, bueNos_airES -> Buenos_Aires
+ * or ho_cHi_minH -> Ho_Chi_Minh. It is locale-agnostic and only
+ * deals with ASCII only characters.
+ * 'of', 'au' and 'es' are special-cased and lowercased.
+ */
+function toTitleCaseTimezoneLocation(location) {
+  var match = %_CallFunction(location, GetTimezoneNameLocationPartRE(), StringMatch);
+  if (IS_NULL(match)) throw MakeRangeError(kExpectedLocation, location);
+
+  var result = toTitleCaseWord(match[1]);
+  if (!IS_UNDEFINED(match[2]) && 2 < match.length) {
+    // The first character is a separator, '_' or '-'.
+    // None of IANA zone names has both '_' and '-'.
+    var separator = %_CallFunction(match[2], 0, 1, StringSubstring);
+    var parts = %_CallFunction(match[2], separator, StringSplit);
+    for (var i = 1; i < parts.length; i++) {
+      var part = parts[i]
+      var lowercasedPart = %StringToLowerCase(part);
+      result = result + separator +
+          ((lowercasedPart !== 'es' &&
+            lowercasedPart !== 'of' && lowercasedPart !== 'au') ?
+          toTitleCaseWord(part) : lowercasedPart);
+    }
+  }
+  return result;
 }
 
 /**
@@ -1723,8 +1764,8 @@ addBoundMethod(Intl.DateTimeFormat, 'v8Parse', parseDate, 1);
 
 
 /**
- * Returns canonical Area/Location name, or throws an exception if the zone
- * name is invalid IANA name.
+ * Returns canonical Area/Location(/Location) name, or throws an exception
+ * if the zone name is invalid IANA name.
  */
 function canonicalizeTimeZoneID(tzID) {
   // Skip undefined zones.
@@ -1739,16 +1780,22 @@ function canonicalizeTimeZoneID(tzID) {
     return 'UTC';
   }
 
-  // We expect only _ and / beside ASCII letters.
-  // All inputs should conform to Area/Location from now on.
-  var match = %_CallFunction(tzID, GetTimezoneNameCheckRE(), StringMatch);
-  if (IS_NULL(match)) throw MakeRangeError(kExpectedLocation, tzID);
+  // TODO(jshin): Add support for Etc/GMT[+-]([1-9]|1[0-2])
 
-  var result = toTitleCaseWord(match[1]) + '/' + toTitleCaseWord(match[2]);
-  var i = 3;
-  while (!IS_UNDEFINED(match[i]) && i < match.length) {
-    result = result + '_' + toTitleCaseWord(match[i]);
-    i++;
+  // We expect only _, '-' and / beside ASCII letters.
+  // All inputs should conform to Area/Location(/Location)* from now on.
+  var match = %_CallFunction(tzID, GetTimezoneNameCheckRE(), StringMatch);
+  if (IS_NULL(match)) throw MakeRangeError(kExpectedTimezoneID, tzID);
+
+  var result = toTitleCaseTimezoneLocation(match[1]) + '/' +
+               toTitleCaseTimezoneLocation(match[2]);
+
+  if (!IS_UNDEFINED(match[3]) && 3 < match.length) {
+    var locations = %_CallFunction(match[3], '/', StringSplit);
+    // The 1st element is empty. Starts with i=1.
+    for (var i = 1; i < locations.length; i++) {
+      result = result + '/' + toTitleCaseTimezoneLocation(locations[i]);
+    }
   }
 
   return result;
