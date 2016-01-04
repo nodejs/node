@@ -261,7 +261,11 @@ class CallSite {
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(DateRange, "Provided date is not in valid range.")                         \
-  T(ExpectedLocation, "Expected Area/Location for time zone, got %")           \
+  T(ExpectedTimezoneID,                                                        \
+    "Expected Area/Location(/Location)* for time zone, got %")                 \
+  T(ExpectedLocation,                                                          \
+    "Expected letters optionally connected with underscores or hyphens for "   \
+    "a location, got %")                                                       \
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \
   T(InvalidArrayLength, "Invalid array length")                                \
   T(InvalidCodePoint, "Invalid code point %")                                  \
