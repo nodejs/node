@@ -723,7 +723,7 @@ To implement any sort of stream, the pattern is the same:
    [`util.inherits`][] method is particularly helpful for this.)
 2. Call the appropriate parent class constructor in your constructor,
    to be sure that the internal mechanisms are set up properly.
-2. Implement one or more specific methods, as detailed below.
+3. Implement one or more specific methods, as detailed below.
 
 The class to extend and the method(s) to implement depend on the sort
 of stream class you are writing:
