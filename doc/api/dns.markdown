@@ -69,7 +69,7 @@ Alternatively, `options` can be an object containing these properties:
   `getaddrinfo` flags. If `hints` is not provided, then no flags are passed to
   `getaddrinfo`. Multiple flags can be passed through `hints` by logically
   `OR`ing their values.
-  See [supported `getaddrinfo` flags][] below for more information on supported
+  See [supported `getaddrinfo` flags][] for more information on supported
   flags.
 * `all`: {Boolean} - When `true`, the callback returns all resolved addresses
   in an array, otherwise returns a single address. Defaults to `false`.
@@ -151,10 +151,10 @@ Valid values for `rrtype` are:
 The `callback` function has arguments `(err, addresses)`. When successful,
 `addresses` will be an array. The type of each  item in `addresses` is
 determined by the record type, and described in the documentation for the
-corresponding lookup methods below.
+corresponding lookup methods.
 
 On error, `err` is an [`Error`][] object, where `err.code` is
-one of the error codes listed below.
+one of the error codes listed [here](#dns_error_codes).
 
 ## dns.resolve4(hostname, callback)
 
@@ -250,7 +250,7 @@ The `callback` function has arguments `(err, hostnames)`, where `hostnames`
 is an array of resolved hostnames for the given `ip`.
 
 On error, `err` is an [`Error`][] object, where `err.code` is
-one of the error codes listed below.
+one of the [DNS error codes][].
 
 ## dns.setServers(servers)
 
@@ -335,6 +335,7 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
+[DNS error codes]: #dns_error_codes
 [`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
 [`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
 [`dns.resolve4()`]: #dns_dns_resolve4_hostname_callback
