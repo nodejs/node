@@ -37,14 +37,14 @@ and properties depending on whether they are Readable, Writable, or
 Duplex.
 
 If a stream is both Readable and Writable, then it implements all of
-the methods and events below.  So, a [Duplex][] or [Transform][] stream is
+the methods and events.  So, a [Duplex][] or [Transform][] stream is
 fully described by this API, though their implementation may be
 somewhat different.
 
 It is not necessary to implement Stream interfaces in order to consume
 streams in your programs.  If you **are** implementing streaming
 interfaces in your own program, please also refer to
-[API for Stream Implementors][] below.
+[API for Stream Implementors][].
 
 Almost all Node.js programs, no matter how simple, use Streams in some
 way. Here is an example of using Streams in an Node.js program:
@@ -95,7 +95,7 @@ server.listen(1337);
 ### Class: stream.Duplex
 
 Duplex streams are streams that implement both the [Readable][] and
-[Writable][] interfaces.  See above for usage.
+[Writable][] interfaces.
 
 Examples of Duplex streams include:
 
@@ -464,8 +464,8 @@ Note that `stream.unshift(chunk)` cannot be called after the `'end'` event
 has been triggered; a runtime error will be raised.
 
 If you find that you must often call `stream.unshift(chunk)` in your
-programs, consider implementing a [Transform][] stream instead.  (See API
-for Stream Implementors, below.)
+programs, consider implementing a [Transform][] stream instead.  (See [API
+for Stream Implementors][].)
 
 ```javascript
 // Pull off a header delimited by \n\n
@@ -514,7 +514,7 @@ reading state appropriately, however it is best to simply avoid calling
 * `stream` {Stream} An "old style" readable stream
 
 Versions of Node.js prior to v0.10 had streams that did not implement the
-entire Streams API as it is today.  (See "Compatibility" below for
+entire Streams API as it is today.  (See [Compatibility][] for
 more information.)
 
 If you are using an older Node.js library that emits `'data'` events and
@@ -542,7 +542,7 @@ myReader.on('readable', () => {
 
 Transform streams are [Duplex][] streams where the output is in some way
 computed from the input.  They implement both the [Readable][] and
-[Writable][] interfaces.  See above for usage.
+[Writable][] interfaces.
 
 Examples of Transform streams include:
 
@@ -789,7 +789,7 @@ of stream class you are writing:
 </table>
 
 In your implementation code, it is very important to never call the
-methods described in [API for Stream Consumers][] above.  Otherwise, you
+methods described in [API for Stream Consumers][].  Otherwise, you
 can potentially cause adverse side effects in programs that consume
 your streaming interfaces.
 
@@ -843,7 +843,7 @@ it can come in handy as a building block for novel sorts of streams.
 `stream.Readable` is an abstract class designed to be extended with an
 underlying implementation of the [`_read(size)`][] method.
 
-Please see above under [API for Stream Consumers][] for how to consume
+Please see [API for Stream Consumers][] for how to consume
 streams in your programs.  What follows is an explanation of how to
 implement Readable streams in your programs.
 
@@ -979,12 +979,13 @@ Counter.prototype._read = function() {
 
 #### Example: SimpleProtocol v1 (Sub-optimal)
 
-This is similar to the `parseHeader` function described above, but
-implemented as a custom stream.  Also, note that this implementation
-does not convert the incoming data to a string.
+This is similar to the `parseHeader` function described
+[here](#stream_readable_unshift_chunk), but implemented as a custom stream.
+Also, note that this implementation does not convert the incoming data to a
+string.
 
 However, this would be better implemented as a [Transform][] stream.  See
-below for a better implementation.
+[SimpleProtocol v2][] for a better implementation.
 
 ```javascript
 // A parser for a simple data protocol.
@@ -1201,9 +1202,10 @@ your own extension classes.
 
 #### Example: `SimpleProtocol` parser v2
 
-The example above of a simple protocol parser can be implemented
-simply by using the higher level [Transform][] stream class, similar to
-the `parseHeader` and `SimpleProtocol v1` examples above.
+The example [here](#stream_example_simpleprotocol_v1_sub_optimal) of a simple
+protocol parser can be implemented simply by using the higher level
+[Transform][] stream class, similar to the `parseHeader` and `SimpleProtocol
+v1` examples.
 
 In this example, rather than providing the input as an argument, it
 would be piped into the parser, which is a more idiomatic Node.js stream
@@ -1284,7 +1286,7 @@ SimpleProtocol.prototype._transform = function(chunk, encoding, done) {
 `stream.Writable` is an abstract class designed to be extended with an
 underlying implementation of the [`_write(chunk, encoding, callback)`][] method.
 
-Please see above under [API for Stream Consumers][] for how to consume
+Please see [API for Stream Consumers][] for how to consume
 writable streams in your programs.  What follows is an explanation of
 how to implement Writable streams in your programs.
 
@@ -1500,7 +1502,7 @@ simpler, but also less powerful and less useful.
   meant that you still had to be prepared to receive `'data'` events
   even when the stream was in a paused state.
 
-In Node.js v0.10, the Readable class described below was added.
+In Node.js v0.10, the [Readable][] class was added.
 For backwards compatibility with older Node.js programs, Readable streams
 switch into "flowing mode" when a `'data'` event handler is added, or
 when the [`resume()`][] method is called.  The effect is that, even if
@@ -1710,6 +1712,7 @@ horribly wrong.
 [API for Stream Implementors]: #stream_api_for_stream_implementors
 [child process stdin]: child_process.html#child_process_child_stdin
 [child process stdout and stderr]: child_process.html#child_process_child_stdout
+[Compatibility]: #stream_compatibility_with_older_node_js_versions
 [crypto streams]: crypto.html
 [crypto]: crypto.html
 [Duplex]: #stream_class_stream_duplex
@@ -1722,6 +1725,7 @@ horribly wrong.
 [Object mode]: #stream_object_mode
 [Readable]: #stream_class_stream_readable
 [request to an HTTP server]: http.html#http_http_incomingmessage
+[SimpleProtocol v2]: #stream_example_simpleprotocol_parser_v2
 [tcp sockets]: net.html#net_class_net_socket
 [Transform]: #stream_class_stream_transform
 [unpiped]: #stream_readable_unpipe_destination
