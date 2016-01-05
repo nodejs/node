@@ -86,6 +86,11 @@ const tests = [
     expected: [prompt, replDisabled, prompt]
   },
   {
+    env: { NODE_REPL_HISTORY: ' ' },
+    test: [UP],
+    expected: [prompt, replDisabled, prompt]
+  },
+  {
     env: { NODE_REPL_HISTORY: '',
            NODE_REPL_HISTORY_FILE: enoentHistoryPath },
     test: [UP],
