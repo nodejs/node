@@ -229,7 +229,7 @@ Because the Module system is Node.js is [Locked][], it is unlikely that this
 feature will be removed entirely. However, the mechanism is considered to be
 unsupported and should not be used.
 
-Note that files with the extension `*.sjs` and processed as `*.js` files.
+Note that files with the extension `*.sjs` are processed as `*.js` files.
 
     require.extensions['.sjs'] = require.extensions['.js'];
 
