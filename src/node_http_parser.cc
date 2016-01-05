@@ -578,6 +578,8 @@ class Parser : public BaseObject {
     if (!cb->IsFunction())
       return;
 
+    Environment::AsyncCallbackScope callback_scope(parser->env());
+
     // Hooks for GetCurrentBuffer
     parser->current_buffer_len_ = nread;
     parser->current_buffer_data_ = buf->base;
@@ -587,7 +589,7 @@ class Parser : public BaseObject {
     parser->current_buffer_len_ = 0;
     parser->current_buffer_data_ = nullptr;
 
-    parser->env()->KickNextTick();
+    parser->env()->KickNextTick(&callback_scope);
   }
 
 
