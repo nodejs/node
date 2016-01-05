@@ -59,7 +59,7 @@ Previously in Node.js/io.js v2.x, REPL history was controlled by using a
 format. This variable has now been deprecated, and your REPL history will
 automatically be converted to using plain text. The new file will be saved to
 either your home directory, or a directory defined by the `NODE_REPL_HISTORY`
-variable, as documented below.
+variable, as documented [here](#repl_environment_variable_options).
 
 ## REPL Features
 
