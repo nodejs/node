@@ -283,7 +283,7 @@ function parseSignature(text, sig) {
     // [foo] -> optional
     if (p.charAt(p.length - 1) === ']') {
       optional = true;
-      p = p.substr(0, p.length - 1);
+      p = p.replace(/\]/g, '');
       p = p.trim();
     }
     var eq = p.indexOf('=');
