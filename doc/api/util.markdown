@@ -161,7 +161,7 @@ formatted string:
    `2`. To make it recurse indefinitely pass `null`.
 
  - `colors` - if `true`, then the output will be styled with ANSI color codes.
-   Defaults to `false`. Colors are customizable, see below.
+   Defaults to `false`. Colors are customizable, see [here][].
 
  - `customInspect` - if `false`, then custom `inspect(depth, opts)` functions
    defined on the objects being inspected won't be called. Defaults to `true`.
@@ -501,4 +501,5 @@ Deprecated predecessor of `console.log`.
 
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
+[here]: #util_customizing_util_inspect_colors
 [`Error`]: errors.html#errors_class_error

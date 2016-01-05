@@ -34,7 +34,7 @@ the event loop until the spawned process either exits of is terminated.
 
 For convenience, the `child_process` module provides a handful of synchronous
 and asynchronous alternatives to `child_process.spawn()` and
-`child_process.spawnSync()`, each of which are documented fully [below][].
+`child_process.spawnSync()`, each of which are documented fully [here][].
 *Note that each of these alternatives are implemented on top of
 `child_process.spawn()` or `child_process.spawnSync()`.*
 
@@ -262,10 +262,10 @@ not clone the current process.*
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
   * `stdio` {Array|String} Child's stdio configuration. (See
-    [below](#child_process_options_stdio))
+    [here](#child_process_options_stdio))
   * `detached` {Boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
-    [below](#child_process_options_detached))
+    [here](#child_process_options_detached))
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * return: {ChildProcess object}
@@ -934,5 +934,5 @@ to the same value.
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`stdio`]: #child_process_options_stdio
-[below]: #child_process_asynchronous_process_creation
+[here]: #child_process_asynchronous_process_creation
 [synchronous counterparts]: #child_process_synchronous_process_creation
