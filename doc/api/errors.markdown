@@ -317,7 +317,7 @@ The number of frames captured by the stack trace is bounded by the smaller of
 loop tick.
 
 System-level errors are generated as augmented `Error` instances, which are
-detailed [below](#errors_system_errors).
+detailed [here](#errors_system_errors).
 
 ## Class: RangeError
 
@@ -503,7 +503,6 @@ found [here][online].
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`try / catch` construct]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [`try { } catch(err) { }`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
-[below]: #errors_error_propagation_and_interception
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_events_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor

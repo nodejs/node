@@ -83,7 +83,7 @@ an empty string.  Examples:
 
 ## path.format(pathObject)
 
-Returns a path string from an object, the opposite of `path.parse` above.
+Returns a path string from an object, the opposite of [`path.parse`][].
 
     path.format({
         root : "/",
@@ -276,3 +276,5 @@ An example on Windows:
 
 Provide access to aforementioned `path` methods but always interact in a win32
 compatible way.
+
+[`path.parse`]: #path_path_parse_pathstring
