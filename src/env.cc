@@ -57,10 +57,10 @@ void Environment::PrintSyncTrace() const {
 }
 
 
-bool Environment::KickNextTick() {
+bool Environment::KickNextTick(Environment::AsyncCallbackScope* scope) {
   TickInfo* info = tick_info();
 
-  if (info->in_tick()) {
+  if (scope->in_makecallback()) {
     return true;
   }
 
@@ -73,14 +73,10 @@ bool Environment::KickNextTick() {
     return true;
   }
 
-  info->set_in_tick(true);
-
   // process nextTicks after call
   TryCatch try_catch;
   try_catch.SetVerbose(true);
   tick_callback_function()->Call(process_object(), 0, nullptr);
-
-  info->set_in_tick(false);
 
   if (try_catch.HasCaught()) {
     info->set_last_threw(true);

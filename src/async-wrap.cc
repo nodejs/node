@@ -184,6 +184,8 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   Local<Object> domain;
   bool has_domain = false;
 
+  Environment::AsyncCallbackScope callback_scope(env());
+
   if (env()->using_domains()) {
     Local<Value> domain_v = context->Get(env()->domain_string());
     has_domain = domain_v->IsObject();
@@ -236,7 +238,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Environment::TickInfo* tick_info = env()->tick_info();
 
-  if (tick_info->in_tick()) {
+  if (callback_scope.in_makecallback()) {
     return ret;
   }
 
@@ -249,11 +251,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     return ret;
   }
 
-  tick_info->set_in_tick(true);
-
   env()->tick_callback_function()->Call(process, 0, nullptr);
-
-  tick_info->set_in_tick(false);
 
   if (try_catch.HasCaught()) {
     tick_info->set_last_threw(true);
