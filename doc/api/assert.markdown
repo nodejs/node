@@ -3,9 +3,10 @@
     Stability: 3 - Locked
 
 The `assert` module provides a simple set of assertion tests that can be used
-to test invariants and implement unit tests. While the `assert` module is
-generally intended for internal use by Node.js itself, it can be used by user
-code calling `require('assert')`.
+to test invariants and implement unit tests. It is recommended that users of
+Node.js choose a third party assertion library from [npm][] instead of relying
+on `assert`.  That being said, `assert` can be used by user code calling
+`require('assert')`.  
 
 The API for the `assert` module is [Locked][]. This means that there will be no
 additions or changes to any of the methods implemented and exposed by
@@ -357,6 +358,7 @@ Custom error validation:
     );
 
 [Locked]: documentation.html#documentation_stability_index
+[npm]: https://www.npmjs.com/search?q=assertion+library
 [`assert.deepEqual`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual`]: #assert_assert_deepstrictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
