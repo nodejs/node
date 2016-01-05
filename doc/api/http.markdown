@@ -52,7 +52,7 @@ require developers to manually close the HTTP clients using
 KeepAlive.
 
 If you opt into using HTTP KeepAlive, you can create an Agent object
-with that flag set to `true`.  (See the [constructor options][] below.)
+with that flag set to `true`.  (See the [constructor options][].)
 Then, the Agent will keep unused sockets in a pool for later use.  They
 will be explicitly marked so as to not keep the Node.js process running.
 However, it is still a good idea to explicitly [`destroy()`][] KeepAlive
