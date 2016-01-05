@@ -32,7 +32,7 @@ would need to ever use `require('buffer')`.
     const buf4 = new Buffer('tést', 'utf8');
       // creates a buffer containing UTF8 bytes [74, c3, a9, 73, 74]
 
-### Buffers and Character Encodings
+## Buffers and Character Encodings
 
 Buffers are commonly used to represent sequences of encoded characters
 such as UTF8, UCS2, Base64 or even Hex-encoded data. It is possible to
@@ -66,7 +66,7 @@ The character encodings currently supported by Node.js include:
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
-### Buffers and TypedArray
+## Buffers and TypedArray
 
 Buffers are also `Uint8Array` TypedArray instances. However, there are subtle
 incompatibilities with the TypedArray specification in ECMAScript 2015. For
@@ -116,7 +116,7 @@ create a Buffer that uses only a part of the `ArrayBuffer`, use the
     console.log(buf.length);
       // Prints: 16
 
-### Buffers and ES6 iteration
+## Buffers and ES6 iteration
 
 Buffers can be iterated over using the ECMAScript 2015 (ES6) `for..of` syntax:
 
