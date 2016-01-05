@@ -891,7 +891,7 @@ See [the tty docs][] for more information.
 
 ## process.title
 
-Getter/setter to set what is displayed in `ps.
+Getter/setter to set what is displayed in `ps`.
 
 When used as a setter, the maximum length is platform-specific and probably
 short.
