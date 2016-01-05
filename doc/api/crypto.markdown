@@ -2,23 +2,20 @@
 
     Stability: 2 - Stable
 
-The `crypto` module provides:
-
-- A method of encapsulating secure credentials for use with a secure HTTPS
-  or HTTP connection.
-- A set of wrappers for OpenSSL's hash, hmac, cipher, decipher, sign and
-  verify functions.
+The `crypto` module provides cryptographic functionality that includes a set of
+wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign and verify functions.
 
 Use `require('crypto')` to access this module.
 
     const crypto = require('crypto');
     
     const secret = 'abcdefg';
-    const hash = crypto.createHmac('sha1', secret)
+    const hash = crypto.createHmac('sha256', secret)
                        .update('I love cupcakes')
                        .digest('hex');
     console.log(hash);
-      // Prints: c9b5925a91d078a1f14734e678766a22ddca0516
+      // Prints:
+      //   c0fa1bc00531bd78ef38c628449c5102aeabd49b5dc3a2a516ea6ea959d6658e
 
 ## Class: Certificate
 
@@ -510,13 +507,14 @@ objects are not to be created directly using the `new` keyword.
 Example: Using `Hash` objects as streams:
 
     const crypto = require('crypto');
-    const hash = crypto.createHash('md5');
+    const hash = crypto.createHash('sha256');
 
     hash.on('readable', () => {
       var data = hash.read();
       if (data)
         console.log(data.toString('hex'));
-        // Prints: 527d738baba016840c3a33f2790845dd
+        // Prints:
+        //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
     });
     
     hash.write('some data to hash');
@@ -526,7 +524,7 @@ Example: Using `Hash` and piped streams:
 
     const crypto = require('crypto');
     const fs = require('fs');
-    const hash = crypto.createHash('md5');
+    const hash = crypto.createHash('sha256');
     
     const input = fs.createReadStream('test.js');
     input.pipe(hash).pipe(process.stdout);
@@ -534,11 +532,12 @@ Example: Using `Hash` and piped streams:
 Example: Using the `hash.update()` and `hash.digest()` methods:
 
     const crypto = require('crypto');
-    const hash = crypto.createHash('md5');
+    const hash = crypto.createHash('sha256');
 
     hash.update('some data to hash');
     console.log(hash.digest('hex'));
-      // Prints: 527d738baba016840c3a33f2790845dd
+      // Prints:
+      //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
 
 ### hash.digest([encoding])
 
@@ -576,13 +575,14 @@ objects are not to be created directly using the `new` keyword.
 Example: Using `Hmac` objects as streams:
 
     const crypto = require('crypto');
-    const hmac = crypto.createHmac('md5', 'a secret');
+    const hmac = crypto.createHmac('sha256', 'a secret');
 
     hmac.on('readable', () => {
       var data = hmac.read();
       if (data)
         console.log(data.toString('hex'));
-        // Prints: e04f2ec05c8b12e19e46936b171c9d03
+        // Prints:
+        //   7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e
     });
     
     hmac.write('some data to hash');
@@ -592,7 +592,7 @@ Example: Using `Hmac` and piped streams:
 
     const crypto = require('crypto');
     const fs = require('fs');
-    const hmac = crypto.createHmac('md5', 'a secret');
+    const hmac = crypto.createHmac('sha256', 'a secret');
     
     const input = fs.createReadStream('test.js');
     input.pipe(hmac).pipe(process.stdout);
@@ -600,11 +600,12 @@ Example: Using `Hmac` and piped streams:
 Example: Using the `hmac.update()` and `hmac.digest()` methods:
 
     const crypto = require('crypto');
-    const hmac = crypto.createHmac('md5', 'a secret');
+    const hmac = crypto.createHmac('sha256', 'a secret');
 
     hmac.update('some data to hash');
     console.log(hmac.digest('hex'));
-      // Prints: e04f2ec05c8b12e19e46936b171c9d03
+      // Prints:
+      //   7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e
 
 ### hmac.digest([encoding])
 
@@ -810,11 +811,11 @@ The optional `details` argument is a hash object with keys:
   certificates to trust.
 * `crl` : Either a string or array of strings of PEM encoded CRLs
   (Certificate Revocation List)
-* `ciphers`: A string using the [OpenSSL cipher list format] describing the
+* `ciphers`: A string using the [OpenSSL cipher list format][] describing the
   cipher algorithms to use or exclude.
 
 If no 'ca' details are given, Node.js will use Mozilla's default
-[publicly trusted list of CAs].
+[publicly trusted list of CAs][].
 
 ### crypto.createDecipher(algorithm, password)
 
@@ -1019,7 +1020,7 @@ but will take a longer amount of time to complete.
 
 The `salt` should also be as unique as possible. It is recommended that the
 salts are random and their lengths are greater than 16 bytes. See
-[NIST SP 800-132] for details.
+[NIST SP 800-132][] for details.
 
 Example:
 
@@ -1049,7 +1050,7 @@ but will take a longer amount of time to complete.
 
 The `salt` should also be as unique as possible. It is recommended that the
 salts are random and their lengths are greater than 16 bytes. See
-[NIST SP 800-132] for details.
+[NIST SP 800-132][] for details.
 
 Example:
 
@@ -1151,7 +1152,7 @@ If an error occurs, `err` will be an Error object; otherwise it is null. The
     // Asynchronous
     const crypto = require('crypto');
     crypto.randomBytes(256, (err, buf) => {
-      if (ex) throw ex;
+      if (err) throw err;
       console.log(
         `${buf.length}` bytes of random data: ${buf.toString('hex')});
     });
@@ -1194,34 +1195,20 @@ is a bit field taking one of or a mix of the following flags (defined in the
 * `ENGINE_METHOD_ALL`
 * `ENGINE_METHOD_NONE`
 
-## Recent API Changes
+## Notes
+
+### Legacy Streams API (pre Node.js v0.10)
 
 The Crypto module was added to Node.js before there was the concept of a
 unified Stream API, and before there were [`Buffer`][] objects for handling
 binary data. As such, the many of the `crypto` defined classes have methods not
-typically found on other Node.js classes that implement the [streams] API (e.g.
-`update()`, `final()`, or `digest()`).  Also, many methods accepted and
-returned `'binary'` encoded strings by default rather than Buffers.  This
-default was changed to use [`Buffer`] objects by default instead.
+typically found on other Node.js classes that implement the [streams][]
+API (e.g. `update()`, `final()`, or `digest()`).  Also, many methods accepted
+and returned `'binary'` encoded strings by default rather than Buffers.  This
+default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
+instead.
 
-This is a breaking change for some use cases, but not all.
-
-For example, if code currently use the default arguments to the `Sign`
-class, and then pass the results to the `Verify` class, without ever
-inspecting the data, that code will continue to work as before.  Where
-once a `'binary'` string was returned and then passed to the `Verify` object,
-now a [`Buffer`][] is returned and passed.
-
-However, code written to expect `'binary'` encoded string data will not
-continue to work properly using the [`Buffer`] based API. This can happen,
-for instance, with code that concatenats signatures, stores those in
-databases, and so on; or, code that passes `'binary'` encoded strings to the
-crypto functions without an `encoding` argument. In such cases, code will
-need to be modified to provide `encoding` arguments to specify the encoding
-that should be used. To switch to the previous style of using `'binary'`
-strings by default, the `crypto.DEFAULT_ENCODING` property can be set to
-`'binary'`. New code should be written to expect Buffers, so only use this as a
-temporary measure.
+### Recent ECDH Changes
 
 Usage of `ECDH` with non-dynamically generated key pairs has been simplified.
 Now, `ecdh.setPrivateKey()` can be called with a preselected private key and the
@@ -1236,16 +1223,17 @@ automatically generates the associated public key, or `ecdh.generateKeys()`
 should be called. The main drawback of using `ecdh.setPublicKey()` is that it
 can be used to put the ECDH key pair into an inconsistent state.
 
-## Caveats
+### Support for weak or compromised algorithms
 
 The `crypto` module still supports some algorithms which are already
-compromised. And the API also allows the use of ciphers and hashes
-with a small key size that are considered to be too weak for safe use.
+compromised and are not currently recommended for use. The API also allows
+the use of ciphers and hashes with a small key size that are considered to be
+too weak for safe use.
 
 Users should take full responsibility for selecting the crypto
 algorithm and key size according to their security requirements.
 
-Based on the recommendations of [NIST SP 800-131A]:
+Based on the recommendations of [NIST SP 800-131A][]:
 
 - MD5 and SHA-1 are no longer acceptable where collision resistance is
   required such as digital signatures.
@@ -1273,13 +1261,13 @@ See the reference for other recommendations and details.
 [`tls.createSecureContext`]: tls.html#tls_tls_createsecurecontext_details
 [`Buffer`]: buffer.html
 [buffers]: buffer.html
-[Caveats]: #crypto_caveats
+[Caveats]: #crypto_support_for_weak_or_compromised_algorithms
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
-[NIST SP 800-131A]: http://csrc.nist.gov/publications/nistpubs/800-131A/sp800-131A.pdf
+[NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [stream]: stream.html
 [streams]: stream.html
 [OpenSSL cipher list format]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
-[publicly trusted list of CAs]: http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
+[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
