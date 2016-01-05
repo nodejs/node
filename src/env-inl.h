@@ -88,6 +88,20 @@ inline void Environment::AsyncHooks::set_enable_callbacks(uint32_t flag) {
   fields_[kEnableCallbacks] = flag;
 }
 
+inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
+    : env_(env) {
+  env_->makecallback_cntr_++;
+}
+
+inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
+  env_->makecallback_cntr_--;
+  CHECK_GE(env_->makecallback_cntr_, 0);
+}
+
+inline bool Environment::AsyncCallbackScope::in_makecallback() {
+  return env_->makecallback_cntr_ > 1;
+}
+
 inline Environment::DomainFlag::DomainFlag() {
   for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
 }
@@ -210,6 +224,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
+      makecallback_cntr_(0),
       async_wrap_uid_(0),
       debugger_agent_(this),
       http_parser_buffer_(nullptr),
