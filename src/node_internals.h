@@ -69,8 +69,6 @@ v8::Local<v8::Value> MakeCallback(Environment* env,
                                    int argc = 0,
                                    v8::Local<v8::Value>* argv = nullptr);
 
-bool KickNextTick();
-
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
 // If |info| is omitted, a new object is returned.
