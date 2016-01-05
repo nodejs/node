@@ -294,6 +294,19 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
 
+  class AsyncCallbackScope {
+   public:
+    explicit AsyncCallbackScope(Environment* env);
+    ~AsyncCallbackScope();
+
+    inline bool in_makecallback();
+
+   private:
+    Environment* env_;
+
+    DISALLOW_COPY_AND_ASSIGN(AsyncCallbackScope);
+  };
+
   class DomainFlag {
    public:
     inline uint32_t* fields();
@@ -446,7 +459,7 @@ class Environment {
 
   inline int64_t get_async_wrap_uid();
 
-  bool KickNextTick();
+  bool KickNextTick(AsyncCallbackScope* scope);
 
   inline uint32_t* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(uint32_t* pointer);
@@ -541,6 +554,7 @@ class Environment {
   bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;
+  size_t makecallback_cntr_;
   int64_t async_wrap_uid_;
   debugger::Agent debugger_agent_;
 
