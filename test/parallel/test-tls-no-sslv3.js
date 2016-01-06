@@ -48,7 +48,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
   }));
 });
 
-server.on('clientError', err => errors.push(err));
+server.on('tlsClientError', err => errors.push(err));
 
 process.on('exit', function() {
   if (/unknown option -ssl3/.test(stderr)) {

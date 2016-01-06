@@ -110,7 +110,7 @@ var server = tls.createServer(serverOptions, function(c) {
   serverResults.push({ sni: c.servername, authorized: c.authorized });
 });
 
-server.on('clientError', function(err) {
+server.on('tlsClientError', function(err) {
   serverResults.push(null);
   serverError = err.message;
 });
