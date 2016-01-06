@@ -25,7 +25,7 @@ var options = {
 
 var server = tls.createServer(options, common.fail);
 
-server.on('clientError', function(err, conn) {
+server.on('tlsClientError', function(err, conn) {
   conn.destroy();
   server.close();
   clientErrors++;
