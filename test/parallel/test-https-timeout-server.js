@@ -32,6 +32,7 @@ server.on('clientError', function(err, conn) {
   assert.equal(conn._secureEstablished, false);
   server.close();
   clientErrors++;
+  conn.destroy();
 });
 
 server.listen(common.PORT, function() {

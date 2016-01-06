@@ -21,12 +21,6 @@ var server = http.Server(function(req, res) {
       server.close();
     }
   });
-
-  // since there is already clientError, maybe that would be appropriate,
-  // since "error" is magical
-  req.on('clientError', function() {
-    console.log('Got clientError');
-  });
 });
 
 var responses = 0;

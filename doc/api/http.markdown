@@ -421,6 +421,10 @@ not be emitted.
 `function (exception, socket) { }`
 
 If a client connection emits an `'error'` event, it will be forwarded here.
+Listener of this event is responsible for destroying socket, and, for example,
+can do it it gracefully by sending 400 HTTP response.
+
+Default behavior is destroy socket immediately.
 
 `socket` is the [`net.Socket`][] object that the error originated from.
 
