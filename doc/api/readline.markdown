@@ -247,7 +247,7 @@ Clears the screen from the current position of the cursor down.
 
 ## readline.createInterface(options)
 
-Creates a readline `Interface` instance. Accepts an `options Object that takes
+Creates a readline `Interface` instance. Accepts an `options` Object that takes
 the following values:
 
  - `input` - the readable stream to listen to (Required).
