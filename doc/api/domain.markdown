@@ -12,7 +12,7 @@ handler, or causing the program to exit immediately with an error code.
 **This module is pending deprecation**. Once a replacement API has been
 finalized, this module will be fully deprecated. Most end users should
 **not** have cause to use this module. Users who absolutely must have
-the functionality provided by the `domain` modules may rely on it for the
+the functionality provided by the `domain` module may rely on it for the
 time being but should expect to migrate to a different solution in the future.
 
 ## Warning: Do not Ignore Errors!
@@ -308,14 +308,15 @@ For example:
     const domain = require('domain');
     const myDomain = domain.create();
 
-    const handler = myDomain.bind((err, data) => {
-      return cb(err, data ? JSON.parse(data) : null);
-    });  
-
-    function readSomeFile(filename, cb) {    
+    function readSomeFile(filename, cb) {
+    
+      const handler = myDomain.bind((err, data) => {
+        return cb(err, data ? JSON.parse(data) : null);
+      });
+    
       fs.readFile(filename, 'utf8', handler);
     }
-
+    
     myDomain.on('error', (err) => {
       console.error(`An error occurred: ${err.message}`);
     });
@@ -338,15 +339,16 @@ For example
 
     const domain = require('domain');
     const myDomain = domain.create();
-
-    const handler = myDomain.intercept((data) => {
-      return cb(data ? JSON.parse(data) : null);
-    });  
-
-    function readSomeFile(filename, cb) {    
+    
+    function readSomeFile(filename, cb) {
+      
+      const handler = myDomain.intercept((data) => {
+        return cb(data ? JSON.parse(data) : null);
+      });
+    
       fs.readFile(filename, 'utf8', handler);
     }
-
+    
     myDomain.on('error', (err) => {
       console.error(`An error occurred: ${err.message}`);
     });
