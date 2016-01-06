@@ -3,8 +3,10 @@ require('../common');
 var assert = require('assert');
 var util = require('util');
 var symbol = Symbol('foo');
+var fn = function() {};
 
 assert.equal(util.format(), '');
+assert.equal(util.format(fn), 'function () {}');
 assert.equal(util.format(''), '');
 assert.equal(util.format([]), '[]');
 assert.equal(util.format({}), '{}');
@@ -12,6 +14,17 @@ assert.equal(util.format(null), 'null');
 assert.equal(util.format(true), 'true');
 assert.equal(util.format(false), 'false');
 assert.equal(util.format('test'), 'test');
+
+// Args get formatted identically whether they are in args[0] (no format), or
+// used as trailing args (no format).
+assert.equal(util.format('foo', fn), 'foo function () {}');
+assert.equal(util.format('foo', ''), 'foo ');
+assert.equal(util.format('foo', []), 'foo []');
+assert.equal(util.format('foo', {}), 'foo {}');
+assert.equal(util.format('foo', null), 'foo null');
+assert.equal(util.format('foo', true), 'foo true');
+assert.equal(util.format('foo', false), 'foo false');
+assert.equal(util.format('foo', 'test'), 'foo test');
 
 // CHECKME this is for console.log() compatibility - but is it *right*?
 assert.equal(util.format('foo', 'bar', 'baz'), 'foo bar baz');

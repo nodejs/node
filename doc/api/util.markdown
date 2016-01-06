@@ -108,9 +108,8 @@ and then concatenated, delimited by a space.
 
     util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
 
-If the first argument is not a format string then `util.format()` returns
-a string that is the concatenation of all its arguments separated by spaces.
-Each argument is converted to a string with `util.inspect()`.
+If the first argument is not a string then all arguments are treated as extra
+arguments.
 
     util.format(1, 2, 3); // '1 2 3'
 
