@@ -1,5 +1,6 @@
 #include "node.h"
 #include "node_buffer.h"
+#include "node_messages.h"
 #include "node_constants.h"
 #include "node_file.h"
 #include "node_http_parser.h"
@@ -2383,6 +2384,10 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     Local<Value> unused = Undefined(env->isolate());
     mod->nm_context_register_func(exports, unused,
       env->context(), mod->nm_priv);
+    cache->Set(module, exports);
+  } else if (!strcmp(*module_v, "messages")) {
+    exports = Object::New(env->isolate());
+    DefineMessages(env, exports);
     cache->Set(module, exports);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());

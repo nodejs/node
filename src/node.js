@@ -198,7 +198,9 @@
           ];
         }
 
-        throw new TypeError('process.hrtime() only accepts an Array tuple');
+        // process.hrtime() only accepts an Array tuple
+        const I18N = NativeModule.require('internal/messages');
+        throw I18N.TypeError(I18N.NODE_HRTIME_ARRAY);
       }
 
       return [
@@ -278,8 +280,11 @@
 
   var assert;
   startup.processAssert = function() {
+    const I18N = NativeModule.require('internal/messages');
     assert = process.assert = function(x, msg) {
-      if (!x) throw new Error(msg || 'assertion error');
+      if (!x) {
+        throw msg ? new Error(msg) : I18N.Error(I18N.NODE_ASSERTION_ERROR);
+      }
     };
   };
 
@@ -305,6 +310,7 @@
   var addPendingUnhandledRejection;
   var hasBeenNotifiedProperty = new WeakMap();
   startup.processNextTick = function() {
+    const I18N = NativeModule.require('internal/messages');
     var nextTickQueue = [];
     var pendingUnhandledRejections = [];
     var microtasksScheduled = false;
@@ -508,8 +514,9 @@
     }
 
     function nextTick(callback) {
-      if (typeof callback !== 'function')
-        throw new TypeError('callback is not a function');
+      if (typeof callback !== 'function') {
+        throw I18N.TypeError(I18N.NODE_FUNCTION_REQUIRED, 'callback');
+      }
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
         return;
@@ -550,6 +557,7 @@
   };
 
   startup.processPromises = function() {
+    const I18N = NativeModule.require('internal/messages');
     var promiseRejectEvent = process._promiseRejectEvent;
 
     function unhandledRejection(promise, reason) {
@@ -575,8 +583,11 @@
         unhandledRejection(promise, reason);
       else if (event === promiseRejectEvent.handled)
         rejectionHandled(promise);
-      else
-        NativeModule.require('assert').fail('unexpected PromiseRejectEvent');
+      else {
+        // unexpected PromiseRejectEvent
+        NativeModule.require('assert').fail(I18N(I18N.NODE_UNEXPECTED,
+                                                 'PromiseRejectEvent'));
+      }
     });
   };
 
@@ -616,6 +627,7 @@
   }
 
   function createWritableStdioStream(fd) {
+    const I18N = NativeModule.require('internal/messages');
     var stream;
     var tty_wrap = process.binding('tty_wrap');
 
@@ -647,7 +659,8 @@
 
       default:
         // Probably an error on in uv_guess_handle()
-        throw new Error('Implement me. Unknown stream file type!');
+        // Unknown stream file type!'
+        throw I18N.Error(I18N.NODE_UNKNOWN_STREAM_FILE_TYPE);
     }
 
     // For supporting legacy API we put the FD here.
@@ -659,13 +672,15 @@
   }
 
   startup.processStdio = function() {
+    const I18N = NativeModule.require('internal/messages');
     var stdin, stdout, stderr;
 
     process.__defineGetter__('stdout', function() {
       if (stdout) return stdout;
       stdout = createWritableStdioStream(1);
       stdout.destroy = stdout.destroySoon = function(er) {
-        er = er || new Error('process.stdout cannot be closed.');
+        // process.stdout cannot be closed.
+        er = er || I18N.Error(I18N.NODE_CLOSE_STDOUT);
         stdout.emit('error', er);
       };
       if (stdout.isTTY) {
@@ -680,7 +695,8 @@
       if (stderr) return stderr;
       stderr = createWritableStdioStream(2);
       stderr.destroy = stderr.destroySoon = function(er) {
-        er = er || new Error('process.stderr cannot be closed.');
+        // process.stderr cannot be closed
+        er = er || I18N.Error(I18N.NODE_CLOSE_STDERR);
         stderr.emit('error', er);
       };
       if (stderr.isTTY) {
@@ -739,7 +755,8 @@
 
         default:
           // Probably an error on in uv_guess_handle()
-          throw new Error('Implement me. Unknown stdin file type!');
+          // Unknown stdin file type!
+          throw I18N.Error(I18N.NODE_UNKNOWN_STDIN_FILE_TYPE);
       }
 
       // For supporting legacy API we put the FD here.
@@ -774,7 +791,7 @@
   };
 
   startup.processKillAndExit = function() {
-
+    const I18N = NativeModule.require('internal/messages');
     process.exit = function(code) {
       if (code || code === 0)
         process.exitCode = code;
@@ -790,7 +807,8 @@
       var err;
 
       if (pid != (pid | 0)) {
-        throw new TypeError('invalid pid');
+        // invalid pid
+        throw I18N.TypeError(I18N.NODE_INVALID_PID);
       }
 
       // preserve null signal
@@ -802,7 +820,8 @@
             sig.slice(0, 3) === 'SIG') {
           err = process._kill(pid, startup.lazyConstants()[sig]);
         } else {
-          throw new Error('Unknown signal: ' + sig);
+          // unknown signal
+          throw I18N.Error(I18N.NODE_UNKNOWN_SIGNAL, sig);
         }
       }
 
@@ -926,7 +945,12 @@
     }
 
     if (!NativeModule.exists(id)) {
-      throw new Error('No such native module ' + id);
+      // no such native module .. we cannot use internal/messages here...
+      const I18N = process.binding('messages');
+      const msg = I18N.msg(I18N.NODE_UNKNOWN_NATIVE_MODULE);
+      const err = new Error(`${msg.msg} ${id}`);
+      err.key = msg.id;
+      throw err;
     }
 
     process.moduleLoadList.push('NativeModule ' + id);

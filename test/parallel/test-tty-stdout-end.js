@@ -9,7 +9,7 @@ const shouldThrow = function() {
 
 const validateError = function(e) {
   return e instanceof Error &&
-    e.message === 'process.stdout cannot be closed.';
+    /^process.stdout cannot be closed/.test(e.message);
 };
 
 assert.throws(shouldThrow, validateError);
