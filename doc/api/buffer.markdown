@@ -290,6 +290,25 @@ Example: build a single Buffer from a list of three Buffers:
     // <Buffer 00 00 00 00 ...>
     // 42
 
+### Class Method: Buffer.encode(str[, encoding])
+
+* `str` {String} string to encode.
+* `encoding` {String} encoding to use, Optional.
+* Return: Buffer
+
+Encoding a string with more safely.
+
+  const str = '100';
+  const number = 100;
+  const buf1 = new Buffer(str); // allocate 3 bytes
+  const buf2 = new Buffer(number); // allocate 100 bytes
+
+  const value = ? // when value is come from outside
+
+  const buf3 = new Buffer(value); // wtf?
+
+  const buf4 = Buffer.encode(value); // allocate bytes safely
+
 ### Class Method: Buffer.isBuffer(obj)
 
 * `obj` Object
