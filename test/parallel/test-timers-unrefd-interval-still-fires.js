@@ -1,26 +1,25 @@
 'use strict';
 /*
  * This test is a regression test for joyent/node#8900.
+ *
+ * Node.js 0.10.34 contains the bug that this test detects.
+ * Node.js 0.10.35 contains the fix.
+ *
+ * Due to the introduction of ES6-isms, comment out `'use strict'` and
+ * `require('../common');` to run the test on Node.js 0.10.x.
  */
-const common = require('../common');
+require('../common');
 
-const TEST_DURATION = common.platformTimeout(100);
 const N = 3;
 var nbIntervalFired = 0;
 
-const keepOpen = setTimeout(() => {
-  console.error('[FAIL] Interval fired %d/%d times.', nbIntervalFired, N);
-  throw new Error('Test timed out. keepOpen was not canceled.');
-}, TEST_DURATION);
+const keepOpen = setInterval(function() {}, 9999);
 
-const timer = setInterval(() => {
+const timer = setInterval(function() {
   ++nbIntervalFired;
   if (nbIntervalFired === N) {
     clearInterval(timer);
-    timer._onTimeout = () => {
-      throw new Error('Unrefd interval fired after being cleared.');
-    };
-    clearTimeout(keepOpen);
+    clearInterval(keepOpen);
   }
 }, 1);
 
