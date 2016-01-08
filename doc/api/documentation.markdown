@@ -20,6 +20,10 @@ Every `.html` and `.json` file is generated based on the corresponding
 documentation is generated using the `tools/doc/generate.js` program.
 The HTML template is located at `doc/template.html`.
 
+
+If you find a error in this documentation, please [submit an issue][]
+or see [the contributing guide][] for directions on how to submit a patch.
+
 ## Stability Index
 
 <!--type=misc-->
@@ -82,3 +86,6 @@ Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
 relative to Linux and OS X. For an example of the subtle ways in which it's
 sometimes impossible to replace Unix syscall semantics on Windows, see [Node
 issue 4760](https://github.com/nodejs/node/issues/4760).
+
+[submit an issue]: https://github.com/nodejs/node/issues/new
+[the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
