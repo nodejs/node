@@ -41,7 +41,6 @@
 
 #include "v8.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
-#include "messages/messages.h"
 
 #define NODE_MAKE_VERSION(major, minor, patch)                                \
   ((major) * 0x1000 + (minor) * 0x100 + (patch))
@@ -157,6 +156,8 @@ NODE_EXTERN v8::Local<v8::Value> MakeCallback(
 #include "node_internals.h"
 #endif
 
+#include "messages/messages.h"
+
 #include <assert.h>
 #include <stdint.h>
 
@@ -175,7 +176,6 @@ typedef intptr_t ssize_t;
 #else  // !_WIN32
 # include <sys/types.h>  // size_t, ssize_t
 #endif  // _WIN32
-
 
 namespace node {
 
