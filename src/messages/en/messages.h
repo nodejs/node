@@ -66,5 +66,22 @@
   XX(NODE_HTTP_AGENT_DEBUG_DESTROYED, "destroyed")                            \
   XX(NODE_HTTP_AGENT_DEBUG_MAKE_SOCKET,                                       \
      "removeSocket, have a request, make a socket")                           \
+  XX(NODE_HTTP_CLIENT_DOMAIN_NAME, "Unable to determine the domain name")     \
+  XX(NODE_HTTP_CLIENT_UNESCAPED_PATH,                                         \
+    "Request path contains unescaped characters")                             \
+  XX(NODE_HTTP_CLIENT_UNEXPECTED_PROTOCOL,                                    \
+    "Protocol '{0}' not supported. Expected '{1}'")                           \
+  XX(NODE_HTTP_INVALID_TOKEN, "'{0}' must be a valid HTTP token")             \
+  XX(NODE_NET_SOCKET_HANGUP, "socket hang up")                                \
+  XX(NODE_HTTP_CLIENT_DEBUG_CLIENT_CREATE, "CLIENT use net.createConnection") \
+  XX(NODE_HTTP_CLIENT_DEBUG_SOCKET_CLOSE, "HTTP socket close")                \
+  XX(NODE_HTTP_CLIENT_DEBUG_SOCKET_ERROR, "SOCKET ERROR")                     \
+  XX(NODE_HTTP_CLIENT_DEBUG_SOCKET_ERROR_FREE, "SOCKET ERROR on FREE socket") \
+  XX(NODE_HTTP_CLIENT_DEBUG_PARSE_ERROR, "parse error")                       \
+  XX(NODE_HTTP_CLIENT_DEBUG_SETTING_RESDOMAIN, "setting \"res.domain\"")      \
+  XX(NODE_HTTP_CLIENT_DEBUG_INCOMING_RESPONSE, "AGENT incoming response!")    \
+  XX(NODE_HTTP_CLIENT_DEBUG_ISHEAD, "AGENT isHeadResponse")                   \
+  XX(NODE_HTTP_CLIENT_DEBUG_SOCKET_DESTROYSOON, "AGENT socket.destroySoon()") \
+  XX(NODE_HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
