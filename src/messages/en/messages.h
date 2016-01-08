@@ -118,5 +118,8 @@
   XX(HTTP_SERVER_DEBUG_UPGRADE_OR_CONNECT, "SERVER upgrade or connect")       \
   XX(HTTP_SERVER_DEBUG_HAVE_LISTENER, "SERVER have listener for {0}")         \
   XX(HTTP_SERVER_DEBUG_PAUSE_PARSER, "pause parser")                          \
+  XX(LINKLIST_DEPRECATED,                                                     \
+    NODE_DEPRECATE_MESSAGE("_linklist module", "a userland alternative")      \
+
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
