@@ -54,8 +54,8 @@ Binaries, installers, and source tarballs are available at
 <https://nodejs.org/download/release/>, listed under their version strings.
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Stable release. The latest LTS release from an LTS
-line is available in the form: latest-lts-_codename_. For example:
-<https://nodejs.org/download/release/latest-lts-argon>
+line is available in the form: latest-_codename_. For example:
+<https://nodejs.org/download/release/latest-argon>
 
 **Nightly** builds are available at
 <https://nodejs.org/download/nightly/>, listed under their version
