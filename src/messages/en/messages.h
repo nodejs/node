@@ -57,5 +57,14 @@
   XX(NODE_DEBUGGER_UNHANDLED_RESPONSE, "unhandled res")                       \
   XX(NODE_DEBUGGER_CONNECTION_FAILED, "failed to connect, please retry")      \
   XX(NODE_DEBUGGER_CONNECTING, "connecting to")                               \
+  XX(NODE_HTTP_AGENT_DEBUG_FREE_SOCKET, "have free socket")                   \
+  XX(NODE_HTTP_AGENT_DEBUG_CALL_ONSOCKET, "call onSocket")                    \
+  XX(NODE_HTTP_AGENT_DEBUG_WAIT_FOR_SOCKET, "wait for socket")                \
+  XX(NODE_HTTP_AGENT_DEBUG_SOCKETS, "sockets")                                \
+  XX(NODE_HTTP_AGENT_DEBUG_CLIENT_CLOSE, "CLIENT socket onClose")             \
+  XX(NODE_HTTP_AGENT_DEBUG_CLIENT_REMOVE, "CLIENT socket onRemove")           \
+  XX(NODE_HTTP_AGENT_DEBUG_DESTROYED, "destroyed")                            \
+  XX(NODE_HTTP_AGENT_DEBUG_MAKE_SOCKET,                                       \
+     "removeSocket, have a request, make a socket")                           \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
