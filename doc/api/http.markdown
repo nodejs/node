@@ -511,6 +511,8 @@ Listening on a file descriptor is not supported on Windows.
 This function is asynchronous. The last parameter `callback` will be added as
 a listener for the `'listening'` event. See also [`net.Server.listen()`][].
 
+Returns `server`.
+
 ### server.listen(path[, callback])
 
 Start a UNIX socket server listening for connections on the given `path`.
