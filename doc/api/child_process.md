@@ -77,11 +77,12 @@ The importance of the distinction between `child_process.exec()` and
 `child_process.execFile()` can vary based on platform. On Unix-type operating
 systems (Unix, Linux, OSX) `child_process.execFile()` can be more efficient
 because it does not spawn a shell. On Windows, however, `.bat` and `.cmd`
-files are not executable on their own without a terminal and therefore cannot
-be launched using `child_process.execFile()` (or even `child_process.spawn()`).
-When running on Windows, `.bat` and `.cmd` files can only be invoked using
-either `child_process.exec()` or by spawning `cmd.exe` and passing the `.bat`
-or `.cmd` file as an argument (which is what `child_process.exec()` does).
+files are not executable on their own without a terminal, and therefore cannot
+be launched using `child_process.execFile()`. When running on Windows, `.bat`
+and `.cmd` files can be invoked using `child_process.spawn()` with the `shell`
+option set, with `child_process.exec()`, or by spawning `cmd.exe` and passing
+the `.bat` or `.cmd` file as an argument (which is what the `shell` option and
+`child_process.exec()` do).
 
 ```js
 // On Windows Only ...
@@ -303,6 +304,10 @@ added: v0.1.90
     [`options.detached`][])
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
+  * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
+    '/bin/sh' on UNIX, and 'cmd.exe' on Windows. A different shell can be
+    specified as a string. The shell should understand the `-c` switch on UNIX,
+    or `/s /c` on Windows. Defaults to `false` (no shell).
 * return: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -635,6 +640,10 @@ added: v0.11.12
   * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
     stderr - if exceeded child process is killed
   * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
+  * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
+    '/bin/sh' on UNIX, and 'cmd.exe' on Windows. A different shell can be
+    specified as a string. The shell should understand the `-c` switch on UNIX,
+    or `/s /c` on Windows. Defaults to `false` (no shell).
 * return: {Object}
   * `pid` {Number} Pid of the child process
   * `output` {Array} Array of results from stdio output
