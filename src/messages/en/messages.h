@@ -63,12 +63,14 @@
   XX(HTTP_AGENT_DEBUG_FREE_SOCKET, "have free socket")                        \
   XX(HTTP_AGENT_DEBUG_CALL_ONSOCKET, "call onSocket")                         \
   XX(HTTP_AGENT_DEBUG_WAIT_FOR_SOCKET, "wait for socket")                     \
-  XX(HTTP_AGENT_DEBUG_SOCKETS, "sockets")                                     \
+  XX(HTTP_AGENT_DEBUG_SOCKETS, "sockets {0} {1}")                                     \
   XX(HTTP_AGENT_DEBUG_CLIENT_CLOSE, "CLIENT socket onClose")                  \
   XX(HTTP_AGENT_DEBUG_CLIENT_REMOVE, "CLIENT socket onRemove")                \
-  XX(HTTP_AGENT_DEBUG_DESTROYED, "destroyed")                                 \
+  XX(HTTP_AGENT_DEBUG_DESTROYED, "removeSocket {0} destroyed {1}")            \
   XX(HTTP_AGENT_DEBUG_MAKE_SOCKET,                                            \
      "removeSocket, have a request, make a socket")                           \
+  XX(HTTP_AGENT_DEBUG_ONFREE, "agent.on(free) {0}")                           \
+  XX(HTTP_AGENT_DEBUG_CREATE_CONNECTION, "createConnection {0} {1}")          \
   XX(HTTP_CLIENT_DOMAIN_NAME, "Unable to determine the domain name")          \
   XX(HTTP_CLIENT_UNESCAPED_PATH,                                              \
     "Request path contains unescaped characters")                             \
@@ -76,14 +78,15 @@
     "Protocol '{0}' not supported. Expected '{1}'")                           \
   XX(HTTP_INVALID_TOKEN, "'{0}' must be a valid HTTP token")                  \
   XX(NET_SOCKET_HANGUP, "socket hang up")                                     \
-  XX(HTTP_CLIENT_DEBUG_CLIENT_CREATE, "CLIENT use net.createConnection")      \
+  XX(HTTP_CLIENT_DEBUG_CLIENT_CREATE, "CLIENT use net.createConnection {0}")  \
   XX(HTTP_CLIENT_DEBUG_SOCKET_CLOSE, "HTTP socket close")                     \
-  XX(HTTP_CLIENT_DEBUG_SOCKET_ERROR, "SOCKET ERROR")                          \
-  XX(HTTP_CLIENT_DEBUG_SOCKET_ERROR_FREE, "SOCKET ERROR on FREE socket")      \
+  XX(HTTP_CLIENT_DEBUG_SOCKET_ERROR, "SOCKET ERROR {0} {1}")                  \
+  XX(HTTP_CLIENT_DEBUG_SOCKET_ERROR_FREE,                                     \
+    "SOCKET ERROR on FREE socket {0} {1}")                                    \
   XX(HTTP_CLIENT_DEBUG_PARSE_ERROR, "parse error")                            \
   XX(HTTP_CLIENT_DEBUG_SETTING_RESDOMAIN, "setting \"res.domain\"")           \
   XX(HTTP_CLIENT_DEBUG_INCOMING_RESPONSE, "AGENT incoming response!")         \
-  XX(HTTP_CLIENT_DEBUG_ISHEAD, "AGENT isHeadResponse")                        \
+  XX(HTTP_CLIENT_DEBUG_ISHEAD, "AGENT isHeadResponse {0}")                    \
   XX(HTTP_CLIENT_DEBUG_SOCKET_DESTROYSOON, "AGENT socket.destroySoon()")      \
   XX(HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")                  \
   XX(INVALID_ARG_TYPE, "'{0}' argument must be a {1}")                        \
@@ -103,7 +106,7 @@
      "Both Content-Length and Transfer-Encoding are removed")                 \
   XX(HTTP_OUTGOING_DEBUG_IGNORING_WRITE,                                      \
      "This type of response MUST NOT have a body. Ignoring write() calls.")   \
-  XX(HTTP_OUTGOING_DEBUG_WRITE_RET, "write ret")                              \
+  XX(HTTP_OUTGOING_DEBUG_WRITE_RET, "write ret = {0}")                        \
   XX(HTTP_OUTGOING_DEBUG_IGNORING_END_DATA,                                   \
     "This type of response MUST NOT have a body. "                            \
     "Ignoring data passed to end().")                                         \
@@ -115,7 +118,7 @@
   XX(HTTP_SERVER_DEBUG_SOCKETONDATA, "SERVER socketOnData {0}")               \
   XX(HTTP_SERVER_DEBUG_SOCKETONPARSEREXECUTE,                                 \
      "SERVER socketOnParserExecute {0}")                                      \
-  XX(HTTP_SERVER_DEBUG_UPGRADE_OR_CONNECT, "SERVER upgrade or connect")       \
+  XX(HTTP_SERVER_DEBUG_UPGRADE_OR_CONNECT, "SERVER upgrade or connect {0}")   \
   XX(HTTP_SERVER_DEBUG_HAVE_LISTENER, "SERVER have listener for {0}")         \
   XX(HTTP_SERVER_DEBUG_PAUSE_PARSER, "pause parser")                          \
   XX(LINKLIST_DEPRECATED,                                                     \
@@ -126,30 +129,68 @@
   XX(NOT_IMPLEMENTED, "not implemented")                                      \
   XX(STREAM_READABLE_STREAM_NOT_EMPTY,                                        \
     "'endReadable()' called on non-empty stream")                             \
-  XX(STREAM_READABLE_DEBUG_NEED_READABLE, "need readable")                    \
-  XX(STREAM_READABLE_DEBUG_LESS_THAN_WATERMARK, "length less than watermark") \
-  XX(STREAM_READABLE_DEBUG_READING_OR_ENDED, "reading or ended")              \
+  XX(STREAM_READABLE_DEBUG_NEED_READABLE, "need readable {0}")                \
+  XX(STREAM_READABLE_DEBUG_LESS_THAN_WATERMARK,                               \
+     "length less than watermark {0}")                                        \
+  XX(STREAM_READABLE_DEBUG_READING_OR_ENDED, "reading or ended {0}")          \
   XX(STREAM_READABLE_DEBUG_DO_READ, "do read")                                \
+  XX(STREAM_READABLE_DEBUG_EMIT_READABLE_ARG, "emit readable {0}")            \
   XX(STREAM_READABLE_DEBUG_EMIT_READABLE, "emit readable")                    \
   XX(STREAM_READABLE_DEBUG_MAYBE_READMORE, "maybeReadMore read 0")            \
-  XX(STREAM_READABLE_DEBUG_FALSE_WRITE, "false write response, pause")        \
+  XX(STREAM_READABLE_DEBUG_FALSE_WRITE, "false write response, pause {0}")    \
   XX(STREAM_READABLE_DEBUG_PIPE_RESUME, "pipe resume")                        \
   XX(STREAM_READABLE_DEBUG_READABLE_NEXTTICK, "readable nexttick read 0")     \
   XX(STREAM_READABLE_DEBUG_RESUME_READ, "resume read 0")                      \
-  XX(STREAM_READABLE_CALL_PAUSE_FLOWING, "call pause flowing")                \
+  XX(STREAM_READABLE_CALL_PAUSE_FLOWING, "call pause flowing = {0}")          \
   XX(STREAM_READABLE_DEBUG_WRAPPED_END, "wrapped end")                        \
   XX(STREAM_READABLE_DEBUG_WRAPPED_DATA, "wrapped data")                      \
-  XX(STREAM_READABLE_DEBUG_WRAPPED_READ, "wrapped _read")                     \
+  XX(STREAM_READABLE_DEBUG_WRAPPED_READ, "wrapped _read {0}")                 \
+  XX(STREAM_READABLE_DEBUG_READ, "read {0}")                                  \
+  XX(STREAM_READABLE_DEBUG_PIPE_COUNT, "pipe count={0} opts={1}")             \
+  XX(STREAM_READABLE_DEBUG_ONUNPIPE, "onunpipe")                              \
+  XX(STREAM_READABLE_DEBUG_ONEND, "onend")                                    \
+  XX(STREAM_READABLE_DEBUG_CLEANUP, "cleanup")                                \
+  XX(STREAM_READABLE_DEBUG_ONDATA, "ondata")                                  \
+  XX(STREAM_READABLE_DEBUG_ONERROR, "onerror")                                \
+  XX(STREAM_READABLE_DEBUG_ONFINISH, "onfinish")                              \
+  XX(STREAM_READABLE_DEBUG_UNPIPE, "unpipe")                                  \
+  XX(STREAM_READABLE_DEBUG_PIPEONDRAIN, "pipeOnDrain {0}")                    \
+  XX(STREAM_READABLE_DEBUG_RESUME, "resume")                                  \
+  XX(STREAM_READABLE_DEBUG_PAUSE, "pause")                                    \
+  XX(STREAM_READABLE_DEBUG_FLOW, "flow")                                      \
+  XX(STREAM_READABLE_READEMITREADABLE, "read: emitReadable {0} {1}")          \
   XX(STREAM_TRANSFORM_NO_WRITECB, "no writecb in Transform class")            \
   XX(STREAM_TRANSFORM_DONE_NOT_EMPTY,                                         \
     "Calling transform done when ws.length != 0")                             \
   XX(STREAM_TRANSFORM_DONE_STILL_GOING,                                       \
     "Calling transform done when still transforming")                         \
   XX(STREAM_WRAP_HAS_STRINGDECODER, "Stream has StringDecoder")               \
+  XX(STREAM_WRAP_DEBUG_CLOSE, "close")                                        \
+  XX(STREAM_WRAP_DEBUG_DATA, "data {0}")                                      \
+  XX(STREAM_WRAP_DEBUG_END, "end")                                            \
   XX(STREAM_WRITABLE_CANNOT_PIPE_NOT_READABLE, "Cannot pipe, not readable")   \
   XX(UNKNOWN_ENCODING, "Unknown encoding: {0}")                               \
   XX(STREAM_WRITABLE_WRITABLESTATE_BUFFER_DEPRECATED,                         \
     NODE_DEPRECATE_MESSAGE("_writableState.buffer",                           \
                            "_writableState.getBuffer"))                       \
+  XX(NO_OPENSSL, "Node.js was not compiled with OpenSSL crypto support")      \
+  XX(TLS_RENEGOTIATION_ATTACK, "TLS session renegotiation attack detected")   \
+  XX(TLS_LEGACY_DEBUG_ONFINISH, "{0}.onfinish")                               \
+  XX(TLS_LEGACY_DEBUG_ONEND, "cleartext.onend")                               \
+  XX(TLS_LEGACY_DEBUG_WRITE, "{0}.write called with {1} bytes")               \
+  XX(TLS_LEGACY_DEBUG_WRITE_SUCCEED, "{0}.write succeed with {1} bytes")      \
+  XX(TLS_LEGACY_DEBUG_CLEARTEXT_WRITE_QUEUE_FULL,                             \
+    "cleartext.write queue is full")                                          \
+  XX(TLS_LEGACY_DEBUG_WRITE_QUEUE_BYTES, "{0}.write queued with {1} bytes")   \
+  XX(TLS_LEGACY_DEBUG_READ_CALLED, "{0}.read called with {1} bytes")          \
+  XX(TLS_LEGACY_DEBUG_READ_SUCCEED, "{0}.read succeed with {1} bytes")        \
+  XX(TLS_LEGACY_DEBUG_OUTEND, "{0}.sslOutEnd")                                \
+  XX(TLS_LEGACY_DEBUG_END, "{0}.end")                                         \
+  XX(TLS_LEGACY_DEBUG_DESTROYSOON, "{0}.destroySoon")                         \
+  XX(TLS_LEGACY_DEBUG_DESTROY, "{0}.destroy")                                 \
+  XX(TLS_LEGACY_DEBUG_ONHANDSHAKESTART, "onhandshakestart")                   \
+  XX(TLS_LEGACY_DEBUG_ONHANDSHAKEONE, "onhandshakedone")                      \
+  XX(TLS_LEGACY_DEBUG_SECURE_ESTABLISHED, "secure established")               \
+  XX(TLS_LEGACY_DEBUG_SECUREPAIR_DESTROY, "SecurePair.destroy")               \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
