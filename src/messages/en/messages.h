@@ -119,7 +119,26 @@
   XX(HTTP_SERVER_DEBUG_HAVE_LISTENER, "SERVER have listener for {0}")         \
   XX(HTTP_SERVER_DEBUG_PAUSE_PARSER, "pause parser")                          \
   XX(LINKLIST_DEPRECATED,                                                     \
-    NODE_DEPRECATE_MESSAGE("_linklist module", "a userland alternative")      \
-
+    NODE_DEPRECATE_MESSAGE("_linklist module", "a userland alternative"))     \
+  XX(STREAM_READABLE_PUSH_AFTER_END, "stream.push() after EOF")               \
+  XX(STREAM_READABLE_UNSHIFT_AFTER_END, "stream.unshift() after end event")   \
+  XX(STREAM_READABLE_INVALID_CHUNK, "Invalid non-string/buffer chunk")        \
+  XX(NOT_IMPLEMENTED, "not implemented")                                      \
+  XX(STREAM_READABLE_STREAM_NOT_EMPTY,                                        \
+    "'endReadable()' called on non-empty stream")                             \
+  XX(STREAM_READABLE_DEBUG_NEED_READABLE, "need readable")                    \
+  XX(STREAM_READABLE_DEBUG_LESS_THAN_WATERMARK, "length less than watermark") \
+  XX(STREAM_READABLE_DEBUG_READING_OR_ENDED, "reading or ended")              \
+  XX(STREAM_READABLE_DEBUG_DO_READ, "do read")                                \
+  XX(STREAM_READABLE_DEBUG_EMIT_READABLE, "emit readable")                    \
+  XX(STREAM_READABLE_DEBUG_MAYBE_READMORE, "maybeReadMore read 0")            \
+  XX(STREAM_READABLE_DEBUG_FALSE_WRITE, "false write response, pause")        \
+  XX(STREAM_READABLE_DEBUG_PIPE_RESUME, "pipe resume")                        \
+  XX(STREAM_READABLE_DEBUG_READABLE_NEXTTICK, "readable nexttick read 0")     \
+  XX(STREAM_READABLE_DEBUG_RESUME_READ, "resume read 0")                      \
+  XX(STREAM_READABLE_CALL_PAUSE_FLOWING, "call pause flowing")                \
+  XX(STREAM_READABLE_DEBUG_WRAPPED_END, "wrapped end")                        \
+  XX(STREAM_READABLE_DEBUG_WRAPPED_DATA, "wrapped data")                      \
+  XX(STREAM_READABLE_DEBUG_WRAPPED_READ, "wrapped _read")                     \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
