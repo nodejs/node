@@ -145,5 +145,6 @@
     "Calling transform done when ws.length != 0")                             \
   XX(STREAM_TRANSFORM_DONE_STILL_GOING,                                       \
     "Calling transform done when still transforming")                         \
+  XX(STREAM_WRAP_HAS_STRINGDECODER, "Stream has StringDecoder")               \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
