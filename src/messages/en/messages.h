@@ -146,5 +146,10 @@
   XX(STREAM_TRANSFORM_DONE_STILL_GOING,                                       \
     "Calling transform done when still transforming")                         \
   XX(STREAM_WRAP_HAS_STRINGDECODER, "Stream has StringDecoder")               \
+  XX(STREAM_WRITABLE_CANNOT_PIPE_NOT_READABLE, "Cannot pipe, not readable")   \
+  XX(UNKNOWN_ENCODING, "Unknown encoding: {0}")                               \
+  XX(STREAM_WRITABLE_WRITABLESTATE_BUFFER_DEPRECATED,                         \
+    NODE_DEPRECATE_MESSAGE("_writableState.buffer",                           \
+                           "_writableState.getBuffer"))                       \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
