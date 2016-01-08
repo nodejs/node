@@ -3,6 +3,9 @@
 
 #define NODE_MESSAGE_UNKNOWN "(Message Unknown)"
 
+#define NODE_DEPRECATE_MESSAGE(what, alternate)                               \
+  what " is deprecated. Use " alternate " instead."
+
 #define NODE_MESSAGES(XX)                                                     \
   XX(NODE_ASSERTION_ERROR, "assertion error")                                 \
   XX(NODE_HRTIME_ARRAY, "process.hrtime() only accepts an Array tuple")       \
@@ -82,6 +85,30 @@
   XX(NODE_HTTP_CLIENT_DEBUG_INCOMING_RESPONSE, "AGENT incoming response!")    \
   XX(NODE_HTTP_CLIENT_DEBUG_ISHEAD, "AGENT isHeadResponse")                   \
   XX(NODE_HTTP_CLIENT_DEBUG_SOCKET_DESTROYSOON, "AGENT socket.destroySoon()") \
-  XX(NODE_HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")
+  XX(NODE_HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")             \
+  XX(NODE_INVALID_ARG_TYPE, "'{0}' argument must be a {1}")                   \
+  XX(NODE_REQUIRED_ARG, "'{0}' argument is required")                         \
+  XX(NODE_HTTP_OUTGOING_SET_AFTER_SEND,                                       \
+     "Cannot set headers after they have already been sent")                  \
+  XX(NODE_HTTP_OUTGOING_REMOVE_AFTER_SEND,                                    \
+     "Cannot remove headers after they have already been sent")               \
+  XX(NODE_HTTP_OUTGOING_RENDER_AFTER_SEND,                                    \
+      "Cannot render headers after they have already been sent")              \
+  XX(NODE_WRITE_AFTER_END, "write after end")                                 \
+  XX(NODE_FIRST_ARGUMENT_STRING_OR_BUFFER,                                    \
+     "The first argument must be a string or Buffer")                         \
+  XX(NODE_HTTP_OUTGOING_DEBUG_NOT_USE_CHUNKED,                                \
+    "{0} response should not use chunked encoding, closing connection.")      \
+  XX(NODE_HTTP_OUTGOING_DEBUG_BOTH_REMOVED,                                   \
+     "Both Content-Length and Transfer-Encoding are removed")                 \
+  XX(NODE_HTTP_OUTGOING_DEBUG_IGNORING_WRITE,                                 \
+     "This type of response MUST NOT have a body. Ignoring write() calls.")   \
+  XX(NODE_HTTP_OUTGOING_DEBUG_WRITE_RET, "write ret")                         \
+  XX(NODE_HTTP_OUTGOING_DEBUG_IGNORING_END_DATA,                              \
+    "This type of response MUST NOT have a body. "                            \
+    "Ignoring data passed to end().")                                         \
+  XX(NODE_HTTP_OUTGOING_MESSAGE_END, "outgoing message end.")                 \
+  XX(NODE_HTTP_OUTGOING_FLUSH_DEPRECATE,                                      \
+    NODE_DEPRECATE_MESSAGE("OutgoingMessage.flush", "flushHeaders"))          \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_

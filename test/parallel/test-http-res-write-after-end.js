@@ -25,5 +25,5 @@ server.listen(common.PORT, function() {
 
 process.on('exit', function onProcessExit(code) {
   assert(responseError, 'response should have emitted error');
-  assert.equal(responseError.message, 'write after end');
+  assert(/^write after end/.test(responseError.message));
 });
