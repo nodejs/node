@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var util = require('util');
+const assert = require('assert');
+const util = require('util');
 const vm = require('vm');
 
 assert.equal(util.inspect(1), '1');
@@ -288,19 +288,33 @@ assert.equal(util.inspect(setter, true), '{ [b]: [Setter] }');
 assert.equal(util.inspect(getterAndSetter, true), '{ [c]: [Getter/Setter] }');
 
 // exceptions should print the error message, not '{}'
-assert.equal(util.inspect(new Error()), '[Error]');
-assert.equal(util.inspect(new Error('FAIL')), '[Error: FAIL]');
-assert.equal(util.inspect(new TypeError('FAIL')), '[TypeError: FAIL]');
-assert.equal(util.inspect(new SyntaxError('FAIL')), '[SyntaxError: FAIL]');
+const errors = [];
+errors.push(new Error());
+errors.push(new Error('FAIL'));
+errors.push(new TypeError('FAIL'));
+errors.push(new SyntaxError('FAIL'));
+errors.forEach(function(err) {
+  assert.equal(util.inspect(err), err.stack);
+});
 try {
   undef();
 } catch (e) {
-  assert.equal(util.inspect(e), '[ReferenceError: undef is not defined]');
+  assert.equal(util.inspect(e), e.stack);
 }
 var ex = util.inspect(new Error('FAIL'), true);
-assert.ok(ex.indexOf('[Error: FAIL]') != -1);
+assert.ok(ex.indexOf('Error: FAIL') != -1);
 assert.ok(ex.indexOf('[stack]') != -1);
 assert.ok(ex.indexOf('[message]') != -1);
+// Doesn't capture stack trace
+function BadCustomError(msg) {
+  Error.call(this);
+  Object.defineProperty(this, 'message',
+                        { value: msg, enumerable: false });
+  Object.defineProperty(this, 'name',
+                        { value: 'BadCustomError', enumerable: false });
+}
+util.inherits(BadCustomError, Error);
+assert.equal(util.inspect(new BadCustomError('foo')), '[BadCustomError: foo]');
 
 // GH-1941
 // should not throw:
