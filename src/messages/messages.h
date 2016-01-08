@@ -12,13 +12,13 @@ typedef enum {
 } node_messages;
 
 /**
- * Returns the const char * message identifier associated with the message key
+ * Returns the const char* message identifier associated with the message key
  **/
-const char * node_message_id(int key);
+const char* node_message_id(int key);
 
 /**
  * Returns the text of the message associated with the message key
  **/
-const char * node_message_str(int key);
+const char* node_message_str(int key);
 
 #endif  // SRC_NODE_MESSAGES_API_H_

@@ -40,8 +40,8 @@ static void NodeMsg(const FunctionCallbackInfo<Value>& args) {
     return TYPE_ERROR("message key must be an integer");
   int key = static_cast<int>(args[0]->Int32Value());
 
-  const char * id = node_message_id(key);
-  const char * msg = node_message_str(key);
+  const char* id = node_message_id(key);
+  const char* msg = node_message_str(key);
 
   message->Set(
     OneByteString(env->isolate(), "id"),
