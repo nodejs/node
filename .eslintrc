@@ -13,6 +13,7 @@ ecmaFeatures:
   objectLiteralShorthandProperties: true
   octalLiterals: true
   templateStrings: true
+  restParams: true
 
 rules:
   # Possible Errors
