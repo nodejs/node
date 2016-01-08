@@ -140,5 +140,10 @@
   XX(STREAM_READABLE_DEBUG_WRAPPED_END, "wrapped end")                        \
   XX(STREAM_READABLE_DEBUG_WRAPPED_DATA, "wrapped data")                      \
   XX(STREAM_READABLE_DEBUG_WRAPPED_READ, "wrapped _read")                     \
+  XX(STREAM_TRANSFORM_NO_WRITECB, "no writecb in Transform class")            \
+  XX(STREAM_TRANSFORM_DONE_NOT_EMPTY,                                         \
+    "Calling transform done when ws.length != 0")                             \
+  XX(STREAM_TRANSFORM_DONE_STILL_GOING,                                       \
+    "Calling transform done when still transforming")                         \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
