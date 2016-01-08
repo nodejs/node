@@ -788,7 +788,7 @@ should be used to determine the number of bytes in a given encoding.
 And Node.js does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
 
-## http.IncomingMessage
+## Class: http.IncomingMessage
 
 An `IncomingMessage` object is created by [`http.Server`][] or
 [`http.ClientRequest`][] and passed as the first argument to the `'request'`
