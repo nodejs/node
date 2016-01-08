@@ -15,6 +15,11 @@
   XX(NODE_UNKNOWN_SIGNAL, "Unknown signal: {0}")                              \
   XX(NODE_UNKNOWN_NATIVE_MODULE, "No such native module")                     \
   XX(NODE_UNEXPECTED, "unexpected {0}")                                       \
+  XX(NODE_DEBUGAGENT_LISTENING, "Debugger listening on port {0}")             \
+  XX(NODE_DEBUGAGENT_NO_BINDINGS, "Debugger agent running without bindings!") \
+  XX(NODE_DEBUGAGENT_EXPECTED_HEADER,                                         \
+    "Expected header, but failed to parse it")                                \
+  XX(NODE_DEBUGAGENT_EXPECTED_CONTENT_LENGTH, "Expected content-length")      \
   XX(NODE_DEBUGGER_USAGE, "Usage")                                            \
   XX(NODE_DEBUGGER_ERROR,                                                     \
      "There was an internal error in the Node.js debugger. "                  \
