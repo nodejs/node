@@ -345,7 +345,9 @@
   XX(NET_DEBUG_LISTEN2_CREATE_HANDLE, "_listen2: create a handle")            \
   XX(OS_GETNETWORKINTERFACES_DEPRECATED,                                      \
      NODE_DEPRECATE_MESSAGE("os.getNetworkInterfaces",                        \
-                            "os.networkInterfaces")                           \
-)
+                            "os.networkInterfaces"))                            \
+  XX(PUNYCODE_OVERFLOW, "Overflow: input needs wider integers to process")    \
+  XX(PUNYCODE_NOTBASIC, "Illegal input >= 0x80 (not a basic code point)")     \
+  XX(PUNYCODE_INVALIDINPUT, "Invalid input")                                  \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
