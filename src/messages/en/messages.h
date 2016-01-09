@@ -430,5 +430,19 @@
   XX(UTIL_ERROR_DEPRECATED,                                                   \
     NODE_DEPRECATE_MESSAGE("util.error", "console.error"))                    \
   XX(UTIL_LOCAL, "Local")                                                     \
+  XX(ZLIB_RANGE_ERROR,                                                        \
+    "Cannot create final Buffer. It would be larger than 0x{0} bytes")        \
+  XX(ZLIB_STRING_OR_BUFFER, "'{0}' must be a string or Buffer")               \
+  XX(ZLIB_INVALID_FLUSH_FLAG, "Invalid flush flag: {0}")                      \
+  XX(ZLIB_INVALID_CHUNK_SIZE, "Invalid chunk size: {0}")                      \
+  XX(ZLIB_INVALID_WINDOWBITS, "Invalid windowBits: {0}")                      \
+  XX(ZLIB_INVALID_COMPRESSION, "Invalid compression level: {0}")              \
+  XX(ZLIB_INVALID_MEMLEVEL, "Invalid memLevel: {0}")                          \
+  XX(ZLIB_INVALID_STRATEGY, "Invalid strategy: {0}")                          \
+  XX(ZLIB_INVALID_DICTIONARY,                                                 \
+    "Invalid dictionary: it should be a Buffer instance")                     \
+  XX(ZLIB_ASSERT_BINDING_CLOSED, "zlib binding closed")                       \
+  XX(ZLIB_INVALID_INPUT, "invalid input")                                     \
+  XX(ZLIB_ASSERT_HAVE_GO_DOWN, "have should not go down")                     \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
