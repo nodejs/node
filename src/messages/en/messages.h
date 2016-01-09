@@ -415,5 +415,20 @@
      "Host: {0} is not in the cert's altnames: {1}")                          \
   XX(TLS_HOST_NOT_IN_CERT_CN, "Host: {0} is not cert's CN: {1}")              \
   XX(TLS_CERT_IS_EMPTY, "Cert is empty")                                      \
+  XX(UTIL_INHERITS_CONSTRUCTOR,                                               \
+     "The constructor to 'inherits' must not be null or undefined")           \
+  XX(UTIL_INHERITS_SUPER_CONSTRUCTOR,                                         \
+     "The super constructor to 'inherits' must not be null or undefined")     \
+  XX(UTIL_INHERITS_SUPER_CONSTRUCTOR_PROTOTYPE,                               \
+     "The super constructor to 'inherits' must have a prototype")             \
+  XX(UTIL_PRINT_DEPRECATED,                                                   \
+    NODE_DEPRECATE_MESSAGE("util.print", "console.log"))                      \
+  XX(UTIL_PUTS_DEPRECATED,                                                    \
+    NODE_DEPRECATE_MESSAGE("util.puts", "console.log"))                       \
+  XX(UTIL_DEBUG_DEPRECATED,                                                   \
+    NODE_DEPRECATE_MESSAGE("util.debug", "console.error"))                    \
+  XX(UTIL_ERROR_DEPRECATED,                                                   \
+    NODE_DEPRECATE_MESSAGE("util.error", "console.error"))                    \
+  XX(UTIL_LOCAL, "Local")                                                     \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
