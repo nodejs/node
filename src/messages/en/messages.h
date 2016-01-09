@@ -295,5 +295,53 @@
   XX(MODULE_DEBUG_LOAD, "load {0} for module {1}")                            \
   XX(MODULE_ASSERT_MISSING_PATH, "missing path")                              \
   XX(MODULE_ASSERT_PATH_STRING, "path must be a string")                      \
+  XX(NET_UNSUPPORTED_FD, "Unsupported fd type: {0}")                          \
+  XX(NET_PEER_ENDED, "This socket has been ended by the other party")         \
+  XX(NET_INVALID_ADDRESS_TYPE, "Invalid addressType: {0}")                    \
+  XX(ARGUMENT_STRING_OR_NUMBER, "'{0}' argument must be a string or number")  \
+  XX(NET_INVALID_LISTENER_ARG, "Invalid listen argument: {0}")                \
+  XX(NET_DEBUG_ONCONNECTION, "onconnection")                                  \
+  XX(NET_DEBUG_SERVER_EMITCLOSEIFDRAINED, "SERVER _emitCloseIfDrained")       \
+  XX(NET_DEBUG_SERVER_HANDLE, "SERVER handle? {0}   connections? {1}")        \
+  XX(NET_DEBUG_SERVER_EMITCLOSE, "SERVER: emit close")                        \
+  XX(NET_DEBUG_CREATECONNECTION, "createConnection {0}")                      \
+  XX(NET_DEBUG_NOTYETCONNECTED, "osF: not yet connected")                     \
+  XX(NET_DEBUG_ONSOCKETFINISH, "onSocketFinish")                              \
+  XX(NET_DEBUG_OSFENDED, "oSF: ended, destroy {0}")                           \
+  XX(NET_DEBUG_OFSNOTENDED, "oSF: not ended, call shutdown()")                \
+  XX(NET_DEBUG_AFTERSHUTDOWN, "afterShutdown destroyed={0} {1}")              \
+  XX(NET_DEBUG_READABLESTATEENDED, "readableState ended, destroying")         \
+  XX(NET_DEBUG_ONSOCKET_END, "onSocketEnd {0}")                               \
+  XX(NET_DEBUG_SOCKETLISTEN, "socket.listen")                                 \
+  XX(NET_DEBUG_ONTIMEOUT, "_onTimeout")                                       \
+  XX(NET_DEBUG_READ, "_read")                                                 \
+  XX(NET_DEBUG_READWAITFORCON, "_read wait for connection")                   \
+  XX(NET_DEBUG_READSTART, "Socket._read readStart")                           \
+  XX(NET_DEBUG_DESTROY, "destroy")                                            \
+  XX(NET_DEBUG_ALREADYDESTROYED, "already destroyed, fire error callbacks")   \
+  XX(NET_DEBUG_CLOSE, "close")                                                \
+  XX(NET_DEBUG_CLOSEHANDLE, "close handle")                                   \
+  XX(NET_DEBUG_EMITCLOSE, "emit close")                                       \
+  XX(NET_DEBUG_HASSERVER, "has server")                                       \
+  XX(NET_DEBUG_DESTROY_ERR, "destroy {0}")                                    \
+  XX(NET_DEBUG_ONREAD, "onread")                                              \
+  XX(NET_DEBUG_GOTDATA, "got data")                                           \
+  XX(NET_DEBUG_READSTOP, "readStop")                                          \
+  XX(NET_DEBUG_NODATA_KEEPREADING, "not any data, keep waiting")              \
+  XX(NET_DEBUG_EOF, "EOF")                                                    \
+  XX(NET_DEBUG_AFTERWRITE, "afterWrite {0}")                                  \
+  XX(NET_DEBUG_AFTERWRITE_DESTROYED, "afterWrite destroyed")                  \
+  XX(NET_DEBUG_WRITEFAILURE, "write failure {0}")                             \
+  XX(NET_DEBUG_AFTERWRITECB, "afterWrite call cb")                            \
+  XX(NET_DEBUG_BINDING, "binding to localAddress: {0} and localPort: {1}")    \
+  XX(NET_DEBUG_PIPE, "pipe {0} {1}")                                          \
+  XX(NET_DEBUG_CONNECT_FINDHOST, "connect: find host {0}")                    \
+  XX(NET_DEBUG_CONNECT_DNSOPTS, "connect: dns options {0}")                   \
+  XX(NET_DEBUG_AFTERCONNECT, "afterConnect")                                  \
+  XX(NET_DEBUG_INVALIDFD, "listen invalid fd={0}:{1}")                        \
+  XX(NET_DEBUG_BINDTO, "bind to {0}")                                         \
+  XX(NET_DEBUG_LISTEN2, "listen2 {0} {1} {2} {3} {4}")                        \
+  XX(NET_DEBUG_LISTEN2_HAVE_HANDLE, "_listen2: have a handle already")        \
+  XX(NET_DEBUG_LISTEN2_CREATE_HANDLE, "_listen2: create a handle")            \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_

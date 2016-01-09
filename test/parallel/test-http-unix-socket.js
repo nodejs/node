@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 var status_ok = false; // status code == 200?
 var headers_ok = false;
@@ -46,7 +46,7 @@ server.listen(common.PIPE, function() {
       server.close(function(error) {
         assert.equal(error, undefined);
         server.close(function(error) {
-          assert.equal(error && error.message, 'Not running');
+          assert(error && /^Not running/.test(error.message));
         });
       });
     });

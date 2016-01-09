@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var tcpPort = common.PORT;
-var expectedConnections = 7;
+const tcpPort = common.PORT;
+const expectedConnections = 7;
 var clientConnected = 0;
 var serverConnected = 0;
 
@@ -15,17 +15,18 @@ var server = net.createServer(function(socket) {
   }
 });
 
+const regex1 = /^'port' argument must be a string or number/;
+const regex2 = /^Port should be > 0 and < 65536/;
+
 server.listen(tcpPort, 'localhost', function() {
   function cb() {
     ++clientConnected;
   }
 
   function fail(opts, errtype, msg) {
-    assert.throws(function() {
+    assert.throws(() => {
       net.createConnection(opts, cb);
-    }, function(err) {
-      return err instanceof errtype && msg === err.message;
-    });
+    }, err => err instanceof errtype && msg.test(err.message));
   }
 
   net.createConnection(tcpPort).on('connect', cb);
@@ -38,55 +39,55 @@ server.listen(tcpPort, 'localhost', function() {
 
   fail({
     port: true
-  }, TypeError, '"port" option should be a number or string: true');
+  }, TypeError, regex1);
 
   fail({
     port: false
-  }, TypeError, '"port" option should be a number or string: false');
+  }, TypeError, regex1);
 
   fail({
     port: []
-  }, TypeError, '"port" option should be a number or string: ');
+  }, TypeError, regex1);
 
   fail({
     port: {}
-  }, TypeError, '"port" option should be a number or string: [object Object]');
+  }, TypeError, regex1);
 
   fail({
     port: null
-  }, TypeError, '"port" option should be a number or string: null');
+  }, TypeError, regex1);
 
   fail({
     port: ''
-  }, RangeError, '"port" option should be >= 0 and < 65536: ');
+  }, RangeError, regex2);
 
   fail({
     port: ' '
-  }, RangeError, '"port" option should be >= 0 and < 65536:  ');
+  }, RangeError, regex2);
 
   fail({
     port: '0x'
-  }, RangeError, '"port" option should be >= 0 and < 65536: 0x');
+  }, RangeError, regex2);
 
   fail({
     port: '-0x1'
-  }, RangeError, '"port" option should be >= 0 and < 65536: -0x1');
+  }, RangeError, regex2);
 
   fail({
     port: NaN
-  }, RangeError, '"port" option should be >= 0 and < 65536: NaN');
+  }, RangeError, regex2);
 
   fail({
     port: Infinity
-  }, RangeError, '"port" option should be >= 0 and < 65536: Infinity');
+  }, RangeError, regex2);
 
   fail({
     port: -1
-  }, RangeError, '"port" option should be >= 0 and < 65536: -1');
+  }, RangeError, regex2);
 
   fail({
     port: 65536
-  }, RangeError, '"port" option should be >= 0 and < 65536: 65536');
+  }, RangeError, regex2);
 });
 
 // Try connecting to random ports, but do so once the server is closed
