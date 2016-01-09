@@ -255,5 +255,12 @@
   XX(PORT_OUT_OF_RANGE, "Port should be > 0 and < 65536")                     \
   XX(REQUIRED_ARGUMENT, "{0} argument must be specified")                     \
   XX(NOT_RUNNING, "Not running")                                              \
+  XX(DNS_HINTS_VALUE, "'{0}' must be a valid flag")                           \
+  XX(DNS_FAMILY_VALUE, "'{0}' must be 4 or 6")                                \
+  XX(DNS_INVALID_ARGUMENTS, "Invalid arguments")                              \
+  XX(DNS_VALID_ID, "'{0}' argument must be a valid IP address'")              \
+  XX(DNS_UNKNOWN_TYPE, "Unknown type '{0}'")                                  \
+  XX(DNS_MALFORMED_IP, "IP address is not properly formatted: {0}")           \
+  XX(DNS_FAILED_TO_SET_SERVERS, "c-ares failed to set servers: {0} [{1}]")    \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_

@@ -1,9 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var dns = require('dns');
+const dns = require('dns');
 
+const regex = /^Unknown type/;
 
 // Try resolution without callback
 
@@ -23,9 +24,9 @@ dns.lookup('::1', function(error, result, addressType) {
 });
 
 // Try calling resolve with an unsupported type.
-assert.throws(function() {
+assert.throws(() => {
   dns.resolve('www.google.com', 'HI');
-}, /Unknown type/);
+}, err => regex.test(err.message));
 
 // Windows doesn't usually have an entry for localhost 127.0.0.1 in
 // C:\Windows\System32\drivers\etc\hosts
