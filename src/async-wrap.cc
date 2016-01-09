@@ -179,6 +179,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
   Local<Function> post_fn = env()->async_hooks_post_function();
+  Local<Value> uid = Integer::New(env()->isolate(), get_uid());
   Local<Object> context = object();
   Local<Object> process = env()->process_object();
   Local<Object> domain;
@@ -207,14 +208,14 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   }
 
   if (ran_init_callback() && !pre_fn.IsEmpty()) {
-    if (pre_fn->Call(context, 0, nullptr).IsEmpty())
+    if (pre_fn->Call(context, 1, &uid).IsEmpty())
       FatalError("node::AsyncWrap::MakeCallback", "pre hook threw");
   }
 
   Local<Value> ret = cb->Call(context, argc, argv);
 
   if (ran_init_callback() && !post_fn.IsEmpty()) {
-    if (post_fn->Call(context, 0, nullptr).IsEmpty())
+    if (post_fn->Call(context, 1, &uid).IsEmpty())
       FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
   }
 
