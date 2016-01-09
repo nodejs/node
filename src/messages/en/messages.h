@@ -229,6 +229,8 @@
     NODE_DEPRECATE_MESSAGE("options.customFds", "options.stdio"))             \
   XX(CHILD_PROCESS_SPAWNSYNC, "spawnSync {0}")                                \
   XX(CLUSTER_BAD_SCHEDULING, "Bad cluster.schedulingPolicy: {0}")             \
+  XX(CONSOLE_EXPECTS_READABLE, "Console expects a writable stream instance")  \
+  XX(CONSOLE_NO_SUCH_LABEL, "No such label: {0}")                             \
 
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
