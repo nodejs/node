@@ -470,5 +470,10 @@
   XX(ZLIB_INVALID_INPUT, "invalid input")                                     \
   XX(ZLIB_ASSERT_HAVE_GO_DOWN, "have should not go down")                     \
   XX(SOCKET_LIST_SLAVE_CLOSED, "Slave closed before reply")                   \
+  XX(V8_VALID_ISOLATE_FILE,                                                   \
+     "Please provide a valid isolate file as the final argument.")            \
+  XX(V8_UNABLE_TO_READ_VERSION, "Unable to read v8-version from log file.")   \
+  XX(V8_VERSION_DIFFERENT,                                                    \
+     "Testing v8 version different from logging version")                     \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
