@@ -285,5 +285,15 @@
   XX(HTTPS_DEBUG_CREATECONNECTION, "createConnection {0}")                    \
   XX(HTTPS_REUSE_SESSION, "reuse session for {0}")                            \
   XX(HTTPS_EVICTING, "evicting {0}")                                          \
+  XX(MODULE_NOT_FOUND, "Cannot find module '{0}'")                            \
+  XX(MODULE_DEBUG_RELATIVE_REQUESTED,                                         \
+    "RELATIVE: requested: {0} set ID to: {1} from {2}")                       \
+  XX(MODULE_DEBUG_LOAD_REQUEST,                                               \
+    "Module._load REQUEST {0} parent: {1}")                                   \
+  XX(MODULE_DEBUG_LOAD_NATIVE, "load native module {0}")                      \
+  XX(MODULE_DEBUG_LOOKING_FOR, "looking for {0} in {1}")                      \
+  XX(MODULE_DEBUG_LOAD, "load {0} for module {1}")                            \
+  XX(MODULE_ASSERT_MISSING_PATH, "missing path")                              \
+  XX(MODULE_ASSERT_PATH_STRING, "path must be a string")                      \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
