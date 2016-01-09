@@ -19,8 +19,8 @@ let keyList = pkeys.slice();
 keyList.splice(0, 1);
 
 
-function init(id) {
-  keyList = keyList.filter((e) => e != pkeys[id]);
+function init(id, provider) {
+  keyList = keyList.filter((e) => e != pkeys[provider]);
 }
 
 function noop() { }
