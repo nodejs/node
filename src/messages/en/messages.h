@@ -360,6 +360,35 @@
      "isFullWidthCodePoint is deprecated and will be removed.")               \
   XX(READLINE_STRIPVTCONTROLCHARACTERS_DEPRECATED,                            \
      "stripVTControlCharacters is deprecated and will be removed.")           \
-
+  XX(REPL_OPTIONS_OR_PROMPT_REQUIRED,                                         \
+     "An options object, or a prompt string are required")                    \
+  XX(REPL_DEBUG_PARSE_ERROR, "parse error {0} {1}")                           \
+  XX(REPL_DEBUG_NOT_RECOVERABLE, "not recoverable, send to domain")           \
+  XX(REPL_DEBUG_DOMAIN_ERROR, "domain error")                                 \
+  XX(REPL_DEBUG_LINE, "line {0}")                                             \
+  XX(REPL_DEBUG_EVAL, "eval {0}")                                             \
+  XX(REPL_DEBUG_FINISH, "finish {0} {1}")                                     \
+  XX(REPL_NPM_OUTSIDE,                                                        \
+    "npm should be run outside of the node repl, in your normal shell.\n"     \
+    "(Press Control-D to exit.)")                                             \
+  XX(REPL_BLOCK_SCOPED,                                                       \
+    "Block-scoped declarations (let, const, function, class) "                \
+    "not yet supported outside strict mode")                                  \
+  XX(REPL_EXIT, "(To exit, press ^C again or type .exit)")                    \
+  XX(REPL_INVALID_KEYWORD, "Invalid REPL keyword")                            \
+  XX(REPL_COMMAND_BREAK, "Sometimes you get stuck, this gets you out")        \
+  XX(REPL_COMMAND_CLEAR_GLOBAL, "Alias for .break")                           \
+  XX(REPL_COMMAND_CLEAR, "Break, and also clear the local context")           \
+  XX(REPL_COMMAND_CLEAR_MSG, "Clearing context...")                           \
+  XX(REPL_COMMAND_EXIT, "Exit the repl")                                      \
+  XX(REPL_COMMAND_HELP, "Show repl options")                                  \
+  XX(REPL_COMMAND_SAVE,                                                       \
+    "Save all evaluated commands in this REPL session to a file")             \
+  XX(REPL_COMMAND_SESSION_SAVED, "Session saved to:{0}")                      \
+  XX(REPL_COMMAND_SAVE_FAILED, "Failed to save:{0}")                          \
+  XX(REPL_COMMAND_LOAD, "Load JS from a file into the REPL session")          \
+  XX(REPL_COMMAND_LOAD_FAILED_INVALID,                                        \
+     "Failed to load:{0} is not a valid file")                                \
+  XX(REPL_COMMAND_LOAD_FAILED, "Failed to load:{0}")                          \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
