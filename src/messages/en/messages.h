@@ -282,5 +282,8 @@
   XX(HTTP_CLIENT_DEPRECRATED, "http.Client is deprecated.")                   \
   XX(HTTP_CREATECLIENT_DEPRECATED,                                            \
     NODE_DEPRECATE_MESSAGE("http.createClient", "http.request"))              \
+  XX(HTTPS_DEBUG_CREATECONNECTION, "createConnection {0}")                    \
+  XX(HTTPS_REUSE_SESSION, "reuse session for {0}")                            \
+  XX(HTTPS_EVICTING, "evicting {0}")                                          \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
