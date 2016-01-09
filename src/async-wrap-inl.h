@@ -40,8 +40,8 @@ inline AsyncWrap::AsyncWrap(Environment* env,
   v8::HandleScope scope(env->isolate());
 
   v8::Local<v8::Value> argv[] = {
-    v8::Int32::New(env->isolate(), provider),
     v8::Integer::New(env->isolate(), get_uid()),
+    v8::Int32::New(env->isolate(), provider),
     Null(env->isolate())
   };
 
