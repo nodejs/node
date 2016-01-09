@@ -9,7 +9,7 @@ const storage = new Map();
 async_wrap.setupHooks(init, pre, post, destroy);
 async_wrap.enable();
 
-function init(provider, uid) {
+function init(uid) {
   storage.set(uid, {
     init: true,
     pre: false,
