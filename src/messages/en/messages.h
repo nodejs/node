@@ -391,5 +391,21 @@
      "Failed to load:{0} is not a valid file")                                \
   XX(REPL_COMMAND_LOAD_FAILED, "Failed to load:{0}")                          \
   XX(SYS_DEPRECATED, NODE_DEPRECATE_MESSAGE("sys", "util"))                   \
+  XX(TIMERS_NON_NEGATIVE_FINITE,                                              \
+     "'{0}' argument must be a non-negative finite number")                   \
+  XX(TIMERS_DEBUG_CALLBACK, "timeout callback {0}")                           \
+  XX(TIMERS_DEBUG_NOW, "now: {0}")                                            \
+  XX(TIMERS_DEBUG_LIST_WAIT, "{0} list wait because diff is {1}")             \
+  XX(TIMERS_DEBUG_LIST_EMPTY, "{0} list empty")                               \
+  XX(TIMERS_DEBUG_REUSE_HIT, "reuse hit")                                     \
+  XX(TIMERS_DEBUG_UNENROLL, "unenroll: list empty")                           \
+  XX(TIMERS_DEBUG_UNREFTIMER_TIMEOUT, "unreftimer firing timeout")            \
+  XX(TIMERS_DEBUG_UNREFTIMER_FIRED, "unrefTimer fired")                       \
+  XX(TIMERS_DEBUG_UNREFTIMER_RESCHED, "unrefTimer rescheduled")               \
+  XX(TIMERS_DEBUG_UNREFLIST_EMPTY, "unrefList is empty")                      \
+  XX(TIMERS_DEBUG_UNREFLIST_INIT, "unrefList initialized")                    \
+  XX(TIMERS_DEBUG_UNREFTIMER_INIT, "unrefTimer initialized")                  \
+  XX(TIMERS_DEBUG_UNREFTIMER_SCHED, "unrefTimer scheduled")                   \
+  XX(TIMERS_DEBUG_UNREFLIST_APPEND, "unrefList append to end")                \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_

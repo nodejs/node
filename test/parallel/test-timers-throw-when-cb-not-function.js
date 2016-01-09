@@ -8,18 +8,16 @@ function doSetTimeout(callback, after) {
   };
 }
 
-assert.throws(doSetTimeout('foo'),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout({foo: 'bar'}),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout(),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout(undefined, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout(null, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout(false, 0),
-  /"callback" argument must be a function/);
+function checkErr(err) {
+  return /^'callback' must be a function/.test(err.message);
+}
+
+assert.throws(doSetTimeout('foo'), checkErr);
+assert.throws(doSetTimeout({foo: 'bar'}), checkErr);
+assert.throws(doSetTimeout(), checkErr);
+assert.throws(doSetTimeout(undefined, 0), checkErr);
+assert.throws(doSetTimeout(null, 0), checkErr);
+assert.throws(doSetTimeout(false, 0), checkErr);
 
 
 function doSetInterval(callback, after) {
@@ -28,18 +26,12 @@ function doSetInterval(callback, after) {
   };
 }
 
-assert.throws(doSetInterval('foo'),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval({foo: 'bar'}),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval(),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval(undefined, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval(null, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval(false, 0),
-  /"callback" argument must be a function/);
+assert.throws(doSetInterval('foo'), checkErr);
+assert.throws(doSetInterval({foo: 'bar'}), checkErr);
+assert.throws(doSetInterval(), checkErr);
+assert.throws(doSetInterval(undefined, 0), checkErr);
+assert.throws(doSetInterval(null, 0), checkErr);
+assert.throws(doSetInterval(false, 0), checkErr);
 
 
 function doSetImmediate(callback, after) {
@@ -48,15 +40,9 @@ function doSetImmediate(callback, after) {
   };
 }
 
-assert.throws(doSetImmediate('foo'),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate({foo: 'bar'}),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate(),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate(undefined, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate(null, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate(false, 0),
-  /"callback" argument must be a function/);
+assert.throws(doSetImmediate('foo'), checkErr);
+assert.throws(doSetImmediate({foo: 'bar'}), checkErr);
+assert.throws(doSetImmediate(), checkErr);
+assert.throws(doSetImmediate(undefined, 0), checkErr);
+assert.throws(doSetImmediate(null, 0), checkErr);
+assert.throws(doSetImmediate(false, 0), checkErr);
