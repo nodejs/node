@@ -228,6 +228,7 @@
   XX(CHILD_PROCESS_CUSTOMFDS_DEPRECATE,                                       \
     NODE_DEPRECATE_MESSAGE("options.customFds", "options.stdio"))             \
   XX(CHILD_PROCESS_SPAWNSYNC, "spawnSync {0}")                                \
+  XX(CLUSTER_BAD_SCHEDULING, "Bad cluster.schedulingPolicy: {0}")             \
 
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
