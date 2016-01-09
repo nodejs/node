@@ -398,6 +398,23 @@
   XX(REPL_COMMAND_LOAD_FAILED_INVALID,                                        \
      "Failed to load:{0} is not a valid file")                                \
   XX(REPL_COMMAND_LOAD_FAILED, "Failed to load:{0}")                          \
+  XX(REPL_CANNOT_PARSE_HISTORY, "Could not parse history data in {0}.")       \
+  XX(REPL_HISTORY_DISABLED,                                                   \
+    "Persistent history support disabled. Set the "                           \
+    "NODE_REPL_HISTORY environment\nvariable to "                             \
+    "a valid, user-writable path to enable.")                                 \
+  XX(REPL_HOME_DIRECTORY,                                                     \
+     "Error: Could not get the home directory.\n"                             \
+     "REPL session history will not be persisted.")                           \
+  XX(REPL_CANNOT_OPEN_HISTORY,                                                \
+     "Error: Could not open history file.\n"                                  \
+     "REPL session history will not be persisted.")                           \
+  XX(REPL_HISTORY_SAME_NAME,                                                  \
+     "The old repl history file has the same name and location as "           \
+     "the new one i.e., {0} and is empty.\nUsing it as is.")                  \
+  XX(REPL_CONVERTING_HISTORY,                                                 \
+     "Converting old JSON repl history to line-separated history.\n"          \
+     "The new repl history file can be found at {0}.")                        \
   XX(SYS_DEPRECATED, NODE_DEPRECATE_MESSAGE("sys", "util"))                   \
   XX(TIMERS_NON_NEGATIVE_FINITE,                                              \
      "'{0}' argument must be a non-negative finite number")                   \
