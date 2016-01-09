@@ -303,6 +303,10 @@
   XX(MODULE_DEBUG_LOAD, "load {0} for module {1}")                            \
   XX(MODULE_ASSERT_MISSING_PATH, "missing path")                              \
   XX(MODULE_ASSERT_PATH_STRING, "path must be a string")                      \
+  XX(MODULE_REQUIRE_OUTSIDE_WARNING,                                          \
+    "warning: require(\'.\') resolved outside the package "                   \
+    "directory. This functionality is deprecated and will be removed soon.")  \
+  XX(MODULE_REQUIREREPL_DEPRECATED, "Module.requireRepl is deprecated.")      \
   XX(NET_UNSUPPORTED_FD, "Unsupported fd type: {0}")                          \
   XX(NET_PEER_ENDED, "This socket has been ended by the other party")         \
   XX(NET_INVALID_ADDRESS_TYPE, "Invalid addressType: {0}")                    \
@@ -351,9 +355,17 @@
   XX(NET_DEBUG_LISTEN2, "listen2 {0} {1} {2} {3} {4}")                        \
   XX(NET_DEBUG_LISTEN2_HAVE_HANDLE, "_listen2: have a handle already")        \
   XX(NET_DEBUG_LISTEN2_CREATE_HANDLE, "_listen2: create a handle")            \
+  XX(NET_SERVER_CONNECTIONS_DEPRECATED,                                       \
+    NODE_DEPRECATE_MESSAGE("Server.connections",                              \
+                           "Server.getConnections"))                          \
+  XX(NET_SERVER_CONNECTIONS_DEPRECATED_SET,                                   \
+    "Server.connections property is deprecated.")                             \
+  XX(NET_SERVER_LISTENFD_DEPRECATED,                                          \
+    NODE_DEPRECATE_MESSAGE("Server.listenFD",                                 \
+                           "Server.listen({fd: <number>})"))                  \
   XX(OS_GETNETWORKINTERFACES_DEPRECATED,                                      \
      NODE_DEPRECATE_MESSAGE("os.getNetworkInterfaces",                        \
-                            "os.networkInterfaces"))                            \
+                            "os.networkInterfaces"))                          \
   XX(PUNYCODE_OVERFLOW, "Overflow: input needs wider integers to process")    \
   XX(PUNYCODE_NOTBASIC, "Illegal input >= 0x80 (not a basic code point)")     \
   XX(PUNYCODE_INVALIDINPUT, "Invalid input")                                  \
