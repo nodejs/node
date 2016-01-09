@@ -29,8 +29,8 @@ if (common.isAix) {
   }
 }
 
-function init(id) {
-  keyList = keyList.filter((e) => e != pkeys[id]);
+function init(id, provider) {
+  keyList = keyList.filter((e) => e != pkeys[provider]);
 }
 
 function noop() { }
