@@ -349,5 +349,17 @@
   XX(PUNYCODE_OVERFLOW, "Overflow: input needs wider integers to process")    \
   XX(PUNYCODE_NOTBASIC, "Illegal input >= 0x80 (not a basic code point)")     \
   XX(PUNYCODE_INVALIDINPUT, "Invalid input")                                  \
+  XX(READLINE_CANNOT_SET_COL,                                                 \
+     "Cannot set cursor row without also setting the column")                 \
+  XX(READLINE_CODEPOINT_DEPRECATED,                                           \
+     NODE_DEPRECATE_MESSAGE("readline.codePointAt",                           \
+                            "String.prototype.codePointAt"))                  \
+  XX(READLINE_GETSTRINGWIDTH_DEPRECATED,                                      \
+     "getStringWidth is deprecated and will be removed.")                     \
+  XX(READLINE_ISFULLWIDTHCODEPOINT_DEPRECATED,                                \
+     "isFullWidthCodePoint is deprecated and will be removed.")               \
+  XX(READLINE_STRIPVTCONTROLCHARACTERS_DEPRECATED,                            \
+     "stripVTControlCharacters is deprecated and will be removed.")           \
+
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
