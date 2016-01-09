@@ -279,5 +279,8 @@
   XX(FS_OPTION_MORE_THAN_0, "'{0}' must be >= zero")                          \
   XX(FS_INVALID_DATA, "Invalid data")                                         \
   XX(BAD_ARGUMENTS, "Bad arguments")                                          \
+  XX(HTTP_CLIENT_DEPRECRATED, "http.Client is deprecated.")                   \
+  XX(HTTP_CREATECLIENT_DEPRECATED,                                            \
+    NODE_DEPRECATE_MESSAGE("http.createClient", "http.request"))              \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
