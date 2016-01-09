@@ -250,7 +250,7 @@ The `callback` function has arguments `(err, hostnames)`, where `hostnames`
 is an array of resolved hostnames for the given `ip`.
 
 On error, `err` is an [`Error`][] object, where `err.code` is
-one of the error codes listed [here](#dns_error_codes).
+one of the [DNS error codes][].
 
 ## dns.setServers(servers)
 
@@ -335,6 +335,7 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
+[DNS error codes]: #dns_error_codes
 [`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
 [`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
 [`dns.resolve4()`]: #dns_dns_resolve4_hostname_callback

@@ -985,7 +985,7 @@ Also, note that this implementation does not convert the incoming data to a
 string.
 
 However, this would be better implemented as a [Transform][] stream.  See
-[here](#stream_example_simpleprotocol_parser_v2) for a better implementation.
+[SimpleProtocol v2][] for a better implementation.
 
 ```javascript
 // A parser for a simple data protocol.
@@ -1725,6 +1725,7 @@ horribly wrong.
 [Object mode]: #stream_object_mode
 [Readable]: #stream_class_stream_readable
 [request to an HTTP server]: http.html#http_http_incomingmessage
+[SimpleProtocol v2]: #stream_example_simpleprotocol_parser_v2
 [tcp sockets]: net.html#net_class_net_socket
 [Transform]: #stream_class_stream_transform
 [unpiped]: #stream_readable_unpipe_destination

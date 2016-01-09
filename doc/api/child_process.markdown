@@ -33,10 +33,9 @@ function provides equivalent functionality in a synchronous manner that blocks
 the event loop until the spawned process either exits of is terminated.
 
 For convenience, the `child_process` module provides a handful of synchronous
-and asynchronous alternatives to `child_process.spawn()` and
-`child_process.spawnSync()`, each of which are documented fully [here][].
-*Note that each of these alternatives are implemented on top of
-`child_process.spawn()` or `child_process.spawnSync()`.*
+and asynchronous alternatives to [`child_process.spawn()`][] and
+[`child_process.spawnSync()`][].  *Note that each of these alternatives are
+implemented on top of `child_process.spawn()` or `child_process.spawnSync()`.*
 
   * `child_process.exec()`: spawns a shell and runs a command within that shell,
     passing the `stdout` and `stderr` to a callback function when complete.
@@ -222,7 +221,8 @@ spawned directly as a new process making it slightly more efficient than
     (Default: `process.execArgv`)
   * `silent` {Boolean} If true, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
-    the `'pipe'` and `'inherit'` options for [`spawn()`][]'s [`stdio`][] for more details
+    the `'pipe'` and `'inherit'` options for [`spawn()`][]'s [`stdio`][] for
+    more details
     (default is false)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
@@ -262,10 +262,10 @@ not clone the current process.*
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
   * `stdio` {Array|String} Child's stdio configuration. (See
-    [here](#child_process_options_stdio))
+    [`options.stdio`][])
   * `detached` {Boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
-    [here](#child_process_options_detached))
+    [`options.detached`][])
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * return: {ChildProcess object}
@@ -933,6 +933,7 @@ to the same value.
 [`EventEmitters`]: events.html#events_class_events_eventemitter
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`options.detached`]: #child_process_options_detached
+[`options.stdio`]: #child_process_options_stdio
 [`stdio`]: #child_process_options_stdio
-[here]: #child_process_asynchronous_process_creation
 [synchronous counterparts]: #child_process_synchronous_process_creation
