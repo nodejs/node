@@ -228,6 +228,14 @@
   XX(CHILD_PROCESS_CUSTOMFDS_DEPRECATE,                                       \
     NODE_DEPRECATE_MESSAGE("options.customFds", "options.stdio"))             \
   XX(CHILD_PROCESS_SPAWNSYNC, "spawnSync {0}")                                \
+  XX(CHILD_PROCESS_CHANNEL_CLOSED, "channel closed")                          \
+  XX(CHILD_PROCESS_BAD_HANDLE_TYPE, "This handle type cannot be sent")        \
+  XX(CHILD_PROCESS_IPC_DISCONNECTED, "IPC channel is already disconnected")   \
+  XX(CHILD_PROCESS_INCORRECT_STDIO, "Incorrect value of stdio option: {0}")   \
+  XX(CHILD_PROCESS_ONE_IPC, "Child process can have only one IPC pipe")       \
+  XX(CHILD_PROCESS_NOIPC_SYNC, "IPC cannot be used with synchronous fork")    \
+  XX(CHILD_PROCESS_BUFFER_NOT_SUPPORTED,                                      \
+     "Asynchronous forks do not support Buffer input: {0}")                   \
   XX(CLUSTER_BAD_SCHEDULING, "Bad cluster.schedulingPolicy: {0}")             \
   XX(CONSOLE_EXPECTS_READABLE, "Console expects a writable stream instance")  \
   XX(CONSOLE_NO_SUCH_LABEL, "No such label: {0}")                             \
