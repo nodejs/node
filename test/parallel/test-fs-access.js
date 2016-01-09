@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
-var doesNotExist = __filename + '__this_should_not_exist';
-var readOnlyFile = path.join(common.tmpDir, 'read_only_file');
-var readWriteFile = path.join(common.tmpDir, 'read_write_file');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const doesNotExist = __filename + '__this_should_not_exist';
+const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
+const readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
 var removeFile = function(file) {
   try {
@@ -90,17 +90,19 @@ fs.access(readOnlyFile, fs.W_OK, function(err) {
   }
 });
 
+const regex1 = /^'callback' must be a function/;
+
 assert.throws(function() {
   fs.access(100, fs.F_OK, function(err) {});
 }, /path must be a string/);
 
 assert.throws(function() {
   fs.access(__filename, fs.F_OK);
-}, /"callback" argument must be a function/);
+}, err => regex1.test(err.message));
 
 assert.throws(function() {
   fs.access(__filename, fs.F_OK, {});
-}, /"callback" argument must be a function/);
+}, err => regex1.test(err.message));
 
 assert.doesNotThrow(function() {
   fs.accessSync(__filename);

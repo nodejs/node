@@ -1,22 +1,21 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path'),
-    fs = require('fs');
+const path = require('path');
+const fs = require('fs');
+
+const filepath = path.join(common.tmpDir, 'write_pos.txt');
 
 
-var filepath = path.join(common.tmpDir, 'write_pos.txt');
+const cb_expected = 'write open close write open close write open close ';
+var cb_occurred = '';
 
+const fileDataInitial = 'abcdefghijklmnopqrstuvwxyz';
 
-var cb_expected = 'write open close write open close write open close ',
-    cb_occurred = '';
-
-var fileDataInitial = 'abcdefghijklmnopqrstuvwxyz';
-
-var fileDataExpected_1 = 'abcdefghijklmnopqrstuvwxyz';
-var fileDataExpected_2 = 'abcdefghij123456qrstuvwxyz';
-var fileDataExpected_3 = 'abcdefghij\u2026\u2026qrstuvwxyz';
+const fileDataExpected_1 = 'abcdefghijklmnopqrstuvwxyz';
+const fileDataExpected_2 = 'abcdefghij123456qrstuvwxyz';
+const fileDataExpected_3 = 'abcdefghij\u2026\u2026qrstuvwxyz';
 
 
 process.on('exit', function() {
@@ -173,13 +172,10 @@ function run_test_4() {
               flags: 'r+' };
 
   //  Error: start must be >= zero
-  assert.throws(
-      function() {
-        file = fs.createWriteStream(filepath, options);
-      },
-      /"start" must be/
-  );
-
+  var regex = /^'start' must be >= zero/;
+  assert.throws(() => {
+    file = fs.createWriteStream(filepath, options);
+  }, err => regex.test(err.message));
 }
 
 run_test_1();

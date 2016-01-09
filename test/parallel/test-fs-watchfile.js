@@ -5,18 +5,21 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
+const regex1 = /^'listener' must be a function/;
+const regex2 = /^Path must be a string. Received {}/;
+
 // Basic usage tests.
-assert.throws(function() {
+assert.throws(() => {
   fs.watchFile('./some-file');
-}, /"watchFile\(\)" requires a listener function/);
+}, err => regex1.test(err.message));
 
-assert.throws(function() {
+assert.throws(() => {
   fs.watchFile('./another-file', {}, 'bad listener');
-}, /"watchFile\(\)" requires a listener function/);
+}, err => regex1.test(err.message));
 
-assert.throws(function() {
+assert.throws(() => {
   fs.watchFile(new Object(), function() {});
-}, /Path must be a string/);
+}, err => regex2.test(err.message));
 
 const enoentFile = path.join(common.tmpDir, 'non-existent-file');
 const expectedStatObject = new fs.Stats(

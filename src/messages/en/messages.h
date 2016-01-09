@@ -92,7 +92,7 @@
   XX(HTTP_CLIENT_DEBUG_SOCKET_DESTROYSOON, "AGENT socket.destroySoon()")      \
   XX(HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")                  \
   XX(INVALID_ARG_TYPE, "'{0}' argument must be a(n) {1}")                     \
-  XX(INVALID_OPTION_TYPE, "'{0}' option must be a {1}")                       \
+  XX(INVALID_OPTION_TYPE, "'{0}' option must be a(n) {1}")                    \
   XX(REQUIRED_ARG, "'{0}' argument is required")                              \
   XX(HTTP_OUTGOING_SET_AFTER_SEND,                                            \
      "Cannot set headers after they have already been sent")                  \
@@ -269,5 +269,15 @@
     "warning: possible EventEmitter memory "                                  \
     "leak detected. {0} {1} listeners added."                                 \
     "Use emitter.setMaxListeners() to increase limit.")                       \
+  XX(ARGUMENT_STRING_OR_OBJECT, "'{0}' argument must be a string or object")  \
+  XX(PATH_NULL_BYTES, "'{0}' must be a string without null bytes")            \
+  XX(FS_SIZE_TOO_LARGE,                                                       \
+     "File size is greater than possible Buffer: 0x{0} bytes")                \
+  XX(FS_UNKNOWN_FLAG, "Unknown file open flag: {0}")                          \
+  XX(FS_MALFORMED_TIME, "Cannot parse time: {0}")                             \
+  XX(FS_OPTION_LESS_THAN, "'{0}' option must be <= '{1}' option")             \
+  XX(FS_OPTION_MORE_THAN_0, "'{0}' must be >= zero")                          \
+  XX(FS_INVALID_DATA, "Invalid data")                                         \
+  XX(BAD_ARGUMENTS, "Bad arguments")                                          \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_

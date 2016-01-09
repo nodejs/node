@@ -6,30 +6,32 @@ const path = require('path');
 
 const example = path.join(common.tmpDir, 'dummy');
 
+const regex = /^'options' argument must be a string or object/;
+
 common.refreshTmpDir();
 
-assert.doesNotThrow(function() {
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, undefined);
 });
-assert.doesNotThrow(function() {
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, 'utf8');
 });
-assert.doesNotThrow(function() {
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, {encoding: 'utf8'});
 });
 
-assert.throws(function() {
+assert.throws(() => {
   fs.createWriteStream(example, null);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, err => regex.test(err.message));
+assert.throws(() => {
   fs.createWriteStream(example, 123);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, err => regex.test(err.message));
+assert.throws(() => {
   fs.createWriteStream(example, 0);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, err => regex.test(err.message));
+assert.throws(() => {
   fs.createWriteStream(example, true);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, err => regex.test(err.message));
+assert.throws(() => {
   fs.createWriteStream(example, false);
-}, /"options" argument must be a string or an object/);
+}, err => regex.test(err.message));
