@@ -262,5 +262,12 @@
   XX(DNS_UNKNOWN_TYPE, "Unknown type '{0}'")                                  \
   XX(DNS_MALFORMED_IP, "IP address is not properly formatted: {0}")           \
   XX(DNS_FAILED_TO_SET_SERVERS, "c-ares failed to set servers: {0} [{1}]")    \
+  XX(ARGUMENT_POSITIVE_NUMBER, "'{0}' must be a positive number")             \
+  XX(UNCAUGHT_UNSPECIFIED_ERROR, "Uncaught, unspecified 'error' event")       \
+  XX(UNCAUGHT_UNSPECIFIED_ERROR2, "Uncaught, unspecified 'error' event ({0})")\
+  XX(EVENT_MEMORY_LEAK,                                                       \
+    "warning: possible EventEmitter memory "                                  \
+    "leak detected. {0} {1} listeners added."                                 \
+    "Use emitter.setMaxListeners() to increase limit.")                       \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
