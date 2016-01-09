@@ -343,5 +343,9 @@
   XX(NET_DEBUG_LISTEN2, "listen2 {0} {1} {2} {3} {4}")                        \
   XX(NET_DEBUG_LISTEN2_HAVE_HANDLE, "_listen2: have a handle already")        \
   XX(NET_DEBUG_LISTEN2_CREATE_HANDLE, "_listen2: create a handle")            \
+  XX(OS_GETNETWORKINTERFACES_DEPRECATED,                                      \
+     NODE_DEPRECATE_MESSAGE("os.getNetworkInterfaces",                        \
+                            "os.networkInterfaces")                           \
+)
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
