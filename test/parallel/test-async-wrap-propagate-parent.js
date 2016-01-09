@@ -8,7 +8,7 @@ const async_wrap = process.binding('async_wrap');
 let cntr = 0;
 let client;
 
-function init(type, id, parent) {
+function init(id, type, parent) {
   if (parent) {
     cntr++;
     // Cannot assert in init callback or will abort.
