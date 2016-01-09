@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   process.exit();
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var key =  fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+const fs = require('fs');
+const key =  fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
+const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
 var nsuccess = 0;
 var nerror = 0;
@@ -53,8 +53,7 @@ function test(size, err, next) {
     if (err) {
       client.on('error', function(e) {
         nerror++;
-        assert.strictEqual(e.message, 'DH parameter size 1024 is less'
-                           + ' than 2048');
+        assert(/^DH parameter size 1024 is less than 2048/.test(e.message));
         server.close();
       });
     }

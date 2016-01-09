@@ -90,6 +90,7 @@
   XX(HTTP_CLIENT_DEBUG_SOCKET_DESTROYSOON, "AGENT socket.destroySoon()")      \
   XX(HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")                  \
   XX(INVALID_ARG_TYPE, "'{0}' argument must be a {1}")                        \
+  XX(INVALID_OPTION_TYPE, "'{0}' option must be a {1}")                       \
   XX(REQUIRED_ARG, "'{0}' argument is required")                              \
   XX(HTTP_OUTGOING_SET_AFTER_SEND,                                            \
      "Cannot set headers after they have already been sent")                  \
@@ -188,9 +189,15 @@
   XX(TLS_LEGACY_DEBUG_END, "{0}.end")                                         \
   XX(TLS_LEGACY_DEBUG_DESTROYSOON, "{0}.destroySoon")                         \
   XX(TLS_LEGACY_DEBUG_DESTROY, "{0}.destroy")                                 \
-  XX(TLS_LEGACY_DEBUG_ONHANDSHAKESTART, "onhandshakestart")                   \
-  XX(TLS_LEGACY_DEBUG_ONHANDSHAKEONE, "onhandshakedone")                      \
-  XX(TLS_LEGACY_DEBUG_SECURE_ESTABLISHED, "secure established")               \
   XX(TLS_LEGACY_DEBUG_SECUREPAIR_DESTROY, "SecurePair.destroy")               \
-
+  XX(TLS_DEBUG_ONHANDSHAKESTART, "onhandshakestart")                          \
+  XX(TLS_DEBUG_ONHANDSHAKEONE, "onhandshakedone")                             \
+  XX(TLS_DEBUG_SECURE_ESTABLISHED, "secure established")                      \
+  XX(TLS_DEBUG_START, "start")                                                \
+  XX(TLS_CALLBACK_CALLED_TWICE, "callback was called more than once")         \
+  XX(SOCKET_CLOSED, "Socket is closed")                                       \
+  XX(TLS_FAILED_TO_RENEGOTIATE, "Failed to renegotiate")                      \
+  XX(TLS_HANDSHAKE_TIMEOUT, "TLS handshake timeout")                          \
+  XX(TLS_DH_PARAMETER_SIZE_SMALL,  "DH parameter size {0} is less than {1}")  \
+  
 #endif  // SRC_NODE_MESSAGES_SRC_H_

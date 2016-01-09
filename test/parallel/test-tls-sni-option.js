@@ -5,15 +5,15 @@ if (!process.features.tls_sni) {
   return;
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -162,8 +162,11 @@ process.on('exit', function() {
     null
   ]);
   assert.deepEqual(clientResults, [true, true, true, false, false]);
-  assert.deepEqual(clientErrors, [null, null, null, null, 'socket hang up']);
-  assert.deepEqual(serverErrors, [
-    null, null, null, null, 'Invalid SNI context'
-  ]);
+
+  assert.deepEqual(clientErrors.slice(0, 4), [null, null, null, null]);
+  assert(/^socket hang up/.test(clientErrors[4]));
+
+  assert.deepEqual(serverErrors.slice(0, 4), [null, null, null, null]);
+  assert(/^Invalid SNI context/.test(serverErrors[4]));
+
 });
