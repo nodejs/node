@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-var util = require('util');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
@@ -56,7 +55,7 @@ assert.throws(function() {
 
 function assertSorted(list) {
   // Array#sort() modifies the list in place so make a copy.
-  var sorted = util._extend([], list).sort();
+  var sorted = Object.assign([], list).sort();
   assert.deepEqual(list, sorted);
 }
 
