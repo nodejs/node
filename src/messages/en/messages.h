@@ -91,7 +91,7 @@
   XX(HTTP_CLIENT_DEBUG_ISHEAD, "AGENT isHeadResponse {0}")                    \
   XX(HTTP_CLIENT_DEBUG_SOCKET_DESTROYSOON, "AGENT socket.destroySoon()")      \
   XX(HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")                  \
-  XX(INVALID_ARG_TYPE, "'{0}' argument must be a {1}")                        \
+  XX(INVALID_ARG_TYPE, "'{0}' argument must be a(n) {1}")                     \
   XX(INVALID_OPTION_TYPE, "'{0}' option must be a {1}")                       \
   XX(REQUIRED_ARG, "'{0}' argument is required")                              \
   XX(HTTP_OUTGOING_SET_AFTER_SEND,                                            \
@@ -218,5 +218,16 @@
      NODE_DEPRECATE_MESSAGE(                                                  \
        "Buffer.write(string, encoding, offset, length)",                      \
        "write(string[, offset[, length]][, encoding])"))                      \
+  XX(CHILD_PROCESS_ARG_OPTION, "Incorrect value of args option")              \
+  XX(CHILD_PROCESS_COMMAND_FAILED, "Command failed: {0}\n{1}")                \
+  XX(CHILD_PROCESS_MAXBUFFER_EXCEEDED, "{0} maxBuffer exceeded")              \
+  XX(CHILD_PROCESS_INVALID_STDIO,                                             \
+     "stdio{0} should be Buffer or string not {1}")                           \
+  XX(CHILD_PROCESS_DEBUG_SPAWN, "spawn {0} {1}")                              \
+  XX(CHILD_PROCESS_DEBUG_SPAWNSYNC, "spawnSync {0} {1}")                      \
+  XX(CHILD_PROCESS_CUSTOMFDS_DEPRECATE,                                       \
+    NODE_DEPRECATE_MESSAGE("options.customFds", "options.stdio"))             \
+  XX(CHILD_PROCESS_SPAWNSYNC, "spawnSync {0}")                                \
+
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
