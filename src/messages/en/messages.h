@@ -239,5 +239,21 @@
   XX(CRYPTO_CREDENTIALS_DEPRECATED,                                           \
      NODE_DEPRECATE_MESSAGE("crypto.Credentials", "tls.createSecureContext")) \
   XX(CRYPTO_CANNOT_CHANGE_ENCODING, "Cannot change encoding")                 \
+  XX(DGRAM_UNIX_DGRAM_NOT_SUPPORTED,                                          \
+    "'unix_dgram' type sockets are no longer supported")                      \
+  XX(DGRAM_BAD_SOCKET_TYPE,                                                   \
+     "Bad socket type specified. Valid types are: udp4, udp6")                \
+  XX(SOCKET_BOUND, "Socket is already bound")                                 \
+  XX(DGRAM_SEND_BAD_ARGUMENTS,                                                \
+     "send() takes 'offset' and 'length' the second and third arguments")     \
+  XX(DGRAM_MUST_SEND_TO_ADDRESS_PORT,                                         \
+     "{0} sockets must send to port, address")                                \
+  XX(DGRAM_OFFSET_TOO_LOW, "Offset should be >= 0")                           \
+  XX(DGRAM_OFFSET_TOO_HIGH, "Offset into buffer is too large")                \
+  XX(DGRAM_LENGTH_TOO_LOW, "Length should be >= 0")                           \
+  XX(DGRAM_OFFSET_LENGTH_OVER, "Offset + length beyond buffer length")        \
+  XX(PORT_OUT_OF_RANGE, "Port should be > 0 and < 65536")                     \
+  XX(REQUIRED_ARGUMENT, "{0} argument must be specified")                     \
+  XX(NOT_RUNNING, "Not running")                                              \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
