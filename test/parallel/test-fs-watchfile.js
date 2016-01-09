@@ -6,7 +6,7 @@ const path = require('path');
 const assert = require('assert');
 
 const regex1 = /^'listener' must be a function/;
-const regex2 = /^Path must be a string. Received {}/;
+const regex2 = /^'path' argument must be a\(n\) string/;
 
 // Basic usage tests.
 assert.throws(() => {
@@ -18,7 +18,7 @@ assert.throws(() => {
 }, err => regex1.test(err.message));
 
 assert.throws(() => {
-  fs.watchFile(new Object(), function() {});
+  fs.watchFile(new Object(), () => {});
 }, err => regex2.test(err.message));
 
 const enoentFile = path.join(common.tmpDir, 'non-existent-file');

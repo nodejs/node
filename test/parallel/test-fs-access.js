@@ -91,10 +91,10 @@ fs.access(readOnlyFile, fs.W_OK, function(err) {
 });
 
 const regex1 = /^'callback' must be a function/;
-
-assert.throws(function() {
-  fs.access(100, fs.F_OK, function(err) {});
-}, /path must be a string/);
+const regex2 = /^path must be a string/i;
+assert.throws(() => {
+  fs.access(100, fs.F_OK, err => {});
+}, err => regex2.test(err.message));
 
 assert.throws(function() {
   fs.access(__filename, fs.F_OK);
