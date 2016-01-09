@@ -390,5 +390,6 @@
   XX(REPL_COMMAND_LOAD_FAILED_INVALID,                                        \
      "Failed to load:{0} is not a valid file")                                \
   XX(REPL_COMMAND_LOAD_FAILED, "Failed to load:{0}")                          \
+  XX(SYS_DEPRECATED, NODE_DEPRECATE_MESSAGE("sys", "util"))                   \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
