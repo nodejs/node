@@ -199,5 +199,7 @@
   XX(TLS_FAILED_TO_RENEGOTIATE, "Failed to renegotiate")                      \
   XX(TLS_HANDSHAKE_TIMEOUT, "TLS handshake timeout")                          \
   XX(TLS_DH_PARAMETER_SIZE_SMALL,  "DH parameter size {0} is less than {1}")  \
+  XX(ASSERT_MISSING_EXCEPTION, "Missing expected exception{0}")               \
+  XX(ASSERT_UNWANTED_EXCEPTION, "Got unwanted exception{0}")                  \
   
 #endif  // SRC_NODE_MESSAGES_SRC_H_
