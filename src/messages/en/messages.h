@@ -469,5 +469,6 @@
   XX(ZLIB_ASSERT_BINDING_CLOSED, "zlib binding closed")                       \
   XX(ZLIB_INVALID_INPUT, "invalid input")                                     \
   XX(ZLIB_ASSERT_HAVE_GO_DOWN, "have should not go down")                     \
+  XX(SOCKET_LIST_SLAVE_CLOSED, "Slave closed before reply")                   \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
