@@ -231,6 +231,13 @@
   XX(CLUSTER_BAD_SCHEDULING, "Bad cluster.schedulingPolicy: {0}")             \
   XX(CONSOLE_EXPECTS_READABLE, "Console expects a writable stream instance")  \
   XX(CONSOLE_NO_SUCH_LABEL, "No such label: {0}")                             \
-
+  XX(CRYPTO_NO_KEY, "No key provided to sign")                                \
+  XX(CRYPTO_BAD_FORMAT, "Bad format: {0}")                                    \
+  XX(CRYPTO_CREATECREDENTIALS_DEPRECATED,                                     \
+     NODE_DEPRECATE_MESSAGE("crypto.createCredentials",                       \
+                            "tls.createSecureContext"))                       \
+  XX(CRYPTO_CREDENTIALS_DEPRECATED,                                           \
+     NODE_DEPRECATE_MESSAGE("crypto.Credentials", "tls.createSecureContext")) \
+  XX(CRYPTO_CANNOT_CHANGE_ENCODING, "Cannot change encoding")                 \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
