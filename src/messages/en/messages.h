@@ -18,6 +18,8 @@
   XX(UNKNOWN_SIGNAL, "Unknown signal: {0}")                                   \
   XX(UNKNOWN_NATIVE_MODULE, "No such native module")                          \
   XX(UNEXPECTED, "unexpected {0}")                                            \
+  XX(INDEX_OUT_OF_RANGE, "index of out range")                                \
+  XX(OUT_OF_BOUNDS_WRITE, "Attempt to write outside bounds")                  \
   XX(DEBUGAGENT_LISTENING, "Debugger listening on port {0}")                  \
   XX(DEBUGAGENT_NO_BINDINGS, "Debugger agent running without bindings!")      \
   XX(DEBUGAGENT_EXPECTED_HEADER,                                              \
@@ -201,5 +203,20 @@
   XX(TLS_DH_PARAMETER_SIZE_SMALL,  "DH parameter size {0} is less than {1}")  \
   XX(ASSERT_MISSING_EXCEPTION, "Missing expected exception{0}")               \
   XX(ASSERT_UNWANTED_EXCEPTION, "Got unwanted exception{0}")                  \
-  
+  XX(BUFFER_ENCODING_STR,                                                     \
+     "If encoding is specified then the first argument must be a string")     \
+  XX(BUFFER_INVALID_ARG, "'{0}' must be a number, Buffer, array or string")   \
+  XX(BUFFER_INVALID_ARG2, "'{0}' must be a string, number, or Buffer")        \
+  XX(BUFFER_INVALID_ARGS, "Arguments must be Buffers")                        \
+  XX(BUFFER_TOSTRING_FAILED, "'toString()' failed")                           \
+  XX(BUFFER_OUTOFBOUNDS_ARG, "'{0}' argument is out of bounds")               \
+  XX(BUFFER_GET_DEPRECATED,                                                   \
+     NODE_DEPRECATE_MESSAGE("Buffer.get", "array indices"))                   \
+  XX(BUFFER_SET_DEPRECATED,                                                   \
+     NODE_DEPRECATE_MESSAGE("Buffer.set", "array indices"))                   \
+  XX(BUFFER_WRITE_DEPRECATED,                                                 \
+     NODE_DEPRECATE_MESSAGE(                                                  \
+       "Buffer.write(string, encoding, offset, length)",                      \
+       "write(string[, offset[, length]][, encoding])"))                      \
+
 #endif  // SRC_NODE_MESSAGES_SRC_H_

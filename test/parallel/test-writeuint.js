@@ -124,17 +124,18 @@ function test32(clazz) {
 
 function testUint(clazz) {
   const data = new clazz(8);
+  const erregex = /^'value' argument is out of bounds/;
   var val = 1;
 
   // Test 0 to 5 bytes.
   for (var i = 0; i <= 5; i++) {
     const errmsg = `byteLength: ${i}`;
-    ASSERT.throws(function() {
+    ASSERT.throws(() => {
       data.writeUIntBE(val, 0, i);
-    }, /"value" argument is out of bounds/, errmsg);
-    ASSERT.throws(function() {
+    }, err => erregex.test(err.message), errmsg);
+    ASSERT.throws(() => {
       data.writeUIntLE(val, 0, i);
-    }, /"value" argument is out of bounds/, errmsg);
+    }, err => erregex.test(err.message), errmsg);
     val *= 0x100;
   }
 }

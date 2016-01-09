@@ -28,10 +28,13 @@ try {
   return;
 }
 
-assert.throws(function() {
-  buf.toString();
-}, /"toString\(\)" failed|Invalid array buffer length/);
+const erregex1 = /^'toString\(\)' failed|^Invalid array buffer length/;
+const erregex2 = /^'toString\(\)' failed/;
 
-assert.throws(function() {
+assert.throws(() => {
+  buf.toString();
+}, (err) => erregex1.test(err.message));
+
+assert.throws(() => {
   buf.toString('utf8');
-}, /"toString\(\)" failed/);
+}, err => erregex2.test(err.message));
