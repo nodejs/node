@@ -25,41 +25,31 @@
 namespace node {
 
 using v8::Local;
+using v8::Array;
 using v8::Object;
 using v8::String;
 using v8::Value;
 using v8::FunctionCallbackInfo;
-
-static void NodeMsg(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Object> message = Object::New(env->isolate());
-
-  if (args.Length() < 1)
-    return TYPE_ERROR("message key is required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("message key must be an integer");
-  int key = static_cast<int>(args[0]->Int32Value());
-
-  const char* id = node_message_id(key);
-  const char* msg = node_message_str(key);
-
-  message->Set(
-    OneByteString(env->isolate(), "id"),
-    OneByteString(env->isolate(), id));
-
-  message->Set(
-    OneByteString(env->isolate(), "msg"),
-    String::NewFromUtf8(env->isolate(), msg));
-
-  args.GetReturnValue().Set(message);
-}
+using v8::PropertyAttribute;
 
 void DefineMessages(Environment* env, Local<Object> target) {
   // Set the Message ID Constants
-#define NODE_MSG_CONSTANT(id, _) DEFINE_MSG_CONSTANT(target, id);
+  v8::Isolate* isolate = target->GetIsolate();
+  Local<Array> keys = Array::New(isolate);
+  Local<Array> messages = Array::New(isolate);
+
+#define NODE_MSG_CONSTANT(id, msg)                                            \
+  DEFINE_MSG_CONSTANT(target, id);                                            \
+  keys->Set(MSG_ ## id, OneByteString(isolate, #id));                         \
+  messages->Set(MSG_ ## id, v8::String::NewFromUtf8(isolate, msg));
   NODE_MESSAGES(NODE_MSG_CONSTANT);
 #undef NODE_MSG_CONSTANT
 
-  env->SetMethod(target, "msg", NodeMsg);
+  PropertyAttribute constant_attributes =
+      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+  (target)->ForceSet(String::NewFromUtf8(isolate, "keys"),
+                    keys, constant_attributes);
+  (target)->ForceSet(String::NewFromUtf8(isolate, "messages"),
+                    messages, constant_attributes);
 }
 }  // namespace node
