@@ -2,17 +2,17 @@
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
 function file(fname) {
   return path.resolve(common.fixturesDir, 'keys', fname);
@@ -141,7 +141,8 @@ function makeReq(path, port, error, host, ca) {
 
   req.on('response', function(res) {
     responseCount++;
-    assert.equal(res.connection.authorizationError, error);
+    if (error)
+      assert(error.test(res.connection.authorizationError));
     responseErrors[path] = res.connection.authorizationError;
     pending--;
     if (pending === 0) {
@@ -153,46 +154,38 @@ function makeReq(path, port, error, host, ca) {
   });
 }
 
+const ERR_PREFIX = `^Hostname/IP doesn't match certificate's altnames: `;
+const regex = new RegExp(
+  `${ERR_PREFIX}'Host: localhost\\. is not cert's CN: agent1'`);
+const regex4 = new RegExp(
+  `${ERR_PREFIX}'Host: localhost\\. is not cert's CN: agent3'`);
+const regex2 = /^UNABLE_TO_VERIFY_LEAF_SIGNATURE/;
+const regex3 = /^DEPTH_ZERO_SELF_SIGNED_CERT/;
+
 function allListening() {
   // ok, ready to start the tests!
 
   // server1: host 'agent1', signed by ca1
-  makeReq('/inv1', port1, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
-  makeReq('/inv1-ca1', port1,
-          'Hostname/IP doesn\'t match certificate\'s altnames: ' +
-              '"Host: localhost. is not cert\'s CN: agent1"',
-          null, ca1);
-  makeReq('/inv1-ca1ca2', port1,
-          'Hostname/IP doesn\'t match certificate\'s altnames: ' +
-              '"Host: localhost. is not cert\'s CN: agent1"',
-          null, [ca1, ca2]);
+  makeReq('/inv1', port1, regex2);
+  makeReq('/inv1-ca1', port1, regex, null, ca1);
+  makeReq('/inv1-ca1ca2', port1, regex, null, [ca1, ca2]);
   makeReq('/val1-ca1', port1, null, 'agent1', ca1);
   makeReq('/val1-ca1ca2', port1, null, 'agent1', [ca1, ca2]);
-  makeReq('/inv1-ca2', port1,
-          'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'agent1', ca2);
+  makeReq('/inv1-ca2', port1, regex2, 'agent1', ca2);
 
   // server2: self-signed, host = 'agent2'
   // doesn't matter that thename matches, all of these will error.
-  makeReq('/inv2', port2, 'DEPTH_ZERO_SELF_SIGNED_CERT');
-  makeReq('/inv2-ca1', port2, 'DEPTH_ZERO_SELF_SIGNED_CERT',
-          'agent2', ca1);
-  makeReq('/inv2-ca1ca2', port2, 'DEPTH_ZERO_SELF_SIGNED_CERT',
-          'agent2', [ca1, ca2]);
+  makeReq('/inv2', port2, regex3);
+  makeReq('/inv2-ca1', port2, regex3, 'agent2', ca1);
+  makeReq('/inv2-ca1ca2', port2, regex3, 'agent2', [ca1, ca2]);
 
   // server3: host 'agent3', signed by ca2
-  makeReq('/inv3', port3, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
-  makeReq('/inv3-ca2', port3,
-          'Hostname/IP doesn\'t match certificate\'s altnames: ' +
-              '"Host: localhost. is not cert\'s CN: agent3"',
-          null, ca2);
-  makeReq('/inv3-ca1ca2', port3,
-          'Hostname/IP doesn\'t match certificate\'s altnames: ' +
-              '"Host: localhost. is not cert\'s CN: agent3"',
-          null, [ca1, ca2]);
+  makeReq('/inv3', port3, regex2);
+  makeReq('/inv3-ca2', port3, regex4, null, ca2);
+  makeReq('/inv3-ca1ca2', port3, regex4, null, [ca1, ca2]);
   makeReq('/val3-ca2', port3, null, 'agent3', ca2);
   makeReq('/val3-ca1ca2', port3, null, 'agent3', [ca1, ca2]);
-  makeReq('/inv3-ca1', port3,
-          'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'agent1', ca1);
+  makeReq('/inv3-ca1', port3, regex2, 'agent1', ca1);
 
 }
 

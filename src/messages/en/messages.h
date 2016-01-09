@@ -407,5 +407,13 @@
   XX(TIMERS_DEBUG_UNREFTIMER_INIT, "unrefTimer initialized")                  \
   XX(TIMERS_DEBUG_UNREFTIMER_SCHED, "unrefTimer scheduled")                   \
   XX(TIMERS_DEBUG_UNREFLIST_APPEND, "unrefList append to end")                \
+  XX(TLS_HOSTNAME_NO_MATCH,                                                   \
+     "Hostname/IP doesn't match certificate's altnames: '{0}'")               \
+  XX(TLS_UNKNOWN_REASON, "Unknown reason")                                    \
+  XX(TLS_HOST_NOT_IN_CERT_LIST, "IP: {0} is not in the cert's list: {1}")     \
+  XX(TLS_HOST_NOT_IN_CERT_ALTNAMES,                                           \
+     "Host: {0} is not in the cert's altnames: {1}")                          \
+  XX(TLS_HOST_NOT_IN_CERT_CN, "Host: {0} is not cert's CN: {1}")              \
+  XX(TLS_CERT_IS_EMPTY, "Cert is empty")                                      \
 
 #endif  // SRC_NODE_MESSAGES_SRC_H_
