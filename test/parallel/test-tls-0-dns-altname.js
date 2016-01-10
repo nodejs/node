@@ -10,8 +10,6 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-var common = require('../common');
-
 var requests = 0;
 
 var server = tls.createServer({
