@@ -61,13 +61,11 @@
 
     } else if (process.argv[1] == 'debug') {
       // Start the debugger agent
-      var d = NativeModule.require('_debugger');
-      d.start();
+      NativeModule.require('_debugger').start();
 
     } else if (process.argv[1] == '--debug-agent') {
       // Start the debugger agent
-      var d = NativeModule.require('_debug_agent');
-      d.start();
+      NativeModule.require('_debug_agent').start();
 
     } else {
       // There is user code to be run
@@ -137,8 +135,6 @@
         }
 
       } else {
-        var Module = NativeModule.require('module');
-
         // If -i or --interactive were passed, or stdin is a TTY.
         if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
           // REPL
@@ -555,7 +551,7 @@
       // getcwd(3) can fail if the current working directory has been deleted.
       // Fall back to the directory name of the (absolute) executable path.
       // It's not really correct but what are the alternatives?
-      var cwd = path.dirname(process.execPath);
+      cwd = path.dirname(process.execPath);
     }
 
     var module = new Module(name);
