@@ -10,8 +10,6 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-var common = require('../common');
-
 var buf = new Buffer(10000);
 var received = 0;
 var ended = 0;
