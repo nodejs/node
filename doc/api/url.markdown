@@ -34,6 +34,14 @@ string will not be in the parsed object. Examples are shown for the URL
 
     Example: `'user:pass'`
 
+* `username`: The username from the authentication information portion of a URL.
+
+    Example: `'user'`
+
+* `password`: The password from the authentication information portion of a URL.
+
+    Example: `'pass'`
+
 * `hostname`: Just the lowercased hostname portion of the host.
 
     Example: `'host.com'`
@@ -94,6 +102,9 @@ Here's how the formatting process works:
   * Only needs to be set for protocols not previously listed as requiring
     slashes, such as `mongodb://localhost:8000/`, or if `host`/`hostname` are absent.
 * `auth` will be used if present.
+* `username` will be used if present.
+* `password` will be used if present.
+* `auth` will only be used if `username` is absent.
 * `hostname` will only be used if `host` is absent.
 * `port` will only be used if `host` is absent.
 * `host` will be used in place of `hostname` and `port`.
