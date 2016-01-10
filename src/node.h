@@ -95,6 +95,15 @@ NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
                                              const char* message,
                                              const char* path,
                                              const char* dest);
+NODE_EXTERN v8::Local<v8::Value> I18NRangeError(v8::Isolate* isolate,
+                                                const char* key,
+                                                const char* message);
+NODE_EXTERN v8::Local<v8::Value> I18NTypeError(v8::Isolate* isolate,
+                                                const char* key,
+                                                const char* message);
+NODE_EXTERN v8::Local<v8::Value> I18NError(v8::Isolate* isolate,
+                                                const char* key,
+                                                const char* message);
 
 NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                 inline v8::Local<v8::Value> ErrnoException(

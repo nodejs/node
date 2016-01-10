@@ -738,6 +738,41 @@ void ThrowUVException(v8::Isolate* isolate,
       ->ThrowUVException(errorno, syscall, message, path, dest);
 }
 
+Local<Value> I18NError(Isolate* isolate,
+                       const char* key,
+                       const char* msg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<String> message = OneByteString(env->isolate(), msg);
+  Local<String> skey = OneByteString(env->isolate(), key);
+  Local<Value> e = Exception::Error(message);
+  Local<Object> obj = e->ToObject(env->isolate());
+  obj->Set(OneByteString(env->isolate(), "key"), skey);
+  return e;
+}
+
+Local<Value> I18NRangeError(Isolate* isolate,
+                            const char* key,
+                            const char* msg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<String> message = OneByteString(env->isolate(), msg);
+  Local<String> skey = OneByteString(env->isolate(), key);
+  Local<Value> e = Exception::RangeError(message);
+  Local<Object> obj = e->ToObject(env->isolate());
+  obj->Set(OneByteString(env->isolate(), "key"), skey);
+  return e;
+}
+
+Local<Value> I18NTypeError(Isolate* isolate,
+                           const char* key,
+                           const char* msg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<String> message = OneByteString(env->isolate(), msg);
+  Local<String> skey = OneByteString(env->isolate(), key);
+  Local<Value> e = Exception::TypeError(message);
+  Local<Object> obj = e->ToObject(env->isolate());
+  obj->Set(OneByteString(env->isolate(), "key"), skey);
+  return e;
+}
 
 Local<Value> ErrnoException(Isolate* isolate,
                             int errorno,

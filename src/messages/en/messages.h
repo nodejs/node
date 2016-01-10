@@ -6,6 +6,30 @@
 #define NODE_DEPRECATE_MESSAGE(what, alternate)                               \
   what " is deprecated. Use " alternate " instead."
 
+// The messages used in src/*.cc
+// These are used only within the Node.js native source
+
+#define STR_CALLBACK_NOT_ASSIGNED                                         \
+        "init callback is not assigned to a function"
+#define STR_HOOKSSHOULDNOTBESET                                           \
+        "hooks should not be set while also enabled"
+#define STR_INITCALLBACK                                                  \
+        "init callback must be a function"
+#define STR_INVALID_FILENAME                                              \
+        "filename must be a valid string"
+#define STR_INDEX_OUT_OF_RANGE                                            \
+        "out of range index"
+#define STR_ARGUMENT_BUFFER                                               \
+        "argument should be a Buffer"
+#define STR_ARGUMENT_STRING                                               \
+        "Argument must be a string"
+#define STR_ARGUMENT_ARRAYBUFFER                                          \
+        "argument is not an ArrayBuffer"
+#define STR_UNABLE_TO_SET_PROTOTYPE                                       \
+        "Unable to set Object prototype"
+
+// The messages used in lib/*.js
+// These are exposes as constants on require('internal/messages')
 #define NODE_MESSAGES(XX)                                                     \
   XX(ASSERTION_ERROR, "assertion error")                                      \
   XX(HRTIME_ARRAY, "process.hrtime() only accepts an Array tuple")            \
@@ -62,17 +86,6 @@
   XX(DEBUGGER_UNHANDLED_RESPONSE, "unhandled res")                            \
   XX(DEBUGGER_CONNECTION_FAILED, "failed to connect, please retry")           \
   XX(DEBUGGER_CONNECTING, "connecting to")                                    \
-  XX(HTTP_AGENT_DEBUG_FREE_SOCKET, "have free socket")                        \
-  XX(HTTP_AGENT_DEBUG_CALL_ONSOCKET, "call onSocket")                         \
-  XX(HTTP_AGENT_DEBUG_WAIT_FOR_SOCKET, "wait for socket")                     \
-  XX(HTTP_AGENT_DEBUG_SOCKETS, "sockets {0} {1}")                                     \
-  XX(HTTP_AGENT_DEBUG_CLIENT_CLOSE, "CLIENT socket onClose")                  \
-  XX(HTTP_AGENT_DEBUG_CLIENT_REMOVE, "CLIENT socket onRemove")                \
-  XX(HTTP_AGENT_DEBUG_DESTROYED, "removeSocket {0} destroyed {1}")            \
-  XX(HTTP_AGENT_DEBUG_MAKE_SOCKET,                                            \
-     "removeSocket, have a request, make a socket")                           \
-  XX(HTTP_AGENT_DEBUG_ONFREE, "agent.on(free) {0}")                           \
-  XX(HTTP_AGENT_DEBUG_CREATE_CONNECTION, "createConnection {0} {1}")          \
   XX(HTTP_CLIENT_DOMAIN_NAME, "Unable to determine the domain name")          \
   XX(HTTP_CLIENT_UNESCAPED_PATH,                                              \
     "Request path contains unescaped characters")                             \
@@ -80,17 +93,6 @@
     "Protocol '{0}' not supported. Expected '{1}'")                           \
   XX(HTTP_INVALID_TOKEN, "'{0}' must be a valid HTTP token")                  \
   XX(NET_SOCKET_HANGUP, "socket hang up")                                     \
-  XX(HTTP_CLIENT_DEBUG_CLIENT_CREATE, "CLIENT use net.createConnection {0}")  \
-  XX(HTTP_CLIENT_DEBUG_SOCKET_CLOSE, "HTTP socket close")                     \
-  XX(HTTP_CLIENT_DEBUG_SOCKET_ERROR, "SOCKET ERROR {0} {1}")                  \
-  XX(HTTP_CLIENT_DEBUG_SOCKET_ERROR_FREE,                                     \
-    "SOCKET ERROR on FREE socket {0} {1}")                                    \
-  XX(HTTP_CLIENT_DEBUG_PARSE_ERROR, "parse error")                            \
-  XX(HTTP_CLIENT_DEBUG_SETTING_RESDOMAIN, "setting \"res.domain\"")           \
-  XX(HTTP_CLIENT_DEBUG_INCOMING_RESPONSE, "AGENT incoming response!")         \
-  XX(HTTP_CLIENT_DEBUG_ISHEAD, "AGENT isHeadResponse {0}")                    \
-  XX(HTTP_CLIENT_DEBUG_SOCKET_DESTROYSOON, "AGENT socket.destroySoon()")      \
-  XX(HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")                  \
   XX(INVALID_ARG_TYPE, "'{0}' argument must be a(n) {1}")                     \
   XX(INVALID_OPTION_TYPE, "'{0}' option must be a(n) {1}")                    \
   XX(REQUIRED_ARG, "'{0}' argument is required")                              \
@@ -103,64 +105,14 @@
   XX(WRITE_AFTER_END, "write after end")                                      \
   XX(FIRST_ARGUMENT_STRING_OR_BUFFER,                                         \
      "The first argument must be a string or Buffer")                         \
-  XX(HTTP_OUTGOING_DEBUG_NOT_USE_CHUNKED,                                     \
-    "{0} response should not use chunked encoding, closing connection.")      \
-  XX(HTTP_OUTGOING_DEBUG_BOTH_REMOVED,                                        \
-     "Both Content-Length and Transfer-Encoding are removed")                 \
-  XX(HTTP_OUTGOING_DEBUG_IGNORING_WRITE,                                      \
-     "This type of response MUST NOT have a body. Ignoring write() calls.")   \
-  XX(HTTP_OUTGOING_DEBUG_WRITE_RET, "write ret = {0}")                        \
-  XX(HTTP_OUTGOING_DEBUG_IGNORING_END_DATA,                                   \
-    "This type of response MUST NOT have a body. "                            \
-    "Ignoring data passed to end().")                                         \
   XX(HTTP_OUTGOING_MESSAGE_END, "outgoing message end.")                      \
-  XX(HTTP_OUTGOING_FLUSH_DEPRECATE,                                           \
-    NODE_DEPRECATE_MESSAGE("OutgoingMessage.flush", "flushHeaders"))          \
-  XX(HTTP_SERVER_DEBUG_SOCKET_CLOSE, "server socket close")                   \
-  XX(HTTP_SERVER_DEBUG_NEW_CONNECTION, "SERVER new http connection")          \
-  XX(HTTP_SERVER_DEBUG_SOCKETONDATA, "SERVER socketOnData {0}")               \
-  XX(HTTP_SERVER_DEBUG_SOCKETONPARSEREXECUTE,                                 \
-     "SERVER socketOnParserExecute {0}")                                      \
-  XX(HTTP_SERVER_DEBUG_UPGRADE_OR_CONNECT, "SERVER upgrade or connect {0}")   \
-  XX(HTTP_SERVER_DEBUG_HAVE_LISTENER, "SERVER have listener for {0}")         \
-  XX(HTTP_SERVER_DEBUG_PAUSE_PARSER, "pause parser")                          \
-  XX(LINKLIST_DEPRECATED,                                                     \
-    NODE_DEPRECATE_MESSAGE("_linklist module", "a userland alternative"))     \
   XX(STREAM_READABLE_PUSH_AFTER_END, "stream.push() after EOF")               \
   XX(STREAM_READABLE_UNSHIFT_AFTER_END, "stream.unshift() after end event")   \
   XX(STREAM_READABLE_INVALID_CHUNK, "Invalid non-string/buffer chunk")        \
   XX(NOT_IMPLEMENTED, "not implemented")                                      \
   XX(STREAM_READABLE_STREAM_NOT_EMPTY,                                        \
     "'endReadable()' called on non-empty stream")                             \
-  XX(STREAM_READABLE_DEBUG_NEED_READABLE, "need readable {0}")                \
-  XX(STREAM_READABLE_DEBUG_LESS_THAN_WATERMARK,                               \
-     "length less than watermark {0}")                                        \
-  XX(STREAM_READABLE_DEBUG_READING_OR_ENDED, "reading or ended {0}")          \
-  XX(STREAM_READABLE_DEBUG_DO_READ, "do read")                                \
-  XX(STREAM_READABLE_DEBUG_EMIT_READABLE_ARG, "emit readable {0}")            \
-  XX(STREAM_READABLE_DEBUG_EMIT_READABLE, "emit readable")                    \
-  XX(STREAM_READABLE_DEBUG_MAYBE_READMORE, "maybeReadMore read 0")            \
-  XX(STREAM_READABLE_DEBUG_FALSE_WRITE, "false write response, pause {0}")    \
-  XX(STREAM_READABLE_DEBUG_PIPE_RESUME, "pipe resume")                        \
-  XX(STREAM_READABLE_DEBUG_READABLE_NEXTTICK, "readable nexttick read 0")     \
-  XX(STREAM_READABLE_DEBUG_RESUME_READ, "resume read 0")                      \
   XX(STREAM_READABLE_CALL_PAUSE_FLOWING, "call pause flowing = {0}")          \
-  XX(STREAM_READABLE_DEBUG_WRAPPED_END, "wrapped end")                        \
-  XX(STREAM_READABLE_DEBUG_WRAPPED_DATA, "wrapped data")                      \
-  XX(STREAM_READABLE_DEBUG_WRAPPED_READ, "wrapped _read {0}")                 \
-  XX(STREAM_READABLE_DEBUG_READ, "read {0}")                                  \
-  XX(STREAM_READABLE_DEBUG_PIPE_COUNT, "pipe count={0} opts={1}")             \
-  XX(STREAM_READABLE_DEBUG_ONUNPIPE, "onunpipe")                              \
-  XX(STREAM_READABLE_DEBUG_ONEND, "onend")                                    \
-  XX(STREAM_READABLE_DEBUG_CLEANUP, "cleanup")                                \
-  XX(STREAM_READABLE_DEBUG_ONDATA, "ondata")                                  \
-  XX(STREAM_READABLE_DEBUG_ONERROR, "onerror")                                \
-  XX(STREAM_READABLE_DEBUG_ONFINISH, "onfinish")                              \
-  XX(STREAM_READABLE_DEBUG_UNPIPE, "unpipe")                                  \
-  XX(STREAM_READABLE_DEBUG_PIPEONDRAIN, "pipeOnDrain {0}")                    \
-  XX(STREAM_READABLE_DEBUG_RESUME, "resume")                                  \
-  XX(STREAM_READABLE_DEBUG_PAUSE, "pause")                                    \
-  XX(STREAM_READABLE_DEBUG_FLOW, "flow")                                      \
   XX(STREAM_READABLE_READEMITREADABLE, "read: emitReadable {0} {1}")          \
   XX(STREAM_TRANSFORM_NO_WRITECB, "no writecb in Transform class")            \
   XX(STREAM_TRANSFORM_DONE_NOT_EMPTY,                                         \
@@ -168,34 +120,10 @@
   XX(STREAM_TRANSFORM_DONE_STILL_GOING,                                       \
     "Calling transform done when still transforming")                         \
   XX(STREAM_WRAP_HAS_STRINGDECODER, "Stream has StringDecoder")               \
-  XX(STREAM_WRAP_DEBUG_CLOSE, "close")                                        \
-  XX(STREAM_WRAP_DEBUG_DATA, "data {0}")                                      \
-  XX(STREAM_WRAP_DEBUG_END, "end")                                            \
   XX(STREAM_WRITABLE_CANNOT_PIPE_NOT_READABLE, "Cannot pipe, not readable")   \
   XX(UNKNOWN_ENCODING, "Unknown encoding: {0}")                               \
-  XX(STREAM_WRITABLE_WRITABLESTATE_BUFFER_DEPRECATED,                         \
-    NODE_DEPRECATE_MESSAGE("_writableState.buffer",                           \
-                           "_writableState.getBuffer"))                       \
   XX(NO_OPENSSL, "Node.js was not compiled with OpenSSL crypto support")      \
   XX(TLS_RENEGOTIATION_ATTACK, "TLS session renegotiation attack detected")   \
-  XX(TLS_LEGACY_DEBUG_ONFINISH, "{0}.onfinish")                               \
-  XX(TLS_LEGACY_DEBUG_ONEND, "cleartext.onend")                               \
-  XX(TLS_LEGACY_DEBUG_WRITE, "{0}.write called with {1} bytes")               \
-  XX(TLS_LEGACY_DEBUG_WRITE_SUCCEED, "{0}.write succeed with {1} bytes")      \
-  XX(TLS_LEGACY_DEBUG_CLEARTEXT_WRITE_QUEUE_FULL,                             \
-    "cleartext.write queue is full")                                          \
-  XX(TLS_LEGACY_DEBUG_WRITE_QUEUE_BYTES, "{0}.write queued with {1} bytes")   \
-  XX(TLS_LEGACY_DEBUG_READ_CALLED, "{0}.read called with {1} bytes")          \
-  XX(TLS_LEGACY_DEBUG_READ_SUCCEED, "{0}.read succeed with {1} bytes")        \
-  XX(TLS_LEGACY_DEBUG_OUTEND, "{0}.sslOutEnd")                                \
-  XX(TLS_LEGACY_DEBUG_END, "{0}.end")                                         \
-  XX(TLS_LEGACY_DEBUG_DESTROYSOON, "{0}.destroySoon")                         \
-  XX(TLS_LEGACY_DEBUG_DESTROY, "{0}.destroy")                                 \
-  XX(TLS_LEGACY_DEBUG_SECUREPAIR_DESTROY, "SecurePair.destroy")               \
-  XX(TLS_DEBUG_ONHANDSHAKESTART, "onhandshakestart")                          \
-  XX(TLS_DEBUG_ONHANDSHAKEONE, "onhandshakedone")                             \
-  XX(TLS_DEBUG_SECURE_ESTABLISHED, "secure established")                      \
-  XX(TLS_DEBUG_START, "start")                                                \
   XX(TLS_CALLBACK_CALLED_TWICE, "callback was called more than once")         \
   XX(SOCKET_CLOSED, "Socket is closed")                                       \
   XX(TLS_FAILED_TO_RENEGOTIATE, "Failed to renegotiate")                      \
@@ -210,23 +138,11 @@
   XX(BUFFER_INVALID_ARGS, "Arguments must be Buffers")                        \
   XX(BUFFER_TOSTRING_FAILED, "'toString()' failed")                           \
   XX(BUFFER_OUTOFBOUNDS_ARG, "'{0}' argument is out of bounds")               \
-  XX(BUFFER_GET_DEPRECATED,                                                   \
-     NODE_DEPRECATE_MESSAGE("Buffer.get", "array indices"))                   \
-  XX(BUFFER_SET_DEPRECATED,                                                   \
-     NODE_DEPRECATE_MESSAGE("Buffer.set", "array indices"))                   \
-  XX(BUFFER_WRITE_DEPRECATED,                                                 \
-     NODE_DEPRECATE_MESSAGE(                                                  \
-       "Buffer.write(string, encoding, offset, length)",                      \
-       "write(string[, offset[, length]][, encoding])"))                      \
   XX(CHILD_PROCESS_ARG_OPTION, "Incorrect value of args option")              \
   XX(CHILD_PROCESS_COMMAND_FAILED, "Command failed: {0}\n{1}")                \
   XX(CHILD_PROCESS_MAXBUFFER_EXCEEDED, "{0} maxBuffer exceeded")              \
   XX(CHILD_PROCESS_INVALID_STDIO,                                             \
      "stdio{0} should be Buffer or string not {1}")                           \
-  XX(CHILD_PROCESS_DEBUG_SPAWN, "spawn {0} {1}")                              \
-  XX(CHILD_PROCESS_DEBUG_SPAWNSYNC, "spawnSync {0} {1}")                      \
-  XX(CHILD_PROCESS_CUSTOMFDS_DEPRECATE,                                       \
-    NODE_DEPRECATE_MESSAGE("options.customFds", "options.stdio"))             \
   XX(CHILD_PROCESS_SPAWNSYNC, "spawnSync {0}")                                \
   XX(CHILD_PROCESS_CHANNEL_CLOSED, "channel closed")                          \
   XX(CHILD_PROCESS_BAD_HANDLE_TYPE, "This handle type cannot be sent")        \
@@ -241,11 +157,6 @@
   XX(CONSOLE_NO_SUCH_LABEL, "No such label: {0}")                             \
   XX(CRYPTO_NO_KEY, "No key provided to sign")                                \
   XX(CRYPTO_BAD_FORMAT, "Bad format: {0}")                                    \
-  XX(CRYPTO_CREATECREDENTIALS_DEPRECATED,                                     \
-     NODE_DEPRECATE_MESSAGE("crypto.createCredentials",                       \
-                            "tls.createSecureContext"))                       \
-  XX(CRYPTO_CREDENTIALS_DEPRECATED,                                           \
-     NODE_DEPRECATE_MESSAGE("crypto.Credentials", "tls.createSecureContext")) \
   XX(CRYPTO_CANNOT_CHANGE_ENCODING, "Cannot change encoding")                 \
   XX(DGRAM_UNIX_DGRAM_NOT_SUPPORTED,                                          \
     "'unix_dgram' type sockets are no longer supported")                      \
@@ -287,31 +198,171 @@
   XX(FS_OPTION_MORE_THAN_0, "'{0}' must be >= zero")                          \
   XX(FS_INVALID_DATA, "Invalid data")                                         \
   XX(BAD_ARGUMENTS, "Bad arguments")                                          \
-  XX(HTTP_CLIENT_DEPRECRATED, "http.Client is deprecated.")                   \
-  XX(HTTP_CREATECLIENT_DEPRECATED,                                            \
-    NODE_DEPRECATE_MESSAGE("http.createClient", "http.request"))              \
-  XX(HTTPS_DEBUG_CREATECONNECTION, "createConnection {0}")                    \
   XX(HTTPS_REUSE_SESSION, "reuse session for {0}")                            \
   XX(HTTPS_EVICTING, "evicting {0}")                                          \
   XX(MODULE_NOT_FOUND, "Cannot find module '{0}'")                            \
-  XX(MODULE_DEBUG_RELATIVE_REQUESTED,                                         \
-    "RELATIVE: requested: {0} set ID to: {1} from {2}")                       \
-  XX(MODULE_DEBUG_LOAD_REQUEST,                                               \
-    "Module._load REQUEST {0} parent: {1}")                                   \
-  XX(MODULE_DEBUG_LOAD_NATIVE, "load native module {0}")                      \
-  XX(MODULE_DEBUG_LOOKING_FOR, "looking for {0} in {1}")                      \
-  XX(MODULE_DEBUG_LOAD, "load {0} for module {1}")                            \
   XX(MODULE_ASSERT_MISSING_PATH, "missing path")                              \
   XX(MODULE_ASSERT_PATH_STRING, "path must be a string")                      \
-  XX(MODULE_REQUIRE_OUTSIDE_WARNING,                                          \
-    "warning: require(\'.\') resolved outside the package "                   \
-    "directory. This functionality is deprecated and will be removed soon.")  \
-  XX(MODULE_REQUIREREPL_DEPRECATED, "Module.requireRepl is deprecated.")      \
   XX(NET_UNSUPPORTED_FD, "Unsupported fd type: {0}")                          \
   XX(NET_PEER_ENDED, "This socket has been ended by the other party")         \
   XX(NET_INVALID_ADDRESS_TYPE, "Invalid addressType: {0}")                    \
   XX(ARGUMENT_STRING_OR_NUMBER, "'{0}' argument must be a string or number")  \
   XX(NET_INVALID_LISTENER_ARG, "Invalid listen argument: {0}")                \
+  XX(PUNYCODE_OVERFLOW, "Overflow: input needs wider integers to process")    \
+  XX(PUNYCODE_NOTBASIC, "Illegal input >= 0x80 (not a basic code point)")     \
+  XX(PUNYCODE_INVALIDINPUT, "Invalid input")                                  \
+  XX(READLINE_CANNOT_SET_COL,                                                 \
+     "Cannot set cursor row without also setting the column")                 \
+  XX(REPL_OPTIONS_OR_PROMPT_REQUIRED,                                         \
+     "An options object, or a prompt string are required")                    \
+  XX(REPL_NPM_OUTSIDE,                                                        \
+    "npm should be run outside of the node repl, in your normal shell.\n"     \
+    "(Press Control-D to exit.)")                                             \
+  XX(REPL_BLOCK_SCOPED,                                                       \
+    "Block-scoped declarations (let, const, function, class) "                \
+    "not yet supported outside strict mode")                                  \
+  XX(REPL_EXIT, "(To exit, press ^C again or type .exit)")                    \
+  XX(REPL_INVALID_KEYWORD, "Invalid REPL keyword")                            \
+  XX(REPL_COMMAND_BREAK, "Sometimes you get stuck, this gets you out")        \
+  XX(REPL_COMMAND_CLEAR_GLOBAL, "Alias for .break")                           \
+  XX(REPL_COMMAND_CLEAR, "Break, and also clear the local context")           \
+  XX(REPL_COMMAND_CLEAR_MSG, "Clearing context...")                           \
+  XX(REPL_COMMAND_EXIT, "Exit the repl")                                      \
+  XX(REPL_COMMAND_HELP, "Show repl options")                                  \
+  XX(REPL_COMMAND_SAVE,                                                       \
+    "Save all evaluated commands in this REPL session to a file")             \
+  XX(REPL_COMMAND_SESSION_SAVED, "Session saved to:{0}")                      \
+  XX(REPL_COMMAND_SAVE_FAILED, "Failed to save:{0}")                          \
+  XX(REPL_COMMAND_LOAD, "Load JS from a file into the REPL session")          \
+  XX(REPL_COMMAND_LOAD_FAILED_INVALID,                                        \
+     "Failed to load:{0} is not a valid file")                                \
+  XX(REPL_COMMAND_LOAD_FAILED, "Failed to load:{0}")                          \
+  XX(REPL_CANNOT_PARSE_HISTORY, "Could not parse history data in {0}.")       \
+  XX(REPL_HISTORY_DISABLED,                                                   \
+    "Persistent history support disabled. Set the "                           \
+    "NODE_REPL_HISTORY environment\nvariable to "                             \
+    "a valid, user-writable path to enable.")                                 \
+  XX(REPL_HOME_DIRECTORY,                                                     \
+     "Error: Could not get the home directory.\n"                             \
+     "REPL session history will not be persisted.")                           \
+  XX(REPL_CANNOT_OPEN_HISTORY,                                                \
+     "Error: Could not open history file.\n"                                  \
+     "REPL session history will not be persisted.")                           \
+  XX(REPL_HISTORY_SAME_NAME,                                                  \
+     "The old repl history file has the same name and location as "           \
+     "the new one i.e., {0} and is empty.\nUsing it as is.")                  \
+  XX(REPL_CONVERTING_HISTORY,                                                 \
+     "Converting old JSON repl history to line-separated history.\n"          \
+     "The new repl history file can be found at {0}.")                        \
+  XX(TIMERS_NON_NEGATIVE_FINITE,                                              \
+     "'{0}' argument must be a non-negative finite number")                   \
+  XX(TLS_HOSTNAME_NO_MATCH,                                                   \
+     "Hostname/IP doesn't match certificate's altnames: '{0}'")               \
+  XX(TLS_UNKNOWN_REASON, "Unknown reason")                                    \
+  XX(TLS_HOST_NOT_IN_CERT_LIST, "IP: {0} is not in the cert's list: {1}")     \
+  XX(TLS_HOST_NOT_IN_CERT_ALTNAMES,                                           \
+     "Host: {0} is not in the cert's altnames: {1}")                          \
+  XX(TLS_HOST_NOT_IN_CERT_CN, "Host: {0} is not cert's CN: {1}")              \
+  XX(TLS_CERT_IS_EMPTY, "Cert is empty")                                      \
+  XX(UTIL_INHERITS_CONSTRUCTOR,                                               \
+     "The constructor to 'inherits' must not be null or undefined")           \
+  XX(UTIL_INHERITS_SUPER_CONSTRUCTOR,                                         \
+     "The super constructor to 'inherits' must not be null or undefined")     \
+  XX(UTIL_INHERITS_SUPER_CONSTRUCTOR_PROTOTYPE,                               \
+     "The super constructor to 'inherits' must have a prototype")             \
+  XX(UTIL_LOCAL, "Local")                                                     \
+  XX(ZLIB_RANGE_ERROR,                                                        \
+    "Cannot create final Buffer. It would be larger than 0x{0} bytes")        \
+  XX(ZLIB_STRING_OR_BUFFER, "'{0}' must be a string or Buffer")               \
+  XX(ZLIB_INVALID_FLUSH_FLAG, "Invalid flush flag: {0}")                      \
+  XX(ZLIB_INVALID_CHUNK_SIZE, "Invalid chunk size: {0}")                      \
+  XX(ZLIB_INVALID_WINDOWBITS, "Invalid windowBits: {0}")                      \
+  XX(ZLIB_INVALID_COMPRESSION, "Invalid compression level: {0}")              \
+  XX(ZLIB_INVALID_MEMLEVEL, "Invalid memLevel: {0}")                          \
+  XX(ZLIB_INVALID_STRATEGY, "Invalid strategy: {0}")                          \
+  XX(ZLIB_INVALID_DICTIONARY,                                                 \
+    "Invalid dictionary: it should be a Buffer instance")                     \
+  XX(ZLIB_ASSERT_BINDING_CLOSED, "zlib binding closed")                       \
+  XX(ZLIB_INVALID_INPUT, "invalid input")                                     \
+  XX(ZLIB_ASSERT_HAVE_GO_DOWN, "have should not go down")                     \
+  XX(SOCKET_LIST_SLAVE_CLOSED, "Slave closed before reply")                   \
+  XX(V8_VALID_ISOLATE_FILE,                                                   \
+     "Please provide a valid isolate file as the final argument.")            \
+  XX(V8_UNABLE_TO_READ_VERSION, "Unable to read v8-version from log file.")   \
+  XX(V8_VERSION_DIFFERENT,                                                    \
+     "Testing v8 version different from logging version")                     \
+  XX(HTTP_AGENT_DEBUG_FREE_SOCKET, "have free socket")                        \
+  XX(HTTP_AGENT_DEBUG_CALL_ONSOCKET, "call onSocket")                         \
+  XX(HTTP_AGENT_DEBUG_WAIT_FOR_SOCKET, "wait for socket")                     \
+  XX(HTTP_AGENT_DEBUG_SOCKETS, "sockets {0} {1}")                             \
+  XX(HTTP_AGENT_DEBUG_CLIENT_CLOSE, "CLIENT socket onClose")                  \
+  XX(HTTP_AGENT_DEBUG_CLIENT_REMOVE, "CLIENT socket onRemove")                \
+  XX(HTTP_AGENT_DEBUG_DESTROYED, "removeSocket {0} destroyed {1}")            \
+  XX(HTTP_AGENT_DEBUG_MAKE_SOCKET,                                            \
+     "removeSocket, have a request, make a socket")                           \
+  XX(HTTP_AGENT_DEBUG_ONFREE, "agent.on(free) {0}")                           \
+  XX(HTTP_AGENT_DEBUG_CREATE_CONNECTION, "createConnection {0} {1}")          \
+  XX(HTTP_CLIENT_DEBUG_CLIENT_CREATE, "CLIENT use net.createConnection {0}")  \
+  XX(HTTP_CLIENT_DEBUG_SOCKET_CLOSE, "HTTP socket close")                     \
+  XX(HTTP_CLIENT_DEBUG_SOCKET_ERROR, "SOCKET ERROR {0} {1}")                  \
+  XX(HTTP_CLIENT_DEBUG_SOCKET_ERROR_FREE,                                     \
+    "SOCKET ERROR on FREE socket {0} {1}")                                    \
+  XX(HTTP_CLIENT_DEBUG_PARSE_ERROR, "parse error")                            \
+  XX(HTTP_CLIENT_DEBUG_SETTING_RESDOMAIN, "setting \"res.domain\"")           \
+  XX(HTTP_CLIENT_DEBUG_INCOMING_RESPONSE, "AGENT incoming response!")         \
+  XX(HTTP_CLIENT_DEBUG_ISHEAD, "AGENT isHeadResponse {0}")                    \
+  XX(HTTP_CLIENT_DEBUG_SOCKET_DESTROYSOON, "AGENT socket.destroySoon()")      \
+  XX(HTTP_CLIENT_DEBUG_KEEPALIVE, "AGENT socket keep-alive")                  \
+  XX(HTTP_OUTGOING_DEBUG_NOT_USE_CHUNKED,                                     \
+    "{0} response should not use chunked encoding, closing connection.")      \
+  XX(HTTP_OUTGOING_DEBUG_BOTH_REMOVED,                                        \
+     "Both Content-Length and Transfer-Encoding are removed")                 \
+  XX(HTTP_OUTGOING_DEBUG_IGNORING_WRITE,                                      \
+     "This type of response MUST NOT have a body. Ignoring write() calls.")   \
+  XX(HTTP_OUTGOING_DEBUG_WRITE_RET, "write ret = {0}")                        \
+  XX(HTTP_OUTGOING_DEBUG_IGNORING_END_DATA,                                   \
+    "This type of response MUST NOT have a body. "                            \
+    "Ignoring data passed to end().")                                         \
+  XX(HTTP_SERVER_DEBUG_SOCKET_CLOSE, "server socket close")                   \
+  XX(HTTP_SERVER_DEBUG_NEW_CONNECTION, "SERVER new http connection")          \
+  XX(HTTP_SERVER_DEBUG_SOCKETONDATA, "SERVER socketOnData {0}")               \
+  XX(HTTP_SERVER_DEBUG_SOCKETONPARSEREXECUTE,                                 \
+     "SERVER socketOnParserExecute {0}")                                      \
+  XX(HTTP_SERVER_DEBUG_UPGRADE_OR_CONNECT, "SERVER upgrade or connect {0}")   \
+  XX(HTTP_SERVER_DEBUG_HAVE_LISTENER, "SERVER have listener for {0}")         \
+  XX(HTTP_SERVER_DEBUG_PAUSE_PARSER, "pause parser")                          \
+  XX(STREAM_READABLE_DEBUG_NEED_READABLE, "need readable {0}")                \
+  XX(STREAM_READABLE_DEBUG_LESS_THAN_WATERMARK,                               \
+     "length less than watermark {0}")                                        \
+  XX(STREAM_READABLE_DEBUG_READING_OR_ENDED, "reading or ended {0}")          \
+  XX(STREAM_READABLE_DEBUG_DO_READ, "do read")                                \
+  XX(STREAM_READABLE_DEBUG_EMIT_READABLE_ARG, "emit readable {0}")            \
+  XX(STREAM_READABLE_DEBUG_EMIT_READABLE, "emit readable")                    \
+  XX(STREAM_READABLE_DEBUG_MAYBE_READMORE, "maybeReadMore read 0")            \
+  XX(STREAM_READABLE_DEBUG_FALSE_WRITE, "false write response, pause {0}")    \
+  XX(STREAM_READABLE_DEBUG_PIPE_RESUME, "pipe resume")                        \
+  XX(STREAM_READABLE_DEBUG_READABLE_NEXTTICK, "readable nexttick read 0")     \
+  XX(STREAM_READABLE_DEBUG_RESUME_READ, "resume read 0")                      \
+  XX(TIMERS_DEBUG_CALLBACK, "timeout callback {0}")                           \
+  XX(TIMERS_DEBUG_NOW, "now: {0}")                                            \
+  XX(TIMERS_DEBUG_LIST_WAIT, "{0} list wait because diff is {1}")             \
+  XX(TIMERS_DEBUG_LIST_EMPTY, "{0} list empty")                               \
+  XX(TIMERS_DEBUG_REUSE_HIT, "reuse hit")                                     \
+  XX(TIMERS_DEBUG_UNENROLL, "unenroll: list empty")                           \
+  XX(TIMERS_DEBUG_UNREFTIMER_TIMEOUT, "unreftimer firing timeout")            \
+  XX(TIMERS_DEBUG_UNREFTIMER_FIRED, "unrefTimer fired")                       \
+  XX(TIMERS_DEBUG_UNREFTIMER_RESCHED, "unrefTimer rescheduled")               \
+  XX(TIMERS_DEBUG_UNREFLIST_EMPTY, "unrefList is empty")                      \
+  XX(TIMERS_DEBUG_UNREFLIST_INIT, "unrefList initialized")                    \
+  XX(TIMERS_DEBUG_UNREFTIMER_INIT, "unrefTimer initialized")                  \
+  XX(TIMERS_DEBUG_UNREFTIMER_SCHED, "unrefTimer scheduled")                   \
+  XX(TIMERS_DEBUG_UNREFLIST_APPEND, "unrefList append to end")                \
+  XX(REPL_DEBUG_PARSE_ERROR, "parse error {0} {1}")                           \
+  XX(REPL_DEBUG_NOT_RECOVERABLE, "not recoverable, send to domain")           \
+  XX(REPL_DEBUG_DOMAIN_ERROR, "domain error")                                 \
+  XX(REPL_DEBUG_LINE, "line {0}")                                             \
+  XX(REPL_DEBUG_EVAL, "eval {0}")                                             \
+  XX(REPL_DEBUG_FINISH, "finish {0} {1}")                                     \
   XX(NET_DEBUG_ONCONNECTION, "onconnection")                                  \
   XX(NET_DEBUG_SERVER_EMITCLOSEIFDRAINED, "SERVER _emitCloseIfDrained")       \
   XX(NET_DEBUG_SERVER_HANDLE, "SERVER handle? {0}   connections? {1}")        \
@@ -355,6 +406,90 @@
   XX(NET_DEBUG_LISTEN2, "listen2 {0} {1} {2} {3} {4}")                        \
   XX(NET_DEBUG_LISTEN2_HAVE_HANDLE, "_listen2: have a handle already")        \
   XX(NET_DEBUG_LISTEN2_CREATE_HANDLE, "_listen2: create a handle")            \
+  XX(CHILD_PROCESS_DEBUG_SPAWN, "spawn {0} {1}")                              \
+  XX(CHILD_PROCESS_DEBUG_SPAWNSYNC, "spawnSync {0} {1}")                      \
+  XX(MODULE_DEBUG_RELATIVE_REQUESTED,                                         \
+    "RELATIVE: requested: {0} set ID to: {1} from {2}")                       \
+  XX(MODULE_DEBUG_LOAD_REQUEST,                                               \
+    "Module._load REQUEST {0} parent: {1}")                                   \
+  XX(MODULE_DEBUG_LOAD_NATIVE, "load native module {0}")                      \
+  XX(MODULE_DEBUG_LOOKING_FOR, "looking for {0} in {1}")                      \
+  XX(MODULE_DEBUG_LOAD, "load {0} for module {1}")                            \
+  XX(HTTPS_DEBUG_CREATECONNECTION, "createConnection {0}")                    \
+  XX(TLS_LEGACY_DEBUG_ONFINISH, "{0}.onfinish")                               \
+  XX(TLS_LEGACY_DEBUG_ONEND, "cleartext.onend")                               \
+  XX(TLS_LEGACY_DEBUG_WRITE, "{0}.write called with {1} bytes")               \
+  XX(TLS_LEGACY_DEBUG_WRITE_SUCCEED, "{0}.write succeed with {1} bytes")      \
+  XX(TLS_LEGACY_DEBUG_CLEARTEXT_WRITE_QUEUE_FULL,                             \
+    "cleartext.write queue is full")                                          \
+  XX(TLS_LEGACY_DEBUG_WRITE_QUEUE_BYTES, "{0}.write queued with {1} bytes")   \
+  XX(TLS_LEGACY_DEBUG_READ_CALLED, "{0}.read called with {1} bytes")          \
+  XX(TLS_LEGACY_DEBUG_READ_SUCCEED, "{0}.read succeed with {1} bytes")        \
+  XX(TLS_LEGACY_DEBUG_OUTEND, "{0}.sslOutEnd")                                \
+  XX(TLS_LEGACY_DEBUG_END, "{0}.end")                                         \
+  XX(TLS_LEGACY_DEBUG_DESTROYSOON, "{0}.destroySoon")                         \
+  XX(TLS_LEGACY_DEBUG_DESTROY, "{0}.destroy")                                 \
+  XX(TLS_LEGACY_DEBUG_SECUREPAIR_DESTROY, "SecurePair.destroy")               \
+  XX(TLS_DEBUG_ONHANDSHAKESTART, "onhandshakestart")                          \
+  XX(TLS_DEBUG_ONHANDSHAKEONE, "onhandshakedone")                             \
+  XX(TLS_DEBUG_SECURE_ESTABLISHED, "secure established")                      \
+  XX(TLS_DEBUG_START, "start")                                                \
+  XX(STREAM_WRAP_DEBUG_CLOSE, "close")                                        \
+  XX(STREAM_WRAP_DEBUG_DATA, "data {0}")                                      \
+  XX(STREAM_WRAP_DEBUG_END, "end")                                            \
+  XX(STREAM_READABLE_DEBUG_WRAPPED_END, "wrapped end")                        \
+  XX(STREAM_READABLE_DEBUG_WRAPPED_DATA, "wrapped data")                      \
+  XX(STREAM_READABLE_DEBUG_WRAPPED_READ, "wrapped _read {0}")                 \
+  XX(STREAM_READABLE_DEBUG_READ, "read {0}")                                  \
+  XX(STREAM_READABLE_DEBUG_PIPE_COUNT, "pipe count={0} opts={1}")             \
+  XX(STREAM_READABLE_DEBUG_ONUNPIPE, "onunpipe")                              \
+  XX(STREAM_READABLE_DEBUG_ONEND, "onend")                                    \
+  XX(STREAM_READABLE_DEBUG_CLEANUP, "cleanup")                                \
+  XX(STREAM_READABLE_DEBUG_ONDATA, "ondata")                                  \
+  XX(STREAM_READABLE_DEBUG_ONERROR, "onerror")                                \
+  XX(STREAM_READABLE_DEBUG_ONFINISH, "onfinish")                              \
+  XX(STREAM_READABLE_DEBUG_UNPIPE, "unpipe")                                  \
+  XX(STREAM_READABLE_DEBUG_PIPEONDRAIN, "pipeOnDrain {0}")                    \
+  XX(STREAM_READABLE_DEBUG_RESUME, "resume")                                  \
+  XX(STREAM_READABLE_DEBUG_PAUSE, "pause")                                    \
+  XX(STREAM_READABLE_DEBUG_FLOW, "flow")                                      \
+  XX(HTTP_OUTGOING_FLUSH_DEPRECATE,                                           \
+    NODE_DEPRECATE_MESSAGE("OutgoingMessage.flush", "flushHeaders"))          \
+  XX(LINKLIST_DEPRECATED,                                                     \
+    NODE_DEPRECATE_MESSAGE("_linklist module", "a userland alternative"))     \
+  XX(UTIL_PRINT_DEPRECATED,                                                   \
+    NODE_DEPRECATE_MESSAGE("util.print", "console.log"))                      \
+  XX(UTIL_PUTS_DEPRECATED,                                                    \
+    NODE_DEPRECATE_MESSAGE("util.puts", "console.log"))                       \
+  XX(UTIL_DEBUG_DEPRECATED,                                                   \
+    NODE_DEPRECATE_MESSAGE("util.debug", "console.error"))                    \
+  XX(UTIL_ERROR_DEPRECATED,                                                   \
+    NODE_DEPRECATE_MESSAGE("util.error", "console.error"))                    \
+  XX(STREAM_WRITABLE_WRITABLESTATE_BUFFER_DEPRECATED,                         \
+    NODE_DEPRECATE_MESSAGE("_writableState.buffer",                           \
+                           "_writableState.getBuffer"))                       \
+  XX(BUFFER_GET_DEPRECATED,                                                   \
+     NODE_DEPRECATE_MESSAGE("Buffer.get", "array indices"))                   \
+  XX(BUFFER_SET_DEPRECATED,                                                   \
+     NODE_DEPRECATE_MESSAGE("Buffer.set", "array indices"))                   \
+  XX(BUFFER_WRITE_DEPRECATED,                                                 \
+     NODE_DEPRECATE_MESSAGE(                                                  \
+       "Buffer.write(string, encoding, offset, length)",                      \
+       "write(string[, offset[, length]][, encoding])"))                      \
+  XX(CHILD_PROCESS_CUSTOMFDS_DEPRECATE,                                       \
+    NODE_DEPRECATE_MESSAGE("options.customFds", "options.stdio"))             \
+  XX(CRYPTO_CREATECREDENTIALS_DEPRECATED,                                     \
+    NODE_DEPRECATE_MESSAGE("crypto.createCredentials",                        \
+                           "tls.createSecureContext"))                        \
+  XX(CRYPTO_CREDENTIALS_DEPRECATED,                                           \
+    NODE_DEPRECATE_MESSAGE("crypto.Credentials", "tls.createSecureContext"))  \
+  XX(HTTP_CLIENT_DEPRECRATED, "http.Client is deprecated.")                   \
+  XX(HTTP_CREATECLIENT_DEPRECATED,                                            \
+    NODE_DEPRECATE_MESSAGE("http.createClient", "http.request"))              \
+  XX(MODULE_REQUIRE_OUTSIDE_WARNING,                                          \
+    "warning: require(\'.\') resolved outside the package "                   \
+    "directory. This functionality is deprecated and will be removed soon.")  \
+  XX(MODULE_REQUIREREPL_DEPRECATED, "Module.requireRepl is deprecated.")      \
   XX(NET_SERVER_CONNECTIONS_DEPRECATED,                                       \
     NODE_DEPRECATE_MESSAGE("Server.connections",                              \
                            "Server.getConnections"))                          \
@@ -366,11 +501,6 @@
   XX(OS_GETNETWORKINTERFACES_DEPRECATED,                                      \
      NODE_DEPRECATE_MESSAGE("os.getNetworkInterfaces",                        \
                             "os.networkInterfaces"))                          \
-  XX(PUNYCODE_OVERFLOW, "Overflow: input needs wider integers to process")    \
-  XX(PUNYCODE_NOTBASIC, "Illegal input >= 0x80 (not a basic code point)")     \
-  XX(PUNYCODE_INVALIDINPUT, "Invalid input")                                  \
-  XX(READLINE_CANNOT_SET_COL,                                                 \
-     "Cannot set cursor row without also setting the column")                 \
   XX(READLINE_CODEPOINT_DEPRECATED,                                           \
      NODE_DEPRECATE_MESSAGE("readline.codePointAt",                           \
                             "String.prototype.codePointAt"))                  \
@@ -380,112 +510,7 @@
      "isFullWidthCodePoint is deprecated and will be removed.")               \
   XX(READLINE_STRIPVTCONTROLCHARACTERS_DEPRECATED,                            \
      "stripVTControlCharacters is deprecated and will be removed.")           \
-  XX(REPL_OPTIONS_OR_PROMPT_REQUIRED,                                         \
-     "An options object, or a prompt string are required")                    \
-  XX(REPL_DEBUG_PARSE_ERROR, "parse error {0} {1}")                           \
-  XX(REPL_DEBUG_NOT_RECOVERABLE, "not recoverable, send to domain")           \
-  XX(REPL_DEBUG_DOMAIN_ERROR, "domain error")                                 \
-  XX(REPL_DEBUG_LINE, "line {0}")                                             \
-  XX(REPL_DEBUG_EVAL, "eval {0}")                                             \
-  XX(REPL_DEBUG_FINISH, "finish {0} {1}")                                     \
-  XX(REPL_NPM_OUTSIDE,                                                        \
-    "npm should be run outside of the node repl, in your normal shell.\n"     \
-    "(Press Control-D to exit.)")                                             \
-  XX(REPL_BLOCK_SCOPED,                                                       \
-    "Block-scoped declarations (let, const, function, class) "                \
-    "not yet supported outside strict mode")                                  \
-  XX(REPL_EXIT, "(To exit, press ^C again or type .exit)")                    \
-  XX(REPL_INVALID_KEYWORD, "Invalid REPL keyword")                            \
-  XX(REPL_COMMAND_BREAK, "Sometimes you get stuck, this gets you out")        \
-  XX(REPL_COMMAND_CLEAR_GLOBAL, "Alias for .break")                           \
-  XX(REPL_COMMAND_CLEAR, "Break, and also clear the local context")           \
-  XX(REPL_COMMAND_CLEAR_MSG, "Clearing context...")                           \
-  XX(REPL_COMMAND_EXIT, "Exit the repl")                                      \
-  XX(REPL_COMMAND_HELP, "Show repl options")                                  \
-  XX(REPL_COMMAND_SAVE,                                                       \
-    "Save all evaluated commands in this REPL session to a file")             \
-  XX(REPL_COMMAND_SESSION_SAVED, "Session saved to:{0}")                      \
-  XX(REPL_COMMAND_SAVE_FAILED, "Failed to save:{0}")                          \
-  XX(REPL_COMMAND_LOAD, "Load JS from a file into the REPL session")          \
-  XX(REPL_COMMAND_LOAD_FAILED_INVALID,                                        \
-     "Failed to load:{0} is not a valid file")                                \
-  XX(REPL_COMMAND_LOAD_FAILED, "Failed to load:{0}")                          \
-  XX(REPL_CANNOT_PARSE_HISTORY, "Could not parse history data in {0}.")       \
-  XX(REPL_HISTORY_DISABLED,                                                   \
-    "Persistent history support disabled. Set the "                           \
-    "NODE_REPL_HISTORY environment\nvariable to "                             \
-    "a valid, user-writable path to enable.")                                 \
-  XX(REPL_HOME_DIRECTORY,                                                     \
-     "Error: Could not get the home directory.\n"                             \
-     "REPL session history will not be persisted.")                           \
-  XX(REPL_CANNOT_OPEN_HISTORY,                                                \
-     "Error: Could not open history file.\n"                                  \
-     "REPL session history will not be persisted.")                           \
-  XX(REPL_HISTORY_SAME_NAME,                                                  \
-     "The old repl history file has the same name and location as "           \
-     "the new one i.e., {0} and is empty.\nUsing it as is.")                  \
-  XX(REPL_CONVERTING_HISTORY,                                                 \
-     "Converting old JSON repl history to line-separated history.\n"          \
-     "The new repl history file can be found at {0}.")                        \
   XX(SYS_DEPRECATED, NODE_DEPRECATE_MESSAGE("sys", "util"))                   \
-  XX(TIMERS_NON_NEGATIVE_FINITE,                                              \
-     "'{0}' argument must be a non-negative finite number")                   \
-  XX(TIMERS_DEBUG_CALLBACK, "timeout callback {0}")                           \
-  XX(TIMERS_DEBUG_NOW, "now: {0}")                                            \
-  XX(TIMERS_DEBUG_LIST_WAIT, "{0} list wait because diff is {1}")             \
-  XX(TIMERS_DEBUG_LIST_EMPTY, "{0} list empty")                               \
-  XX(TIMERS_DEBUG_REUSE_HIT, "reuse hit")                                     \
-  XX(TIMERS_DEBUG_UNENROLL, "unenroll: list empty")                           \
-  XX(TIMERS_DEBUG_UNREFTIMER_TIMEOUT, "unreftimer firing timeout")            \
-  XX(TIMERS_DEBUG_UNREFTIMER_FIRED, "unrefTimer fired")                       \
-  XX(TIMERS_DEBUG_UNREFTIMER_RESCHED, "unrefTimer rescheduled")               \
-  XX(TIMERS_DEBUG_UNREFLIST_EMPTY, "unrefList is empty")                      \
-  XX(TIMERS_DEBUG_UNREFLIST_INIT, "unrefList initialized")                    \
-  XX(TIMERS_DEBUG_UNREFTIMER_INIT, "unrefTimer initialized")                  \
-  XX(TIMERS_DEBUG_UNREFTIMER_SCHED, "unrefTimer scheduled")                   \
-  XX(TIMERS_DEBUG_UNREFLIST_APPEND, "unrefList append to end")                \
-  XX(TLS_HOSTNAME_NO_MATCH,                                                   \
-     "Hostname/IP doesn't match certificate's altnames: '{0}'")               \
-  XX(TLS_UNKNOWN_REASON, "Unknown reason")                                    \
-  XX(TLS_HOST_NOT_IN_CERT_LIST, "IP: {0} is not in the cert's list: {1}")     \
-  XX(TLS_HOST_NOT_IN_CERT_ALTNAMES,                                           \
-     "Host: {0} is not in the cert's altnames: {1}")                          \
-  XX(TLS_HOST_NOT_IN_CERT_CN, "Host: {0} is not cert's CN: {1}")              \
-  XX(TLS_CERT_IS_EMPTY, "Cert is empty")                                      \
-  XX(UTIL_INHERITS_CONSTRUCTOR,                                               \
-     "The constructor to 'inherits' must not be null or undefined")           \
-  XX(UTIL_INHERITS_SUPER_CONSTRUCTOR,                                         \
-     "The super constructor to 'inherits' must not be null or undefined")     \
-  XX(UTIL_INHERITS_SUPER_CONSTRUCTOR_PROTOTYPE,                               \
-     "The super constructor to 'inherits' must have a prototype")             \
-  XX(UTIL_PRINT_DEPRECATED,                                                   \
-    NODE_DEPRECATE_MESSAGE("util.print", "console.log"))                      \
-  XX(UTIL_PUTS_DEPRECATED,                                                    \
-    NODE_DEPRECATE_MESSAGE("util.puts", "console.log"))                       \
-  XX(UTIL_DEBUG_DEPRECATED,                                                   \
-    NODE_DEPRECATE_MESSAGE("util.debug", "console.error"))                    \
-  XX(UTIL_ERROR_DEPRECATED,                                                   \
-    NODE_DEPRECATE_MESSAGE("util.error", "console.error"))                    \
-  XX(UTIL_LOCAL, "Local")                                                     \
-  XX(ZLIB_RANGE_ERROR,                                                        \
-    "Cannot create final Buffer. It would be larger than 0x{0} bytes")        \
-  XX(ZLIB_STRING_OR_BUFFER, "'{0}' must be a string or Buffer")               \
-  XX(ZLIB_INVALID_FLUSH_FLAG, "Invalid flush flag: {0}")                      \
-  XX(ZLIB_INVALID_CHUNK_SIZE, "Invalid chunk size: {0}")                      \
-  XX(ZLIB_INVALID_WINDOWBITS, "Invalid windowBits: {0}")                      \
-  XX(ZLIB_INVALID_COMPRESSION, "Invalid compression level: {0}")              \
-  XX(ZLIB_INVALID_MEMLEVEL, "Invalid memLevel: {0}")                          \
-  XX(ZLIB_INVALID_STRATEGY, "Invalid strategy: {0}")                          \
-  XX(ZLIB_INVALID_DICTIONARY,                                                 \
-    "Invalid dictionary: it should be a Buffer instance")                     \
-  XX(ZLIB_ASSERT_BINDING_CLOSED, "zlib binding closed")                       \
-  XX(ZLIB_INVALID_INPUT, "invalid input")                                     \
-  XX(ZLIB_ASSERT_HAVE_GO_DOWN, "have should not go down")                     \
-  XX(SOCKET_LIST_SLAVE_CLOSED, "Slave closed before reply")                   \
-  XX(V8_VALID_ISOLATE_FILE,                                                   \
-     "Please provide a valid isolate file as the final argument.")            \
-  XX(V8_UNABLE_TO_READ_VERSION, "Unable to read v8-version from log file.")   \
-  XX(V8_VERSION_DIFFERENT,                                                    \
-     "Testing v8 version different from logging version")                     \
-
+  
+  
 #endif  // SRC_NODE_MESSAGES_SRC_H_

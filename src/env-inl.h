@@ -460,6 +460,21 @@ inline void Environment::ThrowUVException(int errorno,
       UVException(isolate(), errorno, syscall, message, path, dest));
 }
 
+inline void Environment::ThrowI18NError(const char* msg,
+                                        const char* key) {
+  isolate()->ThrowException(I18NError(isolate(), key, msg));
+}
+
+inline void Environment::ThrowI18NTypeError(const char* msg,
+                                            const char* key) {
+  isolate()->ThrowException(I18NTypeError(isolate(), key, msg));
+}
+
+inline void Environment::ThrowI18NRangeError(const char* msg,
+                                             const char* key) {
+  isolate()->ThrowException(I18NRangeError(isolate(), key, msg));
+}
+
 inline v8::Local<v8::FunctionTemplate>
     Environment::NewFunctionTemplate(v8::FunctionCallback callback,
                                      v8::Local<v8::Signature> signature) {
