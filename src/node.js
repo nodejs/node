@@ -200,7 +200,7 @@
 
         // process.hrtime() only accepts an Array tuple
         const I18N = NativeModule.require('internal/messages');
-        throw I18N.TypeError(I18N.HRTIME_ARRAY);
+        throw new I18N.TypeError(I18N.HRTIME_ARRAY);
       }
 
       return [
@@ -283,7 +283,7 @@
     const I18N = NativeModule.require('internal/messages');
     assert = process.assert = function(x, msg) {
       if (!x) {
-        throw msg ? new Error(msg) : I18N.Error(I18N.ASSERTION_ERROR);
+        throw msg ? new Error(msg) : new I18N.Error(I18N.ASSERTION_ERROR);
       }
     };
   };
@@ -515,7 +515,7 @@
 
     function nextTick(callback) {
       if (typeof callback !== 'function') {
-        throw I18N.TypeError(I18N.FUNCTION_REQUIRED, 'callback');
+        throw new I18N.TypeError(I18N.FUNCTION_REQUIRED, 'callback');
       }
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
@@ -660,7 +660,7 @@
       default:
         // Probably an error on in uv_guess_handle()
         // Unknown stream file type!'
-        throw I18N.Error(I18N.UNKNOWN_STREAM_FILE_TYPE);
+        throw new I18N.Error(I18N.UNKNOWN_STREAM_FILE_TYPE);
     }
 
     // For supporting legacy API we put the FD here.
@@ -680,7 +680,7 @@
       stdout = createWritableStdioStream(1);
       stdout.destroy = stdout.destroySoon = function(er) {
         // process.stdout cannot be closed.
-        er = er || I18N.Error(I18N.CLOSE_STDOUT);
+        er = er || new I18N.Error(I18N.CLOSE_STDOUT);
         stdout.emit('error', er);
       };
       if (stdout.isTTY) {
@@ -696,7 +696,7 @@
       stderr = createWritableStdioStream(2);
       stderr.destroy = stderr.destroySoon = function(er) {
         // process.stderr cannot be closed
-        er = er || I18N.Error(I18N.CLOSE_STDERR);
+        er = er || new I18N.Error(I18N.CLOSE_STDERR);
         stderr.emit('error', er);
       };
       if (stderr.isTTY) {
@@ -756,7 +756,7 @@
         default:
           // Probably an error on in uv_guess_handle()
           // Unknown stdin file type!
-          throw I18N.Error(I18N.UNKNOWN_STDIN_FILE_TYPE);
+          throw new I18N.Error(I18N.UNKNOWN_STDIN_FILE_TYPE);
       }
 
       // For supporting legacy API we put the FD here.
@@ -808,7 +808,7 @@
 
       if (pid != (pid | 0)) {
         // invalid pid
-        throw I18N.TypeError(I18N.INVALID_PID);
+        throw new I18N.TypeError(I18N.INVALID_PID);
       }
 
       // preserve null signal
@@ -821,7 +821,7 @@
           err = process._kill(pid, startup.lazyConstants()[sig]);
         } else {
           // unknown signal
-          throw I18N.Error(I18N.UNKNOWN_SIGNAL, sig);
+          throw new I18N.Error(I18N.UNKNOWN_SIGNAL, sig);
         }
       }
 
