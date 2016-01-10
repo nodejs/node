@@ -20,7 +20,6 @@ let countGC = 0;
 
 console.log('We should do ' + todo + ' requests');
 
-var http = require('http');
 var server = http.createServer(serverHandler);
 server.listen(PORT, runTest);
 
