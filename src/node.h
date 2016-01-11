@@ -153,7 +153,7 @@ NODE_EXTERN v8::Local<v8::Value> MakeCallback(
 }  // namespace node
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#include "node_internals.h"
+# error node internals are not available in add-ons
 #endif
 
 #include <assert.h>
