@@ -294,7 +294,12 @@ endif
 
 TARNAME=node-$(FULLVERSION)
 TARBALL=$(TARNAME).tar
+# Custom user-specified variation, use it directly
+ifdef VARIATION
+BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)-$(VARIATION)
+else
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
+endif
 BINARYTAR=$(BINARYNAME).tar
 # OSX doesn't have xz installed by default, http://macpkg.sourceforge.net/
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
