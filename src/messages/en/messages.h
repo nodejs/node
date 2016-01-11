@@ -154,6 +154,12 @@
 #define STR_SSL_NEW_FAIL "SSL_new() failed."
 #define STR_MISSING_ARGUMENT "Missing argument"
 #define STR_ENGINE_NOT_FOUND "Engine \"%s\" was not found"
+#define STR_EXPECTED_OBJECT_TO_CONTAIN_TYPED_MEMBER                           \
+        "expected object for %s to contain %s member %s"
+#define STR_EXPECTED_CONNECTION_OBJECT                                        \
+        "expected argument %s to be a connection object"
+#define STR_EXPECTED_OBJECT_FOR_REQUEST_TO_CONTAIN_STRING_HEADERS             \
+        "expected object for request to contain string member headers"
 
 // The messages used in lib/*.js
 // These are exposes as constants on require('internal/messages')
