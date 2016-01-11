@@ -5,44 +5,44 @@ var assert = require('assert');
 var cluster = require('cluster');
 var net = require('net');
 
+var serverClosed = false;
+
 if (cluster.isWorker) {
-  net.createServer(function(socket) {
+  var server = net.createServer(function(socket) {
     // Wait for any data, then close connection
     socket.write('.');
-    socket.on('data', function discard() {
-    });
+    socket.on('data', function discard() {});
   }).listen(common.PORT, common.localhostIPv4);
+
+  server.once('close', function() {
+    serverClosed = true;
+  });
+
+  // Although not typical, the worker process can exit before the disconnect
+  // event fires. Use this to keep the process open until the event has fired.
+  var keepOpen = setInterval(function() {}, 9999);
+
+  // Check worker events and properties
+  process.once('disconnect', function() {
+    // disconnect should occur after socket close
+    assert(serverClosed);
+    clearInterval(keepOpen);
+  });
 } else if (cluster.isMaster) {
-
-  var connectionDone;
-  var ok;
-
   // start worker
   var worker = cluster.fork();
 
+  var socket;
   // Disconnect worker when it is ready
   worker.once('listening', function() {
     net.createConnection(common.PORT, common.localhostIPv4, function() {
-      var socket = this;
+      socket = this;
       this.on('data', function() {
         console.log('got data from client');
         // socket definitely connected to worker if we got data
         worker.disconnect();
-        setTimeout(function() {
-          socket.end();
-          connectionDone = true;
-        }, 1000);
+        socket.end();
       });
     });
-  });
-
-  // Check worker events and properties
-  worker.once('disconnect', function() {
-    assert.ok(connectionDone, 'disconnect should occur after socket close');
-    ok = true;
-  });
-
-  process.once('exit', function() {
-    assert.ok(ok);
   });
 }
