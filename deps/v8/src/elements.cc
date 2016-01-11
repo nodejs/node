@@ -1071,13 +1071,18 @@ class FastElementsAccessor
       }
       int num_used = 0;
       for (int i = 0; i < backing_store->length(); ++i) {
-        if (!backing_store->is_the_hole(i)) ++num_used;
-        // Bail out early if more than 1/4 is used.
-        if (4 * num_used > backing_store->length()) break;
+        if (!backing_store->is_the_hole(i)) {
+          ++num_used;
+          // Bail out if a number dictionary wouldn't be able to save at least
+          // 75% space.
+          if (4 * SeededNumberDictionary::ComputeCapacity(num_used) *
+                  SeededNumberDictionary::kEntrySize >
+              backing_store->length()) {
+            return;
+          }
+        }
       }
-      if (4 * num_used <= backing_store->length()) {
-        JSObject::NormalizeElements(obj);
-      }
+      JSObject::NormalizeElements(obj);
     }
   }
 
