@@ -14,19 +14,16 @@ if (cluster.isWorker) {
   }).listen(common.PORT, common.localhostIPv4);
 } else if (cluster.isMaster) {
 
-  var connectionDone;
   var ok;
 
   // start worker
   var worker = cluster.fork();
 
+  var socket;
   // Disconnect worker when it is ready
   worker.once('listening', function() {
     net.createConnection(common.PORT, common.localhostIPv4, function() {
-      var socket = this;
-      this.on('end', function() {
-        connectionDone = true;
-      });
+      socket = this;
       this.on('data', function() {
         console.log('got data from client');
         // socket definitely connected to worker if we got data
@@ -38,7 +35,8 @@ if (cluster.isWorker) {
 
   // Check worker events and properties
   worker.once('disconnect', function() {
-    assert.ok(connectionDone, 'disconnect should occur after socket close');
+    // disconnect should occur after socket close
+    assert.equal(socket.readyState, 'closed');
     ok = true;
   });
 
