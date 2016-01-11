@@ -13,8 +13,9 @@ if (cluster.isWorker) {
     });
   }).listen(common.PORT, common.localhostIPv4);
 } else if (cluster.isMaster) {
-
-  var ok;
+  // Although not typical, the worker process can exit before the disconnect
+  // event fires. Use this to keep the process open until the event has fired.
+  var keepOpen = setInterval(function() {}, 9999);
 
   // start worker
   var worker = cluster.fork();
@@ -37,10 +38,6 @@ if (cluster.isWorker) {
   worker.once('disconnect', function() {
     // disconnect should occur after socket close
     assert.equal(socket.readyState, 'closed');
-    ok = true;
-  });
-
-  process.once('exit', function() {
-    assert.ok(ok);
+    clearInterval(keepOpen);
   });
 }
