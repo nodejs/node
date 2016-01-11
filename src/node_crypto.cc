@@ -5650,7 +5650,7 @@ void InitCryptoOnce() {
 #ifdef NODE_FIPS_MODE
   if (!FIPS_mode_set(1)) {
     int err = ERR_get_error();
-    fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
+    fprintf(stderr, STR_OPENSSL_FIPS_FAIL, ERR_error_string(err, NULL));
     UNREACHABLE();
   }
 #endif  // NODE_FIPS_MODE

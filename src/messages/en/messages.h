@@ -1,65 +1,137 @@
 #ifndef SRC_NODE_MESSAGES_SRC_H_
 #define SRC_NODE_MESSAGES_SRC_H_
 
+// node --help output
+
+#if HAVE_OPENSSL
+#define NODE_HELP_OPENSSL                                                     \
+       "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
+#else  // !HAVE_OPENSSL
+#define NODE_HELP_OPENSSL ""
+#endif // HAVE_OPENSSL
+
+#if defined(NODE_HAVE_I18N_SUPPORT)
+#if !defined(NODE_HAVE_SMALL_ICU)
+#define NODE_HELP_I18N_SMALL_ICU                                              \
+       "                        note: linked-in ICU data is\n"                \
+       "                        present.\n"
+#else // defined(NODE_HAVE_SMALL_ICU)
+#define NODE_HELP_I18N_SMALL_ICU ""
+#endif // !defined(NODE_HAVE_SMALL_ICU)
+#define NODE_HELP_I18N                                                        \
+        "  --icu-data-dir=dir    set ICU data load path to dir\n"             \
+        "                        (overrides NODE_ICU_DATA)\n"                 \
+        NODE_HELP_I18N_SMALL_ICU
+
+#define NODE_HELP_ICU_DATA                                                    \
+        "NODE_ICU_DATA           data path for ICU (Intl object) data\n"      \
+        "                        (will extend linked-in data)\n"
+
+#else // !defined(NODE_HAVE_I18N_SUPPORT)
+#define NODE_HELP_ICU_DATA ""
+#define NODE_HELP_I18N ""
+#endif // defined(NODE_HAVE_I18N_SUPPORT)
+  
+// Determine the path separator
+#ifdef _WIN32
+#define NODE_HELP_SEP ";"
+#else
+#define NODE_HELP_SEP ":"
+#endif
+
+#define STR_NODEHELP                                                          \
+"Usage: node [options] [ -e script | script.js ] [arguments] \n"              \
+       "       node debug script.js [arguments] \n"                           \
+       "\n"                                                                   \
+       "Options:\n"                                                           \
+       "  -v, --version         print Node.js version\n"                      \
+       "  -e, --eval script     evaluate script\n"                            \
+       "  -p, --print           evaluate script and print result\n"           \
+       "  -c, --check           syntax check script without executing\n"      \
+       "  -i, --interactive     always enter the REPL even if stdin\n"        \
+       "                        does not appear to be a terminal\n"           \
+       "  -r, --require         module to preload (option can be repeated)\n" \
+       "  --no-deprecation      silence deprecation warnings\n"               \
+       "  --throw-deprecation   throw an exception anytime a deprecated "     \
+       "function is used\n"                                                   \
+       "  --trace-deprecation   show stack traces on deprecations\n"          \
+       "  --trace-sync-io       show stack trace when use of sync IO\n"       \
+       "                        is detected after the first tick\n"           \
+       "  --track-heap-objects  track heap object allocations for heap "      \
+       "snapshots\n"                                                          \
+       "  --prof-process        process v8 profiler output generated\n"       \
+       "                        using --prof\n"                               \
+       "  --v8-options          print v8 command line options\n"              \
+      NODE_HELP_OPENSSL                                                       \
+      NODE_HELP_I18N                                                          \
+       "\n"                                                                   \
+       "Environment variables:\n"                                             \
+       "NODE_PATH               '" NODE_HELP_SEP "'-separated list of "       \
+       "directories\n"                                                        \
+       "                        prefixed to the module search path.\n"        \
+       "NODE_DISABLE_COLORS     set to 1 to disable colors in the REPL\n"     \
+       NODE_HELP_ICU_DATA                                                     \
+       "NODE_REPL_HISTORY       path to the persistent REPL history file\n"   \
+       "\n"                                                                   \
+       "Documentation can be found at https://nodejs.org/\n"
+
+// Other messages ...
+
 #define NODE_MESSAGE_UNKNOWN "(Message Unknown)"
 
 #define NODE_DEPRECATE_MESSAGE(what, alternate)                               \
   what " is deprecated. Use " alternate " instead."
 
+#define STR_SYNC_WARNING "(node:%d) WARNING: Detected use of sync API\n"
+#define STR_AT "at"
+#define STR_OPENSSL_FIPS_FAIL "openssl fips failed: %s\n"
+#define STR_PROCESS_TICKDOMAIN_NONFUNCTION                                    \
+        "process._tickDomainCallback assigned to non-function\n"
+#define STR_RAW_ENCODING_REMOVED                                              \
+        "'raw' encoding (array of integers) has been removed. Use 'binary'.\n"
+#define STR_MODULE_VERSION_MISMATCH                                           \
+        "Module version mismatch. Expected %d, got %d."
+#define STR_BINDING "Binding %s"
+#define STR_NO_SUCH_MODULE "No such module: %s"
+#define STR_NO_SUCH_MODULE_LINKED "No such module was linked: %s"
+#define STR_DEBUGPORT_OUTOFRANGE "Debug port must be in range 1024 to 65535.\n"
+#define STR_REQUIRES_ARGUMENT "%s: %s requires an argument\n"
+#define STR_START_DEBUGGER_FAIL "Starting debugger on port %d failed\n"
+#define STR_START_DEBUGGER_AGENT "Starting debugger agent.\n"
+#define STR_BAD_OPTION "bad option"
+
 // The messages used in src/*.cc
 // These are used only within the Node.js native source
 #define STR_CONVERT_ARGS_TO_UTF8_FAIL "Could not convert arguments to utf8."
 #define STR_OUTOFMEMORY "Out of memory"
-#define STR_CALLBACK_NOT_ASSIGNED                                         \
-        "init callback is not assigned to a function"
-#define STR_HOOKSSHOULDNOTBESET                                           \
-        "hooks should not be set while also enabled"
-#define STR_INITCALLBACK                                                  \
-        "init callback must be a function"
-#define STR_INVALID_FILENAME                                              \
-        "filename must be a valid string"
-#define STR_INDEX_OUT_OF_RANGE                                            \
-        "out of range index"
-#define STR_ARGUMENT_BUFFER                                               \
-        "argument should be a Buffer"
-#define STR_ARGUMENT_STRING                                               \
-        "Argument must be a string"
-#define STR_ARGUMENT_ARRAYBUFFER                                          \
-        "argument is not an ArrayBuffer"
-#define STR_UNABLE_TO_SET_PROTOTYPE                                       \
-        "Unable to set Object prototype"
-#define STR_INVALID_HEX                                                   \
-        "Invalid hex string"
-#define STR_OFFSET_OUTOFBOUNDS                                            \
-        "Offset is out of bounds"
-#define STR_LENGTH_OUTOFBOUNDS                                            \
-        "length out of bounds"
-#define STR_SANDBOX_OBJECT                                                \
-        "sandbox argument must be an object."
-#define STR_VMSCRIPT_AS_CONSTRUCTOR                                       \
-        "Must call vm.Script as a constructor."
-#define STR_CONTEXTIFIED_MUST_BE_OBJECT                                   \
+#define STR_CALLBACK_NOT_ASSIGNED "init callback is not assigned to a function"
+#define STR_HOOKSSHOULDNOTBESET "hooks should not be set while also enabled"
+#define STR_INITCALLBACK "init callback must be a function"
+#define STR_INVALID_FILENAME "filename must be a valid string"
+#define STR_INDEX_OUT_OF_RANGE "out of range index"
+#define STR_ARGUMENT_BUFFER "argument should be a Buffer"
+#define STR_ARGUMENT_STRING "Argument must be a string"
+#define STR_ARGUMENT_ARRAYBUFFER "argument is not an ArrayBuffer"
+#define STR_UNABLE_TO_SET_PROTOTYPE "Unable to set Object prototype"
+#define STR_INVALID_HEX "Invalid hex string"
+#define STR_OFFSET_OUTOFBOUNDS "Offset is out of bounds"
+#define STR_LENGTH_OUTOFBOUNDS "length out of bounds"
+#define STR_SANDBOX_OBJECT "sandbox argument must be an object."
+#define STR_VMSCRIPT_AS_CONSTRUCTOR "Must call vm.Script as a constructor."
+#define STR_CONTEXTIFIED_MUST_BE_OBJECT                                       \
         "contextifiedSandbox argument must be an object."
-#define STR_SANDBOX_ARGUMENT_CONVERSION                                   \
+#define STR_SANDBOX_ARGUMENT_CONVERSION                                       \
         "sandbox argument must have been converted to a context."
-#define STR_OPTIONS_OBJECT                                                \
-        "options must be an object"
-#define STR_TIMEOUT_POSITIVE                                              \
-        "timeout must be a positive number"
-#define STR_CANNOT_CALL_SCRIPT_METHODS                                    \
+#define STR_OPTIONS_OBJECT "options must be an object"
+#define STR_TIMEOUT_POSITIVE "timeout must be a positive number"
+#define STR_CANNOT_CALL_SCRIPT_METHODS                                        \
         "Script methods can only be called on script instances."
-#define STR_SCRIPT_EXECUTION_TIMEDOUT                                     \
-        "Script execution timed out."
-#define STR_NOT_STRING_BUFFER                                             \
-        "Not a string or buffer"
-#define STR_NOT_BUFFER                                                    \
-        "Not a buffer"
-#define STR_SSLV2_METHODS_DISABLED                                        \
-        "SSLv2 methods disabled"
-#define STR_SSLV3_METHODS_DISABLED                                        \
-        "SSLv3 methods disabled"
-#define STR_UNKNOWN_METHOD                                                \
-        "Unknown method"
+#define STR_SCRIPT_EXECUTION_TIMEDOUT "Script execution timed out."
+#define STR_NOT_STRING_BUFFER "Not a string or buffer"
+#define STR_NOT_BUFFER "Not a buffer"
+#define STR_SSLV2_METHODS_DISABLED "SSLv2 methods disabled"
+#define STR_SSLV3_METHODS_DISABLED "SSLv3 methods disabled"
+#define STR_UNKNOWN_METHOD "Unknown method"
 #define STR_BAD_PARAMETER "Bad parameter"
 #define STR_PEM_READ_BIO "PEM_read_bio_PrivateKey"
 #define STR_CTX_USE_PRIVATEKEY "SSL_CTX_use_PrivateKey"
@@ -694,8 +766,7 @@
     "directory. This functionality is deprecated and will be removed soon.")  \
   XX(MODULE_REQUIREREPL_DEPRECATED, "Module.requireRepl is deprecated.")      \
   XX(NET_SERVER_CONNECTIONS_DEPRECATED,                                       \
-    NODE_DEPRECATE_MESSAGE("Server.connections",                              \
-                           "Server.getConnections"))                          \
+    NODE_DEPRECATE_MESSAGE("Server.connections", "Server.getConnections"))    \
   XX(NET_SERVER_CONNECTIONS_DEPRECATED_SET,                                   \
     "Server.connections property is deprecated.")                             \
   XX(NET_SERVER_LISTENFD_DEPRECATED,                                          \
