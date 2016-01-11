@@ -16,7 +16,7 @@ int wmain(int argc, wchar_t *wargv[]) {
                                      nullptr);
     if (size == 0) {
       // This should never happen.
-      fprintf(stderr, "Could not convert arguments to utf8.");
+      fprintf(stderr, STR_CONVERT_ARGS_TO_UTF8_FAIL);
       exit(1);
     }
     // Do the actual conversion
@@ -31,7 +31,7 @@ int wmain(int argc, wchar_t *wargv[]) {
                                        nullptr);
     if (result == 0) {
       // This should never happen.
-      fprintf(stderr, "Could not convert arguments to utf8.");
+      fprintf(stderr, STR_CONVERT_ARGS_TO_UTF8_FAIL);
       exit(1);
     }
   }

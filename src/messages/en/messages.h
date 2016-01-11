@@ -9,6 +9,7 @@
 // The messages used in src/*.cc
 // These are used only within the Node.js native source
 
+#define STR_CONVERT_ARGS_TO_UTF8_FAIL "Could not convert arguments to utf8."
 #define STR_CALLBACK_NOT_ASSIGNED                                         \
         "init callback is not assigned to a function"
 #define STR_HOOKSSHOULDNOTBESET                                           \
@@ -200,6 +201,18 @@
 #define STR_MTIME_REQUIRED "mtime required"
 #define STR_ATIME_NUMBER "atime must be a number"
 #define STR_MTIME_NUMBER "mtime must be a number"
+#define STR_OBJ_OBJECT "obj must be an object"
+#define STR_NAME_STRING "name must be a string"
+#define STR_V8_FLAG_REQUIRED "v8 flag is required"
+#define STR_V8_FLAG_STRING "v8 flag must be a string"
+#define STR_UNEXPECTED_EOF "unexpected end of file"
+#define STR_MISSING_DICTIONARY "Missing dictionary"
+#define STR_BAD_DICTIONARY "Bad dictionary"
+#define STR_ZLIB_ERROR "Zlib error"
+#define STR_INIT_ERROR "Init error"
+#define STR_FAILED_TO_SET_DICTIONARY "Failed to set dictionary"
+#define STR_FAILED_TO_SET_PARAMETERS "Failed to set parameters"
+#define STR_FAILED_TO_RESET_STREAM "Failed to reset stream"
 
 // The messages used in lib/*.js
 // These are exposes as constants on require('internal/messages')

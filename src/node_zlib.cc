@@ -273,7 +273,7 @@ class ZCtx : public AsyncWrap {
     case Z_OK:
     case Z_BUF_ERROR:
       if (ctx->strm_.avail_out != 0 && ctx->flush_ == Z_FINISH) {
-        ZCtx::Error(ctx, "unexpected end of file");
+        ZCtx::Error(ctx, STR_UNEXPECTED_EOF);
         return false;
       }
     case Z_STREAM_END:
@@ -281,13 +281,13 @@ class ZCtx : public AsyncWrap {
       break;
     case Z_NEED_DICT:
       if (ctx->dictionary_ == nullptr)
-        ZCtx::Error(ctx, "Missing dictionary");
+        ZCtx::Error(ctx, STR_MISSING_DICTIONARY);
       else
-        ZCtx::Error(ctx, "Bad dictionary");
+        ZCtx::Error(ctx, STR_BAD_DICTIONARY);
       return false;
     default:
       // something else.
-      ZCtx::Error(ctx, "Zlib error");
+      ZCtx::Error(ctx, STR_ZLIB_ERROR);
       return false;
     }
 
@@ -353,12 +353,12 @@ class ZCtx : public AsyncWrap {
     Environment* env = Environment::GetCurrent(args);
 
     if (args.Length() < 1 || !args[0]->IsInt32()) {
-      return env->ThrowTypeError("Bad argument");
+      return THROWI18NTYPEERROR(env, BAD_ARGUMENT);
     }
     node_zlib_mode mode = static_cast<node_zlib_mode>(args[0]->Int32Value());
 
     if (mode < DEFLATE || mode > UNZIP) {
-      return env->ThrowTypeError("Bad argument");
+      return THROWI18NTYPEERROR(env, BAD_ARGUMENT);
     }
 
     new ZCtx(env, args.This(), mode);
@@ -468,7 +468,7 @@ class ZCtx : public AsyncWrap {
     }
 
     if (ctx->err_ != Z_OK) {
-      ZCtx::Error(ctx, "Init error");
+      ZCtx::Error(ctx, STR_INIT_ERROR);
     }
 
 
@@ -497,7 +497,7 @@ class ZCtx : public AsyncWrap {
     }
 
     if (ctx->err_ != Z_OK) {
-      ZCtx::Error(ctx, "Failed to set dictionary");
+      ZCtx::Error(ctx, STR_FAILED_TO_SET_DICTIONARY);
     }
   }
 
@@ -514,7 +514,7 @@ class ZCtx : public AsyncWrap {
     }
 
     if (ctx->err_ != Z_OK && ctx->err_ != Z_BUF_ERROR) {
-      ZCtx::Error(ctx, "Failed to set parameters");
+      ZCtx::Error(ctx, STR_FAILED_TO_SET_PARAMETERS);
     }
   }
 
@@ -535,7 +535,7 @@ class ZCtx : public AsyncWrap {
     }
 
     if (ctx->err_ != Z_OK) {
-      ZCtx::Error(ctx, "Failed to reset stream");
+      ZCtx::Error(ctx, STR_FAILED_TO_RESET_STREAM);
     }
   }
 
