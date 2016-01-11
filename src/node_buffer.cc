@@ -19,13 +19,13 @@
 
 #define CHECK_NOT_OOB(r)                                                      \
   do {                                                                        \
-    if (!(r)) return THROWI18NRANGEERROR(INDEX_OUT_OF_RANGE);                 \
+    if (!(r)) return THROWI18NRANGEERROR(env, INDEX_OUT_OF_RANGE);            \
   } while (0)
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                              \
   do {                                                                        \
     if (!HasInstance(obj))                                                    \
-      return THROWI18NTYPEERROR(ARGUMENT_BUFFER);                             \
+      return THROWI18NTYPEERROR(env, ARGUMENT_BUFFER);                        \
   } while (0)
 
 #define SPREAD_ARG(val, name)                                                 \
@@ -427,13 +427,13 @@ void CreateFromString(const FunctionCallbackInfo<Value>& args) {
 void CreateFromArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!args[0]->IsArrayBuffer())
-    return THROWI18NTYPEERROR(ARGUMENT_ARRAYBUFFER);
+    return THROWI18NTYPEERROR(env, ARGUMENT_ARRAYBUFFER);
   Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, ab->ByteLength());
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
   if (!mb.FromMaybe(false))
-    return THROWI18NERROR(UNABLE_TO_SET_PROTOTYPE);
+    return THROWI18NERROR(env, UNABLE_TO_SET_PROTOTYPE);
   args.GetReturnValue().Set(ui);
 }
 
@@ -555,7 +555,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
     return args.GetReturnValue().Set(0);
 
   if (source_start > ts_obj_length)
-    return THROWI18NRANGEERROR(INDEX_OUT_OF_RANGE);
+    return THROWI18NRANGEERROR(env, INDEX_OUT_OF_RANGE);
 
   if (source_end - source_start > target_length - target_start)
     source_end = source_start + target_length - target_start;
@@ -619,12 +619,12 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   SPREAD_ARG(args.This(), ts_obj);
 
   if (!args[0]->IsString())
-    return THROWI18NTYPEERROR(ARGUMENT_STRING);
+    return THROWI18NTYPEERROR(env, ARGUMENT_STRING);
 
   Local<String> str = args[0]->ToString(env->isolate());
 
   if (encoding == HEX && str->Length() % 2 != 0)
-    return THROWI18NTYPEERROR(INVALID_HEX);
+    return THROWI18NTYPEERROR(env, INVALID_HEX);
 
   size_t offset;
   size_t max_length;
@@ -638,7 +638,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(0);
 
   if (offset >= ts_obj_length)
-    return THROWI18NRANGEERROR(OFFSET_OUTOFBOUNDS);
+    return THROWI18NRANGEERROR(env, OFFSET_OUTOFBOUNDS);
 
   uint32_t written = StringBytes::Write(env->isolate(),
                                         ts_obj_data + offset,

@@ -44,7 +44,7 @@ using v8::Value;
 
 #define SLURP_STRING(obj, member, valp)                                       \
   if (!(obj)->IsObject()) {                                                   \
-    return VTHROWI18NERROR(EXPECTED_OBJECT_TO_CONTAIN_TYPED_MEMBER,           \
+    return VTHROWI18NERROR(env, EXPECTED_OBJECT_TO_CONTAIN_TYPED_MEMBER,      \
                            #obj, "string", #member);                          \
   }                                                                           \
   node::Utf8Value _##member(env->isolate(),                                   \
@@ -54,7 +54,7 @@ using v8::Value;
 
 #define SLURP_INT(obj, member, valp)                                          \
   if (!(obj)->IsObject()) {                                                   \
-    return VTHROWI18NERROR(EXPECTED_OBJECT_TO_CONTAIN_TYPED_MEMBER,           \
+    return VTHROWI18NERROR(env, EXPECTED_OBJECT_TO_CONTAIN_TYPED_MEMBER,      \
                            #obj, "integer", #member);                         \
   }                                                                           \
   *valp = obj->Get(OneByteString(env->isolate(), #member))                    \
@@ -62,14 +62,14 @@ using v8::Value;
 
 #define SLURP_OBJECT(obj, member, valp)                                       \
   if (!(obj)->IsObject()) {                                                   \
-    return VTHROWI18NERROR(EXPECTED_OBJECT_TO_CONTAIN_TYPED_MEMBER,           \
+    return VTHROWI18NERROR(env, EXPECTED_OBJECT_TO_CONTAIN_TYPED_MEMBER,      \
                            #obj, "object", #member);                          \
   }                                                                           \
   *valp = Local<Object>::Cast(obj->Get(OneByteString(env->isolate(), #member)));
 
 #define SLURP_CONNECTION(arg, conn)                                           \
   if (!(arg)->IsObject()) {                                                   \
-    return VTHROWI18NERROR(EXPECTED_CONNECTION_OBJECT, #arg);                 \
+    return VTHROWI18NERROR(env, EXPECTED_CONNECTION_OBJECT, #arg);            \
   }                                                                           \
   node_dtrace_connection_t conn;                                              \
   Local<Object> _##conn = Local<Object>::Cast(arg);                           \
@@ -86,7 +86,7 @@ using v8::Value;
 
 #define SLURP_CONNECTION_HTTP_CLIENT(arg, conn)                               \
   if (!(arg)->IsObject()) {                                                   \
-    return VTHROWI18NERROR(EXPECTED_CONNECTION_OBJECT, #arg);                 \
+    return VTHROWI18NERROR(env, EXPECTED_CONNECTION_OBJECT, #arg);            \
   }                                                                           \
   node_dtrace_connection_t conn;                                              \
   Local<Object> _##conn = Local<Object>::Cast(arg);                           \
@@ -97,10 +97,10 @@ using v8::Value;
 
 #define SLURP_CONNECTION_HTTP_CLIENT_RESPONSE(arg0, arg1, conn)               \
   if (!(arg0)->IsObject()) {                                                  \
-    return VTHROWI18NERROR(EXPECTED_CONNECTION_OBJECT, #arg0);                \
+    return VTHROWI18NERROR(env, EXPECTED_CONNECTION_OBJECT, #arg0);           \
   }                                                                           \
   if (!(arg1)->IsObject()) {                                                  \
-    return VTHROWI18NERROR(EXPECTED_CONNECTION_OBJECT, #arg1);                \
+    return VTHROWI18NERROR(env, EXPECTED_CONNECTION_OBJECT, #arg1);           \
   }                                                                           \
   node_dtrace_connection_t conn;                                              \
   Local<Object> _##conn = Local<Object>::Cast(arg0);                          \
@@ -146,7 +146,7 @@ void DTRACE_HTTP_SERVER_REQUEST(const FunctionCallbackInfo<Value>& args) {
   SLURP_OBJECT(arg0, headers, &headers);
 
   if (!(headers)->IsObject()) {
-    return THROWI18NERROR(
+    return THROWI18NERROR(env,
       EXPECTED_OBJECT_FOR_REQUEST_TO_CONTAIN_STRING_HEADERS);
   }
 

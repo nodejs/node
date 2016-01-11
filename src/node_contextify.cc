@@ -282,7 +282,7 @@ class ContextifyContext {
     Environment* env = Environment::GetCurrent(args);
 
     if (!args[0]->IsObject()) {
-      return THROWI18NTYPEERROR(SANDBOX_OBJECT);
+      return THROWI18NTYPEERROR(env, SANDBOX_OBJECT);
     }
     Local<Object> sandbox = args[0].As<Object>();
 
@@ -312,7 +312,7 @@ class ContextifyContext {
     Environment* env = Environment::GetCurrent(args);
 
     if (!args[0]->IsObject()) {
-      return THROWI18NTYPEERROR(SANDBOX_OBJECT);
+      return THROWI18NTYPEERROR(env, SANDBOX_OBJECT);
     }
     Local<Object> sandbox = args[0].As<Object>();
 
@@ -494,7 +494,7 @@ class ContextifyScript : public BaseObject {
     Environment* env = Environment::GetCurrent(args);
 
     if (!args.IsConstructCall()) {
-      return THROWI18NERROR(VMSCRIPT_AS_CONSTRUCTOR);
+      return THROWI18NERROR(env, VMSCRIPT_AS_CONSTRUCTOR);
     }
 
     ContextifyScript* contextify_script =
@@ -558,7 +558,7 @@ class ContextifyScript : public BaseObject {
 
     // Assemble arguments
     if (!args[0]->IsObject()) {
-      return THROWI18NTYPEERROR(CONTEXTIFIED_MUST_BE_OBJECT);
+      return THROWI18NTYPEERROR(env, CONTEXTIFIED_MUST_BE_OBJECT);
     }
 
     Local<Object> sandbox = args[0].As<Object>();
@@ -577,7 +577,7 @@ class ContextifyScript : public BaseObject {
         ContextifyContext::ContextFromContextifiedSandbox(env->isolate(),
                                                           sandbox);
     if (contextify_context == nullptr) {
-      return THROWI18NTYPEERROR(SANDBOX_ARGUMENT_CONVERSION);
+      return THROWI18NTYPEERROR(env, SANDBOX_ARGUMENT_CONVERSION);
     }
 
     if (contextify_context->context().IsEmpty())
@@ -609,7 +609,7 @@ class ContextifyScript : public BaseObject {
       return -1;
     }
     if (!args[i]->IsObject()) {
-      THROWI18NTYPEERROR(OPTIONS_OBJECT);
+      THROWI18NTYPEERROR(env, OPTIONS_OBJECT);
       return -1;
     }
 
@@ -621,7 +621,7 @@ class ContextifyScript : public BaseObject {
     int64_t timeout = value->IntegerValue();
 
     if (timeout <= 0) {
-      THROWI18NRANGEERROR(TIMEOUT_POSITIVE);
+      THROWI18NRANGEERROR(env, TIMEOUT_POSITIVE);
       return -1;
     }
     return timeout;
@@ -635,7 +635,7 @@ class ContextifyScript : public BaseObject {
       return true;
     }
     if (!args[i]->IsObject()) {
-      THROWI18NTYPEERROR(OPTIONS_OBJECT);
+      THROWI18NTYPEERROR(env, OPTIONS_OBJECT);
       return false;
     }
 
@@ -660,7 +660,7 @@ class ContextifyScript : public BaseObject {
       return args[i].As<String>();
     }
     if (!args[i]->IsObject()) {
-      THROWI18NTYPEERROR(OPTIONS_OBJECT);
+      THROWI18NTYPEERROR(env, OPTIONS_OBJECT);
       return Local<String>();
     }
 
@@ -712,7 +712,7 @@ class ContextifyScript : public BaseObject {
                           const FunctionCallbackInfo<Value>& args,
                           TryCatch& try_catch) {
     if (!ContextifyScript::InstanceOf(env, args.Holder())) {
-      THROWI18NTYPEERROR(CANNOT_CALL_SCRIPT_METHODS);
+      THROWI18NTYPEERROR(env, CANNOT_CALL_SCRIPT_METHODS);
       return false;
     }
 
@@ -731,7 +731,7 @@ class ContextifyScript : public BaseObject {
 
     if (try_catch.HasCaught() && try_catch.HasTerminated()) {
       V8::CancelTerminateExecution(env->isolate());
-      THROWI18NERROR(SCRIPT_EXECUTION_TIMEDOUT);
+      THROWI18NERROR(env, SCRIPT_EXECUTION_TIMEDOUT);
       try_catch.ReThrow();
       return false;
     }

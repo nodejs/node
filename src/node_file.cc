@@ -44,8 +44,6 @@ using v8::Value;
 # define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#define TYPE_ERROR(msg) env->ThrowTypeError(msg)
-
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
 
 class FSReqWrap: public ReqWrap<uv_fs_t> {
@@ -318,11 +316,11 @@ static void Access(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(env->isolate());
 
   if (args.Length() < 2)
-    return TYPE_ERROR("path and mode are required");
+    return THROWI18NTYPEERROR(env, PATH_MODE_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
   if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
+    return THROWI18NTYPEERROR(env, MODE_INTEGER);
 
   node::Utf8Value path(env->isolate(), args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
@@ -339,9 +337,9 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
+    return THROWI18NTYPEERROR(env, FD_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+    return THROWI18NTYPEERROR(env, FD_FILE_DESCRIPTOR);
 
   int fd = args[0]->Int32Value();
 
@@ -535,9 +533,9 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
 
   node::Utf8Value path(env->isolate(), args[0]);
 
@@ -554,9 +552,9 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
 
   node::Utf8Value path(env->isolate(), args[0]);
 
@@ -573,9 +571,9 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
+    return THROWI18NTYPEERROR(env, FD_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+    return THROWI18NTYPEERROR(env, FD_FILE_DESCRIPTOR);
 
   int fd = args[0]->Int32Value();
 
@@ -593,13 +591,13 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("target path required");
+    return THROWI18NTYPEERROR(env, TARGET_PATH_REQUIRED);
   if (len < 2)
-    return TYPE_ERROR("src path required");
+    return THROWI18NTYPEERROR(env, SRC_PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("target path must be a string");
+    return THROWI18NTYPEERROR(env, TARGET_PATH_STRING);
   if (!args[1]->IsString())
-    return TYPE_ERROR("src path must be a string");
+    return THROWI18NTYPEERROR(env, SRC_PATH_STRING);
 
   node::Utf8Value target(env->isolate(), args[0]);
   node::Utf8Value path(env->isolate(), args[1]);
@@ -612,7 +610,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
     } else if (strcmp(*mode, "junction") == 0) {
       flags |= UV_FS_SYMLINK_JUNCTION;
     } else if (strcmp(*mode, "file") != 0) {
-      return env->ThrowError("Unknown symlink type");
+      return THROWI18NERROR(env, UNKNOWN_SYMLINK_TYPE);
     }
   }
 
@@ -628,13 +626,13 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("src path required");
+    return THROWI18NTYPEERROR(env, SRC_PATH_REQUIRED);
   if (len < 2)
-    return TYPE_ERROR("dest path required");
+    return THROWI18NTYPEERROR(env, DEST_PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("src path must be a string");
+    return THROWI18NTYPEERROR(env, SRC_PATH_STRING);
   if (!args[1]->IsString())
-    return TYPE_ERROR("dest path must be a string");
+    return THROWI18NTYPEERROR(env, DEST_PATH_STRING);
 
   node::Utf8Value orig_path(env->isolate(), args[0]);
   node::Utf8Value new_path(env->isolate(), args[1]);
@@ -650,9 +648,9 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
 
   node::Utf8Value path(env->isolate(), args[0]);
 
@@ -671,13 +669,13 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("old path required");
+    return THROWI18NTYPEERROR(env, OLD_PATH_REQUIRED);
   if (len < 2)
-    return TYPE_ERROR("new path required");
+    return THROWI18NTYPEERROR(env, NEW_PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("old path must be a string");
+    return THROWI18NTYPEERROR(env, OLD_PATH_STRING);
   if (!args[1]->IsString())
-    return TYPE_ERROR("new path must be a string");
+    return THROWI18NTYPEERROR(env, NEW_PATH_STRING);
 
   node::Utf8Value old_path(env->isolate(), args[0]);
   node::Utf8Value new_path(env->isolate(), args[1]);
@@ -693,9 +691,9 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2)
-    return TYPE_ERROR("fd and length are required");
+    return THROWI18NTYPEERROR(env, FD_LENGTH_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+    return THROWI18NTYPEERROR(env, FD_FILE_DESCRIPTOR);
 
   int fd = args[0]->Int32Value();
 
@@ -706,7 +704,7 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   if (!len_v->IsUndefined() &&
       !len_v->IsNull() &&
       !IsInt64(len_v->NumberValue())) {
-    return env->ThrowTypeError("Not an integer");
+    return THROWI18NTYPEERROR(env, NOT_AN_INTEGER);
   }
 
   const int64_t len = len_v->IntegerValue();
@@ -722,9 +720,9 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
+    return THROWI18NTYPEERROR(env, FD_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+    return THROWI18NTYPEERROR(env, FD_FILE_DESCRIPTOR);
 
   int fd = args[0]->Int32Value();
 
@@ -739,9 +737,9 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
+    return THROWI18NTYPEERROR(env, FD_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+    return THROWI18NTYPEERROR(env, FD_FILE_DESCRIPTOR);
 
   int fd = args[0]->Int32Value();
 
@@ -756,9 +754,9 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
 
   node::Utf8Value path(env->isolate(), args[0]);
 
@@ -773,9 +771,9 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
 
   node::Utf8Value path(env->isolate(), args[0]);
 
@@ -790,11 +788,11 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2)
-    return TYPE_ERROR("path and mode are required");
+    return THROWI18NTYPEERROR(env, PATH_MODE_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
   if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
+    return THROWI18NTYPEERROR(env, MODE_INTEGER);
 
   node::Utf8Value path(env->isolate(), args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
@@ -810,9 +808,9 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
 
   node::Utf8Value path(env->isolate(), args[0]);
 
@@ -860,17 +858,17 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (len < 2)
-    return TYPE_ERROR("flags required");
+    return THROWI18NTYPEERROR(env, FLAGS_REQUIRED);
   if (len < 3)
-    return TYPE_ERROR("mode required");
+    return THROWI18NTYPEERROR(env, MODE_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
   if (!args[1]->IsInt32())
-    return TYPE_ERROR("flags must be an int");
+    return THROWI18NTYPEERROR(env, FLAGS_INT);
   if (!args[2]->IsInt32())
-    return TYPE_ERROR("mode must be an int");
+    return THROWI18NTYPEERROR(env, MODE_INTEGER);
 
   node::Utf8Value path(env->isolate(), args[0]);
   int flags = args[1]->Int32Value();
@@ -898,7 +896,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsInt32())
-    return env->ThrowTypeError("First argument must be file descriptor");
+    return THROWI18NTYPEERROR(env, FIRST_ARGUMENT_FILEDESCRIPTOR);
 
   CHECK(Buffer::HasInstance(args[1]));
 
@@ -912,13 +910,13 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Local<Value> req = args[5];
 
   if (off > buffer_length)
-    return env->ThrowRangeError("offset out of bounds");
+    return THROWI18NRANGEERROR(env, OFFSET_OUTOFBOUNDS);
   if (len > buffer_length)
-    return env->ThrowRangeError("length out of bounds");
+    return THROWI18NRANGEERROR(env, LENGTH_OUTOFBOUNDS);
   if (off + len < off)
-    return env->ThrowRangeError("off + len overflow");
+    return THROWI18NRANGEERROR(env, OFF_LEN_OVERFLOW);
   if (!Buffer::IsWithinBounds(off, len, buffer_length))
-    return env->ThrowRangeError("off + len > buffer.length");
+    return THROWI18NRANGEERROR(env, OFF_LEN_BUFLEN);
 
   buf += off;
 
@@ -968,7 +966,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
     if (!Buffer::HasInstance(chunk)) {
       if (iovs != s_iovs)
         delete[] iovs;
-      return env->ThrowTypeError("Array elements all need to be buffers");
+      return THROWI18NERROR(env, ARRAY_ELEMENT_BUFFERS);
     }
 
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
@@ -1000,7 +998,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsInt32())
-    return env->ThrowTypeError("First argument must be file descriptor");
+    return THROWI18NTYPEERROR(env, FIRST_ARGUMENT_FILEDESCRIPTOR);
 
   Local<Value> req;
   Local<Value> string = args[1];
@@ -1078,11 +1076,11 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2)
-    return TYPE_ERROR("fd and buffer are required");
+    return THROWI18NTYPEERROR(env, FD_BUFFER_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+    return THROWI18NTYPEERROR(env, FD_FILE_DESCRIPTOR);
   if (!Buffer::HasInstance(args[1]))
-    return TYPE_ERROR("Second argument needs to be a buffer");
+    return THROWI18NTYPEERROR(env, SECOND_ARGUMENT_BUFFER);
 
   int fd = args[0]->Int32Value();
 
@@ -1099,12 +1097,12 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
 
   size_t off = args[2]->Int32Value();
   if (off >= buffer_length) {
-    return env->ThrowError("Offset is out of bounds");
+    return THROWI18NERROR(env, OFFSET_OUTOFBOUNDS);
   }
 
   len = args[3]->Int32Value();
   if (!Buffer::IsWithinBounds(off, len, buffer_length))
-    return env->ThrowRangeError("Length extends beyond buffer");
+    return THROWI18NRANGEERROR(env, LENGTH_BEYOND_BUFFER);
 
   pos = GET_OFFSET(args[4]);
 
@@ -1130,11 +1128,11 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2)
-    return TYPE_ERROR("path and mode are required");
+    return THROWI18NTYPEERROR(env, PATH_MODE_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
   if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
+    return THROWI18NTYPEERROR(env, MODE_INTEGER);
 
   node::Utf8Value path(env->isolate(), args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
@@ -1154,11 +1152,11 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 2)
-    return TYPE_ERROR("fd and mode are required");
+    return THROWI18NTYPEERROR(env, FD_MODE_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+    return THROWI18NTYPEERROR(env, FD_FILE_DESCRIPTOR);
   if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
+    return THROWI18NTYPEERROR(env, MODE_INTEGER);
 
   int fd = args[0]->Int32Value();
   int mode = static_cast<int>(args[1]->Int32Value());
@@ -1179,17 +1177,17 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (len < 2)
-    return TYPE_ERROR("uid required");
+    return THROWI18NTYPEERROR(env, UID_REQUIRED);
   if (len < 3)
-    return TYPE_ERROR("gid required");
+    return THROWI18NTYPEERROR(env, GID_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
   if (!args[1]->IsUint32())
-    return TYPE_ERROR("uid must be an unsigned int");
+    return THROWI18NTYPEERROR(env, UID_UINT);
   if (!args[2]->IsUint32())
-    return TYPE_ERROR("gid must be an unsigned int");
+    return THROWI18NTYPEERROR(env, GID_UINT);
 
   node::Utf8Value path(env->isolate(), args[0]);
   uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
@@ -1211,17 +1209,17 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("fd required");
+    return THROWI18NTYPEERROR(env, FD_REQUIRED);
   if (len < 2)
-    return TYPE_ERROR("uid required");
+    return THROWI18NTYPEERROR(env, UID_REQUIRED);
   if (len < 3)
-    return TYPE_ERROR("gid required");
+    return THROWI18NTYPEERROR(env, GID_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be an int");
+    return THROWI18NTYPEERROR(env, FD_INTEGER);
   if (!args[1]->IsUint32())
-    return TYPE_ERROR("uid must be an unsigned int");
+    return THROWI18NTYPEERROR(env, UID_UINT);
   if (!args[2]->IsUint32())
-    return TYPE_ERROR("gid must be an unsigned int");
+    return THROWI18NTYPEERROR(env, GID_UINT);
 
   int fd = args[0]->Int32Value();
   uv_uid_t uid = static_cast<uv_uid_t>(args[1]->Uint32Value());
@@ -1240,17 +1238,17 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("path required");
+    return THROWI18NTYPEERROR(env, PATH_REQUIRED);
   if (len < 2)
-    return TYPE_ERROR("atime required");
+    return THROWI18NTYPEERROR(env, ATIME_REQUIRED);
   if (len < 3)
-    return TYPE_ERROR("mtime required");
+    return THROWI18NTYPEERROR(env, MTIME_REQUIRED);
   if (!args[0]->IsString())
-    return TYPE_ERROR("path must be a string");
+    return THROWI18NTYPEERROR(env, PATH_STRING);
   if (!args[1]->IsNumber())
-    return TYPE_ERROR("atime must be a number");
+    return THROWI18NTYPEERROR(env, ATIME_NUMBER);
   if (!args[2]->IsNumber())
-    return TYPE_ERROR("mtime must be a number");
+    return THROWI18NTYPEERROR(env, MTIME_NUMBER);
 
   const node::Utf8Value path(env->isolate(), args[0]);
   const double atime = static_cast<double>(args[1]->NumberValue());
@@ -1268,17 +1266,17 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
 
   int len = args.Length();
   if (len < 1)
-    return TYPE_ERROR("fd required");
+    return THROWI18NTYPEERROR(env, FD_REQUIRED);
   if (len < 2)
-    return TYPE_ERROR("atime required");
+    return THROWI18NTYPEERROR(env, ATIME_REQUIRED);
   if (len < 3)
-    return TYPE_ERROR("mtime required");
+    return THROWI18NTYPEERROR(env, MTIME_REQUIRED);
   if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be an int");
+    return THROWI18NTYPEERROR(env, FD_INTEGER);
   if (!args[1]->IsNumber())
-    return TYPE_ERROR("atime must be a number");
+    return THROWI18NTYPEERROR(env, ATIME_NUMBER);
   if (!args[2]->IsNumber())
-    return TYPE_ERROR("mtime must be a number");
+    return THROWI18NTYPEERROR(env, MTIME_NUMBER);
 
   const int fd = args[0]->Int32Value();
   const double atime = static_cast<double>(args[1]->NumberValue());

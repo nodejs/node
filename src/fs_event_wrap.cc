@@ -87,7 +87,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return THROWI18NTYPEERROR(INVALID_FILENAME);
+    return THROWI18NTYPEERROR(env, INVALID_FILENAME);
   }
 
   node::Utf8Value path(env->isolate(), args[0]);

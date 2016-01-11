@@ -105,7 +105,7 @@ static void EnableHooksJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Function> init_fn = env->async_hooks_init_function();
   if (init_fn.IsEmpty() || !init_fn->IsFunction())
-    return THROWI18NTYPEERROR(CALLBACK_NOT_ASSIGNED);
+    return THROWI18NTYPEERROR(env, CALLBACK_NOT_ASSIGNED);
   env->async_hooks()->set_enable_callbacks(1);
 }
 
@@ -120,10 +120,10 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (env->async_hooks()->callbacks_enabled())
-    return THROWI18NERROR(HOOKSSHOULDNOTBESET);
+    return THROWI18NERROR(env, HOOKSSHOULDNOTBESET);
 
   if (!args[0]->IsFunction())
-    return THROWI18NTYPEERROR(INITCALLBACK);
+    return THROWI18NTYPEERROR(env, INITCALLBACK);
 
   env->set_async_hooks_init_function(args[0].As<Function>());
 

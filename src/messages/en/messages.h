@@ -31,6 +31,8 @@
         "Invalid hex string"
 #define STR_OFFSET_OUTOFBOUNDS                                            \
         "Offset is out of bounds"
+#define STR_LENGTH_OUTOFBOUNDS                                            \
+        "length out of bounds"
 #define STR_SANDBOX_OBJECT                                                \
         "sandbox argument must be an object."
 #define STR_VMSCRIPT_AS_CONSTRUCTOR                                       \
@@ -160,6 +162,44 @@
         "expected argument %s to be a connection object"
 #define STR_EXPECTED_OBJECT_FOR_REQUEST_TO_CONTAIN_STRING_HEADERS             \
         "expected object for request to contain string member headers"
+#define STR_UNKNOWN_SYMLINK_TYPE "Unknown symlink type"
+#define STR_NOT_AN_INTEGER "Not an integer"
+#define STR_FIRST_ARGUMENT_FILEDESCRIPTOR                                     \
+        "First argument must be file descriptor"
+#define STR_OFF_LEN_OVERFLOW "off + len overflow"
+#define STR_ARRAY_ELEMENT_BUFFERS "Array elements all need to be buffers"
+#define STR_LENGTH_BEYOND_BUFFER "Length extends beyond buffer"
+#define STR_FD_BUFFER_REQUIRED "fd and buffer are required"
+#define STR_FD_FILE_DESCRIPTOR "fd must be a file descriptor"
+#define STR_PATH_MODE_REQUIRED "path and mode are required"
+#define STR_PATH_STRING "path must be a string"
+#define STR_MODE_INTEGER "mode must be an integer"
+#define STR_FD_REQUIRED "fd is required"
+#define STR_PATH_REQUIRED "path is required"
+#define STR_TARGET_PATH_REQUIRED "target path required"
+#define STR_DEST_PATH_REQUIRED "dest path required"
+#define STR_SRC_PATH_REQUIRED "src path required"
+#define STR_TARGET_PATH_STRING "target path must be a string"
+#define STR_SRC_PATH_STRING "src path must be a string"
+#define STR_DEST_PATH_STRING "dest path must be a string"
+#define STR_OLD_PATH_REQUIRED "old path required"
+#define STR_NEW_PATH_REQUIRED "new path required"
+#define STR_OLD_PATH_STRING "old path must be a string"
+#define STR_NEW_PATH_STRING "new path must be a string"
+#define STR_FD_LENGTH_REQUIRED "fd and length are required"
+#define STR_FLAGS_REQUIRED "flags required"
+#define STR_MODE_REQUIRED "mode required"
+#define STR_FLAGS_INT "flags must be an int"
+#define STR_FD_MODE_REQUIRED "fd and mode are required"
+#define STR_UID_REQUIRED "uid required"
+#define STR_GID_REQUIRED "gid required"
+#define STR_UID_UINT "uid must be an unsigned int"
+#define STR_GID_UINT "gid must be an unsigned int"
+#define STR_FD_INTEGER "fd must be an int"
+#define STR_ATIME_REQUIRED "atime required"
+#define STR_MTIME_REQUIRED "mtime required"
+#define STR_ATIME_NUMBER "atime must be a number"
+#define STR_MTIME_NUMBER "mtime must be a number"
 
 // The messages used in lib/*.js
 // These are exposes as constants on require('internal/messages')

@@ -486,30 +486,18 @@ class Environment {
   inline void ThrowI18NTypeError(const char* msg, const char* key);
   inline void ThrowI18NRangeError(const char* msg, const char* key);
 
-  #define THROWI18NERROR(key)                                                 \
+  #define THROWI18NERROR(env, key)                                            \
     env->ThrowI18NError(STR_ ## key, #key)
-  #define THROWI18NTYPEERROR(key)                                             \
+  #define THROWI18NTYPEERROR(env, key)                                        \
     env->ThrowI18NTypeError(STR_ ## key, #key)
-  #define THROWI18NRANGEERROR(key)                                            \
-    env->ThrowI18NRangeError(STR_ ## key, #key)
-  #define THROWI18NERRORE(env, key)                                           \
-    env->ThrowI18NError(STR_ ## key, #key)
-  #define THROWI18NTYPEERRORE(env, key)                                       \
-    env->ThrowI18NTypeError(STR_ ## key, #key)
-  #define THROWI18NRANGEERRORE(env, key)                                      \
+  #define THROWI18NRANGEERROR(env, key)                                       \
     env->ThrowI18NRangeError(STR_ ## key, #key)
 
-  #define VTHROWI18NERROR(key, ...)                                           \
+  #define VTHROWI18NERROR(env, key, ...)                                      \
     env->ThrowI18NErrorV(STR_ ## key, #key, __VA_ARGS__)
-  #define VTHROWI18NTYPEERROR(key, ...)                                       \
+  #define VTHROWI18NTYPEERROR(env, key, ...)                                  \
     env->ThrowI18NTypeErrorV(STR_ ## key, #key, __VA_ARGS__)
-  #define VTHROWI18NRANGEERROR(key, ...)                                      \
-    env->ThrowI18NRangeErrorV(STR_ ## key, #key, __VA_ARGS__)
-  #define VTHROWI18NERRORE(env, key, ...)                                     \
-    env->ThrowI18NErrorV(STR_ ## key, #key, __VA_ARGS__)
-  #define VTHROWI18NTYPEERRORE(env, key, ...)                                 \
-    env->ThrowI18NTypeErrorV(STR_ ## key, #key, __VA_ARGS__)
-  #define VTHROWI18NRANGEERRORE(env, key, ...)                                \
+  #define VTHROWI18NRANGEERROR(env, key, ...)                                 \
     env->ThrowI18NRangeErrorV(STR_ ## key, #key, __VA_ARGS__)
 
   // Convenience methods for contextify
