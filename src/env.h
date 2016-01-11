@@ -482,9 +482,18 @@ class Environment {
   inline void ThrowI18NTypeError(const char* msg, const char* key);
   inline void ThrowI18NRangeError(const char* msg, const char* key);
 
-  #define THROWI18NERROR(key)      env->ThrowI18NError(STR_ ## key, #key)
-  #define THROWI18NTYPEERROR(key)  env->ThrowI18NTypeError(STR_ ## key, #key)
-  #define THROWI18NRANGEERROR(key) env->ThrowI18NRangeError(STR_ ## key, #key)
+  #define THROWI18NERROR(key)                                                 \
+    env->ThrowI18NError(STR_ ## key, #key)
+  #define THROWI18NTYPEERROR(key)                                             \
+    env->ThrowI18NTypeError(STR_ ## key, #key)
+  #define THROWI18NRANGEERROR(key)                                            \
+    env->ThrowI18NRangeError(STR_ ## key, #key)
+  #define THROWI18NERRORE(env, key)                                           \
+    env->ThrowI18NError(STR_ ## key, #key)
+  #define THROWI18NTYPEERRORE(env, key)                                       \
+    env->ThrowI18NTypeError(STR_ ## key, #key)
+  #define THROWI18NRANGEERRORE(env, key)                                      \
+    env->ThrowI18NRangeError(STR_ ## key, #key)
 
   // Convenience methods for contextify
   inline static void ThrowError(v8::Isolate* isolate, const char* errmsg);

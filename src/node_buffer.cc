@@ -17,15 +17,15 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-#define CHECK_NOT_OOB(r)                                                    \
-  do {                                                                      \
-    if (!(r)) return env->ThrowRangeError("out of range index");            \
+#define CHECK_NOT_OOB(r)                                                      \
+  do {                                                                        \
+    if (!(r)) return THROWI18NRANGEERROR(INDEX_OUT_OF_RANGE);                 \
   } while (0)
 
-#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
-  do {                                                                      \
-    if (!HasInstance(obj))                                                  \
-      return env->ThrowTypeError("argument should be a Buffer");            \
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                              \
+  do {                                                                        \
+    if (!HasInstance(obj))                                                    \
+      return THROWI18NTYPEERROR(ARGUMENT_BUFFER);                             \
   } while (0)
 
 #define SPREAD_ARG(val, name)                                                 \
@@ -427,13 +427,13 @@ void CreateFromString(const FunctionCallbackInfo<Value>& args) {
 void CreateFromArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!args[0]->IsArrayBuffer())
-    return env->ThrowTypeError("argument is not an ArrayBuffer");
+    return THROWI18NTYPEERROR(ARGUMENT_ARRAYBUFFER);
   Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, ab->ByteLength());
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
   if (!mb.FromMaybe(false))
-    return env->ThrowError("Unable to set Object prototype");
+    return THROWI18NERROR(UNABLE_TO_SET_PROTOTYPE);
   args.GetReturnValue().Set(ui);
 }
 
@@ -555,7 +555,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
     return args.GetReturnValue().Set(0);
 
   if (source_start > ts_obj_length)
-    return env->ThrowRangeError("out of range index");
+    return THROWI18NRANGEERROR(INDEX_OUT_OF_RANGE);
 
   if (source_end - source_start > target_length - target_start)
     source_end = source_start + target_length - target_start;
@@ -570,7 +570,8 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   size_t start = args[2]->Uint32Value();
@@ -618,12 +619,12 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   SPREAD_ARG(args.This(), ts_obj);
 
   if (!args[0]->IsString())
-    return env->ThrowTypeError("Argument must be a string");
+    return THROWI18NTYPEERROR(ARGUMENT_STRING);
 
   Local<String> str = args[0]->ToString(env->isolate());
 
   if (encoding == HEX && str->Length() % 2 != 0)
-    return env->ThrowTypeError("Invalid hex string");
+    return THROWI18NTYPEERROR(INVALID_HEX);
 
   size_t offset;
   size_t max_length;
@@ -637,7 +638,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(0);
 
   if (offset >= ts_obj_length)
-    return env->ThrowRangeError("Offset is out of bounds");
+    return THROWI18NRANGEERROR(OFFSET_OUTOFBOUNDS);
 
   uint32_t written = StringBytes::Write(env->isolate(),
                                         ts_obj_data + offset,
@@ -691,7 +692,8 @@ static inline void Swizzle(char* start, unsigned int len) {
 
 template <typename T, enum Endianness endianness>
 void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   uint32_t offset = args[1]->Uint32Value();
@@ -842,8 +844,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   enum encoding enc = ParseEncoding(args.GetIsolate(),
                                     args[3],
                                     UTF8);
-
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   Local<String> needle = args[1].As<String>();
@@ -943,8 +945,8 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   enum encoding enc = ParseEncoding(args.GetIsolate(),
                                     args[3],
                                     UTF8);
-
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
   SPREAD_ARG(args[1], buf);
 
@@ -1005,8 +1007,8 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   ASSERT(args[1]->IsNumber());
   ASSERT(args[2]->IsNumber());
-
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   uint32_t needle = args[1]->Uint32Value();

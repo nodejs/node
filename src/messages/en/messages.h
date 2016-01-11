@@ -27,6 +27,133 @@
         "argument is not an ArrayBuffer"
 #define STR_UNABLE_TO_SET_PROTOTYPE                                       \
         "Unable to set Object prototype"
+#define STR_INVALID_HEX                                                   \
+        "Invalid hex string"
+#define STR_OFFSET_OUTOFBOUNDS                                            \
+        "Offset is out of bounds"
+#define STR_SANDBOX_OBJECT                                                \
+        "sandbox argument must be an object."
+#define STR_VMSCRIPT_AS_CONSTRUCTOR                                       \
+        "Must call vm.Script as a constructor."
+#define STR_CONTEXTIFIED_MUST_BE_OBJECT                                   \
+        "contextifiedSandbox argument must be an object."
+#define STR_SANDBOX_ARGUMENT_CONVERSION                                   \
+        "sandbox argument must have been converted to a context."
+#define STR_OPTIONS_OBJECT                                                \
+        "options must be an object"
+#define STR_TIMEOUT_POSITIVE                                              \
+        "timeout must be a positive number"
+#define STR_CANNOT_CALL_SCRIPT_METHODS                                    \
+        "Script methods can only be called on script instances."
+#define STR_SCRIPT_EXECUTION_TIMEDOUT                                     \
+        "Script execution timed out."
+#define STR_NOT_STRING_BUFFER                                             \
+        "Not a string or buffer"
+#define STR_NOT_BUFFER                                                    \
+        "Not a buffer"
+#define STR_SSLV2_METHODS_DISABLED                                        \
+        "SSLv2 methods disabled"
+#define STR_SSLV3_METHODS_DISABLED                                        \
+        "SSLv3 methods disabled"
+#define STR_UNKNOWN_METHOD                                                \
+        "Unknown method"
+#define STR_BAD_PARAMETER "Bad parameter"
+#define STR_PEM_READ_BIO "PEM_read_bio_PrivateKey"
+#define STR_CTX_USE_PRIVATEKEY "SSL_CTX_use_PrivateKey"
+#define STR_CTX_USE_CERT_CHAIN "SSL_CTX_use_certificate_chain"
+#define STR_FIRST_ARGUMENT_STRING "First argument should be a string"
+#define STR_INVALID_CURVE_NAME "First argument should be a valid curve name"
+#define STR_SMALL_DH_PARAMETER "DH parameter is less than 1024 bits"
+#define STR_WARN_SMALL_DH "WARNING: DH parameter is less than 2048 bits"
+#define STR_SET_DH_ERROR "Error setting temp DH parameter"
+#define STR_CTX_SET_SESSION_ID_ERR "SSL_CTX_set_session_id_context error"
+#define STR_UNABLE_TO_LOAD_BIO "Unable to load BIO"
+#define STR_FAILED_FETCH_TLS_TICKET "Failed to fetch tls ticket keys"
+#define STR_BAD_ARGUMENT "Bad argument"
+#define STR_FIRST_ARGUMENT_BUFFER "Must give a Buffer as first argument"
+#define STR_SSL_SET_SESSION_ERROR "SSL_set_session error"
+#define STR_CERTCBDONE "CertCbDone"
+#define STR_FIRST_ARGUMENT_SECURECONTEXT                                      \
+        "First argument must be a tls module SecureContext"
+#define STR_TAKES_THREE_ARGS "Takes 3 parameters"
+#define STR_SECOND_ARGUMENT_BUFFER "Second argument should be a buffer"
+#define STR_OFF_LEN_BUFLEN "off + len > buffer.length"
+#define STR_FIRST_ARGUMENT_FUNCTION "Must give a Function as first argument"
+#define STR_CRYPTO_CREATECIPHER_NOT_SUPPORTED                                 \
+        "crypto.createCipher() is not supported in FIPS mode."
+#define STR_UNKNOWN_CIPHER "Unknown cipher"
+#define STR_INVALID_KEYLEN "Invalid key length"
+#define STR_MUST_GIVE_CIPHER_TYPE "Must give cipher-type, key"
+#define STR_INVALID_IVLEN "Invalid IV length"
+#define STR_MUST_GIVE_CIPHER_TYPE_KEY_IV                                      \
+        "Must give cipher-type, key, and iv as argument"
+#define STR_CANNOT_GET_AUTH_TAG                                               \
+        "Attempting to get auth tag in unsupported state"
+#define STR_CANNOT_SET_AUTH_TAG                                               \
+        "Attempting to set auth tag in unsupported state"
+#define STR_CANNOT_SET_AAD "Attempting to set AAD in unsupported state"
+#define STR_CANNOT_ADD_DATA "Trying to add data in unsupported state"
+#define STR_UNSUPPORTED_STATE_UNABLE_TO_AUTH                                  \
+        "Unsupported state or unable to authenticate data"
+#define STR_UNSUPOPORTED_STATE "Unsupported state"
+#define STR_UNKNOWN_MESSAGE_DIGEST "Unknown message digest"
+#define STR_MUST_GIVE_HASHTYPE "Must give hashtype string, key as arguments"
+#define STR_HMACUPDATE_FAIL "HmacUpdate fail"
+#define STR_MUST_GIVE_HASHTYPE_ARG "Must give hashtype string as argument"
+#define STR_DIGEST_METHOD_NOT_SUPPORTED "Digest method not supported"
+#define STR_HASHUPDATE_FAIL "HashUpdate fail"
+#define STR_NOT_INITIALIZED "Not initialized"
+#define STR_EVP_SIGNINIT_EX_FAIL "EVP_SignInit_ex failed"
+#define STR_EVP_SIGNUPDATE_FAIL "EVP_SignUpdate failed"
+#define STR_PEM_READ_BIO_PRIVATEKEY_FAIL "PEM_read_bio_PrivateKey failed"
+#define STR_PEM_READ_BIO_PUBKEY_FAIL "PEM_read_bio_PUBKEY failed"
+#define STR_MUST_GIVE_SIGNTYPE_ARG "Must give signtype string as argument"
+#define STR_MUST_GIVE_VERIFYTYPE_ARG "Must give verifytype string as argument"
+#define STR_NO_GROUP_NAME "No group name given"
+#define STR_INIT_FAILED "Initialization failed"
+#define STR_UNKNOWN_GROUP "Unknown group"
+#define STR_KEY_GENERATION_FAIL "Key generation failed"
+#define STR_NO_PUBKEY "No public key - did you forget to generate one?"
+#define STR_NO_PVTKEY "No private key - did you forget to generate one?"
+#define STR_FIRST_ARGUMENT_PUBKEY                                             \
+        "First argument must be other party's public key"
+#define STR_INVALID_KEY "Invalid Key"
+#define STR_SUPPLIED_KEY_SMALL "Supplied key is too small"
+#define STR_SUPPLIED_KEY_LARGE "Supplied key is too large"
+#define STR_FIRST_ARGUMENT_PUBKEY2 "First argument must be public key"
+#define STR_FIRST_ARGUMENT_PVTKEY "First argument must be private key"
+#define STR_CREATE_ECKEY_FAIL "Failed to create EC_KEY using curve name"
+#define STR_GENERATE_ECKEY_FAIL "Failed to generate EC_KEY"
+#define STR_ALLOCATE_ECPOINT_FAIL                                             \
+        "Failed to allocate EC_POINT for a public key"
+#define STR_TRANSLATE_BUFFER_FAIL "Failed to translate Buffer to a EC_POINT"
+#define STR_INVALID_KEYPAIR "Invalid key pair"
+#define STR_COMPUTEECDH_FAIL "Failed to compute ECDH key"
+#define STR_GETECDH_FAIL "Failed to get ECDH public key"
+#define STR_GET_PUBKEY_FAIL "Failed to get public key length"
+#define STR_GET_PUBKEY_FAIL2 "Failed to get public key"
+#define STR_GET_ECDH_PVTKEY_FAIL "Failed to get ECDH private key"
+#define STR_CONVERT_ECDH_PVTKEY_FAIL                                          \
+        "Failed to convert ECDH private key to Buffer"
+#define STR_CONVERT_BUFFER_BN_FAIL "Failed to convert Buffer to BN"
+#define STR_PVTKEY_NOTVALID_CURVE                                             \
+        "Private key is not valid for specified curve."
+#define STR_CONVERT_BN_PVTKEY_FAIL "Failed to convert BN to a private key"
+#define STR_GENERATE_ECDH_PUBKEY_FAIL "Failed to generate ECDH public key"
+#define STR_SET_PUBKEY_FAIL "Failed to set generated public key"
+#define STR_CONVERT_BUFFER_ECPOINT_FAIL "Failed to convert Buffer to EC_POINT"
+#define STR_ITERATIONS_NOT_NUMBER "Iterations not a number"
+#define STR_BAD_ITERATIONS "Bad iterations"
+#define STR_KEYLEN_NOT_NUMBER "Key length not a number"
+#define STR_BAD_KEYLEN "Bad key length"
+#define STR_BAD_DIGEST_NAME "Bad digest name"
+#define STR_OPERATION_NOT_SUPPORTED "Operation not supported"
+#define STR_POSITIVE_NUMBER "size must be a number >= 0"
+#define STR_SIZE_NOT_VALID_SMI "size is not a valid Smi"
+#define STR_SSL_CTL_NEW_FAIL "SSL_CTX_new() failed."
+#define STR_SSL_NEW_FAIL "SSL_new() failed."
+#define STR_MISSING_ARGUMENT "Missing argument"
+#define STR_ENGINE_NOT_FOUND "Engine \"%s\" was not found"
 
 // The messages used in lib/*.js
 // These are exposes as constants on require('internal/messages')
