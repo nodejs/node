@@ -34,7 +34,13 @@ watcher.on('change', function(event, filename) {
   watcherClosed = true;
 });
 
-fs.writeFileSync(filepathOne, 'world');
+if (process.platform === 'darwin') {
+  setTimeout(function() {
+    fs.writeFileSync(filepathOne, 'world');
+  }, 100);
+} else {
+  fs.writeFileSync(filepathOne, 'world');
+}
 
 process.on('exit', function() {
   assert(watcherClosed, 'watcher Object was not closed');
