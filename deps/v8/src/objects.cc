@@ -12226,6 +12226,8 @@ static bool ShouldConvertToFastElements(JSObject* object,
 
   uint32_t dictionary_size = static_cast<uint32_t>(dictionary->Capacity()) *
                              SeededNumberDictionary::kEntrySize;
+
+  // Turn fast if the dictionary only saves 50% space.
   return 2 * dictionary_size >= *new_capacity;
 }
 
