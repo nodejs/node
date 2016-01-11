@@ -12,7 +12,7 @@ body {
   margin: 0;
   padding: 0;
   color: #333;
-  background: #fcfefa;
+  background: #fff;
 }
 
 #content {
@@ -424,13 +424,6 @@ span.type {
 #column2 ul li a:focus {
   color: #fff;
   background: none;
-}
-
-#footer {
-  padding: 0;
-  min-height: 24px;
-  background: #333;
-  color: white;
 }
 
 span > .mark,
