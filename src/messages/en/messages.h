@@ -8,8 +8,8 @@
 
 // The messages used in src/*.cc
 // These are used only within the Node.js native source
-
 #define STR_CONVERT_ARGS_TO_UTF8_FAIL "Could not convert arguments to utf8."
+#define STR_OUTOFMEMORY "Out of memory"
 #define STR_CALLBACK_NOT_ASSIGNED                                         \
         "init callback is not assigned to a function"
 #define STR_HOOKSSHOULDNOTBESET                                           \
@@ -213,6 +213,23 @@
 #define STR_FAILED_TO_SET_DICTIONARY "Failed to set dictionary"
 #define STR_FAILED_TO_SET_PARAMETERS "Failed to set parameters"
 #define STR_FAILED_TO_RESET_STREAM "Failed to reset stream"
+#define STR_UID_OUTOFRANGE "options.uid is out of range"
+#define STR_GID_OUTOFRANGE "options.gid is out of range"
+#define STR_OPTIONS_UID_NUMBER "options.uid should be a number"
+#define STR_OPTIONS_GID_NUMBER "options.gid should be a number"
+#define STR_BAD_INPUT_STRING "Bad input string"
+#define STR_FIRST_ARGUMENT_STREAMWRAP                                         \
+        "First argument should be a StreamWrap instance"
+#define STR_SECOND_ARGUMENT_SECURECONTEXT                                     \
+        "Second argument should be a SecureContext instance"
+#define STR_THIRD_AGUMENT_BOOLEAN "Third argument should be boolean"
+#define STR_ALREADY_STARTED "Already started."
+#define STR_BAD_ARGUMENTS_TWO_BOOLEANS                                        \
+        "Bad arguments, expected two booleans"
+#define STR_SETVERIFYMODE_AFTER_DESTROYSSL  "SetVerifyMode after destroySSL"
+#define STR_ENABLESESSIONCALLBACKS_AFTER_DESTROYSSL                           \
+        "EnableSessionCallbacks after destroySSL"
+#define STR_ERR_NOT_ZERO "err >= 0"
 
 // The messages used in lib/*.js
 // These are exposes as constants on require('internal/messages')

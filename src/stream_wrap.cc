@@ -160,7 +160,7 @@ void StreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
   if (buf->base == nullptr && size > 0) {
     FatalError(
         "node::StreamWrap::DoAlloc(size_t, uv_buf_t*, void*)",
-        "Out Of Memory");
+        STR_OUTOFMEMORY);
   }
 }
 

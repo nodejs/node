@@ -29,7 +29,7 @@ class StringBytes {
                        enum encoding _default) {
       enum encoding enc = ParseEncoding(env->isolate(), encoding, _default);
       if (!StringBytes::IsValidString(env->isolate(), string, enc)) {
-        env->ThrowTypeError("Bad input string");
+        THROWI18NTYPEERROR(env, BAD_INPUT_STRING);
         return false;
       }
 

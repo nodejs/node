@@ -20,7 +20,7 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int err = args[0]->Int32Value();
   if (err >= 0)
-    return env->ThrowError("err >= 0");
+    return THROWI18NERROR(env, ERR_NOT_ZERO);
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }

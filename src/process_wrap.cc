@@ -122,12 +122,12 @@ class ProcessWrap : public HandleWrap {
     if (uid_v->IsInt32()) {
       int32_t uid = uid_v->Int32Value();
       if (uid & ~((uv_uid_t) ~0)) {
-        return env->ThrowRangeError("options.uid is out of range");
+        return THROWI18NRANGEERROR(env, UID_OUTOFRANGE);
       }
       options.flags |= UV_PROCESS_SETUID;
       options.uid = (uv_uid_t) uid;
     } else if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
-      return env->ThrowTypeError("options.uid should be a number");
+      return THROWI18NTYPEERROR(env, OPTIONS_UID_NUMBER);
     }
 
     // options.gid
@@ -135,12 +135,12 @@ class ProcessWrap : public HandleWrap {
     if (gid_v->IsInt32()) {
       int32_t gid = gid_v->Int32Value();
       if (gid & ~((uv_gid_t) ~0)) {
-        return env->ThrowRangeError("options.gid is out of range");
+        return THROWI18NRANGEERROR(env, GID_OUTOFRANGE);
       }
       options.flags |= UV_PROCESS_SETGID;
       options.gid = (uv_gid_t) gid;
     } else if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
-      return env->ThrowTypeError("options.gid should be a number");
+      return THROWI18NTYPEERROR(env, OPTIONS_GID_NUMBER);
     }
 
     // TODO(bnoordhuis) is this possible to do without mallocing ?
@@ -152,7 +152,7 @@ class ProcessWrap : public HandleWrap {
     if (file.length() > 0) {
       options.file = *file;
     } else {
-      return env->ThrowTypeError("Bad argument");
+      return THROWI18NTYPEERROR(env, BAD_ARGUMENT);
     }
 
     // options.args
