@@ -234,8 +234,8 @@ line interface:
 
 ## Example: Read File Stream Line-by-Line
 
-Also a common case for `readline`'s `input` option is passing a file system
-readable Stream to it. This is how one could craft line-by-line parsing:
+A common case for `readline`'s `input` option is to pass a filesystem readable
+stream to it. This is how one could craft line-by-line parsing of a file:
 
     const readline = require('readline');
     const fs = require('fs');
