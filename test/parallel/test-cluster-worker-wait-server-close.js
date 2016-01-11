@@ -24,14 +24,14 @@ if (cluster.isWorker) {
   worker.once('listening', function() {
     net.createConnection(common.PORT, common.localhostIPv4, function() {
       var socket = this;
+      this.on('end', function() {
+        connectionDone = true;
+      });
       this.on('data', function() {
         console.log('got data from client');
         // socket definitely connected to worker if we got data
         worker.disconnect();
-        setTimeout(function() {
-          socket.end();
-          connectionDone = true;
-        }, 1000);
+        socket.end();
       });
     });
   });
