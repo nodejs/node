@@ -1142,6 +1142,8 @@ if 'make_fips_settings' in output:
   del output['make_fips_settings']
   write('config_fips.gypi', do_not_edit +
         pprint.pformat(config_fips, indent=2) + '\n')
+else:
+  os.remove('config_fips.gypi')
 
 # make_global_settings should be a root level element too
 if 'make_global_settings' in output:
