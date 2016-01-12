@@ -14,7 +14,7 @@
 module.exports = function(context) {
 
     var mode = (function(option) {
-        if (option == null || typeof option === "string") {
+        if (!option || typeof option === "string") {
             return {
                 before: { before: true, after: false },
                 after: { before: false, after: true },
@@ -36,14 +36,24 @@ module.exports = function(context) {
      */
     function checkSpacing(side, leftToken, rightToken) {
         if (!!(rightToken.range[0] - leftToken.range[1]) !== mode[side]) {
-            context.report(
-                leftToken.value === "*" ? leftToken : rightToken,
-                "{{type}} space {{side}} *.",
-                {
-                    type: mode[side] ? "Missing" : "Unexpected",
-                    side: side
+            var after = leftToken.value === "*";
+            var spaceRequired = mode[side];
+            var node = after ? leftToken : rightToken;
+            var type = spaceRequired ? "Missing" : "Unexpected";
+            var message = type + " space " + side + " *.";
+            context.report({
+                node: node,
+                message: message,
+                fix: function(fixer) {
+                    if (spaceRequired) {
+                        if (after) {
+                            return fixer.insertTextAfter(node, " ");
+                        }
+                        return fixer.insertTextBefore(node, " ");
+                    }
+                    return fixer.removeRange([leftToken.range[1], rightToken.range[0]]);
                 }
-            );
+            });
         }
     }
 

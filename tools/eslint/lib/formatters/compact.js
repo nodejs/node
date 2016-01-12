@@ -8,6 +8,12 @@
 // Helper Functions
 //------------------------------------------------------------------------------
 
+/**
+ * Returns the severity of warning or error
+ * @param {object} message message object to examine
+ * @returns {string} severity level
+ * @private
+ */
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
         return "Error";

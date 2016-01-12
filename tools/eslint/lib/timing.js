@@ -11,11 +11,27 @@
 //------------------------------------------------------------------------------
 
 /* istanbul ignore next */
+/**
+ * Align the string to left
+ * @param {string} str string to evaluate
+ * @param {int} len length of the string
+ * @param {string} ch delimiter character
+ * @returns {string} modified string
+ * @private
+ */
 function alignLeft(str, len, ch) {
     return str + new Array(len - str.length + 1).join(ch || " ");
 }
 
 /* istanbul ignore next */
+/**
+ * Align the string to right
+ * @param {string} str string to evaluate
+ * @param {int} len length of the string
+ * @param {string} ch delimiter character
+ * @returns {string} modified string
+ * @private
+ */
 function alignRight(str, len, ch) {
     return new Array(len - str.length + 1).join(ch || " ") + str;
 }
@@ -30,6 +46,12 @@ var HEADERS = ["Rule", "Time (ms)", "Relative"];
 var ALIGN = [alignLeft, alignRight, alignRight];
 
 /* istanbul ignore next */
+/**
+ * display the data
+ * @param {object} data Data object to be displayed
+ * @returns {string} modified string
+ * @private
+ */
 function display(data) {
     var total = 0;
     var rows = Object.keys(data)
@@ -82,6 +104,13 @@ module.exports = (function() {
 
     var data = Object.create(null);
 
+    /**
+     * Time the run
+     * @param {*} key key from the data object
+     * @param {Function} fn function to be called
+     * @returns {Function} function to be executed
+     * @private
+     */
     function time(key, fn) {
         if (typeof data[key] === "undefined") {
             data[key] = 0;

@@ -30,7 +30,6 @@ function resolveJavascriptRegExp(data) {
   }
 
   try {
-    var dummy = new RegExp(regexp, modifiers);
     return true;
   } catch (error) {
     return false;

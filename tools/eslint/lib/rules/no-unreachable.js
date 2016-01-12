@@ -8,7 +8,14 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-
+/**
+ * Report the node
+ * @param {object} context Current context as passed to the rule
+ * @param {ASTNode} node node to evaluate
+ * @param {string} unreachableType Type of the statement
+ * @returns {void}
+ * @private
+ */
 function report(context, node, unreachableType) {
     var keyword;
     switch (unreachableType) {
@@ -51,7 +58,7 @@ module.exports = function(context) {
             });
     }
 
-    /*
+    /**
      * Verifies that the given node is the last node or followed exclusively by
      * hoisted declarations
      * @param {ASTNode} node Node that should be the last node

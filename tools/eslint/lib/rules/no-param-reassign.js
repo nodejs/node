@@ -9,45 +9,63 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+var stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/;
+
 module.exports = function(context) {
-
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+    var props = context.options[0] && Boolean(context.options[0].props);
 
     /**
-     * Finds the declaration for a given variable by name, searching up the scope tree.
-     * @param {Scope} scope The scope in which to search.
-     * @param {String} name The name of the variable.
-     * @returns {Variable} The declaration information for the given variable, or null if no declaration was found.
+     * Checks whether or not a reference modifies its variable.
+     * If the `props` option is `true`, this checks whether or not the reference modifies properties of its variable also.
+     * @param {Reference} reference - A reference to check.
+     * @returns {boolean} Whether or not the reference modifies its variable.
      */
-    function findDeclaration(scope, name) {
-        var variables = scope.variables;
-
-        for (var i = 0; i < variables.length; i++) {
-            if (variables[i].name === name) {
-                return variables[i];
-            }
+    function isModifying(reference) {
+        if (reference.isWrite()) {
+            return true;
         }
 
-        if (scope.upper) {
-            return findDeclaration(scope.upper, name);
-        } else {
-            return null;
-        }
-    }
+        // Checks whether its property is modified.
+        if (props) {
+            var node = reference.identifier;
+            var parent = node.parent;
+            while (parent && !stopNodePattern.test(parent.type)) {
+                switch (parent.type) {
+                    // e.g. foo.a = 0;
+                    case "AssignmentExpression":
+                        return parent.left === node;
 
-    /**
-     * Determines if a given variable is declared as a function parameter.
-     * @param {Variable} variable The variable declaration.
-     * @returns {boolean} True if the variable is a function parameter, false otherwise.
-     */
-    function isParameter(variable) {
-        var defs = variable.defs;
+                    // e.g. ++foo.a;
+                    case "UpdateExpression":
+                        return true;
 
-        for (var i = 0; i < defs.length; i++) {
-            if (defs[i].type === "Parameter") {
-                return true;
+                    // e.g. delete foo.a;
+                    case "UnaryExpression":
+                        if (parent.operator === "delete") {
+                            return true;
+                        }
+                        break;
+
+                    // EXCLUDES: e.g. cache.get(foo.a).b = 0;
+                    case "CallExpression":
+                        if (parent.callee !== node) {
+                            return false;
+                        }
+                        break;
+
+                    // EXCLUDES: e.g. cache[foo.a] = 0;
+                    case "MemberExpression":
+                        if (parent.property === node) {
+                            return false;
+                        }
+                        break;
+
+                    default:
+                        break;
+                }
+
+                node = parent;
+                parent = parent.parent;
             }
         }
 
@@ -55,33 +73,64 @@ module.exports = function(context) {
     }
 
     /**
-     * Checks whether a given node is an assignment to a function parameter.
-     * If so, a linting error will be reported.
-     * @param {ASTNode} node The node to check.
-     * @param {String} name The name of the variable being assigned to.
+     * Reports a reference if is non initializer and writable.
+     * @param {Reference} reference - A reference to check.
+     * @param {int} index - The index of the reference in the references.
+     * @param {Reference[]} references - The array that the reference belongs to.
      * @returns {void}
      */
-    function checkParameter(node, name) {
-        var declaration = findDeclaration(context.getScope(), name);
+    function checkReference(reference, index, references) {
+        var identifier = reference.identifier;
 
-        if (declaration && isParameter(declaration)) {
-            context.report(node, "Assignment to function parameter '{{name}}'.", { name: name });
+        if (identifier &&
+            !reference.init &&
+            isModifying(reference) &&
+            // Destructuring assignments can have multiple default value,
+            // so possibly there are multiple writeable references for the same identifier.
+            (index === 0 || references[index - 1].identifier !== identifier)
+        ) {
+            context.report(
+                identifier,
+                "Assignment to function parameter '{{name}}'.",
+                {name: identifier.name});
         }
     }
 
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
+    /**
+     * Finds and reports references that are non initializer and writable.
+     * @param {Variable} variable - A variable to check.
+     * @returns {void}
+     */
+    function checkVariable(variable) {
+        if (variable.defs[0].type === "Parameter") {
+            variable.references.forEach(checkReference);
+        }
+    }
+
+    /**
+     * Checks parameters of a given function node.
+     * @param {ASTNode} node - A function node to check.
+     * @returns {void}
+     */
+    function checkForFunction(node) {
+        context.getDeclaredVariables(node).forEach(checkVariable);
+    }
 
     return {
-        "AssignmentExpression": function(node) {
-            checkParameter(node, node.left.name);
-        },
-
-        "UpdateExpression": function(node) {
-            checkParameter(node, node.argument.name);
-        }
+        // `:exit` is needed for the `node.parent` property of identifier nodes.
+        "FunctionDeclaration:exit": checkForFunction,
+        "FunctionExpression:exit": checkForFunction,
+        "ArrowFunctionExpression:exit": checkForFunction
     };
+
 };
 
-module.exports.schema = [];
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "props": {"type": "boolean"}
+        },
+        "additionalProperties": false
+    }
+];

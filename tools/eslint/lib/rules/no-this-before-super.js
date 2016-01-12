@@ -18,7 +18,7 @@ module.exports = function(context) {
      * @returns {ClassDeclaration|ClassExpression|null} the found class node, or `null`.
      */
     function getClassInAncestor(node) {
-        while (node != null) {
+        while (node) {
             if (node.type === "ClassDeclaration" || node.type === "ClassExpression") {
                 return node;
             }
@@ -34,7 +34,7 @@ module.exports = function(context) {
      * @returns {boolean} whether or not a node is the null literal.
      */
     function isNullLiteral(node) {
-        return node != null && node.type === "Literal" && node.value === null;
+        return node && node.type === "Literal" && node.value === null;
     }
 
     /**
@@ -43,7 +43,7 @@ module.exports = function(context) {
      * @returns {boolean} whether or not a node is the callee of a call expression.
      */
     function isCallee(node) {
-        return node != null && node.parent.type === "CallExpression" && node.parent.callee === node;
+        return node && node.parent.type === "CallExpression" && node.parent.callee === node;
     }
 
     /**
@@ -53,7 +53,7 @@ module.exports = function(context) {
      */
     function isBeforeSuperCalling(item) {
         return (
-            item != null &&
+            item &&
             item.scope === context.getScope().variableScope.upper.variableScope &&
             item.superCalled === false
         );
@@ -91,7 +91,7 @@ module.exports = function(context) {
 
             // Skip if it has no extends or `extends null`.
             var classNode = getClassInAncestor(node);
-            if (classNode == null || classNode.superClass == null || isNullLiteral(classNode.superClass)) {
+            if (!classNode || !classNode.superClass || isNullLiteral(classNode.superClass)) {
                 return;
             }
 

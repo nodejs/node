@@ -10,22 +10,31 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+    var options = {
+        builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals)
+    };
 
     /**
      * Find variables in a given scope and flag redeclared ones.
-     * @param {Scope} scope An escope scope object.
+     * @param {Scope} scope - An escope scope object.
      * @returns {void}
      * @private
      */
     function findVariablesInScope(scope) {
         scope.variables.forEach(function(variable) {
-            if (variable.identifiers && variable.identifiers.length > 1) {
+            var hasBuiltin = options.builtinGlobals && "writeable" in variable;
+            var count = (hasBuiltin ? 1 : 0) + variable.identifiers.length;
+
+            if (count >= 2) {
                 variable.identifiers.sort(function(a, b) {
                     return a.range[1] - b.range[1];
                 });
 
-                for (var i = 1, l = variable.identifiers.length; i < l; i++) {
-                    context.report(variable.identifiers[i], "{{a}} is already defined", {a: variable.name});
+                for (var i = (hasBuiltin ? 0 : 1), l = variable.identifiers.length; i < l; i++) {
+                    context.report(
+                        variable.identifiers[i],
+                        "\"{{a}}\" is already defined",
+                        {a: variable.name});
                 }
             }
         });
@@ -33,36 +42,52 @@ module.exports = function(context) {
     }
 
     /**
-     * Find variables in a given node's associated scope.
-     * @param {ASTNode} node The node to check.
+     * Find variables in the current scope.
      * @returns {void}
      * @private
      */
-    function findVariables(node) {
+    function checkForGlobal() {
         var scope = context.getScope();
 
-        findVariablesInScope(scope);
-
-        // globalReturn means one extra scope to check
-        if (node.type === "Program" && context.ecmaFeatures.globalReturn) {
+        // Nodejs env or modules has a special scope.
+        if (context.ecmaFeatures.globalReturn || context.ecmaFeatures.modules) {
             findVariablesInScope(scope.childScopes[0]);
+        } else {
+            findVariablesInScope(scope);
         }
+    }
+
+    /**
+     * Find variables in the current scope.
+     * @returns {void}
+     * @private
+     */
+    function checkForBlock() {
+        findVariablesInScope(context.getScope());
     }
 
     if (context.ecmaFeatures.blockBindings) {
         return {
-            "Program": findVariables,
-            "BlockStatement": findVariables,
-            "SwitchStatement": findVariables
+            "Program": checkForGlobal,
+            "BlockStatement": checkForBlock,
+            "SwitchStatement": checkForBlock
         };
     } else {
         return {
-            "Program": findVariables,
-            "FunctionDeclaration": findVariables,
-            "FunctionExpression": findVariables,
-            "ArrowFunctionExpression": findVariables
+            "Program": checkForGlobal,
+            "FunctionDeclaration": checkForBlock,
+            "FunctionExpression": checkForBlock,
+            "ArrowFunctionExpression": checkForBlock
         };
     }
 };
 
-module.exports.schema = [];
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "builtinGlobals": {"type": "boolean"}
+        },
+        "additionalProperties": false
+    }
+];

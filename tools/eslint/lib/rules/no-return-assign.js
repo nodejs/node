@@ -14,7 +14,7 @@
  * @returns {boolean} Whether or not the node is an `AssignmentExpression`.
  */
 function isAssignment(node) {
-    return node != null && node.type === "AssignmentExpression";
+    return node && node.type === "AssignmentExpression";
 }
 
 /**
