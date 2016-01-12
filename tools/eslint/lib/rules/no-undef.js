@@ -10,12 +10,20 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-// none!
+var astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+/**
+ * Check if a variable is an implicit declaration
+ * @param {ASTNode} variable node to evaluate
+ * @returns {boolean} True if its an implicit declaration
+ * @private
+ */
 function isImplicitGlobal(variable) {
     return variable.defs.every(function(def) {
         return def.type === "ImplicitGlobalVariable";
@@ -29,18 +37,13 @@ function isImplicitGlobal(variable) {
  * @returns {Variable} The variable, or null if ref refers to an undeclared variable.
  */
 function getDeclaredGlobalVariable(scope, ref) {
-    var declaredGlobal = null;
-    scope.variables.some(function(variable) {
-        if (variable.name === ref.identifier.name) {
-            // If it's an implicit global, it must have a `writeable` field (indicating it was declared)
-            if (!isImplicitGlobal(variable) || {}.hasOwnProperty.call(variable, "writeable")) {
-                declaredGlobal = variable;
-                return true;
-            }
-        }
-        return false;
-    });
-    return declaredGlobal;
+    var variable = astUtils.getVariableByName(scope, ref.identifier.name);
+
+    // If it's an implicit global, it must have a `writeable` field (indicating it was declared)
+    if (variable && (!isImplicitGlobal(variable) || hasOwnProperty.call(variable, "writeable"))) {
+        return variable;
+    }
+    return null;
 }
 
 /**
@@ -62,9 +65,12 @@ module.exports = function(context) {
     var NOT_DEFINED_MESSAGE = "\"{{name}}\" is not defined.",
         READ_ONLY_MESSAGE = "\"{{name}}\" is read only.";
 
+    var options = context.options[0];
+    var considerTypeOf = options && options.typeof === true || false;
+
     return {
 
-        "Program:exit": function(/*node*/) {
+        "Program:exit": function(/* node */) {
 
             var globalScope = context.getScope();
 
@@ -72,7 +78,7 @@ module.exports = function(context) {
                 var variable = getDeclaredGlobalVariable(globalScope, ref),
                     name = ref.identifier.name;
 
-                if (hasTypeOfOperator(ref.identifier)) {
+                if (hasTypeOfOperator(ref.identifier) && !considerTypeOf) {
                     return;
                 }
 
@@ -89,4 +95,14 @@ module.exports = function(context) {
 
 };
 
-module.exports.schema = [];
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "typeof": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

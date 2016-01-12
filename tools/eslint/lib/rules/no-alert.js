@@ -52,7 +52,7 @@ function getPropertyName(memberExpressionNode) {
  * @returns {Reference|undefined} Returns the found reference or undefined if none were found.
  */
 function findReference(scope, node) {
-    var references = scope.references.filter(function (reference) {
+    var references = scope.references.filter(function(reference) {
         return reference.identifier.range[0] === node.range[0] &&
             reference.identifier.range[1] === node.range[1];
     });
@@ -69,9 +69,8 @@ function findReference(scope, node) {
  * @returns {boolean} Whether or not the name is shadowed globally.
  */
 function isGloballyShadowed(globalScope, identifierName) {
-    return globalScope.variables.some(function (variable) {
-        return variable.name === identifierName && variable.defs.length > 0;
-    });
+    var variable = globalScope.set.get(identifierName);
+    return Boolean(variable && variable.defs.length > 0);
 }
 
 /**
@@ -120,7 +119,7 @@ module.exports = function(context) {
 
     return {
 
-        "Program": function () {
+        "Program": function() {
             globalScope = context.getScope();
         },
 

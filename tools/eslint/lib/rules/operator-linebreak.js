@@ -6,37 +6,41 @@
 
 "use strict";
 
+var assign = require("object-assign"),
+    astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
 
-    var style = context.options[0] || "after";
+    var usedDefaultGlobal = !context.options[0];
+    var globalStyle = context.options[0] || "after";
+    var options = context.options[1] || {};
+    var styleOverrides = options.overrides ? assign({}, options.overrides) : {};
+
+    if (usedDefaultGlobal && !styleOverrides["?"]) {
+        styleOverrides["?"] = "before";
+    }
+
+    if (usedDefaultGlobal && !styleOverrides[":"]) {
+        styleOverrides[":"] = "before";
+    }
 
     //--------------------------------------------------------------------------
     // Helpers
     //--------------------------------------------------------------------------
 
     /**
-     * Checks whether two tokens are on the same line.
-     * @param {ASTNode} left The leftmost token.
-     * @param {ASTNode} right The rightmost token.
-     * @returns {boolean} True if the tokens are on the same line, false if not.
-     * @private
-     */
-    function isSameLine(left, right) {
-        return left.loc.end.line === right.loc.start.line;
-    }
-
-    /**
      * Checks the operator placement
-     * @param {ASTNode} node The binary operator node to check
+     * @param {ASTNode} node The node to check
+     * @param {ASTNode} leftSide The node that comes before the operator in `node`
      * @private
      * @returns {void}
      */
-    function validateBinaryExpression(node) {
-        var leftToken = context.getLastToken(node.left || node.id);
+    function validateNode(node, leftSide) {
+        var leftToken = context.getLastToken(leftSide);
         var operatorToken = context.getTokenAfter(leftToken);
 
         // When the left part of a binary expression is a single expression wrapped in
@@ -51,15 +55,16 @@ module.exports = function(context) {
 
         var rightToken = context.getTokenAfter(operatorToken);
         var operator = operatorToken.value;
+        var style = styleOverrides[operator] || globalStyle;
 
         // if single line
-        if (isSameLine(leftToken, operatorToken) &&
-                isSameLine(operatorToken, rightToken)) {
+        if (astUtils.isTokenOnSameLine(leftToken, operatorToken) &&
+                astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
 
             return;
 
-        } else if (!isSameLine(leftToken, operatorToken) &&
-                !isSameLine(operatorToken, rightToken)) {
+        } else if (!astUtils.isTokenOnSameLine(leftToken, operatorToken) &&
+                !astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
 
             // lone operator
             context.report(node, {
@@ -67,14 +72,14 @@ module.exports = function(context) {
                 column: operatorToken.loc.end.column
             }, "Bad line breaking before and after '" + operator + "'.");
 
-        } else if (style === "before" && isSameLine(leftToken, operatorToken)) {
+        } else if (style === "before" && astUtils.isTokenOnSameLine(leftToken, operatorToken)) {
 
             context.report(node, {
                 line: operatorToken.loc.end.line,
                 column: operatorToken.loc.end.column
             }, "'" + operator + "' should be placed at the beginning of the line.");
 
-        } else if (style === "after" && isSameLine(operatorToken, rightToken)) {
+        } else if (style === "after" && astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
 
             context.report(node, {
                 line: operatorToken.loc.end.line,
@@ -91,6 +96,15 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Validates a binary expression using `validateNode`
+     * @param {BinaryExpression|LogicalExpression|AssignmentExpression} node node to be validated
+     * @returns {void}
+     */
+    function validateBinaryExpression(node) {
+        validateNode(node, node.left);
+    }
+
     //--------------------------------------------------------------------------
     // Public
     //--------------------------------------------------------------------------
@@ -99,16 +113,35 @@ module.exports = function(context) {
         "BinaryExpression": validateBinaryExpression,
         "LogicalExpression": validateBinaryExpression,
         "AssignmentExpression": validateBinaryExpression,
-        "VariableDeclarator": function (node) {
+        "VariableDeclarator": function(node) {
             if (node.init) {
-                validateBinaryExpression(node);
+                validateNode(node, node.id);
             }
+        },
+        "ConditionalExpression": function(node) {
+            validateNode(node, node.test);
+            validateNode(node, node.consequent);
         }
     };
 };
 
 module.exports.schema = [
     {
-        "enum": ["after", "before", "none"]
+        "enum": ["after", "before", "none", null]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "overrides": {
+                "type": "object",
+                "properties": {
+                    "anyOf": {
+                        "type": "string",
+                        "enum": ["after", "before", "none"]
+                    }
+                }
+            }
+        },
+        "additionalProperties": false
     }
 ];
