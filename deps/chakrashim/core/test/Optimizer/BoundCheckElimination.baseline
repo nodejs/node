@@ -1,0 +1,75 @@
+testHoistability: 80
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array upper bound check
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array upper bound check
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array upper bound check
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array upper bound check
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array lower bound check out of loop
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array upper bound check
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array lower bound check into existing bound check instruction
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array upper bound check
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array lower bound check into existing bound check instruction
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array upper bound check
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array lower bound check out of loop
+Testtrace: BoundCheckHoist function testHoistability ( (#1.1), #2): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistability ( (#1.1), #2): Eliminating array upper bound check
+testHoistability: 80
+
+testUnhoistability: NaN
+Testtrace: BoundCheckElimination function testUnhoistability ( (#1.2), #3): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testUnhoistability ( (#1.2), #3): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testUnhoistability ( (#1.2), #3): Eliminating array lower bound check
+testUnhoistability: NaN
+
+testInductionVariableWithConstantValue_0: 2
+Testtrace: BoundCheckHoist function testInductionVariableWithConstantValue_0 ( (#1.3), #4): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testInductionVariableWithConstantValue_0 ( (#1.3), #4): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testInductionVariableWithConstantValue_0 ( (#1.3), #4): Eliminating array upper bound check
+testInductionVariableWithConstantValue_0: 2
+
+testInductionVariableWithConstantValue_1: 2
+Testtrace: BoundCheckHoist function testInductionVariableWithConstantValue_1 ( (#1.4), #5): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testInductionVariableWithConstantValue_1 ( (#1.4), #5): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testInductionVariableWithConstantValue_1 ( (#1.4), #5): Eliminating array upper bound check
+testInductionVariableWithConstantValue_1: 2
+
+testInductionVariableWithConstantValue_2: 2
+Testtrace: BoundCheckHoist function testInductionVariableWithConstantValue_2 ( (#1.5), #6): Hoisting array lower bound check out of loop
+Testtrace: BoundCheckHoist function testInductionVariableWithConstantValue_2 ( (#1.5), #6): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testInductionVariableWithConstantValue_2 ( (#1.5), #6): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testInductionVariableWithConstantValue_2 ( (#1.5), #6): Eliminating array upper bound check
+testInductionVariableWithConstantValue_2: 2
+
+testInductionVariableWithConstantValue_3: 2
+Testtrace: BoundCheckHoist function testInductionVariableWithConstantValue_3 ( (#1.6), #7): Hoisting array lower bound check out of loop
+Testtrace: BoundCheckHoist function testInductionVariableWithConstantValue_3 ( (#1.6), #7): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testInductionVariableWithConstantValue_3 ( (#1.6), #7): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testInductionVariableWithConstantValue_3 ( (#1.6), #7): Eliminating array upper bound check
+testInductionVariableWithConstantValue_3: 2
+
+Testtrace: BoundCheckHoist function testInductionVariableEqualsConstantAndHoistability ( (#1.8), #9): Hoisting array lower bound check out of loop
+Testtrace: BoundCheckHoist function testInductionVariableEqualsConstantAndHoistability ( (#1.8), #9): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testInductionVariableEqualsConstantAndHoistability ( (#1.8), #9): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testInductionVariableEqualsConstantAndHoistability ( (#1.8), #9): Eliminating array upper bound check
+
+Testtrace: BoundCheckHoist function testHoistabilityAndCompatibilityAndBoundInfoPropagationOutOfLoop ( (#1.10), #11): Hoisting array upper bound check out of loop
+Testtrace: BoundCheckElimination function testHoistabilityAndCompatibilityAndBoundInfoPropagationOutOfLoop ( (#1.10), #11): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistabilityAndCompatibilityAndBoundInfoPropagationOutOfLoop ( (#1.10), #11): Eliminating array upper bound check
+Testtrace: BoundCheckHoist function testHoistabilityAndCompatibilityAndBoundInfoPropagationOutOfLoop ( (#1.10), #11): Hoisting array upper bound check into existing bound check instruction
+Testtrace: BoundCheckElimination function testHoistabilityAndCompatibilityAndBoundInfoPropagationOutOfLoop ( (#1.10), #11): Eliminating array lower bound check
+Testtrace: BoundCheckElimination function testHoistabilityAndCompatibilityAndBoundInfoPropagationOutOfLoop ( (#1.10), #11): Eliminating array upper bound check
+

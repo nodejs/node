@@ -1,0 +1,58 @@
+EvalError
+description    = (undefined)undefined
+number         = (undefined)undefined
+stack          = (string)  EvalError
+	at eval code (eval code:1:1)
+	at Test(string) (nativeerrors.js:49:5)
+	at Global code (nativeerrors.js:68:1)
+toString()     = EvalError
+
+RangeError('This is a range error')
+description    = (undefined)undefined
+number         = (undefined)undefined
+stack          = (string)  RangeError: This is a range error
+	at eval code (eval code:1:1)
+	at Test(string) (nativeerrors.js:49:5)
+	at Global code (nativeerrors.js:69:1)
+toString()     = RangeError: This is a range error
+
+ReferenceError
+description    = (undefined)undefined
+number         = (undefined)undefined
+stack          = (string)  ReferenceError
+	at eval code (eval code:1:1)
+	at Test(string) (nativeerrors.js:49:5)
+	at Global code (nativeerrors.js:70:1)
+toString()     = ReferenceError
+
+SyntaxError
+description    = (undefined)undefined
+number         = (undefined)undefined
+stack          = (string)  SyntaxError
+	at eval code (eval code:1:1)
+	at Test(string) (nativeerrors.js:49:5)
+	at Global code (nativeerrors.js:71:1)
+toString()     = SyntaxError
+
+TypeError('This is a type error')
+description    = (undefined)undefined
+number         = (undefined)undefined
+stack          = (string)  TypeError: This is a type error
+	at eval code (eval code:1:1)
+	at Test(string) (nativeerrors.js:49:5)
+	at Global code (nativeerrors.js:72:1)
+toString()     = TypeError: This is a type error
+
+URIError
+description    = (undefined)undefined
+number         = (undefined)undefined
+stack          = (string)  URIError
+	at eval code (eval code:1:1)
+	at Test(string) (nativeerrors.js:49:5)
+	at Global code (nativeerrors.js:73:1)
+toString()     = URIError
+
+RegExpError
+ReferenceError: 'RegExpError' is undefined
+ConversionError
+ReferenceError: 'ConversionError' is undefined

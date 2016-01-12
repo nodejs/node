@@ -1,0 +1,9 @@
+Executing test #1 Subclass of Promise - basic functionality
+Executing test #2 Subclass of Promise - all
+Executing test #3 Subclass of Promise - race
+Result of test #1 Subclass of Promise - basic functionality
+abccd
+Result of test #2 Subclass of Promise - all
+abc
+Result of test #3 Subclass of Promise - race
+abc

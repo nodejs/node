@@ -1,0 +1,180 @@
+x = Object(); x:[object Object] typeof(x):object x.str():[object Object]
+x = new Object(); x:[object Object] typeof(x):object x.str():[object Object]
+x = Object(undefined); x:[object Object] typeof(x):object x.str():[object Object]
+x = new Object(undefined); x:[object Object] typeof(x):object x.str():[object Object]
+x = Object(null); x:[object Object] typeof(x):object x.str():[object Object]
+x = new Object(null); x:[object Object] typeof(x):object x.str():[object Object]
+x = Object(true); x:true typeof(x):object x.str():[object Boolean]
+x = new Object(true); x:true typeof(x):object x.str():[object Boolean]
+x = Object(false); x:false typeof(x):object x.str():[object Boolean]
+x = new Object(false); x:false typeof(x):object x.str():[object Boolean]
+x = Object(Boolean(true)); x:true typeof(x):object x.str():[object Boolean]
+x = new Object(Boolean(true)); x:true typeof(x):object x.str():[object Boolean]
+x = Object(Boolean(false)); x:false typeof(x):object x.str():[object Boolean]
+x = new Object(Boolean(false)); x:false typeof(x):object x.str():[object Boolean]
+x = Object(new Boolean(true)); x:true typeof(x):object x.str():[object Boolean]
+x = new Object(new Boolean(true)); x:true typeof(x):object x.str():[object Boolean]
+x = Object(new Boolean(false)); x:false typeof(x):object x.str():[object Boolean]
+x = new Object(new Boolean(false)); x:false typeof(x):object x.str():[object Boolean]
+x = Object(NaN); x:NaN typeof(x):object x.str():[object Number]
+x = new Object(NaN); x:NaN typeof(x):object x.str():[object Number]
+x = Object(+0); x:0 typeof(x):object x.str():[object Number]
+x = new Object(+0); x:0 typeof(x):object x.str():[object Number]
+x = Object(-0); x:0 typeof(x):object x.str():[object Number]
+x = new Object(-0); x:0 typeof(x):object x.str():[object Number]
+x = Object(0); x:0 typeof(x):object x.str():[object Number]
+x = new Object(0); x:0 typeof(x):object x.str():[object Number]
+x = Object(0.0); x:0 typeof(x):object x.str():[object Number]
+x = new Object(0.0); x:0 typeof(x):object x.str():[object Number]
+x = Object(-0.0); x:0 typeof(x):object x.str():[object Number]
+x = new Object(-0.0); x:0 typeof(x):object x.str():[object Number]
+x = Object(+0.0); x:0 typeof(x):object x.str():[object Number]
+x = new Object(+0.0); x:0 typeof(x):object x.str():[object Number]
+x = Object(1); x:1 typeof(x):object x.str():[object Number]
+x = new Object(1); x:1 typeof(x):object x.str():[object Number]
+x = Object(10); x:10 typeof(x):object x.str():[object Number]
+x = new Object(10); x:10 typeof(x):object x.str():[object Number]
+x = Object(10.0); x:10 typeof(x):object x.str():[object Number]
+x = new Object(10.0); x:10 typeof(x):object x.str():[object Number]
+x = Object(10.1); x:10.1 typeof(x):object x.str():[object Number]
+x = new Object(10.1); x:10.1 typeof(x):object x.str():[object Number]
+x = Object(-1); x:-1 typeof(x):object x.str():[object Number]
+x = new Object(-1); x:-1 typeof(x):object x.str():[object Number]
+x = Object(-10); x:-10 typeof(x):object x.str():[object Number]
+x = new Object(-10); x:-10 typeof(x):object x.str():[object Number]
+x = Object(-10.0); x:-10 typeof(x):object x.str():[object Number]
+x = new Object(-10.0); x:-10 typeof(x):object x.str():[object Number]
+x = Object(-10.1); x:-10.1 typeof(x):object x.str():[object Number]
+x = new Object(-10.1); x:-10.1 typeof(x):object x.str():[object Number]
+x = Object(Number.MAX_VALUE); x:1.7976931348623157e+308 typeof(x):object x.str():[object Number]
+x = new Object(Number.MAX_VALUE); x:1.7976931348623157e+308 typeof(x):object x.str():[object Number]
+x = Object(Number.MIN_VALUE); x:5e-324 typeof(x):object x.str():[object Number]
+x = new Object(Number.MIN_VALUE); x:5e-324 typeof(x):object x.str():[object Number]
+x = Object(Number.NaN); x:NaN typeof(x):object x.str():[object Number]
+x = new Object(Number.NaN); x:NaN typeof(x):object x.str():[object Number]
+x = Object(Number.POSITIVE_INFINITY); x:Infinity typeof(x):object x.str():[object Number]
+x = new Object(Number.POSITIVE_INFINITY); x:Infinity typeof(x):object x.str():[object Number]
+x = Object(Number.NEGATIVE_INFINITY); x:-Infinity typeof(x):object x.str():[object Number]
+x = new Object(Number.NEGATIVE_INFINITY); x:-Infinity typeof(x):object x.str():[object Number]
+x = Object(new Number(NaN)); x:NaN typeof(x):object x.str():[object Number]
+x = new Object(new Number(NaN)); x:NaN typeof(x):object x.str():[object Number]
+x = Object(new Number(+0)); x:0 typeof(x):object x.str():[object Number]
+x = new Object(new Number(+0)); x:0 typeof(x):object x.str():[object Number]
+x = Object(new Number(-0)); x:0 typeof(x):object x.str():[object Number]
+x = new Object(new Number(-0)); x:0 typeof(x):object x.str():[object Number]
+x = Object(new Number(0)); x:0 typeof(x):object x.str():[object Number]
+x = new Object(new Number(0)); x:0 typeof(x):object x.str():[object Number]
+x = Object(new Number(0.0)); x:0 typeof(x):object x.str():[object Number]
+x = new Object(new Number(0.0)); x:0 typeof(x):object x.str():[object Number]
+x = Object(new Number(-0.0)); x:0 typeof(x):object x.str():[object Number]
+x = new Object(new Number(-0.0)); x:0 typeof(x):object x.str():[object Number]
+x = Object(new Number(+0.0)); x:0 typeof(x):object x.str():[object Number]
+x = new Object(new Number(+0.0)); x:0 typeof(x):object x.str():[object Number]
+x = Object(new Number(1)); x:1 typeof(x):object x.str():[object Number]
+x = new Object(new Number(1)); x:1 typeof(x):object x.str():[object Number]
+x = Object(new Number(10)); x:10 typeof(x):object x.str():[object Number]
+x = new Object(new Number(10)); x:10 typeof(x):object x.str():[object Number]
+x = Object(new Number(10.0)); x:10 typeof(x):object x.str():[object Number]
+x = new Object(new Number(10.0)); x:10 typeof(x):object x.str():[object Number]
+x = Object(new Number(10.1)); x:10.1 typeof(x):object x.str():[object Number]
+x = new Object(new Number(10.1)); x:10.1 typeof(x):object x.str():[object Number]
+x = Object(new Number(-1)); x:-1 typeof(x):object x.str():[object Number]
+x = new Object(new Number(-1)); x:-1 typeof(x):object x.str():[object Number]
+x = Object(new Number(-10)); x:-10 typeof(x):object x.str():[object Number]
+x = new Object(new Number(-10)); x:-10 typeof(x):object x.str():[object Number]
+x = Object(new Number(-10.0)); x:-10 typeof(x):object x.str():[object Number]
+x = new Object(new Number(-10.0)); x:-10 typeof(x):object x.str():[object Number]
+x = Object(new Number(-10.1)); x:-10.1 typeof(x):object x.str():[object Number]
+x = new Object(new Number(-10.1)); x:-10.1 typeof(x):object x.str():[object Number]
+x = Object(new Number(Number.MAX_VALUE)); x:1.7976931348623157e+308 typeof(x):object x.str():[object Number]
+x = new Object(new Number(Number.MAX_VALUE)); x:1.7976931348623157e+308 typeof(x):object x.str():[object Number]
+x = Object(new Number(Number.MIN_VALUE)); x:5e-324 typeof(x):object x.str():[object Number]
+x = new Object(new Number(Number.MIN_VALUE)); x:5e-324 typeof(x):object x.str():[object Number]
+x = Object(new Number(Number.NaN)); x:NaN typeof(x):object x.str():[object Number]
+x = new Object(new Number(Number.NaN)); x:NaN typeof(x):object x.str():[object Number]
+x = Object(new Number(Number.POSITIVE_INFINITY)); x:Infinity typeof(x):object x.str():[object Number]
+x = new Object(new Number(Number.POSITIVE_INFINITY)); x:Infinity typeof(x):object x.str():[object Number]
+x = Object(new Number(Number.NEGATIVE_INFINITY)); x:-Infinity typeof(x):object x.str():[object Number]
+x = new Object(new Number(Number.NEGATIVE_INFINITY)); x:-Infinity typeof(x):object x.str():[object Number]
+x = Object(''); x: typeof(x):object x.str():[object String]
+x = new Object(''); x: typeof(x):object x.str():[object String]
+x = Object(0xa); x:10 typeof(x):object x.str():[object Number]
+x = new Object(0xa); x:10 typeof(x):object x.str():[object Number]
+x = Object(04); x:4 typeof(x):object x.str():[object Number]
+x = new Object(04); x:4 typeof(x):object x.str():[object Number]
+x = Object('hello'); x:hello typeof(x):object x.str():[object String]
+x = new Object('hello'); x:hello typeof(x):object x.str():[object String]
+x = Object('hel' + 'lo'); x:hello typeof(x):object x.str():[object String]
+x = new Object('hel' + 'lo'); x:hello typeof(x):object x.str():[object String]
+x = Object(String('')); x: typeof(x):object x.str():[object String]
+x = new Object(String('')); x: typeof(x):object x.str():[object String]
+x = Object(String('hello')); x:hello typeof(x):object x.str():[object String]
+x = new Object(String('hello')); x:hello typeof(x):object x.str():[object String]
+x = Object(String('h' + 'ello')); x:hello typeof(x):object x.str():[object String]
+x = new Object(String('h' + 'ello')); x:hello typeof(x):object x.str():[object String]
+x = Object(new String('')); x: typeof(x):object x.str():[object String]
+x = new Object(new String('')); x: typeof(x):object x.str():[object String]
+x = Object(new String('hello')); x:hello typeof(x):object x.str():[object String]
+x = new Object(new String('hello')); x:hello typeof(x):object x.str():[object String]
+x = Object(new String('he' + 'llo')); x:hello typeof(x):object x.str():[object String]
+x = new Object(new String('he' + 'llo')); x:hello typeof(x):object x.str():[object String]
+x = Object(new Object()); x:[object Object] typeof(x):object x.str():[object Object]
+x = new Object(new Object()); x:[object Object] typeof(x):object x.str():[object Object]
+x = Object(new Object()); x:[object Object] typeof(x):object x.str():[object Object]
+x = new Object(new Object()); x:[object Object] typeof(x):object x.str():[object Object]
+x = Object([1, 2, 3]); x:1,2,3 typeof(x):object x.str():[object Array]
+x = new Object([1, 2, 3]); x:1,2,3 typeof(x):object x.str():[object Array]
+x = Object([1 ,2 , 3]); x:1,2,3 typeof(x):object x.str():[object Array]
+x = new Object([1 ,2 , 3]); x:1,2,3 typeof(x):object x.str():[object Array]
+x = Object(new Array(3)); x:,, typeof(x):object x.str():[object Array]
+x = new Object(new Array(3)); x:,, typeof(x):object x.str():[object Array]
+x = Object(Array(3)); x:,, typeof(x):object x.str():[object Array]
+x = new Object(Array(3)); x:,, typeof(x):object x.str():[object Array]
+x = Object(new Array(1 ,2 ,3)); x:1,2,3 typeof(x):object x.str():[object Array]
+x = new Object(new Array(1 ,2 ,3)); x:1,2,3 typeof(x):object x.str():[object Array]
+x = Object(Array(1)); x: typeof(x):object x.str():[object Array]
+x = new Object(Array(1)); x: typeof(x):object x.str():[object Array]
+x = Object(foo); x:function foo() {} typeof(x):function x.str():[object Function]
+x = new Object(foo); x:function foo() {} typeof(x):function x.str():[object Function]
+Testing no prototype property construction
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+Testing custom object prototype construction
+protoFunc
+protoFunc
+protoFunc
+protoFunc
+protoFunc
+protoFunc
+protoFunc
+protoFunc
+Testing integer prototype construction
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+Testing no prototype property construction
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+ObjectprotoFunc
+Testing cross script context object creation
+property
+property
+property
+property
+property

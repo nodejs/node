@@ -1,0 +1,48 @@
+ReferenceError: Use before declaration
+local x
+ReferenceError: Use before declaration
+local x
+ReferenceError: Use before declaration
+a is a string
+did not delete a
+did not delete a
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+undefined
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+false
+ReferenceError: Use before declaration
+false
+string
+false
+ReferenceError: Use before declaration
+false
+string
+ReferenceError: Use before declaration
+function () { write(y = 123); }
+123
+123
+ReferenceError: Use before declaration
+function () { write(y = 123); }
+123
+123
+ReferenceError: Use before declaration
+function
+ReferenceError: Use before declaration
+function
+ReferenceError: Use before declaration
+function () { write(y); }
+ReferenceError: Use before declaration
+function () { write(y); }
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration

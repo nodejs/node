@@ -1,0 +1,14 @@
+TypeError: Number.prototype.toString: 'this' is not a Number object
+TypeError: RegExp.prototype.toString: 'this' is not a RegExp object
+TypeError: Function.prototype.toString: 'this' is not a Function object
+ReferenceError: Invalid left-hand side in assignment
+ReferenceError: Invalid left-hand side in assignment
+TypeError: Boolean.prototype.toString: 'this' is not a Boolean object
+ReferenceError: Invalid left-hand side in assignment
+TypeError: String.prototype.toString: 'this' is not a String object
+TypeError: Date.prototype.toString: 'this' is not a Date object
+TypeError: Boolean.prototype.valueOf: 'this' is not a Boolean object
+TypeError: Date.prototype.valueOf: 'this' is not a Date object
+TypeError: Number.prototype.valueOf: 'this' is not a Number object
+ReferenceError: Invalid left-hand side in assignment
+TypeError: String.prototype.valueOf: 'this' is not a String object

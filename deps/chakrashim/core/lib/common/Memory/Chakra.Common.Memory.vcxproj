@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Common.Memory</TargetName>
+    <ProjectGuid>{BB4153FF-AC3E-4734-B562-FF23812DF31B}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+    <Import Project="$(BuildConfig_ARMASM_Path)armasm.props" />
+  </ImportGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>CommonMemoryPch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)Allocator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\XDataAllocator.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+      <!-- Since there are more then one XDataAllocator.cpp, we need to set them output into different directory, even when they are ExcludedFromBuild -->
+      <ObjectFileName Condition="'$(Platform)'!='x64'">$(IntDir)\amd64</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\XDataAllocator.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+      <!-- Since there are more then one XDataAllocator.cpp, we need to set them output into different directory, even when they are ExcludedFromBuild -->
+      <ObjectFileName Condition="'$(Platform)'!='ARM'">$(IntDir)\arm</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)ArenaAllocator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CustomHeap.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)EtwMemoryTracking.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ForcedMemoryConstraints.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)HeapAllocator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)HeapAllocatorOperators.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)HeapBlock.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)HeapBlockMap.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)heapbucket.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)heapinfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IdleDecommitPageAllocator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)LargeHeapBlock.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)leakreport.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)LargeHeapBucket.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)MarkContext.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)MemoryTracking.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)MemoryLogger.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PageAllocator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Recycler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RecyclerHeuristic.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RecyclerObjectDumper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RecyclerObjectGraphDumper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RecyclerPageAllocator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RecyclerSweep.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RecyclerWriteBarrierManager.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmallFinalizableHeapBlock.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmallFinalizableHeapBucket.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmallHeapBlockAllocator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmallLeafHeapBlock.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmallLeafHeapBucket.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmallNormalHeapBlock.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmallNormalHeapBucket.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)StressTest.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)VirtualAllocWrapper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CommonMemoryPch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Allocator.h" />
+    <ClInclude Include="amd64\XDataAllocator.h">
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="ArenaAllocator.h" />
+    <ClInclude Include="arm\XDataAllocator.h">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="AutoAllocatorObjectPtr.h" />
+    <ClInclude Include="AutoPtr.h" />
+    <ClInclude Include="collectionstate.h" />
+    <ClInclude Include="CommonMemoryPch.h" />
+    <ClInclude Include="CustomHeap.h" />
+    <ClInclude Include="ForcedMemoryConstraints.h" />
+    <ClInclude Include="FreeObject.h" />
+    <ClInclude Include="HeapAllocator.h" />
+    <ClInclude Include="HeapBlock.h" />
+    <ClInclude Include="HeapBlockMap.h" />
+    <ClInclude Include="heapbucket.h" />
+    <ClInclude Include="HeapConstants.h" />
+    <ClInclude Include="heapinfo.h" />
+    <ClInclude Include="IdleDecommitPageAllocator.h" />
+    <ClInclude Include="LargeHeapBlock.h" />
+    <ClInclude Include="leakreport.h" />
+    <ClInclude Include="LargeHeapBucket.h" />
+    <ClInclude Include="MarkContext.h" />
+    <ClInclude Include="MemoryTracking.h" />
+    <ClInclude Include="PageAllocator.h" />
+    <ClInclude Include="PageAllocatorDefines.h" />
+    <ClInclude Include="PageHeapBlockTypeFilter.h" />
+    <ClInclude Include="PagePool.h" />
+    <ClInclude Include="Recycler.h" />
+    <ClInclude Include="RecyclerFastAllocator.h" />
+    <ClInclude Include="RecyclerHeuristic.h" />
+    <ClInclude Include="RecyclerObjectDumper.h" />
+    <ClInclude Include="RecyclerObjectGraphDumper.h" />
+    <ClInclude Include="RecyclerPageAllocator.h" />
+    <ClInclude Include="RecyclerPointers.h" />
+    <ClInclude Include="RecyclerRootPtr.h" />
+    <ClInclude Include="RecyclerSweep.h" />
+    <ClInclude Include="RecyclerWeakReference.h" />
+    <ClInclude Include="RecyclerWriteBarrierManager.h" />
+    <ClInclude Include="SmallFinalizableHeapBlock.h" />
+    <ClInclude Include="SmallFinalizableHeapBucket.h" />
+    <ClInclude Include="SmallHeapBlockAllocator.h" />
+    <ClInclude Include="SmallLeafHeapBlock.h" />
+    <ClInclude Include="SmallLeafHeapBucket.h" />
+    <ClInclude Include="SmallNormalHeapBlock.h" />
+    <ClInclude Include="SmallNormalHeapBucket.h" />
+    <ClInclude Include="MemoryLogger.h" />
+    <ClInclude Include="StressTest.h" />
+    <ClInclude Include="VirtualAllocWrapper.h" />
+    <ClInclude Include="XDataAllocator.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="heapblock.inl" />
+    <None Include="heapbucket.inl" />
+    <None Include="LargeHeapBucket.inl" />
+    <None Include="MarkContext.inl" />
+    <None Include="Recycler.inl" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="$(MSBuildThisFileDirectory)amd64\amd64_SAVE_REGISTERS.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </MASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_SAVE_REGISTERS.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_SAVE_REGISTERS.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ARMASM>
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+    <Import Project="$(BuildConfig_ARMASM_Path)armasm.targets" />
+  </ImportGroup>
+</Project>

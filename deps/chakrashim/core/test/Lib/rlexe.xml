@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>construct.js</files>
+      <baseline>construct.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>getclass.js</files>
+      <baseline>getclass1.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>length2.js</files>
+      <baseline>length.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>LibLength.js</files>
+      <baseline>LibLength.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>noargs.js</files>
+      <baseline>noargs_2.baseline</baseline>
+      <tags>fail_mutators</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>toString.js</files>
+      <baseline>toString.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>forin_lib.js</files>
+      <baseline>forin_lib_v3.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>uri.js</files>
+      <baseline>uri.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>error.js</files>
+      <baseline>error.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>workingset.js</files>
+      <baseline />
+      <tags>exclude_ship</tags>
+    </default>
+  </test>
+  <!--
+Re-enable after 190575 is fixed
+<test>
+   <default>
+      <files>profiledataobject.js</files>
+      <baseline>profiledataobject.baseline</baseline>
+      <tags>exclude_default,exclude_dynapogo,exclude_amd64,exclude_arm,exclude_ship,require_backend</tags>
+          <compile-flags>-nonative -dynamicprofilecache:profile.dpl.profiledataobject.js</compile-flags>
+   </default>
+</test>
+-->
+  <!--
+Re-enable after 190575 is fixed
+<test>
+   <default>
+      <files>profiledataobject.js</files>
+      <baseline>profiledataobject.dynapogo.baseline</baseline>
+      <tags>exclude_default,exclude_interpreted,exclude_amd64,exclude_arm,exclude_ship,require_backend</tags>
+          <compile-flags>-nonative -dynamicprofileinput:profile.dpl.profiledataobject.js</compile-flags>
+   </default>
+</test>
+-->
+  <!--
+Re-enable after 190575 is fixed
+<test>
+   <default>
+      <files>profiledataobject.js</files>
+      <baseline>profiledataobject.amd64.baseline</baseline>
+      <tags>exclude_default,exclude_dynapogo,exclude_x86,exclude_arm,exclude_ship,require_backend</tags>
+          <compile-flags>-nonative -dynamicprofilecache:profile.dpl.profiledataobject.js</compile-flags>
+   </default>
+</test>
+-->
+  <!--
+Re-enable after 190575 is fixed
+<test>
+   <default>
+      <files>profiledataobject.js</files>
+      <baseline>profiledataobject.dynapogo.amd64.baseline</baseline>
+      <tags>exclude_default,exclude_interpreted,exclude_x86,exclude_arm,exclude_ship,require_backend</tags>
+          <compile-flags>-nonative -dynamicprofileinput:profile.dpl.profiledataobject.js</compile-flags>
+   </default>
+</test>
+-->
+  <!--
+Re-enable after 190575 is fixed
+<test>
+   <default>
+      <files>profiledataobject.js</files>
+      <baseline>profiledataobject.arm.baseline</baseline>
+      <tags>exclude_default,exclude_dynapogo,exclude_x86,exclude_amd64,exclude_ship,require_backend</tags>
+          <compile-flags>-nonative -dynamicprofilecache:profile.dpl.profiledataobject.js</compile-flags>
+   </default>
+</test>
+-->
+  <!--
+Re-enable after 190575 is fixed
+<test>
+   <default>
+      <files>profiledataobject.js</files>
+      <baseline>profiledataobject.dynapogo.arm.baseline</baseline>
+      <tags>exclude_default,exclude_interpreted,exclude_x86,exclude_amd64,exclude_ship,require_backend</tags>
+          <compile-flags>-nonative -dynamicprofileinput:profile.dpl.profiledataobject.js</compile-flags>
+   </default>
+</test>
+-->
+</regress-exe>

@@ -1,0 +1,103 @@
+p : undefined
+delete p: false
+p : undefined
+q : 10
+delete q: false
+q : 10
+test2_value : 10
+delete test2_value: true
+delete test2_value passed
+test2_local : 20
+delete test2_local: true
+delete test2_local passed
+Test3 x : 10 y: hello z: undefined
+delete x: false
+delete x: false
+delete x: false
+Test3 x : 10 y: hello z: undefined
+Test4 x : 10 y: hello z: undefined
+Test4 arguments[0] : 10 arguments[1]: hello arguments[2]: undefined
+delete arguments[0]: true
+delete arguments[2]: true
+Test4 x : 10 y: hello z: undefined
+Test4 arguments[0] : undefined arguments[1]: hello arguments[2]: undefined
+Test5: delete function false
+test5_func() :100
+Test6: delete this: true
+Test7: delete test7_value: false
+Test8: delete arguments: false
+Test9: delete exception: false
+Test10: delete exception: false
+Test11: delete x: true
+Test12: delete x: true
+Test13: delete x: false
+Test14: delete f: false
+Test15: delete f: true
+Test16: delete f: true
+Test17: delete test17_value: false
+Test18: delete test18_value: false
+test18_value : 10
+Test19: delete test19_value: true
+test19_value : 10
+o.test19_value : undefined
+Test20: delete test20_value: false
+test20_value : 10
+Test21: delete test21_value: true
+test21_value : 10
+o.test21_value : undefined
+Test22: delete test22_value: true
+test22_value : 10
+o1.test22_value : 20
+o2.test22_value : 30
+o3.test22_value : 40
+o4.test22_value : undefined
+Test23: delete test23_value: true
+test23_value : 10
+o1.test23_value : 20
+o2.test23_value : 30
+o3.test23_value : 40
+o4.test23_value : undefined
+Test24: delete Test24_value: true
+Test24_value : 10
+o.Test24_value : undefined
+Test25: delete Test25_value: true
+Test25_value : 1
+o.Test25_value : undefined
+Test26: delete Test26_value: false
+Test26_value : 1
+o.Test26_value : undefined
+Test27: delete Test27_value: false
+Test27_value : 1
+o.Test27_value : undefined
+Func28.1 :function
+Func28.2 :number
+Func28: delete Func28: true
+Func28.3 :function
+Func28.4 :number
+Func28: delete Func28: true
+Func28.5 :function
+Expr29.1 :function
+Expr29.2 :number
+Expr29: delete Expr29: true
+Expr29.3 :function
+Expr29.4 :number
+Expr29: delete Expr29: true
+Expr29.5 :function
+Func30.1 :function
+Func30.2 :number
+Func30.3 :object
+Func30.4 :object
+Func30: delete Func30: true
+Func30.5 :function
+Func30: delete Func30: false
+Func30.6 :function
+Func30.7 :function
+Expr31.1 :function
+Expr31.2 :number
+Expr31.3 :object
+Expr31.4 :object
+Expr31: delete Expr31: true
+Expr31.5 :function
+Expr31: delete Expr31: false
+Expr31.6 :function
+Expr31.7 :function

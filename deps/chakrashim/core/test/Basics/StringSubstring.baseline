@@ -1,0 +1,20 @@
+"bcdefghji", length: 9
+"abcde", length: 5
+"pqrstuvwxy", length: 10
+Left-only
+"bcdefghji", length: 9
+"abcde", length: 5
+"pqrstuvwxy", length: 10
+
+Right-only
+"2345", length: 4
+"1234567890", length: 10
+
+Split
+"yz123", length: 5
+"abcdefghjiklmnopqrstuvwxyz1234567890", length: 36
+
+Split
+"defghjiklmnopqrstuvwxyz", length: 23
+"", length: 0
+"a", length: 1

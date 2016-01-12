@@ -1,0 +1,21 @@
+o:[object Object] typeof(o):object o.toString():[object Object]
+o:[object Object] typeof(o):object o.toString():[object Object]
+o:[object Object] typeof(o):object o.toString():[object Object]
+o:[object Object] typeof(o):object o.toString():[object Object]
+o:[object Object] typeof(o):object o.toString():[object Object]
+o:[object Object] typeof(o):object o.toString():[object Object]
+o:true typeof(o):object o.toString():[object Boolean]
+o:true typeof(o):object o.toString():[object Boolean]
+o:false typeof(o):object o.toString():[object Boolean]
+o:false typeof(o):object o.toString():[object Boolean]
+o:0 typeof(o):object o.toString():[object Number]
+o:0 typeof(o):object o.toString():[object Number]
+o:10 typeof(o):object o.toString():[object Number]
+o:10 typeof(o):object o.toString():[object Number]
+o:hello typeof(o):object o.toString():[object String]
+o:hello typeof(o):object o.toString():[object String]
+o:hello typeof(o):object o.toString():[object String]
+o:hello typeof(o):object o.toString():[object String]
+o.x = 10
+o.x = 20
+o.x = 30

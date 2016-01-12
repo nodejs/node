@@ -1,0 +1,7 @@
+ES 5 Object Literal grammar: parsing-only tests
+ (test 1): Object literal duplicate set/get property
+PASS
+ (test 2): Object literal set must have exactly one argument
+Success: Expected set with no arguments in object literal throws SyntaxError = true, got true
+Success: Expected set with two arguments in object literal throws SyntaxError = true, got true
+PASS

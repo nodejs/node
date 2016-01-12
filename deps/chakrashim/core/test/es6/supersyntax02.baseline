@@ -1,0 +1,2 @@
+SyntaxError: Invalid use of the 'super' keyword
+	at code (supersyntax02.js:7:6)

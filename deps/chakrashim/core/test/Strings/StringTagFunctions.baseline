@@ -1,0 +1,11 @@
+*** Running test #1 (0): Quote characters are escaped correctly
+PASSED
+*** Running test #2 (1): String without null terminator at length
+PASSED
+*** Running test #3 (2): String with embedded null characters
+PASSED
+*** Running test #4 (3): Zero-length strings
+PASSED
+*** Running test #5 (4): Function with no property
+PASSED
+Summary of tests: total executed: 5; passed: 5; failed: 0

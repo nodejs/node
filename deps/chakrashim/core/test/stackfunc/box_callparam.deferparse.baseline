@@ -1,0 +1,21 @@
+HasFuncDecl: blah
+HasFuncDecl: nested2
+HasFuncDecl: nested
+HasFuncDecl: blah
+HasFuncDecl: nested2
+HasFuncDecl: nested
+DoStackNestedFunc: blah (function  (#1.1), #2)
+HasFuncDecl: nested2
+RestoreHasFuncAssignment: nested2
+HasFuncDecl: nested
+RestoreHasFuncAssignment: nested
+HasMaybeEscapedUse: nested2
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): blah (function  (#1.1), #2)
+DeferParse: box and disable stack function: blah (function  (#1.1), #2)
+Boxing Frame [Interpreted]: blah  (#1.1), #2
+Boxing StackScriptFunction Object: nested2 (function Id:  (#1.2), #4)
+Boxing StackScriptFunction Object: nested (function Id:  (#1.3), #5)
+HasFuncDecl: nested2
+RestoreHasFuncAssignment: nested2
+HasFuncDecl: nested
+RestoreHasFuncAssignment: nested

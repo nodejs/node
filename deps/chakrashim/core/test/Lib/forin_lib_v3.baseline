@@ -1,0 +1,117 @@
+for..in Object
+for..in Object (with blah)
+  blah = b
+for..in new Object
+for..in Object (with prototype.blah2)
+  blah2 = Object
+
+for..in Array
+  blah2 = Object
+for..in Array (with blah)
+  blah = b
+  blah2 = Object
+for..in new Array
+  blah2 = Object
+for..in Array (with prototype.blah2)
+  blah2 = Array
+
+for..in String
+  blah2 = Object
+for..in String (with blah)
+  blah = b
+  blah2 = Object
+for..in new String
+  blah2 = Object
+for..in String (with prototype.blah2)
+  blah2 = String
+
+for..in Function
+  blah2 = Object
+for..in Function (with blah)
+  blah = b
+  blah2 = Object
+for..in new Function
+  blah2 = Object
+for..in Function (with prototype.blah2)
+  blah2 = Function
+
+for..in Math
+  blah2 = Object
+for..in Math (with blah)
+  blah = b
+  blah2 = Object
+
+for..in JSON
+  blah2 = Object
+for..in JSON (with blah)
+  blah = b
+  blah2 = Object
+
+for..in Number
+  blah2 = Function
+for..in Number (with blah)
+  blah = b
+  blah2 = Function
+for..in new Number
+  blah2 = Object
+for..in Number (with prototype.blah2)
+  blah2 = Number
+
+for..in Boolean
+  blah2 = Function
+for..in Boolean (with blah)
+  blah = b
+  blah2 = Function
+for..in new Boolean
+  blah2 = Object
+for..in Boolean (with prototype.blah2)
+  blah2 = Boolean
+
+for..in Date
+  blah2 = Function
+for..in Date (with blah)
+  blah = b
+  blah2 = Function
+for..in new Date
+  blah2 = Object
+for..in Date (with prototype.blah2)
+  blah2 = Date
+
+for..in RegExp
+  $1 = 
+  $2 = 
+  $3 = 
+  $4 = 
+  $5 = 
+  $6 = 
+  $7 = 
+  $8 = 
+  $9 = 
+  input = 
+  rightContext = 
+  leftContext = 
+  lastParen = 
+  lastMatch = 
+  blah2 = Function
+for..in RegExp (with blah)
+  $1 = 
+  $2 = 
+  $3 = 
+  $4 = 
+  $5 = 
+  $6 = 
+  $7 = 
+  $8 = 
+  $9 = 
+  input = 
+  rightContext = 
+  leftContext = 
+  lastParen = 
+  lastMatch = 
+  blah = b
+  blah2 = Function
+for..in new RegExp
+  blah2 = Object
+for..in RegExp (with prototype.blah2)
+  blah2 = RegExp
+

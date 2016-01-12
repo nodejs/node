@@ -1,0 +1,5 @@
+HasFuncDecl: escape
+HasFuncDecl: test
+HasMaybeEscapedNestedFunc (InList): test (function  (#1.2), #3)
+test1
+test2

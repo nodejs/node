@@ -1,0 +1,19 @@
+Inner foobaz 0
+	Inner bar 0
+		Inner foo 0
+		Finally foo 0
+	Finally bar 0
+Inner foobaz 1
+	Inner bar 1
+		Inner foo 1
+		Finally foo 1
+	Finally bar 1
+Except foobaz 1 7
+Inner foobaz 2
+	Inner bar 2
+		Inner foo 2
+		Finally foo 2
+	Finally bar 2
+Except foobaz 2 thrown
+english (passed)
+ReferenceError: Invalid left-hand side in assignment

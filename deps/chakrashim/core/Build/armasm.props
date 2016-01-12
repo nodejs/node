@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup
+    Condition="'$(ARMASMBeforeTargets)' == '' and '$(ARMASMAfterTargets)' == '' and '$(ConfigurationType)' != 'Makefile'">
+    <ARMASMBeforeTargets>Midl</ARMASMBeforeTargets>
+    <ARMASMAfterTargets>CustomBuild</ARMASMAfterTargets>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ARMASM>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ObjectFileName>$(IntDir)%(FileName).obj</ObjectFileName>
+      <PPFileName>$(IntDir)%(FileName).i</PPFileName>
+      <ErrorReporting>0</ErrorReporting>
+      <CommandLineTemplate Condition="'$(Platform)' == 'Arm'">armasm.exe [AllOptions] [AdditionalOptions] [Inputs]</CommandLineTemplate>
+      <CommandLineTemplate Condition="'$(Platform)' == 'Arm64'">armasm64.exe [AllOptions] [AdditionalOptions] [Inputs]</CommandLineTemplate>
+      <CommandLineTemplate Condition="'$(Platform)' != 'Arm' AND '$(Platform)' != 'Arm64'">
+        echo ARMASM not supported on this platform
+        exit 1
+      </CommandLineTemplate>
+      <ExecutionDescription>Assembling %(Identity)...</ExecutionDescription>
+    </ARMASM>
+  </ItemDefinitionGroup>
+</Project>

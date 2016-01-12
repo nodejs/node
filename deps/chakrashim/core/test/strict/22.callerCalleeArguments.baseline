@@ -1,0 +1,73 @@
+(function(){echo("hasOwnProperty(caller): ", arguments.hasOwnProperty("caller"));})();
+hasOwnProperty(caller): false
+
+var foo = function(){};(function(){echo("hasOwnProperty(caller): ", foo.hasOwnProperty("caller"));})();
+hasOwnProperty(caller): true
+
+var foo = function(){};(function(){"use strict";echo("hasOwnProperty(caller): ", foo.hasOwnProperty("caller"));})();
+hasOwnProperty(caller): true
+
+(function(){echo("hasOwnProperty(callee): ", arguments.hasOwnProperty("callee"));})();
+hasOwnProperty(callee): true
+
+var foo = function(){};(function(){echo("hasOwnProperty(arguments): ", foo.hasOwnProperty("arguments"));})();
+hasOwnProperty(arguments): true
+
+var foo = function(){};(function(){"use strict";echo("hasOwnProperty(arguments): ", foo.hasOwnProperty("arguments"));})();
+hasOwnProperty(arguments): true
+
+(function(){arguments.caller;})();
+
+var foo = function(){};(function(){foo.caller;})();
+
+var foo = function(){};(function(){"use strict";foo.caller;})();
+
+(function(){arguments.callee;})();
+
+var foo = function(){};(function(){foo.arguments;})();
+
+var foo = function(){};(function(){"use strict";foo.arguments;})();
+
+(function(){arguments.caller = 0;})();
+
+var foo = function(){};(function(){foo.caller = 0;})();
+
+var foo = function(){};(function(){"use strict";foo.caller = 0;})();
+TypeError: Assignment to read-only properties is not allowed in strict mode
+
+(function(){arguments.callee = 0;})();
+
+var foo = function(){};(function(){foo.arguments = 0;})();
+
+var foo = function(){};(function(){"use strict";foo.arguments = 0;})();
+TypeError: Assignment to read-only properties is not allowed in strict mode
+
+(function(){Object.defineProperty(arguments, "caller", {value: 0});})();
+
+var foo = function(){};(function(){Object.defineProperty(foo, "caller", {value: 0});})();
+TypeError: Cannot modify non-writable property 'caller'
+
+var foo = function(){};(function(){"use strict";Object.defineProperty(foo, "caller", {value: 0});})();
+TypeError: Cannot modify non-writable property 'caller'
+
+(function(){Object.defineProperty(arguments, "callee", {value: 0});})();
+
+var foo = function(){};(function(){Object.defineProperty(foo, "arguments", {value: 0});})();
+TypeError: Cannot modify non-writable property 'arguments'
+
+var foo = function(){};(function(){"use strict";Object.defineProperty(foo, "arguments", {value: 0});})();
+TypeError: Cannot modify non-writable property 'arguments'
+
+(function(){var descriptor = Object.getOwnPropertyDescriptor(arguments, "caller");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+TypeError: Unable to get property 'hasOwnProperty' of undefined or null reference
+
+var foo = function(){};(function(){var descriptor = Object.getOwnPropertyDescriptor(foo, "caller");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+
+var foo = function(){};(function(){"use strict";var descriptor = Object.getOwnPropertyDescriptor(foo, "caller");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+
+(function(){var descriptor = Object.getOwnPropertyDescriptor(arguments, "callee");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+
+var foo = function(){};(function(){var descriptor = Object.getOwnPropertyDescriptor(foo, "arguments");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+
+var foo = function(){};(function(){"use strict";var descriptor = Object.getOwnPropertyDescriptor(foo, "arguments");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+

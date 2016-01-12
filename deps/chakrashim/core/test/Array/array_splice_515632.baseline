@@ -1,0 +1,17 @@
+*** Running test #1 (0): Arguments to Array.prototype.splice reduce the length of array by one
+PASSED
+*** Running test #2 (1): Arguments to Array.prototype.splice reduce the length of array and we don't start splice at 0
+PASSED
+*** Running test #3 (2): Arguments to Array.prototype.splice reduce the length of array, we don't start splice at 0, and we have a delete length
+PASSED
+*** Running test #4 (3): Arguments to Array.prototype.splice increases the length of array by one
+PASSED
+*** Running test #5 (4): Arguments to Array.prototype.splice increases the length of array with start and length
+PASSED
+*** Running test #6 (5): Arguments to Array.prototype.splice reduces the length of array to 0
+PASSED
+*** Running test #7 (6): Arguments to Array.prototype.splice reduces the length of array to 0 and we delete some elements
+PASSED
+*** Running test #8 (7): Arguments to Array.prototype.splice reduces the length of array to 0 and we delete some elements, taking some elements from the unchanged length and some from the changed length
+PASSED
+Summary of tests: total executed: 8; passed: 8; failed: 0

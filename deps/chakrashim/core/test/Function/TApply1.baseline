@@ -1,0 +1,11 @@
+test apply simple call with one argument: val1
+test apply simple call with  3 arguments: p1 , p2 , p3
+In test2 apply 
+test apply call to function that sets properties in 'this': 9 , secondValue
+In test3 apply 
+test apply call to function that sets properties in global 'this': param1 , 99
+**run tests with Arguments object
+test apply simple call with one argument: 1stArg
+test apply simple call with  3 arguments: 1stArg , 2ndArg , 3rdArg
+In test2 apply 
+test apply call to function that sets properties in 'this': 1stArg , 2ndArg

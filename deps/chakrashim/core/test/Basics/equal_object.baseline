@@ -1,0 +1,48 @@
+Scenario 1
+Inside valueOf
+true
+Inside valueOf
+false
+Inside valueOf
+true
+Inside valueOf
+false
+Scenario 2
+Inside valueOf
+true
+Inside valueOf
+false
+Inside valueOf
+true
+Inside valueOf
+false
+Scenario 3
+Inside valueOf
+false
+Inside valueOf
+true
+Inside valueOf
+false
+Inside valueOf
+true
+Scenario 4
+Inside toString
+true
+Inside toString
+false
+Inside toString
+true
+Inside toString
+false
+Scenario 5
+Inside toString
+false
+Inside toString
+true
+Inside toString
+false
+Inside toString
+true
+Scenario 6
+false
+false

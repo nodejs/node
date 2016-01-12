@@ -1,0 +1,32 @@
+arguments.callee:configurable : false
+arguments.callee:enumerable   : false
+arguments.callee:writable     : undefined
+arguments.callee:getter       : 
+function() {
+    [native code]
+}
+
+arguments.callee:setter       : 
+function() {
+    [native code]
+}
+
+arguments.callee:value        : undefined
+arguments.caller:configurable : false
+arguments.caller:enumerable   : false
+arguments.caller:writable     : undefined
+arguments.caller:getter       : 
+function() {
+    [native code]
+}
+
+arguments.caller:setter       : 
+function() {
+    [native code]
+}
+
+arguments.caller:value        : undefined
+Exception: Accessing the 'caller' property is restricted in this context
+Exception: Accessing the 'caller' property is restricted in this context
+Exception: Accessing the 'callee' property of an arguments object is not allowed in strict mode
+Exception: Accessing the 'callee' property of an arguments object is not allowed in strict mode

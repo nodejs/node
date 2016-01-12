@@ -1,0 +1,4 @@
+name: push -2885562136746910000number
+undefined
+TypeError: Object expected
+	at Global code (bug650104.js:18:1)

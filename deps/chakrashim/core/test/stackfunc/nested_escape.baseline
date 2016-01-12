@@ -1,0 +1,9 @@
+HasFuncDecl: test
+HasFuncDecl: nested
+HasMaybeEscapedUse: nested_escape
+HasFuncAssignment: nested_escape
+HasMaybeEscapedNestedFunc (MaybeEscapedUse): nested (function  (#1.2), #3)
+HasFuncAssignment: inner
+HasMaybeEscapedNestedFunc (Child): test (function  (#1.1), #2)
+test1
+test2

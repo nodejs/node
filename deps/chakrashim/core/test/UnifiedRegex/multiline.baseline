@@ -1,0 +1,40 @@
+replace(/^a/g /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"replaced b\u000ac d\u000ae f"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/^a/gm /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"replaced b\u000ac d\u000ae f"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/b$/g /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"a b\u000ac d\u000ae f"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/b$/gm /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"a replaced\u000ac d\u000ae f"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/^c d$/g /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"a b\u000ac d\u000ae f"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/^c d$/gm /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"a b\u000areplaced\u000ae f"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/^e/g /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"a b\u000ac d\u000ae f"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/^e/gm /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"a b\u000ac d\u000areplaced f"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/f$/g /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"a b\u000ac d\u000ae replaced"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]
+replace(/f$/gm /*lastIndex=0*/ , "a b\u000ac d\u000ae f", "replaced");
+"a b\u000ac d\u000ae replaced"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a b\u000ac d\u000ae f","","","","","","","","",""]

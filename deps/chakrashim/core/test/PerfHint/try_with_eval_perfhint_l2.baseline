@@ -1,0 +1,40 @@
+PerfHint: Not optimized : Function has try block {
+      Function : foo [try_with_eval_perfhint.js @ 10, 1]
+  Consequences : Un-optimized JIT code generated for this function
+    Suggestion : Move perf sensitive block inside of try to different function
+}
+PerfHint: Not optimized : Function has try block {
+      Function : foo2 [try_with_eval_perfhint.js @ 25, 1]
+  Consequences : Un-optimized JIT code generated for this function
+    Suggestion : Move perf sensitive block inside of try to different function
+}
+PerfHint: Not optimized : Function calls eval statement {
+      Function : foo4 [try_with_eval_perfhint.js @ 39, 5]
+  Consequences : Extra scopes, affect inlining, high overhead in the JIT code
+    Suggestion : Check usage of eval statement
+}
+PerfHint: Not optimized : Function's child calls eval statement {
+      Function : foo3 [try_with_eval_perfhint.js @ 38, 1]
+  Consequences : Extra scopes, affect inlining, high overhead in the JIT code
+    Suggestion : Check usage of eval statement
+}
+PerfHint: Not optimized : Function has with statement {
+      Function : foo5 [try_with_eval_perfhint.js @ 50, 5]
+  Consequences : Slower lookups, high overhead in the JIT code
+    Suggestion : Avoid using with statement
+}
+PerfHint: Not optimized : Function has try block {
+      Function : foo [try_with_eval_perfhint.js @ 15, 9]
+  Consequences : Un-optimized JIT code generated for this function
+    Suggestion : Move perf sensitive block inside of try to different function
+}
+PerfHint: Not optimized : Function has try block {
+      Function : foo2 [try_with_eval_perfhint.js @ 26, 5]
+  Consequences : Un-optimized JIT code generated for this function
+    Suggestion : Move perf sensitive block inside of try to different function
+}
+PerfHint: Not optimized : Function calls eval statement {
+      Function : foo4 [try_with_eval_perfhint.js @ 40, 9]
+  Consequences : Extra scopes, affect inlining, high overhead in the JIT code
+    Suggestion : Check usage of eval statement
+}

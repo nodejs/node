@@ -1,0 +1,126 @@
+Scenario RegEx case insensitive...
+Test case 1 /[K-Z]+/gi - exec :KLMNOPQRSTUVWXYZ
+Test case 2 /[K-Z]+/gi - match:KLMNOPQRSTUVWXYZ,klmnopqrstuvwXYZ
+Test case 3 /[C-\{]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{
+Test case 4 /[C-\{]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{
+Test case 5 /[L-e]+/gi - exec :ABCDE
+Test case 6 /[L-e]+/gi - match:ABCDE,LMNOPQRSTUVWXYZ[]^_`abcde,lmnopqrstuvwXYZ
+Test case 7 /[F-e]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 8 /[F-e]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 9 /[K-_]+/gi - exec :KLMNOPQRSTUVWXYZ[]^_
+Test case 10 /[K-_]+/gi - match:KLMNOPQRSTUVWXYZ[]^_,klmnopqrstuvwXYZ
+Test case 11 /[e-p]+/gi - exec :EFGHIJKLMNOP
+Test case 12 /[e-p]+/gi - match:EFGHIJKLMNOP,efghijklmnop
+Test case 13 /[r-\~]+/gi - exec :RSTUVWXYZ
+Test case 14 /[r-\~]+/gi - match:RSTUVWXYZ,rstuvwXYZ{|}~
+Test case 15 /[9-Z]+/gi - exec :9<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ
+Test case 16 /[9-Z]+/gi - match:9<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ,abcdefghijklmnopqrstuvwXYZ
+Test case 17 /[9-k]+/gi - exec :9<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 18 /[9-k]+/gi - match:9<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 19 /[\]-k]+/gi - exec :ABCDEFGHIJK
+Test case 20 /[\]-k]+/gi - match:ABCDEFGHIJK,]^_`abcdefghijk
+Test case 21 /[\{-\}]+/gi - exec :{|}
+Test case 22 /[\{-\}]+/gi - match:{|}
+Test case 23 /[0-z]+/gi - exec :0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 24 /[0-z]+/gi - match:0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 25 /[0-K]+/gi - exec :0123456789<=>?@ABCDEFGHIJK
+Test case 26 /[0-K]+/gi - match:0123456789<=>?@ABCDEFGHIJK,abcdefghijk
+Test case 27 /[5-\}]+/gi - exec :56789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{|}
+Test case 28 /[5-\}]+/gi - match:56789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{|}
+Test case 29 /[a-zA-Z]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ
+Test case 30 /[a-zA-Z]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ,abcdefghijklmnopqrstuvwXYZ
+Test case 31 /[afkl]+/gi - exec :A
+Test case 32 /[afkl]+/gi - match:A,F,KL,a,f,kl
+Test case 33 /[a-z0-9_]+/gi - exec :0123456789
+Test case 34 /[a-z0-9_]+/gi - match:0123456789,ABCDEFGHIJKLMNOPQRSTUVWXYZ,_,abcdefghijklmnopqrstuvwXYZ
+Test case 35 /[abc]+/gi - exec :ABC
+Test case 36 /[abc]+/gi - match:ABC,abc
+Test case 37 /[E-f]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 38 /[E-f]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 39 /[abc]+/gi - exec :ABC
+Test case 40 /[abc]+/gi - match:ABC,abc
+Test case 41 /[E-fk-o]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 42 /[E-fk-o]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 43 /[a-dk-lx-z]+/gi - exec :ABCD
+Test case 44 /[a-dk-lx-z]+/gi - match:ABCD,KL,XYZ,abcd,kl,XYZ
+Test case 45 /[\[\]]+/gi - exec :[]
+Test case 46 /[\[\]]+/gi - match:[]
+Test case 47 /[\[\}]+/gi - exec :[
+Test case 48 /[\[\}]+/gi - match:[,}
+Test case 49 /[0-\}]+/gi - exec :0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{|}
+Test case 50 /[0-\}]+/gi - match:0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{|}
+Test case 51 /[A-z]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 52 /[A-z]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 53 /[@-k]+/gi - exec :@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 54 /[@-k]+/gi - match:@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 55 /[0-_]+/gi - exec :0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_
+Test case 56 /[0-_]+/gi - match:0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_,abcdefghijklmnopqrstuvwXYZ
+Test case 57 /[Z-z]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 58 /[Z-z]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 59 /[A-a]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 60 /[A-a]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 61 /[X-kK-b]+/gi - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 62 /[X-kK-b]+/gi - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Scenario RegEx case sensitive...
+Test case 63 /[K-Z]+/g - exec :KLMNOPQRSTUVWXYZ
+Test case 64 /[K-Z]+/g - match:KLMNOPQRSTUVWXYZ,XYZ
+Test case 65 /[C-\{]+/g - exec :CDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{
+Test case 66 /[C-\{]+/g - match:CDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{
+Test case 67 /[L-e]+/g - exec :LMNOPQRSTUVWXYZ[]^_`abcde
+Test case 68 /[L-e]+/g - match:LMNOPQRSTUVWXYZ[]^_`abcde,XYZ
+Test case 69 /[F-e]+/g - exec :FGHIJKLMNOPQRSTUVWXYZ[]^_`abcde
+Test case 70 /[F-e]+/g - match:FGHIJKLMNOPQRSTUVWXYZ[]^_`abcde,XYZ
+Test case 71 /[K-_]+/g - exec :KLMNOPQRSTUVWXYZ[]^_
+Test case 72 /[K-_]+/g - match:KLMNOPQRSTUVWXYZ[]^_,XYZ
+Test case 73 /[e-p]+/g - exec :efghijklmnop
+Test case 74 /[e-p]+/g - match:efghijklmnop
+Test case 75 /[r-\~]+/g - exec :rstuvw
+Test case 76 /[r-\~]+/g - match:rstuvw,{|}~
+Test case 77 /[9-Z]+/g - exec :9<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ
+Test case 78 /[9-Z]+/g - match:9<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ,XYZ
+Test case 79 /[9-k]+/g - exec :9<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijk
+Test case 80 /[9-k]+/g - match:9<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijk,XYZ
+Test case 81 /[\]-k]+/g - exec :]^_`abcdefghijk
+Test case 82 /[\]-k]+/g - match:]^_`abcdefghijk
+Test case 83 /[\{-\}]+/g - exec :{|}
+Test case 84 /[\{-\}]+/g - match:{|}
+Test case 85 /[0-z]+/g - exec :0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 86 /[0-z]+/g - match:0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 87 /[0-K]+/g - exec :0123456789<=>?@ABCDEFGHIJK
+Test case 88 /[0-K]+/g - match:0123456789<=>?@ABCDEFGHIJK
+Test case 89 /[5-\}]+/g - exec :56789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{|}
+Test case 90 /[5-\}]+/g - match:56789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{|}
+Test case 91 /[a-zA-Z]+/g - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ
+Test case 92 /[a-zA-Z]+/g - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ,abcdefghijklmnopqrstuvwXYZ
+Test case 93 /[afkl]+/g - exec :a
+Test case 94 /[afkl]+/g - match:a,f,kl
+Test case 95 /[a-z0-9_]+/g - exec :0123456789
+Test case 96 /[a-z0-9_]+/g - match:0123456789,_,abcdefghijklmnopqrstuvw
+Test case 97 /[abc]+/g - exec :abc
+Test case 98 /[abc]+/g - match:abc
+Test case 99 /[E-f]+/g - exec :EFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdef
+Test case 100 /[E-f]+/g - match:EFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdef,XYZ
+Test case 101 /[abc]+/g - exec :abc
+Test case 102 /[abc]+/g - match:abc
+Test case 103 /[E-fk-o]+/g - exec :EFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdef
+Test case 104 /[E-fk-o]+/g - match:EFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdef,klmno,XYZ
+Test case 105 /[a-dk-lx-z]+/g - exec :abcd
+Test case 106 /[a-dk-lx-z]+/g - match:abcd,kl
+Test case 107 /[\[\]]+/g - exec :[]
+Test case 108 /[\[\]]+/g - match:[]
+Test case 109 /[\[\}]+/g - exec :[
+Test case 110 /[\[\}]+/g - match:[,}
+Test case 111 /[0-\}]+/g - exec :0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{|}
+Test case 112 /[0-\}]+/g - match:0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ{|}
+Test case 113 /[A-z]+/g - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 114 /[A-z]+/g - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwXYZ
+Test case 115 /[@-k]+/g - exec :@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijk
+Test case 116 /[@-k]+/g - match:@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijk,XYZ
+Test case 117 /[0-_]+/g - exec :0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_
+Test case 118 /[0-_]+/g - match:0123456789<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_,XYZ
+Test case 119 /[Z-z]+/g - exec :Z[]^_`abcdefghijklmnopqrstuvw
+Test case 120 /[Z-z]+/g - match:Z[]^_`abcdefghijklmnopqrstuvw,Z
+Test case 121 /[A-a]+/g - exec :ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`a
+Test case 122 /[A-a]+/g - match:ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`a,XYZ
+Test case 123 /[X-kK-b]+/g - exec :KLMNOPQRSTUVWXYZ[]^_`abcdefghijk
+Test case 124 /[X-kK-b]+/g - match:KLMNOPQRSTUVWXYZ[]^_`abcdefghijk,XYZ

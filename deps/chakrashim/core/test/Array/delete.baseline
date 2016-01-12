@@ -1,0 +1,8 @@
+true
+T1:8 : ,arr.proto.1,arr.proto.2,10,17,26,37,50
+true
+T2:8 : ,arr.proto.1,arr.proto.2,arr.proto.3,17,26,37,50
+true
+T3:8 : ,arr.proto.1,arr.proto.2,arr.proto.3,17,26,37,obj.proto7
+true
+T4:8 : ,arr.proto.1,arr.proto.2,arr.proto.3,17,26,37,obj.proto7

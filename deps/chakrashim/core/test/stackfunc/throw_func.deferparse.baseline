@@ -1,0 +1,7 @@
+HasFuncDecl: test
+HasFuncDecl: runtest
+HasFuncDecl: runtest
+HasFuncDecl: test
+HasMaybeEscapedNestedFunc (UnknownUse): test (function  (#1.1), #2)
+test1
+test2

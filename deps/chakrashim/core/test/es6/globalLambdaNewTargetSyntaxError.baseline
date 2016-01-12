@@ -1,0 +1,2 @@
+SyntaxError: Invalid use of the 'new.target' keyword
+	at code (globalLambdaNewTargetSyntaxError.js:6:20)

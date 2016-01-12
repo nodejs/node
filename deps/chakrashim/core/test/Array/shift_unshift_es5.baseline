@@ -1,0 +1,48 @@
+0,1,2,3
+1,2,3
+1,2,3
+4
+0,1,2,3
+a,b,c,0,1,2,3
+1
+1
+2
+2
+1
+3
+undefined
+0
+3
+2
+4
+5
+5
+5
+6
+7
+2
+3
+undefined
+undefined
+0
+3
+3
+3
+--- unshift 0
+3
+100,101,102
+--- unshift 1
+RangeError : Array length must be assigned a finite positive integer
+length: 4294967295
+  0: 200
+  1: 201
+  2: 202
+  3: 203
+  4294967294: 100
+  4294967295: 101
+  4294967296: 102
+  4294967298: 104
+  4294967299: 109
+Test: unshift should throw when length is not writable.
+e instanceOf TypeError = true
+a.length = 1

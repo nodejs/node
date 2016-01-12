@@ -1,0 +1,12 @@
+Executing test #1 - Promise created via Promise[@@create] can be initialized with Promise constructor
+Test #1 - Executor function called synchronously
+Executing test #2 - Subclass of Promise can be created and used
+Test #2 - Executor function called from subclass
+Test #2 - Promise.prototype.then returns subclass object s. s.value() = some value
+Executing test #3 - Subclass constructor has @@create method removed after Promise subclass object creation
+Test #3 - overwritten @@create called
+Caught exception: TypeError: Object expected
+
+Completion Results:
+Test #1 - Success handler called with result = success
+Test #2 - Success handler called with result = subclass of Promise

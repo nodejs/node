@@ -1,0 +1,2 @@
+SyntaxError: Invalid usage of 'arguments' in strict mode
+	at code (strictargs2-deferred.js:8:75)

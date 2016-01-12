@@ -1,0 +1,26 @@
+--- test 1 ---
+after continue: 1
+condition, i = 2
+after continue: 3
+condition, i = 4
+after continue: 5
+condition, i = 6
+condition, i = 7
+condition, i = 8
+condition, i = 9
+condition, i = 10
+--- test 2 ---
+condition, i = 1
+condition, i = 2
+condition, i = 3
+condition, i = 4
+condition, i = 5
+condition, i = 6
+default
+condition, i = 7
+default
+condition, i = 8
+default
+condition, i = 9
+condition, i = 10
+done

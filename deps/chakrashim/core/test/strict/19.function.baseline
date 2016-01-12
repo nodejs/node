@@ -1,0 +1,18 @@
+Return: function.caller get
+Return: function.caller set
+Return: function.arguments get
+Return: function.arguments get
+Test5.caller:configurable : false
+Test5.caller:enumerable   : false
+Test5.caller:writable     : false
+Test5.caller:getter       : undefined
+Test5.caller:setter       : undefined
+Test5.caller:value        : null
+Return: function.caller get
+Test6.arguments:configurable : false
+Test6.arguments:enumerable   : false
+Test6.arguments:writable     : false
+Test6.arguments:getter       : undefined
+Test6.arguments:setter       : undefined
+Test6.arguments:value        : [object Arguments]
+Return: function.arguments get

@@ -1,0 +1,11 @@
+ (test 1): Object getOwnPropertyDescriptor throws TypeError when the first parameter is either null or undefined
+Success: Expected Object getOwnPropertyDescriptor throws TypeError when 1st parameter is null = true, got true
+Success: Expected Object getOwnPropertyDescriptor throws TypeError when 1st parameter is undefined = true, got true
+PASS
+ (test 2): Freezing an object with deleted properties
+PASS
+ (test 3): Object getOwnPropertyDescriptor works fine when the first parameter is a built-in type except null or undefined
+Success: Expected Object getOwnPropertyDescriptor does not throw when 1st parameter is boolean = undefined, got undefined
+Success: Expected Object getOwnPropertyDescriptor does not throw when 1st parameter is number = undefined, got undefined
+Success: Expected Object getOwnPropertyDescriptor works fine when 1st parameter is string = 3, got 3
+PASS

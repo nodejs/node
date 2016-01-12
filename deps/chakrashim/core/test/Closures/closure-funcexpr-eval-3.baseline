@@ -1,0 +1,82 @@
+function f(x) {
+    write(f);
+    write(x);
+    (function () {
+        write(f);
+        write(x);
+        eval('f = "inner f";');
+        eval('x = "inner x";');
+        write(f);
+        write(x);
+        eval('var f = "inner f 2";');
+        eval('var x = "inner x 2";');
+        write(f);
+        write(x);
+    })();
+    write(f);
+    write(x);
+}
+outer x
+function f(x) {
+    write(f);
+    write(x);
+    (function () {
+        write(f);
+        write(x);
+        eval('f = "inner f";');
+        eval('x = "inner x";');
+        write(f);
+        write(x);
+        eval('var f = "inner f 2";');
+        eval('var x = "inner x 2";');
+        write(f);
+        write(x);
+    })();
+    write(f);
+    write(x);
+}
+outer x
+function f(x) {
+    write(f);
+    write(x);
+    (function () {
+        write(f);
+        write(x);
+        eval('f = "inner f";');
+        eval('x = "inner x";');
+        write(f);
+        write(x);
+        eval('var f = "inner f 2";');
+        eval('var x = "inner x 2";');
+        write(f);
+        write(x);
+    })();
+    write(f);
+    write(x);
+}
+inner x
+inner f 2
+inner x 2
+function f(x) {
+    write(f);
+    write(x);
+    (function () {
+        write(f);
+        write(x);
+        eval('f = "inner f";');
+        eval('x = "inner x";');
+        write(f);
+        write(x);
+        eval('var f = "inner f 2";');
+        eval('var x = "inner x 2";');
+        write(f);
+        write(x);
+    })();
+    write(f);
+    write(x);
+}
+inner x
+vartest = 1
+value = 1
+hello
+whatever

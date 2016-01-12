@@ -1,0 +1,25 @@
+foo a: arguments[0]
+args[1] : b
+args[3] : foo.d
+g args[1] : g[1]
+after call to g a : g.a b: b c: x[2]
+after eval args[2]: eval.c
+after variable a : g.a
+foo a: arguments[0]
+args[1] : b
+args[3] : undefined
+g args[1] : g[1]
+after call to g a : g.a b: b c: undefined
+after eval args[2]: x[2]
+after variable a : g.a
+goodbye
+3
+2
+Value returned : 2
+life
+0
+is
+1
+good
+2
+0

@@ -1,0 +1,4 @@
+Checking for new Date() with DST issues: 
+Backward loop starts
+Forwards loop starts
+done.

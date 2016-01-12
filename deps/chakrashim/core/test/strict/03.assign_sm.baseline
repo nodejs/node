@@ -1,0 +1,40 @@
+Exception: Unresolvable reference
+Exception: Test1_eval: Unresolvable reference
+Return: Test1_1: Globally resolvable reference
+Return: Test1_2: Parent resolvable reference
+Return: Test1_3: Explicitly bound reference
+Exception: Test1_3_eval: Explicitly bound reference
+Exception: Readonly property
+Exception: Test2_1: Readonly property on global
+Exception: Test2_2: Readonly property on global
+Exception: Test2_3: Readonly property on prototype
+Exception: Test2_3_int: Readonly property on Number prototype
+Exception: Test2_4: Readonly property with index property name
+Exception: Test2_4_arr: Readonly property on array with index property name
+Exception: Test2_4_eval: Readonly property with index property name
+Exception: Test2_5: Readonly property with index property name
+Exception: Test2_5_arr: Readonly property on array with index property name
+Exception: Test2_5_eval: Readonly property with index property name
+Exception: Test2_6: Readonly property on arguments (empty)
+Exception: Test2_7: Readonly property on arguments (with formals)
+Exception: Test2_8: Undefined setter on arguments (with formals)
+Exception: Test2_9: Readonly property indexed by variable
+Exception: Setter undefined
+Exception: Test3_eval: Setter undefined
+Exception: Test3_1: Setter undefined
+Exception: Test3_2: Setter undefined on prototype
+Exception: Test3_2_int: Setter undefined on Number prototype
+Exception: Test3_3: Setter undefined on index property name
+Exception: Test3_3_arr: Setter undefined on array with index property name
+Exception: Test3_4: Setter undefined on index property name
+Exception: Test3_4_arr: Setter undefined on array with index property name
+Exception: Test3_5: Setter undefined and indexed by variable
+Exception: Adding non-existent property to non-extensible object
+Exception: Test4_1: Adding non-existent index property to non-extensible object
+Exception: Test4_arr_1: Adding non-existent property to non-extensible array with index property name
+Exception: Test4_arr_2: Adding non-existent property to non-extensible array with index property name
+Exception: Postfix increment to non-writable property
+Exception: Postfix increment on non-extensible object's non-existent property
+Exception: Assign NaN of globalObject via property
+Exception: Assign Infinity of globalObject via indexer/literal
+Exception: Assign Infinity of globalObject via indexer/string

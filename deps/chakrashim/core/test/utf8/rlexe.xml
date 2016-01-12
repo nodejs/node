@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>invalidutf8.js</files>
+      <baseline>invalidutf8.baseline</baseline>
+      <tags>exclude_serialized</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>unicode_digit_as_identifier_should_work.js</files>
+      <baseline />
+      <tags>exclude_serialized,bugfix</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>surrogatepair.js</files>
+      <baseline />
+    </default>
+  </test>
+</regress-exe>

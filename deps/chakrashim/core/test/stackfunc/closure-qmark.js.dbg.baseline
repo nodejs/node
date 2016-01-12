@@ -1,0 +1,761 @@
+[
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 475,
+        "length": 9,
+        "text": "catch (e)",
+        "frameDescription": "Global code"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "WScript": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Arguments": "[]",
+        "StdErr": "{...}"
+      },
+      "SCA": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}"
+      },
+      "ImageData": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "write": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "z": "undefined",
+      "e": {
+        "[prototype]": "undefined",
+        "description": "<large string>",
+        "message": "<large string>",
+        "number": "-2146823286",
+        "stack": "<large string>"
+      }
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 475,
+        "length": 9,
+        "text": "catch (e)",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 290,
+        "length": 20,
+        "text": "WScript.Echo(x + '')",
+        "frameDescription": "write"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "arguments": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "[0]": "<large string>",
+        "length": "1"
+      },
+      "x": "<large string>",
+      "[Globals]": {
+        "WScript": "{...}",
+        "SCA": "{...}",
+        "ImageData": "<large string>",
+        "write": "<large string>",
+        "z": "undefined"
+      }
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 290,
+        "length": 20,
+        "text": "WScript.Echo(x + '')",
+        "frameDescription": "write"
+      },
+      {
+        "start": 492,
+        "length": 16,
+        "text": "write(e.message)",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 537,
+        "length": 56,
+        "text": "function () {\n        return true ? true : x;\n    })()",
+        "frameDescription": "Anonymous function"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "arguments": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "length": "0"
+      },
+      "x": "undefined",
+      "[Globals]": {
+        "WScript": "{...}",
+        "SCA": "{...}",
+        "ImageData": "<large string>",
+        "write": "<large string>",
+        "z": "undefined"
+      }
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 537,
+        "length": 56,
+        "text": "function () {\n        return true ? true : x;\n    })()",
+        "frameDescription": "Anonymous function"
+      },
+      {
+        "start": 517,
+        "length": 95,
+        "text": "function () {\n    (function () {\n        return true ? true : x;\n    })();\n    var x;\n})()",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 626,
+        "length": 30,
+        "text": "var z = Object instanceof null",
+        "frameDescription": "Global code"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "WScript": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Arguments": "[]",
+        "StdErr": "{...}"
+      },
+      "SCA": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}"
+      },
+      "ImageData": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "write": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "z": "undefined"
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 626,
+        "length": 30,
+        "text": "var z = Object instanceof null",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 290,
+        "length": 20,
+        "text": "WScript.Echo(x + '')",
+        "frameDescription": "write"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "arguments": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "[0]": "<large string>",
+        "length": "1"
+      },
+      "x": "<large string>",
+      "[Globals]": {
+        "WScript": "{...}",
+        "SCA": "{...}",
+        "ImageData": "<large string>",
+        "write": "<large string>",
+        "z": "undefined"
+      }
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 290,
+        "length": 20,
+        "text": "WScript.Echo(x + '')",
+        "frameDescription": "write"
+      },
+      {
+        "start": 679,
+        "length": 16,
+        "text": "write(e.message)",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 704,
+        "length": 109,
+        "text": "function () {\n    (function () {\n        return false ? x : false;\n    })();\n    function x() { }; \n})()",
+        "frameDescription": "Global code"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "WScript": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Arguments": "[]",
+        "StdErr": "{...}"
+      },
+      "SCA": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}"
+      },
+      "ImageData": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "write": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "z": "undefined"
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 704,
+        "length": 109,
+        "text": "function () {\n    (function () {\n        return false ? x : false;\n    })();\n    function x() { }; \n})()",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 827,
+        "length": 30,
+        "text": "var z = Object instanceof null",
+        "frameDescription": "Global code"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "WScript": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Arguments": "[]",
+        "StdErr": "{...}"
+      },
+      "SCA": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}"
+      },
+      "ImageData": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "write": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "z": "undefined"
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 827,
+        "length": 30,
+        "text": "var z = Object instanceof null",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 290,
+        "length": 20,
+        "text": "WScript.Echo(x + '')",
+        "frameDescription": "write"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "arguments": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "[0]": "<large string>",
+        "length": "1"
+      },
+      "x": "<large string>",
+      "[Globals]": {
+        "WScript": "{...}",
+        "SCA": "{...}",
+        "ImageData": "<large string>",
+        "write": "<large string>",
+        "z": "undefined"
+      }
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 290,
+        "length": 20,
+        "text": "WScript.Echo(x + '')",
+        "frameDescription": "write"
+      },
+      {
+        "start": 880,
+        "length": 16,
+        "text": "write(e.message)",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 905,
+        "length": 97,
+        "text": "function () {\n    (function () {\n        return false ? x : false;\n    })();\n    var x;\n})()",
+        "frameDescription": "Global code"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "WScript": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Arguments": "[]",
+        "StdErr": "{...}"
+      },
+      "SCA": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}"
+      },
+      "ImageData": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "write": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "z": "undefined"
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 905,
+        "length": 97,
+        "text": "function () {\n    (function () {\n        return false ? x : false;\n    })();\n    var x;\n})()",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 998,
+        "length": 1,
+        "text": "}",
+        "frameDescription": "Anonymous function"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "arguments": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "length": "0"
+      },
+      "x": "undefined",
+      "[Globals]": {
+        "WScript": "{...}",
+        "SCA": "{...}",
+        "ImageData": "<large string>",
+        "write": "<large string>",
+        "z": "undefined"
+      }
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 998,
+        "length": 1,
+        "text": "}",
+        "frameDescription": "Anonymous function"
+      },
+      {
+        "start": 905,
+        "length": 97,
+        "text": "function () {\n    (function () {\n        return false ? x : false;\n    })();\n    var x;\n})()",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "step",
+      "location": {
+        "start": 1016,
+        "length": 30,
+        "text": "var z = Object instanceof null",
+        "frameDescription": "Global code"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "WScript": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Arguments": "[]",
+        "StdErr": "{...}"
+      },
+      "SCA": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}"
+      },
+      "ImageData": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "write": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "z": "undefined"
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 1016,
+        "length": 30,
+        "text": "var z = Object instanceof null",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 1069,
+        "length": 16,
+        "text": "write(e.message)",
+        "frameDescription": "Global code"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "WScript": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Arguments": "[]",
+        "StdErr": "{...}"
+      },
+      "SCA": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}"
+      },
+      "ImageData": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "write": {
+        "[prototype]": "<large string>",
+        "prototype": "{...}"
+      },
+      "z": "undefined",
+      "e": {
+        "[prototype]": "undefined",
+        "description": "<large string>",
+        "message": "<large string>",
+        "number": "-2146823286",
+        "stack": "<large string>"
+      }
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 1069,
+        "length": 16,
+        "text": "write(e.message)",
+        "frameDescription": "Global code"
+      }
+    ]
+  },
+  {
+    "breakpoint": {
+      "reason": "breakpoint",
+      "location": {
+        "start": 290,
+        "length": 20,
+        "text": "WScript.Echo(x + '')",
+        "frameDescription": "write"
+      }
+    }
+  },
+  {
+    "locals": {
+      "this": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "Debug": "{...}",
+        "Infinity": "Infinity",
+        "JSON": "{...}",
+        "Math": "{...}",
+        "NaN": "NaN",
+        "SCA": "{...}",
+        "undefined": "undefined",
+        "WScript": "{...}",
+        "z": "undefined"
+      },
+      "arguments": {
+        "[Methods]": "{...}",
+        "[prototype]": "{...}",
+        "[0]": "<large string>",
+        "length": "1"
+      },
+      "x": "<large string>",
+      "[Globals]": {
+        "WScript": "{...}",
+        "SCA": "{...}",
+        "ImageData": "<large string>",
+        "write": "<large string>",
+        "z": "undefined"
+      }
+    }
+  },
+  {
+    "callstack": [
+      {
+        "start": 290,
+        "length": 20,
+        "text": "WScript.Echo(x + '')",
+        "frameDescription": "write"
+      },
+      {
+        "start": 1069,
+        "length": 16,
+        "text": "write(e.message)",
+        "frameDescription": "Global code"
+      }
+    ]
+  }
+]

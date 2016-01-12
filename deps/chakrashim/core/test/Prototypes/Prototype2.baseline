@@ -1,0 +1,63 @@
+=== after object creation ===
+x.q:    1
+x[3]:   3
+x[4]:   4
+x[50]:  undefined
+x.p1:   test
+x.p2:   3
+x["m"]: undefined
+
+=== after adding new property to parent ===
+x.q:    1
+x[3]:   3
+x[4]:   4
+x[50]:  undefined
+x.p1:   test
+x.p2:   3
+x["m"]: 14
+
+=== after modifying constructor's prototype ===
+x.q:    1
+x[3]:   3
+x[4]:   4
+x[50]:  undefined
+x.p1:   test
+x.p2:   3
+x["m"]: 14
+
+=== after modifying parent ===
+x.q:    1
+x[3]:   3
+x[4]:   4
+x[50]:  undefined
+x.p1:   test
+x.p2:   3
+x["m"]: 13
+
+=== after undefining properties on parent ===
+x.q:    1
+x[3]:   undefined
+x[4]:   16
+x[50]:  42
+x.p1:   undefined
+x.p2:   3
+x["m"]: 13
+
+=== after re-adding property on parent ===
+x.q:    1
+x[3]:   undefined
+x[4]:   16
+x[50]:  42
+x.p1:   new p1
+x.p2:   3
+x["m"]: 13
+
+=== after re-defining property on object ===
+x.q:    1
+x[3]:   undefined
+x[4]:   16
+x[50]:  42
+x.p1:   x's p1
+x.p2:   3
+x["m"]: 13
+

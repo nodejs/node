@@ -1,0 +1,120 @@
+For Win8 934770
+Test case 1
+false
+Test case 2
+false
+Test case 3
+false
+Test case 4
+true
+Test case 5
+true
+Test case 6
+true
+Test case 7
+true
+Test case 8
+false
+Test case 9
+true
+Test case 10
+true
+Test case 11
+false
+Test case 12
+true
+Test case 13
+false
+Test case 14
+true
+Test case 15
+false
+Test case 16
+false
+Test case 17
+false
+Test case 18
+true
+Win 8 935276
+Test case 19
+120
+Test case 20
+14
+Test case 21
+-191438913
+Test case 22
+2096
+Test case 23
+-920
+Test case 24
+1600
+Test case 25
+460
+Test case 26
+1200
+Test case 27
+Passed
+Test case 28
+Passed
+Test case 29
+0
+0
+Test case 30
+Passed
+Test case 31
+Error
+	at func2 (randombug.js:287:9)
+	at testlinenumber (randombug.js:293:6)
+	at test31 (randombug.js:297:5)
+	at Global code (randombug.js:283:2)
+Passed
+Test case 32
+arrObj0.length setter
+Passed
+Test case 33
+Passed
+Test case 34
+false
+Passed
+Test case 34
+undefined
+undefined
+Passed
+Test case 35
+Passed
+Test case 36
+Passed
+Test case 37
+[object Object]
+[object Object]
+passed
+Test case 38
+passed
+Test case 40
+ReferenceError: 'undefinedFunction' is undefined
+	at eval code (eval code:1:22)
+	at testRuntimeError (randombug.js:458:9)
+	at test31 (randombug.js:462:5)
+	at Global code (randombug.js:454:2)
+Passed
+Test case 41
+Passed
+Test case 42
+Passed
+Test case 43
+Passed
+Test case 44
+Passed
+Test case 45
+undefined
+undefined
+25
+Passed
+Test case 46
+name,length
+Passed
+Test case 47
+\n in label accepted
+Passed
+Test case 48
+Passed

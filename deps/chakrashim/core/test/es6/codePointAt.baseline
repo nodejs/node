@@ -1,0 +1,28 @@
+TypeError: String.prototype.codePointAt: 'this' is null or undefined
+TypeError: String.prototype.codePointAt: 'this' is null or undefined
+TypeError: String.prototype.codePointAt: 'this' is null or undefined
+TypeError: Function is not a constructor
+TypeError: Function is not a constructor
+RangeError: Invalid code point 1.1
+RangeError: Invalid code point 100000000
+RangeError: Invalid code point -0.0001
+RangeError: Invalid code point
+Passed! Size = 0, index 0 test.
+Passed! Size = 1, index -1 test.
+Passed! Simple character test.
+Passed! Surrogate pair treated as a single code point.
+Passed! Index pointing to a second surrogate code unit returns the value of that code unit.
+Passed! Partial surrogate code unit.
+Passed! First surrogate code unit not in range [D800-DBFF].
+Passed! First surrogate code unit not in range [D800-DBFF].
+Passed! First surrogate code unit min value.
+Passed! First surrogate code unit min value.
+Passed! First surrogate code unit max value.
+Passed! First surrogate code unit max value.
+Passed! Second surrogate code unit not in range [DC00-DFFF].
+Passed! Second surrogate code unit not in range [DC00-DFFF].
+Passed! Second surrogate code unit min value.
+Passed! Second surrogate code unit min value.
+Passed! Second surrogate code unit max value.
+Passed! Second surrogate code unit max value.
+Passed! Calling on a number object instead of string object.

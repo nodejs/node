@@ -1,0 +1,6 @@
+HasFuncDecl: test
+HasMaybeEscapedUse: x
+HasMaybeEscapedNestedFunc (CrossScopeAssignment): test (function  (#1.1), #2)
+HasFuncAssignment: f
+test1str
+test2str

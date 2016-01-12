@@ -1,0 +1,48 @@
+Executing test #1 - Async keyword with a lambda expressions
+Executing test #2 - Async keyword with a lambda expressions and local variable captured and shadowed
+Executing test #3 - Async function in a statement
+Test #3 - Success function #1 called with result = '30'
+Test #3 - Success function #5 called with result = '30'
+Executing test #4 - Async function in an object
+Test #4 - Success function in a object #2 called with result = '12'
+Executing test #5 - Async classes
+Test #5 - Success async in a class #8 called with result = '10'
+Test #5 - Success async in a class #9 called with result = '10'
+Executing test #6 - Await in an async function
+Executing test #7 - Await keyword with a lambda expressions
+Executing test #8 - Async function with default arguments's value
+Executing test #9 - Promise in an Async function
+
+Completion Results:
+Test #1 - Success lambda expression with no argument called with result = 'true'
+Test #1 - Success lambda expression with several arguments called with result = '60'
+Test #2 - Success lambda expression with single argument and no paren called with result = '12'
+Test #2 - Success lambda expression with a single argument a called with result = '12'
+Test #3 - Success function #2 called with result = '30'
+Test #3 - Success function #3 called with result = '-10'
+Test #3 - Success function #4 called with result = '12'
+Test #4 - Success function in a object #1 called with result = '12'
+Test #4 - Success function in a object #3 called with result = '12'
+Test #4 - Success function in a object #4 called with result = '12'
+Test #4 - Success function in a object #5 called with result = '12'
+Test #4 - Success function in a object #6 called with result = '12'
+Test #5 - Success async in a class #1 called with result = '10'
+Test #5 - Success async in a class #2 called with result = '10'
+Test #5 - Success async in a class #3 called with result = '12'
+Test #5 - Success async in a class #4 called with result = '12'
+Test #5 - Success async in a class #5 called with result = '12'
+Test #5 - Success async in a class #6 called with result = '12'
+Test #5 - Success async in a class #7 called with result = '10'
+Test #5 - Success async in a class #10 called with result = '10'
+Test #8 - Success async function with default arguments's value overwritten #1 called with result = 'true'
+Test #8 - Success async function with default arguments's value has been rejected as expected by 'err' #2 called with err = 'expected error'
+Test #8 - Success async function with default arguments's value #3 called with result = 'true'
+Test #6 - Success await in an async function #1 called with result = '-4'
+Test #6 - Success await in an async function #2 called with result = '2'
+Test #6 - Success await in an async function catch a rejected Promise in 'err'. Error = 'Error: My Error'
+Test #6 - Success await in an async function catch an error in 'err'. Error = '32'
+Test #7 - Success await keyword with a lambda expressions #1 called with result = '125'
+Test #7 - Success await keyword with a lambda expressions #1 called with result = '60'
+Test #9 - Success resolved promise in an async function #2 called with result = 'resolved'
+Test #9 - Success resolved promise in an async function #1 called with result = 'resolved'
+Test #9 - Success promise in an async function has been rejected as expected by 'err' #3 called with err = 'rejected'

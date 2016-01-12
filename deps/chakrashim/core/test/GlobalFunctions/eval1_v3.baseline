@@ -1,0 +1,27 @@
+1
+[object Object]
+1
+9
+8
+foo.a
+foo.b
+undefined
+function foo(a) {
+        WScript.Echo(foo);
+        eval("bar(false)");
+        function bar(x) {
+            if (x)
+                foo(x);
+        }
+    }
+function xxx(){}
+function xxx(){}
+pass
+inside eval: this.name = global object
+42
+42
+[object Object]
+Custom eval:
+arg 0 = 'x[i][0] = 2;'
+2
+undefined

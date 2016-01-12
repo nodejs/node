@@ -1,0 +1,6 @@
+Error: This is my error
+	at foo (Function code:1:17)
+	at Function code (Function code:1:56)
+	at Anonymous function (dynamic.js:27:13)
+	at runtest (dynamic.js:25:10)
+	at Global code (dynamic.js:38:1)

@@ -1,0 +1,18 @@
+HasFuncDecl: test
+HasFuncDecl: nested1
+HasFuncDecl: nested2
+HasFuncDecl: blah
+HasFuncDecl: escape
+HasMaybeEscapedUse: recurse
+HasMaybeEscapedUse: escape
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): glo (function  (#1.0), #1)
+DoStackNestedFunc: nested1 (function  (#1.2), #3)
+DoStackNestedFunc: test (function  (#1.1), #2)
+test1test1test1test1test1test1test1test1test1test1undefined123456789
+test2test2test2test2test2test2test2test2test2test2undefined123456789
+StackScriptFunction (caller): box and disable stack function: nested1 (function  (#1.2), #3)
+Boxing StackScriptFunction Object: nested1 (function Id:  (#1.2), #3)
+Boxing StackScriptFunction Object: blah (function Id:  (#1.4), #5)
+Boxing Frame [Native]: test  (#1.1), #2
+test3test3test3test3test3test3test3test3test3test3undefined123456789blah
+test3undefinedblah

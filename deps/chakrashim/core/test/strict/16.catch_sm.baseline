@@ -1,0 +1,2 @@
+Exception: catch stmt having arguments as identifier SyntaxError
+Exception: catch stmt having eval as identifier SyntaxError

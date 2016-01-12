@@ -1,0 +1,3 @@
+ReferenceError: Use before declaration
+	at testcase() (unicode_blue_533163.js:8:13)
+	at Global code (unicode_blue_533163.js:11:1)

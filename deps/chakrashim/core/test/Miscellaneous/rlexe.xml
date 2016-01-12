@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>HasOnlyWritableDataPropertiesCache.js</files>
+      <baseline>HasOnlyWritableDataPropertiesCache.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-recyclerVerify</compile-flags>
+      <files>longstring.js</files>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>etwtest.js</files>
+      <baseline />
+      <compile-flags>-testEtwDll:NativeUnitTests.dll</compile-flags>
+      <tags>exclude_ship</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>evalAlias.js</files>
+      <baseline />
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>oom.js</files>
+      <baseline>oom.baseline</baseline>
+      <compile-flags>-forcefragmentaddressspace:8000000</compile-flags>
+      <tags>exclude_amd64,fail</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>irviewer.js</files>
+      <baseline>irviewer.baseline</baseline>
+      <compile-flags>-irviewer</compile-flags>
+      <tags>exclude_amd64,exclude_fre,exclude_arm,exclude_nonative,require_backend</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>SetTimeout.js</files>
+      <baseline>SetTimeout.baseline</baseline>
+    </default>
+  </test>
+</regress-exe>

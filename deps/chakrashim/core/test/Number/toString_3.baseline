@@ -1,0 +1,132 @@
+Test: new Number("444" + "123")
+n.toString():  444123
+n.toString(10):  444123
+n.toString(8):  1543333
+n.toString(2):  1101100011011011011
+n.toString(16):  6c6db
+n.toString(25):  13aen
+n.toFixed():  444123
+n.toFixed(0):  444123
+n.toFixed(2):  444123.00
+n.toFixed(5):  444123.00000
+n.toFixed(20):  444123.00000000000000000000
+RangeError: The number of fractional digits is out of range
+RangeError: The number of fractional digits is out of range
+n.toExponential():  4.44123e+5
+n.toExponential(2):  4.44e+5
+n.toExponential(5):  4.44123e+5
+n.toPrecision():  444123
+n.toPrecision(2):  4.4e+5
+n.toPrecision(5):  4.4412e+5
+n.toPrecision(20):  444123.00000000000000
+
+Test: new Number(-444123)
+n.toString():  -444123
+n.toString(10):  -444123
+n.toString(8):  -1543333
+n.toString(2):  -1101100011011011011
+n.toString(16):  -6c6db
+n.toString(25):  -13aen
+n.toFixed():  -444123
+n.toFixed(0):  -444123
+n.toFixed(2):  -444123.00
+n.toFixed(5):  -444123.00000
+n.toFixed(20):  -444123.00000000000000000000
+RangeError: The number of fractional digits is out of range
+RangeError: The number of fractional digits is out of range
+n.toExponential():  -4.44123e+5
+n.toExponential(2):  -4.44e+5
+n.toExponential(5):  -4.44123e+5
+n.toPrecision():  -444123
+n.toPrecision(2):  -4.4e+5
+n.toPrecision(5):  -4.4412e+5
+n.toPrecision(20):  -444123.00000000000000
+
+Test: new Number("444" + "123.789123456789875436")
+n.toString():  444123.7891234568
+n.toString(10):  444123.7891234568
+n.toString(8):  1543333.62401776537
+n.toString(2):  1101100011011011011.110010100000001111111110101011111
+n.toString(16):  6c6db.ca03feaf8
+n.toString(25):  13aen.ji518inh
+n.toFixed():  444124
+n.toFixed(0):  444124
+n.toFixed(2):  444123.79
+n.toFixed(5):  444123.78912
+n.toFixed(20):  444123.78912345680000000000
+RangeError: The number of fractional digits is out of range
+RangeError: The number of fractional digits is out of range
+n.toExponential():  4.441237891234568e+5
+n.toExponential(2):  4.44e+5
+n.toExponential(5):  4.44124e+5
+n.toPrecision():  444123.7891234568
+n.toPrecision(2):  4.4e+5
+n.toPrecision(5):  4.4412e+5
+n.toPrecision(20):  444123.78912345680000
+
+Test: new Number(-444123.78963636363636363636)
+n.toString():  -444123.7896363636
+n.toString(10):  -444123.7896363636
+n.toString(8):  -1543333.62422633653
+n.toString(2):  -1101100011011011011.110010100010010110011011110101011
+n.toString(16):  -6c6db.ca259bd58
+n.toString(25):  -13aen.jid1hf8b
+n.toFixed():  -444124
+n.toFixed(0):  -444124
+n.toFixed(2):  -444123.79
+n.toFixed(5):  -444123.78964
+n.toFixed(20):  -444123.78963636360000000000
+RangeError: The number of fractional digits is out of range
+RangeError: The number of fractional digits is out of range
+n.toExponential():  -4.441237896363636e+5
+n.toExponential(2):  -4.44e+5
+n.toExponential(5):  -4.44124e+5
+n.toPrecision():  -444123.7896363636
+n.toPrecision(2):  -4.4e+5
+n.toPrecision(5):  -4.4412e+5
+n.toPrecision(20):  -444123.78963636360000
+
+Test: new Number(0)
+n.toString():  0
+n.toString(10):  0
+n.toString(8):  0
+n.toString(2):  0
+n.toString(16):  0
+n.toString(25):  0
+n.toFixed():  0
+n.toFixed(0):  0
+n.toFixed(2):  0.00
+n.toFixed(5):  0.00000
+n.toFixed(20):  0.00000000000000000000
+RangeError: The number of fractional digits is out of range
+RangeError: The number of fractional digits is out of range
+n.toExponential():  0e+0
+n.toExponential(2):  0.00e+0
+n.toExponential(5):  0.00000e+0
+n.toPrecision():  0
+n.toPrecision(2):  0.0
+n.toPrecision(5):  0.0000
+n.toPrecision(20):  0.0000000000000000000
+
+Test: 1e21
+n.toString():  1e+21
+n.toString(10):  1e+21
+n.toString(8):  1.5432711533427365(e+23)
+n.toString(2):  1.101100011010111001001101011011100010111011110101(e+69)
+n.toString(16):  3.635c9adc5dea(e+17)
+n.toString(25):  1.1l259oooooof(e+15)
+n.toFixed():  1e+21
+n.toFixed(0):  1e+21
+n.toFixed(2):  1e+21
+n.toFixed(5):  1e+21
+n.toFixed(20):  1e+21
+RangeError: The number of fractional digits is out of range
+RangeError: The number of fractional digits is out of range
+n.toExponential():  1e+21
+n.toExponential(2):  1.00e+21
+n.toExponential(5):  1.00000e+21
+n.toPrecision():  1e+21
+n.toPrecision(2):  1.0e+21
+n.toPrecision(5):  1.0000e+21
+n.toPrecision(20):  1.0000000000000000000e+21
+

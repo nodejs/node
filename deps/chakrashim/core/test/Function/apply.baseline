@@ -1,0 +1,20 @@
+x1 : hello
+x1 : hello
+x1 : hello
+x1 : 0
+o.x1 : hello
+x2 : undefined
+x2 : undefined
+x2 : undefined
+x2 : 0
+o.x2 : undefined
+x2 : world
+x2 : world
+x2 : 0
+o.x2 : world
+after apply
+undefined
+undefined
+after apply
+undefined
+undefined

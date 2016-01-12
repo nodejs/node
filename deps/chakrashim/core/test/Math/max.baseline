@@ -1,0 +1,14 @@
+Infinity
+-Infinity
+opD = 0 , onD = 0 op = 0 , on = 0 , infp = Infinity , infn = -Infinity , infpD = Infinity , infnD = -Infinity
+Math.max(+0.0, -0.0) 0
+Check (1 / Math.max(+0.0, -0.0) < 0)  - false 
+done
+Infinity
+Infinity
+Infinity
+-Infinity
+undefined
+undefined
+NaN
+1

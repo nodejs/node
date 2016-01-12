@@ -1,0 +1,85 @@
+***Testing Object.getOwnPropertyNames()
+ownKeys for proxy2
+ownKeys for proxy
+getOwnPropertyDescriptor on proxy : prop0
+getOwnPropertyDescriptor on proxy : prop1
+getOwnPropertyDescriptor on proxy : Symbol(prop2)
+getOwnPropertyDescriptor on proxy : Symbol(prop5)
+prop2,prop3
+***Testing Object.keys()
+ownKeys for proxy2
+ownKeys for proxy
+getOwnPropertyDescriptor on proxy : prop0
+getOwnPropertyDescriptor on proxy : prop1
+getOwnPropertyDescriptor on proxy : Symbol(prop2)
+getOwnPropertyDescriptor on proxy : Symbol(prop5)
+getOwnPropertyDescriptor on proxy2 : prop2
+getOwnPropertyDescriptor on proxy : prop2
+getOwnPropertyDescriptor on proxy2 : prop3
+getOwnPropertyDescriptor on proxy : prop3
+prop2,prop3
+***Testing Object.getOwnPropertySymbols()
+ownKeys for proxy2
+ownKeys for proxy
+getOwnPropertyDescriptor on proxy : prop0
+getOwnPropertyDescriptor on proxy : prop1
+getOwnPropertyDescriptor on proxy : Symbol(prop2)
+getOwnPropertyDescriptor on proxy : Symbol(prop5)
+2
+***Testing Object.freeze()
+ownKeys for proxy2
+ownKeys for proxy
+***Testing Object.keys()
+ownKeys for proxy2
+ownKeys for proxy
+getOwnPropertyDescriptor on proxy : a
+getOwnPropertyDescriptor on proxy : prop0
+getOwnPropertyDescriptor on proxy : prop1
+getOwnPropertyDescriptor on proxy : Symbol(prop2)
+getOwnPropertyDescriptor on proxy : Symbol(prop5)
+***Testing Object.assign()
+ownKeys for proxy
+getOwnPropertyDescriptor on proxy : prop0
+get on proxy : prop0
+getOwnPropertyDescriptor on proxy : prop1
+get on proxy : prop1
+getOwnPropertyDescriptor on proxy : Symbol(prop2)
+get on proxy : Symbol(prop2)
+getOwnPropertyDescriptor on proxy : Symbol(prop5)
+get on proxy : Symbol(prop5)
+ownKeys for proxy2
+ownKeys for proxy
+getOwnPropertyDescriptor on proxy : prop0
+getOwnPropertyDescriptor on proxy : prop1
+getOwnPropertyDescriptor on proxy : Symbol(prop2)
+getOwnPropertyDescriptor on proxy : Symbol(prop5)
+getOwnPropertyDescriptor on proxy2 : prop2
+getOwnPropertyDescriptor on proxy : prop2
+get on proxy2 : prop2
+get on proxy : prop2
+getOwnPropertyDescriptor on proxy : prop2
+getOwnPropertyDescriptor on proxy2 : prop3
+getOwnPropertyDescriptor on proxy : prop3
+get on proxy2 : prop3
+get on proxy : prop3
+getOwnPropertyDescriptor on proxy : prop3
+getOwnPropertyDescriptor on proxy2 : Symbol(prop4)
+getOwnPropertyDescriptor on proxy : Symbol(prop4)
+get on proxy2 : Symbol(prop4)
+get on proxy : Symbol(prop4)
+getOwnPropertyDescriptor on proxy : Symbol(prop4)
+getOwnPropertyDescriptor on proxy2 : Symbol(prop5)
+getOwnPropertyDescriptor on proxy : Symbol(prop5)
+get on proxy2 : Symbol(prop5)
+get on proxy : Symbol(prop5)
+getOwnPropertyDescriptor on proxy : Symbol(prop5)
+PropertyNames returned : 
+prop0
+prop1
+prop2
+prop3
+PropertySymbols returned : 
+Symbol(prop2)
+Symbol(prop5)
+Symbol(prop4)
+Symbol(prop5)

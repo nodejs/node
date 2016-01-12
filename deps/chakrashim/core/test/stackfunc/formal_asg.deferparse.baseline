@@ -1,0 +1,9 @@
+HasFuncDecl: test
+HasFuncDecl: test
+HasFuncAssignment: param
+HasMaybeEscapedNestedFunc (FormalAssignment): test (function  (#1.1), #2)
+HasMaybeEscapedUse: arguments
+RestoreHasFuncAssignment: param
+HasMaybeEscapedUse: l
+test1
+test2

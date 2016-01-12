@@ -1,0 +1,44 @@
+AllChars : Hello. Length : 5
+H
+e
+l
+l
+o
+AllChars : HelloWorld. Length : 10
+H
+e
+l
+l
+o
+W
+o
+r
+l
+d
+Got a exception. String.prototype.charAt: 'this' is null or undefined
+>> FirstChar : undefined
+Got a exception. String.prototype.charAt: 'this' is null or undefined
+>> FirstChar : 0
+0
+<< FirstChar.
+>> FirstChar : 1.1
+1
+<< FirstChar.
+>> FirstChar : 10
+1
+<< FirstChar.
+>> FirstChar : Hello
+H
+<< FirstChar.
+>> FirstChar : true
+t
+<< FirstChar.
+>> FirstChar : false
+f
+<< FirstChar.
+>> FirstChar : true
+t
+<< FirstChar.
+>> FirstChar : [object Object]
+[
+<< FirstChar.

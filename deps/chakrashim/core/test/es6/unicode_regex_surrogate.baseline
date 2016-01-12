@@ -1,0 +1,123 @@
+============ 1. Regex tests without unicode option ============
+Passed: Basic dijunction of two chars.
+Passed: Basic dijunction of two chars.
+Passed: Case insensitive dijunction of two chars.
+Passed: Case insensitive dijunction of two chars + range.
+Passed: Case insensitive dijunction of two chars + range.
+Passed: Case insensitive dijunction of two chars + range.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range with escape sequence.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range with escape sequence.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range with escape sequence.
+== Negation Testing ==
+Passed: Simple negation testing.
+Passed: Simple negation testing.
+Passed: Simple negation testing.
+Passed: Simple negation testing. Partial surrogate
+Passed: Case insensitive negation testing.
+Passed: Case insensitive negation testing. Partial surrogate
+============ 2. Same tests as 1, but with unicode option ============
+Testing with unicode flag.
+Passed: Basic dijunction of two chars.
+Testing with unicode flag.
+Passed: Basic dijunction of two chars.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range with escape sequence.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range with escape sequence.
+Testing with unicode flag.
+Passed: Case insensitive dijunction of two chars + range with escape sequence.
+== Negation Testing ==
+Testing with unicode flag.
+Passed: Simple negation testing.
+Testing with unicode flag.
+Passed: Simple negation testing.
+Testing with unicode flag.
+Passed: Simple negation testing.
+Testing with unicode flag.
+Passed: Simple negation testing. Partial surrogate
+Testing with unicode flag.
+Passed: Case insensitive negation testing.
+============ 3. Supplementary chars tests ============
+Type: T - Case equivalence failed for: 49, and 131	 Subtests that failed: [1,2,3,4,5,6,7,8,10,12]
+Type: T - Case equivalence failed for: 130, and 69	 Subtests that failed: [1,2,3,4,5,6,7,8,9,11]
+Type: C - Case equivalence failed for: 1F1, and 1F3	 Subtests that failed: [1,2,3,4,5,6,7,8,9,10,11,12]
+Passed: 1054/1057
+============ 4. Random tests ============
+Dx,D
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+===============================================
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+false
+SyntaxError: Invalid range in character set

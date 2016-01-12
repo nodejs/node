@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);NOMINMAX;USE_EDGEMODE_JSRT</PreprocessorDefinitions>
+      <!-- Some of our STDMETHOD can throw
+           TODO: Code review STDMETHOD and separate out API that can throw and those that can't -->
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);COM_STDMETHOD_CAN_THROW</PreprocessorDefinitions>
+
+      <PreprocessorDefinitions Condition="'$(RuntimeLib)'=='static_library'">%(PreprocessorDefinitions);USE_STATIC_RUNTIMELIB</PreprocessorDefinitions>
+
+      <!-- /W4 -->
+      <WarningLevel>Level4</WarningLevel>
+      <!-- /WX -->
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <!-- /GR- -->
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <!-- /Zi -->
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <!-- /EHsc- -->
+      <ExceptionHandling>SyncCThrow</ExceptionHandling>
+      <!-- /Gz -->
+      <CallingConvention Condition="'$(Platform)'=='Win32'">StdCall</CallingConvention>
+      <!-- /Zp8 -->
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
+      <!-- /GS -->
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <!-- /Gy -->
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <!-- /GF -->
+      <StringPooling>true</StringPooling>
+      <!-- /MD -->
+      <RuntimeLibrary Condition="'$(RuntimeLib)'!='static_library'">MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(RuntimeLib)'=='static_library'">MultiThreaded</RuntimeLibrary>
+
+      <!-- We don't use any metadata -->
+      <AdditionalUsingDirectories />
+
+      <AdditionalOptions>%(AdditionalOptions) /Zm125</AdditionalOptions>
+      <AdditionalOptions>%(AdditionalOptions) /Yl$(TargetName)</AdditionalOptions>
+      <!-- Separate global variable for linker -->
+      <AdditionalOptions>%(AdditionalOptions) /Gw</AdditionalOptions>
+
+      <ProgramDataBaseFileName Condition="'$(ConfigurationType)'=='StaticLibrary'">$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <ProgramDataBaseFileName Condition="'$(ConfigurationType)'!='StaticLibrary'">$(IntDir)</ProgramDataBaseFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions Condition="'$(ChakraVersionBuildNumber)'!=''">%(PreprocessorDefinitions);CHAKRA_VERSION_BUILD_NUMBER=$(ChakraVersionBuildNumber)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ChakraVersionBuildQFENumber)'!=''">%(PreprocessorDefinitions);CHAKRA_VERSION_BUILD_QFE=$(ChakraVersionBuildQFENumber)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ChakraVersionBuildCommit)'!=''">%(PreprocessorDefinitions);CHAKRA_VERSION_BUILD_COMMIT=$(ChakraVersionBuildCommit)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ChakraVersionBuildDate)'!=''">%(PreprocessorDefinitions);CHAKRA_VERSION_BUILD_DATE=$(ChakraVersionBuildDate)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <MASM>
+      <!-- /Cx -->
+      <PreserveIdentifierCase>3</PreserveIdentifierCase>
+    </MASM>
+    <Link>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding Condition="'$(OptimizedBuild)'=='true'">true</EnableCOMDATFolding>
+      <OptimizeReferences Condition="'$(OptimizedBuild)'=='true'">true</OptimizeReferences>
+
+      <MinimumRequiredVersion Condition="'$(NtTargetVersion)'=='$(NtTargetVersion_Win7)'" >6.1</MinimumRequiredVersion>
+      <MinimumRequiredVersion Condition="'$(NtTargetVersion)'=='$(NtTargetVersion_Win8)'" >6.2</MinimumRequiredVersion>
+      <MinimumRequiredVersion Condition="'$(NtTargetVersion)'=='$(NtTargetVersion_Win10)'" >10.00</MinimumRequiredVersion>
+
+      <!-- Always set the checksum -->
+      <AdditionalOptions>%(AdditionalOptions) /release</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- chk build flags -->
+  <ItemDefinitionGroup Condition="'$(OptimizedBuild)'!='true'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);_DEBUG;DBG;DBG_DUMP</PreprocessorDefinitions>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);DBG;ENABLE_DEBUG_CONFIG_OPTIONS=1</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <!-- fre and fretest build flags -->
+  <ItemDefinitionGroup Condition="'$(OptimizedBuild)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Test'">%(PreprocessorDefinitions);ENABLE_DEBUG_CONFIG_OPTIONS=1</PreprocessorDefinitions>
+      <Optimization>MaxSpeed</Optimization>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Test'">%(PreprocessorDefinitions);ENABLE_DEBUG_CONFIG_OPTIONS=1</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <LinkTimeCodeGeneration Condition="'$(PlatformToolset)'=='v120' OR '$(TF_BUILD)'!=''">UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration Condition="'$(PlatformToolset)'!='v120'">UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <Lib>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup Condition="'$(ConfigurationType)'=='DynamicLibrary' OR '$(ConfigurationType)'=='Application'">
+    <Clean Include="$(OutDir)$(TargetName).lib" />
+    <Clean Include="$(OutDir)$(TargetName).exp" />
+    <Clean Include="$(OutDir)$(TargetName).ipdb" />
+    <Clean Include="$(OutDir)$(TargetName).iobj" />
+  </ItemGroup>
+</Project>

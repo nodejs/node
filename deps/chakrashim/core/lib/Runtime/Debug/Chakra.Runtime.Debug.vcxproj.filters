@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="$(MsBuildThisFileDirectory)DebugContext.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)BreakpointProbe.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DebugDocument.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DebuggingFlags.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DebugManager.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DiagObjectModel.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DiagProbe.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DiagStackFrame.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)MutationBreakpoint.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ProbeContainer.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)SourceContextInfo.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DebugContext.h" />
+    <ClInclude Include="BreakpointProbe.h" />
+    <ClInclude Include="DebugDocument.h" />
+    <ClInclude Include="DebuggingFlags.h" />
+    <ClInclude Include="DebugManager.h" />
+    <ClInclude Include="DiagObjectModel.h" />
+    <ClInclude Include="DiagProbe.h" />
+    <ClInclude Include="DiagStackFrame.h" />
+    <ClInclude Include="MutationBreakpoint.h" />
+    <ClInclude Include="ProbeContainer.h" />
+    <ClInclude Include="SourceContextInfo.h" />
+  </ItemGroup>
+</Project>

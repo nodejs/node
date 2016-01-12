@@ -1,0 +1,29 @@
+
+#1
+In finally
+Error
+-2146828260
+Out of stack space
+
+#2
+In finally
+Error
+-2146828260
+Out of stack space
+
+#3
+In finally
+Error
+-2146828260
+Out of stack space
+testing stack overflow handling with catch block
+Error
+-2146828260
+Out of stack space
+testing stack overflow handling with finally block
+Error
+-2146828260
+Out of stack space
+Error
+-2146828260
+Out of stack space

@@ -1,0 +1,56 @@
+split(/a*/ /*lastIndex=0*/ , "a");
+["",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a","","","","","","","","",""]
+split(/a*/ /*lastIndex=0*/ , "aba");
+["","b",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aba","","","","","","","","",""]
+split(/a*/ /*lastIndex=0*/ , "bab");
+["b","b"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bab","","","","","","","","",""]
+split(/a/ /*lastIndex=0*/ , "");
+[""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bab","","","","","","","","",""]
+split(/a/ /*lastIndex=0*/ , "a");
+["",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a","","","","","","","","",""]
+split(/a/ /*lastIndex=0*/ , "aba");
+["","b",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aba","","","","","","","","",""]
+split(/a/ /*lastIndex=0*/ , "bab");
+["b","b"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bab","","","","","","","","",""]
+split(/b/ /*lastIndex=0*/ , "");
+[""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bab","","","","","","","","",""]
+split(/b/ /*lastIndex=0*/ , "a");
+["a"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bab","","","","","","","","",""]
+split(/b/ /*lastIndex=0*/ , "aba");
+["a","a"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aba","","","","","","","","",""]
+split(/b/ /*lastIndex=0*/ , "bab");
+["","a",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bab","","","","","","","","",""]
+split(/(?:)/ /*lastIndex=0*/ , "a");
+["a"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a","","","","","","","","",""]
+split(/(?:)/ /*lastIndex=0*/ , "aba");
+["a","b","a"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aba","","","","","","","","",""]
+split(/(?:)/ /*lastIndex=0*/ , "bab");
+["b","a","b"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bab","","","","","","","","",""]

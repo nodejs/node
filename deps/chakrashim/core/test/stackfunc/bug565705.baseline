@@ -1,0 +1,4 @@
+HasMaybeEscapedUse: a
+HasMaybeEscapedUse: z
+HasFuncAssignment: z
+HasMaybeEscapedNestedFunc (MaybeEscapedUse): Anonymous function (function  (#1.1), #2)

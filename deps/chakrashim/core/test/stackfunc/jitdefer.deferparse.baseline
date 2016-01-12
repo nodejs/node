@@ -1,0 +1,45 @@
+HasFuncDecl: foo
+HasFuncDecl: bar
+HasFuncDecl: baz
+HasFuncDecl: inner
+HasFuncDecl: foo
+HasFuncDecl: bar
+HasFuncDecl: baz
+HasFuncDecl: inner
+DoStackNestedFunc: foo (function  (#1.1), #2)
+HasFuncDecl: bar
+RestoreHasFuncAssignment: bar
+HasFuncDecl: baz
+RestoreHasFuncAssignment: baz
+HasFuncDecl: inner
+DoStackNestedFunc: baz (function  (#1.3), #5)
+HasFuncDecl: bar
+RestoreHasFuncAssignment: bar
+HasFuncDecl: baz
+RestoreHasFuncAssignment: baz
+HasMaybeEscapedUse: x
+100
+undefined
+HasFuncDecl: bar
+RestoreHasFuncAssignment: bar
+HasFuncDecl: baz
+RestoreHasFuncAssignment: baz
+HasFuncDecl: inner
+RestoreHasFuncAssignment: inner
+HasMaybeEscapedUse: arguments
+StackScriptFunction (callee): box and disable stack function: inner (function  (#1.4), #6)
+Boxing StackScriptFunction Object: inner (function Id:  (#1.4), #6)
+Boxing StackScriptFunction Object: bar (function Id:  (#1.2), #4)
+Boxing StackScriptFunction Object: baz (function Id:  (#1.3), #5)
+Boxing Frame [Interpreted from Bailout]: baz  (#1.3), #5
+Boxing StackScriptFunction Object: inner (function Id:  (#1.4), #6)
+Boxing Frame [Interpreted from Bailout]: foo  (#1.1), #2
+Boxing StackScriptFunction Object: bar (function Id:  (#1.2), #4)
+Boxing StackScriptFunction Object: baz (function Id:  (#1.3), #5)
+Boxing StackScriptFunction Object: inner (function Id:  (#1.4), #6)
+COUNT:  1
+100
+undefined
+COUNT:  2
+100
+undefined

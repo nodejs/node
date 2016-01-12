@@ -1,0 +1,34 @@
+Testing object literal as prototype:
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (overwritten)
+x + y = 1 (overwritten)
+x - y = -1 (overwritten)
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (overwritten)
+
+Testing the String prototype:
+s.identity() = I'm a string, I believe.
+s.indexOf("s") = 6
+s.identity() = I'm a string, I believe.
+s.indexOf("s") = 6
+s.identity() = I'm a string, I believe.
+s.indexOf("s") = -1
+s.identity() = To me you're just a number.
+s.indexOf("s") = -1
+
+Testing the global object as prototype:
+globalFixedFunction1: original
+globalFixedFunction2: original
+globalFixedFunction1: original
+globalFixedFunction2: original
+globalFixedFunction1: overwritten
+globalFixedFunction2: overwritten
+

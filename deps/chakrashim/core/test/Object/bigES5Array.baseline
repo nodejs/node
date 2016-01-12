@@ -1,0 +1,11 @@
+Big simple dictionary type handler -> Big ES5 array type handler
+0,65535,65536
+0,65535,65536
+
+Big dictionary type handler -> Big ES5 array type handler
+0,65535,65536
+0,65535,65536
+
+Small ES5 array type handler -> Big ES5 array type handler
+i0,0,,
+i0,0,65535,65536

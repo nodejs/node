@@ -1,0 +1,1400 @@
+generateAndRunTest(None, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(None, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(None, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(None, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(None, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(None, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(None, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(None, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(None, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(None, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(None, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(None, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(None, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(None, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(None, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(None, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(None, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Incr, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, 0, 0]
+
+generateAndRunTest(Incr, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Incr, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Incr, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Incr, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [1, 0, 0, 0, 0]
+
+generateAndRunTest(Incr, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, -0, 0, 0, 0]
+
+generateAndRunTest(Incr, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, -0, 0]
+
+generateAndRunTest(Incr, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, 0, -0]
+
+generateAndRunTest(Incr, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, -0, 0, 0]
+
+generateAndRunTest(Incr, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: 0
+
+generateAndRunTest(Incr, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: 1
+
+generateAndRunTest(Incr, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: 1
+
+generateAndRunTest(Incr, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+1
+Returned: [1, 0, 0, 0, 0]
+
+generateAndRunTest(Incr, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 1, 0, 0, 0]
+
+generateAndRunTest(Incr, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, 1, 0]
+
+generateAndRunTest(Incr, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, 0, 1]
+
+generateAndRunTest(Incr, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ++c;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 1, 0, 0]
+
+generateAndRunTest(Decr, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Decr, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Decr, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Decr, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Decr, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Decr, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Decr, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Decr, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Decr, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Decr, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Decr, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -1
+
+generateAndRunTest(Decr, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -1
+
+generateAndRunTest(Decr, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-1
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Decr, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -1, 0, 0, 0]
+
+generateAndRunTest(Decr, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -1, 0]
+
+generateAndRunTest(Decr, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -1]
+
+generateAndRunTest(Decr, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = --c;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -1, 0, 0]
+
+generateAndRunTest(Not, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Not, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Not, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Not, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Not, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Not, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Not, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Not, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Not, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Not, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Not, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Not, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Not, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Not, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Not, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Not, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Not, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = ~c;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(And, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(And, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(And, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(And, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(And, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(And, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(And, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(And, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(And, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(And, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(And, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(And, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(And, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(And, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(And, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(And, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(And, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c & 0xfffffff;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Or, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Or, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Or, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Or, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Or, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Or, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Or, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Or, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Or, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Or, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Or, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Or, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Or, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Or, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Or, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Or, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Or, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c | 0xfffffff;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Xor, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Xor, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Xor, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Xor, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Xor, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Xor, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Xor, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Xor, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Xor, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Xor, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Xor, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Xor, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Xor, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Xor, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Xor, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Xor, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Xor, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c ^ 0xfffffff;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Shl, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shl, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Shl, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Shl, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Shl, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shl, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(Shl, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(Shl, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(Shl, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Shl, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Shl, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Shl, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Shl, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shl, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(Shl, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(Shl, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(Shl, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c << 1;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Shr, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shr, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Shr, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Shr, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Shr, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shr, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(Shr, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(Shr, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(Shr, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Shr, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Shr, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Shr, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Shr, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shr, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(Shr, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(Shr, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(Shr, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >> 1;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(ShrU, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(ShrU, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;throw c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(ShrU, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;return c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(ShrU, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;echo(c);var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localObj.p = c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerObj.p = c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;outerVar = c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;localArr[0] = c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(ShrU, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(ShrU, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(ShrU, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(ShrU, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(ShrU, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(ShrU, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(ShrU, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(ShrU, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = -b;var d = c >>> 1;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(None, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(None, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(None, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(None, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(None, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(None, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(None, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(None, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(None, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(None, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(None, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(None, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(None, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(None, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(None, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(None, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(None, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Incr, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, 0, 0]
+
+generateAndRunTest(Incr, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Incr, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Incr, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Incr, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [1, 0, 0, 0, 0]
+
+generateAndRunTest(Incr, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, -0, 0, 0, 0]
+
+generateAndRunTest(Incr, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, -0, 0]
+
+generateAndRunTest(Incr, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, 0, -0]
+
+generateAndRunTest(Incr, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = ++c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, -0, 0, 0]
+
+generateAndRunTest(Incr, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: 0
+
+generateAndRunTest(Incr, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: 1
+
+generateAndRunTest(Incr, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: 1
+
+generateAndRunTest(Incr, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+1
+Returned: [1, 0, 0, 0, 0]
+
+generateAndRunTest(Incr, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 1, 0, 0, 0]
+
+generateAndRunTest(Incr, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, 1, 0]
+
+generateAndRunTest(Incr, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 0, 0, 1]
+
+generateAndRunTest(Incr, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ++c;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [1, 0, 1, 0, 0]
+
+generateAndRunTest(Decr, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Decr, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Decr, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Decr, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Decr, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Decr, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Decr, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Decr, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Decr, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = --c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Decr, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Decr, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -1
+
+generateAndRunTest(Decr, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -1
+
+generateAndRunTest(Decr, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-1
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Decr, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -1, 0, 0, 0]
+
+generateAndRunTest(Decr, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -1, 0]
+
+generateAndRunTest(Decr, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -1]
+
+generateAndRunTest(Decr, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = --c;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -1, 0, 0]
+
+generateAndRunTest(Not, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Not, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Not, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Not, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Not, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Not, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Not, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Not, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Not, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = ~c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Not, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Not, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Not, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Not, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Not, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Not, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Not, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Not, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = ~c;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(And, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(And, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(And, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(And, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(And, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(And, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(And, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(And, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(And, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = c & 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(And, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(And, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(And, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(And, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(And, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(And, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(And, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(And, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c & 0xfffffff;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Or, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Or, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Or, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Or, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Or, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Or, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Or, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Or, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Or, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = c | 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Or, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Or, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Or, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Or, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Or, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Or, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Or, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Or, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c | 0xfffffff;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Xor, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Xor, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Xor, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Xor, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Xor, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Xor, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Xor, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Xor, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Xor, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = c ^ 0xfffffff;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Xor, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Xor, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Xor, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Xor, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [268,435,455, 0, 0, 0, 0]
+
+generateAndRunTest(Xor, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, -0, 0, 0, 0]
+
+generateAndRunTest(Xor, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, -0, 0]
+
+generateAndRunTest(Xor, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, 0, 0, -0]
+
+generateAndRunTest(Xor, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c ^ 0xfffffff;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [268,435,455, 0, -0, 0, 0]
+
+generateAndRunTest(Shl, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shl, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Shl, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Shl, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Shl, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shl, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(Shl, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(Shl, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(Shl, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = c << 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Shl, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Shl, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Shl, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Shl, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shl, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(Shl, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(Shl, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(Shl, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c << 1;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Shr, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shr, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Shr, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Shr, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Shr, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shr, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(Shr, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(Shr, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(Shr, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = c >> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(Shr, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(Shr, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(Shr, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(Shr, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(Shr, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(Shr, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(Shr, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(Shr, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >> 1;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(ShrU, None);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw new Error(1 / c < 0 ? '-0' : '0');var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(ShrU, BeforeIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;throw c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(ShrU, BeforeIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;return c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(ShrU, BeforeIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;echo(c);var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localObj.p = c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerObj.p = c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;outerVar = c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(ShrU, BeforeIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;localArr[0] = c;var d = c >>> 1;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+
+generateAndRunTest(ShrU, AfterIntOperation, Div);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;throw new Error(1 / c < 0 ? '-0' : '0');return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: Error: -0
+
+generateAndRunTest(ShrU, AfterIntOperation, Throw);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;throw c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Thrown: -0
+
+generateAndRunTest(ShrU, AfterIntOperation, Ret);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;return c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: -0
+
+generateAndRunTest(ShrU, AfterIntOperation, PassToFunction);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;echo(c);return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+-0
+Returned: [0, 0, 0, 0, 0]
+
+generateAndRunTest(ShrU, AfterIntOperation, SetPropertyInLocalObject);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;localObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, -0, 0, 0, 0]
+
+generateAndRunTest(ShrU, AfterIntOperation, SetPropertyInNonlocalObjectInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;outerObj.p = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, -0, 0]
+
+generateAndRunTest(ShrU, AfterIntOperation, SetNonlocalVariableInScope);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;outerVar = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, 0, 0, -0]
+
+generateAndRunTest(ShrU, AfterIntOperation, SetArrayElement);
+function outer(a, b){var outerObj = {p: 0};var outerVar = 0;return (function test(a, b){a >>= 14;b &= 0x3fff;var localObj = {p: 0};var localArr = [0];var c = a * b;var d = c >>> 1;localArr[0] = c;return [d & 0xfffffff, localObj.p, localArr[0], outerObj.p, outerVar];}).apply(this, arguments);}
+Returned: [0, 0, -0, 0, 0]
+

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>DateCtr.js</files>
+      <baseline>DateCtr.baseline</baseline>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_jenkins</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>DateGetSet.js</files>
+      <baseline>DateGetSet.baseline</baseline>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_jenkins</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>DateParse.js</files>
+      <baseline>DateParse_es5.baseline</baseline>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_jenkins</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>DateParse2.js</files>
+      <baseline>DateParse2.v5.baseline</baseline>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_jenkins</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>toISO_3.js</files>
+      <baseline>toISO_3.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>parseISO.js</files>
+      <baseline>parseISO.baseline</baseline>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_jenkins</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>DateUTC.js</files>
+      <baseline>DateUTC.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>MillisecondTruncationCheckAfterCopyConstructor.js</files>
+      <baseline>MillisecondTruncationCheckAfterCopyConstructor.es6.baseline</baseline>
+      <tags></tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>Conversions.js</files>
+      <baseline>Conversions.win8.baseline</baseline>
+      <compile-flags>-Intl-</compile-flags>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_win7,exclude_winBlue,exclude_snap,exclude_jenkins</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>Conversions.js</files>
+      <baseline>Conversions.baseline</baseline>
+      <compile-flags>-Intl-</compile-flags>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_win7,exclude_win8,exclude_snap,exclude_jenkins</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>date_cache_bug.js</files>
+      <baseline>date_cache_bug.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>formatting.js</files>
+      <baseline>formatting.baseline</baseline>
+      <compile-flags>-ForceOldDateAPI</compile-flags>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_jenkins</tags>
+    </default>
+    <condition order="1" type="include">
+      <os>win8</os>
+      <override>
+        <baseline>formatting.win8.baseline</baseline>
+      </override>
+    </condition>
+  </test>
+</regress-exe>

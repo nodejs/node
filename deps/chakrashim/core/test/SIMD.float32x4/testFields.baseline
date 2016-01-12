@@ -1,0 +1,64 @@
+Float32x4 scalar getters
+Correct
+Correct
+Correct
+Correct
+Float32x4 scalar getters
+Correct
+Correct
+Correct
+Correct
+Float32x4 scalar getters
+Correct
+Correct
+Correct
+Correct
+Float32x4 scalar getters
+Correct
+Correct
+Correct
+Correct
+Float32x4 scalar getters
+Correct
+Correct
+Correct
+Correct
+Float32x4 scalar getters
+Correct
+Correct
+Correct
+Correct
+Float32x4 scalar getters
+Correct
+Correct
+Correct
+Correct
+Float32x4 scalar getters
+Correct
+Correct
+Correct
+Correct
+F4 ExtractLane
+Float32x4
+Float32x4(1.4,-2.0,3.4,0.0)
+number
+1.350000023841858
+number
+-2
+number
+3.4000000953674316
+number
+0
+
+F4 ReplaceLane
+Float32x4
+Float32x4(1.4,-2.0,3.4,0.0)
+Float32x4
+Float32x4(10.2,-2.0,3.4,0.0)
+Float32x4
+Float32x4(1.4,12.3,3.4,0.0)
+Float32x4
+Float32x4(1.4,-2.0,-30.2,0.0)
+Float32x4
+Float32x4(1.4,-2.0,3.4,0.0)
+

@@ -1,0 +1,181 @@
+FLAG ES6 = 1
+FLAG ES6 = 1 - setting child flag Simdjs = 0
+FLAG Simdjs = 0
+FLAG ES6 = 1 - setting child flag ES6Species = 1
+FLAG ES6Species = 1
+FLAG ES6 = 1 - setting child flag ES7AsyncAwait = 0
+FLAG ES7AsyncAwait = 0
+FLAG ES6 = 1 - setting child flag ES6Classes = 1
+FLAG ES6Classes = 1
+FLAG ES6 = 1 - setting child flag ES6DateParseFix = 1
+FLAG ES6DateParseFix = 1
+FLAG ES6 = 1 - setting child flag ES6DefaultArgs = 0
+FLAG ES6DefaultArgs = 0
+FLAG ES6 = 1 - setting child flag ES6Destructuring = 1
+FLAG ES6Destructuring = 1
+FLAG ES6 = 1 - setting child flag ES6ForLoopSemantics = 1
+FLAG ES6ForLoopSemantics = 1
+FLAG ES6 = 1 - setting child flag ES6FunctionName = 1
+FLAG ES6FunctionName = 1
+FLAG ES6 = 1 - setting child flag ES6FunctionNameFull = 0
+FLAG ES6FunctionNameFull = 0
+FLAG ES6 = 1 - setting child flag ES6Generators = 1
+FLAG ES6Generators = 1
+FLAG ES6 = 1 - setting child flag ES7ExponentiationOperator = 0
+FLAG ES7ExponentiationOperator = 0
+FLAG ES6 = 1 - setting child flag ES7Builtins = 0
+FLAG ES7Builtins = 0
+FLAG ES6 = 1 - setting child flag ES7TrailingComma = 1
+FLAG ES7TrailingComma = 1
+FLAG ES6 = 1 - setting child flag ES6Iterators = 1
+FLAG ES6Iterators = 1
+FLAG ES6 = 1 - setting child flag ES6IsConcatSpreadable = 0
+FLAG ES6IsConcatSpreadable = 0
+FLAG ES6 = 1 - setting child flag ES6Lambda = 1
+FLAG ES6Lambda = 1
+FLAG ES6 = 1 - setting child flag ES6Math = 1
+FLAG ES6Math = 1
+FLAG ES6 = 1 - setting child flag ES6Object = 1
+FLAG ES6Object = 1
+FLAG ES6 = 1 - setting child flag ES6Number = 1
+FLAG ES6Number = 1
+FLAG ES6 = 1 - setting child flag ES6NumericLiterals = 1
+FLAG ES6NumericLiterals = 1
+FLAG ES6 = 1 - setting child flag ES6ObjectLiterals = 1
+FLAG ES6ObjectLiterals = 1
+FLAG ES6 = 1 - setting child flag ES6Promise = 1
+FLAG ES6Promise = 1
+FLAG ES6 = 1 - setting child flag ES6Proxy = 1
+FLAG ES6Proxy = 1
+FLAG ES6 = 1 - setting child flag ES6Rest = 1
+FLAG ES6Rest = 1
+FLAG ES6 = 1 - setting child flag ES6Spread = 1
+FLAG ES6Spread = 1
+FLAG ES6 = 1 - setting child flag ES6String = 1
+FLAG ES6String = 1
+FLAG ES6 = 1 - setting child flag ES6StringPrototypeFixes = 1
+FLAG ES6StringPrototypeFixes = 1
+FLAG ES6 = 1 - setting child flag ES6StringTemplate = 1
+FLAG ES6StringTemplate = 1
+FLAG ES6 = 1 - setting child flag ES6PrototypeChain = 0
+FLAG ES6PrototypeChain = 0
+FLAG ES6 = 1 - setting child flag ES6Symbol = 1
+FLAG ES6Symbol = 1
+FLAG ES6 = 1 - setting child flag ES6ToPrimitive = 0
+FLAG ES6ToPrimitive = 0
+FLAG ES6 = 1 - setting child flag ES6ToLength = 0
+FLAG ES6ToLength = 0
+FLAG ES6 = 1 - setting child flag ES6ToStringTag = 0
+FLAG ES6ToStringTag = 0
+FLAG ES6 = 1 - setting child flag ES6TypedArrayExtensions = 1
+FLAG ES6TypedArrayExtensions = 1
+FLAG ES6 = 1 - setting child flag ES6Unicode = 1
+FLAG ES6Unicode = 1
+FLAG ES6 = 1 - setting child flag ES6UnicodeVerbose = 1
+FLAG ES6UnicodeVerbose = 1
+FLAG ES6 = 1 - setting child flag ES6Unscopables = 1
+FLAG ES6Unscopables = 1
+FLAG ES6 = 1 - setting child flag ES6WeakSet = 1
+FLAG ES6WeakSet = 1
+FLAG ES6 = 1 - setting child flag ES6RegExSticky = 1
+FLAG ES6RegExSticky = 1
+FLAG ES6 = 1 - setting child flag ES6RegExPrototypeProperties = 0
+FLAG ES6RegExPrototypeProperties = 0
+FLAG ES6 = 1 - setting child flag ES6HasInstance = 0
+FLAG ES6HasInstance = 0
+FLAG ES6 = 1 - setting child flag ES6Verbose = 0
+FLAG ES6Verbose = 0
+FLAG ES6 = 1 - setting child flag ArrayBufferTransfer = 0
+FLAG ArrayBufferTransfer = 0
+FLAG ES6 = 0
+FLAG ES6 = 0 - setting child flag Simdjs = 0
+FLAG Simdjs = 0
+FLAG ES6 = 0 - setting child flag ES6Species = 0
+FLAG ES6Species = 0
+FLAG ES6 = 0 - setting child flag ES7AsyncAwait = 0
+FLAG ES7AsyncAwait = 0
+FLAG ES6 = 0 - setting child flag ES6Classes = 0
+FLAG ES6Classes = 0
+FLAG ES6 = 0 - setting child flag ES6DateParseFix = 0
+FLAG ES6DateParseFix = 0
+FLAG ES6 = 0 - setting child flag ES6DefaultArgs = 0
+FLAG ES6DefaultArgs = 0
+FLAG ES6 = 0 - setting child flag ES6Destructuring = 0
+FLAG ES6Destructuring = 0
+FLAG ES6 = 0 - setting child flag ES6ForLoopSemantics = 0
+FLAG ES6ForLoopSemantics = 0
+FLAG ES6 = 0 - setting child flag ES6FunctionName = 0
+FLAG ES6FunctionName = 0
+FLAG ES6 = 0 - setting child flag ES6FunctionNameFull = 0
+FLAG ES6FunctionNameFull = 0
+FLAG ES6 = 0 - setting child flag ES6Generators = 0
+FLAG ES6Generators = 0
+FLAG ES6 = 0 - setting child flag ES7ExponentiationOperator = 0
+FLAG ES7ExponentiationOperator = 0
+FLAG ES6 = 0 - setting child flag ES7Builtins = 0
+FLAG ES7Builtins = 0
+FLAG ES6 = 0 - setting child flag ES7TrailingComma = 0
+FLAG ES7TrailingComma = 0
+FLAG ES6 = 0 - setting child flag ES6Iterators = 0
+FLAG ES6Iterators = 0
+FLAG ES6 = 0 - setting child flag ES6IsConcatSpreadable = 0
+FLAG ES6IsConcatSpreadable = 0
+FLAG ES6 = 0 - setting child flag ES6Lambda = 0
+FLAG ES6Lambda = 0
+FLAG ES6 = 0 - setting child flag ES6Math = 0
+FLAG ES6Math = 0
+FLAG ES6 = 0 - setting child flag ES6Object = 0
+FLAG ES6Object = 0
+FLAG ES6 = 0 - setting child flag ES6Number = 0
+FLAG ES6Number = 0
+FLAG ES6 = 0 - setting child flag ES6NumericLiterals = 0
+FLAG ES6NumericLiterals = 0
+FLAG ES6 = 0 - setting child flag ES6ObjectLiterals = 0
+FLAG ES6ObjectLiterals = 0
+FLAG ES6 = 0 - setting child flag ES6Promise = 0
+FLAG ES6Promise = 0
+FLAG ES6 = 0 - setting child flag ES6Proxy = 0
+FLAG ES6Proxy = 0
+FLAG ES6 = 0 - setting child flag ES6Rest = 0
+FLAG ES6Rest = 0
+FLAG ES6 = 0 - setting child flag ES6Spread = 0
+FLAG ES6Spread = 0
+FLAG ES6 = 0 - setting child flag ES6String = 0
+FLAG ES6String = 0
+FLAG ES6 = 0 - setting child flag ES6StringPrototypeFixes = 0
+FLAG ES6StringPrototypeFixes = 0
+FLAG ES6 = 0 - setting child flag ES6StringTemplate = 0
+FLAG ES6StringTemplate = 0
+FLAG ES6 = 0 - setting child flag ES6PrototypeChain = 0
+FLAG ES6PrototypeChain = 0
+FLAG ES6 = 0 - setting child flag ES6Symbol = 0
+FLAG ES6Symbol = 0
+FLAG ES6 = 0 - setting child flag ES6ToPrimitive = 0
+FLAG ES6ToPrimitive = 0
+FLAG ES6 = 0 - setting child flag ES6ToLength = 0
+FLAG ES6ToLength = 0
+FLAG ES6 = 0 - setting child flag ES6ToStringTag = 0
+FLAG ES6ToStringTag = 0
+FLAG ES6 = 0 - setting child flag ES6TypedArrayExtensions = 0
+FLAG ES6TypedArrayExtensions = 0
+FLAG ES6 = 0 - setting child flag ES6Unicode = 0
+FLAG ES6Unicode = 0
+FLAG ES6 = 0 - setting child flag ES6UnicodeVerbose = 0
+FLAG ES6UnicodeVerbose = 0
+FLAG ES6 = 0 - setting child flag ES6Unscopables = 0
+FLAG ES6Unscopables = 0
+FLAG ES6 = 0 - setting child flag ES6WeakSet = 0
+FLAG ES6WeakSet = 0
+FLAG ES6 = 0 - setting child flag ES6RegExSticky = 0
+FLAG ES6RegExSticky = 0
+FLAG ES6 = 0 - setting child flag ES6RegExPrototypeProperties = 0
+FLAG ES6RegExPrototypeProperties = 0
+FLAG ES6 = 0 - setting child flag ES6HasInstance = 0
+FLAG ES6HasInstance = 0
+FLAG ES6 = 0 - setting child flag ES6Verbose = 0
+FLAG ES6Verbose = 0
+FLAG ES6 = 0 - setting child flag ArrayBufferTransfer = 0
+FLAG ArrayBufferTransfer = 0
+FLAG ES6StringTemplate = 1
+FLAG WERExceptionSupport = 1
+helloWoRlD!

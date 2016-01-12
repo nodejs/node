@@ -1,0 +1,324 @@
+var proto = {};var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {}
+o:      {}
+var proto = {};proto[p0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {writable: false});o[p0] = 0;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {writable: false});o[p0] = 0;o[p1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {writable: false});o[p0] = 0;o[p1] = 1;o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {}
+o:      {}
+var proto = {};proto[p0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {get: function(){return 0;}});o[p0] = 0;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {get: function(){return 0;}});o[p0] = 0;o[p1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {get: function(){return 0;}});o[p0] = 0;o[p1] = 1;o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {}
+o:      {}
+var proto = {};proto[p0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {get: function(){return 0;},set: function(v){}});o[p0] = 0;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {get: function(){return 0;},set: function(v){}});o[p0] = 0;o[p1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "p0", {get: function(){return 0;},set: function(v){}});o[p0] = 0;o[p1] = 1;o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};var Construct = function(){};Construct.prototype = proto;var o = new Construct;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {}
+o:      {}
+var proto = {};proto[p0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;CollectGarbage();o[p0] = 0;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;CollectGarbage();o[p0] = 0;o[p1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;CollectGarbage();o[p0] = 0;o[p1] = 1;o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {writable: false});o[p1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {writable: false});o[p1] = 1;o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {get: function(){return 0;}});o[p1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {get: function(){return 0;}});o[p1] = 1;o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {get: function(){return 0;},set: function(v){}});o[p1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;Object.defineProperty(proto, "p1", {get: function(){return 0;},set: function(v){}});o[p1] = 1;o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;CollectGarbage();o[p1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;CollectGarbage();o[p1] = 1;o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {writable: false});o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {get: function(){return 0;}});o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;Object.defineProperty(proto, "p2", {get: function(){return 0;},set: function(v){}});o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;CollectGarbage();o[p2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;proto[p5] = 5;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;proto[p5] = 5;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;proto[p5] = 5;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;Object.defineProperty(proto, "p3", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};proto[p0] = 0;proto[p1] = 1;proto[p2] = 2;proto[p3] = 3;proto[p4] = 4;proto[p5] = 5;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[p0] = 0;o[p1] = 1;o[p2] = 2;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+ReferenceError: 'p0' is undefined
+var proto = {};var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {}
+o:      {}
+var proto = {};proto[0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {writable: false});o[0] = 0;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0}
+o:      {0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {writable: false});o[0] = 0;o[1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {1: 1, 0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {writable: false});o[0] = 0;o[1] = 1;o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {1: 1, 2: 2, 0: 0}
+var proto = {};var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {}
+o:      {}
+var proto = {};proto[0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {get: function(){return 0;}});o[0] = 0;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0}
+o:      {0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {get: function(){return 0;}});o[0] = 0;o[1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {1: 1, 0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {get: function(){return 0;}});o[0] = 0;o[1] = 1;o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {1: 1, 2: 2, 0: 0}
+var proto = {};var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {}
+o:      {}
+var proto = {};proto[0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {get: function(){return 0;},set: function(v){}});o[0] = 0;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0}
+o:      {0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {get: function(){return 0;},set: function(v){}});o[0] = 0;o[1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {1: 1, 0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;Object.defineProperty(proto, "0", {get: function(){return 0;},set: function(v){}});o[0] = 0;o[1] = 1;o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {1: 1, 2: 2, 0: 0}
+var proto = {};var Construct = function(){};Construct.prototype = proto;var o = new Construct;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {}
+o:      {}
+var proto = {};proto[0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;CollectGarbage();o[0] = 0;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0}
+o:      {0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;CollectGarbage();o[0] = 0;o[1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {0: 0, 1: 1}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;CollectGarbage();o[0] = 0;o[1] = 1;o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0}
+o:      {0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {0: 0, 1: 1}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {writable: false});o[1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {writable: false});o[1] = 1;o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3}
+o:      {0: 0, 2: 2, 1: 1, 3: 3}
+var proto = {};proto[0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0}
+o:      {0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 0}
+o:      {0: 0, 1: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {get: function(){return 0;}});o[1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 0, 2: 2}
+o:      {0: 0, 1: 0, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {get: function(){return 0;}});o[1] = 1;o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 0, 2: 2, 3: 3}
+o:      {0: 0, 2: 2, 1: 0, 3: 3}
+var proto = {};proto[0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0}
+o:      {0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 0}
+o:      {0: 0, 1: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {get: function(){return 0;},set: function(v){}});o[1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 0, 2: 2}
+o:      {0: 0, 1: 0, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;Object.defineProperty(proto, "1", {get: function(){return 0;},set: function(v){}});o[1] = 1;o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 0, 2: 2, 3: 3}
+o:      {0: 0, 2: 2, 1: 0, 3: 3}
+var proto = {};proto[0] = 0;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0}
+o:      {0: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {0: 0, 1: 1}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;CollectGarbage();o[1] = 1;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;CollectGarbage();o[1] = 1;o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3}
+o:      {0: 0, 1: 1, 2: 2, 3: 3}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {0: 0, 1: 1}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3}
+o:      {0: 0, 1: 1, 2: 2, 3: 3}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {writable: false});o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+o:      {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {0: 0, 1: 1}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 0}
+o:      {0: 0, 1: 1, 2: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 0, 3: 3}
+o:      {0: 0, 1: 1, 2: 0, 3: 3}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {get: function(){return 0;}});o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 0, 3: 3, 4: 4}
+o:      {0: 0, 1: 1, 2: 0, 3: 3, 4: 4}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {0: 0, 1: 1}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 0}
+o:      {0: 0, 1: 1, 2: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 0, 3: 3}
+o:      {0: 0, 1: 1, 2: 0, 3: 3}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;Object.defineProperty(proto, "2", {get: function(){return 0;},set: function(v){}});o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 0, 3: 3, 4: 4}
+o:      {0: 0, 1: 1, 2: 0, 3: 3, 4: 4}
+var proto = {};proto[0] = 0;proto[1] = 1;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1}
+o:      {0: 0, 1: 1}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3}
+o:      {0: 0, 1: 1, 2: 2, 3: 3}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;CollectGarbage();o[2] = 2;echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+o:      {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3}
+o:      {0: 0, 1: 1, 2: 2, 3: 3}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+o:      {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;proto[5] = 5;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {writable: false});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5}
+o:      {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 0}
+o:      {0: 0, 1: 1, 2: 2, 3: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 0, 4: 4}
+o:      {0: 0, 1: 1, 2: 2, 3: 0, 4: 4}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;proto[5] = 5;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {get: function(){return 0;}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 0, 4: 4, 5: 5}
+o:      {0: 0, 1: 1, 2: 2, 3: 0, 4: 4, 5: 5}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 0}
+o:      {0: 0, 1: 1, 2: 2, 3: 0}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 0, 4: 4}
+o:      {0: 0, 1: 1, 2: 2, 3: 0, 4: 4}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;proto[5] = 5;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;Object.defineProperty(proto, "3", {get: function(){return 0;},set: function(v){}});echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 0, 4: 4, 5: 5}
+o:      {0: 0, 1: 1, 2: 2, 3: 0, 4: 4, 5: 5}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2}
+o:      {0: 0, 1: 1, 2: 2}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3}
+o:      {0: 0, 1: 1, 2: 2, 3: 3}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+o:      {0: 0, 1: 1, 2: 2, 3: 3, 4: 4}
+var proto = {};proto[0] = 0;proto[1] = 1;proto[2] = 2;proto[3] = 3;proto[4] = 4;proto[5] = 5;var Construct = function(){};Construct.prototype = proto;var o = new Construct;o[0] = 0;o[1] = 1;o[2] = 2;CollectGarbage();echo("proto:  ", proto);echo("o:      ", o);
+proto:  {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5}
+o:      {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5}

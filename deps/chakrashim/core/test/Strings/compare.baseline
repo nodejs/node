@@ -1,0 +1,4 @@
+Basic string compare.
+compare ( 'abcd1234' , 'abcd1234' ) = 0
+compare ( 'abcd1234' , '1234567a' ) = 1
+compare ( 'abcd1234' , undef ) = -1

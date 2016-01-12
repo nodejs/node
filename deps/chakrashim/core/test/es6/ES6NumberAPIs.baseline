@@ -1,0 +1,21 @@
+*** Running test #1 (0): Number constructor and prototype should have spec defined built-ins with correct lengths
+PASSED
+*** Running test #2 (1): EPSILON is approximately 2.220446049250313e-16
+PASSED
+*** Running test #3 (2): MAX_SAFE_INTEGER and MIN_SAFE_INTEGER are exactly +/-9007199254740991
+PASSED
+*** Running test #4 (3): parseInt parses integers in a given string in the given radix -- same as the global object's parseInt
+PASSED
+*** Running test #5 (4): parseFloat parses floats in a given string -- same as the global object's parseFloat
+PASSED
+*** Running test #6 (5): isNaN behaves similar to the global object's isNaN except it does not coerce its argument to Number
+PASSED
+*** Running test #7 (6): isFinite behaves similar to the global object's isFinite except it does not coerce its argument to Number
+PASSED
+*** Running test #8 (7): isInteger returns true if its argument is a number and, after coercion via ToInteger abstract operation, is the same value, false otherwise
+PASSED
+*** Running test #9 (8): isSafeInteger returns true if its argument is a number and, after coercion via ToInteger abstract operation, is the same value, false otherwise
+PASSED
+*** Running test #10 (9): clz returns the number of leading zero bits of the unsigned 32 bit integer representation of the this argument
+PASSED
+Summary of tests: total executed: 10; passed: 10; failed: 0

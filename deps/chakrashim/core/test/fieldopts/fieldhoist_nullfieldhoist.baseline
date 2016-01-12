@@ -1,0 +1,3 @@
+TypeError: Unable to get property 'x' of undefined or null reference
+	at test_Neg_A() (fieldhoist_nullfieldhoist.js:11:9)
+	at Global code (fieldhoist_nullfieldhoist.js:17:1)

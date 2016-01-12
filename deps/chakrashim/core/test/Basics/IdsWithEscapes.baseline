@@ -1,0 +1,22 @@
+10
+10
+20
+20
+ReferenceError: 'hello2' is undefined
+SyntaxError: Syntax error
+SyntaxError: Syntax error
+SyntaxError: Syntax error
+SyntaxError: Syntax error
+SyntaxError: Syntax error
+SyntaxError: Syntax error
+SyntaxError: Syntax error
+SyntaxError: The use of a keyword for an identifier is invalid
+SyntaxError: The use of a keyword for an identifier is invalid
+SyntaxError: The use of a keyword for an identifier is invalid
+SyntaxError: The use of a keyword for an identifier is invalid
+10
+10
+10
+10
+SyntaxError: The use of a keyword for an identifier is invalid
+SyntaxError: The use of a keyword for an identifier is invalid

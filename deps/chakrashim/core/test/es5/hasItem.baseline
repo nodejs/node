@@ -1,0 +1,110 @@
+Test empty object
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test empty array
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test number object
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test string object
+  pass (abc)
+  pass (-1)
+  pass ...can not defineProperty... (0)
+  pass ...can not defineProperty... (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test Object
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test global object
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test object with 1 property
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test object with many properties
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test object with accessor
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test array
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x
+Test es5 array
+  pass (abc)
+  pass (-1)
+  pass (0)
+  pass (1)
+  pass (10)
+  pass (4294967294)
+  pass (x y)
+  pass (x
+  pass (x

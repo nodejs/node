@@ -1,0 +1,2 @@
+SyntaxError: Calling delete on expression not allowed in strict mode
+	at code (delete.js:9:15)

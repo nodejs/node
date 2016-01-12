@@ -1,0 +1,18 @@
+ReferenceError: 'baz' is undefined
+	at foo (x64stackwalk.js:13:9)
+	at Global code (x64stackwalk.js:23:1)
+ReferenceError: 'baz' is undefined
+	at foo (x64stackwalk.js:18:9)
+	at Global code (x64stackwalk.js:23:1)
+ReferenceError: 'baz' is undefined
+	at foo (x64stackwalk.js:13:9)
+	at Global code (x64stackwalk.js:24:1)
+ReferenceError: 'baz' is undefined
+	at foo (x64stackwalk.js:18:9)
+	at Global code (x64stackwalk.js:24:1)
+ReferenceError: 'baz' is undefined
+	at foo (x64stackwalk.js:13:9)
+	at Global code (x64stackwalk.js:25:1)
+ReferenceError: 'baz' is undefined
+	at foo (x64stackwalk.js:18:9)
+	at Global code (x64stackwalk.js:25:1)

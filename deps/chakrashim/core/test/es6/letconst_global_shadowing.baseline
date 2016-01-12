@@ -1,0 +1,85 @@
+
+==== Let/const globals should not show up in for-in enumeration ====
+
+
+Before x, y, z, w declarations and globals
+
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+ReferenceError: Use before declaration
+undefined
+undefined
+undefined
+undefined
+{ }
+
+After let x, this.y, const z, this.w
+
+let x
+ReferenceError: Use before declaration
+const z
+ReferenceError: Use before declaration
+undefined
+this.y
+undefined
+this.w
+{
+    y: this.y
+    w: this.w
+}
+
+After this.x, let y, this.z, const w
+
+let x
+let y
+const z
+const w
+this.x
+this.y
+this.z
+this.w
+{
+    x: this.x
+    z: this.z
+    y: this.y
+    w: this.w
+}
+
+==== Attributes on global properties should not be lost with let/const shadowing ====
+
+ReferenceError: Use before declaration
+this.p
+{
+    value: this.p
+    writable: false
+    enumerable: false
+    configurable: false
+}
+let p
+this.p
+{
+    value: this.p
+    writable: false
+    enumerable: false
+    configurable: false
+}
+
+==== Global properties added after const should not destroy const-ness ====
+
+ReferenceError: Assignment to const
+const q
+this.q
+
+==== Attributes on shadowing let properties should not be lost with Object.defineProperty() ====
+
+0
+undefined
+1
+undefined
+1
+undefined
+2
+undefined
+3
+undefined

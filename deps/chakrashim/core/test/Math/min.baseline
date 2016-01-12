@@ -1,0 +1,9 @@
+Math.min(+0.0, -0.0) 0
+Check (1 / Math.min(+0.0, -0.0) < 0)  - true 
+done
+-Infinity
+-Infinity
+-Infinity
+-Infinity
+undefined
+undefined

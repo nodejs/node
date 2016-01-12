@@ -1,0 +1,110 @@
+string : [object Object],123456,Fri Jan 09 1970 16:00:01 GMT-0800 (Pacific Standard Time),,true
+string : [object Object], 123,456, 1/9/1970 4:00:01 PM, , true
+number : 0
+number : 1
+number : 2
+number : 3
+number : 4
+number : 5
+string : 6,7,8,,9
+string : 10, 11, 12, , 13
+number : 14
+number : 15
+string : str1
+number : 17
+string : str1
+number : 19
+string : str1
+number : 21
+string : str1,str2,str1,,str2
+string : 26, 27, 28, , 29
+string : str1
+number : 31
+boolean : true
+number : 33
+boolean : true
+number : 35
+boolean : true
+number : 37
+string : true,false,true,,false
+string : 42, 43, 44, , 45
+boolean : true
+number : 47
+number : 48
+string : str2
+number : 50
+string : str2
+number : 52
+string : str2
+string : 54,55,56,,57
+string : str1, str2, str1, , str2
+number : 62
+string : str2
+string : str1
+string : str2
+string : str1
+string : str2
+string : str1
+string : str2
+string : str1,str2,str1,,str2
+string : str1, str2, str1, , str2
+string : str1
+string : str2
+boolean : true
+string : str2
+boolean : true
+string : str2
+boolean : true
+string : str2
+string : true,false,true,,false
+string : str1, str2, str1, , str2
+boolean : true
+string : str2
+number : 96
+boolean : false
+number : 98
+boolean : false
+number : 100
+boolean : false
+string : 102,103,104,,105
+string : true, false, true, , false
+number : 110
+boolean : false
+string : str1
+boolean : false
+string : str1
+boolean : false
+string : str1
+boolean : false
+string : str1,str2,str1,,str2
+string : true, false, true, , false
+string : str1
+boolean : false
+boolean : true
+boolean : false
+boolean : true
+boolean : false
+boolean : true
+boolean : false
+string : true,false,true,,false
+string : true, false, true, , false
+boolean : true
+boolean : false
+number : 144
+number : 145
+string : str1
+number : 147
+boolean : true
+number : 149
+number : 150
+string : str2
+string : str1
+string : str2
+boolean : true
+string : str2
+number : 156
+boolean : false
+string : str1
+boolean : false
+boolean : true
+boolean : false

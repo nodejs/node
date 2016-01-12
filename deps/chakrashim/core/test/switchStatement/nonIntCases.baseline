@@ -1,0 +1,20 @@
+first switch default
+first switch default
+first switch default
+first switch default
+first switch default
+second switch default
+BailOut: function: g (#3) offset: #00aa Opcode: BailOnNoProfile
+2
+Bailout from function: function: g, bailOutkind: 8, bailOutKindName: (BailOutOnNoProfile), bailOutCount: 1, callCount: 20, reJitReason: None, reThunk: false
+second switch default
+BailOut: function: g (#3) offset: #0212 Opcode: BailOnNoProfile
+8
+Bailout from function: function: g, bailOutkind: 8, bailOutKindName: (BailOutOnNoProfile), bailOutCount: 1, callCount: 1, reJitReason: None, reThunk: false
+BailOut: function: g (#3) offset: #014a Opcode: BailOnNoProfile
+5
+Bailout from function: function: g, bailOutkind: 8, bailOutKindName: (BailOutOnNoProfile), bailOutCount: 1, callCount: 0, reJitReason: NoProfile, reThunk: false
+second switch default
+BailOut: function: g (#3) offset: #0016 Opcode: FromVar
+second switch default
+Bailout from function: function: g, bailOutkind: 1, bailOutKindName: (BailOutIntOnly), bailOutCount: 1, callCount: 21, reJitReason: None, reThunk: false

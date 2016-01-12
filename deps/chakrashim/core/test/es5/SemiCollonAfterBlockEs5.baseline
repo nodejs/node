@@ -1,0 +1,1 @@
+'if(true){};else{}' compile failure in ES5SyntaxError: Syntax error

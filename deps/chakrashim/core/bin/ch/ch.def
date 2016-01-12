@@ -1,0 +1,4 @@
+NAME CH
+
+EXPORTS
+    OnChakraCoreLoadedEntry

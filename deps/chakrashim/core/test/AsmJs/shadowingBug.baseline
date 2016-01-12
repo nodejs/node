@@ -1,0 +1,18 @@
+
+shadowingBug.js(7, 97)
+	Asm.js Compilation Error function : None::f1
+	Invalid identifier f64
+
+Asm.js compilation failed.
+
+shadowingBug.js(8, 97)
+	Asm.js Compilation Error function : None::f1
+	Invalid identifier f64
+
+Asm.js compilation failed.
+Var declaration with non-constant
+Asm.js compilation failed.
+0
+NaN
+0
+0

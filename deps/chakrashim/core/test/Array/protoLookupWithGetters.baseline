@@ -1,0 +1,90 @@
+Test case 1
+d1,d2,d3,d4,p5,p6,p7,p8,p9
+9
+p0,p1,p2,p3,p4
+5
+
+Test case 2
+d1,d2,d3,d4,d5,d6,d7,p5,p6,p7,p8,p9
+12
+p0,p1,p2,p3,p4
+5
+
+Test case 3
+d1,d2,d3,d4,d5,d6,d7,p5,,p7,,p9
+12
+,p1,,p3,
+5
+
+Test case 4
+P0,P1,P2,d1,d2,d3,P8,P9
+8
+P3,P4,P5,P6,P7
+5
+
+Test case 5
+P0,P1,P2,d1,d2,d3,P8,P9
+8
+P3,P4,P5,P6,P7
+5
+
+Test case 6
+P0,P1,P2,d1,d2,d3,P4,P5,P6,P7,P8,P9
+12
+P3
+1
+
+Test case 7
+expando:0=string
+expando:8=lastelement
+expando:length=9
+expando:shift=function shift() { [native code] }
+
+Test case 8
+hello world
+11
+123,,,,,,,,p9
+9
+
+Test case 9
+,,,,,,,100
+8
+2147483649
+
+Test case 10
+1,a1,O3,4,a4,O6,7,a7,O9,10,a10,O12,13,a13,O15,16,a16,O18,19
+19
+10,1,a1,O3,4,a4,O6,7,a7,O9,10,a10,O12,13,a13,O15,16,a16,O18,19
+20
+10,1,a1,O3,4,a,b,7,a7,O9,10,a10,O12,13,a13,O15,16,a16,O18,19
+20
+a4,O6
+2
+10,1,a1,O3,4,a,b,a,b,13,a13,O15,16,a16,O18,19
+16
+7,a7,O9,10,a10,O12
+6
+10,1,a1,O3,4,a,b,a,b,13,a,b,c,e,f,16,a16,O18,19
+19
+a13,O15
+2
+
+Test case 11
+O0,a1,10,O3,a4
+5
+a1,10,O3,a4
+4
+20,a1,10,O3,a4
+a1,10,O3,a4
+10,40,a1,10,O3,a4
+50,10,40,a1,10,O3,a4
+10,40,a1,10,O3,a4
+O0,a1,10,O3,a4
+5
+a4,O3,10,a1,O0
+5
+O0,a1,2,3,4
+5
+4,3,2,a1,O0
+5
+1,2,3,O0,a1,10

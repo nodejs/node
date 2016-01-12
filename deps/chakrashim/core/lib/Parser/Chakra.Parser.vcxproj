@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Parser</TargetName>
+    <ProjectGuid>{F6FAD160-5A4B-476A-93AC-33E0B3A18C0C}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..\Common;
+        $(MSBuildThisFileDirectory)..\Backend;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>ParserPch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)alloc.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)BackgroundParser.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CaseInsensitive.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CharClassifier.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CharSet.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CharTrie.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)cmperr.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DebugWriter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)errstr.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)globals.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)hash.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)OctoquadIdentifier.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)parse.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RegexCompileTime.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RegexParser.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RegexPattern.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RegexRunTime.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RegexStats.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)rterror.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)scan.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)screrror.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)StandardChars.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ParserPch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)TextbookBoyerMoore.cpp" />
+    <None Include="hashfunc.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="alloc.h" />
+    <ClInclude Include="BackgroundParser.h" />
+    <ClInclude Include="CaseInsensitive.h" />
+    <ClInclude Include="CharClassifier.h" />
+    <ClInclude Include="CharMap.h" />
+    <ClInclude Include="Chars.h" />
+    <ClInclude Include="CharSet.h" />
+    <ClInclude Include="CharTrie.h" />
+    <ClInclude Include="cmperr.h" />
+    <ClInclude Include="DebugWriter.h" />
+    <ClInclude Include="errstr.h" />
+    <ClInclude Include="formalsutil.h" />
+    <ClInclude Include="globals.h" />
+    <ClInclude Include="hash.h" />
+    <ClInclude Include="idiom.h" />
+    <ClInclude Include="keywords.h" />
+    <ClInclude Include="kwd-lsc.h" />
+    <ClInclude Include="kwd-swtch.h" />
+    <ClInclude Include="kwds_sw.h" />
+    <ClInclude Include="objnames.h" />
+    <ClInclude Include="OctoquadIdentifier.h" />
+    <ClInclude Include="parse.h" />
+    <ClInclude Include="ParseFlags.h" />
+    <ClInclude Include="Parser.h" />
+    <ClInclude Include="ParserCommon.h" />
+    <ClInclude Include="ParserPch.h" />
+    <ClInclude Include="ParseTreeComparer.h" />
+    <ClInclude Include="perrors.h" />
+    <ClInclude Include="pnodechange.h" />
+    <ClInclude Include="pnodediff.h" />
+    <ClInclude Include="pnodevisit.h" />
+    <ClInclude Include="pnodewalk.h" />
+    <ClInclude Include="popcode.h" />
+    <ClInclude Include="ptlist.h" />
+    <ClInclude Include="ptree.h" />
+    <ClInclude Include="regcodes.h" />
+    <ClInclude Include="RegexCommon.h" />
+    <ClInclude Include="RegexCompileTime.h" />
+    <ClInclude Include="RegexContcodes.h" />
+    <ClInclude Include="RegexFlags.h" />
+    <ClInclude Include="RegexOpcodes.h" />
+    <ClInclude Include="RegexParser.h" />
+    <ClInclude Include="RegexPattern.h" />
+    <ClInclude Include="RegexRunTime.h" />
+    <ClInclude Include="RegexStats.h" />
+    <ClInclude Include="rterror.h" />
+    <ClInclude Include="rterrors.h" />
+    <ClInclude Include="rterrors_limits.h" />
+    <ClInclude Include="scan.h" />
+    <ClInclude Include="screrror.h" />
+    <ClInclude Include="StandardChars.h" />
+    <ClInclude Include="TextbookBoyerMoore.h" />
+    <ClInclude Include="tokens.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)jserr.gen">
+      <PreprocessToFile>true</PreprocessToFile>
+      <PreprocessSuppressLineNumbers>true</PreprocessSuppressLineNumbers>
+      <ObjectFileName>$(IntDir)jserr.rc2</ObjectFileName>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory);$(MSBuildThisFileDirectory)..\Common</AdditionalIncludeDirectories>
+      <LibCompiled>false</LibCompiled>
+      <ForcedIncludeFiles>
+      </ForcedIncludeFiles>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="jsscan.js" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

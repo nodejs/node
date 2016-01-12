@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Runtime.Types</TargetName>
+    <ProjectGuid>{706083F7-6AA4-4558-A153-6352EF9110F6}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        $(MSBuildThisFileDirectory)..\..\Common;
+        $(MSBuildThisFileDirectory)..\..\Parser;
+        $(MSBuildThisFileDirectory)..\..\Backend;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>RuntimeTypePch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)ActivationObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ArrayObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DeferredTypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DictionaryTypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DynamicObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DynamicObjectEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DynamicObjectSnapshotEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DynamicObjectSnapshotEnumeratorWPCache.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DynamicType.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ES5ArrayTypeHandler.cpp" />    
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)MissingPropertyTypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)NullTypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PathTypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PropertyDescriptor.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RecyclableObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ScriptFunctionType.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SimpleDictionaryTypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SimpleDictionaryUnorderedTypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SimpleTypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SpreadArgument.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)StaticType.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RuntimeTypePch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)Type.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)TypeHandler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)TypePath.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)TypePropertyCache.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)WithScopeObject.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ActivationObject.h" />
+    <ClInclude Include="ArrayObject.h" />
+    <ClInclude Include="DeferredTypeHandler.h" />
+    <ClInclude Include="DictionaryPropertyDescriptor.h" />
+    <ClInclude Include="DictionaryTypeHandler.h" />
+    <ClInclude Include="DynamicObject.h" />
+    <ClInclude Include="DynamicObjectEnumerator.h" />
+    <ClInclude Include="DynamicObjectSnapshotEnumerator.h" />
+    <ClInclude Include="DynamicObjectSnapshotEnumeratorWPCache.h" />
+    <ClInclude Include="DynamicType.h" />
+    <ClInclude Include="EdgeJavascriptTypeId.h" />
+    <ClInclude Include="ES5ArrayTypeHandler.h" />
+    <ClInclude Include="JavascriptEnumerator.h" />
+    <ClInclude Include="MissingPropertyTypeHandler.h" />
+    <ClInclude Include="NullTypeHandler.h" />
+    <ClInclude Include="PathTypeHandler.h" />
+    <ClInclude Include="PropertyDescriptor.h" />
+    <ClInclude Include="PropertyIndexRanges.h" />
+    <ClInclude Include="RecyclableObject.h" />
+    <ClInclude Include="RuntimeTypePch.h" />
+    <ClInclude Include="ScriptFunctionType.h" />
+    <ClInclude Include="SimpleDictionaryPropertyDescriptor.h" />
+    <ClInclude Include="SimpleDictionaryTypeHandler.h" />
+    <ClInclude Include="SimpleDictionaryUnorderedTypeHandler.h" />
+    <ClInclude Include="SimplePropertyDescriptor.h" />
+    <ClInclude Include="SimpleTypeHandler.h" />
+    <ClInclude Include="SpreadArgument.h" />
+    <ClInclude Include="StaticType.h" />
+    <ClInclude Include="Type.h" />
+    <ClInclude Include="TypeHandler.h" />
+    <ClInclude Include="TypeId.h" />
+    <ClInclude Include="TypePath.h" />
+    <ClInclude Include="TypePropertyCache.h" />
+    <ClInclude Include="WithScopeObject.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="RecyclableObject.inl" />
+    <None Include="DynamicObject.inl" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')"/>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

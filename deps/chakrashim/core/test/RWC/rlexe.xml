@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>OneNote.ribbon.js</files>
+      <baseline>OneNote.ribbon.baseline</baseline>
+    </default>
+  </test>
+</regress-exe>

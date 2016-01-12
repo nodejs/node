@@ -1,0 +1,16 @@
+HasFuncDecl: test
+HasFuncDecl: child
+HasMaybeEscapedNestedFunc (DelayedObjectScopeAssignment): test (function  (#1.1), #2)
+HasFuncDecl: test
+HasFuncDecl: child
+HasMaybeEscapedNestedFunc (Child): test (function  (#1.1), #2)
+HasFuncAssignment: nested
+HasFuncDecl: child
+RestoreHasFuncAssignment: child
+RestoreHasFuncAssignment: nested
+HasMaybeEscapedNestedFunc (Eval): child (function  (#1.3), #5)
+HasFuncDecl: child
+RestoreHasFuncAssignment: child
+RestoreHasFuncAssignment: nested
+test1
+test2

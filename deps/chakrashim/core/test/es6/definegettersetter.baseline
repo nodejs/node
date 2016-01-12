@@ -1,0 +1,28 @@
+*** Running test #1 (test01): __defineGetter__ defines an accessor property with getter as specified and enumerable and configurable set to true
+PASSED
+*** Running test #2 (test02): __defineSetter__ defines an accessor property with getter as specified and enumerable and configurable set to true
+PASSED
+*** Running test #3 (test03): __defineGetter__ should not assign a setter and __defineSetter__ should not define a getter
+PASSED
+*** Running test #4 (test04): get and set functions should have access to the object's properties via this
+PASSED
+*** Running test #5 (test05): __defineGetter__ and __defineSetter__ called on the same property are additive; they do not clobber previous accessor
+PASSED
+*** Running test #6 (test06): __defineGetter__ and __defineSetter__ only allow functions as the accessor argument
+PASSED
+*** Running test #7 (test07): __defineGetter__ and __defineSetter__ overwrite existing property descriptors when configurable, otherwise throws
+PASSED
+*** Running test #8 (test08): __defineGetter__ and __defineSetter__ should work regardless whether Object.defineProperty is changed by the user or not
+PASSED
+*** Running test #9 (test09): __defineGetter__ and __defineSetter__ both have length 2 and __lookupGetter__ and __lookupSetter__ both have length 1
+PASSED
+*** Running test #10 (test10): __defineGetter__ and __defineSetter__ should convert null/undefined this argument to global object
+PASSED
+*** Running test #11 (test11): __lookupGetter__ and __lookupSetter__ find getters and setters of the given name on the calling object respectively
+PASSED
+*** Running test #12 (test12): __lookupGetter__ and __lookupSetter__ should look for accessors up the prototype chain
+PASSED
+*** Running test #13 (test13): __lookupGetter__ and __lookupSetter__ should look for accessors up the prototype chain
+undefined
+PASSED
+Summary of tests: total executed: 13; passed: 13; failed: 0

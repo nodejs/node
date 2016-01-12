@@ -1,0 +1,13 @@
+test1_value
+test2_value
+test3_helper
+test4_obj.prop4 = Feb20
+function helper_5(a, b) {
+        write("in pair entry");
+    }
+func5_inner 100
+function helper_5(a, b) {
+        write("in pair entry");
+    }
+undefined
+global test6_result

@@ -1,0 +1,18 @@
+x.x = 1
+x.y = 2
+x.z = 3
+x.z = 4
+x.x = 1
+x.y = 2
+x.z = 4
+x.y.m = 7
+OK: y in with scope is undefined
+x.zz = 1
+OK: x in with scope is undefined
+x.x = undefined
+x.y = undefined
+x.z = 4
+x.zz = 1100
+q.a = 2
+q.zz = 1100
+a is called

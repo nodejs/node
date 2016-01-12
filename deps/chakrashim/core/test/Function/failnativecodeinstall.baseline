@@ -1,0 +1,6 @@
+call 1
+caught call 1
+call 2
+caught call 2
+caught call 3
+done

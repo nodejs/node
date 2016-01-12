@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>toString.js</files>
+      <baseline>toString_3.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>floatcmp.js</files>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>NaN.js</files>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>integer.js</files>
+      <baseline>integer.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>toUint16.js</files>
+      <baseline>toUint16.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>boundaries.js</files>
+      <baseline>boundaries.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>NoSse.js</files>
+      <baseline>NoSse.baseline</baseline>
+      <compile-flags>-sse:0</compile-flags>
+      <tags>exclude_ship</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>property_and_index_of_number.js</files>
+      <compile-flags>-args summary -endargs</compile-flags>
+    </default>
+  </test>
+</regress-exe>

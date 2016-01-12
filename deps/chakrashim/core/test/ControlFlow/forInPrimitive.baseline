@@ -1,0 +1,146 @@
+---- Test: null ----
+TypeError: Unable to get property 'object_value' of undefined or null reference
+TypeError: Unable to get property 'object_getter' of undefined or null reference
+
+
+---- Test: undefined ----
+TypeError: Unable to get property 'object_value' of undefined or null reference
+TypeError: Unable to get property 'object_getter' of undefined or null reference
+
+
+---- Test: NaN ----
+value on Object.prototype
+getter on Object.prototype: object NaN
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: 0.4 ----
+value on Object.prototype
+getter on Object.prototype: object 0.4
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: 0 ----
+value on Object.prototype
+getter on Object.prototype: object 0
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: 0 ----
+value on Object.prototype
+getter on Object.prototype: object 0
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: 1 ----
+value on Object.prototype
+getter on Object.prototype: object 1
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test:  ----
+value on Object.prototype
+getter on Object.prototype: object 
+
+  string_proto
+  object_value
+  object_getter
+
+---- Test: true ----
+value on Object.prototype
+getter on Object.prototype: object true
+
+  boolean_proto
+  object_value
+  object_getter
+
+---- Test: false ----
+value on Object.prototype
+getter on Object.prototype: object false
+
+  boolean_proto
+  object_value
+  object_getter
+
+---- Test: 2147483648 ----
+value on Object.prototype
+getter on Object.prototype: object 2147483648
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: 2147483647 ----
+value on Object.prototype
+getter on Object.prototype: object 2147483647
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: 1073741824 ----
+value on Object.prototype
+getter on Object.prototype: object 1073741824
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: 1073741823 ----
+value on Object.prototype
+getter on Object.prototype: object 1073741823
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: -1073741823 ----
+value on Object.prototype
+getter on Object.prototype: object -1073741823
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: -1073741824 ----
+value on Object.prototype
+getter on Object.prototype: object -1073741824
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: -1073741825 ----
+value on Object.prototype
+getter on Object.prototype: object -1073741825
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: -2147483648 ----
+value on Object.prototype
+getter on Object.prototype: object -2147483648
+
+  number_proto
+  object_value
+  object_getter
+
+---- Test: -2147483649 ----
+value on Object.prototype
+getter on Object.prototype: object -2147483649
+
+  number_proto
+  object_value
+  object_getter
+

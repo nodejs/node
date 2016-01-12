@@ -1,0 +1,1818 @@
+function Int8Array() { [native code] }
+function Uint8Array() { [native code] }
+function Int16Array() { [native code] }
+function Uint16Array() { [native code] }
+function Int32Array() { [native code] }
+function Uint32Array() { [native code] }
+function Float32Array() { [native code] }
+function Float64Array() { [native code] }
+verify subarray.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 0,1,2,3,4,5,6,7,8,9
+1,2,3,4,5,6,7,8,9
+0 == 1
+1 == 2
+2 == 3
+3 == 4
+4 == 5
+5 == 6
+6 == 7
+7 == 8
+8 == 9
+verify set.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 0,1,2,3,4,5,6,7,8,9
+verify set using 1,3,5,7,9,11,13,15,8,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,8,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,8,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,8,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,8,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,8,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,8,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 0,1,2,3,4,5,6,7,8,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,8,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+ERROR! expected exception was not thrown
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+ERROR! expected exception was not thrown
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify subarray.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 3
+2 == 5
+3 == 7
+4 == 9
+5 == 11
+6 == 13
+7 == 15
+8 == 9
+verify set.call using prototypeOf 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set using 1,3,5,7,9,11,13,15,15,9 using array
+verify set using 1,1,3,5,7,9,11,13,15,9 instance 1,1,3,5,7,9,11,13,15,9
+verify set to different type
+1,1,3,5,7,9,11,13,15,9
+0 == 1
+1 == 1
+2 == 3
+3 == 5
+4 == 7
+5 == 9
+6 == 11
+7 == 13
+8 == 15
+9 == 9
+verify Object.defineProperty
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+SUCCEEDED: get expected exception Cannot redefine non-configurable property '1'
+Verify call to built-in property
+SUCCEEDED: get expected exception Function expected
+SUCCEEDED: get expected exception Function expected
+SUCCEEDED: get expected exception Function expected
+SUCCEEDED: get expected exception Function expected
+SUCCEEDED: get expected exception Function expected
+SUCCEEDED: get expected exception Function expected
+SUCCEEDED: get expected exception Function expected
+SUCCEEDED: get expected exception Function expected

@@ -1,0 +1,57 @@
+f1      : . x:undefined y:g.y z:g.z
+f1(eval): . x:undefined y:g.y z:g.z
+f1      : 1. x:undefined y:g.y z:g.z
+f1(eval): 1. x:undefined y:g.y z:g.z
+f1      : 1,2. x:2 y:g.y z:g.z
+f1(eval): 1,2. x:2 y:g.y z:g.z
+f1      : 1,2,3. x:2 y:g.y z:g.z
+f1(eval): 1,2,3. x:2 y:g.y z:g.z
+f1      : 1,2,3,4. x:2 y:g.y z:g.z
+f1(eval): 1,2,3,4. x:2 y:g.y z:g.z
+f1      : 1,2,3,4,5. x:2 y:g.y z:g.z
+f1(eval): 1,2,3,4,5. x:2 y:g.y z:g.z
+f1      : 1,2,3,4,5,6. x:2 y:g.y z:g.z
+f1(eval): 1,2,3,4,5,6. x:2 y:g.y z:g.z
+f2      : . x:undefined y:g.y z:g.z
+f2(eval): . x:undefined y:g.y z:g.z
+f2      : 1. x:undefined y:g.y z:g.z
+f2(eval): 1. x:undefined y:g.y z:g.z
+f2      : 1,2. x:undefined y:g.y z:g.z
+f2(eval): 1,2. x:undefined y:g.y z:g.z
+f2      : 1,2,3. x:undefined y:g.y z:g.z
+f2(eval): 1,2,3. x:undefined y:g.y z:g.z
+f2      : 1,2,3,4. x:undefined y:g.y z:g.z
+f2(eval): 1,2,3,4. x:undefined y:g.y z:g.z
+f2      : 1,2,3,4,5. x:5 y:g.y z:g.z
+f2(eval): 1,2,3,4,5. x:5 y:g.y z:g.z
+f2      : 1,2,3,4,5,6. x:5 y:g.y z:g.z
+f2(eval): 1,2,3,4,5,6. x:5 y:g.y z:g.z
+f3      : . x:undefined y:undefined z:g.z
+f3(eval): . x:undefined y:undefined z:g.z
+f3      : 1. x:undefined y:undefined z:g.z
+f3(eval): 1. x:undefined y:undefined z:g.z
+f3      : 1,2. x:undefined y:2 z:g.z
+f3(eval): 1,2. x:undefined y:2 z:g.z
+f3      : 1,2,3. x:3 y:2 z:g.z
+f3(eval): 1,2,3. x:3 y:2 z:g.z
+f3      : 1,2,3,4. x:3 y:2 z:g.z
+f3(eval): 1,2,3,4. x:3 y:2 z:g.z
+f3      : 1,2,3,4,5. x:3 y:2 z:g.z
+f3(eval): 1,2,3,4,5. x:3 y:2 z:g.z
+f3      : 1,2,3,4,5,6. x:3 y:2 z:g.z
+f3(eval): 1,2,3,4,5,6. x:3 y:2 z:g.z
+f4      : . x:undefined y:undefined z:undefined
+f4(eval): . x:undefined y:undefined z:undefined
+f4      : 1. x:undefined y:undefined z:undefined
+f4(eval): 1. x:undefined y:undefined z:undefined
+f4      : 1,2. x:undefined y:undefined z:undefined
+f4(eval): 1,2. x:undefined y:undefined z:undefined
+f4      : 1,2,3. x:undefined y:3 z:undefined
+f4(eval): 1,2,3. x:undefined y:3 z:undefined
+f4      : 1,2,3,4. x:4 y:3 z:undefined
+f4(eval): 1,2,3,4. x:4 y:3 z:undefined
+f4      : 1,2,3,4,5. x:4 y:3 z:undefined
+f4(eval): 1,2,3,4,5. x:4 y:3 z:undefined
+f4      : 1,2,3,4,5,6. x:4 y:3 z:6
+f4(eval): 1,2,3,4,5,6. x:4 y:3 z:6
+w1 : 50 60

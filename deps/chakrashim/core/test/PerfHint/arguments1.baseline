@@ -1,0 +1,25 @@
+PerfHint: Not optimized : Arguments object not optimized due to formals {
+      Function : arguments_test1 [arguments1.js @ 17, 5]
+  Consequences : Slower lookups, affects inlining, high overhead in the JIT code
+    Suggestion : Check the usage of formals in the function
+}
+PerfHint: Not optimized : Modification to arguments {
+      Function : arguments_test2 [arguments1.js @ 26, 5]
+  Consequences : Slower lookups, high overhead in the JIT code
+    Suggestion : Avoid modification to the arguments
+}
+PerfHint: Not optimized : Modification to arguments {
+      Function : arguments_test2 [arguments1.js @ 26, 5]
+  Consequences : Slower lookups, high overhead in the JIT code
+    Suggestion : Avoid modification to the arguments
+}
+PerfHint: Not optimized : Arguments object not optimized {
+      Function : arguments_test3 [arguments1.js @ 32, 5]
+  Consequences : Slower lookups, high overhead in the JIT code
+    Suggestion : Check the usage of arguments in the function
+}
+PerfHint: Not optimized : Arguments object not optimized {
+      Function : arguments_test3 [arguments1.js @ 32, 5]
+  Consequences : Slower lookups, high overhead in the JIT code
+    Suggestion : Check the usage of arguments in the function
+}

@@ -1,0 +1,25 @@
+new ArrayBuffer without argument
+0
+0
+new ArrayBuffer with ulong argument
+8
+8
+new ArrayBuffer with multiple arguments
+9
+9
+new ArrayBuffer with string argument
+20
+20
+new ArrayBuffer with invalid string argument
+0
+0
+[object ArrayBuffer]
+false
+arraybuffer.prototype
+[object ArrayBuffer]
+20
+object
+undefined
+undefined
+undefined
+10

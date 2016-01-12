@@ -1,0 +1,11 @@
+TestCase1
+1
+false
+TestCase2 - seal & add a property
+x,y
+true
+40
+TestCase3 - seal & delete a property
+x,y
+true
+40

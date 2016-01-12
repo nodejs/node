@@ -1,0 +1,25 @@
+ES 5 Object Literal grammer
+ (test 1): Object literal get set property
+Success: Expected o.foo getter = In getter, got In getter
+Success: Expected o.foo setter = Modified by setter, got Modified by setter
+PASS
+ (test 2): Object literal only get or set property
+Success: Expected o.foo getter = 20, got 20
+Success: Expected b.foo = Modified by setter, got Modified by setter
+PASS
+ (test 3): Object literal multiple setget property
+Success: Expected o.foo get after set = 4, got 4
+Success: Expected o.foo get after set = 6, got 6
+Success: Expected o.bar get after set = 8, got 8
+Success: Expected o.bar get after set = 18, got 18
+PASS
+ (test 4): Object literal parse error check
+Success: Expected get propery accessor in object literal must not accept any args = true, got true
+Success: Expected set propery accessor in object literal must accept only one args = true, got true
+Success: Expected Throw parse error in multiple property name = true, got true
+Success: Expected invalid syntax if set keyword is a string (then it is just a normal property name) = true, got true
+Success: Expected invalid syntax if get keyword is a string (then it is just a normal property name) = true, got true
+PASS
+ (test 5): Object literal get set function toString
+function foo() { return _foo; }
+function foo(value) { _foo = value; }

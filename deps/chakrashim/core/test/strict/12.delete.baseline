@@ -1,0 +1,9 @@
+r : false
+Return: delete global variable
+r : false
+Return: delete global function
+r : false
+Return: delete local variable
+r : false
+Return: delete local function
+Return: delete parameter

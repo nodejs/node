@@ -1,0 +1,2 @@
+SyntaxError: Assignment to const
+	at code (defer2.js:9:9)

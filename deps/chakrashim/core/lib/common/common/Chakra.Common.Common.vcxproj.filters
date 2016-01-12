@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)Api.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DateUtilities.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Event.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Int32Math.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Jobs.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)MathUtil.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)NumberUtilities.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RejitReason.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Tick.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)vtinfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)cfglogger.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DaylightTimeHelper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)NumberUtilities_strtod.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)unicode.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmartFPUControl.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CommonCommonPch.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Int64Math.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DateUtilities.h" />
+    <ClInclude Include="Event.h" />
+    <ClInclude Include="Jobs.h" />
+    <ClInclude Include="Int32Math.h" />
+    <ClInclude Include="MathUtil.h" />
+    <ClInclude Include="NumberUtilities.h" />
+    <ClInclude Include="RejitReason.h" />
+    <ClInclude Include="RejitReasons.h" />
+    <ClInclude Include="Tick.h" />
+    <ClInclude Include="UInt16Math.h" />
+    <ClInclude Include="UInt32Math.h" />
+    <ClInclude Include="vtinfo.h" />
+    <ClInclude Include="cfglogger.h" />
+    <ClInclude Include="DaylightTimeHelper.h" />
+    <ClInclude Include="unicode.h" />
+    <ClInclude Include="vtregistry.h" />
+    <ClInclude Include="NumberUtilities.inc" />
+    <ClInclude Include="ByteSwap.h" />
+    <ClInclude Include="CommonCommonPch.h" />
+    <ClInclude Include="GetCurrentFrameID.h" />
+    <ClInclude Include="NumberUtilitiesBase.h" />
+    <ClInclude Include="SmartFPUControl.h" />
+    <ClInclude Include="StdAfx.h" />
+    <ClInclude Include="Int64Math.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Jobs.inl" />
+    <None Include="vtinfo.inl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="arm">
+      <UniqueIdentifier>{e98481ce-aadd-448b-abe3-5278ade26549}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="arm64">
+      <UniqueIdentifier>{1a6cbeee-b0c4-487f-828d-57990bee2978}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_GET_CURRENT_FRAME.asm">
+      <Filter>arm</Filter>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_GET_CURRENT_FRAME.asm">
+      <Filter>arm64</Filter>
+    </ARMASM>
+  </ItemGroup>
+</Project>

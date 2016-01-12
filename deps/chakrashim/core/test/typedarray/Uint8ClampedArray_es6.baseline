@@ -1,0 +1,262 @@
+*** Running test #1 (0): Uint8ClampedArray constructor exists and has expected properties
+PASSED
+*** Running test #2 (1): Uint8ClampedArray prototype has expected fields
+Test threw exception: assert.isTrue failed: expected: true actual: false: Uint8ClampedArray prototype should have a set method
+FAILED
+*** Running test #3 (2): Uint8ClampedArray clamping functionality
+PASSED
+*** Running test #4 (3): ToString works correctly for Uint8Clamped array
+Test threw exception: assert.areEqual failed: expected: [object Uint8ClampedArray] actual: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0: arr.toString == "[object Uint8ClampedArray]"
+FAILED
+*** Running test #5 (4): Uint8ClampedArray.subarray functional test
+Test threw exception: assert.throws failed: expected: RangeError Invalid begin/end value in typed array subarray method, actual: <no exception>: Invalid begin/end value in typed array subarray method
+FAILED
+*** Running test #6 (5): Uint8ClampedArray.set functional test
+PASSED
+Summary of tests: total executed: 6; passed: 3; failed: 3
+test2
+undefined
+undefined
+5
+5
+undefined
+5
+5
+undefined
+5
+5
+undefined
+undefined
+NaN
+1
+undefined
+0
+1
+undefined
+1
+1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+undefined
+undefined
+[object Object]
+6
+undefined
+[object Object]
+7
+undefined
+[object Object]
+6
+test2 JIT
+undefined
+undefined
+5
+5
+undefined
+5
+5
+undefined
+5
+5
+undefined
+undefined
+NaN
+1
+undefined
+0
+1
+undefined
+1
+1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+undefined
+undefined
+[object Object]
+6
+undefined
+[object Object]
+7
+undefined
+[object Object]
+6
+test3
+***testing index 0 : 0
+5
+6
+***testing index 1 : "0"
+6
+7
+***testing index 2 : 0
+7
+8
+***testing index 3 : "-0"
+8
+undefined
+***testing index 4 : -2
+9
+undefined
+***testing index 5 : "-2"
+10
+undefined
+***testing index 6 : 1073741823
+11
+undefined
+***testing index 7 : "1073741823"
+12
+undefined
+***testing index 8 : 1
+13
+14
+***testing index 9 : "1"
+14
+15
+***testing index 10 : 2147483648
+15
+undefined
+***testing index 11 : "2147483648"
+16
+undefined
+***testing index 12 : 2147483647
+17
+undefined
+***testing index 13 : "2147483647"
+18
+undefined
+***testing index 14 : 4294967296
+19
+undefined
+***testing index 15 : "4294967296"
+20
+undefined
+***testing index 16 : 4294967295
+21
+undefined
+***testing index 17 : "4294967295"
+22
+undefined
+***testing index 18 : 1.5
+23
+undefined
+***testing index 19 : "1.5"
+24
+undefined
+***testing index 20 : "a"
+[object Object]
+***testing index 21 : 1000000000
+25
+undefined
+***testing index 22 : "1.0000000000000000000000000e-9"
+[object Object]
+***testing index 23 : NaN
+26
+undefined
+***testing index 24 : Infinity
+27
+undefined
+***testing index 25 : -Infinity
+28
+undefined
+***testing index 26 : "Infinity"
+29
+undefined
+***testing index 27 : "-Infinity"
+30
+undefined
+test3 JIT
+***testing index 0 : 0
+5
+6
+***testing index 1 : "0"
+6
+7
+***testing index 2 : 0
+7
+8
+***testing index 3 : "-0"
+8
+undefined
+***testing index 4 : -2
+9
+undefined
+***testing index 5 : "-2"
+10
+undefined
+***testing index 6 : 1073741823
+11
+undefined
+***testing index 7 : "1073741823"
+12
+undefined
+***testing index 8 : 1
+13
+14
+***testing index 9 : "1"
+14
+15
+***testing index 10 : 2147483648
+15
+undefined
+***testing index 11 : "2147483648"
+16
+undefined
+***testing index 12 : 2147483647
+17
+undefined
+***testing index 13 : "2147483647"
+18
+undefined
+***testing index 14 : 4294967296
+19
+undefined
+***testing index 15 : "4294967296"
+20
+undefined
+***testing index 16 : 4294967295
+21
+undefined
+***testing index 17 : "4294967295"
+22
+undefined
+***testing index 18 : 1.5
+23
+undefined
+***testing index 19 : "1.5"
+24
+undefined
+***testing index 20 : "a"
+[object Object]
+***testing index 21 : 1000000000
+25
+undefined
+***testing index 22 : "1.0000000000000000000000000e-9"
+[object Object]
+***testing index 23 : NaN
+26
+undefined
+***testing index 24 : Infinity
+27
+undefined
+***testing index 25 : -Infinity
+28
+undefined
+***testing index 26 : "Infinity"
+29
+undefined
+***testing index 27 : "-Infinity"
+30
+undefined

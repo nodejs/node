@@ -1,0 +1,271 @@
+
+Test 1: Simple case with single block-scoped function
+
+undefined
+function f() { }
+function f() { }
+function g() { }
+function g() { }
+function h() { }
+
+Test 2: Block-scoped function shadows outer let binding, but leaks into function scope
+
+undefined
+let f
+function f() { }
+let f
+function f() { }
+
+Test 3: Assignment to function in block behaves like assigning let variable; function still leaks out to function scope; assignment does not affect function scope binding
+
+undefined
+let f
+reassigned inner function declared "let" f
+let f
+reassigned outer let f
+function f() { }
+
+Test 4: Last executed declaration wins; simple case
+
+function f(one) { }
+function f(one) { }
+function f(two) { }
+function f(two) { }
+
+Test 5: Inner shadows outer and last executed (inner) wins for function scope
+
+function f(outer) { }
+function f(inner) { }
+function f(outer) { }
+function f(inner) { }
+
+Test 6: Last declaration executed wins; loop and conditionals
+
+undefined
+undefined
+function f(one) { }
+function f(one) { }
+function f(one) { }
+function f(two) { }
+function f(two) { }
+function f(two) { }
+function f(one) { }
+function f(one) { }
+function f(one) { }
+
+Test 7: Make sure function scope binding is initialized even when it is an activation object (imposed by presence of eval)
+
+undefined
+function f() { }
+function f() { }
+
+Test 8: Function scope binding does not occur in strict mode
+
+ReferenceError: 'f' is undefined
+function f() { }
+ReferenceError: 'f' is undefined
+
+Test 9: Overwriting user declared var
+
+var f
+function f() { }
+function f() { }
+
+Test 10: inner functions before block scope function should bind to function scoped binding, not outer scope
+
+undefined
+inner block-scope f()
+
+Test 11: Function declarations shadow with object but also do not assign to with object properties
+
+undefined
+undefined
+function f() { }
+function g() { }
+with g
+function h() { }
+function f() { }
+function g() { }
+function h() { }
+
+Test 12: Ensure redeclaration errors do not occur with var binding of block scoped functions
+
+let f
+function f() { }
+function g() { }
+let f
+let g
+
+Test 13: Eval does not leak let and const bindings
+
+var f
+ReferenceError: 'g' is undefined
+eval var f
+function g() { }
+ReferenceError: 'h' is undefined
+ReferenceError: 'i' is undefined
+eval blockscoped var j
+ReferenceError: 'k' is undefined
+
+Test 14: Eval leaks vars, and var declarations bind to block scoped bindings for rhs initialization
+
+eval var f
+eval var g
+eval var f
+eval var g
+var f
+eval var g
+
+Test 15: Eval should have TDZ use before declaration error
+
+ReferenceError: Use before declaration
+
+Test 16: Eval function declarations create/assign to a var binding and assign to let binding, and create a let binding if not at eval global scope
+
+function h(ineval) { }
+function h(notineval) { }
+function f(ineval) { }
+function g(ineval) { }
+function h(notineval) { }
+function f(ineval) { }
+function g(ineval) { }
+function h(ineval) { }
+
+Test 17: var initializations should find block scoped lets but still create properties at function scope
+
+var f in eval
+var g in eval
+var f in eval
+undefined
+
+Test 18: function declaration in eval should shadow variables declared outside eval (strict)
+
+function f() { }
+function g() { }
+let g
+var f
+ReferenceError: 'g' is undefined
+
+Test 19: function declaration var binding should be ignored when same named let/const variable is at function scope
+
+function f() { }
+let f
+function g() { }
+const g
+function h() { }
+function h() { }
+function i() { }
+let i
+function j() { }
+const j
+function k() { }
+var k
+function l(one) { }
+function l(one) { }
+function l(one) { }
+function l(two) { }
+function l(two) { }
+outer let l
+ReferenceError: Assignment to const
+const m
+const m
+ReferenceError: Assignment to const
+inner const m
+const m
+function m(three) { }
+function m(three) { }
+const m
+function n() { }
+function n() { }
+function n() { }
+ReferenceError: Use before declaration
+let o
+ReferenceError: Assignment to const
+const p
+function q() { }
+var q
+
+Test 20: Function declaration in statement context without {}
+
+1
+0
+1
+0
+
+Test 21: Function declaration in statement context without {}, strict mode
+
+21.1: Syntax error
+21.2: Syntax error
+21.3: Syntax error
+21.4: Syntax error
+
+Test 22: Function declaration in statement context without {}, illegal in sloppy mode
+
+22.1: Syntax error
+22.2: Syntax error
+22.3: Syntax error
+22.4: Syntax error
+22.5: Syntax error
+22.6: Syntax error
+22.7: Syntax error
+22.8: Syntax error
+22.8: Syntax error
+
+Test Global: Global scope has the same semantics for block-scoped function declarations
+
+undefined
+function glo_f() { }
+function glo_f() { }
+function glo_g(globalscope) { }
+function glo_g(blockscope) { }
+function glo_g(blockscope) { }
+undefined
+function glo_h(one) { }
+function glo_h(one) { }
+function glo_h(two) { }
+function glo_h(two) { }
+
+Global version of Test 19: function declaration's var binding should be ignored when same named let/const variable is at global scope
+
+function glo_t19_f() { }
+let glo_t19_f
+function glo_t19_g() { }
+const glo_t19_g
+function glo_t19_h() { }
+function glo_t19_h() { }
+function glo_t19_i() { }
+let glo_t19_i
+function glo_t19_j() { }
+const glo_t19_j
+function glo_t19_k() { }
+var glo_t19_k
+function glo_t19_l(one) { }
+function glo_t19_l(one) { }
+function glo_t19_l(one) { }
+undefined
+function glo_t19_l(two) { }
+function glo_t19_l(two) { }
+outer let glo_t19_l
+undefined
+ReferenceError: Assignment to const
+const glo_t19_m
+const glo_t19_m
+undefined
+ReferenceError: Assignment to const
+inner const m
+const glo_t19_m
+undefined
+function glo_t19_m(three) { }
+function glo_t19_m(three) { }
+const glo_t19_m
+undefined
+function glo_t19_n() { }
+function glo_t19_n() { }
+function glo_t19_n() { }
+ReferenceError: Use before declaration
+let glo_t19_o
+ReferenceError: Assignment to const
+const glo_t19_p
+function glo_t19_q() { }
+var glo_t19_q
+ReferenceError: Invalid left-hand side in assignment

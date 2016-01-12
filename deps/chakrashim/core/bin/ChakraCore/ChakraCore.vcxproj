@@ -1,0 +1,144 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{EA882C8D-81FC-42FE-ABD5-2666DB933FDB}</ProjectGuid>
+    <RootNamespace>Chakra</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <TargetName>ChakraCore</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory);
+        $(ChakraCoreRootDirectory)Lib\Common;
+        $(ChakraCoreRootDirectory)Lib\Parser;
+        $(ChakraCoreRootDirectory)Lib\Runtime;
+        $(ChakraCoreRootDirectory)Lib\Jsrt;
+        $(IntDir);
+        %(AdditionalIncludeDirectories);
+      </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(BuildJIT)'!='false'">
+        $(ChakraCoreRootDirectory)Lib\Backend;
+        %(AdditionalIncludeDirectories);
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <ModuleDefinitionFile>$(IntDir)chakracore.def</ModuleDefinitionFile>
+      <AdditionalDependencies>
+        <!-- Make sure we linked in our own operator new before we got the CRT -->
+        $(IntDir)..\Chakra.Common.Memory\HeapAllocatorOperators.obj;
+        kernel32.lib;
+        advapi32.lib;
+        ole32.lib;
+        oleaut32.lib;
+        version.lib
+      </AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(OptimizedBuild)'!='true'">
+        %(AdditionalDependencies);
+        dbghelp.lib;
+        user32.lib
+      </AdditionalDependencies>
+      <DelayLoadDLLs>%(DelayLoadDLLs);oleaut32.dll</DelayLoadDLLs>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MsBuildThisFileDirectory)ChakraCore.def">
+      <ObjectFileName>$(IntDir)ChakraCore.def</ObjectFileName>
+      <PreprocessToFile>true</PreprocessToFile>
+      <PreprocessSuppressLineNumbers>true</PreprocessSuppressLineNumbers>
+      <LinkCompiled>false</LinkCompiled>
+      <ImpLibCompiled>false</ImpLibCompiled>
+      <!-- Clear the forced includes -->
+      <ForcedIncludeFiles>
+      </ForcedIncludeFiles>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(MsBuildThisFileDirectory)ConfigParserExternals.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ChakraCoreDLLFunc.cpp" />
+    <ClCompile Include="TestHooks.cpp" />
+    <None Include="..\CoreCommon.ver" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="$(MsBuildThisFileDirectory)ChakraCore.rc">
+      <AdditionalIncludeDirectories>
+        $(ChakraCoreRootDirectory)lib\common;
+        $(ChakraParserIntDir);
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\lib\jsrt\Chakra.Jsrt.vcxproj">
+      <Project>{706083f7-6aa4-4558-a153-6352ef9220f5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\lib\jsrt\core\Chakra.Jsrt.Core.vcxproj">
+      <Project>{706083f7-6aa4-4558-a153-6352ef9220ee}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Backend\Chakra.Backend.vcxproj" Condition="'$(BuildJIT)'!='false'">
+      <Project>{18cf279f-188d-4655-b03d-74f65388e7d1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\lib\Common\codex\Chakra.Common.Codex.vcxproj">
+      <Project>{1876e800-ad77-48c4-a2f7-e5265f24ac38}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Common\common\Chakra.Common.Common.vcxproj">
+      <Project>{bb4153ff-ac3e-4734-b562-cc23812df31b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Common\core\Chakra.Common.Core.vcxproj">
+      <Project>{cc4153ff-ac3e-4734-b562-cc23812df31b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Common\DataStructures\Chakra.Common.DataStructures.vcxproj">
+      <Project>{5643d42a-c38d-4d82-9662-58470b3ac9f7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Common\Exceptions\Chakra.Common.Exceptions.vcxproj">
+      <Project>{fd8eec40-4141-448a-bf4b-1589fbe4f60d}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Common\Memory\Chakra.Common.Memory.vcxproj">
+      <Project>{bb4153ff-ac3e-4734-b562-ff23812df31b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Common\util\Chakra.Common.Util.vcxproj">
+      <Project>{6979ec58-7a28-465c-a694-f3323a1f5401}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Parser\Chakra.Parser.vcxproj">
+      <Project>{f6fad160-5a4b-476a-93ac-33e0b3a18c0c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\lib\Runtime\Base\Chakra.Runtime.Base.vcxproj">
+      <Project>{706083f7-6aa4-4558-a153-6352ef9110ee}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Runtime\ByteCode\Chakra.Runtime.ByteCode.vcxproj">
+      <Project>{706083f7-6aa4-4558-a153-6352ef9110f5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Runtime\Debug\Chakra.Runtime.Debug.vcxproj">
+      <Project>{8C61E4E7-F0D6-420D-A352-3E6E50D406DD}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Runtime\Language\Chakra.Runtime.Language.vcxproj">
+      <Project>{706083f7-6aa4-4558-a153-6352ef9110f8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Runtime\Library\Chakra.Runtime.Library.vcxproj">
+      <Project>{706083f7-6aa4-4558-a153-6352ef9110f7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Runtime\Math\Chakra.Runtime.Math.vcxproj">
+      <Project>{abc904ad-9415-46f8-aa23-e33193f81f7c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Lib\Runtime\Types\Chakra.Runtime.Types.vcxproj">
+      <Project>{706083f7-6aa4-4558-a153-6352ef9110f6}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TestHooks.h" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

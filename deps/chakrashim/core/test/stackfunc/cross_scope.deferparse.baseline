@@ -1,0 +1,16 @@
+HasFuncDecl: test
+HasFuncDecl: init
+HasFuncDecl: test
+HasFuncDecl: init
+DoStackNestedFunc: test (function  (#1.1), #2)
+HasFuncDecl: init
+RestoreHasFuncAssignment: init
+HasMaybeEscapedNestedFunc (CrossFuncAssignment): init (function  (#1.2), #4)
+HasMaybeEscapedNestedFunc (DeferredChild): test (function  (#1.1), #2)
+DeferParse: box and disable stack function: test (function  (#1.1), #2)
+Boxing Frame [Interpreted]: test  (#1.1), #2
+Boxing StackScriptFunction Object: init (function Id:  (#1.2), #4)
+HasFuncDecl: init
+RestoreHasFuncAssignment: init
+test10
+test21

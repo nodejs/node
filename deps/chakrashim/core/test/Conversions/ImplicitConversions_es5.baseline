@@ -1,0 +1,240 @@
+=== Implicit toString ===
+Got error:
+    name:     TypeError
+    message:  Object doesn't support this property or method
+toString called:  no
+valueOf called:   no
+=== Implicit valueOf ===
+Got error:
+    name:     TypeError
+    message:  Number expected
+toString called:  no
+valueOf called:   no
+=== Implicit toString ===
+Got error:
+    name:     TypeError
+    message:  Object doesn't support this property or method
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+Got error:
+    name:     TypeError
+    message:  Number expected
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+undefined
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+hi
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+1/1/1970 1:00 am
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+84
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+84
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+37
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+37
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+Got error:
+    name:     TypeError
+    message:  Object doesn't support this property or method
+toString called:  yes
+valueOf called:   no
+=== Implicit valueOf ===
+Got error:
+    name:     TypeError
+    message:  Number expected
+toString called:  yes
+valueOf called:   no
+=== Implicit toString ===
+Got error:
+    name:     TypeError
+    message:  Object doesn't support this property or method
+toString called:  yes
+valueOf called:   yes
+=== Implicit valueOf ===
+Got error:
+    name:     TypeError
+    message:  Number expected
+toString called:  yes
+valueOf called:   yes
+=== Implicit toString ===
+undefined
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+hi
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+1/1/1970 1:00 am
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+84
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+84
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+37
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+37
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+undefined
+toString called:  yes
+valueOf called:   no
+=== Implicit valueOf ===
+NaN
+toString called:  yes
+valueOf called:   no
+=== Implicit toString ===
+undefined
+toString called:  yes
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  yes
+valueOf called:   yes
+=== Implicit toString ===
+undefined
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+hi
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+1/1/1970 1:00 am
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+84
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+84
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+37
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+37
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+hi
+toString called:  yes
+valueOf called:   no
+=== Implicit valueOf ===
+NaN
+toString called:  yes
+valueOf called:   no
+=== Implicit toString ===
+hi
+toString called:  yes
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  yes
+valueOf called:   yes
+=== Implicit toString ===
+undefined
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+hi
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+1/1/1970 1:00 am
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+NaN
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+84
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+84
+toString called:  no
+valueOf called:   yes
+=== Implicit toString ===
+37
+toString called:  no
+valueOf called:   yes
+=== Implicit valueOf ===
+37
+toString called:  no
+valueOf called:   yes

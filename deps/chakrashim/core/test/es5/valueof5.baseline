@@ -1,0 +1,13 @@
+x.valueOf()
+x.valueOf.call(undefined)
+TypeError: Object.prototype.valueOf: 'this' is null or undefined
+x.valueOf.call(null)
+TypeError: Object.prototype.valueOf: 'this' is null or undefined
+x.valueOf.call()
+TypeError: Object.prototype.valueOf: 'this' is null or undefined
+typeof x.valueOf.call(true)
+object
+typeof x.valueOf.call(42)
+object
+typeof x.valueOf.call('Hello')
+object

@@ -1,0 +1,23 @@
+*** Running test #1 (0): init to an object
+PASSED
+*** Running test #2 (1): init to null
+PASSED
+*** Running test #3 (2): init to neither object nor null
+PASSED
+*** Running test #4 (3): init to accessor
+PASSED
+*** Running test #5 (4): verify no incorrectly shared type
+PASSED
+*** Running test #6 (5): verify not accidentally enables it for function parameters
+PASSED
+*** Running test #7 (6): verify not accidentally enables it for JSON
+PASSED
+*** Running test #8 (7): Verify not accidentally share code with global InitFld
+PASSED
+*** Running test #9 (8): Run the same initializer with __proto__ enabled, run it again with __proto__ disabled
+PASSED
+*** Running test #10 (9): Enumeration order should be unaffected
+PASSED
+*** Running test #11 (10): Verify bytecode serialization
+PASSED
+Summary of tests: total executed: 11; passed: 11; failed: 0

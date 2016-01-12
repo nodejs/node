@@ -1,0 +1,118 @@
+test0 : Object.keys with symbols
+0
+test1: Object.prototype.propertyIsEnumerable
+true
+test2: Object.getOwnPropertyDescriptor
+getown
+[object Object]
+proxy getown
+getOwnPropertyDescriptor trap for prop: a
+has trap for prop :enumerable
+has trap for prop :configurable
+has trap for prop :value
+has trap for prop :writable
+has trap for prop :get
+has trap for prop :set
+plain key trap!
+getOwn
+1
+proxy key trap!
+getOwn
+1
+proxy key trap!
+getOwn :a
+1
+get trap : length
+get trap : 0
+get trap : 1
+get trap : 2
+ownKeys trap : 
+getOwnPropertyDescriptor trap : a
+getOwnPropertyDescriptor trap : b
+getOwnPropertyDescriptor trap : Symbol()
+ownKeys trap : 
+getOwnPropertyDescriptor trap : a
+getOwnPropertyDescriptor trap : b
+getOwnPropertyDescriptor trap : Symbol()
+get : bind
+get : length
+get : name
+apply
+bound test
+bound test
+test
+test called
+test called
+test called
+get trap: bind
+getPrototypeOf trap
+getOwnPropertyDescriptor trap: length
+get trap: length
+get trap: name
+true
+true
+get trap :__lookupGetter__
+getOwnPropertyDescriptor trap :A
+get trap :__lookupSetter__
+getOwnPropertyDescriptor trap :A
+123
+my proxy ownKeys
+length
+construct x1
+construct x
+f1:f2
+get trap of
+constructor trap
+1,2
+get trap from
+constructor trap
+1,2
+get trap bind
+get trap bind
+get trap length
+get trap length
+get trap name
+get trap name
+constructor trap
+constructor trap
+get trap prototype
+constructor trap
+constructor trap
+get trap prototype
+constructor trap
+true
+get trap m
+def
+ade
+b
+value : 2
+configurable : true
+writable : false
+enumerable : false
+expected :Proxy argument handler is not a valid object
+expected :Proxy argument target is not a valid object
+Proxy.prototype = false
+done test22
+test23 done.
+*** ownPropertyNames
+a
+*** ownPropertySymbols
+Symbol(b)
+Symbol(c)
+*** ownKeys
+a
+Symbol(b)
+Symbol(c)
+prototype
+1
+prototype
+2
+true
+hasTrap, property : p1
+hasTrap, property : p2
+deleteTrap, property : p3
+getTrap, property : bar123
+getTrap, property : foo123
+foo called
+43
+42

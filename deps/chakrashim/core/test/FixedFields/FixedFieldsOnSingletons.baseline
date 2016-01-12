@@ -1,0 +1,43 @@
+Testing the global object:
+globalFixedFunction1: original
+globalFixedFunction2: original
+globalFixedFunction1: original
+globalFixedFunction2: original
+globalFixedFunction1: overwritten
+globalFixedFunction2: overwritten
+
+Testing object literal:
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (overwritten)
+x - y = -1 (original)
+
+Testing Object.defineProperty with accessors:
+x = 0 (original)
+x = 0 (original)
+x = 1 (overwritten)
+
+Testing the Math object:
+Math.sin(Math.PI) = 1.2246467991473532e-16
+Math.identity(Math.PI) = 3.141592653589793
+Math.sin(Math.PI) = 1.2246467991473532e-16
+Math.identity(Math.PI) = 3.141592653589793
+Math.sin(Math.PI) = 1.2246467991473532e-16
+Math.identity(Math.PI) = -3.141592653589793
+Math.sin(Math.PI) = -3.141592653589793
+Math.identity(Math.PI) = -3.141592653589793
+
+Testing the Object constructor:
+Object.identity(o) = [object Object]
+Object.isSealed(o) = true
+Object.identity(o) = [object Object]
+Object.isSealed(o) = true
+Object.identity(o) = I don't know you anymore...
+Object.isSealed(o) = true
+Object.identity(o) = I don't know you anymore...
+Object.isSealed(o) = false
+Object.identity(o) = I don't know you anymore...
+Object.isSealed(o) = With the magic of JavaScript I pronounce you sealed!
+

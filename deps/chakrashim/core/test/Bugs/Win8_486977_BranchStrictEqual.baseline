@@ -1,0 +1,2 @@
+a.length === b.length : True
+a.length !== b.length : False

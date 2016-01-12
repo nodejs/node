@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <!-- shouldn't timeout -->
+      <files>%REGRESS%\shortrunning.js</files>
+      <timeout>3</timeout>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+</regress-exe>

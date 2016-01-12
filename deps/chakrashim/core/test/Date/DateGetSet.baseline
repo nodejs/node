@@ -1,0 +1,92 @@
+toDateString : Wed Dec 31 1969
+getTime : 456789
+getFullYear : 1969
+getYear : 69
+getUTCFullYear : 1970
+getMonth : 11
+getUTCMonth : 0
+getDate : 31
+getUTCDate : 1
+getDay : 3
+getUTCDay : 4
+getHours : 16
+getUTCHours : 0
+getMinutes : 7
+getUTCMinutes : 7
+getSeconds : 36
+getUTCSeconds : 36
+getMilliseconds : 789
+getUTCMilliseconds : 789
+getTimezoneOffset : 480
+getTime : 100
+getMilliseconds : 10
+getUTCMilliseconds : 11
+getSeconds : 12
+getSeconds : 13
+getMilliseconds : 14
+getUTCSeconds : 15
+getUTCSeconds : 16
+getUTCMilliseconds : 17
+getMinutes : 18
+getMinutes : 19
+getSeconds : 20
+getMinutes : 21
+getSeconds : 22
+getMilliseconds : 23
+getUTCMinutes : 24
+getUTCMinutes : 25
+getUTCSeconds : 26
+getUTCMinutes : 27
+getUTCSeconds : 28
+getUTCMilliseconds : 29
+getHours : 2
+getHours : 3
+getMinutes : 1
+getHours : 4
+getMinutes : 2
+getSeconds : 3
+getHours : 5
+getMinutes : 6
+getSeconds : 7
+getMilliseconds : 8
+getUTCHours : 2
+getUTCHours : 3
+getUTCMinutes : 1
+getUTCHours : 4
+getUTCMinutes : 2
+getUTCSeconds : 3
+getUTCHours : 5
+getUTCMinutes : 6
+getUTCSeconds : 7
+getUTCMilliseconds : 8
+getDate : 26
+getUTCDate : 21
+getMonth : 7
+getMonth : 10
+getDate : 17
+getUTCMonth : 7
+getUTCMonth : 10
+getUTCDate : 17
+getFullYear : 2009
+getYear : 109
+getFullYear : 2010
+getMonth : 10
+getFullYear : 2015
+getMonth : 3
+getDate : 17
+getUTCFullYear : 2009
+getUTCFullYear : 2010
+getUTCMonth : 10
+getUTCFullYear : 2015
+getUTCMonth : 3
+getUTCDate : 17
+toUTCString : Fri, 26 Jul 35816 03:06:07 GMT
+valueOf : 1068094436767008
+toISOString method : function
+toJSON method : function
+1905
+1904
+0
+1999
+1998
+5

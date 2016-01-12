@@ -1,0 +1,6 @@
+Exception: obj.foo TypeError
+Exception: 'hello'[0] TypeError
+Exception: 'hello'.length TypeError
+Exception: reg.source TypeError
+Exception: reg.global TypeError
+Exception: reg.lastIndex TypeError

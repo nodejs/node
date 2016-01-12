@@ -1,0 +1,16 @@
+window = [object Window]
+window.addEventListener = 
+function addEventListener() {
+    [native code]
+}
+
+window.attachEvent = undefined
+start- func()
+e =  ; e.length = 1
+e = ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ; e.length = 58
+e =  ; e.length = 1
+start- func_test2()
+e =  ; e.length = 1
+e = ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ; e.length = 58
+e = ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, ; e.length = 41
+start- done

@@ -1,0 +1,28 @@
+true
+No exception: delete true
+true
+No exception: delete false
+true
+No exception: delete 10
+true
+No exception: delete 10.12
+true
+No exception: delete "hello"
+true
+No exception: delete null
+false
+No exception: delete undefined
+true
+No exception: delete new Object()
+true
+No exception: delete new Number(10)
+true
+No exception: delete new Boolean(true)
+true
+No exception: delete new Date()
+true
+No exception: delete new String('hello')
+true
+No exception: delete new Function('return 10')
+true
+No exception: delete new Array(10)

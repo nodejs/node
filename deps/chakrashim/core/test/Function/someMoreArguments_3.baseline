@@ -1,0 +1,18 @@
+[object Arguments]
+something
+something 10
+10
+function arguments() { }
+undefined
+[object Arguments]
+[object Arguments]
+something 2
+something 2
+something 2
+something 2 10
+10
+10
+function arguments() { }
+function arguments() { }
+undefined
+undefined

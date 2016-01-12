@@ -1,0 +1,15 @@
+test1: nested setter without getter
+in nested setter1
+undefined
+test2: nested setter and setter
+in nested setter2
+[object Object]
+11
+test3: nested setter and setter from this
+in nested setter3
+[object Object]
+12
+test4: closure and with
+in nested setter3
+[object Object]
+13

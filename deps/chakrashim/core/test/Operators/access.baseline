@@ -1,0 +1,51 @@
+Object................ 
+obj.o1   : 1000
+obj[100] : 1001
+Array ................ 
+arr.o1        : 1000
+arr.a1        : 1002
+arr[100]      : 1001
+arr[200]      : 1003
+arr[0]        : 1004
+arr[0.5]      : 1005
+arr["0.5"]  : 1005
+arr[1]        : 1006
+arr["1"]    : 1006
+arr[5]        : 1007
+arr[6]        : 1008
+arr["6"]    : 1008
+arr[7]        : undefined
+arr[7.0]      : undefined
+arr["7.0"]  : 1009
+arr[8.2]      : 1010
+arr["8.2"]  : 1010
+arr[NaN]      : 1011
+arr[Infinity] : 1012
+String................ 
+str.o1 : 1000
+str.s1 : 1013
+str[100]      : 1001
+str[200]      : undefined
+str[0]        : W
+str[0.5]      : 1016
+str["0.5"]  : 1016
+str[1]        : e
+str["1"]    : e
+str[5]        : m
+str[6]        : e
+str["6"]    : e
+str[7]        : undefined
+str[7.0]      : undefined
+str["7.0"]  : 1020
+str[8.2]      : 1021
+str["8.2"]  : 1021
+Function.............. 
+fun.o1 : 1000
+fun.f1 : 1024
+fun[100] : 1001
+fun[400] : 1025
+fun1Instance.o1   : 1000
+fun1Instance.a1   : 1002
+fun1Instance[100] : 1001
+fun1Instance[200] : 1003
+fun1Instance[10]  : 1026

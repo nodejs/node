@@ -1,0 +1,2 @@
+SyntaxError: The use of a keyword for an identifier is invalid
+	at code (strictkwd-deferred.js:8:17)

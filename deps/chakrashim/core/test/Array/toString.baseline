@@ -1,0 +1,26 @@
+0. Array: default
+1,2,,3
+
+
+1. Array: Replaced Array.prototype.join
+replaced Array.prototype.join
+
+
+2. Array: Replaced non-callable Array.prototype.join
+[object Array]
+
+
+3. Object: no join
+[object Object]
+
+
+4. Object: has join
+o join
+
+
+5. Object: non-callable join
+[object Object]
+
+
+6. Object: no join, replaced Object.prototype.toString
+[object Object]

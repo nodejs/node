@@ -1,0 +1,112 @@
+ok: -0.5
+ok: -1
+ok: 1
+ok: 2
+ok: 3
+ok: [object Object]
+ok: [object Object]
+ok: 4,5,6
+ok: blah
+ok: c
+ok: true
+done
+Testing value producing compares
+
+a = 1  b = 2
+
+ a < b =  true
+ a <= b =  true
+ a > b =  false
+ a >= b =  false
+ a == b =  false
+ a != b =  true
+ a === b =  false
+ a !== b =  true
+
+a = 2  b = 1
+
+ a < b =  false
+ a <= b =  false
+ a > b =  true
+ a >= b =  true
+ a == b =  false
+ a != b =  true
+ a === b =  false
+ a !== b =  true
+
+a = 2  b = 2
+
+ a < b =  false
+ a <= b =  true
+ a > b =  false
+ a >= b =  true
+ a == b =  true
+ a != b =  false
+ a === b =  true
+ a !== b =  false
+
+a = -1  b = 2
+
+ a < b =  true
+ a <= b =  true
+ a > b =  false
+ a >= b =  false
+ a == b =  false
+ a != b =  true
+ a === b =  false
+ a !== b =  true
+
+a = 1  b = -2
+
+ a < b =  false
+ a <= b =  false
+ a > b =  true
+ a >= b =  true
+ a == b =  false
+ a != b =  true
+ a === b =  false
+ a !== b =  true
+
+a = 0  b = 0
+
+ a < b =  false
+ a <= b =  true
+ a > b =  false
+ a >= b =  true
+ a == b =  true
+ a != b =  false
+ a === b =  true
+ a !== b =  false
+
+a = 0  b = 0.1
+
+ a < b =  true
+ a <= b =  true
+ a > b =  false
+ a >= b =  false
+ a == b =  false
+ a != b =  true
+ a === b =  false
+ a !== b =  true
+
+a = 1879048192  b = 0
+
+ a < b =  false
+ a <= b =  false
+ a > b =  true
+ a >= b =  true
+ a == b =  false
+ a != b =  true
+ a === b =  false
+ a !== b =  true
+
+a = 0  b = 1879048192
+
+ a < b =  true
+ a <= b =  true
+ a > b =  false
+ a >= b =  false
+ a == b =  false
+ a != b =  true
+ a === b =  false
+ a !== b =  true

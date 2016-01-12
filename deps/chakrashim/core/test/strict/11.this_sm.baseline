@@ -1,0 +1,28 @@
+this         : undefined
+typeof(this) : undefined
+this         : undefined
+typeof(this) : undefined
+this         : undefined
+typeof(this) : undefined
+this         : undefined
+typeof(this) : undefined
+this         : undefined
+typeof(this) : undefined
+this         : undefined
+typeof(this) : undefined
+this         : null
+typeof(this) : object
+this         : null
+typeof(this) : object
+this         : [object Object]
+typeof(this) : object
+this         : [object Object]
+typeof(this) : object
+this         : 10
+typeof(this) : number
+this         : 10
+typeof(this) : number
+this         : 10
+typeof(this) : object
+this         : 10
+typeof(this) : object

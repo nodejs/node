@@ -1,0 +1,11 @@
+function
+
+function() {
+    [native code]
+}
+
+undefined
+undefined
+undefined
+TypeError: Function is not a constructor
+TypeError: Function does not have a valid prototype object

@@ -1,0 +1,12 @@
+//-------------------------------------------------------------------------------------------------------
+// Copyright (C) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
+//-------------------------------------------------------------------------------------------------------
+#include <windows.h>
+
+#define VER_PRODUCTNAME                 L"Microsoft \x00ae Chakra Core Host"
+#define VER_FILESUBTYPE                 VFT2_UNKNOWN
+#define VER_INTERNALNAME_STR            "ch.exe"
+#define VER_FILETYPE                    VFT_APP
+
+#include "..\CoreCommon.ver"

@@ -1,0 +1,128 @@
+ReferenceError: 'RegExpError' is undefined
+ReferenceError: 'ConversionError' is undefined
+---------------------------------
+toString(): function Error() { [native code] }
+Property: 'message'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'name'
+Value: 'Error'
+hasOwnProperty: true
+Property: 'description'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'call'
+Value: 'function call() { [native code] }'
+hasOwnProperty: false
+Property: 'apply'
+Value: 'function apply() { [native code] }'
+hasOwnProperty: false
+
+---------------------------------
+toString(): function EvalError() { [native code] }
+Property: 'message'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'name'
+Value: 'EvalError'
+hasOwnProperty: true
+Property: 'description'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'call'
+Value: 'function call() { [native code] }'
+hasOwnProperty: false
+Property: 'apply'
+Value: 'function apply() { [native code] }'
+hasOwnProperty: false
+
+---------------------------------
+toString(): function RangeError() { [native code] }
+Property: 'message'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'name'
+Value: 'RangeError'
+hasOwnProperty: true
+Property: 'description'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'call'
+Value: 'function call() { [native code] }'
+hasOwnProperty: false
+Property: 'apply'
+Value: 'function apply() { [native code] }'
+hasOwnProperty: false
+
+---------------------------------
+toString(): function ReferenceError() { [native code] }
+Property: 'message'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'name'
+Value: 'ReferenceError'
+hasOwnProperty: true
+Property: 'description'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'call'
+Value: 'function call() { [native code] }'
+hasOwnProperty: false
+Property: 'apply'
+Value: 'function apply() { [native code] }'
+hasOwnProperty: false
+
+---------------------------------
+toString(): function SyntaxError() { [native code] }
+Property: 'message'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'name'
+Value: 'SyntaxError'
+hasOwnProperty: true
+Property: 'description'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'call'
+Value: 'function call() { [native code] }'
+hasOwnProperty: false
+Property: 'apply'
+Value: 'function apply() { [native code] }'
+hasOwnProperty: false
+
+---------------------------------
+toString(): function TypeError() { [native code] }
+Property: 'message'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'name'
+Value: 'TypeError'
+hasOwnProperty: true
+Property: 'description'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'call'
+Value: 'function call() { [native code] }'
+hasOwnProperty: false
+Property: 'apply'
+Value: 'function apply() { [native code] }'
+hasOwnProperty: false
+
+---------------------------------
+toString(): function URIError() { [native code] }
+Property: 'message'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'name'
+Value: 'URIError'
+hasOwnProperty: true
+Property: 'description'
+Value: 'undefined'
+hasOwnProperty: false
+Property: 'call'
+Value: 'function call() { [native code] }'
+hasOwnProperty: false
+Property: 'apply'
+Value: 'function apply() { [native code] }'
+hasOwnProperty: false
+

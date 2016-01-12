@@ -1,0 +1,16 @@
+HasFuncDecl: foo1
+HasFuncDecl: foo2
+HasFuncDecl: foo4
+HasFuncDecl: foo5
+HasMaybeEscapedUse: ary
+HasMaybeEscapedUse: foo2Var
+HasMaybeEscapedUse: foo1Var
+HasMaybeEscapedUse: err
+HasFuncAssignment: foo4
+HasFuncAssignment: foo5
+DoStackNestedFunc: foo2 (function  (#1.2), #3)
+DoStackNestedFunc: foo1 (function  (#1.1), #2)
+StackScriptFunction (throw): box and disable stack function: foo2 (function  (#1.2), #3)
+Boxing StackScriptFunction Object: foo2 (function Id:  (#1.2), #3)
+Boxing Frame [Interpreted]: foo1  (#1.1), #2
+object

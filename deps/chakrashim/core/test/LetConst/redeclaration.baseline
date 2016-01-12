@@ -1,0 +1,42 @@
+Test 1:
+SyntaxError: Let/Const redeclaration
+Test 2:
+SyntaxError: Let/Const redeclaration
+Test 3:
+SyntaxError: Let/Const redeclaration
+Test 4:
+SyntaxError: Let/Const redeclaration
+Test 5:
+SyntaxError: Let/Const redeclaration
+Test 6:
+SyntaxError: Let/Const redeclaration
+Test 7:
+SyntaxError: Let/Const redeclaration
+Test 8:
+SyntaxError: Let/Const redeclaration
+Test 9:
+SyntaxError: Let/Const redeclaration
+Test a1:
+SyntaxError: Let/Const redeclaration
+Test a2:
+SyntaxError: Let/Const redeclaration
+Test a3:
+SyntaxError: Let/Const redeclaration
+Test a4:
+SyntaxError: Let/Const redeclaration
+Test a5:
+SyntaxError: Let/Const redeclaration
+Test a6:
+SyntaxError: Let/Const redeclaration
+Test a7:
+SyntaxError: Let/Const redeclaration
+Test a8:
+SyntaxError: Let/Const redeclaration
+Test a9:
+SyntaxError: Let/Const redeclaration
+Test b1:
+SyntaxError: Let/Const redeclaration
+Test b2:
+SyntaxError: Let/Const redeclaration
+Test b3:
+SyntaxError: Let/Const redeclaration

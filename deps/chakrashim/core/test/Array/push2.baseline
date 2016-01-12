@@ -1,0 +1,109 @@
+Array Test 1
+Pushing...
+No exception
+Length is: 4294967295
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+Pushing...
+RangeError: Array length must be assigned a finite positive integer
+Length is: 4294967295
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+4294967295: Aft1
+Array Test 2
+Pushing...
+RangeError: Array length must be assigned a finite positive integer
+Length is: 4294967295
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+4294967295: Bef2
+Pushing...
+RangeError: Array length must be assigned a finite positive integer
+Length is: 4294967295
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+4294967295: Aft1
+4294967296: UNDEFINED
+Array Test 3
+Pushing...
+RangeError: Array length must be assigned a finite positive integer
+Length is: 4294967295
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+4294967295: Bef2
+4294967296: Bef3
+Pushing...
+RangeError: Array length must be assigned a finite positive integer
+FAIL
+Object Test 1
+Pushing...
+No exception
+Length is: 4294967295
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+Pushing...
+No exception
+Length is: 4294967296
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+4294967295: Aft1
+Object Test 2
+Pushing...
+No exception
+Length is: 4294967296
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+4294967295: Bef2
+Pushing...
+No exception
+Length is: 4294967297
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+4294967295: Bef2
+4294967296: Aft1
+Object Test 3
+Pushing...
+No exception
+Length is: 4294967297
+0: Value0
+1: Value1
+2: Value2
+4294967293: Value4294967293
+4294967294: Bef1
+4294967295: Bef2
+4294967296: Bef3
+Pushing...
+No exception
+FAIL
+caught exception calling push
+true
+undefined
+ary.length = 10
+undefined

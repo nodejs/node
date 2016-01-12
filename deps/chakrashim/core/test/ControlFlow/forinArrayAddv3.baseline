@@ -1,0 +1,36 @@
+Scenario:1 - Adding new array indexes while enumerating expandos
+Index:0 Value:11
+Index:1 Value:22
+Index:2 Value:33
+Index:3 Value:44
+Index:x Value:a.x
+Index:y Value:a.y
+Index:z Value:a.z
+Scenario:2 - Adding new array expandos while enumerating array for second time
+Index:0 Value:11
+Index:1 Value:22
+Index:2 Value:33
+Index:3 Value:44
+Index:5 Value:55
+Index:6 Value:66
+Index:x Value:a.x
+Index:y Value:a.y
+Index:z Value:a.z
+Scenario:3 - Adding new array expandos while enumerating Object for second time
+Index:0 Value:11
+Index:1 Value:22
+Index:2 Value:33
+Index:3 Value:44
+Index:x Value:b.x
+Index:y Value:b.y
+Index:z Value:b.z
+Scenario:3 - Adding new array expandos while enumerating Object for second time
+Index:0 Value:11
+Index:1 Value:22
+Index:2 Value:33
+Index:3 Value:44
+Index:x Value:b.x
+Index:y Value:b.y
+Index:z Value:b.z
+Scenario:4 - random additions
+Index:0 Value:1

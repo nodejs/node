@@ -1,0 +1,29 @@
+Function glo ( (#1.0), #1) () (size: 12 [12])
+      6 locals (2 temps from R4), 3 inline cache
+    Constant Table:
+    ======== =====
+     R1 LdRoot    
+     R2 LdC_A_I4   int:5 
+     R3 LdStr      ("Passed")
+    
+    0000   EnsureNoRootRedeclFld root.a
+    0003   LdElemUndef          R1.a = undefined
+    0007   LdUndef              R0 
+
+
+  Line   6: var a =5;
+  Col    2: ^
+    0009   ProfiledStRootFld    root.a = R2 #2 <2> 
+
+
+  Line   7: WScript.Echo("Passed");
+  Col    1: ^
+    000f   ProfiledLdRootFld    R5 = root.WScript #1 <1> 
+    0015   ProfiledLdMethodFld  R4 = R5.Echo #0 <0> 
+    0019   StartCall            ArgCount: 2
+    001c   ArgOut_A             Out0 = R5 
+    001f   ProfiledArgOut_A     Out1 = R3  <0> 
+    0024   ProfiledCallIWithICIndex R4(ArgCount: 2) <0>  <0> 
+    002e   Ret                 
+
+Passed

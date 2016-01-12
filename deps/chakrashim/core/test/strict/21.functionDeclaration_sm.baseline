@@ -1,0 +1,16 @@
+Return: Program.SourceElement.FunctionDeclaration
+Return: FunctionBody.FunctionDeclaration
+Return: Block.StatementList.Statement.FunctionDeclaration
+Exception: IfStatement.Statement.FunctionDeclaration - SyntaxError
+Exception: IterationStatement(do-while).Statement.FunctionDeclaration - SyntaxError
+Exception: IterationStatement(while).Statement.FunctionDeclaration - SyntaxError
+Exception: IterationStatement(for).Statement.FunctionDeclaration - SyntaxError
+Exception: IterationStatement(for-in).Statement.FunctionDeclaration - SyntaxError
+Return: SourceElement.Statement.LabelledStatement.Statement.FunctionDeclaration
+Return: Block.Statement.LabelledStatement.Statement.FunctionDeclaration
+Return: SwitchStatement.CaseBlock.CaseClause.StatementList.Statement.FunctionDeclaration
+Return: SwitchStatement.CaseBlock.DefaultClause.StatementList.Statement.FunctionDeclaration
+Return: SwitchStatement.CaseBlock.DefaultClause.StatementList.Statement.FunctionDeclaration
+Return: TryStatement.Block.StatementList.Statement.FunctionDeclaration
+Return: TryStatement.Catch.Block.StatementList.Statement.FunctionDeclaration
+Return: TryStatement.Finally.Block.StatementList.Statement.FunctionDeclaration

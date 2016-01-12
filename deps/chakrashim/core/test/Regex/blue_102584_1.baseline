@@ -1,0 +1,49 @@
+null
+null
+-1
+-1
+
+
+a
+a
+A
+A
+A
+A
+A
+A
+ABCDEF
+ABCDEF
+fafafa
+fafafa
+Afalse
+Afalse
+Afalse
+Afalse
+null
+null
+a
+a
+
+
+expected : 'o' is undefined
+expected : 'o' is undefined
+expected : Function.prototype.apply: argument is not an Object
+expected : Function.prototype.apply: argument is not an Object
+
+
+expected : String.prototype.replace: 'this' is null or undefined
+expected : String.prototype.replace: 'this' is null or undefined
+expected : String.prototype.replace: 'this' is null or undefined
+expected : String.prototype.replace: 'this' is null or undefined
+a
+a
+expected : RegExp.prototype.exec: 'this' is not a RegExp object
+expected : RegExp.prototype.exec: 'this' is not a RegExp object
+expected : Function.prototype.apply: argument is not an Object
+expected : Function.prototype.apply: argument is not an Object
+expected : RegExp.prototype.exec: 'this' is not a RegExp object
+expected : RegExp.prototype.exec: 'this' is not a RegExp object
+-1
+true
+

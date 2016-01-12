@@ -1,0 +1,288 @@
+function foo(){writeLine(typeMap[typeof(arguments)]);}foo(1);
+arguments
+function foo(){eval("");writeLine(typeMap[typeof(arguments)]);}foo(1);
+arguments
+function foo(){var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+arguments
+function foo(){eval("");var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+arguments
+function foo(){var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(){eval("");var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(){function arguments(){}writeLine(typeMap[typeof(arguments)]);}foo(1);
+function
+function foo(){eval("");function arguments(){}writeLine(typeMap[typeof(arguments)]);}foo(1);
+function
+function foo(){function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+function
+function foo(){eval("");function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+function
+function foo(){function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(){eval("");function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(){(function arguments(){});writeLine(typeMap[typeof(arguments)]);}foo(1);
+arguments
+function foo(){eval("");(function arguments(){});writeLine(typeMap[typeof(arguments)]);}foo(1);
+arguments
+function foo(){(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+arguments
+function foo(){eval("");(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+arguments
+function foo(){(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(){eval("");(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(arguments){writeLine(typeMap[typeof(arguments)]);}foo(1);
+parameter
+function foo(arguments){eval("");writeLine(typeMap[typeof(arguments)]);}foo(1);
+parameter
+function foo(arguments){var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+parameter
+function foo(arguments){eval("");var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+parameter
+function foo(arguments){var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(arguments){eval("");var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(arguments){function arguments(){}writeLine(typeMap[typeof(arguments)]);}foo(1);
+function
+function foo(arguments){eval("");function arguments(){}writeLine(typeMap[typeof(arguments)]);}foo(1);
+function
+function foo(arguments){function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+function
+function foo(arguments){eval("");function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+function
+function foo(arguments){function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(arguments){eval("");function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(arguments){(function arguments(){});writeLine(typeMap[typeof(arguments)]);}foo(1);
+parameter
+function foo(arguments){eval("");(function arguments(){});writeLine(typeMap[typeof(arguments)]);}foo(1);
+parameter
+function foo(arguments){(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+parameter
+function foo(arguments){eval("");(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);}foo(1);
+parameter
+function foo(arguments){(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function foo(arguments){eval("");(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);}foo(1);
+var
+function arguments(){writeLine(typeMap[typeof(arguments)]);}arguments(1);
+arguments
+function arguments(){eval("");writeLine(typeMap[typeof(arguments)]);}arguments(1);
+arguments
+function arguments(){var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+arguments
+function arguments(){eval("");var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+arguments
+function arguments(){var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(){eval("");var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(){function arguments(){}writeLine(typeMap[typeof(arguments)]);}arguments(1);
+function
+function arguments(){eval("");function arguments(){}writeLine(typeMap[typeof(arguments)]);}arguments(1);
+function
+function arguments(){function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+function
+function arguments(){eval("");function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+function
+function arguments(){function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(){eval("");function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(){(function arguments(){});writeLine(typeMap[typeof(arguments)]);}arguments(1);
+arguments
+function arguments(){eval("");(function arguments(){});writeLine(typeMap[typeof(arguments)]);}arguments(1);
+arguments
+function arguments(){(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+arguments
+function arguments(){eval("");(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+arguments
+function arguments(){(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(){eval("");(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(arguments){writeLine(typeMap[typeof(arguments)]);}arguments(1);
+parameter
+function arguments(arguments){eval("");writeLine(typeMap[typeof(arguments)]);}arguments(1);
+parameter
+function arguments(arguments){var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+parameter
+function arguments(arguments){eval("");var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+parameter
+function arguments(arguments){var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(arguments){eval("");var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(arguments){function arguments(){}writeLine(typeMap[typeof(arguments)]);}arguments(1);
+function
+function arguments(arguments){eval("");function arguments(){}writeLine(typeMap[typeof(arguments)]);}arguments(1);
+function
+function arguments(arguments){function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+function
+function arguments(arguments){eval("");function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+function
+function arguments(arguments){function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(arguments){eval("");function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(arguments){(function arguments(){});writeLine(typeMap[typeof(arguments)]);}arguments(1);
+parameter
+function arguments(arguments){eval("");(function arguments(){});writeLine(typeMap[typeof(arguments)]);}arguments(1);
+parameter
+function arguments(arguments){(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+parameter
+function arguments(arguments){eval("");(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);}arguments(1);
+parameter
+function arguments(arguments){(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+function arguments(arguments){eval("");(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);}arguments(1);
+var
+(function (){writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function (){eval("");writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function (){var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function (){eval("");var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function (){var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (){eval("");var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (){function arguments(){}writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function (){eval("");function arguments(){}writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function (){function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function (){eval("");function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function (){function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (){eval("");function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (){(function arguments(){});writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function (){eval("");(function arguments(){});writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function (){(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function (){eval("");(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function (){(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (){eval("");(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (arguments){writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function (arguments){eval("");writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function (arguments){var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function (arguments){eval("");var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function (arguments){var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (arguments){eval("");var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (arguments){function arguments(){}writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function (arguments){eval("");function arguments(){}writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function (arguments){function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function (arguments){eval("");function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function (arguments){function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (arguments){eval("");function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (arguments){(function arguments(){});writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function (arguments){eval("");(function arguments(){});writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function (arguments){(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function (arguments){eval("");(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function (arguments){(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function (arguments){eval("");(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(){writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function arguments(){eval("");writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function arguments(){var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function arguments(){eval("");var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function arguments(){var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(){eval("");var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(){function arguments(){}writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function arguments(){eval("");function arguments(){}writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function arguments(){function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function arguments(){eval("");function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function arguments(){function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(){eval("");function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(){(function arguments(){});writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function arguments(){eval("");(function arguments(){});writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function arguments(){(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function arguments(){eval("");(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+arguments
+(function arguments(){(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(){eval("");(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(arguments){writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function arguments(arguments){eval("");writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function arguments(arguments){var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function arguments(arguments){eval("");var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function arguments(arguments){var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(arguments){eval("");var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(arguments){function arguments(){}writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function arguments(arguments){eval("");function arguments(){}writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function arguments(arguments){function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function arguments(arguments){eval("");function arguments(){}var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+function
+(function arguments(arguments){function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(arguments){eval("");function arguments(){}var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(arguments){(function arguments(){});writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function arguments(arguments){eval("");(function arguments(){});writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function arguments(arguments){(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function arguments(arguments){eval("");(function arguments(){});var arguments;writeLine(typeMap[typeof(arguments)]);})(1);
+parameter
+(function arguments(arguments){(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var
+(function arguments(arguments){eval("");(function arguments(){});var arguments="hi";writeLine(typeMap[typeof(arguments)]);})(1);
+var

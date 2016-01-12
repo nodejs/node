@@ -1,0 +1,3 @@
+ReferenceError: 'obj9' is undefined
+	at Anonymous function() (fieldhoist_unreachable.js:13:5)
+	at Global code (fieldhoist_unreachable.js:7:2)

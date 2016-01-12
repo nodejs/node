@@ -1,0 +1,4 @@
+o.x : 20
+Return: Same name property
+o.x : second
+Return: Same name getter

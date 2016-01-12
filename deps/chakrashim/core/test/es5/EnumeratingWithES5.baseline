@@ -1,0 +1,382 @@
+Test 1: Non-writable, simple type handler
+Testing for-in enumeration
+d: dvalue
+Setting value to 1
+d: 1
+Testing getOwnPropertyNames enumeration
+d: 1
+Setting value to 2
+d: 2
+Setting writability of d to false
+Testing for-in enumeration
+d: 2
+Setting value to 3
+d: 2
+Testing getOwnPropertyNames enumeration
+d: 2
+Setting value to 4
+d: 2
+Setting writability of d to true
+Testing for-in enumeration
+d: 2
+Setting value to 5
+d: 5
+Testing getOwnPropertyNames enumeration
+d: 5
+Setting value to 6
+d: 6
+Changing writability during enumeration...
+Testing for-in enumeration
+Setting writability of d to false
+d: 6
+Setting value to 7
+d: 6
+Testing getOwnPropertyNames enumeration
+Setting writability of d to false
+d: 6
+Setting value to 8
+d: 6
+Testing for-in enumeration
+Setting writability of d to true
+d: 6
+Setting value to 9
+d: 9
+Testing getOwnPropertyNames enumeration
+Setting writability of d to true
+d: 9
+Setting value to 10
+d: 10
+Freezing object
+Testing for-in enumeration
+d: 10
+Setting value to 11
+d: 10
+Testing getOwnPropertyNames enumeration
+d: 10
+Setting value to 12
+d: 10
+
+Test 2: Non-writable, simple dictionary type handler
+Testing for-in enumeration
+d: dvalue
+Setting value to 1
+d: 1
+Testing getOwnPropertyNames enumeration
+d: 1
+Setting value to 2
+d: 2
+Setting writability of d to false
+Testing for-in enumeration
+d: 2
+Setting value to 3
+d: 2
+Testing getOwnPropertyNames enumeration
+d: 2
+Setting value to 4
+d: 2
+Setting writability of d to true
+Testing for-in enumeration
+d: 2
+Setting value to 5
+d: 5
+Testing getOwnPropertyNames enumeration
+d: 5
+Setting value to 6
+d: 6
+Changing writability during enumeration...
+Testing for-in enumeration
+Setting writability of d to false
+d: 6
+Setting value to 7
+d: 6
+Testing getOwnPropertyNames enumeration
+Setting writability of d to false
+d: 6
+Setting value to 8
+d: 6
+Testing for-in enumeration
+Setting writability of d to true
+d: 6
+Setting value to 9
+d: 9
+Testing getOwnPropertyNames enumeration
+Setting writability of d to true
+d: 9
+Setting value to 10
+d: 10
+Freezing object
+Testing for-in enumeration
+d: 10
+Setting value to 11
+d: 10
+Testing getOwnPropertyNames enumeration
+d: 10
+Setting value to 12
+d: 10
+
+Test 3: Non-writable, dictionary type handler
+Testing for-in enumeration
+d: dvalue
+Setting value to 1
+d: 1
+Testing getOwnPropertyNames enumeration
+d: 1
+Setting value to 2
+d: 2
+Setting writability of d to false
+Testing for-in enumeration
+d: 2
+Setting value to 3
+d: 2
+Testing getOwnPropertyNames enumeration
+d: 2
+Setting value to 4
+d: 2
+Setting writability of d to true
+Testing for-in enumeration
+d: 2
+Setting value to 5
+d: 5
+Testing getOwnPropertyNames enumeration
+d: 5
+Setting value to 6
+d: 6
+Changing writability during enumeration...
+Testing for-in enumeration
+Setting writability of d to false
+d: 6
+Setting value to 7
+d: 6
+Testing getOwnPropertyNames enumeration
+Setting writability of d to false
+d: 6
+Setting value to 8
+d: 6
+Testing for-in enumeration
+Setting writability of d to true
+d: 6
+Setting value to 9
+d: 9
+Testing getOwnPropertyNames enumeration
+Setting writability of d to true
+d: 9
+Setting value to 10
+d: 10
+Freezing object
+Testing for-in enumeration
+d: 10
+Setting value to 11
+d: 10
+Testing getOwnPropertyNames enumeration
+d: 10
+Setting value to 12
+d: 10
+
+Test 4: Accessors
+Defining accessors for b
+Defining accessors for f
+Testing for-in enumeration
+a: aValue
+Setting value to 1
+a: 1
+b: GETTER FOR b
+Setting value to 2
+SETTER FOR b
+b: GETTER FOR b
+d: dValue
+Setting value to 3
+d: 3
+f: GETTER FOR f
+Setting value to 4
+SETTER FOR f
+f: GETTER FOR f
+g: gValue
+Setting value to 5
+g: 5
+Testing getOwnPropertyNames enumeration
+a: 1
+Setting value to 6
+a: 6
+b: GETTER FOR b
+Setting value to 7
+SETTER FOR b
+b: GETTER FOR b
+d: 3
+Setting value to 8
+d: 8
+e: eValue
+Setting value to 9
+e: 9
+f: GETTER FOR f
+Setting value to 10
+SETTER FOR f
+f: GETTER FOR f
+g: 5
+Setting value to 11
+g: 11
+Defining accessors for d
+Testing for-in enumeration
+a: 6
+Setting value to 12
+a: 12
+b: GETTER FOR b
+Setting value to 13
+SETTER FOR b
+b: GETTER FOR b
+d: GETTER
+Setting value to 14
+SETTER
+d: GETTER
+f: GETTER FOR f
+Setting value to 15
+SETTER FOR f
+f: GETTER FOR f
+g: 11
+Setting value to 16
+g: 16
+Testing getOwnPropertyNames enumeration
+a: 12
+Setting value to 17
+a: 17
+b: GETTER FOR b
+Setting value to 18
+SETTER FOR b
+b: GETTER FOR b
+d: GETTER
+Setting value to 19
+SETTER
+d: GETTER
+e: 9
+Setting value to 20
+e: 20
+f: GETTER FOR f
+Setting value to 21
+SETTER FOR f
+f: GETTER FOR f
+g: 16
+Setting value to 22
+g: 22
+Defining data property d with value 23
+Testing for-in enumeration
+a: 17
+Setting value to 24
+a: 24
+b: GETTER FOR b
+Setting value to 25
+SETTER FOR b
+b: GETTER FOR b
+d: 23
+Setting value to 26
+d: 26
+f: GETTER FOR f
+Setting value to 27
+SETTER FOR f
+f: GETTER FOR f
+g: 22
+Setting value to 28
+g: 28
+Testing getOwnPropertyNames enumeration
+a: 24
+Setting value to 29
+a: 29
+b: GETTER FOR b
+Setting value to 30
+SETTER FOR b
+b: GETTER FOR b
+d: 26
+Setting value to 31
+d: 31
+e: 20
+Setting value to 32
+e: 32
+f: GETTER FOR f
+Setting value to 33
+SETTER FOR f
+f: GETTER FOR f
+g: 28
+Setting value to 34
+g: 34
+Defining accessor property during enumeration...
+Testing for-in enumeration
+a: 29
+Setting value to 35
+a: 35
+b: GETTER FOR b
+Setting value to 36
+SETTER FOR b
+b: GETTER FOR b
+Defining accessors for d
+d: GETTER
+Setting value to 37
+SETTER
+d: GETTER
+f: GETTER FOR f
+Setting value to 38
+SETTER FOR f
+f: GETTER FOR f
+g: 34
+Setting value to 39
+g: 39
+Testing getOwnPropertyNames enumeration
+a: 35
+Setting value to 40
+a: 40
+b: GETTER FOR b
+Setting value to 41
+SETTER FOR b
+b: GETTER FOR b
+d: GETTER
+Setting value to 42
+SETTER
+d: GETTER
+e: 32
+Setting value to 43
+e: 43
+f: GETTER FOR f
+Setting value to 44
+SETTER FOR f
+f: GETTER FOR f
+g: 39
+Setting value to 45
+g: 45
+Defining data property during enumeration...
+Testing for-in enumeration
+a: 40
+Setting value to 47
+a: 47
+b: GETTER FOR b
+Setting value to 49
+SETTER FOR b
+b: GETTER FOR b
+Defining data property d with value 50
+d: 50
+Setting value to 51
+d: 51
+f: GETTER FOR f
+Setting value to 53
+SETTER FOR f
+f: GETTER FOR f
+g: 45
+Setting value to 55
+g: 55
+Testing getOwnPropertyNames enumeration
+a: 47
+Setting value to 57
+a: 57
+b: GETTER FOR b
+Setting value to 59
+SETTER FOR b
+b: GETTER FOR b
+d: 51
+Setting value to 61
+d: 61
+e: 43
+Setting value to 63
+e: 63
+f: GETTER FOR f
+Setting value to 65
+SETTER FOR f
+f: GETTER FOR f
+g: 55
+Setting value to 67
+g: 67

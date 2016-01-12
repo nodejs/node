@@ -1,0 +1,6 @@
+x.configurable = false
+x.writable = true
+x.configurable = false
+x.writable = false
+x: x.original
+result: x.original

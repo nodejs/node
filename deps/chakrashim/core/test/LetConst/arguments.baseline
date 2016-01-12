@@ -1,0 +1,9 @@
+global let arguments
+let arguments block scoped
+[object Arguments]
+const arguments block scoped
+[object Arguments]
+eval global let arguments
+eval global const arguments
+let arguments function scope
+const arguments function scope

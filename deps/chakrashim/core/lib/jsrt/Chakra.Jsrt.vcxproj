@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Jsrt</TargetName>
+    <ProjectGuid>{706083F7-6AA4-4558-A153-6352EF9220F5}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory);
+        $(MSBuildThisFileDirectory)..\Runtime;
+        $(MSBuildThisFileDirectory)..\Common;
+        $(MSBuildThisFileDirectory)..\Parser;
+        $(MSBuildThisFileDirectory)..\Backend;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>JsrtPch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)Jsrt.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JsrtContext.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JsrtExternalArrayBuffer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JsrtExternalObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JsrtRuntime.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JsrtThreadService.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JsrtPch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)JsrtSourceHolder.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="chakracommon.h" />
+    <ClInclude Include="ChakraCore.h" />
+    <ClInclude Include="JsrtContext.h" />
+    <ClInclude Include="JsrtExternalArrayBuffer.h" />
+    <ClInclude Include="JsrtExternalObject.h" />
+    <ClInclude Include="JsrtRuntime.h" />
+    <ClInclude Include="JsrtSourceHolder.h" />
+    <ClInclude Include="JsrtThreadService.h" />
+    <ClInclude Include="JsrtInternal.h" />
+    <ClInclude Include="JsrtExceptionBase.h" />
+    <ClInclude Include="JsrtPch.h" />
+    <ClInclude Include="TestHooksRt.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="JsrtCommonExports.inc" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

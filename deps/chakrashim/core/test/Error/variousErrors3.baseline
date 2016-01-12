@@ -1,0 +1,8 @@
+42 = 42 :: ReferenceError
+'x' = 42 :: ReferenceError
+true = 42 :: ReferenceError
+null = 42 :: ReferenceError
+delete this .. true
+delete true .. true
+delete 10 .. true
+delete null .. true

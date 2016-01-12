@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Common.Common</TargetName>
+    <ProjectGuid>{BB4153FF-AC3E-4734-B562-CC23812DF31B}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(BuildConfig_ARMASM_Path)armasm.props" />
+  </ImportGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <!-- For windowsdatetimep.h -->
+      <AdditionalIncludeDirectories>$(ComIncPath)\winrt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>CommonCommonPch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)Api.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)cfglogger.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DaylightTimeHelper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DateUtilities.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Event.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Int32Math.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Int64Math.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Jobs.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)MathUtil.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)NumberUtilities.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)NumberUtilities_strtod.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RejitReason.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SmartFPUControl.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Tick.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)unicode.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)vtinfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CommonCommonPch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Int64Math.h" />
+    <ClInclude Include="ByteSwap.h" />
+    <ClInclude Include="CommonCommonPch.h" />
+    <ClInclude Include="cfglogger.h" />
+    <ClInclude Include="DaylightTimeHelper.h" />
+    <ClInclude Include="DateUtilities.h" />
+    <ClInclude Include="Event.h" />
+    <ClInclude Include="GetCurrentFrameID.h" />
+    <ClInclude Include="Int32Math.h" />
+    <ClInclude Include="Jobs.h" />
+    <ClInclude Include="MathUtil.h" />
+    <ClInclude Include="NumberUtilities.h" />
+    <ClInclude Include="NumberUtilitiesBase.h" />
+    <ClInclude Include="RejitReason.h" />
+    <ClInclude Include="RejitReasons.h" />
+    <ClInclude Include="SmartFPUControl.h" />
+    <ClInclude Include="Tick.h" />
+    <ClInclude Include="UInt16Math.h" />
+    <ClInclude Include="UInt32Math.h" />
+    <ClInclude Include="unicode.h" />
+    <ClInclude Include="vtinfo.h" />
+    <ClInclude Include="vtregistry.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NumberUtilities.inl" />
+    <None Include="Jobs.inl" />
+    <None Include="vtinfo.inl" />
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_GET_CURRENT_FRAME.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_GET_CURRENT_FRAME.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM64'">true</ExcludedFromBuild>
+    </ARMASM>
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(BuildConfig_ARMASM_Path)armasm.targets" />
+  </ImportGroup>
+</Project>

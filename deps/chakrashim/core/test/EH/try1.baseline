@@ -1,0 +1,40 @@
+caught 5
+inner finally, i = 0
+caught 5
+outer finally, i = 0
+finally #3, i = 0
+caught 5
+finally #2, i = 0
+caught another throw
+caught undefined
+inner finally, i = 1
+caught undefined
+outer finally, i = 1
+finally #3, i = 1
+caught undefined
+finally #2, i = 1
+caught another throw
+caught c
+inner finally, i = 2
+caught c
+outer finally, i = 2
+finally #3, i = 2
+caught c
+finally #2, i = 2
+caught another throw
+caught test
+inner finally, i = 3
+caught test
+outer finally, i = 3
+finally #3, i = 3
+caught test
+finally #2, i = 3
+caught another throw
+caught 1,2,3
+inner finally, i = 4
+caught 1,2,3
+outer finally, i = 4
+finally #3, i = 4
+caught 1,2,3
+finally #2, i = 4
+caught another throw

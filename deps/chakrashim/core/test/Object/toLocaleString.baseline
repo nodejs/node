@@ -1,0 +1,50 @@
+0 toString()     : 0
+0 toLocaleString : 0
+1 toString()     : 1
+1 toLocaleString : 1
+2 toString()     : -1
+2 toLocaleString : -1
+3 toString()     : 12345678
+3 toLocaleString : 12,345,678
+4 toString()     : 10.23344
+4 toLocaleString : 10.233
+5 toString()     : -1.2345
+5 toLocaleString : -1.234
+6 toString()     : NaN
+6 toLocaleString : NaN
+7 toString()     : Infinity
+7 toLocaleString : Infinity
+8 toString()     : -Infinity
+8 toLocaleString : -Infinity
+9 toString()     : 11111111222
+9 toLocaleString : 11,111,111,222
+10 toString()     : hello
+10 toLocaleString : hello
+11 toString()     : helloworld
+11 toLocaleString : helloworld
+12 toString()     : false
+12 toLocaleString : false
+13 toString()     : true
+13 toLocaleString : true
+14 toString()     : [object Object]
+14 toLocaleString : [object Object]
+15 toString()     : 20
+15 toLocaleString : 10
+16 toString()     : 30
+16 toLocaleString : 30
+17 toString()     : 60
+17 toLocaleString : 50
+18 toString()     : Thu Oct 24 1974 00:20:30 GMT-0700 (Pacific Daylight Time)
+18 toLocaleString : 10/24/1974 12:20:30 AM
+19 toString()     : array a1
+19 toLocaleString : 10.00, 20.00
+20 toString()     : 10.123,20.456
+20 toLocaleString : 10.12, 20.46
+21 toString()     : 12345678912345678
+21 toLocaleString : 12,345,678,912,345,700
+22 toString()     : 1
+22 toLocaleString : 1
+arr.toString()     : 1,0,1,-1,12345678,10.23344,-1.2345,NaN,Infinity,-Infinity,11111111222,hello,helloworld,false,true,[object Object],20,30,60,Thu Oct 24 1974 00:20:30 GMT-0700 (Pacific Daylight Time),array a1,10.123,20.456,12345678912345678,1,,,,20,,LastValue!!
+arr.toLocaleString : 1.00, 0.00, 1.00, -1.00, 12,345,678.00, 10.23, -1.23, NaN, Infinity, -Infinity, 11,111,111,222.00, hello, helloworld, false, true, [object Object], 10, 30, 50, 10/24/1974 12:20:30 AM, 10.00, 20.00, 10.12, 20.46, 12,345,678,912,345,678.00, 1.00, , , , 20.00, , LastValue!!
+arr1.toString()     : ,,,,,,
+arr1.toLocaleString : , , , , , , 

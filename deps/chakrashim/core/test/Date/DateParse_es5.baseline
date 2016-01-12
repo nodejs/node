@@ -1,0 +1,119 @@
+808234200000
+808259400000
+NaN
+808232400000
+Got error:
+    name:     TypeError
+    message:  String expected
+toString called:  no
+valueOf called:   no
+Got error:
+    name:     TypeError
+    message:  String expected
+toString called:  no
+valueOf called:   yes
+NaN
+toString called:  no
+valueOf called:   yes
+32400000
+toString called:  no
+valueOf called:   yes
+NaN
+toString called:  no
+valueOf called:   yes
+Got error:
+    name:     TypeError
+    message:  String expected
+toString called:  yes
+valueOf called:   no
+Got error:
+    name:     TypeError
+    message:  String expected
+toString called:  yes
+valueOf called:   yes
+NaN
+toString called:  yes
+valueOf called:   yes
+32400000
+toString called:  yes
+valueOf called:   yes
+NaN
+toString called:  yes
+valueOf called:   yes
+NaN
+toString called:  yes
+valueOf called:   no
+NaN
+toString called:  yes
+valueOf called:   no
+NaN
+toString called:  yes
+valueOf called:   no
+NaN
+toString called:  yes
+valueOf called:   no
+NaN
+toString called:  yes
+valueOf called:   no
+28800000
+toString called:  yes
+valueOf called:   no
+28800000
+toString called:  yes
+valueOf called:   no
+28800000
+toString called:  yes
+valueOf called:   no
+28800000
+toString called:  yes
+valueOf called:   no
+28800000
+toString called:  yes
+valueOf called:   no
+1320810523000
+NaN
+1320810523100
+NaN
+1320810523000
+NaN
+1320810523120
+NaN
+1320810523010
+NaN
+1320810523000
+NaN
+1320810523123
+NaN
+1320810523001
+NaN
+1320810523000
+NaN
+1320810523123
+NaN
+1320810523001
+NaN
+1320810523000
+NaN
+1320810523000
+NaN
+1320810523123
+NaN
+1320810523001
+NaN
+1320810523000
+NaN
+1320810523000
+NaN
+1320810523000
+NaN
+1320810523000
+1320810523000
+1320810523000
+1320810523000
+1320810523000
+1320810523000
+1320810523000
+1320810523000
+1320810523000
+1320810523000
+NaN

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Common.Core</TargetName>
+    <ProjectGuid>{CC4153FF-AC3E-4734-B562-CC23812DF31B}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>CommonCorePch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)BinaryFeatureControl.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CmdParser.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CodexAssert.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ConfigFlagsTable.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ConfigParser.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DbgHelpSymbolManager.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DelayLoadLibrary.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)EtwTraceCore.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FaultInjection.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Output.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PerfCounter.cpp" />
+    <None Include="PerfCounterImpl.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PerfCounterSet.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ProfileInstrument.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ProfileMemory.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)StackBackTrace.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SysInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CommonCorePch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AllocSizeMath.h" />
+    <ClInclude Include="api.h" />
+    <ClInclude Include="Assertions.h" />
+    <ClInclude Include="AtomLockGuids.h" />
+    <ClInclude Include="AutoFILE.h" />
+    <ClInclude Include="BinaryFeatureControl.h" />
+    <ClInclude Include="BasePtr.h" />
+    <ClInclude Include="CmdParser.h" />
+    <ClInclude Include="CommonCorePch.h" />
+    <ClInclude Include="CommonTypedefs.h" />
+    <ClInclude Include="ConfigFlagsTable.h" />
+    <ClInclude Include="ConfigParser.h" />
+    <ClInclude Include="CriticalSection.h" />
+    <ClInclude Include="DbgHelpSymbolManager.h" />
+    <ClInclude Include="DelayLoadLibrary.h" />
+    <ClInclude Include="EtwTraceCore.h" />
+    <ClInclude Include="FaultInjection.h" />
+    <ClInclude Include="FaultTypes.h" />
+    <ClInclude Include="FinalizableObject.h" />
+    <ClInclude Include="ICustomConfigFlags.h" />
+    <ClInclude Include="Output.h" />
+    <ClInclude Include="PerfCounter.h" />
+    <ClInclude Include="PerfCounterSet.h" />
+    <ClInclude Include="ProfileInstrument.h" />
+    <ClInclude Include="ProfileMemory.h" />
+    <ClInclude Include="StackBackTrace.h" />
+    <ClInclude Include="SysInfo.h" />
+    <ClInclude Include="..\Warnings.h" />
+    <ClInclude Include="..\CommonDefines.h" />
+    <ClInclude Include="..\CommonBasic.h" />
+    <ClInclude Include="..\CommonMin.h" />
+    <ClInclude Include="..\CommonMinMemory.h" />
+    <ClInclude Include="..\Common.h" />
+    <ClInclude Include="..\BackEndAPI.h" />
+    <ClInclude Include="..\commoninl.h" />
+    <ClInclude Include="..\DictionaryStats.h" />
+    <ClInclude Include="..\EnumClassHelp.h" />
+    <ClInclude Include="..\ConfigFlagsList.h" />
+    <ClInclude Include="..\EnumHelp.h" />
+    <ClInclude Include="..\TargetVer.h" />
+    <ClInclude Include="..\TemplateParameter.h" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -1,0 +1,6 @@
+this.prop2 setter
+TypeError: Cannot redefine non-configurable property 'prop1'
+	at func1() (linenumber4.js:16:14)
+	at func2(number) (linenumber4.js:22:5)
+	at test0() (linenumber4.js:28:3)
+	at Global code (linenumber4.js:39:1)

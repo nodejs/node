@@ -1,0 +1,11 @@
+HasFuncDecl: test
+HasFuncDecl: runtest
+HasFuncDecl: runtest
+HasMaybeEscapedUse: e
+HasFuncDecl: test
+HasFuncAssignment: simple_escape
+HasMaybeEscapedUse: simple_escape
+HasMaybeEscapedNestedFunc (MaybeEscapedUse): test (function  (#1.1), #2)
+RestoreHasFuncAssignment: simple_escape
+simple_escape
+simple_escape

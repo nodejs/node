@@ -1,0 +1,214 @@
+0. Test with object
+  --- properties ---
+  1: undefined enumerable configurable writable
+  3: null enumerable configurable writable
+  110: value 10
+  111: value 11 enumerable
+  112: value 12 enumerable configurable
+  113: value 13 enumerable configurable writable
+  120: get 20
+  121: get 21 enumerable
+  122: get 22 enumerable configurable
+  125: undefined
+  126: undefined enumerable
+  127: undefined enumerable configurable
+  abc: -12 enumerable configurable writable
+  def: hello enumerable configurable writable
+  xx10: value 10
+  xx11: value 11 enumerable
+  xx12: value 12 enumerable configurable
+  xx13: value 13 enumerable configurable writable
+  xx20: get 20
+  xx21: get 21 enumerable
+  xx22: get 22 enumerable configurable
+  xx25: undefined
+  xx26: undefined enumerable
+  xx27: undefined enumerable configurable
+  --- for-in enumerate ---
+  1: undefined
+  3: null
+  111: value 11
+  112: value 12
+  113: value 13
+  121: get 21
+  122: get 22
+  126: undefined
+  127: undefined
+  abc: -12
+  def: hello
+  xx11: value 11
+  xx12: value 12
+  xx13: value 13
+  xx21: get 21
+  xx22: get 22
+  xx26: undefined
+  xx27: undefined
+
+
+1. Test with array
+  --- properties ---
+  0: -12 enumerable configurable writable
+  1: hello enumerable configurable writable
+  2: undefined enumerable configurable writable
+  3: null enumerable configurable writable
+  110: value 10
+  111: value 11 enumerable
+  112: value 12 enumerable configurable
+  113: value 13 enumerable configurable writable
+  120: get 20
+  121: get 21 enumerable
+  122: get 22 enumerable configurable
+  125: undefined
+  126: undefined enumerable
+  127: undefined enumerable configurable
+  xx10: value 10
+  xx11: value 11 enumerable
+  xx12: value 12 enumerable configurable
+  xx13: value 13 enumerable configurable writable
+  xx20: get 20
+  xx21: get 21 enumerable
+  xx22: get 22 enumerable configurable
+  xx25: undefined
+  xx26: undefined enumerable
+  xx27: undefined enumerable configurable
+  length: 128 writable
+  --- for-in enumerate ---
+  0: -12
+  1: hello
+  2: undefined
+  3: null
+  111: value 11
+  112: value 12
+  113: value 13
+  121: get 21
+  122: get 22
+  126: undefined
+  127: undefined
+  xx11: value 11
+  xx12: value 12
+  xx13: value 13
+  xx21: get 21
+  xx22: get 22
+  xx26: undefined
+  xx27: undefined
+
+
+2. Test prototype with object
+*** Prototype ***
+  0: get 0
+  1: get 1 enumerable
+  2: SHOULD_NOT_enumerate_prototype enumerable
+  3: 3
+  5: 5 enumerable
+  name: SHOULD_NOT_enumerate_prototype
+*** Object ***
+  10: get 10
+  11: get 11 enumerable
+  12: correct_original_instance enumerable
+  13: 13
+  15: 15 enumerable
+  name: correct_original_instance
+*** for in ***
+  11: get 11
+  12: correct_original_instance
+  15: 15
+  1: get 1
+  2: correct_original_instance
+  5: 5
+
+
+3. Test prototype with array
+*** Prototype ***
+  0: get 0
+  1: get 1 enumerable
+  2: SHOULD_NOT_enumerate_prototype enumerable
+  3: 3
+  5: 5 enumerable
+  name: SHOULD_NOT_enumerate_prototype
+  length: 6 writable
+*** Object ***
+  10: get 10
+  11: get 11 enumerable
+  12: correct_original_instance enumerable
+  13: 13
+  15: 15 enumerable
+  name: correct_original_instance
+*** for in ***
+  11: get 11
+  12: correct_original_instance
+  15: 15
+  1: get 1
+  2: correct_original_instance
+  5: 5
+
+
+4. Test String with String value
+  0 a
+TypeError : Object.defineProperty: argument is not an Object
+TypeError : Object.defineProperty: argument is not an Object
+  6 undefined
+TypeError : Object.defineProperty: argument is not an Object
+  --- Properties ---
+  0: a enumerable
+  1: b enumerable
+  2: c enumerable
+  3: d enumerable
+  length: 4
+  --- Enumerate ---
+TypeError : Object.defineProperty: argument is not an Object
+
+
+5. Test String with String object
+  0 a
+TypeError : Cannot modify non-writable property '1'
+TypeError : Cannot redefine non-configurable property '2'
+  6 6
+  7 7
+  --- Properties ---
+  0: a enumerable
+  1: b enumerable
+  2: c enumerable
+  3: d enumerable
+  6: 6 enumerable configurable writable
+  7: 7 enumerable
+  length: 4
+  --- Enumerate ---
+  0: a
+  1: b
+  2: c
+  3: d
+  6: 6
+  7: 7
+
+
+6. Testing forin caching when forin changes from array to Es5array
+0
+1
+2
+0
+1
+2
+8
+
+
+7. Testing RegExp Number String Boolean Object Constructor length property attributes
+value:2
+writable:false
+enumerable:false
+configurable:false
+value:1
+writable:false
+enumerable:false
+configurable:false
+value:1
+writable:false
+enumerable:false
+configurable:false
+value:1
+writable:false
+enumerable:false
+configurable:false
+value:1
+writable:false
+enumerable:false
+configurable:false

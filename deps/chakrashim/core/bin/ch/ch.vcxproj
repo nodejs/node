@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{0216C4BE-86CE-478D-A134-23EAEE545B9D}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(ChakraCoreRootDirectory)Lib\Jsrt;
+        %(AdditionalIncludeDirectories);
+        $(MSBuildThisFileDirectory);
+        $(ChakraCoreRootDirectory)Lib\Common;
+        $(ChakraCoreRootDirectory)Bin\ChakraCore;
+        $(IntDir);
+        %(AdditionalIncludeDirectories);
+      </AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <ModuleDefinitionFile>ch.def</ModuleDefinitionFile>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        oleaut32.lib;
+        ole32.lib;
+        kernel32.lib;
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ResourceCompile Include="$(MsBuildThisFileDirectory)ch.rc">
+      <AdditionalIncludeDirectories>
+        $(ChakraCoreRootDirectory)lib\common;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="chakrartinterface.h" />
+    <ClInclude Include="Helpers.h" />
+    <ClInclude Include="HostConfigFlags.h" />
+    <ClInclude Include="HostConfigFlagsList.h" />
+    <ClInclude Include="MessageQueue.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="WScriptJsrt.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ch.cpp" />
+    <ClCompile Include="chakrartinterface.cpp" />
+    <ClCompile Include="CodexAssert.cpp" />
+    <ClCompile Include="Helpers.cpp" />
+    <ClCompile Include="HostConfigFlags.cpp" />
+    <ClCompile Include="WScriptJsrt.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ChakraCore\ChakraCore.vcxproj">
+      <Project>{EA882C8D-81FC-42FE-ABD5-2666DB933FDB}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ch.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\lib\common\codex\Chakra.Common.Codex.vcxproj">
+      <Project>{1876e800-ad77-48c4-a2f7-e5265f24ac38}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

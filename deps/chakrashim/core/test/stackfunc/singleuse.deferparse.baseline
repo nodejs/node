@@ -1,0 +1,7 @@
+HasFuncDecl: test0
+HasFuncDecl: test0
+HasMaybeEscapedUse: obj1
+DoStackNestedFunc: test0 (function  (#1.1), #2)
+HasFuncAssignment: fPolyProp
+DoStackNestedFunc: Anonymous function (function  (#1.2), #4)
+RestoreHasFuncAssignment: fPolyProp

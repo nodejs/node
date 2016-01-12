@@ -1,0 +1,60 @@
+Test 1: Non-numeric, No-op
+a: 1
+b: 2
+c: 3
+a: 1
+b: 2
+c: 3
+Test 2: Numeric, No-op
+a: 1
+9: 2
+c: 3
+a: 1
+9: 2
+c: 3
+Test 3: Non-numeric, Define accessor property
+a: 1
+b: 2
+c: 3
+SETTER: 2
+a: 1
+GETTER
+b: GETTERVALUE
+c: 3
+Test 4: Numeric, Define accessor property
+a: 1
+9: 2
+c: 3
+SETTER: 2
+a: 1
+GETTER
+9: GETTERVALUE
+c: 3
+Test 5: Non-numeric, Define non-writable property
+a: 1
+b: 2
+c: 3
+a: 1
+b: NONWRITABLE
+c: 3
+Test 6: Numeric, Define non-writable property
+a: 1
+9: 2
+c: 3
+a: 1
+9: NONWRITABLE
+c: 3
+Test 7: Non-numeric, Define writable property
+a: 1
+b: 2
+c: 3
+a: 1
+b: 2
+c: 3
+Test 8: Numeric, Define writable property
+a: 1
+9: 2
+c: 3
+a: 1
+9: 2
+c: 3

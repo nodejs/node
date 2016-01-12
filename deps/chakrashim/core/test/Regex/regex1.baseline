@@ -1,0 +1,23 @@
+regex test1
+  regex.test pass
+  string.match pass
+ string.exec : a
+a.length : 1
+a[0]:
+lastIndex test 1 passed
+lastIndex test 2 passed
+lastIndex test 3 passed
+lastIndex test 4 passed
+global test 1 passed
+ignoreCase test 1 passed
+global test 2 passed
+multiline test 1 passed
+ignoreCase test 2 passed
+global test 3 passed
+multiline test 2 passed
+ignoreCase test 3 passed
+invalid flags test 1 passed
+lastIndex test 5 passed
+lastIndex test 6 passed
+lastIndex test 7 passed
+aa,a,a

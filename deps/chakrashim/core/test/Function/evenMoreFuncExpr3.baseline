@@ -1,0 +1,11 @@
+Testing object 0............
+obj[0] instanceof proto[0] : true
+obj[0] instanceof proto[1] : false
+Testing object 1............
+obj[1] instanceof proto[0] : false
+obj[1] instanceof proto[1] : true
+Checking properties .........
+obj[0].z : proto[0].z
+obj[0].w : proto[0].w
+obj[1].z : undefined
+obj[1].w : undefined

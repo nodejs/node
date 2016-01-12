@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)AgenPeeps.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IRBuilderAsmJs.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)BackEndOpcodeAttrAsmJs.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)BailOut.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CaseNode.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CodeGenWorkItem.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CodegenAllocators.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CodegenNumberAllocator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DbCheckPostLower.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)GlobOptBailout.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)GlobOptExpr.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)GlobOptFields.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)GlobOptIntBounds.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)BackEnd.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)BackwardPass.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Debug.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)EmitBuffer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Encoder.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FlowGraph.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Func.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)GlobOpt.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InductionVariable.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InlineeFrameInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InliningHeuristics.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InliningDecider.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IntBounds.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InterpreterThunkEmitter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IR.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IRBuilder.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IRViewer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IRType.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JnHelperMethod.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)LinearScan.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Lower.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)LowerMDShared.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)LowerMDSharedSimd128.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)NativeCodeData.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)NativeCodeGenerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Opnd.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PDataManager.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Peeps.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PreLowerPeeps.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PrologEncoder.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)QueuedFullJitWorkItem.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Region.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SCCLiveness.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Security.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SimpleJitProfilingHelpers.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SimpleLayout.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Sym.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SymTable.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)TempTracker.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ValueRelativeOffset.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\EncoderMD.cpp">
+      <Filter>arm</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)i386\EncoderMD.cpp">
+      <Filter>i386</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\EncoderMD.cpp">
+      <Filter>amd64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\LegalizeMD.cpp">
+      <Filter>arm</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\LinearScanMD.cpp">
+      <Filter>arm</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\LinearScanMD.cpp">
+      <Filter>amd64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)i386\LinearScanMD.cpp">
+      <Filter>i386</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)i386\LowererMDArch.cpp">
+      <Filter>i386</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\PrologEncoderMD.cpp">
+      <Filter>amd64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\LowererMDArch.cpp">
+      <Filter>amd64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm64\LowerMD.cpp">
+      <Filter>arm64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\LowerMD.cpp">
+      <Filter>arm</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\PeepsMD.cpp">
+      <Filter>amd64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)i386\PeepsMD.cpp">
+      <Filter>i386</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\PeepsMD.cpp">
+      <Filter>arm</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\UnwindInfoManager.cpp">
+      <Filter>arm</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm64\EncoderMD.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Inline.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)GlobOptSimd128.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SwitchIRBuilder.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AgenPeeps.h" />
+    <ClInclude Include="IRBuilderAsmJs.h" />
+    <ClInclude Include="BackEndOpcodeAttrAsmJs.h" />
+    <ClInclude Include="BackEndOpCodeList.h" />
+    <ClInclude Include="GlobOptIntBounds.h" />
+    <ClInclude Include="BackEnd.h" />
+    <ClInclude Include="BackwardPass.h" />
+    <ClInclude Include="BailOut.h" />
+    <ClInclude Include="BailOutKind.h" />
+    <ClInclude Include="CaseNode.h" />
+    <ClInclude Include="CodeGenAllocators.h" />
+    <ClInclude Include="CodeGenNumberAllocator.h" />
+    <ClInclude Include="CodeGenWorkItemType.h" />
+    <ClInclude Include="codegenworkitem.h" />
+    <ClInclude Include="DbCheckPostLower.h" />
+    <ClInclude Include="EmitBuffer.h" />
+    <ClInclude Include="Encoder.h" />
+    <ClInclude Include="FlowGraph.h" />
+    <ClInclude Include="Func.h" />
+    <ClInclude Include="GlobHashTable.h" />
+    <ClInclude Include="GlobOpt.h" />
+    <ClInclude Include="InductionVariable.h" />
+    <ClInclude Include="Inline.h" />
+    <ClInclude Include="InlineeFrameInfo.h" />
+    <ClInclude Include="InliningHeuristics.h" />
+    <ClInclude Include="InliningDecider.h" />
+    <ClInclude Include="IntBounds.h" />
+    <ClInclude Include="IntConstantBounds.h" />
+    <ClInclude Include="InterpreterThunkEmitter.h" />
+    <ClInclude Include="IntOverflowDoesNotMatterRange.h" />
+    <ClInclude Include="IR.h" />
+    <ClInclude Include="IRBuilder.h" />
+    <ClInclude Include="IRViewer.h" />
+    <ClInclude Include="IRType.h" />
+    <ClInclude Include="IRTypeList.h" />
+    <ClInclude Include="JnHelperMethod.h" />
+    <ClInclude Include="JnHelperMethodList.h" />
+    <ClInclude Include="Lifetime.h" />
+    <ClInclude Include="LinearScan.h" />
+    <ClInclude Include="LinearScanMDShared.h" />
+    <ClInclude Include="LowerMDShared.h" />
+    <ClInclude Include="NativeCodeData.h" />
+    <ClInclude Include="PDataManager.h" />
+    <ClInclude Include="PrologEncoder.h" />
+    <ClInclude Include="Lower.h" />
+    <ClInclude Include="NativeCodeGenerator.h" />
+    <ClInclude Include="Opnd.h" />
+    <ClInclude Include="Peeps.h" />
+    <ClInclude Include="QueuedFullJitWorkItem.h" />
+    <ClInclude Include="Region.h" />
+    <ClInclude Include="SCCLiveness.h" />
+    <ClInclude Include="Security.h" />
+    <ClInclude Include="SimpleJitProfilingHelpers.h" />
+    <ClInclude Include="SimpleLayout.h" />
+    <ClInclude Include="Sym.h" />
+    <ClInclude Include="SymTable.h" />
+    <ClInclude Include="TempTracker.h" />
+    <ClInclude Include="ValueRelativeOffset.h" />
+    <ClInclude Include="arm\ARMEncode.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\ARMEncode.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\AssemblyStep.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\EncoderMD.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\EncoderMD.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\EncoderMD.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\EncoderMD.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\LegalizeMD.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\MdOpcodes.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\X64Encode.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\RegList.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\LinearScanMD.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\LowererMDArch.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\PrologEncoderMD.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\md.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\LinearScanMD.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\LinearScanMD.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\LinearScanMD.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\LowerMD.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\LowererMDArch.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\MdOpcodes.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\LowerMD.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\md.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\md.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\MdOpcodes.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\md.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\RegList.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\PeepsMD.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\Reg.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\RegList.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\X86Encode.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\MdOpcodes.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\PeepsMD.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\PeepsMD.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\PeepsMD.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\Reg.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\Reg.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\Reg.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\RegList.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\UnwindCodes.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\UnwindCodes.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="arm64\UnwindInfoManager.h">
+      <Filter>arm64</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\UnwindInfoManager.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="IRBaseTypeList.h" />
+    <ClInclude Include="SwitchIRBuilder.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="$(MSBuildThisFileDirectory)amd64\LinearScanMdA.asm">
+      <Filter>amd64</Filter>
+    </MASM>
+    <MASM Include="$(MSBuildThisFileDirectory)amd64\Thunks.asm">
+      <Filter>amd64</Filter>
+    </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="IR.inl" />
+    <None Include="Opnd.inl" />
+    <None Include="Sym.inl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="arm">
+      <UniqueIdentifier>{ddab7816-e35a-4dd5-9512-db82e2153113}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="arm64">
+      <UniqueIdentifier>{4d6939f5-cbe4-4baa-a646-7aa81e51ffff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="amd64">
+      <UniqueIdentifier>{3844196d-292e-423d-b261-cdb6b14c2134}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="i386">
+      <UniqueIdentifier>{125f23d6-b617-4591-a9f1-930443613748}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\LinearScanMdA.asm">
+      <Filter>arm</Filter>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\Thunks.asm">
+      <Filter>arm64</Filter>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\Thunks.asm">
+      <Filter>arm</Filter>
+    </ARMASM>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,145 @@
+true
+true
+Test1 : 30
+PASSED : Test1 exp: 30 act : 30
+Test2 arguments[0] : 100
+PASSED : Test2 arguments[0] exp: 100 act : 100
+Test2 arguments[1] : 200
+PASSED : Test2 arguments[1] exp: 200 act : 200
+Test2 a : 300
+PASSED : Test2 a exp: 300 act : 300
+Test2 b : 400
+PASSED : Test2 b exp: 400 act : 400
+Test2 : 1400
+PASSED : Test2 exp: 1400 act : 1400
+Test3 : 0
+PASSED : Test3 exp: 0 act : 0
+Test4 : 0
+PASSED : Test4 exp: 0 act : 0
+Test5 1 : 2
+PASSED : Test5 1 exp: 2 act : 2
+Test5 2 : 2
+PASSED : Test5 2 exp: 2 act : 2
+Test5 3 : 3
+PASSED : Test5 3 exp: 3 act : 3
+Test6 1 : 1
+PASSED : Test6 1 exp: 1 act : 1
+Test6 2 : 2
+PASSED : Test6 2 exp: 2 act : 2
+Test6 3 : 3
+PASSED : Test6 3 exp: 3 act : 3
+Test7 : 0
+PASSED : Test7 exp: 0 act : 0
+Test7 : 2
+PASSED : Test7 exp: 2 act : 2
+Test8 : 5
+Test8 : 4
+Test8 : 3
+Test8 : 2
+Test8 : 1
+Test8 : 0
+Test8 : 5
+PASSED : Test8 exp: 5 act : 5
+true
+undefined undefined 0
+undefined undefined test
+false
+true
+Test9 : test
+PASSED : Test9 exp: test act : test
+true
+10 undefined 1
+10 undefined test
+true
+true
+Test9 : test
+PASSED : Test9 exp: test act : test
+true
+10 20 2
+10 20 test
+true
+true
+Test9 : test
+PASSED : Test9 exp: test act : test
+true
+10 20 3
+10 20 test
+true
+true
+Test9 : test
+PASSED : Test9 exp: test act : test
+Test10.1 : []
+PASSED : Test10.1 exp: [] act : []
+Test10.1 : [0: 13]
+PASSED : Test10.1 exp: [0: 13] act : [0: 13]
+Test10.1 : [0: 13, 1: 24]
+PASSED : Test10.1 exp: [0: 13, 1: 24] act : [0: 13, 1: 24]
+Test10.1 : [0: 13, 1: 24, 2: string, 3: true]
+PASSED : Test10.1 exp: [0: 13, 1: 24, 2: string, 3: true] act : [0: 13, 1: 24, 2: string, 3: true]
+Test10.2 : [0: 98, 8: false, 10: 21, foo: bar]
+PASSED : Test10.2 exp: [0: 98, 8: false, 10: 21, foo: bar] act : [0: 98, 8: false, 10: 21, foo: bar]
+Test10.2 : [0: 98, 8: false, 10: 21, foo: bar]
+PASSED : Test10.2 exp: [0: 98, 8: false, 10: 21, foo: bar] act : [0: 98, 8: false, 10: 21, foo: bar]
+Test10.2 : [0: 98, 1: 54, 8: false, 10: 21, foo: bar]
+PASSED : Test10.2 exp: [0: 98, 1: 54, 8: false, 10: 21, foo: bar] act : [0: 98, 1: 54, 8: false, 10: 21, foo: bar]
+Test10.2 : [0: 98, 1: 54, 2: string, 3: true, 8: false, 10: 21, foo: bar]
+PASSED : Test10.2 exp: [0: 98, 1: 54, 2: string, 3: true, 8: false, 10: 21, foo: bar] act : [0: 98, 1: 54, 2: string, 3: true, 8: false, 10: 21, foo: bar]
+Test10.3.1 : []
+PASSED : Test10.3.1 exp: [] act : []
+Test10.3.2 : [1: arg1, 2: arg2, 6: arg6, foo: bar]
+PASSED : Test10.3.2 exp: [1: arg1, 2: arg2, 6: arg6, foo: bar] act : [1: arg1, 2: arg2, 6: arg6, foo: bar]
+Test10.3.1 : [0: 13]
+PASSED : Test10.3.1 exp: [0: 13] act : [0: 13]
+Test10.3.2 : [0: 13, 1: arg1, 2: arg2, 6: arg6, foo: bar]
+PASSED : Test10.3.2 exp: [0: 13, 1: arg1, 2: arg2, 6: arg6, foo: bar] act : [0: 13, 1: arg1, 2: arg2, 6: arg6, foo: bar]
+Test10.3.1 : [0: 13]
+PASSED : Test10.3.1 exp: [0: 13] act : [0: 13]
+Test10.3.2 : [0: 13, 1: arg1, 2: arg2, 6: arg6, foo: bar]
+PASSED : Test10.3.2 exp: [0: 13, 1: arg1, 2: arg2, 6: arg6, foo: bar] act : [0: 13, 1: arg1, 2: arg2, 6: arg6, foo: bar]
+Test10.3.1 : [0: 13, 2: string]
+PASSED : Test10.3.1 exp: [0: 13, 2: string] act : [0: 13, 2: string]
+Test10.3.2 : [0: 13, 2: arg2, 1: arg1, 6: arg6, foo: bar]
+PASSED : Test10.3.2 exp: [0: 13, 2: arg2, 1: arg1, 6: arg6, foo: bar] act : [0: 13, 2: arg2, 1: arg1, 6: arg6, foo: bar]
+Test11 args : sentinel
+PASSED : Test11 args exp: sentinel act : sentinel
+Test12 args : sentinel
+PASSED : Test12 args exp: sentinel act : sentinel
+Test13 args : sentinel
+PASSED : Test13 args exp: sentinel act : sentinel
+
+-------Testing built-in callee Implementation----
+HasOwnProperty() test : true
+PASSED : HasOwnProperty() test exp: true act : true
+IsEnumerable() test : false
+PASSED : IsEnumerable() test exp: false act : false
+Overriding value test : 40
+PASSED : Overriding value test exp: 40 act : 40
+HasOwnProperty() after deletion test : false
+PASSED : HasOwnProperty() after deletion test exp: false act : false
+Value after deletion test : undefined
+PASSED : Value after deletion test exp: undefined act : undefined
+
+-------Testing built-in length Implementation----
+HasOwnProperty() test : true
+PASSED : HasOwnProperty() test exp: true act : true
+IsEnumerable() test : false
+PASSED : IsEnumerable() test exp: false act : false
+Overriding value test : 40
+PASSED : Overriding value test exp: 40 act : 40
+HasOwnProperty() after deletion test : false
+PASSED : HasOwnProperty() after deletion test exp: false act : false
+Value after deletion test : undefined
+PASSED : Value after deletion test exp: undefined act : undefined
+Test15 : 2
+PASSED : Test15 exp: 2 act : 2
+Test16 : 3
+PASSED : Test16 exp: 3 act : 3
+Test17.1 : 1
+PASSED : Test17.1 exp: 1 act : 1
+Test17.2 : Feb20
+PASSED : Test17.2 exp: Feb20 act : Feb20
+Test18.1 : undefined
+PASSED : Test18.1 exp: undefined act : undefined
+Test18.2 : Test 18 Value
+PASSED : Test18.2 exp: Test 18 Value act : Test 18 Value
+test19 called

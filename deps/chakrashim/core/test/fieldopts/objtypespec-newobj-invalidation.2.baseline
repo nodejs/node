@@ -1,0 +1,45 @@
+Test 1:
+{ p: 10, q: undefined, x: 0 }
+{ p: 10, q: undefined, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+{ p: undefined, q: 11, x: 0 }
+
+Test 2:
+{ p: 10, q: undefined, x: 0 }
+{ p: 10, q: undefined, x: 0 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+{ p: 10, q: undefined, x: 12 }
+
+Test 3:
+{ p: 10, q: undefined, x: 0, y: 1 }
+{ p: 10, q: undefined, x: 0, y: 1 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+{ p: 10, q: undefined, x: 0, y: 12 }
+

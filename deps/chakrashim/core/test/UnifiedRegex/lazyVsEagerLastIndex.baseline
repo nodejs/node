@@ -1,0 +1,17 @@
+Case 0: valid toString, indirect
+About to set
+About to exec
+About to get
+r.lastInddex = 11
+Case 1: valueOf, indirect
+About to set
+About to exec
+Caught exception: THROWN!
+Case 2: toString, indirect
+About to set
+About to exec
+Caught exception: THROWN!
+Case 3: toString, direct
+About to set
+About to exec
+Caught exception: THROWN!

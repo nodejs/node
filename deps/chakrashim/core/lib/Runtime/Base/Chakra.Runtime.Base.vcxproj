@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Runtime.Base</TargetName>
+    <ProjectGuid>{706083F7-6AA4-4558-A153-6352EF9110EE}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        $(MSBuildThisFileDirectory)..\..\Common;
+        $(MSBuildThisFileDirectory)..\..\Parser;
+        $(MSBuildThisFileDirectory)..\..\Backend;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>RuntimeBasePch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)CallInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CharStringCache.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Constants.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CrossSite.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Debug.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DelayLoadLibrary.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Entropy.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)EtwTrace.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Exception.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ExpirableObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FunctionBody.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FunctionInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)HiResTimer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)LeaveScriptObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PerfHint.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PropertyRecord.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ScriptContext.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ScriptContextProfiler.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ScriptContextOptimizationOverrideInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SourceHolder.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ScriptMemoryDumper.cpp" />    
+    <ClCompile Include="$(MSBuildThisFileDirectory)StackProber.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)TestEtwEventSink.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)TempArenaAllocatorObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ThreadBoundThreadContextManager.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ThreadContext.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ThreadContextTLSEntry.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ThreadServiceWrapperBase.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Utf8SourceInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)WindowsFoundationAdapter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)WindowsGlobalizationAdapter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RuntimeBasePch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="RuntimeBasePch.h" />
+    <ClInclude Include="CallInfo.h" />
+    <ClInclude Include="CharStringCache.h" />
+    <ClInclude Include="Constants.h" />
+    <ClInclude Include="CrossSite.h" />
+    <ClInclude Include="CrossSiteEnumerator.h" />
+    <ClInclude Include="CrossSiteObject.h" />
+    <ClInclude Include="Debug.h" />
+    <ClInclude Include="DelayLoadLibrary.h" />
+    <ClInclude Include="Entropy.h" />
+    <ClInclude Include="EtwTrace.h" />
+    <ClInclude Include="Exception.h" />
+    <ClInclude Include="ExpirableObject.h" />
+    <ClInclude Include="FunctionBody.h" />
+    <ClInclude Include="FunctionInfo.h" />
+    <ClInclude Include="HiResTimer.h" />
+    <ClInclude Include="JnDirectFields.h" />
+    <ClInclude Include="LeaveScriptObject.h" />
+    <ClInclude Include="PerfHint.h" />
+    <ClInclude Include="PerfHintDescriptions.h" />
+    <ClInclude Include="PropertyRecord.h" />
+    <ClInclude Include="RegexPatternMruMap.h" />
+    <ClInclude Include="ScriptContext.h" />
+    <ClInclude Include="ScriptContextBase.h" />
+    <ClInclude Include="ScriptContextOptimizationOverrideInfo.h" />
+    <ClInclude Include="ScriptContextProfiler.h" />
+    <ClInclude Include="ScriptMemoryDumper.h" />
+    <ClInclude Include="SourceHolder.h" />
+    <ClInclude Include="StackProber.h" />
+    <ClInclude Include="TempArenaAllocatorObject.h" />
+    <ClInclude Include="TestEtwEventSink.h" />
+    <ClInclude Include="ThreadBoundThreadContextManager.h" />
+    <ClInclude Include="ThreadContext.h" />
+    <ClInclude Include="ThreadContextTLSEntry.h" />
+    <ClInclude Include="ThreadServiceWrapper.h" />
+    <ClInclude Include="ThreadServiceWrapperBase.h" />
+    <ClInclude Include="Utf8SourceInfo.h" />
+    <ClInclude Include="WindowsFoundationAdapter.h" />
+    <ClInclude Include="WindowsGlobalizationAdapter.h" />
+    <None Include="ScriptContext.inl" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')"/>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

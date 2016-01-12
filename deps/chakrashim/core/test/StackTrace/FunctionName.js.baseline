@@ -1,0 +1,8 @@
+Error: My Error!
+	at foo (functionname.js:24:9)
+	at func (functionname.js:28:9)
+	at Function code (Function code:1:1)
+	at eval code (eval code:1:1)
+	at Anonymous function (functionname.js:35:13)
+	at bar (functionname.js:34:10)
+	at Global code (functionname.js:39:5)

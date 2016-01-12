@@ -1,0 +1,6 @@
+Changing Arguments...
+Return: function f0() { arguments=1; } :: Assign to Arguments
+Return: function f1() { arguments++; } :: Post ++   Arguments
+Return: function f2() { arguments--; } :: Post --   Arguments
+Return: function f3() { ++arguments; } :: Pre  ++   Arguments
+Return: function f4() { --arguments; } :: Pre  --   Arguments

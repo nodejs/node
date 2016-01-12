@@ -1,0 +1,37 @@
+//-------------------------------------------------------------------------------------------------------
+// Copyright (C) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
+//-------------------------------------------------------------------------------------------------------
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE
+BEGIN
+        #include <rterrors_limits.h>
+
+        #define RT_ERROR_MSG(name, errnum, str1, str2, jst, errorNumSource) errnum str2
+        #define RT_PUBLICERROR_MSG(name, errnum, str1, str2, jst, errorNumSource) errnum+RTERROR_PUBLIC_RESOURCEOFFSET str2
+        #include <rterrors.h>
+        #undef RT_PUBLICERROR_MSG
+        #undef RT_ERROR_MSG
+
+        #define RT_ERROR_MSG(name, errnum, str1, str2, jst, errorNumSource) errnum+RTERROR_STRINGFORMAT_OFFSET str1
+        #define RT_PUBLICERROR_MSG(name, errnum, str1, str2, jst, errorNumSource) errnum+RTERROR_STRINGFORMAT_OFFSET+RTERROR_PUBLIC_RESOURCEOFFSET str1
+        #include <rterrors.h>
+        #undef RT_PUBLICERROR_MSG
+        #undef RT_ERROR_MSG
+
+        #define LSC_ERROR_MSG(errnum, name, str) errnum str
+        #include <perrors.h>
+        #undef LSC_ERROR_MSG
+
+        IDS_COMPILATION_ERROR_SOURCE    "JavaScript compilation error"
+        IDS_RUNTIME_ERROR_SOURCE        "JavaScript runtime error"
+        IDS_UNKNOWN_RUNTIME_ERROR       "Unknown runtime error"
+
+        IDS_INFINITY                    "Infinity"
+        IDS_MINUSINFINITY               "-Infinity"
+END

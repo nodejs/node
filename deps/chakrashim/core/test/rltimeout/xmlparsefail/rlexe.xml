@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+<!--
+  <test>
+    <default>
+      <!- - should fail fast because timeout is invalid - ->
+      <files>irrelevant.js</files>
+      <timeout>asdf</timeout>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <!- - should fail fast because timeout is invalid - ->
+      <files>irrelevant.js</files>
+      <timeout>1234abc</timeout>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <!- - should fail fast because timeout is invalid (strtoul base is specified to be 10) - ->
+      <files>irrelevant.js</files>
+      <timeout>0x1234</timeout>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <!- - should fail fast because timeout is too large (overflows DWORD when converted to milliseconds) - ->
+      <files>irrelevant.js</files>
+      <timeout>5000000</timeout>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+-->
+</regress-exe>

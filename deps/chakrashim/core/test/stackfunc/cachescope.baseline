@@ -1,0 +1,12 @@
+HasFuncDecl: test0
+HasFuncDecl: _array2iterate
+HasMaybeEscapedUse: _array2i
+HasMaybeEscapedUse: arguments
+HasMaybeEscapedUse: obj2
+HasMaybeEscapedNestedFunc (Child): func2 (function  (#1.2), #3)
+HasMaybeEscapedUse: obj1
+HasMaybeEscapedUse: obj0
+HasMaybeEscapedNestedFunc (Child): test0 (function  (#1.1), #2)
+HasFuncAssignment: func2
+HasMaybeEscapedUse: func2
+HasMaybeEscapedNestedFunc (ObjectScope): _array2iterate (function  (#1.3), #4)

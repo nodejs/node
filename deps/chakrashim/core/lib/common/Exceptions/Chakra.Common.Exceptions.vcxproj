@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Common.Exceptions</TargetName>
+    <ProjectGuid>{FD8EEC40-4141-448A-BF4B-1589FBE4F60D}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>CommonExceptionsPch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)ExceptionCheck.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)reporterror.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ExceptionBase.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CommonExceptionsPch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)Throw.cpp">
+      <AdditionalIncludeDirectories>..\..\lib\runtime;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AsmJsParseException.h" />
+    <ClInclude Include="CommonExceptionsPch.h" />
+    <ClInclude Include="EvalDisabledException.h" />
+    <ClInclude Include="ExceptionBase.h" />
+    <ClInclude Include="ExceptionCheck.h" />
+    <ClInclude Include="InternalErrorException.h" />
+    <ClInclude Include="NotImplementedException.h" />
+    <ClInclude Include="OperationAbortedException.h" />
+    <ClInclude Include="OutOfMemoryException.h" />
+    <ClInclude Include="RejitException.h" />
+    <ClInclude Include="reporterror.h" />
+    <ClInclude Include="ScriptAbortException.h" />
+    <ClInclude Include="StackOverflowException.h" />
+    <ClInclude Include="Throw.h" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

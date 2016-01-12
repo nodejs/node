@@ -1,0 +1,3 @@
+ReferenceError: 'obj0' is undefined
+	at Anonymous function() (fieldhoist_negzero.js:9:28)
+	at Global code (fieldhoist_negzero.js:7:2)

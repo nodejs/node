@@ -1,0 +1,651 @@
+new Object() instanceof Object : true
+new Object() instanceof Function : false
+new Object() instanceof Array : false
+new Object() instanceof String : false
+new Object() instanceof Number : false
+new Object() instanceof Boolean : false
+new Object() instanceof Date : false
+new Object() instanceof RegExp : false
+new Object() instanceof foo : false
+new Object() instanceof bar : false
+f instanceof Object : true
+f instanceof Function : false
+f instanceof Array : false
+f instanceof String : false
+f instanceof Number : false
+f instanceof Boolean : false
+f instanceof Date : false
+f instanceof RegExp : false
+f instanceof foo : true
+f instanceof bar : false
+b instanceof Object : true
+b instanceof Function : false
+b instanceof Array : false
+b instanceof String : false
+b instanceof Number : false
+b instanceof Boolean : false
+b instanceof Date : false
+b instanceof RegExp : false
+b instanceof foo : false
+b instanceof bar : true
+foo instanceof Object : true
+foo instanceof Function : true
+foo instanceof Array : false
+foo instanceof String : false
+foo instanceof Number : false
+foo instanceof Boolean : false
+foo instanceof Date : false
+foo instanceof RegExp : false
+foo instanceof foo : false
+foo instanceof bar : false
+String.fromCharCode instanceof Object : true
+String.fromCharCode instanceof Function : true
+String.fromCharCode instanceof Array : false
+String.fromCharCode instanceof String : false
+String.fromCharCode instanceof Number : false
+String.fromCharCode instanceof Boolean : false
+String.fromCharCode instanceof Date : false
+String.fromCharCode instanceof RegExp : false
+String.fromCharCode instanceof foo : false
+String.fromCharCode instanceof bar : false
+Array.prototype.concat instanceof Object : true
+Array.prototype.concat instanceof Function : true
+Array.prototype.concat instanceof Array : false
+Array.prototype.concat instanceof String : false
+Array.prototype.concat instanceof Number : false
+Array.prototype.concat instanceof Boolean : false
+Array.prototype.concat instanceof Date : false
+Array.prototype.concat instanceof RegExp : false
+Array.prototype.concat instanceof foo : false
+Array.prototype.concat instanceof bar : false
+[1,2,3] instanceof Object : true
+[1,2,3] instanceof Function : false
+[1,2,3] instanceof Array : true
+[1,2,3] instanceof String : false
+[1,2,3] instanceof Number : false
+[1,2,3] instanceof Boolean : false
+[1,2,3] instanceof Date : false
+[1,2,3] instanceof RegExp : false
+[1,2,3] instanceof foo : false
+[1,2,3] instanceof bar : false
+new Array() instanceof Object : true
+new Array() instanceof Function : false
+new Array() instanceof Array : true
+new Array() instanceof String : false
+new Array() instanceof Number : false
+new Array() instanceof Boolean : false
+new Array() instanceof Date : false
+new Array() instanceof RegExp : false
+new Array() instanceof foo : false
+new Array() instanceof bar : false
+fncs instanceof Object : true
+fncs instanceof Function : false
+fncs instanceof Array : true
+fncs instanceof String : false
+fncs instanceof Number : false
+fncs instanceof Boolean : false
+fncs instanceof Date : false
+fncs instanceof RegExp : false
+fncs instanceof foo : false
+fncs instanceof bar : false
+'hello' instanceof Object : false
+'hello' instanceof Function : false
+'hello' instanceof Array : false
+'hello' instanceof String : false
+'hello' instanceof Number : false
+'hello' instanceof Boolean : false
+'hello' instanceof Date : false
+'hello' instanceof RegExp : false
+'hello' instanceof foo : false
+'hello' instanceof bar : false
+new String('world') instanceof Object : true
+new String('world') instanceof Function : false
+new String('world') instanceof Array : false
+new String('world') instanceof String : true
+new String('world') instanceof Number : false
+new String('world') instanceof Boolean : false
+new String('world') instanceof Date : false
+new String('world') instanceof RegExp : false
+new String('world') instanceof foo : false
+new String('world') instanceof bar : false
+10 instanceof Object : false
+10 instanceof Function : false
+10 instanceof Array : false
+10 instanceof String : false
+10 instanceof Number : false
+10 instanceof Boolean : false
+10 instanceof Date : false
+10 instanceof RegExp : false
+10 instanceof foo : false
+10 instanceof bar : false
+10.2 instanceof Object : false
+10.2 instanceof Function : false
+10.2 instanceof Array : false
+10.2 instanceof String : false
+10.2 instanceof Number : false
+10.2 instanceof Boolean : false
+10.2 instanceof Date : false
+10.2 instanceof RegExp : false
+10.2 instanceof foo : false
+10.2 instanceof bar : false
+NaN instanceof Object : false
+NaN instanceof Function : false
+NaN instanceof Array : false
+NaN instanceof String : false
+NaN instanceof Number : false
+NaN instanceof Boolean : false
+NaN instanceof Date : false
+NaN instanceof RegExp : false
+NaN instanceof foo : false
+NaN instanceof bar : false
+new Number(3) instanceof Object : true
+new Number(3) instanceof Function : false
+new Number(3) instanceof Array : false
+new Number(3) instanceof String : false
+new Number(3) instanceof Number : true
+new Number(3) instanceof Boolean : false
+new Number(3) instanceof Date : false
+new Number(3) instanceof RegExp : false
+new Number(3) instanceof foo : false
+new Number(3) instanceof bar : false
+true instanceof Object : false
+true instanceof Function : false
+true instanceof Array : false
+true instanceof String : false
+true instanceof Number : false
+true instanceof Boolean : false
+true instanceof Date : false
+true instanceof RegExp : false
+true instanceof foo : false
+true instanceof bar : false
+false instanceof Object : false
+false instanceof Function : false
+false instanceof Array : false
+false instanceof String : false
+false instanceof Number : false
+false instanceof Boolean : false
+false instanceof Date : false
+false instanceof RegExp : false
+false instanceof foo : false
+false instanceof bar : false
+new Boolean(true) instanceof Object : true
+new Boolean(true) instanceof Function : false
+new Boolean(true) instanceof Array : false
+new Boolean(true) instanceof String : false
+new Boolean(true) instanceof Number : false
+new Boolean(true) instanceof Boolean : true
+new Boolean(true) instanceof Date : false
+new Boolean(true) instanceof RegExp : false
+new Boolean(true) instanceof foo : false
+new Boolean(true) instanceof bar : false
+new Boolean(false) instanceof Object : true
+new Boolean(false) instanceof Function : false
+new Boolean(false) instanceof Array : false
+new Boolean(false) instanceof String : false
+new Boolean(false) instanceof Number : false
+new Boolean(false) instanceof Boolean : true
+new Boolean(false) instanceof Date : false
+new Boolean(false) instanceof RegExp : false
+new Boolean(false) instanceof foo : false
+new Boolean(false) instanceof bar : false
+new Date() instanceof Object : true
+new Date() instanceof Function : false
+new Date() instanceof Array : false
+new Date() instanceof String : false
+new Date() instanceof Number : false
+new Date() instanceof Boolean : false
+new Date() instanceof Date : true
+new Date() instanceof RegExp : false
+new Date() instanceof foo : false
+new Date() instanceof bar : false
+/a+/ instanceof Object : true
+/a+/ instanceof Function : false
+/a+/ instanceof Array : false
+/a+/ instanceof String : false
+/a+/ instanceof Number : false
+/a+/ instanceof Boolean : false
+/a+/ instanceof Date : false
+/a+/ instanceof RegExp : true
+/a+/ instanceof foo : false
+/a+/ instanceof bar : false
+ Exception: new Object() instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof b. Invalid operand to 'instanceof': Function expected
+new Object() instanceof foo : false
+ Exception: new Object() instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: new Object() instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: new Object() instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: new Object() instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof b. Invalid operand to 'instanceof': Function expected
+f instanceof foo : true
+ Exception: f instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: f instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: f instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: f instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof b. Invalid operand to 'instanceof': Function expected
+b instanceof foo : false
+ Exception: b instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: b instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: b instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: b instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof b. Invalid operand to 'instanceof': Function expected
+foo instanceof foo : false
+ Exception: foo instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: foo instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: foo instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: foo instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof b. Invalid operand to 'instanceof': Function expected
+String.fromCharCode instanceof foo : false
+ Exception: String.fromCharCode instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: String.fromCharCode instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: String.fromCharCode instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: String.fromCharCode instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof b. Invalid operand to 'instanceof': Function expected
+Array.prototype.concat instanceof foo : false
+ Exception: Array.prototype.concat instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: Array.prototype.concat instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: Array.prototype.concat instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: Array.prototype.concat instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof b. Invalid operand to 'instanceof': Function expected
+[1,2,3] instanceof foo : false
+ Exception: [1,2,3] instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: [1,2,3] instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: [1,2,3] instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: [1,2,3] instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof b. Invalid operand to 'instanceof': Function expected
+new Array() instanceof foo : false
+ Exception: new Array() instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: new Array() instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: new Array() instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: new Array() instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof b. Invalid operand to 'instanceof': Function expected
+fncs instanceof foo : false
+ Exception: fncs instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: fncs instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: fncs instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: fncs instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof b. Invalid operand to 'instanceof': Function expected
+'hello' instanceof foo : false
+'hello' instanceof String.fromCharCode : false
+'hello' instanceof Array.prototype.concat : false
+ Exception: 'hello' instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: 'hello' instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof b. Invalid operand to 'instanceof': Function expected
+new String('world') instanceof foo : false
+ Exception: new String('world') instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: new String('world') instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: new String('world') instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: new String('world') instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof b. Invalid operand to 'instanceof': Function expected
+10 instanceof foo : false
+10 instanceof String.fromCharCode : false
+10 instanceof Array.prototype.concat : false
+ Exception: 10 instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: 10 instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof b. Invalid operand to 'instanceof': Function expected
+10.2 instanceof foo : false
+10.2 instanceof String.fromCharCode : false
+10.2 instanceof Array.prototype.concat : false
+ Exception: 10.2 instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: 10.2 instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof b. Invalid operand to 'instanceof': Function expected
+NaN instanceof foo : false
+NaN instanceof String.fromCharCode : false
+NaN instanceof Array.prototype.concat : false
+ Exception: NaN instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: NaN instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof b. Invalid operand to 'instanceof': Function expected
+new Number(3) instanceof foo : false
+ Exception: new Number(3) instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: new Number(3) instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: new Number(3) instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: new Number(3) instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof b. Invalid operand to 'instanceof': Function expected
+true instanceof foo : false
+true instanceof String.fromCharCode : false
+true instanceof Array.prototype.concat : false
+ Exception: true instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: true instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof b. Invalid operand to 'instanceof': Function expected
+false instanceof foo : false
+false instanceof String.fromCharCode : false
+false instanceof Array.prototype.concat : false
+ Exception: false instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: false instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof b. Invalid operand to 'instanceof': Function expected
+new Boolean(true) instanceof foo : false
+ Exception: new Boolean(true) instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: new Boolean(true) instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: new Boolean(true) instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(true) instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof b. Invalid operand to 'instanceof': Function expected
+new Boolean(false) instanceof foo : false
+ Exception: new Boolean(false) instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: new Boolean(false) instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: new Boolean(false) instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: new Boolean(false) instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof b. Invalid operand to 'instanceof': Function expected
+new Date() instanceof foo : false
+ Exception: new Date() instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: new Date() instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: new Date() instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: new Date() instanceof /a+/. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof new Object(). Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof f. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof b. Invalid operand to 'instanceof': Function expected
+/a+/ instanceof foo : false
+ Exception: /a+/ instanceof String.fromCharCode. Function does not have a valid prototype object
+ Exception: /a+/ instanceof Array.prototype.concat. Function does not have a valid prototype object
+ Exception: /a+/ instanceof [1,2,3]. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof new Array(). Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof fncs. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof 'hello'. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof new String('world'). Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof 10. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof 10.2. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof NaN. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof new Number(3). Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof true. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof false. Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof new Boolean(true). Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof new Boolean(false). Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof new Date(). Invalid operand to 'instanceof': Function expected
+ Exception: /a+/ instanceof /a+/. Invalid operand to 'instanceof': Function expected

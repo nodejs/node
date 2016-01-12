@@ -1,0 +1,104 @@
+--- f is not callable ---
+Exception: TypeError : Function.prototype.apply: 'this' is not a Function object
+Exception: TypeError : Function.prototype.apply: 'this' is not a Function object
+
+--- f.apply(x) ---
+Called with this: object[[object Object]], args: []
+
+--- f.apply(x, null), f.apply(x, undefined) ---
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: []
+
+--- f.apply(x, 123), f.apply(x, 'string'), f.apply(x, true) ---
+Exception: TypeError : Function.prototype.apply: argument is not an Object
+Exception: TypeError : Function.prototype.apply: argument is not an Object
+Exception: TypeError : Function.prototype.apply: argument is not an Object
+
+--- f.apply(x, obj), obj.length is null/undefined/NaN/string/OutOfRange ---
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: []
+Exception: RangeError : Argument list too large to apply
+Called with this: object[[object Object]], args: []
+
+--- f.apply(x, arr), arr.length is huge ---
+Exception: RangeError : Argument list too large to apply
+
+--- f.apply(x, obj), obj.length is huge ---
+Exception: RangeError : Argument list too large to apply
+
+--- f.apply(x, arr) ---
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: [1]
+Called with this: object[[object Object]], args: [2, 3, NaN, null, undefined, false, hello, [object Object]]
+
+--- f.apply(x, arr) arr.length increased ---
+Called with this: object[[object Object]], args: [1, 2, undefined, undefined, undefined]
+
+--- f.apply(x, arguments) ---
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: [1]
+Called with this: object[[object Object]], args: [2, 3, NaN, null, undefined, false, hello, [object Object]]
+
+--- f.apply(x, obj) ---
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: [1]
+Called with this: object[[object Object]], args: [2, 3, NaN, null, undefined, false, hello, [object Object]]
+
+--- f.apply(), f.apply(null), f.apply(undefined), global x1 should be changed ---
+global x1 : hello
+global x1 : hello
+global x1 : hello
+
+--- f.apply(x), global x1 should NOT be changed ---
+global x1 : 0
+o.x1 : hello
+
+--- f.apply(v), v is missing/null/undefined/123/true/'string' ---
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: []
+Called with this: object[123], args: []
+Called with this: object[true], args: []
+Called with this: object[string], args: []
+
+--- f.apply(v), v is missing/null/undefined/123/true/'string', f: string.charCodeAt ---
+Exception: TypeError : String.prototype.charCodeAt: 'this' is null or undefined
+Exception: TypeError : String.prototype.charCodeAt: 'this' is null or undefined
+Exception: TypeError : String.prototype.charCodeAt: 'this' is null or undefined
+49
+116
+115
+
+--- f.apply(v), v is missing/null/undefined/123/true/'string', f: string.charAt ---
+Exception: TypeError : String.prototype.charAt: 'this' is null or undefined
+Exception: TypeError : String.prototype.charAt: 'this' is null or undefined
+Exception: TypeError : String.prototype.charAt: 'this' is null or undefined
+1
+t
+s
+
+--- f.call(v), v is missing/null/undefined/123/true/'string' ---
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: []
+Called with this: object[[object Object]], args: []
+Called with this: object[123], args: []
+Called with this: object[true], args: []
+Called with this: object[string], args: []
+
+--- f.call(v), v is missing/null/undefined/123/true/'string', f: string.charCodeAt ---
+Exception: TypeError : String.prototype.charCodeAt: 'this' is null or undefined
+Exception: TypeError : String.prototype.charCodeAt: 'this' is null or undefined
+Exception: TypeError : String.prototype.charCodeAt: 'this' is null or undefined
+49
+116
+115
+
+--- f.call(v), v is missing/null/undefined/123/true/'string', f: string.charAt ---
+Exception: TypeError : String.prototype.charAt: 'this' is null or undefined
+Exception: TypeError : String.prototype.charAt: 'this' is null or undefined
+Exception: TypeError : String.prototype.charAt: 'this' is null or undefined
+1
+t
+s

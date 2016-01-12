@@ -1,0 +1,24 @@
+exec(/.*(aaa.*aaa)/ /*lastIndex=0*/ , "aaaaaa");
+["aaaaaa","aaaaaa"] /*input="aaaaaa", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaaaaa","aaaaaa","","","","","","","",""]
+exec(/.*a(.*aaa.*)a.*/ /*lastIndex=0*/ , "aaaaa");
+["aaaaa","aaa"] /*input="aaaaa", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaaaa","aaa","","","","","","","",""]
+exec(/.*(\.facebook\..*)/ /*lastIndex=0*/ , "www.facebook.com");
+["www.facebook.com",".facebook.com"] /*input="www.facebook.com", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["www.facebook.com",".facebook.com","","","","","","","",""]
+exec(/.*(aamber aamber aamber)/ /*lastIndex=0*/ , "aamber aamber aamber.");
+["aamber aamber aamber","aamber aamber aamber"] /*input="aamber aamber aamber.", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aamber aamber aamber.","aamber aamber aamber","","","","","","","",""]
+exec(/.*(this (is this is) this)/ /*lastIndex=0*/ , "this is this is this");
+["this is this is this","this is this is this","is this is"] /*input="this is this is this", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["this is this is this","this is this is this","is this is","","","","","","",""]
+exec(/.*(this is top tier toy)/ /*lastIndex=0*/ , "this is top tier toy");
+["this is top tier toy","this is top tier toy"] /*input="this is top tier toy", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["this is top tier toy","this is top tier toy","","","","","","","",""]

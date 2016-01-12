@@ -1,0 +1,6 @@
+Only function code is in strict mode
+2
+SyntaxError: Octal numeric literals and escape characters not allowed in strict mode
+yield okay
+SyntaxError: Syntax error
+SyntaxError: 'with' statements are not allowed in strict mode

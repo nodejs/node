@@ -1,0 +1,38 @@
+Expando_In_Eval_Ok
+test: isNaN(Number.NaN) : true
+test: isNaN(123) : false
+Expando_In_IsNaN_Ok
+test: isFinite(Number.POSITIVE_INFINITY) : false
+test: isFinite(123) : true
+Expando_In_IsNaN_Ok
+*** Test URI  functions ***
+Test print wchar: "\u00a9" 
+©
+Test encode : encodeURI("\u00a9");
+%C2%A9
+Test decode back: 
+©
+Test encode :  encodeURI("http://www.isp.com/app.cgi?arg1=1&arg2=hello world");
+http://www.isp.com/app.cgi?arg1=1&arg2=hello%20world
+Test decode back: 
+http://www.isp.com/app.cgi?arg1=1&arg2=hello world
+Test encode component : encodeURIComponent("http");
+http
+Test decode component back: 
+http
+Test encode component : encodeURIComponent("//www.isp.com/app.cgi");
+%2F%2Fwww.isp.com%2Fapp.cgi
+Test decode component back: 
+//www.isp.com/app.cgi
+Test encode component : encodeURIComponent("arg1=1&arg2=hello world");
+arg1%3D1%26arg2%3Dhello%20world
+Test decode component back: 
+arg1=1&arg2=hello world
+Test global constants: 
+Infinity
+undefined
+Escape Unescape 
+Hello%20World
+Hello World
+foo bar
+It's a test!

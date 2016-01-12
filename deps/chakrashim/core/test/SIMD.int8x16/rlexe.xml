@@ -1,0 +1,266 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>testAddSub.js</files>
+      <baseline>testAddSub.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+      <default>
+      <files>testAddSub.js</files>
+      <baseline>testAddSub.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+      <default>
+      <files>testAddSub.js</files>
+      <baseline>testAddSub.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testAndOrXor.js</files>
+      <baseline>testAndOrXor.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testAndOrXor.js</files>
+      <baseline>testAndOrXor.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testAndOrXor.js</files>
+      <baseline>testAndOrXor.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testComparisons.js</files>
+      <baseline>testComparisons.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testComparisons.js</files>
+      <baseline>testComparisons.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testComparisons.js</files>
+      <baseline>testComparisons.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testConstructor.js</files>
+      <baseline>testConstructor.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testConstructor.js</files>
+      <baseline>testConstructor.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testConstructor.js</files>
+      <baseline>testConstructor.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testConversions.js</files>
+      <baseline>testConversions.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testConversions.js</files>
+      <baseline>testConversions.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testConversions.js</files>
+      <baseline>testConversions.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testFields.js</files>
+      <baseline>testFields.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testFields.js</files>
+      <baseline>testFields.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testFields.js</files>
+      <baseline>testFields.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testMul.js</files>
+      <baseline>testMul.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testMul.js</files>
+      <baseline>testMul.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testMul.js</files>
+      <baseline>testMul.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testNeg.js</files>
+      <baseline>testNeg.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testNeg.js</files>
+      <baseline>testNeg.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testNeg.js</files>
+      <baseline>testNeg.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testNot.js</files>
+      <baseline>testNot.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testNot.js</files>
+      <baseline>testNot.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testNot.js</files>
+      <baseline>testNot.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testShift.js</files>
+      <baseline>testShift.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testShift.js</files>
+      <baseline>testShift.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testShift.js</files>
+      <baseline>testShift.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testWithLane.js</files>
+      <baseline>testWithLane.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testWithLane.js</files>
+      <baseline>testWithLane.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testWithLane.js</files>
+      <baseline>testWithLane.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+
+  <test>
+    <default>
+      <files>testZeroSplatBool.js</files>
+      <baseline>testZeroSplatBool.baseline</baseline>
+      <compile-flags>-Simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testZeroSplatBool.js</files>
+      <baseline>testZeroSplatBool.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -on:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>testZeroSplatBool.js</files>
+      <baseline>testZeroSplatBool.baseline</baseline>
+      <compile-flags>-bgjit- -simdjs -simd128typespec -off:simplejit -mic:1</compile-flags>
+    </default>
+  </test>
+</regress-exe>

@@ -1,0 +1,19 @@
+*** test1
+checked Symbol.hasInstance
+true
+*** test2
+checked Symbol.hasInstance
+true
+checked Symbol.hasInstance
+true
+*** test3
+Symbol(Symbol.hasInstance)
+checked Symbol.hasInstance
+false
+*** test4
+bind
+length
+name
+Symbol(Symbol.hasInstance)
+checked Symbol.hasInstance
+false

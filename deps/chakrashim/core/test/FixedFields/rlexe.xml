@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>FixedFieldsOnSingletons.js</files>
+      <baseline>FixedFieldsOnSingletons.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FixedFieldsOnPrototypes.js</files>
+      <baseline>FixedFieldsOnPrototypes.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FixedFieldsTypeSystem.js</files>
+      <baseline>FixedFieldsTypeSystem.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FixedFieldsInvalidation.js</files>
+      <baseline>FixedFieldsInvalidation.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FixedFieldsWithPropertyStringCache.js</files>
+      <baseline>FixedFieldsWithPropertyStringCache.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>fixedDataWithDifferentTypeHandlers.js</files>
+      <baseline>fixedDataWithDifferentTypeHandlers.baseline</baseline>
+      <compile-flags>-maxinterpretcount:1 -MaxSimpleJitRunCount:0 -bgjit-</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>fixedDataWithDifferentTypeHandlersPrototypes.js</files>
+      <baseline>fixedDataWithDifferentTypeHandlersPrototypes.baseline</baseline>
+      <compile-flags>-maxinterpretcount:1 -MaxSimpleJitRunCount:0 -bgjit-</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FixedDataPolymorphism.js</files>
+      <baseline>FixedDataPolymorphism.baseline</baseline>
+      <compile-flags>-maxinterpretcount:2 -MaxSimpleJitRunCount:0 -bgjit-</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FixedDataTypeTransition.js</files>
+      <baseline>FixedDataTypeTransition.baseline</baseline>
+      <compile-flags>-maxinterpretcount:1 -MaxSimpleJitRunCount:0 -bgjit-</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FixedDataDictionaryType.js</files>
+      <baseline>FixedDataDictionaryType.baseline</baseline>
+      <compile-flags>-maxinterpretcount:1 -MaxSimpleJitRunCount:0 -bgjit-</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>fixedDataWithSubsequentUses.js</files>
+      <baseline>fixedDataWithSubsequentUses.baseline</baseline>
+      <compile-flags>-maxinterpretcount:1 -MaxSimpleJitRunCount:0 -bgjit-</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>fixedDataWithCacheSharing.js</files>
+      <baseline>fixedDataWithCacheSharing.baseline</baseline>
+      <compile-flags>-forcejitloopbody</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>bug677247.js</files>
+      <baseline>bug677247.baseline</baseline>
+      <compile-flags>-off:inlineconstructors</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>bug712503_fixedAccessors.js</files>
+      <baseline>bug712503_fixedAccessors.baseline</baseline>
+      <compile-flags>-maxinterpretcount:2 -off:simplejit -force:rejit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>fixedmethods_polyInlining.js</files>
+      <compile-flags>-maxinterpretcount:1 -maxsimplejitruncount:2</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>bugVSO_OS_1015467.js</files>
+    </default>
+  </test>
+</regress-exe>

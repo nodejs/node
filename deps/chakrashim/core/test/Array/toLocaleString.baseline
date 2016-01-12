@@ -1,0 +1,37 @@
+0. Non Object
+1 --> 
+NaN --> 
+true --> 
+TypeError : Array.prototype.toLocaleString: 'this' is null or undefined
+TypeError : Array.prototype.toLocaleString: 'this' is null or undefined
+
+
+1. Object, length not uint32
+length: true --> 
+length: abc --> 
+length: 1.234 --> 
+length: [object Object] --> 
+
+
+2. Array: normal
+0.00, 1.23, NaN, true, abc, [object Object], , 0.00, 1.00, 2.00
+
+
+3. Array: element toLocaleString not callable
+TypeError : The value of the property 'toLocaleString' is not a Function object
+
+
+4. Array: element toLocaleString
+0.00, anObject, , , another Object, 1.00, a 3rd Object, 2.00
+
+
+5. Object: normal
+0.00, 1.23, NaN, true, abc, [object Object], , 0.00, 1.00, 2.00
+
+
+6. Object: element toLocaleString not callable
+TypeError : The value of the property 'toLocaleString' is not a Function object
+
+
+7. Object: element toLocaleString
+0.00, anObject, , , another Object, 1.00, a 3rd Object, 2.00

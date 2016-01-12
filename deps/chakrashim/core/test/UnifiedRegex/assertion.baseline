@@ -1,0 +1,12 @@
+match(/([\w\-\*]+)\b/ /*lastIndex=0*/ , "b-b");
+["b-b","b-b"] /*input="b-b", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["b-b","b-b","","","","","","","",""]
+match(/.*\b/ /*lastIndex=0*/ , "one two");
+["one two"] /*input="one two", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["one two","","","","","","","","",""]
+match(/([a ]\b)*\b/ /*lastIndex=0*/ , "a a a aa");
+["a a a "," "] /*input="a a a aa", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a a a aa"," ","","","","","","","",""]

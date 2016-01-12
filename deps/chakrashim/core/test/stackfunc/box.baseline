@@ -1,0 +1,14 @@
+HasFuncDecl: test
+HasFuncDecl: nested1
+HasFuncDecl: blah
+HasFuncDecl: escape
+HasFuncDecl: nested2
+HasMaybeEscapedUse: recurse
+HasMaybeEscapedUse: blah
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): test (function #2)
+HasMaybeEscapedUse: WScript
+DoStackNestedFunc: nested1 (function #3)
+test1test1test1test1test1test1test1test1test1test1undefined123456789
+test2test2test2test2test2test2test2test2test2test2undefined123456789
+blah
+blah

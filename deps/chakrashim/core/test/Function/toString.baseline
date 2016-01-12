@@ -1,0 +1,35 @@
+Test 'toString()' on simple function:
+function foo() { var x = 1; }
+Test 'toString()' on builtin function parseFloat:
+function parseFloat() { [native code] }
+Test 'toString()' on anonymous function:
+function () {
+    //anonymous
+    a = a + 1;
+}
+Test 'toString()' on an anonymous, unhinted function expression:
+function () { }
+Test 'toString()' on an anonymous, unhinted function expression in parentheses (different behavior in standards mode):
+function () { }
+Test 'toString()' on parent and nested function:
+in parent
+in nested
+function nested() {
+        WScript.Echo("in nested");
+        bb = 2;
+    }
+function parent() {
+    WScript.Echo("in parent");
+    var bb = 1;
+    function nested() {
+        WScript.Echo("in nested");
+        bb = 2;
+    }
+    nested();
+    WScript.Echo(nested.toString());
+
+}
+Test "somestring".indexOf.toString():
+function indexOf() { [native code] }
+Test "somestring".indexOf:
+function indexOf() { [native code] }

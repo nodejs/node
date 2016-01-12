@@ -1,0 +1,16 @@
+-------Named Type Test Start------------------
+2a : foo
+ : [object Object]
+foo
+-------Named Type Test End--------------------
+-------Simple Numeral Type Test Start---------
+2 : foo
+ : [object Object]
+foo
+-------Simple  Numeral Type Test End----------
+-------Complex Numeral Type Test Start--------
+1 : foo
+3 : [object Object]
+ : [object Object]
+[object Object]
+-------Complex Numeral Type Test End----------

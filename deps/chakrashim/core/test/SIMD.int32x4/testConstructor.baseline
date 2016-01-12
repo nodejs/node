@@ -1,0 +1,162 @@
+Constructor
+>> Fail!
+>> Fail!
+a.x: 0
+a.y: 0
+a.z: -2147483648
+a.w: 2147483647
+Correct
+Correct
+Correct
+Correct
+Correct
+Type Error
+FromFloat32x4
+Correct
+Correct
+Correct
+Correct
+FromFloat32x4Bits
+>> Fail!
+>> Fail!
+>> Fail!
+>> Fail!
+Correct
+Correct
+Correct
+Correct
+Constructor
+>> Fail!
+>> Fail!
+a.x: 0
+a.y: 0
+a.z: -2147483648
+a.w: 2147483647
+Correct
+Correct
+Correct
+Correct
+Correct
+Type Error
+FromFloat32x4
+Correct
+Correct
+Correct
+Correct
+FromFloat32x4Bits
+>> Fail!
+>> Fail!
+>> Fail!
+>> Fail!
+Correct
+Correct
+Correct
+Correct
+Constructor
+>> Fail!
+>> Fail!
+a.x: 0
+a.y: 0
+a.z: -2147483648
+a.w: 2147483647
+Correct
+Correct
+Correct
+Correct
+Correct
+Type Error
+FromFloat32x4
+Correct
+Correct
+Correct
+Correct
+FromFloat32x4Bits
+>> Fail!
+>> Fail!
+>> Fail!
+>> Fail!
+Correct
+Correct
+Correct
+Correct
+Constructor
+>> Fail!
+>> Fail!
+a.x: 0
+a.y: 0
+a.z: -2147483648
+a.w: 2147483647
+Correct
+Correct
+Correct
+Correct
+Correct
+Type Error
+FromFloat32x4
+Correct
+Correct
+Correct
+Correct
+FromFloat32x4Bits
+>> Fail!
+>> Fail!
+>> Fail!
+>> Fail!
+Correct
+Correct
+Correct
+Correct
+Constructor
+>> Fail!
+>> Fail!
+a.x: 0
+a.y: 0
+a.z: -2147483648
+a.w: 2147483647
+Correct
+Correct
+Correct
+Correct
+Correct
+Type Error
+FromFloat32x4
+Correct
+Correct
+Correct
+Correct
+FromFloat32x4Bits
+>> Fail!
+>> Fail!
+>> Fail!
+>> Fail!
+Correct
+Correct
+Correct
+Correct
+Constructor
+>> Fail!
+>> Fail!
+a.x: 0
+a.y: 0
+a.z: -2147483648
+a.w: 2147483647
+Correct
+Correct
+Correct
+Correct
+Correct
+Type Error
+FromFloat32x4
+Correct
+Correct
+Correct
+Correct
+FromFloat32x4Bits
+>> Fail!
+>> Fail!
+>> Fail!
+>> Fail!
+Correct
+Correct
+Correct
+Correct

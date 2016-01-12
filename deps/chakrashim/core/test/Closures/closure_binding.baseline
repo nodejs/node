@@ -1,0 +1,14 @@
+Scenario: Multiple closures, with variables that are modified in the parent function
+In f
+2nd function
+after modification
+1st function
+after modification
+2nd function
+after modification
+1st function
+after modification
+4
+4
+4
+3

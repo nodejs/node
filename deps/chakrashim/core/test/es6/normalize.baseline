@@ -1,0 +1,25 @@
+RangeError: Normalization form 'asd' is invalid. Expected one of: ['NFC', 'NFD', 'NFKC', 'NFKD'].
+TypeError: String.prototype.normalize: 'this' is null or undefined
+TypeError: String.prototype.normalize: 'this' is null or undefined
+TypeError: String.prototype.normalize: 'this' is null or undefined
+TypeError: Function is not a constructor
+Passed! Empty string noramlized to empty string.
+Passed! NFD normalization test.
+Passed! NFD normalization test.
+Passed! NFD normalization test.
+Passed! NFD normalization test.
+Passed! NFC normalization test.
+Passed! NFC normalization test.
+Passed! NFC normalization test.
+Passed! NFC normalization test.
+Passed! NFKD normalization test.
+Passed! NFKD normalization test.
+Passed! NFKD normalization test.
+Passed! NFKD normalization test.
+Passed! NFKC normalization test.
+Passed! NFKC normalization test.
+Passed! NFKC normalization test.
+Passed! NFKC normalization test.
+RangeError: Failed to normalize: invalid or missing unicode character at index 1.
+RangeError: Failed to normalize: invalid or missing unicode character at index 2.
+Passed! Calling on a number object instead of string object.

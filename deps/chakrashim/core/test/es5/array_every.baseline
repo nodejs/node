@@ -1,0 +1,28 @@
+value:1 index:0 Object:1,2,3,4,5
+value:2 index:1 Object:1,2,3,4,5
+value:3 index:2 Object:1,2,3,4,5
+value:4 index:3 Object:1,2,3,4,5
+value:5 index:4 Object:1,2,3,4,5
+true
+value:10 index:0 Object:10,20,30,40,50
+false
+value:10 index:0 Object:10,20,30,40,50
+value:20 index:1 Object:10,20,30,40,50
+false
+value:abc index:0 Object:[object Object]
+value:def index:1 Object:[object Object]
+value:xyz index:2 Object:[object Object]
+true
+value:abc index:0 Object:[object Object]
+false
+value:abc index:0 Object:[object Object]
+value:def index:1 Object:[object Object]
+false
+value:10 index:0 Object:10,20,30,40,50,,20,,10
+value:20 index:1 Object:10,20,30,40,50,,20,,10
+value:30 index:2 Object:10,20,30,40,50,,20,,10
+value:40 index:3 Object:10,20,30,40,50,,20,,10
+value:50 index:4 Object:10,20,30,40,50,,20,,10
+value:20 index:6 Object:10,20,30,40,50,,20,,10
+value:10 index:8 Object:10,20,30,40,50,,20,,10
+true

@@ -1,0 +1,8 @@
+test0: 2147483648
+test1: 3
+test2: 1
+test3a: 2
+test3b: valueOf
+test3b: valueOf
+test3b: 2
+test3c: TypeError

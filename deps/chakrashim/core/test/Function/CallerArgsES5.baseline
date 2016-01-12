@@ -1,0 +1,44 @@
+null
+f from global
+undefined
+
+null
+
+null
+f from global
+undefined
+
+function g() {
+    f("f from g");
+}
+f from g
+undefined
+func.arguments.caller undefined
+
+null
+g from global
+undefined
+
+function g() {
+    f("f from g");
+}
+f from g
+undefined
+func.arguments.caller undefined
+
+function callerA() {
+        AA(null);
+}
+function callerB() {
+        eval("AB(null)");
+}
+undefined
+true
+undefined
+0
+undefined
+true
+undefined
+0
+b = 16
+b = 16

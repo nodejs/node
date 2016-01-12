@@ -1,0 +1,10 @@
+HasFuncDecl: ouatqn
+HasFuncDecl: ouatqn
+DoStackNestedFunc: Anonymous function (function  (#1.2), #3)
+HasFuncDecl: ouatqn
+HasMaybeEscapedUse: ouatqn
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): ouatqn (function  (#1.3), #5)
+HasMaybeEscapedNestedFunc (DeferredChild): Anonymous function (function  (#1.2), #3)
+DeferParse: box and disable stack function: Anonymous function (function  (#1.2), #3)
+Boxing Frame [Interpreted]: Anonymous function  (#1.2), #3
+Boxing StackScriptFunction Object: ouatqn (function Id:  (#1.3), #5)

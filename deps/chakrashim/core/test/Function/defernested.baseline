@@ -1,0 +1,87 @@
+Nested in function expression
+0 1 11 function
+a2 a2 object function
+
+Nested in function expression with arguments
+0 1 a0 function
+
+Nested in named function expression, hidden and unhidden
+function 0 1 a0 function
+undefined 0 1 a0 function
+
+Nested in function expression with eval
+0 1 2 a0 function
+function z() { return z; }
+
+Nested in _named_ function expression
+0 1 11 function function
+a2 a2 object function function
+
+Nested in _named_ function expression with arguments
+0 1 a0 function function
+
+Nested in _named_ function expression with eval
+0 1 2 3 a0 a1 function function
+
+Deeply nested
+0 1 2 a0 a1 af1 function function
+
+Deeply nested func expr
+0 1 2 a0 a1 function
+
+Parent func has arguments
+[object Arguments] function
+Child calls eval
+local
+Deeply nested child calls eval
+local
+Child calls (eval)
+local
+Child calls (,eval)
+global
+Child calls geval
+global
+Child calls leval
+global
+Parent in strict mode, child eval syntax error
+SyntaxError: Invalid usage of 'arguments' in strict mode
+
+func inside with is not deferred
+with global
+simple with (no outer symbol access)
+with global
+simple access from with
+with local
+call func from with
+foo
+call self from with
+foo 0
+
+parent is catch scope
+ReferenceError: 'no_such_var' is undefined
+parent func contains catch scope
+ReferenceError: 'no_such_var' is undefined
+parent func contains catch scope and eval
+ReferenceError: 'no_such_var' is undefined
+
+Win8 540999: arguments identifier used as parameter
+TypeError: Unable to get property 'length' of undefined or null reference
+
+Win8 649401: Same named parameters + eval
+x: undefined
+x: 5
+
+Win8 649401: Same named parameters + arguments
+x: undefined
+0
+x: 5
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9

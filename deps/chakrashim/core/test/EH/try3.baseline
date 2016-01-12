@@ -1,0 +1,16 @@
+Inner catch: 7
+Finally: 0
+Outer finally: 0
+Inner catch: 7
+Finally: 2
+Outer finally: 2
+Inner catch: 7
+Finally: 4
+Outer finally: 4
+Inner catch: 7
+Finally: 6
+Outer finally: 6
+Inner catch: 7
+Finally: 8
+Outer finally: 8
+8

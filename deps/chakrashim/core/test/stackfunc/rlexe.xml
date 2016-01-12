@@ -1,0 +1,686 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>simple_escape.js</files>
+      <baseline>simple_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>simple_stackfunc.js</files>
+      <baseline>simple_stackfunc.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simplejit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>simple_stackfunc.js</files>
+      <baseline>simple_stackfunc.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -Off:Deferparse -on:stackfunc -nonative</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>trycatch_stackfunc.js</files>
+      <baseline>trycatch_stackfunc.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc -nonative</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>simple_namedstackfunc.js</files>
+      <baseline>simple_namedstackfunc.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>toString_escape.js</files>
+      <baseline>toString_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>chain_assign.js</files>
+      <baseline>chain_assign.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>nested_escape.js</files>
+      <baseline>nested_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>funcname_escape.js</files>
+      <baseline>funcname_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>call_escape.js</files>
+      <baseline>call_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>argout_escape.js</files>
+      <baseline>argout_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>throw_escape.js</files>
+      <baseline>throw_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>funcname_asg.js</files>
+      <baseline>funcname_asg.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>arrlit_escape.js</files>
+      <baseline>arrlit_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>arrlit_asg_escape.js</files>
+      <baseline>arrlit_asg_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>objlit_escape.js</files>
+      <baseline>objlit_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>formal_asg.js</files>
+      <baseline>formal_asg.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>argument_escape.js</files>
+      <baseline>argument_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>arguments_assignment.js</files>
+      <baseline>arguments_assignment.baseline</baseline>
+      <compile-flags>-mic:1 -off:simplejit</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>cross_scope.js</files>
+      <baseline>cross_scope.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>eval_escape.js</files>
+      <baseline>eval_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>child_eval_escape.js</files>
+      <baseline>child_eval_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>with_namedfunc.js</files>
+      <baseline>with_namedfunc.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>formal_namedfunc.js</files>
+      <baseline>formal_namedfunc.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>throw_func.js</files>
+      <baseline>throw_func.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>glo_asg.js</files>
+      <baseline>glo_asg.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>multinested_escape.js</files>
+      <baseline>multinested_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>let_stackfunc.js</files>
+      <baseline>let_stackfunc.baseline</baseline>
+      <compile-flags>-letconst -testtrace:stackfunc -off:simpleJit -off:deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>let_blockescape.js</files>
+      <baseline>let_blockescape.baseline</baseline>
+      <compile-flags>-letconst -testtrace:stackfunc -off:simpleJit -off:deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>simple_escape.js</files>
+      <baseline>simple_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>simple_stackfunc.js</files>
+      <baseline>simple_stackfunc.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>simple_namedstackfunc.js</files>
+      <baseline>simple_namedstackfunc.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>toString_escape.js</files>
+      <baseline>toString_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>chain_assign.js</files>
+      <baseline>chain_assign.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>nested_escape.js</files>
+      <baseline>nested_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>funcname_escape.js</files>
+      <baseline>funcname_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>call_escape.js</files>
+      <baseline>call_escape.deferparse.baseline</baseline>
+      <!--Top Level function parsing on first call to script is turned off here, as this tests order of functions executed-->
+      <compile-flags>-DeferTopLevelTillFirstCall- -testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>throw_escape.js</files>
+      <baseline>throw_escape.deferparse.baseline</baseline>
+      <!--Top Level function parsing on first call to script is turned off here, as this tests order of functions executed-->
+      <compile-flags>-DeferTopLevelTillFirstCall- -testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>funcname_asg.js</files>
+      <baseline>funcname_asg.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>arrlit_escape.js</files>
+      <baseline>arrlit_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>arrlit_asg_escape.js</files>
+      <baseline>arrlit_asg_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>objlit_escape.js</files>
+      <baseline>objlit_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>formal_asg.js</files>
+      <baseline>formal_asg.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>argument_escape.js</files>
+      <baseline>argument_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>cross_scope.js</files>
+      <baseline>cross_scope.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -off:cachescopeinfonames -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>eval_escape.js</files>
+      <baseline>eval_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>child_eval_escape.js</files>
+      <baseline>child_eval_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>with_namedfunc.js</files>
+      <baseline>with_namedfunc.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>formal_namedfunc.js</files>
+      <baseline>formal_namedfunc.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>throw_func.js</files>
+      <baseline>throw_func.deferparse.baseline</baseline>
+      <!--Top Level function parsing on first call to script is turned off here, as this tests order of functions executed-->
+      <compile-flags>-DeferTopLevelTillFirstCall- -testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>glo_asg.js</files>
+      <baseline>glo_asg.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>multinested_escape.js</files>
+      <baseline>multinested_escape.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -off:cachescopeinfonames -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>let_stackfunc.js</files>
+      <baseline>let_stackfunc.deferparse.baseline</baseline>
+      <compile-flags>-letconst -testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>let_blockescape.js</files>
+      <baseline>let_blockescape.deferparse.baseline</baseline>
+      <compile-flags>-letconst -testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box.js</files>
+      <baseline>box.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -off:cachescopeinfonames -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_nonative,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box.js</files>
+      <baseline>box.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -off:cachescopeinfonames -force:inline -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_nonative,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>callee_escape.js</files>
+      <baseline>callee_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -force:inline -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>callee_escape2.js</files>
+      <baseline>callee_escape2.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -force:inline -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>callee_escape2.js</files>
+      <baseline>callee_escape2.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -force:inline -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>caller_escape.js</files>
+      <baseline>caller_escape.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Off:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_nonative,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>singleuse.js</files>
+      <baseline>singleuse.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -Force:Deferparse -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>iffuncdecl.js</files>
+      <baseline>iffuncdecl.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>cachescope.js</files>
+      <baseline>cachescope.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box_callparam.js</files>
+      <baseline>box_callparam.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc -force:deferparse -off:cachescopeinfonames </compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>inlinee_box.js</files>
+      <baseline>inlinee_box.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc -force:inline</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_nonative,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>blockscope_funcdecl.js</files>
+      <baseline>blockscope_funcdecl.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>recurse.js</files>
+      <baseline>recurse.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc -force:deferparse</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>jitdefer.js</files>
+      <baseline>jitdefer.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc -force:deferparse -off:cachescopeinfonames</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm,exclude_nonative</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box_bailout.js</files>
+      <baseline>box_bailout.deferparse.baseline</baseline>
+      <!--Top Level function parsing on first call to script is turned off here, as this tests order of functions executed-->
+      <compile-flags>-DeferTopLevelTillFirstCall- -testtrace:stackfunc -off:simpleJit -on:stackfunc -force:deferparse</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm,exclude_nonative</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box_inline_bailout.js</files>
+      <baseline>box_inline_bailout.deferparse.baseline</baseline>
+      <!--Top Level function parsing on first call to script is turned off here, as this tests order of functions executed-->
+      <compile-flags>-DeferTopLevelTillFirstCall- -testtrace:stackfunc -off:simpleJit -on:stackfunc -force:deferparse</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm,exclude_nonative</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>withref_delayobjscope.js</files>
+      <baseline>withref_delayobjscope.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>funcexpr.js</files>
+      <baseline>funcexpr.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc -force:deferparse</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>funcexpr_2.js</files>
+      <baseline>funcexpr_2.deferparse.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc -force:deferparse</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>funcexpr_2.js</files>
+      <baseline>funcexpr_2.deferparse.native.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -on:stackfunc -force:deferparse -forceNative -off:simpleJit</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>with_existing.js</files>
+      <baseline>with_existing.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>with_crossscope.js</files>
+      <baseline>with_crossscope.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>bug565705.js</files>
+      <baseline>bug565705.baseline</baseline>
+      <compile-flags>-testtrace:stackfunc -off:simpleJit -on:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box_postjit.js</files>
+      <baseline>box_postjit.deferparse.baseline</baseline>
+      <compile-flags>-off:simplejit -mic:1 -off:inline -force:deferparse</compile-flags>
+      <tags>exclude_fre,exclude_dynapogo,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box_jitloopbody.js</files>
+      <baseline>box_jitloopbody.baseline</baseline>
+      <compile-flags>-forcejitloopbody</compile-flags>
+      <tags>exclude_fre,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box_jitloopbody2.js</files>
+      <baseline>box_jitloopbody2.baseline</baseline>
+      <compile-flags>-forcejitloopbody</compile-flags>
+      <tags>exclude_fre,exclude_arm</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>602481.js</files>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>605893.js</files>
+      <compile-flags>-force:deferparse -force:inline</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>622043.js</files>
+      <compile-flags>/force:deferparse /mic:1 /off:bailonnoprofile /force:inline /off:simplejit</compile-flags>
+      <tags>exclude_dynapogo,exclude_fre</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>delaycapture.js</files>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>closure-1129602.js</files>
+      <compile-flags>-force:deferparse</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>box_blockscope.js</files>
+      <baseline>box_blockscope.baseline</baseline>
+      <compile-flags>-off:simplejit -testtrace:stackfunc</compile-flags>
+      <tags>exclude_fre,exclude_arm,exclude_dynapogo</tags>
+    </default>
+  </test>
+</regress-exe>

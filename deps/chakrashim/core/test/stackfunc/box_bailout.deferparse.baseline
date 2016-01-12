@@ -1,0 +1,31 @@
+HasFuncDecl: escape
+HasFuncDecl: test0
+HasFuncDecl: bar0
+HasFuncDecl: v375952
+HasFuncDecl: v375957
+HasFuncDecl: test0
+HasFuncDecl: bar0
+HasFuncDecl: v375952
+HasFuncDecl: v375957
+HasMaybeEscapedUse: bar0
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): test0 (function  (#1.2), #3)
+HasFuncDecl: bar0
+RestoreHasFuncAssignment: bar0
+HasFuncDecl: v375952
+HasFuncDecl: v375957
+DoStackNestedFunc: Anonymous function (function  (#1.4), #6)
+HasFuncDecl: escape
+HasFuncDecl: bar0
+RestoreHasFuncAssignment: bar0
+HasFuncDecl: v375952
+RestoreHasFuncAssignment: v375952
+HasFuncDecl: v375957
+RestoreHasFuncAssignment: v375957
+HasMaybeEscapedUse: v375952
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): Anonymous function (function  (#1.4), #6)
+DeferParse: box and disable stack function: Anonymous function (function  (#1.4), #6)
+Boxing Frame [Interpreted from Bailout]: Anonymous function  (#1.4), #6
+Boxing StackScriptFunction Object: v375952 (function Id:  (#1.5), #7)
+Boxing StackScriptFunction Object: v375957 (function Id:  (#1.6), #8)
+Boxing StackScriptFunction Object: v375952 (function Id:  (#1.5), #7)
+Boxing StackScriptFunction Object: v375957 (function Id:  (#1.6), #8)

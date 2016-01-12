@@ -1,0 +1,48 @@
+exec(/a|ab/ /*lastIndex=0*/ , "abc");
+["a"] /*input="abc", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+exec(/((a)|(ab))((c)|(bc))/ /*lastIndex=0*/ , "abc");
+["abc","a","a",undefined,"bc",undefined,"bc"] /*input="abc", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","a","a","","bc","","bc","","",""]
+exec(/a[a-z]{2,4}/ /*lastIndex=0*/ , "abcdefghi");
+["abcde"] /*input="abcdefghi", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abcdefghi","","","","","","","","",""]
+exec(/a[a-z]{2,4}?/ /*lastIndex=0*/ , "abcdefghi");
+["abc"] /*input="abcdefghi", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abcdefghi","","","","","","","","",""]
+exec(/(aa|aabaac|ba|b|c)*/ /*lastIndex=0*/ , "aabaac");
+["aaba","ba"] /*input="aabaac", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aabaac","ba","","","","","","","",""]
+replace(/^(a+)\1*,\1+$/ /*lastIndex=0*/ , "aaaaaaaaaa,aaaaaaaaaaaaaaa", "$1");
+"aaaaa"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaaaaaaaaa,aaaaaaaaaaaaaaa","aaaaa","","","","","","","",""]
+exec(/(z)((a+)?(b+)?(c))*/ /*lastIndex=0*/ , "zaacbbbcac");
+["zaacbbbcac","z","ac","a",undefined,"c"] /*input="zaacbbbcac", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["zaacbbbcac","z","ac","a","","c","","","",""]
+exec(/(a*)*/ /*lastIndex=0*/ , "b");
+["",undefined] /*input="b", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["b","","","","","","","","",""]
+exec(/(a*)b\1+/ /*lastIndex=0*/ , "baaaac");
+["b",""] /*input="baaaac", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["baaaac","","","","","","","","",""]
+exec(/(?=(a+))/ /*lastIndex=0*/ , "baaabac");
+["","aaa"] /*input="baaabac", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["baaabac","aaa","","","","","","","",""]
+exec(/(?=(a+))a*b\1/ /*lastIndex=0*/ , "baaabac");
+["aba","a"] /*input="baaabac", index=3*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["baaabac","a","","","","","","","",""]
+exec(/(.*?)a(?!(a+)b\2c)\2(.*)/ /*lastIndex=0*/ , "baaabaac");
+["baaabaac","ba",undefined,"abaac"] /*input="baaabaac", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["baaabaac","ba","","abaac","","","","","",""]

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+<dir>
+  <default>
+    <files>expectedpass</files>
+    <tags>exclude_dynapogo</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>expectedfail</files>
+    <tags>exclude_dynapogo</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>xmlparsefail</files>
+    <tags>exclude_dynapogo</tags>
+  </default>
+</dir>
+</regress-exe>

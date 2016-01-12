@@ -1,0 +1,5 @@
+*** Running test #1 (test01): Check that Enumerator is allowed for HostType = Web View
+x
+y
+PASSED
+Summary of tests: total executed: 1; passed: 1; failed: 0

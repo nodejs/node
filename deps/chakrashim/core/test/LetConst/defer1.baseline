@@ -1,0 +1,2 @@
+SyntaxError: Let/Const redeclaration
+	at code (defer1.js:6:46)

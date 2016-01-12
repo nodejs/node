@@ -1,0 +1,364 @@
+test float
+set NaN
+NaN
+0 == 0
+1 == 0
+2 == 192
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+set 8 bits
+original value
+0 == 0
+1 == 0
+2 == 192
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 192
+3 == 255
+NaN
+set 12 bits
+original value
+0 == 0
+1 == 0
+2 == 240
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 240
+3 == 255
+NaN
+set 13 bits
+original value
+0 == 0
+1 == 0
+2 == 248
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 248
+3 == 255
+NaN
+set 14 bits
+original value
+0 == 0
+1 == 0
+2 == 252
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 252
+3 == 255
+NaN
+set 15 bits
+original value
+0 == 0
+1 == 0
+2 == 254
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 254
+3 == 255
+NaN
+set 16 bits
+original value
+0 == 0
+1 == 0
+2 == 255
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 255
+3 == 255
+NaN
+set 17 bits
+original value
+0 == 0
+1 == 128
+2 == 255
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 128
+2 == 255
+3 == 255
+NaN
+set 18 bits
+original value
+0 == 0
+1 == 192
+2 == 255
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 192
+2 == 255
+3 == 255
+NaN
+set 19 bits
+original value
+0 == 0
+1 == 224
+2 == 255
+3 == 255
+4 == 0
+5 == 0
+6 == 0
+7 == 0
+NaN
+after assign to separate typed array
+0 == 0
+1 == 224
+2 == 255
+3 == 255
+NaN
+test double
+set NaN
+NaN
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 248
+7 == 255
+set 8 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 192
+7 == 255
+-2.247116418577895e+307
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 192
+7 == 255
+-2.247116418577895e+307
+set 12 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 240
+7 == 255
+-Infinity
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 240
+7 == 255
+-Infinity
+set 13 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 248
+7 == 255
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 248
+7 == 255
+NaN
+set 14 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 252
+7 == 255
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 252
+7 == 255
+NaN
+set 15 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 254
+7 == 255
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 254
+7 == 255
+NaN
+set 16 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 255
+7 == 255
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 0
+6 == 255
+7 == 255
+NaN
+set 17 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 128
+6 == 255
+7 == 255
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 128
+6 == 255
+7 == 255
+NaN
+set 18 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 192
+6 == 255
+7 == 255
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 192
+6 == 255
+7 == 255
+NaN
+set 19 bits
+original value
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 224
+6 == 255
+7 == 255
+NaN
+after assign to separate typed array
+0 == 0
+1 == 0
+2 == 0
+3 == 0
+4 == 0
+5 == 224
+6 == 255
+7 == 255
+NaN

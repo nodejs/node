@@ -1,0 +1,10 @@
+arr[0] : undefined
+arr[1] : null
+arr[2] : undefined
+arr[3] : arr.proto.3
+arr[4] : undefined
+arr[5] : obj.proto5
+arr[6] : arr.proto.6
+arr[7] : obj.proto7
+[] missing value:-2147483646
+Array() missing value:-2147483646

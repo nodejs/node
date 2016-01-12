@@ -1,0 +1,760 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>ArrayView.js</files>
+      <baseline>ArrayView.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicBranching.js</files>
+      <baseline>BasicBranching.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonDouble.js</files>
+      <baseline>basicComparisonDouble.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonInt.js</files>
+      <baseline>basicComparisonInt.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonUInt.js</files>
+      <baseline>basicComparisonUInt.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicLooping.js</files>
+      <baseline>BasicLooping.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMath.js</files>
+      <baseline>basicMath.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMathIntSpecific.js</files>
+      <baseline>basicMathIntSpecific.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMathUnary.js</files>
+      <baseline>basicMathUnary.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicSwitch.js</files>
+      <baseline>BasicSwitch.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>CompositionMathUnary.js</files>
+      <baseline>CompositionMathUnary.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FunctionCalls.js</files>
+      <baseline>FunctionCalls.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>functiontablecalls.js</files>
+      <baseline>functiontablecalls.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>MathBuiltinsCall.js</files>
+      <baseline>MathBuiltinsCall.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>MathBuiltinsCall.js</files>
+      <baseline>MathBuiltinsCall.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:1 -sse:3</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ModuleVarRead.js</files>
+      <baseline>ModuleVarRead.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ModuleVarWrite.js</files>
+      <baseline>ModuleVarWrite.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ReadArrayView.js</files>
+      <baseline>ReadArrayView.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ReadFixOffset.js</files>
+      <baseline>ReadFixOffset.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>relink.js</files>
+      <baseline>relink.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>relink.js</files>
+      <baseline>relink.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>relink.js</files>
+      <baseline>relink.baseline</baseline>
+      <compile-flags>-forceserialized -testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>relink.js</files>
+      <baseline>relink.baseline</baseline>
+      <compile-flags>-forceserialized -testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>WriteArrayView.js</files>
+      <baseline>WriteArrayView.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>WriteFixOffset.js</files>
+      <baseline>WriteFixOffset.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ArrayView.js</files>
+      <baseline>ArrayView.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicBranching.js</files>
+      <baseline>BasicBranching.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonDouble.js</files>
+      <baseline>basicComparisonDouble.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonInt.js</files>
+      <baseline>basicComparisonInt.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonUInt.js</files>
+      <baseline>basicComparisonUInt.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicLooping.js</files>
+      <baseline>BasicLooping.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMath.js</files>
+      <baseline>basicMath.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMathIntSpecific.js</files>
+      <baseline>basicMathIntSpecific.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMathUnary.js</files>
+      <baseline>basicMathUnary.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicSwitch.js</files>
+      <baseline>BasicSwitch.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>CompositionMathUnary.js</files>
+      <baseline>CompositionMathUnary.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FunctionCalls.js</files>
+      <baseline>FunctionCalls.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>functiontablecalls.js</files>
+      <baseline>functiontablecalls.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>MathBuiltinsCall.js</files>
+      <baseline>MathBuiltinsCall.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ModuleVarRead.js</files>
+      <baseline>ModuleVarRead.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ModuleVarWrite.js</files>
+      <baseline>ModuleVarWrite.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ReadArrayView.js</files>
+      <baseline>ReadArrayView.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ReadFixOffset.js</files>
+      <baseline>ReadFixOffset.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>WriteArrayView.js</files>
+      <baseline>WriteArrayView.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>WriteFixOffset.js</files>
+      <baseline>WriteFixOffset.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ArrayView.js</files>
+      <baseline>ArrayView.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicBranching.js</files>
+      <baseline>BasicBranching.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonDouble.js</files>
+      <baseline>basicComparisonDouble.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonInt.js</files>
+      <baseline>basicComparisonInt.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicComparisonUInt.js</files>
+      <baseline>basicComparisonUInt.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicLooping.js</files>
+      <baseline>BasicLooping.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMath.js</files>
+      <baseline>basicMath.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMathIntSpecific.js</files>
+      <baseline>basicMathIntSpecific.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>basicMathUnary.js</files>
+      <baseline>basicMathUnary.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>BasicSwitch.js</files>
+      <baseline>BasicSwitch.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>CompositionMathUnary.js</files>
+      <baseline>CompositionMathUnary.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>FunctionCalls.js</files>
+      <baseline>FunctionCalls.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>functiontablecalls.js</files>
+      <baseline>functiontablecalls.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>MathBuiltinsCall.js</files>
+      <baseline>MathBuiltinsCall.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ModuleVarRead.js</files>
+      <baseline>ModuleVarRead.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ModuleVarWrite.js</files>
+      <baseline>ModuleVarWrite.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ReadArrayView.js</files>
+      <baseline>ReadArrayView.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ReadFixOffset.js</files>
+      <baseline>ReadFixOffset.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>WriteArrayView.js</files>
+      <baseline>WriteArrayView.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>WriteFixOffset.js</files>
+      <baseline>WriteFixOffset.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+      <tags>Slow</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>functiontablebug.js</files>
+      <baseline>functiontablebug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>switchbug.js</files>
+      <baseline>switchbug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>fgpeepsbug.js</files>
+      <baseline>fgpeepsbug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>cseBug.js</files>
+      <baseline>cseBug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>constTest.js</files>
+      <baseline>constTest.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>constTest.js</files>
+      <baseline>constTest.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>constTest.js</files>
+      <baseline>constTest.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ffibug.js</files>
+      <baseline>ffibug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ternaryfloat.js</files>
+      <baseline>ternaryfloat.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>minintbug.js</files>
+      <baseline>minintbug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>floatmod.js</files>
+      <baseline>floatmod.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>invalidIntLiteral.js</files>
+      <baseline>invalidIntLiteral.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>invalidIntLiteral.js</files>
+      <baseline>invalidIntLiteral.baseline</baseline>
+      <compile-flags>-forceserialized -testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>fstpbug.js</files>
+      <baseline>fstpbug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>break2.js</files>
+      <baseline>break2.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>break3.js</files>
+      <baseline>break3.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>return1.js</files>
+      <baseline>return1.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>returndouble.js</files>
+      <baseline>returndouble.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>break1.js</files>
+      <baseline>break1.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>JitToLoopBody.js</files>
+      <baseline>JitToLoopBody.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1 -maic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>LoopBodyToJit.js</files>
+      <baseline>LoopBodyToJit.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1 -maic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>breakfloat1.js</files>
+      <baseline>breakfloat1.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1 </compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>returnfloat.js</files>
+      <baseline>returnfloat.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -bgjit- -lic:1 </compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>unityBug.js</files>
+      <baseline>unityBug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>unityBug.js</files>
+      <baseline>unityBug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>unityBug.js</files>
+      <baseline>unityBug.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>argoutcapturebug.js</files>
+      <baseline>argoutcapturebug.baseline</baseline>
+      <tags></tags>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ReadAV1.js</files>
+      <baseline>ReadAV1.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -off:deferparse -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>clz32.js</files>
+      <baseline>clz32.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>clz32.js</files>
+      <baseline>clz32.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -nonative</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>clz32.js</files>
+      <baseline>clz32.baseline</baseline>
+      <tags>exclude_amd64</tags>
+      <compile-flags>-testtrace:asmjs -simdjs -on:asmjsjittemplate -off:fulljit</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>negzero.js</files>
+      <baseline>negzero.baseline</baseline>
+      <tags></tags>
+      <compile-flags>-testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>shadowingBug.js</files>
+      <baseline>shadowingBug.baseline</baseline>
+      <compile-flags>-forcedeferparse -testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>blockLabelBug.js</files>
+      <baseline>blockLabelBug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>switchJumpTable.js</files>
+      <baseline>switchJumpTable.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>switchBinaryTraverse.js</files>
+      <baseline>switchBinaryTraverse.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:1</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>lowererdivbug.js</files>
+      <baseline>lowererdivbug.baseline</baseline>
+      <compile-flags>-testtrace:asmjs -simdjs -maic:0</compile-flags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>qmarkbug.js</files>
+      <baseline>qmarkbug.baseline</baseline>
+      <compile-flags>-forcedeferparse -testtrace:asmjs -simdjs</compile-flags>
+    </default>
+  </test>
+</regress-exe>

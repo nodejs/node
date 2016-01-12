@@ -1,0 +1,29 @@
+*** Running test #1 (0): Calling Array.prototype.slice()
+PASSED
+*** Running test #2 (1): Calling Array.prototype.push()
+PASSED
+*** Running test #3 (2): Calling Array.isArray()
+PASSED
+*** Running test #4 (3): Calling Array.prototype.unshift()
+PASSED
+*** Running test #5 (4): Calling Array.prototype.shift()
+PASSED
+*** Running test #6 (5): Calling Array.prototype.entries()
+0,1
+1,2
+2,3
+3,4
+PASSED
+*** Running test #7 (6): Calling Array.prototype.keys()
+0
+1
+2
+3
+PASSED
+*** Running test #8 (7): Calling Array.prototype.reverse()
+PASSED
+*** Running test #9 (8): Calling Object.prototype.toString()
+PASSED
+*** Running test #10 (9): OS3713376: Accessing COA through proxy
+PASSED
+Summary of tests: total executed: 10; passed: 10; failed: 0

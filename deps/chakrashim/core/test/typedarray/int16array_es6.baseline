@@ -1,0 +1,735 @@
+test1
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,0,0,10,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 0
+4 == 0
+5 == 10
+6 == 0
+7 == 0
+8 == 0
+byteLength = 18
+object after expando is
+0,-32768,0,0,0,10,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 0
+4 == 0
+5 == 10
+6 == 0
+7 == 0
+8 == 0
+foo == bar
+byteLength = 18
+
+test2
+undefined
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+
+byteLength = 0
+object after expando is
+
+foo == bar
+byteLength = 0
+
+test3
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,0,0,10,0,0,0,0,0,0,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 0
+4 == 0
+5 == 10
+6 == 0
+7 == 0
+8 == 0
+9 == 0
+10 == 0
+11 == 0
+12 == 0
+13 == 0
+14 == 0
+byteLength = 30
+object after expando is
+0,-32768,0,0,0,10,0,0,0,0,0,0,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 0
+4 == 0
+5 == 10
+6 == 0
+7 == 0
+8 == 0
+9 == 0
+10 == 0
+11 == 0
+12 == 0
+13 == 0
+14 == 0
+foo == bar
+byteLength = 30
+
+test4
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,10,0,10,0,0,0,0,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+6 == 0
+7 == 0
+8 == 0
+9 == 0
+10 == 0
+11 == 0
+12 == 0
+byteLength = 26
+object after expando is
+0,-32768,0,10,0,10,0,0,0,0,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+6 == 0
+7 == 0
+8 == 0
+9 == 0
+10 == 0
+11 == 0
+12 == 0
+foo == bar
+byteLength = 26
+
+test5
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,10,0,10
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+byteLength = 12
+object after expando is
+0,-32768,0,10,0,10
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+foo == bar
+byteLength = 12
+
+test6
+[object ArrayBuffer]
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,0,0,10,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 0
+4 == 0
+5 == 10
+6 == 0
+7 == 0
+8 == 0
+byteLength = 18
+object after expando is
+0,-32768,0,0,0,10,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 0
+4 == 0
+5 == 10
+6 == 0
+7 == 0
+8 == 0
+foo == bar
+byteLength = 18
+
+test7
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,10,0,10,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+6 == 0
+byteLength = 14
+object after expando is
+0,-32768,0,10,0,10,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+6 == 0
+foo == bar
+byteLength = 14
+
+test8
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+-32768,-32768,-32768,0,10,10
+0 == -32768
+1 == -32768
+2 == -32768
+3 == 0
+4 == 10
+5 == 10
+byteLength = 12
+object after expando is
+-32768,-32768,-32768,0,10,10
+0 == -32768
+1 == -32768
+2 == -32768
+3 == 0
+4 == 10
+5 == 10
+foo == bar
+byteLength = 12
+
+test9
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+1,-32768,3,4,5,10,7,8,9,10,11,12
+0 == 1
+1 == -32768
+2 == 3
+3 == 4
+4 == 5
+5 == 10
+6 == 7
+7 == 8
+8 == 9
+9 == 10
+10 == 11
+11 == 12
+byteLength = 24
+object after expando is
+1,-32768,3,4,5,10,7,8,9,10,11,12
+0 == 1
+1 == -32768
+2 == 3
+3 == 4
+4 == 5
+5 == 10
+6 == 7
+7 == 8
+8 == 9
+9 == 10
+10 == 11
+11 == 12
+foo == bar
+byteLength = 24
+
+test9.1
+0,-32768,-32768,-32768,0,10,10,10,0
+0 == 0
+1 == -32768
+2 == -32768
+3 == -32768
+4 == 0
+5 == 10
+6 == 10
+7 == 10
+8 == 0
+foo == bar
+byteLength = 18
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,-32768,-32768,0,10,10,10,0,10,11,12
+0 == 0
+1 == -32768
+2 == -32768
+3 == -32768
+4 == 0
+5 == 10
+6 == 10
+7 == 10
+8 == 0
+9 == 10
+10 == 11
+11 == 12
+foo == bar
+byteLength = 24
+object after expando is
+0,-32768,-32768,-32768,0,10,10,10,0,10,11,12
+0 == 0
+1 == -32768
+2 == -32768
+3 == -32768
+4 == 0
+5 == 10
+6 == 10
+7 == 10
+8 == 0
+9 == 10
+10 == 11
+11 == 12
+foo == bar
+byteLength = 24
+
+test9.2
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,10,0,10,10,10,0,10,11,12
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+6 == 10
+7 == 10
+8 == 0
+9 == 10
+10 == 11
+11 == 12
+foo == bar
+byteLength = 24
+object after expando is
+0,-32768,0,10,0,10,10,10,0,10,11,12
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+6 == 10
+7 == 10
+8 == 0
+9 == 10
+10 == 11
+11 == 12
+foo == bar
+byteLength = 24
+
+test10
+succeed with catchingTypeError: Typed array constructor argument is invalid
+test11
+succeed with catchingTypeError: Typed array constructor argument is invalid
+test11.1
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,0,0,10,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 0
+4 == 0
+5 == 10
+6 == 0
+byteLength = 14
+object after expando is
+0,-32768,0,0,0,10,0
+0 == 0
+1 == -32768
+2 == 0
+3 == 0
+4 == 0
+5 == 10
+6 == 0
+foo == bar
+byteLength = 14
+
+test12
+undefined
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+
+byteLength = 0
+object after expando is
+
+foo == bar
+byteLength = 0
+
+test13
+10
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+0,-32768,0,-32768,0,10,0,10,0,0,0,0,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == -32768
+4 == 0
+5 == 10
+6 == 0
+7 == 10
+8 == 0
+9 == 0
+10 == 0
+11 == 0
+12 == 0
+13 == 0
+14 == 0
+byteLength = 30
+object after expando is
+0,-32768,0,-32768,0,10,0,10,0,0,0,0,0,0,0
+0 == 0
+1 == -32768
+2 == 0
+3 == -32768
+4 == 0
+5 == 10
+6 == 0
+7 == 10
+8 == 0
+9 == 0
+10 == 0
+11 == 0
+12 == 0
+13 == 0
+14 == 0
+foo == bar
+byteLength = 30
+
+test14
+undefined
+constructor is
+function Int16Array() { [native code] }
+byteLength = undefined
+object is
+
+byteLength = 0
+object after expando is
+
+foo == bar
+byteLength = 0
+
+test15
+succeed with catchingRangeError: Invalid offset/length when creating typed array
+test16
+succeed with catchingRangeError: Invalid offset/length when creating typed array
+test17
+0,-32768,0,10,0,10
+0 == 0
+1 == -32768
+2 == 0
+3 == 10
+4 == 0
+5 == 10
+byteLength = 12
+test18
+0,10
+0 == 0
+1 == 10
+byteLength = 4
+test19
+0,-32768,0
+0 == 0
+1 == -32768
+2 == 0
+byteLength = 6
+test20
+undefined
+undefined
+undefined
+10
+test21
+undefined
+undefined
+5
+5
+undefined
+5
+5
+undefined
+5
+5
+undefined
+undefined
+NaN
+1
+undefined
+0
+1
+undefined
+1
+1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+undefined
+undefined
+[object Object]
+6
+undefined
+[object Object]
+7
+undefined
+[object Object]
+6
+test21 JIT
+undefined
+undefined
+5
+5
+undefined
+5
+5
+undefined
+5
+5
+undefined
+undefined
+NaN
+1
+undefined
+0
+1
+undefined
+1
+1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+undefined
+undefined
+[object Object]
+6
+undefined
+[object Object]
+7
+undefined
+[object Object]
+6
+test22
+***testing index 0 : 0
+5
+6
+***testing index 1 : "0"
+6
+7
+***testing index 2 : 0
+7
+8
+***testing index 3 : "-0"
+8
+undefined
+***testing index 4 : -2
+9
+undefined
+***testing index 5 : "-2"
+10
+undefined
+***testing index 6 : 1073741823
+11
+undefined
+***testing index 7 : "1073741823"
+12
+undefined
+***testing index 8 : 1
+13
+14
+***testing index 9 : "1"
+14
+15
+***testing index 10 : 2147483648
+15
+undefined
+***testing index 11 : "2147483648"
+16
+undefined
+***testing index 12 : 2147483647
+17
+undefined
+***testing index 13 : "2147483647"
+18
+undefined
+***testing index 14 : 4294967296
+19
+undefined
+***testing index 15 : "4294967296"
+20
+undefined
+***testing index 16 : 4294967295
+21
+undefined
+***testing index 17 : "4294967295"
+22
+undefined
+***testing index 18 : 1.5
+23
+undefined
+***testing index 19 : "1.5"
+24
+undefined
+***testing index 20 : "a"
+[object Object]
+***testing index 21 : 1000000000
+25
+undefined
+***testing index 22 : "1.0000000000000000000000000e-9"
+[object Object]
+***testing index 23 : NaN
+26
+undefined
+***testing index 24 : Infinity
+27
+undefined
+***testing index 25 : -Infinity
+28
+undefined
+***testing index 26 : "Infinity"
+29
+undefined
+***testing index 27 : "-Infinity"
+30
+undefined
+test22 JIT
+***testing index 0 : 0
+5
+6
+***testing index 1 : "0"
+6
+7
+***testing index 2 : 0
+7
+8
+***testing index 3 : "-0"
+8
+undefined
+***testing index 4 : -2
+9
+undefined
+***testing index 5 : "-2"
+10
+undefined
+***testing index 6 : 1073741823
+11
+undefined
+***testing index 7 : "1073741823"
+12
+undefined
+***testing index 8 : 1
+13
+14
+***testing index 9 : "1"
+14
+15
+***testing index 10 : 2147483648
+15
+undefined
+***testing index 11 : "2147483648"
+16
+undefined
+***testing index 12 : 2147483647
+17
+undefined
+***testing index 13 : "2147483647"
+18
+undefined
+***testing index 14 : 4294967296
+19
+undefined
+***testing index 15 : "4294967296"
+20
+undefined
+***testing index 16 : 4294967295
+21
+undefined
+***testing index 17 : "4294967295"
+22
+undefined
+***testing index 18 : 1.5
+23
+undefined
+***testing index 19 : "1.5"
+24
+undefined
+***testing index 20 : "a"
+[object Object]
+***testing index 21 : 1000000000
+25
+undefined
+***testing index 22 : "1.0000000000000000000000000e-9"
+[object Object]
+***testing index 23 : NaN
+26
+undefined
+***testing index 24 : Infinity
+27
+undefined
+***testing index 25 : -Infinity
+28
+undefined
+***testing index 26 : "Infinity"
+29
+undefined
+***testing index 27 : "-Infinity"
+30
+undefined

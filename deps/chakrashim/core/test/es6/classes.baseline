@@ -1,0 +1,98 @@
+*** Running test #1 (0): Class requires an extends expression if the extends keyword is used
+PASSED
+*** Running test #2 (1): Class declarations require a name
+PASSED
+*** Running test #3 (2): Class methods may not have an octal name
+PASSED
+*** Running test #4 (3): Class prototypes must be non-writable
+PASSED
+*** Running test #5 (4): Class static methods may not be named 'prototype'
+PASSED
+*** Running test #6 (5): Class constructor method can only be a normal method - not getter, setter, or generator
+PASSED
+*** Running test #7 (6): Class method names can be duplicated; last one lexically always win
+PASSED
+*** Running test #8 (7): Class extends expressions must be (null || an object that is a constructor with a prototype that is (null || an object))
+PASSED
+*** Running test #9 (8): Class basic sanity tests
+ctor
+method
+smethod
+getter
+sgetter
+setter null
+ssetter null
+method
+sub method
+sub method
+method
+method
+method() { p(InternalNameUse.method.toString()) }
+method() { p(InternalNameUseExpr.method.toString()) }
+PASSED
+*** Running test #10 (9): Class basic sanity tests in closures
+ctor
+method
+smethod
+getter
+sgetter
+setter null
+ssetter null
+cmethod
+scmethod
+cgetter
+scgetter
+csetter null
+scsetter null
+method
+sub method
+sub method
+method
+method
+method() { p(InternalNameUse.method.toString()) }
+method() { p(InternalNameUseExpr.method.toString()) }
+PASSED
+*** Running test #11 (10): Invalid uses of super
+PASSED
+*** Running test #12 (11): Basic uses of super
+constructor A
+constructor A
+constructor B
+PASSED
+*** Running test #13 (12): Super used outside the class declaration function
+PASSED
+*** Running test #14 (13): Super adapts to __proto__ changes
+PASSED
+*** Running test #15 (14): super reference in base class constructor
+PASSED
+*** Running test #16 (15): Default constructors
+PASSED
+*** Running test #17 (16): Evals and lambdas
+PASSED
+*** Running test #18 (17): Immutable binding within class body, declarations also have normal let binding in enclosing context
+PASSED
+*** Running test #19 (18): Ensure the super scope slot is emitted at the right time
+PASSED
+*** Running test #20 (19): 'super' reference in eval() and lambda
+PASSED
+*** Running test #21 (20): Class method can be a generator
+PASSED
+*** Running test #22 (21): Class method with computed name can be a generator
+PASSED
+*** Running test #23 (22): Class static method descriptor values
+PASSED
+*** Running test #24 (23): Class method descriptor values
+PASSED
+*** Running test #25 (24): Class constructor cannot be called without new keyword
+PASSED
+*** Running test #26 (25): Class methods cannot be called as constructors
+PASSED
+*** Running test #27 (26): Class static member cannot have computed name 'prototype'
+PASSED
+*** Running test #28 (27): Extends expression of a class declaration or expression is strict mode
+PASSED
+*** Running test #29 (28): Class identifier is evaluated in strict mode
+PASSED
+*** Running test #30 (29): Classes with caller/arguments methods
+PASSED
+Summary of tests: total executed: 30; passed: 30; failed: 0

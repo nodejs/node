@@ -1,0 +1,13 @@
+Error.prototype.name: Error
+Error.prototype.message: 
+Error.prototype.toString(): [object Error]
+noMessage.name: Error
+noMessage.message: 
+noMessage.toString(): [object Error]
+withMessage.name: Error
+withMessage.message: I have a message for you...
+withMessage.toString(): [object Error]
+Changing Error.prototype.name to TryNewName...
+Error.prototype.name: TryNewName
+withMessage.name: TryNewName
+Message: Range Error's prototype

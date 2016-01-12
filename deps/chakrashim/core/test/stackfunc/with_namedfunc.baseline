@@ -1,0 +1,6 @@
+HasFuncDecl: test
+HasFuncDecl: blah
+HasMaybeEscapedNestedFunc (UnknownAssignment): test (function  (#1.1), #2)
+HasMaybeEscapedUse: x
+test1
+test2

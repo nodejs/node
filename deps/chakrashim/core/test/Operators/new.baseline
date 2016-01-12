@@ -1,0 +1,10 @@
+test1: Test passed, expected TypeError-Object doesn't support this action
+test2: Test passed, expected TypeError-Object expected
+test3: Test passed, expected TypeError-Object doesn't support this action
+test4: Test passed, expected no exception thrown
+test5: Test passed, expected TypeError-Object doesn't support this action
+test6: Test passed, expected ReferenceError-'Blah' is undefined
+test7: Test passed, expected TypeError-Object doesn't support this action
+test8: Test passed, expected no exception thrown
+test9: Test passed, expected no exception thrown
+Passed

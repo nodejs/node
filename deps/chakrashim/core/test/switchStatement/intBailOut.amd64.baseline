@@ -1,0 +1,44 @@
+5
+16
+BailOut: function: f (#2) offset: #0000 Opcode: Ld_A
+default
+16
+Bailout from function: function: f, bailOutkind: 20, bailOutKindName: (BailOutExpectingInteger), bailOutCount: 1, callCount: 20, reJitReason: None, reThunk: false
+BailOut: function: f (#2) offset: #0000 Opcode: Ld_A
+default
+16
+Bailout from function: function: f, bailOutkind: 20, bailOutKindName: (BailOutExpectingInteger), bailOutCount: 2, callCount: 0, reJitReason: ExpectingInteger, reThunk: false
+BailOut: function: f (#2) offset: #0006 Opcode: FromVar
+default
+16
+Bailout from function: function: f, bailOutkind: 1, bailOutKindName: (BailOutIntOnly), bailOutCount: 1, callCount: 20, reJitReason: None, reThunk: false
+BailOut: function: f (#2) offset: #0006 Opcode: FromVar
+default
+16
+Bailout from function: function: f, bailOutkind: 1, bailOutKindName: (BailOutIntOnly), bailOutCount: 2, callCount: 0, reJitReason: AggressiveIntTypeSpecDisabled, reThunk: false
+BailOut: function: f (#2) offset: #003e Opcode: FromVar
+default
+16
+Bailout from function: function: f, bailOutkind: 2, bailOutKindName: (BailOutNumberOnly), bailOutCount: 1, callCount: 20, reJitReason: None, reThunk: false
+BailOut: function: f (#2) offset: #003e Opcode: FromVar
+default
+16
+Bailout from function: function: f, bailOutkind: 2, bailOutKindName: (BailOutNumberOnly), bailOutCount: 2, callCount: 0, reJitReason: FloatTypeSpecDisabled, reThunk: false
+default
+16
+default
+16
+default
+16
+default
+16
+default
+16
+default
+16
+default
+16
+default
+16
+default
+16

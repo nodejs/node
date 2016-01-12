@@ -1,0 +1,23 @@
+global z
+ReferenceError: 'x' is undefined
+ReferenceError: 'y' is undefined
+ReferenceError: Let/Const redeclaration
+ReferenceError: Let/Const redeclaration
+global block z
+ReferenceError: 'x' is undefined
+ReferenceError: 'y' is undefined
+ReferenceError: Let/Const redeclaration
+outer w
+outer z
+ReferenceError: 'x' is undefined
+ReferenceError: 'y' is undefined
+outer var y
+ReferenceError: Let/Const redeclaration
+inner w
+inner z
+ReferenceError: 'x' is undefined
+outer var y
+ba
+ba
+outer var y
+0

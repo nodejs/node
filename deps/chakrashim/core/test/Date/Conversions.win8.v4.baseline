@@ -1,0 +1,106 @@
+--- Standard Time (ST) conversions ---
+
+January 31, 2006 - UTC to local - ST
+Tue, 31 Jan 2006 18:00:00 UTC
+Tuesday, January 31, 2006 10:00:00 AM
+
+January 31, 2006 - local to UTC - ST
+Tuesday, January 31, 2006 11:00:00 AM
+Tue, 31 Jan 2006 19:00:00 UTC
+
+January 31, 2007 - UTC to local - ST
+Wed, 31 Jan 2007 18:00:00 UTC
+Wednesday, January 31, 2007 10:00:00 AM
+
+January 31, 2007 - local to UTC - ST
+Wednesday, January 31, 2007 11:00:00 AM
+Wed, 31 Jan 2007 19:00:00 UTC
+
+--- Daylight Time (DT) conversions ---
+
+July 15, 2006 - UTC to local - DT
+Mon, 31 Jul 2006 18:00:00 UTC
+Monday, July 31, 2006 11:00:00 AM
+
+July 15, 2006 - local to UTC - DT
+Saturday, July 15, 2006 11:00:00 AM
+Sat, 15 Jul 2006 18:00:00 UTC
+
+July 15, 2007 - UTC to local - DT
+Tue, 31 Jul 2007 18:00:00 UTC
+Tuesday, July 31, 2007 11:00:00 AM
+
+July 15, 2007 - local to UTC - DT
+Sunday, July 15, 2007 11:00:00 AM
+Sun, 15 Jul 2007 18:00:00 UTC
+
+--- Boundary conversions between old and new rules ---
+
+March 31, 2006 - UTC to local - ST in 2006 rules
+Fri, 31 Mar 2006 18:00:00 UTC
+Friday, March 31, 2006 10:00:00 AM
+
+March 31, 2006 - local to UTC - ST in 2006 rules
+Friday, March 31, 2006 11:00:00 AM
+Fri, 31 Mar 2006 19:00:00 UTC
+
+March 31, 2007 - UTC to local - DT in 2007 rules
+Sat, 31 Mar 2007 18:00:00 UTC
+Saturday, March 31, 2007 11:00:00 AM
+
+March 31, 2007 - local to UTC - DT in 2007 rules
+Saturday, March 31, 2007 11:00:00 AM
+Sat, 31 Mar 2007 18:00:00 UTC
+
+October 31, 2006 - UTC to local - ST in 2006 rules
+Tue, 31 Oct 2006 18:00:00 UTC
+Tuesday, October 31, 2006 10:00:00 AM
+
+October 31, 2006 - local to UTC - ST in 2006 rules
+Tuesday, October 31, 2006 11:00:00 AM
+Tue, 31 Oct 2006 19:00:00 UTC
+
+October 31, 2007 - UTC to local - DT in 2007 rules
+Wed, 31 Oct 2007 18:00:00 UTC
+Wednesday, October 31, 2007 11:00:00 AM
+
+October 31, 2007 - local to UTC - DT in 2007 rules
+Wednesday, October 31, 2007 11:00:00 AM
+Wed, 31 Oct 2007 18:00:00 UTC
+
+--- Boundary conversions when transitioning into DT ---
+
+March 11, 2007 2:00 AM transition - UTC to local
+Sun, 11 Mar 2007 09:30:00 UTC
+Sunday, March 11, 2007 1:30:00 AM
+Sun, 11 Mar 2007 10:30:00 UTC
+Sunday, March 11, 2007 3:30:00 AM
+Sun, 11 Mar 2007 11:30:00 UTC
+Sunday, March 11, 2007 4:30:00 AM
+
+March 11, 2007 2:00 AM transition - local to UTC
+Sunday, March 11, 2007 1:30:00 AM
+Sun, 11 Mar 2007 09:30:00 UTC
+Sunday, March 11, 2007 3:30:00 AM
+Sun, 11 Mar 2007 10:30:00 UTC
+Sunday, March 11, 2007 3:30:00 AM
+Sun, 11 Mar 2007 10:30:00 UTC
+
+--- Boundary conversions when transitioning into ST ---
+
+November 4, 2007 2:00 AM transition - UTC to local
+Sun, 4 Nov 2007 08:30:00 UTC
+Sunday, November 4, 2007 1:30:00 AM
+Sun, 4 Nov 2007 09:30:00 UTC
+Sunday, November 4, 2007 1:30:00 AM
+Sun, 4 Nov 2007 10:30:00 UTC
+Sunday, November 4, 2007 2:30:00 AM
+
+November 4, 2007 2:00 AM transition - local to UTC
+Sunday, November 4, 2007 12:30:00 AM
+Sun, 4 Nov 2007 07:30:00 UTC
+Sunday, November 4, 2007 1:30:00 AM
+Sun, 4 Nov 2007 08:30:00 UTC
+Sunday, November 4, 2007 2:30:00 AM
+Sun, 4 Nov 2007 10:30:00 UTC
+

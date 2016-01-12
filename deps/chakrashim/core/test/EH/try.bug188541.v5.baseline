@@ -1,0 +1,27 @@
+foo():
+Caught e=foo error
+Caught e=10
+Caught e=foo error
+
+foo2():
+Caught e=foo error
+Caught e=10
+
+foo3():
+Caught e=foo error
+Caught expected err=ReferenceError: Use before declaration
+Caught e=20
+Caught e=10
+
+foo4():
+Caught e=foo error
+Caught e=20
+Caught e=foo error
+
+foo5():
+Caught e=foo error
+Caught expected err=ReferenceError: Use before declaration
+Caught e=20
+Caught e=10
+
+PASSED

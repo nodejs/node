@@ -1,0 +1,21 @@
+*** Running test #1 (test01): Make sure that shared type handler is not shared between evolved instances
+PASSED
+*** Running test #2 (test02): Make sure that checks are done when preventExtensions=true for non-extensible object with same layout
+PASSED
+*** Running test #3 (test03): Make sure that after preventExtensions the type can evolve without corrupting the shared type
+PASSED
+*** Running test #4 (test04): Make sure that after deleting property and then preventExtensions, inline cache is not used so that we can't add the property back
+PASSED
+*** Running test #5 (test05): Evolve s.d.t.h by redefining a property and make sure on shared instance there is no change
+PASSED
+*** Running test #6 (test06): Make sure that preventExtensions/seal/freeze types are using different shared types
+PASSED
+*** Running test #7 (test07): Call preventExtensions, seal, freeze on the same instance
+PASSED
+*** Running test #8 (test08): Attmept to add a numeric property to non-extensible empty object
+PASSED
+*** Running test #9 (test09): Call preventExtensions on object with numeric item, then attempt to add a new numeric item
+PASSED
+*** Running test #10 (test10): Inline cache and freeze: make sure that inline cache is not used for frozen type
+PASSED
+Summary of tests: total executed: 10; passed: 10; failed: 0

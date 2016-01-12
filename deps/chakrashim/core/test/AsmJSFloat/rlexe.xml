@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -on:asmjs -testtrace:asmjsinterpreter</compile-flags>
+      <files>BasicMathOp.js</files>
+      <baseline>BasicMathOp.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -on:asmjs -testtrace:asmjsinterpreter</compile-flags>
+      <files>Float64-LoadandStore.js</files>
+      <baseline>Float64-LoadandStore.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -on:asmjs -testtrace:asmjsinterpreter</compile-flags>
+      <files>LdUndefFromHeap.js</files>
+      <baseline>LdUndefFromHeap.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -on:asmjs -testtrace:asmjsinterpreter</compile-flags>
+      <files>NestedMathLibCalls.js</files>
+      <baseline>NestedMathLibCalls.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -on:asmjs -testtrace:asmjsinterpreter</compile-flags>
+      <files>NotOperator.js</files>
+      <baseline>NotOperator.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -on:asmjs -testtrace:asmjsinterpreter</compile-flags>
+      <files>StoreDoubleToFloat32.js</files>
+      <baseline>StoreDoubleToFloat32.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -on:asmjs -testtrace:asmjsinterpreter</compile-flags>
+      <files>StoreFloatToFloat32.js</files>
+      <baseline>StoreFloatToFloat32.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -mtjrc:1</compile-flags>
+      <files>BasicMathOp.js</files>
+      <baseline>BasicMathOp.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -mtjrc:1</compile-flags>
+      <files>Float64-LoadandStore.js</files>
+      <baseline>Float64-LoadandStore.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -mtjrc:1</compile-flags>
+      <files>LdUndefFromHeap.js</files>
+      <baseline>LdUndefFromHeap.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -mtjrc:1</compile-flags>
+      <files>NestedMathLibCalls.js</files>
+      <baseline>NestedMathLibCalls.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -mtjrc:1</compile-flags>
+      <files>NotOperator.js</files>
+      <baseline>NotOperator.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -mtjrc:1</compile-flags>
+      <files>StoreDoubleToFloat32.js</files>
+      <baseline>StoreDoubleToFloat32.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <compile-flags>-on:asmjs -testtrace:asmjs -simdjs -mtjrc:1</compile-flags>
+      <files>StoreFloatToFloat32.js</files>
+      <baseline>StoreFloatToFloat32.baseline</baseline>
+    </default>
+  </test>
+</regress-exe>

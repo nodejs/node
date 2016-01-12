@@ -1,0 +1,7 @@
+abc
+BailOut: function: f (#2) offset: #0000 Opcode: Ld_A
+default
+Bailout from function: function: f, bailOutkind: 22, bailOutKindName: (BailOutExpectingString), bailOutCount: 1, callCount: 20, reJitReason: None, reThunk: false
+BailOut: function: f (#2) offset: #0000 Opcode: Ld_A
+default
+Bailout from function: function: f, bailOutkind: 22, bailOutKindName: (BailOutExpectingString), bailOutCount: 2, callCount: 0, reJitReason: ExpectingString, reThunk: false

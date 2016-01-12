@@ -1,0 +1,43 @@
+Test 1:
+o = { a: 1, b: 2, c: 3, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: 1, b: 2, c: 3, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: 1, b: 2, c: 3, p: 0, q: undefined, x: 4, y: 5 }
+
+Test 2:
+o = { a: 1, b: 2, c: 3, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: 1, b: 2, c: 3, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: 1, b: 2, c: 3, p: 0, q: undefined, x: 4, y: 5 }
+
+Test 3:
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+
+Test 4:
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+
+Test 5:
+o = { a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 }
+o = { a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 }
+o = { a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 }
+
+Test 6:
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: undefined, b: undefined, c: undefined, p: 0, q: undefined, x: 4, y: 5 }
+
+Test 7:
+o = { a: -1, b: -2, c: -3, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: -1, b: -2, c: -3, p: 0, q: undefined, x: 4, y: 5 }
+o = { a: -1, b: -2, c: -3, p: 0, q: undefined, x: 4, y: 5 }
+
+Test 8:
+Exception: [object Object]
+o = { a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: undefined, y: undefined }
+Exception: [object Object]
+o = { a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: undefined, y: undefined }
+Exception: [object Object]
+o = { a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: undefined, y: undefined }
+

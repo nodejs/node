@@ -1,0 +1,293 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Runtime.Library</TargetName>
+    <ProjectGuid>{706083F7-6AA4-4558-A153-6352EF9110F7}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+    <Import Project="$(BuildConfig_ARMASM_Path)armasm.props" />
+  </ImportGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        $(MSBuildThisFileDirectory)..\..\Common;
+        $(MSBuildThisFileDirectory)..\..\Parser;
+        $(MSBuildThisFileDirectory)..\..\Backend;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <!-- For mscorlib.tlb used in JavascriptErrorDebug.cpp -->
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SdkLibPath)\clr45</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>RuntimeLibraryPch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptSIMDFloat32x4.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptSIMDFloat64x2.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptSIMDInt32x4.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDFloat32x4Lib.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDFloat64x2Lib.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDInt32x4Lib.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ArrayBuffer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)BoundFunction.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)BufferStringBuilder.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CommonExternalApiImpl.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CompoundString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)dataview.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)EngineInterfaceObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IteratorObjectEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptArrayIterator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptBuiltInFunctions.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptEnumeratorIterator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptExternalFunction.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptGenerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptGeneratorFunction.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptIterator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptMap.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptMapIterator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptPromise.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptProxy.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptReflect.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptRegExpEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptSet.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptSetIterator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptStringIterator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptSymbol.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptSymbolObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptWeakMap.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptWeakSet.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)javascripttypednumber.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSONParser.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSONScanner.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSONString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ProfileString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RootObjectBase.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RuntimeFunction.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ScriptFunction.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SingleCharString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)StackScriptFunction.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)StringCopyInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ThrowErrorObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)TypedArray.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)typedArrayEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ArgumentsObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ArgumentsObjectEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ConcatString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DateImplementation.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ForInObjectEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)GlobalObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ES5Array.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ES5ArrayEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptArray.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptArrayEnumeratorBase.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptArrayEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptArraySnapshotEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptBoolean.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptBooleanObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptDate.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptError.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptFunction.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptLibrary.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptNumber.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptNumberObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptRegExpConstructor.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptRegularExpression.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptRegularExpressionResult.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptStringEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptVariantDate.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSONStack.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSON.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)LiteralString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptStringObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)MathLibrary.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)moduleroot.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)NullEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ObjectPrototypeObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)PropertyString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RegexHelper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SparseArraySegment.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RuntimeLibraryPch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SubString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)UriHelper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDInt8x16Lib.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptSIMDInt8x16.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ExternalLibraryBase.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)IntlEngineInterfaceExtensionObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptErrorDebug.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\InternalPropertyList.h" />
+    <ClInclude Include="..\RuntimeCommon.h" />
+    <ClInclude Include="..\SerializableFunctionFields.h" />
+    <ClInclude Include="ExternalLibraryBase.h" />
+    <ClInclude Include="IntlEngineInterfaceExtensionObject.h" />
+    <ClInclude Include="JavascriptErrorDebug.h" />
+    <ClInclude Include="JavascriptSIMDFloat32x4.h" />
+    <ClInclude Include="JavascriptSIMDFloat64x2.h" />
+    <ClInclude Include="JavascriptSIMDInt32x4.h" />
+    <ClInclude Include="JavascriptSIMDInt8x16.h" />
+    <ClInclude Include="SIMDFloat32x4Lib.h" />
+    <ClInclude Include="SIMDFloat64x2Lib.h" />
+    <ClInclude Include="SIMDInt32x4Lib.h" />
+    <ClInclude Include="SIMDInt8x16Lib.h" />
+    <ClInclude Include="SimdLib.h" />
+    <ClInclude Include="ArrayBuffer.h" />
+    <ClInclude Include="BoundFunction.h" />
+    <ClInclude Include="BufferStringBuilder.h" />
+    <ClInclude Include="BuiltInFlags.h" />
+    <ClInclude Include="CompoundString.h" />
+    <ClInclude Include="dataview.h" />
+    <ClInclude Include="DateImplementationData.h" />
+    <ClInclude Include="EngineInterfaceObject.h" />
+    <ClInclude Include="ES5ArrayIndexEnumerator.h" />
+    <ClInclude Include="ES5ArrayNonIndexEnumerator.h" />
+    <ClInclude Include="HostObjectBase.h" />
+    <ClInclude Include="InJavascript\intl.js.bc.32b.h" />
+    <ClInclude Include="InJavascript\intl.js.bc.64b.h" />
+    <ClInclude Include="IteratorObjectEnumerator.h" />
+    <ClInclude Include="JavascriptArrayEnumeratorBase.h" />
+    <ClInclude Include="JavascriptArrayIndexEnumerator.h" />
+    <ClInclude Include="JavascriptArrayIterator.h" />
+    <ClInclude Include="JavascriptArrayNonIndexSnapshotEnumerator.h" />
+    <ClInclude Include="JavascriptArraySnapshotEnumerator.h" />
+    <ClInclude Include="JavascriptBuiltInFunctionList.h" />
+    <ClInclude Include="JavascriptBuiltInFunctions.h" />
+    <ClInclude Include="JavascriptEnumeratorIterator.h" />
+    <ClInclude Include="JavascriptExternalFunction.h" />
+    <ClInclude Include="JavascriptGenerator.h" />
+    <ClInclude Include="JavascriptGeneratorFunction.h" />
+    <ClInclude Include="JavascriptIterator.h" />
+    <ClInclude Include="JavascriptMap.h" />
+    <ClInclude Include="JavascriptMapIterator.h" />
+    <ClInclude Include="JavascriptPromise.h" />
+    <ClInclude Include="JavascriptProxy.h" />
+    <ClInclude Include="JavascriptRegExpEnumerator.h" />
+    <ClInclude Include="JavascriptReflect.h" />
+    <ClInclude Include="JavascriptSet.h" />
+    <ClInclude Include="JavascriptSetIterator.h" />
+    <ClInclude Include="JavascriptStringIterator.h" />
+    <ClInclude Include="JavascriptStringTagEntries.h" />
+    <ClInclude Include="JavascriptSymbol.h" />
+    <ClInclude Include="JavascriptSymbolObject.h" />
+    <ClInclude Include="javascripttypednumber.h" />
+    <ClInclude Include="JavascriptWeakMap.h" />
+    <ClInclude Include="JavascriptWeakSet.h" />
+    <ClInclude Include="JSONParser.h" />
+    <ClInclude Include="JSONScanner.h" />
+    <ClInclude Include="JSONString.h" />
+    <ClInclude Include="MapOrSetDataList.h" />
+    <ClInclude Include="ProfileString.h" />
+    <ClInclude Include="RootObjectBase.h" />
+    <ClInclude Include="RuntimeFunction.h" />
+    <ClInclude Include="RuntimeLibraryPch.h" />
+    <ClInclude Include="SameValueComparer.h" />
+    <ClInclude Include="ScriptFunction.h" />
+    <ClInclude Include="SingleCharString.h" />
+    <ClInclude Include="StackScriptFunction.h" />
+    <ClInclude Include="StringCopyInfo.h" />
+    <ClInclude Include="ThrowErrorObject.h" />
+    <ClInclude Include="typedarray.h" />
+    <ClInclude Include="typedArrayEnumerator.h" />
+    <ClInclude Include="ArgumentsObject.h" />
+    <ClInclude Include="ArgumentsObjectEnumerator.h" />
+    <ClInclude Include="ConcatString.h" />
+    <ClInclude Include="DateImplementation.h" />
+    <ClInclude Include="ForInObjectEnumerator.h" />
+    <ClInclude Include="GlobalObject.h" />
+    <ClInclude Include="ES5Array.h" />
+    <ClInclude Include="ES5ArrayEnumerator.h" />
+    <ClInclude Include="JavascriptArray.h" />
+    <ClInclude Include="JavascriptArrayEnumerator.h" />
+    <ClInclude Include="JavascriptBoolean.h" />
+    <ClInclude Include="JavascriptBooleanObject.h" />
+    <ClInclude Include="JavascriptDate.h" />
+    <ClInclude Include="JavascriptError.h" />
+    <ClInclude Include="JavascriptFunction.h" />
+    <ClInclude Include="JavascriptLibrary.h" />
+    <ClInclude Include="JavascriptLibraryBase.h" />
+    <ClInclude Include="JavascriptNumber.h" />
+    <ClInclude Include="JavascriptNumberObject.h" />
+    <ClInclude Include="JavascriptObject.h" />
+    <ClInclude Include="JavascriptRegExpConstructor.h" />
+    <ClInclude Include="JavascriptRegularExpression.h" />
+    <ClInclude Include="JavascriptRegularExpressionResult.h" />
+    <ClInclude Include="JavascriptString.h" />
+    <ClInclude Include="JavascriptStringEnumerator.h" />
+    <ClInclude Include="JavascriptStringObject.h" />
+    <ClInclude Include="JavascriptVariantDate.h" />
+    <ClInclude Include="JSONStack.h" />
+    <ClInclude Include="JSON.h" />
+    <ClInclude Include="LiteralString.h" />
+    <ClInclude Include="MathLibrary.h" />
+    <ClInclude Include="moduleroot.h" />
+    <ClInclude Include="NullEnumerator.h" />
+    <ClInclude Include="ObjectPrototypeObject.h" />
+    <ClInclude Include="PropertyString.h" />
+    <ClInclude Include="RegexHelper.h" />
+    <ClInclude Include="..\Runtime.h" />
+    <ClInclude Include="SparseArraySegment.h" />
+    <ClInclude Include="SubString.h" />
+    <ClInclude Include="UriHelper.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="$(MSBuildThisFileDirectory)amd64\javascriptfunctiona.asm">
+      <PreprocessorDefinitions Condition="'$(BuildJIT)'!='false'">%(PreprocessorDefinitions);_ENABLE_ASM_JS=1</PreprocessorDefinitions>
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </MASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_DeferredDeserializeThunk.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_CallFunction.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_DeferredParsingThunk.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_DeferredDeserializeThunk.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_CallFunction.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_DeferredParsingThunk.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ARMASM>
+    <None Include="InJavascript\BuildGenByteCodeBin.cmd" />
+    <None Include="InJavascript\GenByteCode.cmd" />
+    <None Include="InJavascript\Intl.js" />
+    <None Include="InJavascript\WarnGenByteCode.cmd" />
+    <None Include="ConcatString.inl" />
+    <None Include="SparseArraySegment.inl" />
+    <None Include="JavascriptArray.inl" />
+    <None Include="JavascriptBoolean.inl" />
+    <None Include="JavascriptLibrary.inl" />
+    <None Include="JavascriptNumber.inl" />
+    <None Include="JavascriptString.inl" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+    <Import Project="$(BuildConfig_ARMASM_Path)armasm.targets" />
+  </ImportGroup>
+</Project>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>getVarDate.js</files>
+      <baseline>getVarDate.baseline</baseline>
+      <!-- test is timezone-sensitive; remove exclude_jenkins after fix -->
+      <tags>exclude_jenkins</tags>
+    </default>
+  </test>
+</regress-exe>

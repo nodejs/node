@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Constants -->
+  <PropertyGroup>
+    <NtTargetVersion_Win7 >0x601</NtTargetVersion_Win7>
+    <NtTargetVersion_Win8 >0x602</NtTargetVersion_Win8>
+    <NtTargetVersion_Win10>0xA00</NtTargetVersion_Win10>
+  </PropertyGroup>
+
+  <!-- Auto tool set selection -->
+  <PropertyGroup>
+    <PlatformToolset Condition="'$(VisualStudioVersion)'=='11.0'">v110</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioVersion)'=='12.0'">v120</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioVersion)'=='14.0'">v140</PlatformToolset>
+  </PropertyGroup>
+
+  <!-- Default ChakraDevConfigDir -->
+  <PropertyGroup>
+    <ChakraDevConfigDir Condition="'$(ChakraDevConfigDir)'==''">$(USERPROFILE)\ChakraDevConfig</ChakraDevConfigDir>
+  </PropertyGroup>
+
+  <!-- Import user settings, can be used to override OutBaseDir/IntBaseDir-->
+  <ImportGroup>
+    <Import Project="$(ChakraDevConfigDir)\Chakra.Build.user.props" Condition="exists('$(ChakraDevConfigDir)\Chakra.Build.user.props')"/>
+  </ImportGroup>
+
+  <!-- Common build settings -->
+  <PropertyGroup>
+    <OptimizedBuild />
+    <OptimizedBuild Condition="'$(Configuration)'=='Release' or '$(Configuration)'=='Test'">true</OptimizedBuild>
+    <NtTargetVersion>$(NtTargetVersion_Win7)</NtTargetVersion>
+
+    <!-- On ARM we depend an API that was added in Win8 timeframe, specifically GetCurrentThreadLimits.
+         Note that for ARM we don't need to support running on Win7, so it's fine to require Win8 as minimum. -->
+    <NtTargetVersion Condition="'$(Platform)'=='ARM' or '$(Platform)'=='Arm64'">$(NtTargetVersion_Win8)</NtTargetVersion>
+
+    <WindowsSDKDesktopARMSupport Condition="'$(Platform)'=='ARM'">true</WindowsSDKDesktopARMSupport>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <!-- Alternate platform names-->
+  <PropertyGroup>
+    <!-- PlatformPathName is used in OutDir/IntDir name-->
+    <PlatformPathName>$(Platform)</PlatformPathName>
+    <PlatformPathName Condition="'$(Platform)'=='Win32'">x86</PlatformPathName>
+    <!-- PlatformPathNameAlt is used by Backend for architecture directory -->
+    <PlatformPathNameAlt>$(Platform)</PlatformPathNameAlt>
+    <PlatformPathNameAlt Condition="'$(Platform)'=='Win32'">i386</PlatformPathNameAlt>
+    <PlatformPathNameAlt Condition="'$(Platform)'=='x64'">amd64</PlatformPathNameAlt>
+  </PropertyGroup>
+
+
+  <!-- Default output directories -->
+  <PropertyGroup>
+    <OutBaseDir Condition="'$(OutBaseDir)'!=''">$(OutBaseDir)\$(SolutionName)</OutBaseDir>
+    <OutBaseDir Condition="'$(OutBaseDir)'==''">$(SolutionDir)VcBuild</OutBaseDir>
+    <OutBaseDir Condition="'$(BuildJIT)'=='false'">$(OutBaseDir).NoJIT</OutBaseDir>
+    <IntBaseDir Condition="'$(IntBaseDir)'==''">$(OutBaseDir)</IntBaseDir>
+  </PropertyGroup>
+
+  <!-- Import generated build info -->
+  <Import Project="$(TF_BUILD_BUILDDIRECTORY)\Chakra.Generated.BuildInfo.props" Condition="'$(TF_BUILD_BUILDDIRECTORY)' != '' AND exists('$(TF_BUILD_BUILDDIRECTORY)\Chakra.Generated.BuildInfo.props')" />
+
+  <!-- Output directories -->
+  <PropertyGroup>
+    <OutDirName Condition="'$(ENABLE_CODECOVERAGE)'=='true'">codecoverage</OutDirName>
+    <OutDirName Condition="'$(OutDirName)'==''">$(Configuration.ToLower())</OutDirName>
+    <OutDir>$(OutBaseDir)\bin\$(PlatformPathName.ToLower())_$(OutDirName)\</OutDir>
+    <IntDir>$(IntBaseDir)\obj\$(PlatformPathName.ToLower())_$(Configuration.ToLower())\$(MSBuildProjectName)\</IntDir>
+    <OutDir Condition="'$(ConfigurationType)'=='StaticLibrary'">$(IntDir)</OutDir>
+    <OutputPath>$(OutDir)</OutputPath>
+
+    <ChakraParserIntDir>$(IntDir)..\Chakra.Parser</ChakraParserIntDir>
+  </PropertyGroup>
+</Project>

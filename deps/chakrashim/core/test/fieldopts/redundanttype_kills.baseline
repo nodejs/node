@@ -1,0 +1,4 @@
+test0: {p: 1}
+test1: {p: 1, q: 1, r: 0, s: 0, t: 0}
+test2: {p: 1, q: 1}
+test3: {p: 1, q: 1}

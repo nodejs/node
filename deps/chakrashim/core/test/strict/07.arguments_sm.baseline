@@ -1,0 +1,6 @@
+Changing Arguments...
+Exception: function f0() { 'use strict'; arguments=1; } :: Assign to Arguments
+Exception: function f1() { 'use strict'; arguments++; } :: Post ++   Arguments
+Exception: function f2() { 'use strict'; arguments--; } :: Post --   Arguments
+Exception: function f3() { 'use strict'; ++arguments; } :: Pre  ++   Arguments
+Exception: function f4() { 'use strict'; --arguments; } :: Pre  --   Arguments

@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Runtime.ByteCode</TargetName>
+    <ProjectGuid>{706083F7-6AA4-4558-A153-6352EF9110F5}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        $(MSBuildThisFileDirectory)..\..\Common;
+        $(MSBuildThisFileDirectory)..\..\Parser;
+        $(MSBuildThisFileDirectory)..\..\Backend;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>RuntimeByteCodePch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJSByteCodeDumper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJsByteCodeWriter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ByteBlock.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ByteCodeDumper.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ByteCodeEmitter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ByteCodeGenerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ByteCodeReader.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ByteCodeWriter.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ByteCodeSerializer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FuncInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Opcodes.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)OpCodeUtil.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)OpCodeUtilAsmJs.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Scope.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ScopeInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)StatementReader.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Symbol.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RuntimeByteCodePch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="BackEndOpcodeAttr.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AsmJSByteCodeDumper.h" />
+    <ClInclude Include="AsmJsByteCodeWriter.h" />
+    <ClInclude Include="BackEndOpcodeAttr.h" />
+    <ClInclude Include="ByteBlock.h" />
+    <ClInclude Include="ByteCodeAPI.h" />
+    <ClInclude Include="ByteCodeDumper.h" />
+    <ClInclude Include="ByteCodeGenerator.h" />
+    <ClInclude Include="ByteCodeReader.h" />
+    <ClInclude Include="ByteCodeWriter.h" />
+    <ClInclude Include="ByteCodeSerializeFlags.h" />
+    <ClInclude Include="ByteCodeSerializer.h" />
+    <ClInclude Include="byteCodeCacheReleaseFileVersion.h" />
+    <ClInclude Include="ExtendedOpCodeList.h" />
+    <ClInclude Include="ExtendedOpCodeListAsmJs.h" />
+    <ClInclude Include="FuncInfo.h" />
+    <ClInclude Include="LayoutTypes.h" />
+    <ClInclude Include="LayoutTypesAsmJs.h" />
+    <ClInclude Include="OpCodeList.h" />
+    <ClInclude Include="OpCodeListAsmJs.h" />
+    <ClInclude Include="OpCodeUtil.h" />
+    <ClInclude Include="OpCodeUtilAsmJs.h" />
+    <ClInclude Include="OpCodes.h" />
+    <ClInclude Include="OpCodesAsmJs.h" />
+    <ClInclude Include="OpCodesSimd.h" />
+    <ClInclude Include="OpLayouts.h" />
+    <ClInclude Include="OpLayoutsAsmJs.h" />
+    <ClInclude Include="OpLayoutsCommon.h" />
+    <ClInclude Include="RuntimeByteCodePch.h" />
+    <ClInclude Include="Scope.h" />
+    <ClInclude Include="ScopeInfo.h" />
+    <ClInclude Include="StatementReader.h" />
+    <ClInclude Include="Symbol.h" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

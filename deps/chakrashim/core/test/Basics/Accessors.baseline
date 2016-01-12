@@ -1,0 +1,29 @@
+*** Setting data property ***
+o.x=23
+*** Setting data property using defineProperty ***
+o.x=24
+*** Setting accessor property using defineProperty ***
+Setter called
+Getter called
+o.x=25
+x=25
+z=1000
+*** Setting backing store for accessor ***
+Getter called
+o.x=26
+In getter
+In setter
+In getter
+undefined
+In setter
+get
+undefined
+x:0, y:0, z:12
+get global
+undefined
+*** Getters, prototypes, and deleting properties ***
+undefined
+undefined
+*** Setters, prototypes, and deleting properties ***
+2
+undefined

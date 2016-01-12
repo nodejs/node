@@ -1,0 +1,159 @@
+replace(/b/ /*lastIndex=0*/ , "abc", "");
+"ac"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "$$");
+"a$c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "$&");
+"abc"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "$`");
+"aac"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "$'");
+"acc"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "$+");
+"a$+c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "$_");
+"a$_c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "$`$&$'");
+"aabcc"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "1234567$");
+"a1234567$c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", "$12345678");
+"a$12345678c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"ac"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a$$c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a$&c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a$`c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a$'c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a$+c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a$_c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a$`$&$'c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a1234567$c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"a$12345678c"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"aqqc"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+replace(/b/ /*lastIndex=0*/ , "abc", []);
+"appc"
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abc","","","","","","","","",""]
+
+replace("b", "abc", "");
+"ac"
+r.lastIndex=undefined
+replace("b", "abc", "$$");
+"a$c"
+r.lastIndex=undefined
+replace("b", "abc", "$&");
+"abc"
+r.lastIndex=undefined
+replace("b", "abc", "$`");
+"aac"
+r.lastIndex=undefined
+replace("b", "abc", "$'");
+"acc"
+r.lastIndex=undefined
+replace("b", "abc", "$+");
+"a$+c"
+r.lastIndex=undefined
+replace("b", "abc", "$_");
+"a$_c"
+r.lastIndex=undefined
+replace("b", "abc", "$`$&$'");
+"aabcc"
+r.lastIndex=undefined
+replace("b", "abc", "1234567$");
+"a1234567$c"
+r.lastIndex=undefined
+replace("b", "abc", "$12345678");
+"a$12345678c"
+r.lastIndex=undefined
+
+replace("b", "abc", []);
+"ac"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a$$c"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a$&c"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a$`c"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a$'c"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a$+c"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a$_c"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a$`$&$'c"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a1234567$c"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"a$12345678c"
+r.lastIndex=undefined
+
+replace("b", "abc", []);
+"aqqc"
+r.lastIndex=undefined
+replace("b", "abc", []);
+"appc"
+r.lastIndex=undefined

@@ -1,0 +1,32 @@
+exec(/(ab)|(ac)/ /*lastIndex=0*/ , "aabc");
+["ab","ab",undefined] /*input="aabc", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aabc","ab","","","","","","","",""]
+exec(/(ab)|(ac)+/ /*lastIndex=0*/ , "qacbacacd");
+["ac",undefined,"ac"] /*input="qacbacacd", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["qacbacacd","","ac","","","","","","",""]
+exec(/(ab)+|(ac)+/ /*lastIndex=0*/ , "qababacacd");
+["abab","ab",undefined] /*input="qababacacd", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["qababacacd","ab","","","","","","","",""]
+exec(/(?:ab)+|(ac)+/ /*lastIndex=0*/ , "qababacacd");
+["abab",undefined] /*input="qababacacd", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["qababacacd","","","","","","","","",""]
+exec(/(?:ab)+|(?:ac)+/ /*lastIndex=0*/ , "qababacacd");
+["abab"] /*input="qababacacd", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["qababacacd","","","","","","","","",""]
+exec(/^([^?]+)/ /*lastIndex=0*/ , "file://d:\u005cfoo.txt");
+["file://d:\u005cfoo.txt","file://d:\u005cfoo.txt"] /*input="file://d:\u005cfoo.txt", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["file://d:\u005cfoo.txt","file://d:\u005cfoo.txt","","","","","","","",""]
+exec(/^([a-z+.-]+:\/\/(?:[^\/]*\/)*)[^\/]*$/ /*lastIndex=0*/ , "file://d:\u005cfoo.txt");
+["file://d:\u005cfoo.txt","file://"] /*input="file://d:\u005cfoo.txt", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["file://d:\u005cfoo.txt","file://","","","","","","","",""]
+exec(/^([^?]+)/ /*lastIndex=0*/ , "http://ezedev/WAC/onenoteframe.aspx?Fi=c%3A%5CViewingData%5Cbasefile%5CTest&H=ol&C=0__ezedev&ui=en-US");
+["http://ezedev/WAC/onenoteframe.aspx","http://ezedev/WAC/onenoteframe.aspx"] /*input="http://ezedev/WAC/onenoteframe.aspx?Fi=c%3A%5CViewingData%5Cbasefile%5CTest&H=ol&C=0__ezedev&ui=en-US", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["http://ezedev/WAC/onenoteframe.aspx?Fi=c%3A%5CViewingData%5Cbasefile%5CTest&H=ol&C=0__ezedev&ui=en-US","http://ezedev/WAC/onenoteframe.aspx","","","","","","","",""]

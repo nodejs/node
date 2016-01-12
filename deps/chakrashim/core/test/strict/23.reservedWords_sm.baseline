@@ -1,0 +1,608 @@
+(function(){var break;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var case;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var catch;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var continue;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var debugger;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var default;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var delete;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var do;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var else;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var finally;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var for;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var function;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var if;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var in;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var instanceof;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var new;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var return;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var switch;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var this;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var throw;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var try;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var typeof;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var var;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var void;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var while;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var with;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var null;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var false;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var true;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var class;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var const;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var enum;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid
+(function(){var export;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var extends;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var import;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var super;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var implements;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){var interface;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){var let;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){var package;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){var private;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){var protected;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){var public;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){var static;})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){var yield;})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){var foo;})();
+(function(){var <;})();
+SyntaxError: Expected identifier
+(function(){function break(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function case(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function catch(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function continue(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function debugger(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function default(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function delete(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function do(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function else(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function finally(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function for(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function function(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function if(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function in(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function instanceof(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function new(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function return(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function switch(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function this(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function throw(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function try(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function typeof(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function var(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function void(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function while(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function with(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function null(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function false(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function true(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function class(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function const(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function enum(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid
+(function(){function export(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function extends(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function import(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function super(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function implements(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){function interface(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){function let(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){function package(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){function private(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){function protected(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){function public(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){function static(){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){function yield(){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){function foo(){}})();
+(function(){function <(){}})();
+SyntaxError: Expected identifier
+(function(){(function break(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function case(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function catch(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function continue(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function debugger(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function default(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function delete(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function do(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function else(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function finally(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function for(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function function(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function if(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function in(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function instanceof(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function new(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function return(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function switch(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function this(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function throw(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function try(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function typeof(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function var(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function void(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function while(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function with(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function null(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function false(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function true(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function class(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function const(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function enum(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid
+(function(){(function export(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function extends(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function import(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function super(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function implements(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function interface(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function let(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function package(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function private(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function protected(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function public(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function static(){})})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function yield(){})})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function foo(){})})();
+(function(){(function <(){})})();
+SyntaxError: Expected '('
+(function(){(function(break){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(case){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(catch){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(continue){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(debugger){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(default){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(delete){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(do){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(else){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(finally){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(for){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(function){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(if){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(in){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(instanceof){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(new){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(return){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(switch){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(this){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(throw){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(try){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(typeof){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(var){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(void){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(while){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(with){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(null){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(false){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(true){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(class){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(const){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(enum){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid
+(function(){(function(export){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(extends){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(import){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(super){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(implements){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function(interface){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function(let){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function(package){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function(private){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function(protected){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function(public){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function(static){});})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){(function(yield){});})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){(function(foo){});})();
+(function(){(function(<){});})();
+SyntaxError: Expected identifier
+(function(){try{} catch(break){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(case){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(catch){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(continue){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(debugger){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(default){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(delete){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(do){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(else){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(finally){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(for){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(function){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(if){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(in){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(instanceof){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(new){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(return){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(switch){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(this){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(throw){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(try){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(typeof){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(var){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(void){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(while){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(with){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(null){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(false){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(true){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(class){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(const){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(enum){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid
+(function(){try{} catch(export){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(extends){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(import){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(super){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(implements){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){try{} catch(interface){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){try{} catch(let){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){try{} catch(package){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){try{} catch(private){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){try{} catch(protected){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){try{} catch(public){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){try{} catch(static){}})();
+SyntaxError: The use of a future reserved word for an identifier is invalid. The identifier name is reserved in strict mode.
+(function(){try{} catch(yield){}})();
+SyntaxError: The use of a keyword for an identifier is invalid
+(function(){try{} catch(foo){}})();
+(function(){try{} catch(<){}})();
+SyntaxError: Expected identifier
+(function(){({break: 0});})();
+(function(){({case: 0});})();
+(function(){({catch: 0});})();
+(function(){({continue: 0});})();
+(function(){({debugger: 0});})();
+(function(){({default: 0});})();
+(function(){({delete: 0});})();
+(function(){({do: 0});})();
+(function(){({else: 0});})();
+(function(){({finally: 0});})();
+(function(){({for: 0});})();
+(function(){({function: 0});})();
+(function(){({if: 0});})();
+(function(){({in: 0});})();
+(function(){({instanceof: 0});})();
+(function(){({new: 0});})();
+(function(){({return: 0});})();
+(function(){({switch: 0});})();
+(function(){({this: 0});})();
+(function(){({throw: 0});})();
+(function(){({try: 0});})();
+(function(){({typeof: 0});})();
+(function(){({var: 0});})();
+(function(){({void: 0});})();
+(function(){({while: 0});})();
+(function(){({with: 0});})();
+(function(){({null: 0});})();
+(function(){({false: 0});})();
+(function(){({true: 0});})();
+(function(){({class: 0});})();
+(function(){({const: 0});})();
+(function(){({enum: 0});})();
+(function(){({export: 0});})();
+(function(){({extends: 0});})();
+(function(){({import: 0});})();
+(function(){({super: 0});})();
+(function(){({implements: 0});})();
+(function(){({interface: 0});})();
+(function(){({let: 0});})();
+(function(){({package: 0});})();
+(function(){({private: 0});})();
+(function(){({protected: 0});})();
+(function(){({public: 0});})();
+(function(){({static: 0});})();
+(function(){({yield: 0});})();
+(function(){({foo: 0});})();
+(function(){({<: 0});})();
+SyntaxError: Expected identifier, string or number
+(function(){var o = {}; o.break = 0;})();
+(function(){var o = {}; o.case = 0;})();
+(function(){var o = {}; o.catch = 0;})();
+(function(){var o = {}; o.continue = 0;})();
+(function(){var o = {}; o.debugger = 0;})();
+(function(){var o = {}; o.default = 0;})();
+(function(){var o = {}; o.delete = 0;})();
+(function(){var o = {}; o.do = 0;})();
+(function(){var o = {}; o.else = 0;})();
+(function(){var o = {}; o.finally = 0;})();
+(function(){var o = {}; o.for = 0;})();
+(function(){var o = {}; o.function = 0;})();
+(function(){var o = {}; o.if = 0;})();
+(function(){var o = {}; o.in = 0;})();
+(function(){var o = {}; o.instanceof = 0;})();
+(function(){var o = {}; o.new = 0;})();
+(function(){var o = {}; o.return = 0;})();
+(function(){var o = {}; o.switch = 0;})();
+(function(){var o = {}; o.this = 0;})();
+(function(){var o = {}; o.throw = 0;})();
+(function(){var o = {}; o.try = 0;})();
+(function(){var o = {}; o.typeof = 0;})();
+(function(){var o = {}; o.var = 0;})();
+(function(){var o = {}; o.void = 0;})();
+(function(){var o = {}; o.while = 0;})();
+(function(){var o = {}; o.with = 0;})();
+(function(){var o = {}; o.null = 0;})();
+(function(){var o = {}; o.false = 0;})();
+(function(){var o = {}; o.true = 0;})();
+(function(){var o = {}; o.class = 0;})();
+(function(){var o = {}; o.const = 0;})();
+(function(){var o = {}; o.enum = 0;})();
+(function(){var o = {}; o.export = 0;})();
+(function(){var o = {}; o.extends = 0;})();
+(function(){var o = {}; o.import = 0;})();
+(function(){var o = {}; o.super = 0;})();
+(function(){var o = {}; o.implements = 0;})();
+(function(){var o = {}; o.interface = 0;})();
+(function(){var o = {}; o.let = 0;})();
+(function(){var o = {}; o.package = 0;})();
+(function(){var o = {}; o.private = 0;})();
+(function(){var o = {}; o.protected = 0;})();
+(function(){var o = {}; o.public = 0;})();
+(function(){var o = {}; o.static = 0;})();
+(function(){var o = {}; o.yield = 0;})();
+(function(){var o = {}; o.foo = 0;})();
+(function(){var o = {}; o.< = 0;})();
+SyntaxError: Expected identifier
+(function(){var o = {}; o["break"] = 0;})();
+(function(){var o = {}; o["case"] = 0;})();
+(function(){var o = {}; o["catch"] = 0;})();
+(function(){var o = {}; o["continue"] = 0;})();
+(function(){var o = {}; o["debugger"] = 0;})();
+(function(){var o = {}; o["default"] = 0;})();
+(function(){var o = {}; o["delete"] = 0;})();
+(function(){var o = {}; o["do"] = 0;})();
+(function(){var o = {}; o["else"] = 0;})();
+(function(){var o = {}; o["finally"] = 0;})();
+(function(){var o = {}; o["for"] = 0;})();
+(function(){var o = {}; o["function"] = 0;})();
+(function(){var o = {}; o["if"] = 0;})();
+(function(){var o = {}; o["in"] = 0;})();
+(function(){var o = {}; o["instanceof"] = 0;})();
+(function(){var o = {}; o["new"] = 0;})();
+(function(){var o = {}; o["return"] = 0;})();
+(function(){var o = {}; o["switch"] = 0;})();
+(function(){var o = {}; o["this"] = 0;})();
+(function(){var o = {}; o["throw"] = 0;})();
+(function(){var o = {}; o["try"] = 0;})();
+(function(){var o = {}; o["typeof"] = 0;})();
+(function(){var o = {}; o["var"] = 0;})();
+(function(){var o = {}; o["void"] = 0;})();
+(function(){var o = {}; o["while"] = 0;})();
+(function(){var o = {}; o["with"] = 0;})();
+(function(){var o = {}; o["null"] = 0;})();
+(function(){var o = {}; o["false"] = 0;})();
+(function(){var o = {}; o["true"] = 0;})();
+(function(){var o = {}; o["class"] = 0;})();
+(function(){var o = {}; o["const"] = 0;})();
+(function(){var o = {}; o["enum"] = 0;})();
+(function(){var o = {}; o["export"] = 0;})();
+(function(){var o = {}; o["extends"] = 0;})();
+(function(){var o = {}; o["import"] = 0;})();
+(function(){var o = {}; o["super"] = 0;})();
+(function(){var o = {}; o["implements"] = 0;})();
+(function(){var o = {}; o["interface"] = 0;})();
+(function(){var o = {}; o["let"] = 0;})();
+(function(){var o = {}; o["package"] = 0;})();
+(function(){var o = {}; o["private"] = 0;})();
+(function(){var o = {}; o["protected"] = 0;})();
+(function(){var o = {}; o["public"] = 0;})();
+(function(){var o = {}; o["static"] = 0;})();
+(function(){var o = {}; o["yield"] = 0;})();
+(function(){var o = {}; o["foo"] = 0;})();
+(function(){var o = {}; o["<"] = 0;})();

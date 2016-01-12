@@ -1,0 +1,18 @@
+>>> Start pop test for object: 1,2,5,10,17
+0 iteration. Poped:17 obj.length:4
+1 iteration. Poped:10 obj.length:3
+2 iteration. Poped:5 obj.length:2
+3 iteration. Poped:2 obj.length:1
+4 iteration. Poped:1 obj.length:0
+5 iteration. Poped:undefined obj.length:0
+6 iteration. Poped:undefined obj.length:0
+<<< Stop pop test for object: 
+>>> Start pop test for object: [object Object]
+0 iteration. Poped:17 obj.length:4
+1 iteration. Poped:10 obj.length:3
+2 iteration. Poped:5 obj.length:2
+3 iteration. Poped:2 obj.length:1
+4 iteration. Poped:1 obj.length:0
+5 iteration. Poped:undefined obj.length:0
+6 iteration. Poped:undefined obj.length:0
+<<< Stop pop test for object: [object Object]

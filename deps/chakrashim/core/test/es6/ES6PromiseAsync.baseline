@@ -1,0 +1,135 @@
+Executing test #1 - Promise basic behavior
+Test #1 - Executor function called synchronously
+Executing test #2 - Promise basic error behavior
+Test #2 - Executor function called synchronously
+Executing test #3 - Promise with multiple then handlers
+Executing test #4 - Promise with chained then handlers
+Executing test #5 - Promise with a throwing executor function
+Executing test #6 - Promise with a potential thenable that throws when getting the 'then' property
+Executing test #7 - Promise with a potential thenable that throws when calling the 'then' function
+Executing test #8 - Promise with a success handler that throws when called
+Executing test #9 - Promise with an error handler that throws when called
+Executing test #10 - Promise with an executor function that creates a self-resolution error
+Executing test #11 - Promise basic catch behavior
+Executing test #12 - Promise chained catch behavior
+Executing test #13 - Promise then and catch interleaved
+Executing test #14 - Promise identity function is used when no success handler is provided
+Executing test #15 - Promise thrower function is used when no error handler is provided
+Executing test #16 - Promise.resolve creates a fulfilled resolved promise
+Executing test #17 - Promise.resolve called with a promise returns the same promise
+Executing test #18 - Promise.reject creates a fulfilled rejected promise
+Executing test #19 - Promise.reject called with a promise returns a promise for that promise
+Executing test #20 - Promise.race with an object containing a non-function iterator property
+Executing test #21 - Promise.race with this argument missing the resolve function
+Executing test #22 - Promise.race with this argument resolve function returning a non-object
+Executing test #23 - Promise.race with this argument resolve function returning an object with no then function
+Executing test #24 - Promise.race with an object containing an iterator that throws
+Executing test #25 - Promise.race still returns a rejected promise if anything throws while iterating, even if resolved promises are encountered
+Executing test #26 - Promise.race fulfills with the same value as the first encountered resolved promise
+Executing test #27 - Promise.race fulfills with the same value as the first encountered resolved promise (promises complete async)
+Executing test #28 - Promise.race fulfills with the same value as the first encountered rejected promise (promises complete async)
+Executing test #29 - Promise.race passes each element in it's argument to Promise.resolve
+Executing test #30 - Promise.all with an object containing a non-function iterator property
+Executing test #31 - Promise.all with this argument missing the resolve function
+Executing test #32 - Promise.all with this argument resolve function returning a non-object
+Executing test #33 - Promise.all with this argument resolve function returning an object with no then function
+Executing test #34 - Promise.all with an object containing an iterator that throws
+Executing test #35 - Promise.all still returns a rejected promise if anything throws while iterating, even if resolved promises are encountered
+Executing test #36 - Promise.all fulfills with the same value as the first encountered rejected promise
+Executing test #37 - Promise.all fulfills with the same value as the first encountered rejected promise (async promises)
+Executing test #38 - Promise.all fulfills when all promises in iterable fulfill
+Executing test #39 - Promise.all passes each element in the arguments to Promise.resolve
+Executing test #40 - Promise.resolve called with a thenable calls then on the thenable
+Executing test #41 - Calling promise resolve function with thenable should call thenable.then
+Executing test #42 - Promise.all doesn't call then for rejected promises
+Executing test #43 - Promise.all with iterator that returns no items
+Executing test #44 - Simple tampering of Promise.all promise changes resolved result value
+Executing test #45 - Promise.all - can't prevent remaining elements counter from reaching zero
+Executing test #46 - Promise from Promise.all never resolved before arguments
+Executing test #47 - Promise from Promise.all never resolved if rejected promise in arguments
+Executing test #48 - Promise executor resolves with the first call resolve function
+Executing test #49 - Promise executor rejects with the first call reject function
+Executing test #50 - Promise executor resolves/rejects with the first call to either function
+Executing test #51 - Promise executor rejects/resolves with the first call to either function
+Executing test #52 - Promise executor rejects/resolves/rejects with the first call to either function
+Executing test #53 - Promise executor resolves/rejects/resolves with the first call to either function
+
+Completion Results:
+Test #1 - Success handler called with result = basic:success
+Test #2 - Error handler called with err = basic:error
+Test #3 - Success handler #1 called with result = multithen:success
+Test #3 - Success handler #2 called with result = multithen:success
+Test #3 - Success handler #3 called with result = multithen:success
+Test #4 - Success handler #1 called with result = chain:success1
+Test #5 - Error handler called with err = basic:throw
+Test #6 - Success handler #1 called with result = thenable.get:unused
+Test #7 - Success handler #1 called with result = thenable.call:unused
+Test #8 - Success handler #1 called with result = success.throw:unused
+Test #9 - Error handler #1 called with err = error.throw:unused
+Test #11 - Catch handler called with err = error
+Test #12 - Catch handler #1 called with err = error1
+Test #13 - Catch handler #1 called with err = error1
+Test #16 - Success handler #1 called with result = resolved promise result
+Test #18 - Catch handler #1 called with err = rejected promise result
+Test #20 - Catch handler #1 called with err = TypeError: Function expected
+Test #21 - Catch handler #1 called with err = TypeError: Function expected
+Test #22 - Catch handler #1 called with err = TypeError: Object expected
+Test #23 - Catch handler #1 called with err = TypeError: Function expected
+Test #24 - Catch handler #1 called with err = TypeError: failure inside iterator
+Test #25 - Error handler #1 called with err = TypeError: failure inside iterator
+Test #30 - Catch handler #1 called with err = TypeError: Function expected
+Test #31 - Catch handler #1 called with err = TypeError: Function expected
+Test #32 - Catch handler #1 called with err = TypeError: Object expected
+Test #33 - Catch handler #1 called with err = TypeError: Function expected
+Test #34 - Catch handler #1 called with err = TypeError: failure inside iterator
+Test #35 - Error handler #1 called with err = TypeError: failure inside iterator
+Test #40 - Promise.resolve calls thenable.then
+Test #41 - thenable.then resolve = function reject = function
+Test #43 - Success handler #1 called with result = '' (length = 0) (isArray = true)
+Test #44 - Success handler called with result = 'tampered' (length = 1) (isArray = true)
+Test #45 - Success handler called with result = '' (length = 1) (isArray = true)
+Test #46 - Success handler #1a called with result = '2' (isArray = false) (fulfillCalled = false)
+Test #48 - Success handler #1 called with res = 'success'
+Test #49 - Error handler #1 called with err = 'success'
+Test #50 - Success handler #1 called with res = 'success'
+Test #51 - Error handler #1 called with err = 'success'
+Test #52 - Error handler #1 called with err = 'success'
+Test #53 - Success handler #1 called with res = 'success'
+Test #6 - Error handler #2 called with err = thenable.get:error!
+Test #8 - Error handler #2 called with err = success.throw:error
+Test #9 - Error handler #2 called with err = error.throw:error
+Test #10 - Error handler called with err = TypeError: Object used to resolve a promise creates a circular resolution
+Test #12 - Catch handler #2 called with err = error2
+Test #13 - Success handler #1 called with result = ok
+Test #14 - Success handler #1 called with result = success
+Test #26 - Success handler #1 called with result = first promise
+Test #27 - p1 success: p1
+Test #27 - p2 success: p2
+Test #27 - p3 failure: p3
+Test #28 - p1 failure: p1
+Test #28 - p2 success: p2
+Test #28 - p3 success: p3
+Test #29 - Success handler #1 called with result = first promise value
+Test #36 - Error handler #1 called with err = third promise
+Test #37 - p1 success: p1
+Test #37 - p2 success: p2
+Test #37 - p3 failure: p3
+Test #38 - p1 success: p1
+Test #38 - p2 success: p2
+Test #38 - p3 success: p3
+Test #39 - Success handler #1 called with result = success value 1,42,TypeError: an error
+Test #40 - Promise.resolve call nested within thenable.then = nested Promise.resolve call
+Test #46 - Success handler #1b called with result = '3' (isArray = false) (fulfillCalled = false)
+Test #47 - Error handler #1 called with err = 2
+Test #7 - Error handler #2 called with err = thenable.call:error!
+Test #13 - Catch handler #2 called with err = error2
+Test #15 - Catch handler #1 called with err = failure
+Test #27 - Success handler #1 called with result = p1
+Test #28 - Error handler #1 called with err = p1
+Test #37 - Error handler #1 called with err = p3
+Test #38 - Success handler #1 called with result = p1,p2,p3
+Test #42 - Catch handler #1 called with err = expected1
+Test #42 - Catch handler #2 called with err = expected2
+Test #42 - Catch handler #3 called with err = expected3
+Test #4 - Success handler #2 called with result = chain:success2
+Test #46 - Success handler #2 called with result = '0,,4' (length = 3) (isArray = true) (fulfillCalled = true)

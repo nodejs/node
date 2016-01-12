@@ -1,0 +1,2304 @@
+Test 1: setter     , objectNoProps, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 2: setter     , objectOneProp, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 3: setter     , objectSDTH, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 4: setter     , objectWithArr, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 5: setter     , objectCreate, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 6: setter     , arr          , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 7: setter     , func         , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 8: setter     , regex        , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 9: setter     , date         , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 10: setter     , objectNoProps, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 11: setter     , objectOneProp, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 12: setter     , objectSDTH, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 13: setter     , objectWithArr, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 14: setter     , objectCreate, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 15: setter     , arr          , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 16: setter     , func         , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 17: setter     , regex        , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 18: setter     , date         , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 19: setter     , objectNoProps, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 20: setter     , objectOneProp, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 21: setter     , objectSDTH, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 22: setter     , objectWithArr, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 23: setter     , objectCreate, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 24: setter     , arr          , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 25: setter     , func         , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 26: setter     , regex        , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 27: setter     , date         , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 28: setter     , objectNoProps, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 29: setter     , objectOneProp, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 30: setter     , objectSDTH, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 31: setter     , objectWithArr, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 32: setter     , objectCreate, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 33: setter     , arr          , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 34: setter     , func         , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 35: setter     , regex        , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 36: setter     , date         , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 37: setter     , objectNoProps, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 38: setter     , objectOneProp, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 39: setter     , objectSDTH, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 40: setter     , objectWithArr, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 41: setter     , objectCreate, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 42: setter     , arr          , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 43: setter     , func         , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 44: setter     , regex        , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 45: setter     , date         , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 46: setter     , objectNoProps, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 47: setter     , objectOneProp, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 48: setter     , objectSDTH, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 49: setter     , objectWithArr, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 50: setter     , objectCreate, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 51: setter     , arr          , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 52: setter     , func         , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 53: setter     , regex        , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 54: setter     , date         , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 55: setter     , objectNoProps, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 56: setter     , objectOneProp, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 57: setter     , objectSDTH, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 58: setter     , objectWithArr, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 59: setter     , objectCreate, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 60: setter     , arr          , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 61: setter     , func         , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 62: setter     , regex        , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 63: setter     , date         , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 64: setter     , objectNoProps, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 65: setter     , objectOneProp, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 66: setter     , objectSDTH, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 67: setter     , objectWithArr, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 68: setter     , objectCreate, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 69: setter     , arr          , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 70: setter     , func         , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 71: setter     , regex        , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 72: setter     , date         , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 73: setter     , objectNoProps, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 74: setter     , objectOneProp, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 75: setter     , objectSDTH, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 76: setter     , objectWithArr, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 77: setter     , objectCreate, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 78: setter     , arr          , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 79: setter     , func         , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 80: setter     , regex        , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 81: setter     , date         , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 82: setter     , objectNoProps, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 83: setter     , objectOneProp, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 84: setter     , objectSDTH, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 85: setter     , objectWithArr, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 86: setter     , objectCreate, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 87: setter     , arr          , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 88: setter     , func         , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 89: setter     , regex        , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 90: setter     , date         , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 91: setter     , objectNoProps, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 92: setter     , objectOneProp, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 93: setter     , objectSDTH, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 94: setter     , objectWithArr, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 95: setter     , objectCreate, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 96: setter     , arr          , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 97: setter     , func         , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 98: setter     , regex        , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 99: setter     , date         , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 100: setter     , objectNoProps, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 101: setter     , objectOneProp, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 102: setter     , objectSDTH, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 103: setter     , objectWithArr, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 104: setter     , objectCreate, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 105: setter     , arr          , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 106: setter     , func         , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 107: setter     , regex        , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 108: setter     , date         , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 109: setter     , objectNoProps, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 110: setter     , objectOneProp, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 111: setter     , objectSDTH, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 112: setter     , objectWithArr, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 113: setter     , objectCreate, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 114: setter     , arr          , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 115: setter     , func         , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 116: setter     , regex        , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 117: setter     , date         , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 118: setter     , objectNoProps, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 119: setter     , objectOneProp, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 120: setter     , objectSDTH, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 121: setter     , objectWithArr, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 122: setter     , objectCreate, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 123: setter     , arr          , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 124: setter     , func         , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 125: setter     , regex        , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 126: setter     , date         , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 127: setter     , objectNoProps, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 128: setter     , objectOneProp, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 129: setter     , objectSDTH, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 130: setter     , objectWithArr, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 131: setter     , objectCreate, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 132: setter     , arr          , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 133: setter     , func         , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 134: setter     , regex        , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 135: setter     , date         , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 136: setter     , objectNoProps, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 137: setter     , objectOneProp, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 138: setter     , objectSDTH, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 139: setter     , objectWithArr, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 140: setter     , objectCreate, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 141: setter     , arr          , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 142: setter     , func         , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 143: setter     , regex        , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 144: setter     , date         , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 145: setter     , objectNoProps, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 146: setter     , objectOneProp, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 147: setter     , objectSDTH, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 148: setter     , objectWithArr, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 149: setter     , objectCreate, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 150: setter     , arr          , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 151: setter     , func         , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 152: setter     , regex        , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 153: setter     , date         , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 154: setter     , objectNoProps, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 155: setter     , objectOneProp, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 156: setter     , objectSDTH, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 157: setter     , objectWithArr, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 158: setter     , objectCreate, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 159: setter     , arr          , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 160: setter     , func         , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 161: setter     , regex        , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 162: setter     , date         , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 163: setter     , objectNoProps, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 164: setter     , objectOneProp, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 165: setter     , objectSDTH, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 166: setter     , objectWithArr, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 167: setter     , objectCreate, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 168: setter     , arr          , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 169: setter     , func         , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 170: setter     , regex        , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 171: setter     , date         , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 172: setter     , objectNoProps, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 173: setter     , objectOneProp, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 174: setter     , objectSDTH, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 175: setter     , objectWithArr, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 176: setter     , objectCreate, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 177: setter     , arr          , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 178: setter     , func         , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 179: setter     , regex        , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 180: setter     , date         , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 181: setter     , objectNoProps, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 182: setter     , objectOneProp, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 183: setter     , objectSDTH, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 184: setter     , objectWithArr, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 185: setter     , objectCreate, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 186: setter     , arr          , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 187: setter     , func         , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 188: setter     , regex        , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 189: setter     , date         , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 190: setter     , objectNoProps, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 191: setter     , objectOneProp, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 192: setter     , objectSDTH, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 193: setter     , objectWithArr, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 194: setter     , objectCreate, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 195: setter     , arr          , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 196: setter     , func         , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 197: setter     , regex        , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 198: setter     , date         , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 199: setter     , objectNoProps, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 200: setter     , objectOneProp, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 201: setter     , objectSDTH, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 202: setter     , objectWithArr, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 203: setter     , objectCreate, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 204: setter     , arr          , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 205: setter     , func         , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 206: setter     , regex        , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 207: setter     , date         , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 208: setter     , objectNoProps, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 209: setter     , objectOneProp, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 210: setter     , objectSDTH, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 211: setter     , objectWithArr, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 212: setter     , objectCreate, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 213: setter     , arr          , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 214: setter     , func         , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 215: setter     , regex        , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 216: setter     , date         , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 217: setter     , objectNoProps, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 218: setter     , objectOneProp, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 219: setter     , objectSDTH, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 220: setter     , objectWithArr, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 221: setter     , objectCreate, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 222: setter     , arr          , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 223: setter     , func         , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 224: setter     , regex        , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 225: setter     , date         , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 226: setter     , objectNoProps, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 227: setter     , objectOneProp, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 228: setter     , objectSDTH, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 229: setter     , objectWithArr, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 230: setter     , objectCreate, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 231: setter     , arr          , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 232: setter     , func         , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 233: setter     , regex        , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 234: setter     , date         , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 235: setter     , objectNoProps, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 236: setter     , objectOneProp, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 237: setter     , objectSDTH, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 238: setter     , objectWithArr, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 239: setter     , objectCreate, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 240: setter     , arr          , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 241: setter     , func         , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 242: setter     , regex        , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 243: setter     , date         , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 244: setter     , objectNoProps, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 245: setter     , objectOneProp, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 246: setter     , objectSDTH, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 247: setter     , objectWithArr, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 248: setter     , objectCreate, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 249: setter     , arr          , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 250: setter     , func         , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 251: setter     , regex        , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 252: setter     , date         , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 253: setter     , objectNoProps, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 254: setter     , objectOneProp, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 255: setter     , objectSDTH, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 256: setter     , objectWithArr, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 257: setter     , objectCreate, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 258: setter     , arr          , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 259: setter     , func         , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 260: setter     , regex        , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 261: setter     , date         , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 262: setter     , objectNoProps, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 263: setter     , objectOneProp, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 264: setter     , objectSDTH, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 265: setter     , objectWithArr, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 266: setter     , objectCreate, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 267: setter     , arr          , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 268: setter     , func         , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 269: setter     , regex        , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 270: setter     , date         , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 271: setter     , objectNoProps, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 272: setter     , objectOneProp, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 273: setter     , objectSDTH, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 274: setter     , objectWithArr, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 275: setter     , objectCreate, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 276: setter     , arr          , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 277: setter     , func         , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 278: setter     , regex        , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 279: setter     , date         , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 280: setter     , objectNoProps, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 281: setter     , objectOneProp, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 282: setter     , objectSDTH, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 283: setter     , objectWithArr, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 284: setter     , objectCreate, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 285: setter     , arr          , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 286: setter     , func         , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 287: setter     , regex        , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 288: setter     , date         , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 289: nonWritable, objectNoProps, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 290: nonWritable, objectOneProp, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 291: nonWritable, objectSDTH, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 292: nonWritable, objectWithArr, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 293: nonWritable, objectCreate, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 294: nonWritable, arr          , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 295: nonWritable, func         , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 296: nonWritable, regex        , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 297: nonWritable, date         , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 298: nonWritable, objectNoProps, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 299: nonWritable, objectOneProp, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 300: nonWritable, objectSDTH, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 301: nonWritable, objectWithArr, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 302: nonWritable, objectCreate, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 303: nonWritable, arr          , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 304: nonWritable, func         , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 305: nonWritable, regex        , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 306: nonWritable, date         , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 307: nonWritable, objectNoProps, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 308: nonWritable, objectOneProp, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 309: nonWritable, objectSDTH, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 310: nonWritable, objectWithArr, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 311: nonWritable, objectCreate, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 312: nonWritable, arr          , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 313: nonWritable, func         , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 314: nonWritable, regex        , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 315: nonWritable, date         , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 316: nonWritable, objectNoProps, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 317: nonWritable, objectOneProp, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 318: nonWritable, objectSDTH, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 319: nonWritable, objectWithArr, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 320: nonWritable, objectCreate, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 321: nonWritable, arr          , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 322: nonWritable, func         , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 323: nonWritable, regex        , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 324: nonWritable, date         , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 325: nonWritable, objectNoProps, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 326: nonWritable, objectOneProp, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 327: nonWritable, objectSDTH, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 328: nonWritable, objectWithArr, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 329: nonWritable, objectCreate, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 330: nonWritable, arr          , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 331: nonWritable, func         , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 332: nonWritable, regex        , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 333: nonWritable, date         , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 334: nonWritable, objectNoProps, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 335: nonWritable, objectOneProp, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 336: nonWritable, objectSDTH, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 337: nonWritable, objectWithArr, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 338: nonWritable, objectCreate, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 339: nonWritable, arr          , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 340: nonWritable, func         , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 341: nonWritable, regex        , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 342: nonWritable, date         , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 343: nonWritable, objectNoProps, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 344: nonWritable, objectOneProp, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 345: nonWritable, objectSDTH, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 346: nonWritable, objectWithArr, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 347: nonWritable, objectCreate, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 348: nonWritable, arr          , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 349: nonWritable, func         , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 350: nonWritable, regex        , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 351: nonWritable, date         , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 352: nonWritable, objectNoProps, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 353: nonWritable, objectOneProp, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 354: nonWritable, objectSDTH, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 355: nonWritable, objectWithArr, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 356: nonWritable, objectCreate, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 357: nonWritable, arr          , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 358: nonWritable, func         , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 359: nonWritable, regex        , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 360: nonWritable, date         , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 361: nonWritable, objectNoProps, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 362: nonWritable, objectOneProp, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 363: nonWritable, objectSDTH, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 364: nonWritable, objectWithArr, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 365: nonWritable, objectCreate, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 366: nonWritable, arr          , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 367: nonWritable, func         , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 368: nonWritable, regex        , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 369: nonWritable, date         , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 370: nonWritable, objectNoProps, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 371: nonWritable, objectOneProp, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 372: nonWritable, objectSDTH, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 373: nonWritable, objectWithArr, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 374: nonWritable, objectCreate, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 375: nonWritable, arr          , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 376: nonWritable, func         , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 377: nonWritable, regex        , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 378: nonWritable, date         , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 379: nonWritable, objectNoProps, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 380: nonWritable, objectOneProp, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 381: nonWritable, objectSDTH, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 382: nonWritable, objectWithArr, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 383: nonWritable, objectCreate, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 384: nonWritable, arr          , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 385: nonWritable, func         , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 386: nonWritable, regex        , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 387: nonWritable, date         , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 388: nonWritable, objectNoProps, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 389: nonWritable, objectOneProp, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 390: nonWritable, objectSDTH, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 391: nonWritable, objectWithArr, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 392: nonWritable, objectCreate, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 393: nonWritable, arr          , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 394: nonWritable, func         , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 395: nonWritable, regex        , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 396: nonWritable, date         , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 397: nonWritable, objectNoProps, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 398: nonWritable, objectOneProp, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 399: nonWritable, objectSDTH, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 400: nonWritable, objectWithArr, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 401: nonWritable, objectCreate, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 402: nonWritable, arr          , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 403: nonWritable, func         , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 404: nonWritable, regex        , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 405: nonWritable, date         , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 406: nonWritable, objectNoProps, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 407: nonWritable, objectOneProp, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 408: nonWritable, objectSDTH, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 409: nonWritable, objectWithArr, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 410: nonWritable, objectCreate, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 411: nonWritable, arr          , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 412: nonWritable, func         , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 413: nonWritable, regex        , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 414: nonWritable, date         , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 415: nonWritable, objectNoProps, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 416: nonWritable, objectOneProp, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 417: nonWritable, objectSDTH, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 418: nonWritable, objectWithArr, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 419: nonWritable, objectCreate, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 420: nonWritable, arr          , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 421: nonWritable, func         , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 422: nonWritable, regex        , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 423: nonWritable, date         , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 424: nonWritable, objectNoProps, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 425: nonWritable, objectOneProp, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 426: nonWritable, objectSDTH, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 427: nonWritable, objectWithArr, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 428: nonWritable, objectCreate, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 429: nonWritable, arr          , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 430: nonWritable, func         , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 431: nonWritable, regex        , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 432: nonWritable, date         , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 433: nonWritable, objectNoProps, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 434: nonWritable, objectOneProp, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 435: nonWritable, objectSDTH, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 436: nonWritable, objectWithArr, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 437: nonWritable, objectCreate, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 438: nonWritable, arr          , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 439: nonWritable, func         , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 440: nonWritable, regex        , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 441: nonWritable, date         , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 442: nonWritable, objectNoProps, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 443: nonWritable, objectOneProp, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 444: nonWritable, objectSDTH, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 445: nonWritable, objectWithArr, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 446: nonWritable, objectCreate, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 447: nonWritable, arr          , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 448: nonWritable, func         , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 449: nonWritable, regex        , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 450: nonWritable, date         , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 451: nonWritable, objectNoProps, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 452: nonWritable, objectOneProp, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 453: nonWritable, objectSDTH, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 454: nonWritable, objectWithArr, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 455: nonWritable, objectCreate, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 456: nonWritable, arr          , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 457: nonWritable, func         , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 458: nonWritable, regex        , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 459: nonWritable, date         , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 460: nonWritable, objectNoProps, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 461: nonWritable, objectOneProp, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 462: nonWritable, objectSDTH, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 463: nonWritable, objectWithArr, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 464: nonWritable, objectCreate, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 465: nonWritable, arr          , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 466: nonWritable, func         , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 467: nonWritable, regex        , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 468: nonWritable, date         , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 469: nonWritable, objectNoProps, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 470: nonWritable, objectOneProp, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 471: nonWritable, objectSDTH, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 472: nonWritable, objectWithArr, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 473: nonWritable, objectCreate, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 474: nonWritable, arr          , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 475: nonWritable, func         , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 476: nonWritable, regex        , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 477: nonWritable, date         , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 478: nonWritable, objectNoProps, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 479: nonWritable, objectOneProp, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 480: nonWritable, objectSDTH, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 481: nonWritable, objectWithArr, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 482: nonWritable, objectCreate, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 483: nonWritable, arr          , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 484: nonWritable, func         , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 485: nonWritable, regex        , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 486: nonWritable, date         , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 487: nonWritable, objectNoProps, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 488: nonWritable, objectOneProp, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 489: nonWritable, objectSDTH, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 490: nonWritable, objectWithArr, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 491: nonWritable, objectCreate, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 492: nonWritable, arr          , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 493: nonWritable, func         , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 494: nonWritable, regex        , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 495: nonWritable, date         , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 496: nonWritable, objectNoProps, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 497: nonWritable, objectOneProp, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 498: nonWritable, objectSDTH, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 499: nonWritable, objectWithArr, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 500: nonWritable, objectCreate, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 501: nonWritable, arr          , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 502: nonWritable, func         , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 503: nonWritable, regex        , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 504: nonWritable, date         , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 505: nonWritable, objectNoProps, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 506: nonWritable, objectOneProp, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 507: nonWritable, objectSDTH, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 508: nonWritable, objectWithArr, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 509: nonWritable, objectCreate, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 510: nonWritable, arr          , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 511: nonWritable, func         , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 512: nonWritable, regex        , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 513: nonWritable, date         , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 514: nonWritable, objectNoProps, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 515: nonWritable, objectOneProp, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 516: nonWritable, objectSDTH, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 517: nonWritable, objectWithArr, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 518: nonWritable, objectCreate, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 519: nonWritable, arr          , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 520: nonWritable, func         , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 521: nonWritable, regex        , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 522: nonWritable, date         , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 523: nonWritable, objectNoProps, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 524: nonWritable, objectOneProp, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 525: nonWritable, objectSDTH, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 526: nonWritable, objectWithArr, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 527: nonWritable, objectCreate, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 528: nonWritable, arr          , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 529: nonWritable, func         , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 530: nonWritable, regex        , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 531: nonWritable, date         , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 532: nonWritable, objectNoProps, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 533: nonWritable, objectOneProp, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 534: nonWritable, objectSDTH, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 535: nonWritable, objectWithArr, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 536: nonWritable, objectCreate, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 537: nonWritable, arr          , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 538: nonWritable, func         , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 539: nonWritable, regex        , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 540: nonWritable, date         , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 541: nonWritable, objectNoProps, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 542: nonWritable, objectOneProp, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 543: nonWritable, objectSDTH, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 544: nonWritable, objectWithArr, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 545: nonWritable, objectCreate, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 546: nonWritable, arr          , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 547: nonWritable, func         , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 548: nonWritable, regex        , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 549: nonWritable, date         , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 550: nonWritable, objectNoProps, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 551: nonWritable, objectOneProp, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 552: nonWritable, objectSDTH, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 553: nonWritable, objectWithArr, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 554: nonWritable, objectCreate, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 555: nonWritable, arr          , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 556: nonWritable, func         , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 557: nonWritable, regex        , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 558: nonWritable, date         , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 559: nonWritable, objectNoProps, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 560: nonWritable, objectOneProp, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 561: nonWritable, objectSDTH, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 562: nonWritable, objectWithArr, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 563: nonWritable, objectCreate, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 564: nonWritable, arr          , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 565: nonWritable, func         , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 566: nonWritable, regex        , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 567: nonWritable, date         , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 568: nonWritable, objectNoProps, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 569: nonWritable, objectOneProp, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 570: nonWritable, objectSDTH, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 571: nonWritable, objectWithArr, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 572: nonWritable, objectCreate, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 573: nonWritable, arr          , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 574: nonWritable, func         , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 575: nonWritable, regex        , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 576: nonWritable, date         , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 577: freezer    , objectNoProps, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 578: freezer    , objectOneProp, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 579: freezer    , objectSDTH, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 580: freezer    , objectWithArr, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 581: freezer    , objectCreate, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 582: freezer    , arr          , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 583: freezer    , func         , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 584: freezer    , regex        , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 585: freezer    , date         , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 586: freezer    , objectNoProps, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 587: freezer    , objectOneProp, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 588: freezer    , objectSDTH, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 589: freezer    , objectWithArr, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 590: freezer    , objectCreate, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 591: freezer    , arr          , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 592: freezer    , func         , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 593: freezer    , regex        , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 594: freezer    , date         , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 595: freezer    , objectNoProps, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 596: freezer    , objectOneProp, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 597: freezer    , objectSDTH, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 598: freezer    , objectWithArr, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 599: freezer    , objectCreate, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 600: freezer    , arr          , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 601: freezer    , func         , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 602: freezer    , regex        , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 603: freezer    , date         , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 604: freezer    , objectNoProps, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 605: freezer    , objectOneProp, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 606: freezer    , objectSDTH, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 607: freezer    , objectWithArr, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 608: freezer    , objectCreate, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 609: freezer    , arr          , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 610: freezer    , func         , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 611: freezer    , regex        , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 612: freezer    , date         , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 613: freezer    , objectNoProps, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 614: freezer    , objectOneProp, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 615: freezer    , objectSDTH, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 616: freezer    , objectWithArr, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 617: freezer    , objectCreate, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 618: freezer    , arr          , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 619: freezer    , func         , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 620: freezer    , regex        , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 621: freezer    , date         , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 622: freezer    , objectNoProps, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 623: freezer    , objectOneProp, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 624: freezer    , objectSDTH, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 625: freezer    , objectWithArr, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 626: freezer    , objectCreate, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 627: freezer    , arr          , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 628: freezer    , func         , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 629: freezer    , regex        , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 630: freezer    , date         , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 631: freezer    , objectNoProps, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 632: freezer    , objectOneProp, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 633: freezer    , objectSDTH, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 634: freezer    , objectWithArr, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 635: freezer    , objectCreate, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 636: freezer    , arr          , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 637: freezer    , func         , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 638: freezer    , regex        , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 639: freezer    , date         , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 640: freezer    , objectNoProps, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 641: freezer    , objectOneProp, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 642: freezer    , objectSDTH, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 643: freezer    , objectWithArr, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 644: freezer    , objectCreate, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 645: freezer    , arr          , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 646: freezer    , func         , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 647: freezer    , regex        , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 648: freezer    , date         , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 649: freezer    , objectNoProps, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 650: freezer    , objectOneProp, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 651: freezer    , objectSDTH, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 652: freezer    , objectWithArr, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 653: freezer    , objectCreate, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 654: freezer    , arr          , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 655: freezer    , func         , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 656: freezer    , regex        , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 657: freezer    , date         , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 658: freezer    , objectNoProps, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 659: freezer    , objectOneProp, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 660: freezer    , objectSDTH, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 661: freezer    , objectWithArr, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 662: freezer    , objectCreate, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 663: freezer    , arr          , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 664: freezer    , func         , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 665: freezer    , regex        , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 666: freezer    , date         , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 667: freezer    , objectNoProps, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 668: freezer    , objectOneProp, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 669: freezer    , objectSDTH, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 670: freezer    , objectWithArr, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 671: freezer    , objectCreate, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 672: freezer    , arr          , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 673: freezer    , func         , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 674: freezer    , regex        , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 675: freezer    , date         , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 676: freezer    , objectNoProps, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 677: freezer    , objectOneProp, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 678: freezer    , objectSDTH, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 679: freezer    , objectWithArr, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 680: freezer    , objectCreate, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 681: freezer    , arr          , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 682: freezer    , func         , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 683: freezer    , regex        , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 684: freezer    , date         , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 685: freezer    , objectNoProps, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 686: freezer    , objectOneProp, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 687: freezer    , objectSDTH, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 688: freezer    , objectWithArr, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 689: freezer    , objectCreate, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 690: freezer    , arr          , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 691: freezer    , func         , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 692: freezer    , regex        , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 693: freezer    , date         , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 694: freezer    , objectNoProps, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 695: freezer    , objectOneProp, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 696: freezer    , objectSDTH, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 697: freezer    , objectWithArr, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 698: freezer    , objectCreate, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 699: freezer    , arr          , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 700: freezer    , func         , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 701: freezer    , regex        , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 702: freezer    , date         , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 703: freezer    , objectNoProps, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 704: freezer    , objectOneProp, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 705: freezer    , objectSDTH, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 706: freezer    , objectWithArr, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 707: freezer    , objectCreate, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 708: freezer    , arr          , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 709: freezer    , func         , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 710: freezer    , regex        , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 711: freezer    , date         , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 712: freezer    , objectNoProps, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 713: freezer    , objectOneProp, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 714: freezer    , objectSDTH, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 715: freezer    , objectWithArr, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 716: freezer    , objectCreate, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 717: freezer    , arr          , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 718: freezer    , func         , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 719: freezer    , regex        , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 720: freezer    , date         , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 721: freezer    , objectNoProps, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 722: freezer    , objectOneProp, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 723: freezer    , objectSDTH, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 724: freezer    , objectWithArr, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 725: freezer    , objectCreate, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 726: freezer    , arr          , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 727: freezer    , func         , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 728: freezer    , regex        , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 729: freezer    , date         , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 730: freezer    , objectNoProps, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 731: freezer    , objectOneProp, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 732: freezer    , objectSDTH, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 733: freezer    , objectWithArr, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 734: freezer    , objectCreate, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 735: freezer    , arr          , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 736: freezer    , func         , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 737: freezer    , regex        , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 738: freezer    , date         , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 739: freezer    , objectNoProps, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 740: freezer    , objectOneProp, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 741: freezer    , objectSDTH, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 742: freezer    , objectWithArr, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 743: freezer    , objectCreate, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 744: freezer    , arr          , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 745: freezer    , func         , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 746: freezer    , regex        , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 747: freezer    , date         , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 748: freezer    , objectNoProps, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 749: freezer    , objectOneProp, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 750: freezer    , objectSDTH, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 751: freezer    , objectWithArr, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 752: freezer    , objectCreate, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 753: freezer    , arr          , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 754: freezer    , func         , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 755: freezer    , regex        , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 756: freezer    , date         , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 757: freezer    , objectNoProps, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 758: freezer    , objectOneProp, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 759: freezer    , objectSDTH, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 760: freezer    , objectWithArr, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 761: freezer    , objectCreate, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 762: freezer    , arr          , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 763: freezer    , func         , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 764: freezer    , regex        , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 765: freezer    , date         , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 766: freezer    , objectNoProps, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 767: freezer    , objectOneProp, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 768: freezer    , objectSDTH, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 769: freezer    , objectWithArr, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 770: freezer    , objectCreate, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 771: freezer    , arr          , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 772: freezer    , func         , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 773: freezer    , regex        , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 774: freezer    , date         , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 775: freezer    , objectNoProps, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 776: freezer    , objectOneProp, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 777: freezer    , objectSDTH, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 778: freezer    , objectWithArr, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 779: freezer    , objectCreate, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 780: freezer    , arr          , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 781: freezer    , func         , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 782: freezer    , regex        , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 783: freezer    , date         , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 784: freezer    , objectNoProps, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 785: freezer    , objectOneProp, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 786: freezer    , objectSDTH, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 787: freezer    , objectWithArr, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 788: freezer    , objectCreate, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 789: freezer    , arr          , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 790: freezer    , func         , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 791: freezer    , regex        , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 792: freezer    , date         , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 793: freezer    , objectNoProps, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 794: freezer    , objectOneProp, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 795: freezer    , objectSDTH, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 796: freezer    , objectWithArr, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 797: freezer    , objectCreate, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 798: freezer    , arr          , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 799: freezer    , func         , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 800: freezer    , regex        , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 801: freezer    , date         , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 802: freezer    , objectNoProps, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 803: freezer    , objectOneProp, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 804: freezer    , objectSDTH, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 805: freezer    , objectWithArr, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 806: freezer    , objectCreate, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 807: freezer    , arr          , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 808: freezer    , func         , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 809: freezer    , regex        , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 810: freezer    , date         , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 811: freezer    , objectNoProps, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 812: freezer    , objectOneProp, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 813: freezer    , objectSDTH, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 814: freezer    , objectWithArr, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 815: freezer    , objectCreate, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 816: freezer    , arr          , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 817: freezer    , func         , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 818: freezer    , regex        , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 819: freezer    , date         , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 820: freezer    , objectNoProps, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 821: freezer    , objectOneProp, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 822: freezer    , objectSDTH, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 823: freezer    , objectWithArr, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 824: freezer    , objectCreate, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 825: freezer    , arr          , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 826: freezer    , func         , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 827: freezer    , regex        , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 828: freezer    , date         , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 829: freezer    , objectNoProps, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 830: freezer    , objectOneProp, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 831: freezer    , objectSDTH, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 832: freezer    , objectWithArr, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 833: freezer    , objectCreate, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 834: freezer    , arr          , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 835: freezer    , func         , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 836: freezer    , regex        , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 837: freezer    , date         , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 838: freezer    , objectNoProps, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 839: freezer    , objectOneProp, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 840: freezer    , objectSDTH, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 841: freezer    , objectWithArr, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 842: freezer    , objectCreate, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 843: freezer    , arr          , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 844: freezer    , func         , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 845: freezer    , regex        , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 846: freezer    , date         , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 847: freezer    , objectNoProps, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 848: freezer    , objectOneProp, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 849: freezer    , objectSDTH, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 850: freezer    , objectWithArr, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 851: freezer    , objectCreate, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 852: freezer    , arr          , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 853: freezer    , func         , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 854: freezer    , regex        , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 855: freezer    , date         , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 856: freezer    , objectNoProps, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 857: freezer    , objectOneProp, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 858: freezer    , objectSDTH, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 859: freezer    , objectWithArr, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 860: freezer    , objectCreate, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 861: freezer    , arr          , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 862: freezer    , func         , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 863: freezer    , regex        , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 864: freezer    , date         , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 865: sealer     , objectNoProps, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 866: sealer     , objectOneProp, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 867: sealer     , objectSDTH, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 868: sealer     , objectWithArr, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 869: sealer     , objectCreate, doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 870: sealer     , arr          , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 871: sealer     , func         , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 872: sealer     , regex        , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 873: sealer     , date         , doNothing  , numeric   , newProp     , shadow=true
+PASS
+Test 874: sealer     , objectNoProps, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 875: sealer     , objectOneProp, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 876: sealer     , objectSDTH, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 877: sealer     , objectWithArr, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 878: sealer     , objectCreate, doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 879: sealer     , arr          , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 880: sealer     , func         , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 881: sealer     , regex        , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 882: sealer     , date         , doNothing  , numeric   , existingProp, shadow=true
+PASS
+Test 883: sealer     , objectNoProps, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 884: sealer     , objectOneProp, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 885: sealer     , objectSDTH, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 886: sealer     , objectWithArr, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 887: sealer     , objectCreate, doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 888: sealer     , arr          , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 889: sealer     , func         , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 890: sealer     , regex        , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 891: sealer     , date         , doNothing  , numeric   , newProp     , shadow=false
+PASS
+Test 892: sealer     , objectNoProps, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 893: sealer     , objectOneProp, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 894: sealer     , objectSDTH, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 895: sealer     , objectWithArr, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 896: sealer     , objectCreate, doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 897: sealer     , arr          , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 898: sealer     , func         , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 899: sealer     , regex        , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 900: sealer     , date         , doNothing  , numeric   , existingProp, shadow=false
+PASS
+Test 901: sealer     , objectNoProps, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 902: sealer     , objectOneProp, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 903: sealer     , objectSDTH, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 904: sealer     , objectWithArr, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 905: sealer     , objectCreate, doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 906: sealer     , arr          , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 907: sealer     , func         , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 908: sealer     , regex        , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 909: sealer     , date         , doNothing  , nonNumeric, newProp     , shadow=true
+PASS
+Test 910: sealer     , objectNoProps, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 911: sealer     , objectOneProp, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 912: sealer     , objectSDTH, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 913: sealer     , objectWithArr, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 914: sealer     , objectCreate, doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 915: sealer     , arr          , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 916: sealer     , func         , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 917: sealer     , regex        , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 918: sealer     , date         , doNothing  , nonNumeric, existingProp, shadow=true
+PASS
+Test 919: sealer     , objectNoProps, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 920: sealer     , objectOneProp, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 921: sealer     , objectSDTH, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 922: sealer     , objectWithArr, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 923: sealer     , objectCreate, doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 924: sealer     , arr          , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 925: sealer     , func         , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 926: sealer     , regex        , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 927: sealer     , date         , doNothing  , nonNumeric, newProp     , shadow=false
+PASS
+Test 928: sealer     , objectNoProps, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 929: sealer     , objectOneProp, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 930: sealer     , objectSDTH, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 931: sealer     , objectWithArr, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 932: sealer     , objectCreate, doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 933: sealer     , arr          , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 934: sealer     , func         , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 935: sealer     , regex        , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 936: sealer     , date         , doNothing  , nonNumeric, existingProp, shadow=false
+PASS
+Test 937: sealer     , objectNoProps, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 938: sealer     , objectOneProp, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 939: sealer     , objectSDTH, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 940: sealer     , objectWithArr, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 941: sealer     , objectCreate, addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 942: sealer     , arr          , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 943: sealer     , func         , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 944: sealer     , regex        , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 945: sealer     , date         , addOneProp , numeric   , newProp     , shadow=true
+PASS
+Test 946: sealer     , objectNoProps, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 947: sealer     , objectOneProp, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 948: sealer     , objectSDTH, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 949: sealer     , objectWithArr, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 950: sealer     , objectCreate, addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 951: sealer     , arr          , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 952: sealer     , func         , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 953: sealer     , regex        , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 954: sealer     , date         , addOneProp , numeric   , existingProp, shadow=true
+PASS
+Test 955: sealer     , objectNoProps, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 956: sealer     , objectOneProp, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 957: sealer     , objectSDTH, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 958: sealer     , objectWithArr, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 959: sealer     , objectCreate, addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 960: sealer     , arr          , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 961: sealer     , func         , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 962: sealer     , regex        , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 963: sealer     , date         , addOneProp , numeric   , newProp     , shadow=false
+PASS
+Test 964: sealer     , objectNoProps, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 965: sealer     , objectOneProp, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 966: sealer     , objectSDTH, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 967: sealer     , objectWithArr, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 968: sealer     , objectCreate, addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 969: sealer     , arr          , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 970: sealer     , func         , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 971: sealer     , regex        , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 972: sealer     , date         , addOneProp , numeric   , existingProp, shadow=false
+PASS
+Test 973: sealer     , objectNoProps, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 974: sealer     , objectOneProp, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 975: sealer     , objectSDTH, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 976: sealer     , objectWithArr, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 977: sealer     , objectCreate, addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 978: sealer     , arr          , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 979: sealer     , func         , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 980: sealer     , regex        , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 981: sealer     , date         , addOneProp , nonNumeric, newProp     , shadow=true
+PASS
+Test 982: sealer     , objectNoProps, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 983: sealer     , objectOneProp, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 984: sealer     , objectSDTH, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 985: sealer     , objectWithArr, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 986: sealer     , objectCreate, addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 987: sealer     , arr          , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 988: sealer     , func         , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 989: sealer     , regex        , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 990: sealer     , date         , addOneProp , nonNumeric, existingProp, shadow=true
+PASS
+Test 991: sealer     , objectNoProps, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 992: sealer     , objectOneProp, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 993: sealer     , objectSDTH, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 994: sealer     , objectWithArr, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 995: sealer     , objectCreate, addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 996: sealer     , arr          , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 997: sealer     , func         , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 998: sealer     , regex        , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 999: sealer     , date         , addOneProp , nonNumeric, newProp     , shadow=false
+PASS
+Test 1000: sealer     , objectNoProps, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1001: sealer     , objectOneProp, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1002: sealer     , objectSDTH, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1003: sealer     , objectWithArr, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1004: sealer     , objectCreate, addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1005: sealer     , arr          , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1006: sealer     , func         , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1007: sealer     , regex        , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1008: sealer     , date         , addOneProp , nonNumeric, existingProp, shadow=false
+PASS
+Test 1009: sealer     , objectNoProps, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1010: sealer     , objectOneProp, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1011: sealer     , objectSDTH, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1012: sealer     , objectWithArr, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1013: sealer     , objectCreate, addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1014: sealer     , arr          , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1015: sealer     , func         , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1016: sealer     , regex        , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1017: sealer     , date         , addTwoProps, numeric   , newProp     , shadow=true
+PASS
+Test 1018: sealer     , objectNoProps, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1019: sealer     , objectOneProp, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1020: sealer     , objectSDTH, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1021: sealer     , objectWithArr, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1022: sealer     , objectCreate, addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1023: sealer     , arr          , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1024: sealer     , func         , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1025: sealer     , regex        , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1026: sealer     , date         , addTwoProps, numeric   , existingProp, shadow=true
+PASS
+Test 1027: sealer     , objectNoProps, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1028: sealer     , objectOneProp, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1029: sealer     , objectSDTH, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1030: sealer     , objectWithArr, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1031: sealer     , objectCreate, addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1032: sealer     , arr          , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1033: sealer     , func         , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1034: sealer     , regex        , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1035: sealer     , date         , addTwoProps, numeric   , newProp     , shadow=false
+PASS
+Test 1036: sealer     , objectNoProps, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1037: sealer     , objectOneProp, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1038: sealer     , objectSDTH, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1039: sealer     , objectWithArr, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1040: sealer     , objectCreate, addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1041: sealer     , arr          , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1042: sealer     , func         , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1043: sealer     , regex        , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1044: sealer     , date         , addTwoProps, numeric   , existingProp, shadow=false
+PASS
+Test 1045: sealer     , objectNoProps, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1046: sealer     , objectOneProp, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1047: sealer     , objectSDTH, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1048: sealer     , objectWithArr, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1049: sealer     , objectCreate, addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1050: sealer     , arr          , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1051: sealer     , func         , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1052: sealer     , regex        , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1053: sealer     , date         , addTwoProps, nonNumeric, newProp     , shadow=true
+PASS
+Test 1054: sealer     , objectNoProps, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1055: sealer     , objectOneProp, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1056: sealer     , objectSDTH, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1057: sealer     , objectWithArr, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1058: sealer     , objectCreate, addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1059: sealer     , arr          , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1060: sealer     , func         , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1061: sealer     , regex        , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1062: sealer     , date         , addTwoProps, nonNumeric, existingProp, shadow=true
+PASS
+Test 1063: sealer     , objectNoProps, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1064: sealer     , objectOneProp, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1065: sealer     , objectSDTH, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1066: sealer     , objectWithArr, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1067: sealer     , objectCreate, addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1068: sealer     , arr          , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1069: sealer     , func         , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1070: sealer     , regex        , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1071: sealer     , date         , addTwoProps, nonNumeric, newProp     , shadow=false
+PASS
+Test 1072: sealer     , objectNoProps, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1073: sealer     , objectOneProp, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1074: sealer     , objectSDTH, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1075: sealer     , objectWithArr, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1076: sealer     , objectCreate, addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1077: sealer     , arr          , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1078: sealer     , func         , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1079: sealer     , regex        , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1080: sealer     , date         , addTwoProps, nonNumeric, existingProp, shadow=false
+PASS
+Test 1081: sealer     , objectNoProps, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1082: sealer     , objectOneProp, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1083: sealer     , objectSDTH, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1084: sealer     , objectWithArr, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1085: sealer     , objectCreate, addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1086: sealer     , arr          , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1087: sealer     , func         , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1088: sealer     , regex        , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1089: sealer     , date         , addIndex   , numeric   , newProp     , shadow=true
+PASS
+Test 1090: sealer     , objectNoProps, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1091: sealer     , objectOneProp, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1092: sealer     , objectSDTH, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1093: sealer     , objectWithArr, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1094: sealer     , objectCreate, addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1095: sealer     , arr          , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1096: sealer     , func         , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1097: sealer     , regex        , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1098: sealer     , date         , addIndex   , numeric   , existingProp, shadow=true
+PASS
+Test 1099: sealer     , objectNoProps, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1100: sealer     , objectOneProp, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1101: sealer     , objectSDTH, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1102: sealer     , objectWithArr, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1103: sealer     , objectCreate, addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1104: sealer     , arr          , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1105: sealer     , func         , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1106: sealer     , regex        , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1107: sealer     , date         , addIndex   , numeric   , newProp     , shadow=false
+PASS
+Test 1108: sealer     , objectNoProps, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1109: sealer     , objectOneProp, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1110: sealer     , objectSDTH, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1111: sealer     , objectWithArr, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1112: sealer     , objectCreate, addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1113: sealer     , arr          , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1114: sealer     , func         , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1115: sealer     , regex        , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1116: sealer     , date         , addIndex   , numeric   , existingProp, shadow=false
+PASS
+Test 1117: sealer     , objectNoProps, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1118: sealer     , objectOneProp, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1119: sealer     , objectSDTH, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1120: sealer     , objectWithArr, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1121: sealer     , objectCreate, addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1122: sealer     , arr          , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1123: sealer     , func         , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1124: sealer     , regex        , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1125: sealer     , date         , addIndex   , nonNumeric, newProp     , shadow=true
+PASS
+Test 1126: sealer     , objectNoProps, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1127: sealer     , objectOneProp, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1128: sealer     , objectSDTH, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1129: sealer     , objectWithArr, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1130: sealer     , objectCreate, addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1131: sealer     , arr          , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1132: sealer     , func         , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1133: sealer     , regex        , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1134: sealer     , date         , addIndex   , nonNumeric, existingProp, shadow=true
+PASS
+Test 1135: sealer     , objectNoProps, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1136: sealer     , objectOneProp, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1137: sealer     , objectSDTH, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1138: sealer     , objectWithArr, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1139: sealer     , objectCreate, addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1140: sealer     , arr          , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1141: sealer     , func         , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1142: sealer     , regex        , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1143: sealer     , date         , addIndex   , nonNumeric, newProp     , shadow=false
+PASS
+Test 1144: sealer     , objectNoProps, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 1145: sealer     , objectOneProp, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 1146: sealer     , objectSDTH, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 1147: sealer     , objectWithArr, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 1148: sealer     , objectCreate, addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 1149: sealer     , arr          , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 1150: sealer     , func         , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 1151: sealer     , regex        , addIndex   , nonNumeric, existingProp, shadow=false
+PASS
+Test 1152: sealer     , date         , addIndex   , nonNumeric, existingProp, shadow=false
+PASS

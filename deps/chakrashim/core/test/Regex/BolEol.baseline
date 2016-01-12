@@ -1,0 +1,4 @@
+match(/^a/m, "b");
+null
+match(/$a?/m, "");
+[""]

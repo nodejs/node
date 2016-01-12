@@ -1,0 +1,4 @@
+LIBRARY ChakraCore
+
+EXPORTS
+#include "JsrtCommonExports.inc"

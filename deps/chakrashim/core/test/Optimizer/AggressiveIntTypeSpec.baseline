@@ -1,0 +1,15 @@
+test0: true
+test1: true
+test2: valueOf a
+test2: true
+test3: valueOf a
+test3: valueOf a
+test3: true
+test4: 0
+test5: 1
+test6: 1.1
+test7: 1.1
+test8: 1
+test9: undefined
+test10: 1055259136
+test11: 1

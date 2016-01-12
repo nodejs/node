@@ -1,0 +1,3509 @@
+
+J*************************** JSON test parse simple literals ***************
+{"memberNum":-0.1}
+
+
+
+J*************************** JSON test parse simple with no reviver ***************
+
+JSON Parse__  original= 
+{"" : 7, "memberNullFirst" : null, "memberNum" : 3, "memberNegNum" : -98765,"memberStr"  : "StringJSON", "memberBool" : true , "memberObj" : { "mm" : 1, "mb" : false}, "memberX" : {}, "memberArray" : [33, "StringTst",null,{}], "memberNull" : null}
+
+ __Parsed and stringify back= 
+{"":7,"memberNullFirst":null,"memberNum":3,"memberNegNum":-98765,"memberStr":"StringJSON","memberBool":true,"memberObj":{"mm":1,"mb":false},"memberX":{},"memberArray":[33,"StringTst",null,{}],"memberNull":null}
+
+
+
+J*************************** JSON test parse simple with tracing reviver ***************
+
+JSON Parse__  original= 
+{"" : 7, "memberNullFirst" : null, "memberNum" : 3, "memberNegNum" : -98765,"memberStr"  : "StringJSON", "memberBool" : true , "memberObj" : { "mm" : 1, "mb" : false}, "memberX" : {}, "memberArray" : [33, "StringTst",null,{}], "memberNull" : null}
++++in reviver
+
+7
++++out reviver
++++in reviver
+memberNullFirst
+null
++++out reviver
++++in reviver
+memberNum
+3
++++out reviver
++++in reviver
+memberNegNum
+-98765
++++out reviver
++++in reviver
+memberStr
+StringJSON
++++out reviver
++++in reviver
+memberBool
+true
++++out reviver
++++in reviver
+mm
+1
++++out reviver
++++in reviver
+mb
+false
++++out reviver
++++in reviver
+memberObj
+[object Object]
++++out reviver
++++in reviver
+memberX
+[object Object]
++++out reviver
++++in reviver
+0
+33
++++out reviver
++++in reviver
+1
+StringTst
++++out reviver
++++in reviver
+2
+null
++++out reviver
++++in reviver
+3
+[object Object]
++++out reviver
++++in reviver
+memberArray
+33,StringTst,,[object Object]
++++out reviver
++++in reviver
+memberNull
+null
++++out reviver
++++in reviver
+
+[object Object]
++++out reviver
+
+ __Parsed with tracing reviver and stringify back = 
+{"":7,"memberNullFirst":null,"memberNegNum":-98765,"memberStr":"StringJSON","memberBool":99,"memberObj":{"mm":99,"mb":false},"memberX":{},"memberArray":[33,"StringTst",null,{}],"memberNull":null}
+
+
+
+J*************************** JSON test parse simple with data restore reviver ***************
+
+
+JSON Parse__  original= 
+{"" : 7, "memberNullFirst" : null, "dateMember" : "2008-05-30T07:00:59Z", "memberNum" : 3, "memberStr"  : "StringJSON", "memberBool" : true , "memberObj" : { "mm" : 1, "mb" : false}, "memberX" : {}, "memberArray" : [33, "StringTst",null,{}], "memberNull" : null}
+
+ __Parsed and stringify back with Date rev = 
+{"":7,"memberNullFirst":null,"dateMember":"2008-05-30T07:00:59.000Z","memberNum":3,"memberStr":"StringJSON","memberBool":true,"memberObj":{"mm":1,"mb":false},"memberX":{},"memberArray":[33,"StringTst",null,{}],"memberNull":null}
+VERIFICATION:  restored date year(if this doesn't throw we know the filter worked)= 
+2008
+
+
+
+J*************************** JSON test parse simple with  reviver2: replace(delete) 3.14 by undefined, replace'true' by 99 ***************
+
+
+JSON Parse__  original= 
+{"" : 7, "memberNullFirst" : null, "dateMember" : "2008-05-30T07:00:59Z", "memberNum" : 3, "memberStr"  : "StringJSON", "memberBool" : true , "memberObj" : { "mm" : 1, "mb" : false}, "memberX" : {}, "memberArray" : [33, "StringTst",null,{}], "memberNull" : null}
+
+ __Parsed with reviver2 and stringify back= 
+{"":7,"memberNullFirst":null,"dateMember":"2008-05-30T07:00:59Z","memberNum":3,"memberStr":"StringJSON","memberBool":99,"memberObj":{"mm":99,"mb":false},"memberX":{},"memberArray":[33,"StringTst",null,{}],"memberNull":null}
+
+
+
+%%%%%%%%%%%%%%%%%         Matrix Testing  %%%%%%%%%%%%%%%%% 
+
+
+
+J*************************** JSON test stringify - simple, no space, not replacer *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed and restringified :
+"SampleTest"
+=== Parsed with reviver and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed and restringified :
+1
+=== Parsed with reviver and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed and restringified :
+12345
+=== Parsed with reviver and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed and restringified :
+3.14
+=== Parsed with reviver and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed and restringified :
+null
+=== Parsed with reviver and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed and restringified :
+null
+=== Parsed with reviver and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed and restringified :
+true
+=== Parsed with reviver and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed and restringified :
+false
+=== Parsed with reviver and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed and restringified :
+null
+=== Parsed with reviver and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed and restringified :
+"hello"
+=== Parsed with reviver and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed and restringified :
+33
+=== Parsed with reviver and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed and restringified :
+true
+=== Parsed with reviver and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":true,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":true,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":true,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":true,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":99,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":99,"b":false}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Simple array  ------
+["document.location","foolish"]
+=== Parsed and restringified :
+["document.location","foolish"]
+=== Parsed with reviver and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array","c":99},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: null space: null *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":true,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":true,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":true,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":true,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":99,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":99,"b":false}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Simple array  ------
+["document.location","foolish"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array","c":99},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: null space: number 4 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{
+    "MemberNo1": "\"data\"",
+    "dateMember": "2008-04-01T07:00:00.000Z",
+    "nullMember": null,
+    "stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+    "MemberNo1": "\"data\"",
+    "dateMember": "2008-04-01T07:00:00.000Z",
+    "nullMember": null,
+    "arr": [
+        "document.location",
+        "foolish"
+    ],
+    "nested": {
+        "nestedM1": {},
+        "nestedM2": 1234,
+        "nestedM3": {
+            "a": true,
+            "b": false
+        }
+    },
+    "a": {
+        "a": {},
+        "nestedM2": 1234,
+        "b": {
+            "a": true,
+            "b": false,
+            "c": 3.14
+        }
+    },
+    "stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":true,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":true,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":99,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":99,"b":false}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Simple array  ------
+[
+    "document.location",
+    "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+    "document.location",
+    "foolish",
+    12.3,
+    "2008-10-09T07:00:00.000Z",
+    {},
+    null,
+    {
+        "intMember": 3,
+        "strMember": "string_member_in_object"
+    },
+    null,
+    null,
+    null,
+    [
+        "NestedArray_1stParamString",
+        3.14,
+        {
+            "a": "nested object in array",
+            "c": true
+        },
+        null,
+        []
+    ],
+    "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array","c":99},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: null space: number 24 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{
+          "MemberNo1": "\"data\"",
+          "dateMember": "2008-04-01T07:00:00.000Z",
+          "nullMember": null,
+          "stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+          "MemberNo1": "\"data\"",
+          "dateMember": "2008-04-01T07:00:00.000Z",
+          "nullMember": null,
+          "arr": [
+                    "document.location",
+                    "foolish"
+          ],
+          "nested": {
+                    "nestedM1": {},
+                    "nestedM2": 1234,
+                    "nestedM3": {
+                              "a": true,
+                              "b": false
+                    }
+          },
+          "a": {
+                    "a": {},
+                    "nestedM2": 1234,
+                    "b": {
+                              "a": true,
+                              "b": false,
+                              "c": 3.14
+                    }
+          },
+          "stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":true,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":true,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":99,"b":false}},"a":{"a":{},"nestedM2":1234,"b":{"a":99,"b":false}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Simple array  ------
+[
+          "document.location",
+          "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+          "document.location",
+          "foolish",
+          12.3,
+          "2008-10-09T07:00:00.000Z",
+          {},
+          null,
+          {
+                    "intMember": 3,
+                    "strMember": "string_member_in_object"
+          },
+          null,
+          null,
+          null,
+          [
+                    "NestedArray_1stParamString",
+                    3.14,
+                    {
+                              "a": "nested object in array",
+                              "c": true
+                    },
+                    null,
+                    []
+          ],
+          "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array","c":99},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: null space: string : ........................ *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{
+.........."MemberNo1": "\"data\"",
+.........."dateMember": "2008-04-01T07:00:00.000Z",
+.........."nullMember": null,
+.........."stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+.........."MemberNo1": "\"data\"",
+.........."dateMember": "2008-04-01T07:00:00.000Z",
+.........."nullMember": null,
+.........."arr": [
+...................."document.location",
+...................."foolish"
+..........],
+.........."nested": {
+...................."nestedM1": {},
+...................."nestedM2": 1234,
+...................."nestedM3": {
+.............................."a": true,
+.............................."b": false
+....................}
+..........},
+.........."a": {
+...................."a": {},
+...................."nestedM2": 1234,
+...................."b": {
+.............................."a": true,
+.............................."b": false,
+.............................."c": 3.14
+....................}
+..........},
+.........."stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Simple array  ------
+[
+.........."document.location",
+.........."foolish"
+]
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Complex array  ------
+[
+.........."document.location",
+.........."foolish",
+..........12.3,
+.........."2008-10-09T07:00:00.000Z",
+..........{},
+..........null,
+..........{
+...................."intMember": 3,
+...................."strMember": "string_member_in_object"
+..........},
+..........null,
+..........null,
+..........null,
+..........[
+...................."NestedArray_1stParamString",
+....................3.14,
+....................{
+.............................."a": "nested object in array",
+.............................."c": true
+....................},
+....................null,
+....................[]
+..........],
+.........."[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+!!Exception: SyntaxError: Invalid character
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: [] space: null *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Simple array  ------
+["document.location","foolish"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: [] space: number 4 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Simple array  ------
+[
+    "document.location",
+    "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+    "document.location",
+    "foolish",
+    12.3,
+    "2008-10-09T07:00:00.000Z",
+    {},
+    null,
+    {},
+    null,
+    null,
+    null,
+    [
+        "NestedArray_1stParamString",
+        3.14,
+        {},
+        null,
+        []
+    ],
+    "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: [] space: number 24 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Simple array  ------
+[
+          "document.location",
+          "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+          "document.location",
+          "foolish",
+          12.3,
+          "2008-10-09T07:00:00.000Z",
+          {},
+          null,
+          {},
+          null,
+          null,
+          null,
+          [
+                    "NestedArray_1stParamString",
+                    3.14,
+                    {},
+                    null,
+                    []
+          ],
+          "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: [] space: string : ........................ *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Simple array  ------
+[
+.........."document.location",
+.........."foolish"
+]
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Complex array  ------
+[
+.........."document.location",
+.........."foolish",
+..........12.3,
+.........."2008-10-09T07:00:00.000Z",
+..........{},
+..........null,
+..........{},
+..........null,
+..........null,
+..........null,
+..........[
+...................."NestedArray_1stParamString",
+....................3.14,
+....................{},
+....................null,
+....................[]
+..........],
+.........."[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+!!Exception: SyntaxError: Invalid character
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: ["a","b"] space: null *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{"a":{"a":{},"b":{"a":true,"b":false}}}
+=== Parsed with no reviver and restringified :
+{"a":{"a":{},"b":{"a":true,"b":false}}}
+=== Parsed with reviver2 and restringified :
+{"a":{"a":{},"b":{"a":99,"b":false}}}
+
+------ JSON test stringify: Simple array  ------
+["document.location","foolish"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: ["a","b"] space: number 4 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+    "a": {
+        "a": {},
+        "b": {
+            "a": true,
+            "b": false
+        }
+    }
+}
+=== Parsed with no reviver and restringified :
+{"a":{"a":{},"b":{"a":true,"b":false}}}
+=== Parsed with reviver2 and restringified :
+{"a":{"a":{},"b":{"a":99,"b":false}}}
+
+------ JSON test stringify: Simple array  ------
+[
+    "document.location",
+    "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+    "document.location",
+    "foolish",
+    12.3,
+    "2008-10-09T07:00:00.000Z",
+    {},
+    null,
+    {},
+    null,
+    null,
+    null,
+    [
+        "NestedArray_1stParamString",
+        3.14,
+        {
+            "a": "nested object in array"
+        },
+        null,
+        []
+    ],
+    "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: ["a","b"] space: number 24 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+          "a": {
+                    "a": {},
+                    "b": {
+                              "a": true,
+                              "b": false
+                    }
+          }
+}
+=== Parsed with no reviver and restringified :
+{"a":{"a":{},"b":{"a":true,"b":false}}}
+=== Parsed with reviver2 and restringified :
+{"a":{"a":{},"b":{"a":99,"b":false}}}
+
+------ JSON test stringify: Simple array  ------
+[
+          "document.location",
+          "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+          "document.location",
+          "foolish",
+          12.3,
+          "2008-10-09T07:00:00.000Z",
+          {},
+          null,
+          {},
+          null,
+          null,
+          null,
+          [
+                    "NestedArray_1stParamString",
+                    3.14,
+                    {
+                              "a": "nested object in array"
+                    },
+                    null,
+                    []
+          ],
+          "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: ["a","b"] space: string : ........................ *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+.........."a": {
+...................."a": {},
+...................."b": {
+.............................."a": true,
+.............................."b": false
+....................}
+..........}
+}
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Simple array  ------
+[
+.........."document.location",
+.........."foolish"
+]
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Complex array  ------
+[
+.........."document.location",
+.........."foolish",
+..........12.3,
+.........."2008-10-09T07:00:00.000Z",
+..........{},
+..........null,
+..........{},
+..........null,
+..........null,
+..........null,
+..........[
+...................."NestedArray_1stParamString",
+....................3.14,
+....................{
+.............................."a": "nested object in array"
+....................},
+....................null,
+....................[]
+..........],
+.........."[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+!!Exception: SyntaxError: Invalid character
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: ["a","b","a","a"] space: null *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{"a":{"a":{},"b":{"a":true,"b":false}}}
+=== Parsed with no reviver and restringified :
+{"a":{"a":{},"b":{"a":true,"b":false}}}
+=== Parsed with reviver2 and restringified :
+{"a":{"a":{},"b":{"a":99,"b":false}}}
+
+------ JSON test stringify: Simple array  ------
+["document.location","foolish"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: ["a","b","a","a"] space: number 4 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+    "a": {
+        "a": {},
+        "b": {
+            "a": true,
+            "b": false
+        }
+    }
+}
+=== Parsed with no reviver and restringified :
+{"a":{"a":{},"b":{"a":true,"b":false}}}
+=== Parsed with reviver2 and restringified :
+{"a":{"a":{},"b":{"a":99,"b":false}}}
+
+------ JSON test stringify: Simple array  ------
+[
+    "document.location",
+    "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+    "document.location",
+    "foolish",
+    12.3,
+    "2008-10-09T07:00:00.000Z",
+    {},
+    null,
+    {},
+    null,
+    null,
+    null,
+    [
+        "NestedArray_1stParamString",
+        3.14,
+        {
+            "a": "nested object in array"
+        },
+        null,
+        []
+    ],
+    "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: ["a","b","a","a"] space: number 24 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+          "a": {
+                    "a": {},
+                    "b": {
+                              "a": true,
+                              "b": false
+                    }
+          }
+}
+=== Parsed with no reviver and restringified :
+{"a":{"a":{},"b":{"a":true,"b":false}}}
+=== Parsed with reviver2 and restringified :
+{"a":{"a":{},"b":{"a":99,"b":false}}}
+
+------ JSON test stringify: Simple array  ------
+[
+          "document.location",
+          "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+          "document.location",
+          "foolish",
+          12.3,
+          "2008-10-09T07:00:00.000Z",
+          {},
+          null,
+          {},
+          null,
+          null,
+          null,
+          [
+                    "NestedArray_1stParamString",
+                    3.14,
+                    {
+                              "a": "nested object in array"
+                    },
+                    null,
+                    []
+          ],
+          "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array"},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: array replacer: ["a","b","a","a"] space: string : ........................ *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{}
+=== Parsed with no reviver and restringified :
+{}
+=== Parsed with reviver2 and restringified :
+{}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+.........."a": {
+...................."a": {},
+...................."b": {
+.............................."a": true,
+.............................."b": false
+....................}
+..........}
+}
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Simple array  ------
+[
+.........."document.location",
+.........."foolish"
+]
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Complex array  ------
+[
+.........."document.location",
+.........."foolish",
+..........12.3,
+.........."2008-10-09T07:00:00.000Z",
+..........{},
+..........null,
+..........{},
+..........null,
+..........null,
+..........null,
+..........[
+...................."NestedArray_1stParamString",
+....................3.14,
+....................{
+.............................."a": "nested object in array"
+....................},
+....................null,
+....................[]
+..........],
+.........."[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+!!Exception: SyntaxError: Invalid character
+
+
+
+*************************** JSON test stringify:  replacer: replacer function, if the key is 'a' and the holder has a prop 'b', replace the value of the prop 'a' with the value of prop b  space: null *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":false,"b":false}},"a":{"a":{"a":false,"b":false,"c":3.14},"nestedM2":1234,"b":{"a":false,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":false,"b":false}},"a":{"a":{"a":false,"b":false,"c":3.14},"nestedM2":1234,"b":{"a":false,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":false,"b":false}},"a":{"a":{"a":false,"b":false},"nestedM2":1234,"b":{"a":false,"b":false}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Simple array  ------
+["document.location","foolish"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array","c":99},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: replacer function, if the key is 'a' and the holder has a prop 'b', replace the value of the prop 'a' with the value of prop b  space: number 4 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{
+    "MemberNo1": "\"data\"",
+    "dateMember": "2008-04-01T07:00:00.000Z",
+    "nullMember": null,
+    "stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+    "MemberNo1": "\"data\"",
+    "dateMember": "2008-04-01T07:00:00.000Z",
+    "nullMember": null,
+    "arr": [
+        "document.location",
+        "foolish"
+    ],
+    "nested": {
+        "nestedM1": {},
+        "nestedM2": 1234,
+        "nestedM3": {
+            "a": false,
+            "b": false
+        }
+    },
+    "a": {
+        "a": {
+            "a": false,
+            "b": false,
+            "c": 3.14
+        },
+        "nestedM2": 1234,
+        "b": {
+            "a": false,
+            "b": false,
+            "c": 3.14
+        }
+    },
+    "stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":false,"b":false}},"a":{"a":{"a":false,"b":false,"c":3.14},"nestedM2":1234,"b":{"a":false,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":false,"b":false}},"a":{"a":{"a":false,"b":false},"nestedM2":1234,"b":{"a":false,"b":false}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Simple array  ------
+[
+    "document.location",
+    "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+    "document.location",
+    "foolish",
+    12.3,
+    "2008-10-09T07:00:00.000Z",
+    {},
+    null,
+    {
+        "intMember": 3,
+        "strMember": "string_member_in_object"
+    },
+    null,
+    null,
+    null,
+    [
+        "NestedArray_1stParamString",
+        3.14,
+        {
+            "a": "nested object in array",
+            "c": true
+        },
+        null,
+        []
+    ],
+    "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array","c":99},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: replacer function, if the key is 'a' and the holder has a prop 'b', replace the value of the prop 'a' with the value of prop b  space: number 24 *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{
+          "MemberNo1": "\"data\"",
+          "dateMember": "2008-04-01T07:00:00.000Z",
+          "nullMember": null,
+          "stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+          "MemberNo1": "\"data\"",
+          "dateMember": "2008-04-01T07:00:00.000Z",
+          "nullMember": null,
+          "arr": [
+                    "document.location",
+                    "foolish"
+          ],
+          "nested": {
+                    "nestedM1": {},
+                    "nestedM2": 1234,
+                    "nestedM3": {
+                              "a": false,
+                              "b": false
+                    }
+          },
+          "a": {
+                    "a": {
+                              "a": false,
+                              "b": false,
+                              "c": 3.14
+                    },
+                    "nestedM2": 1234,
+                    "b": {
+                              "a": false,
+                              "b": false,
+                              "c": 3.14
+                    }
+          },
+          "stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+=== Parsed with no reviver and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":false,"b":false}},"a":{"a":{"a":false,"b":false,"c":3.14},"nestedM2":1234,"b":{"a":false,"b":false,"c":3.14}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+=== Parsed with reviver2 and restringified :
+{"MemberNo1":"\"data\"","dateMember":"2008-04-01T07:00:00.000Z","nullMember":null,"arr":["document.location","foolish"],"nested":{"nestedM1":{},"nestedM2":1234,"nestedM3":{"a":false,"b":false}},"a":{"a":{"a":false,"b":false},"nestedM2":1234,"b":{"a":false,"b":false}},"stringmember":"this string ends the obj. You should not see functionMember and undefinedMember"}
+
+------ JSON test stringify: Simple array  ------
+[
+          "document.location",
+          "foolish"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish"]
+
+------ JSON test stringify: Complex array  ------
+[
+          "document.location",
+          "foolish",
+          12.3,
+          "2008-10-09T07:00:00.000Z",
+          {},
+          null,
+          {
+                    "intMember": 3,
+                    "strMember": "string_member_in_object"
+          },
+          null,
+          null,
+          null,
+          [
+                    "NestedArray_1stParamString",
+                    3.14,
+                    {
+                              "a": "nested object in array",
+                              "c": true
+                    },
+                    null,
+                    []
+          ],
+          "[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+=== Parsed with no reviver and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",3.14,{"a":"nested object in array","c":true},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+=== Parsed with reviver2 and restringified :
+["document.location","foolish",12.3,"2008-10-09T07:00:00.000Z",{},null,{"intMember":3,"strMember":"string_member_in_object"},null,null,null,["NestedArray_1stParamString",null,{"a":"nested object in array","c":99},null,[]],"[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"]
+
+
+
+*************************** JSON test stringify:  replacer: replacer function, if the key is 'a' and the holder has a prop 'b', replace the value of the prop 'a' with the value of prop b  space: string : ........................ *********************** 
+
+------ JSON test stringify: String simple  ------
+"SampleTest"
+=== Parsed with no reviver and restringified :
+"SampleTest"
+=== Parsed with reviver2 and restringified :
+"SampleTest"
+
+------ JSON test stringify: String complex  ------
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with no reviver and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+=== Parsed with reviver2 and restringified :
+"/test ze\u0000ro\u000bString\n_u4:a_u2:º_u1:\u000e_u2clean:è"
+
+------ JSON test stringify: Number(1)  ------
+1
+=== Parsed with no reviver and restringified :
+1
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: Number(1234)  ------
+12345
+=== Parsed with no reviver and restringified :
+12345
+=== Parsed with reviver2 and restringified :
+12345
+
+------ JSON test stringify: Number(3.14)  ------
+3.14
+=== Parsed with no reviver and restringified :
+3.14
+=== Parsed with reviver2 and restringified :
+undefined
+
+------ JSON test stringify: Number(NaN)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: Number(POSITIVE_INFINITY)  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: bool(true)  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: bool(false)  ------
+false
+=== Parsed with no reviver and restringified :
+false
+=== Parsed with reviver2 and restringified :
+false
+
+------ JSON test stringify: null  ------
+null
+=== Parsed with no reviver and restringified :
+null
+=== Parsed with reviver2 and restringified :
+null
+
+------ JSON test stringify: undefined  ------
+undefined
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Date(2008, 10, 10)  ------
+"2008-11-10T08:00:00.000Z"
+=== Parsed with no reviver and restringified :
+"2008-11-10T08:00:00.000Z"
+=== Parsed with reviver2 and restringified :
+"2008-11-10T08:00:00.000Z"
+
+------ JSON test stringify: string in Object  ------
+"hello"
+=== Parsed with no reviver and restringified :
+"hello"
+=== Parsed with reviver2 and restringified :
+"hello"
+
+------ JSON test stringify: number in Object  ------
+33
+=== Parsed with no reviver and restringified :
+33
+=== Parsed with reviver2 and restringified :
+33
+
+------ JSON test stringify: bool in Object  ------
+true
+=== Parsed with no reviver and restringified :
+true
+=== Parsed with reviver2 and restringified :
+99
+
+------ JSON test stringify: SimpleObject  ------
+{
+.........."MemberNo1": "\"data\"",
+.........."dateMember": "2008-04-01T07:00:00.000Z",
+.........."nullMember": null,
+.........."stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Object with nested objects and array  ------
+{
+.........."MemberNo1": "\"data\"",
+.........."dateMember": "2008-04-01T07:00:00.000Z",
+.........."nullMember": null,
+.........."arr": [
+...................."document.location",
+...................."foolish"
+..........],
+.........."nested": {
+...................."nestedM1": {},
+...................."nestedM2": 1234,
+...................."nestedM3": {
+.............................."a": false,
+.............................."b": false
+....................}
+..........},
+.........."a": {
+...................."a": {
+.............................."a": false,
+.............................."b": false,
+.............................."c": 3.14
+....................},
+...................."nestedM2": 1234,
+...................."b": {
+.............................."a": false,
+.............................."b": false,
+.............................."c": 3.14
+....................}
+..........},
+.........."stringmember": "this string ends the obj. You should not see functionMember and undefinedMember"
+}
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Simple array  ------
+[
+.........."document.location",
+.........."foolish"
+]
+!!Exception: SyntaxError: Invalid character
+
+------ JSON test stringify: Complex array  ------
+[
+.........."document.location",
+.........."foolish",
+..........12.3,
+.........."2008-10-09T07:00:00.000Z",
+..........{},
+..........null,
+..........{
+...................."intMember": 3,
+...................."strMember": "string_member_in_object"
+..........},
+..........null,
+..........null,
+..........null,
+..........[
+...................."NestedArray_1stParamString",
+....................3.14,
+....................{
+.............................."a": "nested object in array",
+.............................."c": true
+....................},
+....................null,
+....................[]
+..........],
+.........."[0]-document.location, [1]-string, [2]-number, [3]-date, [4]-empty obj, [5]-missing, [6]-obj, [7]-null, [8]-undef, [9]-function, [10]-nestedArray, [11]-this"
+]
+!!Exception: SyntaxError: Invalid character

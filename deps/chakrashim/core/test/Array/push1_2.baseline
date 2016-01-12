@@ -1,0 +1,24 @@
+>>> Start push test for object: 1,2,5,10,17
+Returned:5 obj.length:5
+Returned:6 obj.length:6
+Returned:7 obj.length:7
+Returned:8 obj.length:8
+Returned:10 obj.length:10
+Returned:15 obj.length:15
+<<< Stop push test for object: 1,2,5,10,17,,,100,1,2,1,2,3,4,5
+>>> Start push test for object: [object Object]
+Returned:5 obj.length:5
+Returned:6 obj.length:6
+Returned:7 obj.length:7
+Returned:8 obj.length:8
+Returned:10 obj.length:10
+Returned:15 obj.length:15
+<<< Stop push test for object: [object Object]
+>>> Start push test for object: [object Object]
+Returned:0 obj.length:0
+Returned:1 obj.length:1
+Returned:2 obj.length:2
+Returned:3 obj.length:3
+Returned:5 obj.length:5
+Returned:10 obj.length:10
+<<< Stop push test for object: [object Object]

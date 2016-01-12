@@ -1,0 +1,199 @@
+s1.replace("some", "any");: result = This is a any string value. 12.34
+s2.replace("some", "any");: result = This is a any string value. 12.34
+s1.replace("some", "");: result = This is a  string value. 12.34
+s2.replace("some", "");: result = This is a  string value. 12.34
+s1.replace("some", undefined);: result = This is a undefined string value. 12.34
+s2.replace("some", undefined);: result = This is a undefined string value. 12.34
+s1.replace("some", null);: result = This is a null string value. 12.34
+s2.replace("some", null);: result = This is a null string value. 12.34
+f0
+s1.replace("some", f0);: result = This is a f0 string value. 12.34
+f0
+s2.replace("some", f0);: result = This is a f0 string value. 12.34
+f1 x: some
+s1.replace("some", f1);: result = This is a f1 string value. 12.34
+f1 x: some
+s2.replace("some", f1);: result = This is a f1 string value. 12.34
+f2 x: some y: 10
+s1.replace("some", f2);: result = This is a f2 string value. 12.34
+f2 x: some y: 10
+s2.replace("some", f2);: result = This is a f2 string value. 12.34
+f3 x: some y: 10 z: This is a some string value. 12.34
+ is a 
+s1.replace("some", f3);: result = This is a f3 string value. 12.34
+f3 x: some y: 10 z: This is a some string value. 12.34
+ is a 
+s2.replace("some", f3);: result = This is a f3 string value. 12.34
+s1.replace(12, "any");: result = This is a some string value. any.34
+s2.replace(12, "any");: result = This is a some string value. any.34
+s1.replace(12, "");: result = This is a some string value. .34
+s2.replace(12, "");: result = This is a some string value. .34
+s1.replace(12, undefined);: result = This is a some string value. undefined.34
+s2.replace(12, undefined);: result = This is a some string value. undefined.34
+s1.replace(12, null);: result = This is a some string value. null.34
+s2.replace(12, null);: result = This is a some string value. null.34
+f0
+s1.replace(12, f0);: result = This is a some string value. f0.34
+f0
+s2.replace(12, f0);: result = This is a some string value. f0.34
+f1 x: 12
+s1.replace(12, f1);: result = This is a some string value. f1.34
+f1 x: 12
+s2.replace(12, f1);: result = This is a some string value. f1.34
+f2 x: 12 y: 29
+s1.replace(12, f2);: result = This is a some string value. f2.34
+f2 x: 12 y: 29
+s2.replace(12, f2);: result = This is a some string value. f2.34
+f3 x: 12 y: 29 z: This is a some string value. 12.34
+is is a some string value. 
+s1.replace(12, f3);: result = This is a some string value. f3.34
+f3 x: 12 y: 29 z: This is a some string value. 12.34
+is is a some string value. 
+s2.replace(12, f3);: result = This is a some string value. f3.34
+s1.replace(34, "any");: result = This is a some string value. 12.any
+s2.replace(34, "any");: result = This is a some string value. 12.any
+s1.replace(34, "");: result = This is a some string value. 12.
+s2.replace(34, "");: result = This is a some string value. 12.
+s1.replace(34, undefined);: result = This is a some string value. 12.undefined
+s2.replace(34, undefined);: result = This is a some string value. 12.undefined
+s1.replace(34, null);: result = This is a some string value. 12.null
+s2.replace(34, null);: result = This is a some string value. 12.null
+f0
+s1.replace(34, f0);: result = This is a some string value. 12.f0
+f0
+s2.replace(34, f0);: result = This is a some string value. 12.f0
+f1 x: 34
+s1.replace(34, f1);: result = This is a some string value. 12.f1
+f1 x: 34
+s2.replace(34, f1);: result = This is a some string value. 12.f1
+f2 x: 34 y: 32
+s1.replace(34, f2);: result = This is a some string value. 12.f2
+f2 x: 34 y: 32
+s2.replace(34, f2);: result = This is a some string value. 12.f2
+f3 x: 34 y: 32 z: This is a some string value. 12.34
+is is a some string value. 12.
+s1.replace(34, f3);: result = This is a some string value. 12.f3
+f3 x: 34 y: 32 z: This is a some string value. 12.34
+is is a some string value. 12.
+s2.replace(34, f3);: result = This is a some string value. 12.f3
+s1.replace(/[0-9]/, "any");: result = This is a some string value. any2.34
+s2.replace(/[0-9]/, "any");: result = This is a some string value. any2.34
+s1.replace(/[0-9]/, "");: result = This is a some string value. 2.34
+s2.replace(/[0-9]/, "");: result = This is a some string value. 2.34
+s1.replace(/[0-9]/, undefined);: result = This is a some string value. undefined2.34
+s2.replace(/[0-9]/, undefined);: result = This is a some string value. undefined2.34
+s1.replace(/[0-9]/, null);: result = This is a some string value. null2.34
+s2.replace(/[0-9]/, null);: result = This is a some string value. null2.34
+f0
+s1.replace(/[0-9]/, f0);: result = This is a some string value. f02.34
+f0
+s2.replace(/[0-9]/, f0);: result = This is a some string value. f02.34
+f1 x: 1
+s1.replace(/[0-9]/, f1);: result = This is a some string value. f12.34
+f1 x: 1
+s2.replace(/[0-9]/, f1);: result = This is a some string value. f12.34
+f2 x: 1 y: 29
+s1.replace(/[0-9]/, f2);: result = This is a some string value. f22.34
+f2 x: 1 y: 29
+s2.replace(/[0-9]/, f2);: result = This is a some string value. f22.34
+f3 x: 1 y: 29 z: This is a some string value. 12.34
+his is a some string value. 
+s1.replace(/[0-9]/, f3);: result = This is a some string value. f32.34
+f3 x: 1 y: 29 z: This is a some string value. 12.34
+his is a some string value. 
+s2.replace(/[0-9]/, f3);: result = This is a some string value. f32.34
+s1.replace(/[0-9]+/, "any");: result = This is a some string value. any.34
+s2.replace(/[0-9]+/, "any");: result = This is a some string value. any.34
+s1.replace(/[0-9]+/, "");: result = This is a some string value. .34
+s2.replace(/[0-9]+/, "");: result = This is a some string value. .34
+s1.replace(/[0-9]+/, undefined);: result = This is a some string value. undefined.34
+s2.replace(/[0-9]+/, undefined);: result = This is a some string value. undefined.34
+s1.replace(/[0-9]+/, null);: result = This is a some string value. null.34
+s2.replace(/[0-9]+/, null);: result = This is a some string value. null.34
+f0
+s1.replace(/[0-9]+/, f0);: result = This is a some string value. f0.34
+f0
+s2.replace(/[0-9]+/, f0);: result = This is a some string value. f0.34
+f1 x: 12
+s1.replace(/[0-9]+/, f1);: result = This is a some string value. f1.34
+f1 x: 12
+s2.replace(/[0-9]+/, f1);: result = This is a some string value. f1.34
+f2 x: 12 y: 29
+s1.replace(/[0-9]+/, f2);: result = This is a some string value. f2.34
+f2 x: 12 y: 29
+s2.replace(/[0-9]+/, f2);: result = This is a some string value. f2.34
+f3 x: 12 y: 29 z: This is a some string value. 12.34
+is is a some string value. 
+s1.replace(/[0-9]+/, f3);: result = This is a some string value. f3.34
+f3 x: 12 y: 29 z: This is a some string value. 12.34
+is is a some string value. 
+s2.replace(/[0-9]+/, f3);: result = This is a some string value. f3.34
+s1.replace(/[0-9]+/g, "any");: result = This is a some string value. any.any
+s2.replace(/[0-9]+/g, "any");: result = This is a some string value. any.any
+s1.replace(/[0-9]+/g, "");: result = This is a some string value. .
+s2.replace(/[0-9]+/g, "");: result = This is a some string value. .
+s1.replace(/[0-9]+/g, undefined);: result = This is a some string value. undefined.undefined
+s2.replace(/[0-9]+/g, undefined);: result = This is a some string value. undefined.undefined
+s1.replace(/[0-9]+/g, null);: result = This is a some string value. null.null
+s2.replace(/[0-9]+/g, null);: result = This is a some string value. null.null
+f0
+f0
+s1.replace(/[0-9]+/g, f0);: result = This is a some string value. f0.f0
+f0
+f0
+s2.replace(/[0-9]+/g, f0);: result = This is a some string value. f0.f0
+f1 x: 12
+f1 x: 34
+s1.replace(/[0-9]+/g, f1);: result = This is a some string value. f1.f1
+f1 x: 12
+f1 x: 34
+s2.replace(/[0-9]+/g, f1);: result = This is a some string value. f1.f1
+f2 x: 12 y: 29
+f2 x: 34 y: 32
+s1.replace(/[0-9]+/g, f2);: result = This is a some string value. f2.f2
+f2 x: 12 y: 29
+f2 x: 34 y: 32
+s2.replace(/[0-9]+/g, f2);: result = This is a some string value. f2.f2
+f3 x: 12 y: 29 z: This is a some string value. 12.34
+is is a some string value. 
+f3 x: 34 y: 32 z: This is a some string value. 12.34
+is is a some string value. 12.
+s1.replace(/[0-9]+/g, f3);: result = This is a some string value. f3.f3
+f3 x: 12 y: 29 z: This is a some string value. 12.34
+is is a some string value. 
+f3 x: 34 y: 32 z: This is a some string value. 12.34
+is is a some string value. 12.
+s2.replace(/[0-9]+/g, f3);: result = This is a some string value. f3.f3
+s1.replace(undefined, "any");: result = This is a some string value. 12.34
+s2.replace(undefined, "any");: result = This is a some string value. 12.34
+s1.replace(undefined, "");: result = This is a some string value. 12.34
+s2.replace(undefined, "");: result = This is a some string value. 12.34
+s1.replace(undefined, undefined);: result = This is a some string value. 12.34
+s2.replace(undefined, undefined);: result = This is a some string value. 12.34
+s1.replace(undefined, null);: result = This is a some string value. 12.34
+s2.replace(undefined, null);: result = This is a some string value. 12.34
+s1.replace(undefined, f0);: result = This is a some string value. 12.34
+s2.replace(undefined, f0);: result = This is a some string value. 12.34
+s1.replace(undefined, f1);: result = This is a some string value. 12.34
+s2.replace(undefined, f1);: result = This is a some string value. 12.34
+s1.replace(undefined, f2);: result = This is a some string value. 12.34
+s2.replace(undefined, f2);: result = This is a some string value. 12.34
+s1.replace(undefined, f3);: result = This is a some string value. 12.34
+s2.replace(undefined, f3);: result = This is a some string value. 12.34
+s1.replace(null, "any");: result = This is a some string value. 12.34
+s2.replace(null, "any");: result = This is a some string value. 12.34
+s1.replace(null, "");: result = This is a some string value. 12.34
+s2.replace(null, "");: result = This is a some string value. 12.34
+s1.replace(null, undefined);: result = This is a some string value. 12.34
+s2.replace(null, undefined);: result = This is a some string value. 12.34
+s1.replace(null, null);: result = This is a some string value. 12.34
+s2.replace(null, null);: result = This is a some string value. 12.34
+s1.replace(null, f0);: result = This is a some string value. 12.34
+s2.replace(null, f0);: result = This is a some string value. 12.34
+s1.replace(null, f1);: result = This is a some string value. 12.34
+s2.replace(null, f1);: result = This is a some string value. 12.34
+s1.replace(null, f2);: result = This is a some string value. 12.34
+s2.replace(null, f2);: result = This is a some string value. 12.34
+s1.replace(null, f3);: result = This is a some string value. 12.34
+s2.replace(null, f3);: result = This is a some string value. 12.34
+true

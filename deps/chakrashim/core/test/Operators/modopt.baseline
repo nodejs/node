@@ -1,0 +1,10 @@
+0
+Bailout from function: function: modByNeg, bailOutKindName: (BailOnModByPowerOf2), bailOutCount: 1, callCount: 20, reJitReason: None, reThunk: false
+2
+32
+Bailout from function: function: modByNonPowerOf2, bailOutKindName: (BailOnModByPowerOf2), bailOutCount: 1, callCount: 20, reJitReason: None, reThunk: false
+9
+4
+Bailout from function: function: modOfNeg, bailOutKindName: (BailOnModByPowerOf2), bailOutCount: 1, callCount: 20, reJitReason: None, reThunk: false
+-12
+Bailout from function: function: modByNeg, bailOutKindName: (BailOnModByPowerOf2), bailOutCount: 2, callCount: 0, reJitReason: ModByPowerOf2, reThunk: false

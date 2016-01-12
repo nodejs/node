@@ -1,0 +1,142 @@
+Profile data for test1
+Implicit call flags:
+    #0: 1 (None)
+
+
+Profile data for test2
+Elem info:
+    #0: 537 (LikelyNativeIntArray_NoMissingValues)
+    #1: 17 (LikelyTaggedInt)
+    #2: 537 (LikelyNativeIntArray_NoMissingValues)
+    #3: 17 (LikelyTaggedInt)
+    #4: 537 (LikelyNativeIntArray_NoMissingValues)
+    #5: 17 (LikelyTaggedInt)
+    #6: 537 (LikelyNativeIntArray_NoMissingValues)
+    #7: 65 (LikelyIntAndLikelyUntagged)
+    #8: 905 (LikelyUint8Array)
+    #9: 17 (LikelyTaggedInt)
+    #10: 905 (LikelyUint8Array)
+    #11: 17 (LikelyTaggedInt)
+Param info:
+    #0: 537 (LikelyNativeIntArray_NoMissingValues)
+    #1: 537 (LikelyNativeIntArray_NoMissingValues)
+    #2: 905 (LikelyUint8Array)
+    #3: 1673 (LikelyFloat64Array)
+    #4: 1033 (LikelyInt16Array)
+    #5: 665 (LikelyNativeFloatArray_NoMissingValues)
+Implicit call flags:
+    #6: 1 (None)
+Loop implicit call flags:
+    #0: 1 (None)
+    #1: 1 (None)
+    #2: 1 (None)
+    #3: 1 (None)
+    #4: 1 (None)
+    #5: 1 (None)
+
+
+Profile data for test2 - second call
+Elem info:
+    #0: 665 (LikelyNativeFloatArray_NoMissingValues)
+    #1: 17 (LikelyTaggedInt)
+    #2: 665 (LikelyNativeFloatArray_NoMissingValues)
+    #3: 145 (LikelyFloat)
+    #4: 537 (LikelyNativeIntArray_NoMissingValues)
+    #5: 17 (LikelyTaggedInt)
+    #6: 537 (LikelyNativeIntArray_NoMissingValues)
+    #7: 81 (LikelyIntAndLikelyUntagged)
+    #8: 905 (LikelyUint8Array)
+    #9: 17 (LikelyTaggedInt)
+    #10: 905 (LikelyUint8Array)
+    #11: 17 (LikelyTaggedInt)
+Param info:
+    #0: 665 (LikelyNativeFloatArray_NoMissingValues)
+    #1: 537 (LikelyNativeIntArray_NoMissingValues)
+    #2: 905 (LikelyUint8Array)
+    #3: 3073 (LikelyMixed)
+    #4: 1033 (LikelyInt16Array)
+    #5: 665 (LikelyNativeFloatArray_NoMissingValues)
+Implicit call flags:
+    #6: 1 (None)
+Loop implicit call flags:
+    #0: 1 (None)
+    #1: 1 (None)
+    #2: 1 (None)
+    #3: 1 (None)
+    #4: 1 (None)
+    #5: 1 (None)
+
+
+Profile data for test3
+Elem info:
+    #0: 1417 (LikelyUint32Array)
+    #1: 17 (LikelyTaggedInt)
+    #2: 1417 (LikelyUint32Array)
+    #3: 17 (LikelyTaggedInt)
+    #4: 393 (LikelyArray)
+Param info:
+    #0: 137 (LikelyObject)
+    #1: 137 (LikelyObject)
+    #2: 17 (LikelyTaggedInt)
+    #3: 3 (LikelyUndefined)
+Implicit call flags:
+    #4: 1 (None)
+Loop implicit call flags:
+    #0: 1 (None)
+    #1: 1 (None)
+
+
+Profile data for test3 - after writing profile data
+Elem info:
+    #0: 1417 (LikelyUint32Array)
+    #1: 17 (LikelyTaggedInt)
+    #2: 1673 (LikelyFloat64Array)
+    #3: 17 (LikelyTaggedInt)
+    #4: 393 (LikelyArray)
+Param info:
+    #0: 1 (Uninitialized)
+    #1: 17 (LikelyTaggedInt)
+    #2: 257 (LikelyNumber)
+    #3: 1025 (LikelyString)
+Implicit call flags:
+    #4: 1 (None)
+Loop implicit call flags:
+    #0: 3 (ToPrimitive)
+    #1: 1 (None)
+
+
+Profile data for test4 - before call
+No profile data found.
+
+
+Profile data for test4
+Param info:
+    #0: 1025 (LikelyString)
+    #1: 129 (LikelyFloat)
+    #2: 17 (LikelyTaggedInt)
+Implicit call flags:
+    #3: 1 (None)
+
+
+Profile data for test4 - second call
+Param info:
+    #0: 1025 (LikelyString)
+    #1: 145 (LikelyFloat)
+    #2: 17 (LikelyTaggedInt)
+Implicit call flags:
+    #3: 1 (None)
+
+
+Profile data for test5
+Param info:
+    #0: 3 (LikelyUndefined)
+    #1: 3 (LikelyUndefined)
+Implicit call flags:
+    #2: 7 (None | ToPrimitive | Accessor)
+Loop implicit call flags:
+    #0: 1 (None)
+    #1: 3 (ToPrimitive)
+    #2: 5 (Accessor)
+    #3: 7 (None | ToPrimitive | Accessor)
+
+

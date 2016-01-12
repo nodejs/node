@@ -1,0 +1,2 @@
+SyntaxError: Duplicate formal parameter names not allowed in strict mode
+	at code (formal_samename2.js:8:23)

@@ -1,0 +1,34 @@
+Properties of e:
+
+e.number: -2146823279
+e.stack: ReferenceError: 'BadType' is undefined
+	at throwException (propertyvalidation.js:65:9)
+	at bar (propertyvalidation.js:85:5)
+	at foo (propertyvalidation.js:90:5)
+	at Global code (propertyvalidation.js:93:1)
+
+
+Deleting e.stack ...
+
+e.stack after delete:
+undefined
+Properties of e:
+
+e.number: -2146823279
+e.stack: ReferenceError: 'BadType' is undefined
+	at throwException (propertyvalidation.js:74:9)
+	at bar (propertyvalidation.js:85:5)
+	at foo (propertyvalidation.js:90:5)
+	at Global code (propertyvalidation.js:93:1)
+
+
+Updating e.stack ...
+
+e.stack after update:
+foo
+
+Object.preventExtensions test:
+true
+true
+true
+true

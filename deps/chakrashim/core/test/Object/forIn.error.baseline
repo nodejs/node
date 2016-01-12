@@ -1,0 +1,3 @@
+ReferenceError: 'c' is undefined
+	at foo (forin.error.js:10:5)
+	at Global code (forin.error.js:18:3)

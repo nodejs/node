@@ -1,0 +1,61 @@
+Running test1...
+Path type divergence
+0: [object Object]
+    a: 1
+    b: 2
+1: [object Object]
+    a: 1
+    b: 2
+2: [object Object]
+    a: 1
+    b: 2
+3: [object Object]
+    a: 1
+    c: 2
+4: [object Object]
+    a: 1
+    b: 2
+Running test2...
+Numerical properties
+0: [object Object]
+    1: 3
+    a: 1
+    b: 2
+    c: 4
+1: [object Object]
+    1: 3
+    a: 1
+    b: 2
+    c: 4
+2: [object Object]
+    1: 3
+    a: 1
+    b: 2
+    c: 4
+3: [object Object]
+    1: 3
+    a: 1
+    b: 2
+    c: 4
+Running test3...
+Duplicates
+0: [object Object]
+    a: 6
+    b: 7
+    c: 3
+    d: 4
+1: [object Object]
+    a: 6
+    b: 7
+    c: 3
+    d: 4
+2: [object Object]
+    a: 6
+    b: 7
+    c: 3
+    d: 4
+3: [object Object]
+    a: 6
+    b: 7
+    c: 3
+    d: 4

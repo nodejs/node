@@ -1,0 +1,273 @@
+check1: Test0(); #undefined
+check2: Test0('hello'); #undefined
+check3: F_Test0(); @'F_Test0' is undefined
+function F_Test1()
+{
+    write(F_Test1);
+}
+check4: Test1(); #undefined
+function F_Test1()
+{
+    write(F_Test1);
+}
+check5: Test1('hello'); #undefined
+check6: F_Test1(); @'F_Test1' is undefined
+function F_Test2()
+{
+    write(F_Test2);
+    F_Test2 = 100;
+    write(F_Test2);
+}
+function F_Test2()
+{
+    write(F_Test2);
+    F_Test2 = 100;
+    write(F_Test2);
+}
+check7: Test2(); #undefined
+function F_Test2()
+{
+    write(F_Test2);
+    F_Test2 = 100;
+    write(F_Test2);
+}
+function F_Test2()
+{
+    write(F_Test2);
+    F_Test2 = 100;
+    write(F_Test2);
+}
+check8: Test2('hello'); #undefined
+check9: F_Test2(); @'F_Test2' is undefined
+Test3: undefined
+Test3: undefined
+check10: Test3(); #undefined
+Test3: undefined
+Test3: undefined
+check11: Test3('hello'); #undefined
+check12: F_Test3(); @'F_Test3' is undefined
+Test4: undefined
+Test4: 100
+check13: Test4(); #undefined
+Test4: undefined
+Test4: 100
+check14: Test4('hello'); #undefined
+check15: F_Test4(); @'F_Test4' is undefined
+Test5: undefined
+Test5: 100
+check16: Test5(); #undefined
+Test5: undefined
+Test5: 100
+check17: Test5('hello'); #undefined
+check18: F_Test5(); @'F_Test5' is undefined
+Test6: undefined
+check19: Test6(); #undefined
+Test6: hello
+check20: Test6('hello'); #undefined
+check21: F_Test6(); @'F_Test6' is undefined
+Test7: undefined
+Test7: 100
+check22: Test7(); #undefined
+Test7: hello
+Test7: 100
+check23: Test7('hello'); #undefined
+check24: F_Test7(); @'F_Test7' is undefined
+Test8: undefined
+Test8: 100
+Test8: undefined
+check25: Test8(); #undefined
+Test8: hello
+Test8: 100
+Test8: 100
+check26: Test8('hello'); #undefined
+check27: F_Test8(); @'F_Test8' is undefined
+Test9: undefined
+Test9: undefined
+Test9: 100
+check28: Test9(); #undefined
+Test9: hello
+Test9: 100
+Test9: 100
+check29: Test9('hello'); #undefined
+check30: F_Test9(); @'F_Test9' is undefined
+check31: Test10(); #undefined
+check32: Test10('hello'); #undefined
+check33: F_Test10(); @'F_Test10' is undefined
+Test11: function F_Test11()
+{
+    eval('write("Test11: " + F_Test11)');
+}
+check34: Test11(); #undefined
+Test11: function F_Test11()
+{
+    eval('write("Test11: " + F_Test11)');
+}
+check35: Test11('hello'); #undefined
+check36: F_Test11(); @'F_Test11' is undefined
+Test12: function F_Test12(){eval('write("Test12: " + F_Test12)');}
+check37: Test12(); #undefined
+Test12: function F_Test12(){eval('write("Test12: " + F_Test12)');}
+check38: Test12('hello'); #undefined
+check39: F_Test12(); @'F_Test12' is undefined
+Test13: function F_Test13()
+{
+    write("Test13: " + F_Test13);
+    eval("F_Test13 = 100");
+    write("Test13: " + F_Test13);
+}
+Test13: function F_Test13()
+{
+    write("Test13: " + F_Test13);
+    eval("F_Test13 = 100");
+    write("Test13: " + F_Test13);
+}
+check40: Test13(); #undefined
+Test13: function F_Test13()
+{
+    write("Test13: " + F_Test13);
+    eval("F_Test13 = 100");
+    write("Test13: " + F_Test13);
+}
+Test13: function F_Test13()
+{
+    write("Test13: " + F_Test13);
+    eval("F_Test13 = 100");
+    write("Test13: " + F_Test13);
+}
+check41: Test13('hello'); #undefined
+check42: F_Test13(); @'F_Test13' is undefined
+Test14: function F_Test14()
+{
+    write("Test14: " + F_Test14);
+    eval("var F_Test14 = 100;");
+    write("Test14: " + F_Test14);
+}
+Test14: 100
+check43: Test14(); #undefined
+Test14: function F_Test14()
+{
+    write("Test14: " + F_Test14);
+    eval("var F_Test14 = 100;");
+    write("Test14: " + F_Test14);
+}
+Test14: 100
+check44: Test14('hello'); #undefined
+check45: F_Test14(); @'F_Test14' is undefined
+Test15: function F_Test15()
+{
+    write("Test15: " + F_Test15);
+    eval("var F_Test15;");
+    write("Test15: " + F_Test15);
+    eval("F_Test15 = 100;");
+    write("Test15: " + F_Test15);
+}
+Test15: undefined
+Test15: 100
+check46: Test15(); #undefined
+Test15: function F_Test15()
+{
+    write("Test15: " + F_Test15);
+    eval("var F_Test15;");
+    write("Test15: " + F_Test15);
+    eval("F_Test15 = 100;");
+    write("Test15: " + F_Test15);
+}
+Test15: undefined
+Test15: 100
+check47: Test15('hello'); #undefined
+check48: F_Test15(); @'F_Test15' is undefined
+undefined
+check49: Test16(); #undefined
+hello
+check50: Test16('hello'); #undefined
+check51: F_Test16(); @'F_Test16' is undefined
+Test17: undefined
+Test17: 100
+check52: Test17(); #undefined
+Test17: hello
+Test17: 100
+check53: Test17('hello'); #undefined
+check54: F_Test17(); @'F_Test17' is undefined
+Test18: undefined
+Test18: 100
+Test18: undefined
+check55: Test18(); #undefined
+Test18: hello
+Test18: 100
+Test18: 100
+check56: Test18('hello'); #undefined
+check57: F_Test18(); @'F_Test18' is undefined
+Test19: undefined
+Test19: undefined
+Test19: 100
+check58: Test19(); #undefined
+Test19: hello
+Test19: 100
+Test19: 100
+check59: Test19('hello'); #undefined
+check60: F_Test19(); @'F_Test19' is undefined
+10
+function F_Test20()
+{
+  function inner20()
+  {
+      eval("var F_Test20 = 10");
+      write(F_Test20);   
+  } 
+  inner20();
+  WScript.Echo(F_Test20);
+  return 0;
+}
+check61: Test20(); #0
+10
+function F_Test20()
+{
+  function inner20()
+  {
+      eval("var F_Test20 = 10");
+      write(F_Test20);   
+  } 
+  inner20();
+  WScript.Echo(F_Test20);
+  return 0;
+}
+check62: Test20('hello'); #0
+check63: F_Test20(); @'F_Test20' is undefined
+function y() {
+            var a = function b() {
+                eval("WScript.Echo(y)");
+                eval("y = 'legacy only'");
+                eval("WScript.Echo(y)");
+            }
+            a();
+        }
+function y() {
+            var a = function b() {
+                eval("WScript.Echo(y)");
+                eval("y = 'legacy only'");
+                eval("WScript.Echo(y)");
+            }
+            a();
+        }
+check64: Test21(); #undefined
+function y() {
+            var a = function b() {
+                eval("WScript.Echo(y)");
+                eval("y = 'legacy only'");
+                eval("WScript.Echo(y)");
+            }
+            a();
+        }
+function y() {
+            var a = function b() {
+                eval("WScript.Echo(y)");
+                eval("y = 'legacy only'");
+                eval("WScript.Echo(y)");
+            }
+            a();
+        }
+check65: Test21('hello'); #undefined
+check66: F_Test21(); @'F_Test21' is undefined
+check67: Test22(); @'e' is undefined
+check68: Test22('hello'); @'e' is undefined
+check69: F_Test22(); @'F_Test22' is undefined

@@ -1,0 +1,126 @@
+==========================================
+Input : x | undefined
+==========================================
+------------------------------------------
+<start> x <end>
+<start> x <end>
+------------------------------------------
+xundefined something
+xundefined something
+------------------------------------------
+x something undefined
+x something undefined
+------------------------------------------
+x something undefined
+x something undefined
+------------------------------------------
+<start> xx <end>
+<start> xx <end>
+------------------------------------------
+<start> xxx<extra> <end>
+<start> xxx<extra> <end>
+------------------------------------------
+<start> xx
+<start> xx
+==========================================
+Input : 12 | undefined
+==========================================
+------------------------------------------
+<start> 12 <end>
+<start> 12 <end>
+------------------------------------------
+NaN something
+NaN something
+------------------------------------------
+12 something undefined
+12 something undefined
+------------------------------------------
+12 something undefined
+12 something undefined
+------------------------------------------
+<start> 1212 <end>
+<start> 1212 <end>
+------------------------------------------
+<start> 121212<extra> <end>
+<start> 121212<extra> <end>
+------------------------------------------
+<start> 1212
+<start> 1212
+==========================================
+Input : true | undefined
+==========================================
+------------------------------------------
+<start> true <end>
+<start> true <end>
+------------------------------------------
+NaN something
+NaN something
+------------------------------------------
+true something undefined
+true something undefined
+------------------------------------------
+true something undefined
+true something undefined
+------------------------------------------
+<start> truetrue <end>
+<start> truetrue <end>
+------------------------------------------
+<start> truetruetrue<extra> <end>
+<start> truetruetrue<extra> <end>
+------------------------------------------
+<start> truetrue
+<start> truetrue
+==========================================
+A.toString
+B.toString
+Input : A | B
+==========================================
+------------------------------------------
+A.toString
+<start> A <end>
+A.toString
+<start> A <end>
+------------------------------------------
+A.toString
+B.toString
+AB something
+A.toString
+B.toString
+AB something
+------------------------------------------
+A.toString
+B.toString
+A something B
+A.toString
+B.toString
+A something B
+------------------------------------------
+B.toString
+A.toString
+A something B
+B.toString
+A.toString
+A something B
+------------------------------------------
+A.toString
+A.toString
+<start> AA <end>
+A.toString
+A.toString
+<start> AA <end>
+------------------------------------------
+A.toString
+A.toString
+A.toString
+<start> AAA<extra> <end>
+A.toString
+A.toString
+A.toString
+<start> AAA<extra> <end>
+------------------------------------------
+A.toString
+A.toString
+<start> AA
+A.toString
+A.toString
+<start> AA

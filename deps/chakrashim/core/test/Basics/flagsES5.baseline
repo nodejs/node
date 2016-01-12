@@ -1,0 +1,73 @@
+Global object builtin properties
+delete NaN : false
+NaN : NaN
+delete Infinity : false
+Infinity : Infinity
+delete undefined : false
+undefined : undefined
+NaN= "hello"; : hello
+NaN : NaN
+Infinity= "hello"; : hello
+Infinity : Infinity
+undefined= "hello"; : hello
+undefined : undefined
+Math Object builtin properties
+Math.PI = overwrite : hello
+Math.PI : 3.141592653589793
+Math.E = overwrite : hello
+Math.E : 2.718281828459045
+Math.LN10 = overwrite : hello
+Math.LN10 : 2.302585092994046
+Math.LN2 = overwrite : hello
+Math.LN2 : 0.6931471805599453
+Math.LOG2E = overwrite : hello
+Math.LOG2E : 1.4426950408889633
+Math.LOG10E = overwrite : hello
+Math.LOG10E : 0.4342944819032518
+Math.SQRT1_2 = overwrite : hello
+Math.SQRT1_2 : 0.7071067811865476
+Math.SQRT2 = overwrite : hello
+Math.SQRT2 : 1.4142135623730951
+delete Math.PI : false
+Math.PI : 3.141592653589793
+delete Math.E : false
+Math.E : 2.718281828459045
+delete Math.LN10 : false
+Math.LN10 : 2.302585092994046
+delete Math.LN2 : false
+Math.LN2 : 0.6931471805599453
+delete Math.LOG2E : false
+Math.LOG2E : 1.4426950408889633
+delete Math.LOG10E : false
+Math.LOG10E : 0.4342944819032518
+delete Math.SQRT1_2 : false
+Math.SQRT1_2 : 0.7071067811865476
+delete Math.SQRT2 : false
+Math.SQRT2 : 1.4142135623730951
+Number Object builtin properties
+Number.MAX_VALUE = overwrite : hello
+Number.MAX_VALUE : 1.7976931348623157e+308
+Number.MIN_VALUE = overwrite : hello
+Number.MIN_VALUE : 5e-324
+Number.NaN = overwrite : hello
+Number.NaN : NaN
+Number.NEGATIVE_INFINITY = overwrite : hello
+Number.NEGATIVE_INFINITY : -Infinity
+Number.POSITIVE_INFINITY = overwrite : hello
+Number.POSITIVE_INFINITY : Infinity
+delete Number.MAX_VALUE : false
+Number.MAX_VALUE : 1.7976931348623157e+308
+delete Number.MIN_VALUE : false
+Number.MIN_VALUE : 5e-324
+delete Number.NaN : false
+Number.NaN : NaN
+delete Number.NEGATIVE_INFINITY : false
+Number.NEGATIVE_INFINITY : -Infinity
+delete Number.POSITIVE_INFINITY : false
+Number.POSITIVE_INFINITY : Infinity
+delete Number.undefined : true
+Number.undefined : undefined
+delete Number.undefined : true
+Number.undefined : undefined
+delete Number.undefined : true
+Number.undefined : undefined

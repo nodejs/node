@@ -1,0 +1,26 @@
+Reflect.ownKeys
+1
+2
+A
+B
+C
+D
+Symbol()
+Symbol()
+Symbol()
+Object.getOwnPropertySymbols
+Symbol()
+Symbol()
+Symbol()
+Reflect.ownKeys with special properties
+prototype
+name
+A
+D
+caller
+arguments
+length
+Symbol(blah)
+a,b
+prototype,name,caller,arguments,length
+prototype,name,caller,arguments,length

@@ -1,0 +1,12 @@
+global x
+undefined
+global y
+undefined
+let x
+undefined
+let x
+global x
+const y
+undefined
+const y
+getter

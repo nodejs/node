@@ -1,0 +1,65 @@
+*** Running test #1 (test01): formal arg: simple: verify connection: named vs indexed arg
+PASSED
+*** Running test #2 (test02): formal arg: defineProperty, check property descriptor
+PASSED
+*** Running test #3 (test03): formal arg: defineProperty, set writable to false, verify writability and lost connection. WOOB 1128023
+PASSED
+*** Running test #4 (test04): formal arg: defineProperty, set writable to false AND set value, verify that value changed in both named and indexed arg and that the item was disconnected
+PASSED
+*** Running test #5 (test05): formal arg: defineProperty w/o cause of disconnect, verify still connected to named arg
+PASSED
+*** Running test #6 (test06): formal arg: defineProperty, disconnect arg[0], verify that arg[1] is still connected
+PASSED
+*** Running test #7 (test07): formal arg: defineProperty: convert to accessor property
+PASSED
+*** Running test #8 (test08): formal arg: defineProperty: convert to accessor, then to data property, verify value and that connection is lost
+PASSED
+*** Running test #9 (test09): formal arg: defineProperty: force convert to ES5 version but keep connected, check enumeration
+PASSED
+*** Running test #10 (test10): formal arg: defineProperty: set non-enumerable/non-writable/delete, check enumeration
+PASSED
+*** Running test #11 (test11): passed/undeclared arg: verify there is no correlation with Object.prototype indexed data properties. WOOB 1143896
+PASSED
+*** Running test #12 (test12): formal arg: verify there is no correlation with Object.prototype indexed properties
+PASSED
+*** Running test #13 (test13): passed/undeclared arg: verify there is no correlation with Object.prototype indexed accessor properties. WOOB 1144602
+PASSED
+*** Running test #14 (test14): formal arg: verify there is no correlation with Object.prototype indexed accessor properties
+PASSED
+*** Running test #15 (test15): formal arg: delete, make sure it's deleted
+PASSED
+*** Running test #16 (test16): formal arg: delete, add, check named arg is not changed
+PASSED
+*** Running test #17 (test17): formal arg: delete, then defineProperty with attributes for data property, check the value
+PASSED
+*** Running test #18 (test18): formal arg: delete, then defineProperty with attributes for accessor property, check the enumeration
+PASSED
+*** Running test #19 (test19): formal arg, es5 heap arguments: delete, add, check enumerable/order
+PASSED
+*** Running test #20 (test20): formal arg, es5 heap arguments: delete, add, keep another arg in objectArray and use one non-formal, check enumerable/order
+PASSED
+*** Running test #21 (test21): formal arg: defineProperty, set enumerable to false, check getOwnPropertyNames
+PASSED
+*** Running test #22 (test22_1): arguments (non-ES5 version): call Object.preventExtensions, try add new property by defineProperty and direct set
+PASSED
+*** Running test #23 (test22_2): arguments (ES5 version): call Object.preventExtensions, try add new property by defineProperty and direct set
+PASSED
+*** Running test #24 (test23_1): arguments (non-ES5 version): call Object.preventExtensions, make sure we can still modify atttibutes on formals without changing the value
+PASSED
+*** Running test #25 (test23_2): arguments (ES5 version): call Object.preventExtensions, make sure we can still modify atttibutes on formals without changing the value
+PASSED
+*** Running test #26 (test24_1): arguments (non-ES5 version): call Object.seal, verify desciptor on formal
+PASSED
+*** Running test #27 (test24_2): arguments (ES5 version): call Object.seal, verify desciptor on formal
+PASSED
+*** Running test #28 (test25_1): arguments (non-ES5 version): call Object.freeze, verify descriptor on formal
+PASSED
+*** Running test #29 (test25_2): arguments (ES5 version): call Object.freeze, verify descriptor on formal
+PASSED
+*** Running test #30 (test26): formal arg: delete, preventExtensions, enumerate, make sure the item is deleted
+PASSED
+*** Running test #31 (test27): formal arg: convert to ES5 version, change value and set writable to false
+PASSED
+*** Running test #32 (test28): formal arg: convert to ES5 version, enumerate when number of actual params is less than number of formals
+PASSED
+Summary of tests: total executed: 32; passed: 32; failed: 0

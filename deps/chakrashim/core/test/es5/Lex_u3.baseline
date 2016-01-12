@@ -1,0 +1,9 @@
+undefined
+undefined
+str const Left 
+ str const right
+LS in string -  compile failure in ES5: expected.SyntaxError: Unterminated string constant
+LS in regex literal -  compile failure in ES5: expected.SyntaxError: Expected '/'
+LS%20in%20escape%20sequence%20string%20literal%20%20%3Amore%20string
+BOM is WS :  91
+ZVNJ is id part :  aa%u200Cbb

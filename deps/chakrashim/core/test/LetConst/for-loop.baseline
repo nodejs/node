@@ -1,0 +1,14 @@
+for loop
+global
+for-in loop
+global
+SyntaxError: for-in loop head declarations cannot have an initializer
+SyntaxError: for-in loop head declarations cannot have an initializer
+SyntaxError: for-in loop head declarations cannot have an initializer
+SyntaxError: for-in loop head declarations cannot have an initializer
+ReferenceError: Use before declaration
+a
+b
+a
+b
+SyntaxError: Const must be initialized

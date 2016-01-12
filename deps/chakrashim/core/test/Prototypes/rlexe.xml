@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <files>prototype.js</files>
+      <baseline>prototype.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>prototype2.js</files>
+      <baseline>prototype2.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>deep.js</files>
+      <baseline>deep.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>initProto.js</files>
+      <baseline>initProto.baseline</baseline>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>ReadOnly.js</files>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>shadow.js</files>
+    </default>
+  </test>
+  <test>
+    <default>
+      <files>shadow2.js</files>
+    </default>
+  </test>
+</regress-exe>

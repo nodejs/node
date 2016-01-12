@@ -1,0 +1,66 @@
+Test sticky and unicode getter on RegExp.prototype
+false
+false
+Testing /.?\d+/
+unicode : false
+sticky : false
+Testing /.?\d+/gu
+unicode : true
+sticky : false
+Testing /.?\d+/iy
+unicode : false
+sticky : true
+Testing /a*bc/g
+unicode : false
+sticky : false
+Testing /a*bc/u
+unicode : true
+sticky : false
+Testing /a*bc?/y
+unicode : false
+sticky : true
+Testing /a*bds?/iuy
+unicode : true
+sticky : true
+Test sticky bit with exec()
+hello1 
+7
+hello2 
+14
+hello3
+20
+null
+0
+Test sticky bit with test()
+true
+7
+true
+14
+true
+20
+false
+0
+Test sticky bit with search()
+0
+0
+Test sticky bit with replace()
+world hello2 hello3
+7
+Test sticky bit with replace() with global flag.
+world world world 
+0
+Test sticky bit with replace() with global/sticky flag.
+world world world 
+0
+Test sticky bit with match()
+hello1 
+7
+Test sticky bit with match() with global flag.
+hello1 ,hello2 ,hello3
+0
+Test sticky bit with match() with global/sticky flag.
+hello1 ,hello2 ,hello3
+0
+Test sticky bit with split()
+hello, hello, hello,
+0

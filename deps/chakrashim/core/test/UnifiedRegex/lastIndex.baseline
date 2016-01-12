@@ -1,0 +1,335 @@
+************
+*** Exec ***
+************
+****** Local regex, matching string
+exec(/x/ /*lastIndex=0*/ , "axbxcxd", 0);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/ /*lastIndex=0*/ , "axbxcxd", 4);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global regex, matching string
+exec(/x/g /*lastIndex=0*/ , "axbxcxd", 0);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", 4);
+["x"] /*input="axbxcxd", index=5*/ 
+r.lastIndex=6
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Local regex, non-matching string
+exec(/x/ /*lastIndex=4*/ , "abc", 0);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/, "abc", 4);
+null
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global regex, non-matching string
+exec(/x/g /*lastIndex=6*/ , "abc", 0);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=0*/ , "abc", 4);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Local empty regex
+exec(/(?:)/ /*lastIndex=0*/ , "axbxcxd", 0);
+[""] /*input="axbxcxd", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/(?:)/ /*lastIndex=0*/ , "axbxcxd", 4);
+[""] /*input="axbxcxd", index=0*/ 
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global empty regex
+exec(/(?:)/g /*lastIndex=0*/ , "axbxcxd", 0);
+[""] /*input="axbxcxd", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/(?:)/g /*lastIndex=0*/ , "axbxcxd", 4);
+[""] /*input="axbxcxd", index=4*/ 
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Special cases
+exec(/^/ /*lastIndex=0*/ , "");
+[""] /*input="", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["","","","","","","","","",""]
+************
+*** Test ***
+************
+****** Local regex, matching string
+test(/x/ /*lastIndex=0*/ , "axbxcxd", 0);
+true
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+test(/x/ /*lastIndex=0*/ , "axbxcxd", 4);
+true
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global regex, matching string
+test(/x/g /*lastIndex=0*/ , "axbxcxd", 0);
+true
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+test(/x/g /*lastIndex=2*/ , "axbxcxd", 4);
+true
+r.lastIndex=6
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Local regex, non-matching string
+test(/x/ /*lastIndex=4*/ , "abc", 0);
+false
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+test(/x/, "abc", 4);
+false
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global regex, non-matching string
+test(/x/g /*lastIndex=6*/ , "abc", 0);
+false
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+test(/x/g /*lastIndex=0*/ , "abc", 4);
+false
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Local empty regex
+test(/(?:)/ /*lastIndex=4*/ , "axbxcxd", 0);
+true
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+test(/(?:)/ /*lastIndex=0*/ , "axbxcxd", 4);
+true
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global empty regex
+test(/(?:)/g /*lastIndex=4*/ , "axbxcxd", 0);
+true
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+test(/(?:)/g /*lastIndex=0*/ , "axbxcxd", 4);
+true
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+*************
+*** Match ***
+*************
+****** Local regex, matching string
+match(/x/ /*lastIndex=0*/ , "axbxcxd", 0);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+match(/x/ /*lastIndex=0*/ , "axbxcxd", 4);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global regex, matching string
+match(/x/g /*lastIndex=0*/ , "axbxcxd", 0);
+["x","x","x"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+match(/x/g, "axbxcxd", 4);
+["x","x","x"]
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Local regex, non-matching string
+match(/x/ /*lastIndex=4*/ , "abc", 0);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+match(/x/, "abc", 4);
+null
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global regex, non-matching string
+match(/x/g /*lastIndex=0*/ , "abc", 0);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+match(/x/g, "abc", 4);
+null
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Local empty regex
+match(/(?:)/ /*lastIndex=4*/ , "axbxcxd", 0);
+[""] /*input="axbxcxd", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+match(/(?:)/ /*lastIndex=0*/ , "axbxcxd", 4);
+[""] /*input="axbxcxd", index=0*/ 
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global empty regex
+match(/(?:)/g /*lastIndex=4*/ , "axbxcxd", 0);
+["","","","","","","",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+match(/(?:)/g, "axbxcxd", 4);
+["","","","","","","",""]
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+match(/(a)/gi /*lastIndex=0*/ , "A");
+["A"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["A","A","","","","","","","",""]
+**************
+*** Search ***
+**************
+****** Local regex, matching string
+search(/x/ /*lastIndex=0*/ , "axbxcxd", 0);
+1
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+search(/x/ /*lastIndex=0*/ , "axbxcxd", 4);
+1
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global regex, matching string
+search(/x/g /*lastIndex=0*/ , "axbxcxd", 0);
+1
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+search(/x/g /*lastIndex=0*/ , "axbxcxd", 4);
+1
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Local regex, non-matching string
+search(/x/ /*lastIndex=4*/ , "abc", 0);
+-1
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+search(/x/ /*lastIndex=0*/ , "abc", 4);
+-1
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global regex, non-matching string
+search(/x/g /*lastIndex=4*/ , "abc", 0);
+-1
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+search(/x/g /*lastIndex=0*/ , "abc", 4);
+-1
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Local empty regex
+search(/(?:)/ /*lastIndex=4*/ , "axbxcxd", 0);
+0
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+search(/(?:)/ /*lastIndex=0*/ , "axbxcxd", 4);
+0
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+****** Global empty regex
+search(/(?:)/g /*lastIndex=0*/ , "axbxcxd", 0);
+0
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+search(/(?:)/g /*lastIndex=0*/ , "axbxcxd", 4);
+0
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+*************
+*** Split ***
+*************
+****** Special cases
+split(/a/ /*lastIndex=0*/ , "a");
+["",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a","","","","","","","","",""]
+split(/(\b)?/ /*lastIndex=0*/ , "a");
+["a"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["a","","","","","","","","",""]
+*************************
+*** Setting lastIndex ***
+*************************
+exec(/x/g /*lastIndex=4*/ , "axbxcxd", "0");
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", "4");
+["x"] /*input="axbxcxd", index=5*/ 
+r.lastIndex=6
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=6*/ , "axbxcxd", 0);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", 4);
+["x"] /*input="axbxcxd", index=5*/ 
+r.lastIndex=6
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=6*/ , "axbxcxd", 0.4);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", 0.5);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", 3.7);
+["x"] /*input="axbxcxd", index=3*/ 
+r.lastIndex=4
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=4*/ , "axbxcxd", -4);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=0*/ , "axbxcxd", 2147483647);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=0*/ , "axbxcxd", NaN);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", -Infinity);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=0*/ , "axbxcxd", Infinity);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=0*/ , "axbxcxd", 5e-324);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", 2298473438738.997);
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=0*/ , "axbxcxd", "bogus");
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", [3,2,1]);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", null);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", undefined);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", true);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", false);
+["x"] /*input="axbxcxd", index=1*/ 
+r.lastIndex=2
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+exec(/x/g /*lastIndex=2*/ , "axbxcxd", <object with toString>);
+["x"] /*input="axbxcxd", index=5*/ 
+r.lastIndex=6
+RegExp.${_,1,...,9}=["axbxcxd","","","","","","","","",""]
+*********************************
+*** lastIndex on result array ***
+*********************************
+undefined
+undefined

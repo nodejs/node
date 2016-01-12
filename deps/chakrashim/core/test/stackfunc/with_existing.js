@@ -1,0 +1,16 @@
+//-------------------------------------------------------------------------------------------------------
+// Copyright (C) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
+//-------------------------------------------------------------------------------------------------------
+
+//Reduced Repro
+Object.prototype['z'] = function() {
+};
+(function () {
+    with ({}) {
+        var z = function (id) {
+            return id;
+        };
+    }
+}());
+

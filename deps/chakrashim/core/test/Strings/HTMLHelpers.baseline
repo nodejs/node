@@ -1,0 +1,30 @@
+<a name="undefined">foo</a>
+<big>foo</big>
+<blink>foo</blink>
+<b>foo</b>
+<tt>foo</tt>
+<font color="#FF00FF">foo</font>
+<font size="12">foo</font>
+<i>foo</i>
+<small>foo</small>
+<strike>foo</strike>
+<sub>foo</sub>
+<sup>foo</sup>
+<a name="&quot;">foo</a>
+<a name="<">foo</a>
+<a name="aaa&quot;bbbccc">foo</a>
+*** Running test #1 (test01): Check that String.prototype.x.call throws a TypeError on null or undefined 
+trying: anchor: String.prototype.anchor.call
+trying: big: String.prototype.big.call
+trying: blink: String.prototype.blink.call
+trying: bold: String.prototype.bold.call
+trying: fixed: String.prototype.fixed.call
+trying: fontcolor: String.prototype.fontcolor.call
+trying: fontsize: String.prototype.fontsize.call
+trying: italics: String.prototype.italics.call
+trying: small: String.prototype.small.call
+trying: strike: String.prototype.strike.call
+trying: sub: String.prototype.sub.call
+trying: sup: String.prototype.sup.call
+PASSED
+Summary of tests: total executed: 1; passed: 1; failed: 0

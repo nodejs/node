@@ -1,0 +1,22 @@
+Test case 1
+object
+
+Test case 2
+b,c,d
+10
+Test case 3
+b,c,d
+10
+Test case 4
+gs,bar
+In getter
+In setter
+Test case 5
+In getter
+In setter
+Test case 6 - simple dictionary
+Is global: true
+Is local again: true
+Test case 7 - dictionary
+Is global: true
+Is local again: true

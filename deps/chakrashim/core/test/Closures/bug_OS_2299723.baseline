@@ -1,0 +1,5 @@
+eval('var x = 5') threw 'Let/Const redeclaration'
+x: 5
+eval('var y = 5') threw 'Let/Const redeclaration'
+eval('y = 5') threw 'Assignment to const'
+y: 1

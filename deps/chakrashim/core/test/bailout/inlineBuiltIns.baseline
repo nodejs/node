@@ -1,0 +1,19 @@
+*** Running test #1 (test01): Bailout on function = null
+PASSED
+*** Running test #2 (test02): Bailout on function = object, not a function
+PASSED
+*** Running test #3 (test03): Bailout on function = wrong function
+PASSED
+*** Running test #4 (test04): Bailout on argument = string
+PASSED
+*** Running test #5 (test05): Bailout on argument = object
+PASSED
+*** Running test #6 (test06): Bailout on 2nd argument = string
+PASSED
+*** Running test #7 (test07): Float/int type specialized argOuts which we restore at bailout
+PASSED
+*** Running test #8 (test08): Bailout on argument after function copy-prop into InlineBuiltInStart
+PASSED
+*** Running test #9 (test09): Bailout (pre-op) on 2nd arg which is updated in the place of the call - make sure 1st arg is not updated
+PASSED
+Summary of tests: total executed: 9; passed: 9; failed: 0

@@ -1,0 +1,8 @@
+result=123!,123,!
+p.lastIndex=4
+result=234!,234,!
+p.lastIndex=8
+result=567,567,
+p.lastIndex=11
+result=,,
+p.lastIndex=11

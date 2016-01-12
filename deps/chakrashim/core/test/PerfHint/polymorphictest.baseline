@@ -1,0 +1,5 @@
+PerfHint: Not optimized : Function has reached polymorphic-inline cap {
+      Function : test [polymorphictest.js @ 42, 5]
+  Consequences : This function will not inline more than 4 functions for this call-site.
+    Suggestion : Check the polymorphic usage of this function
+}

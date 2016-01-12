@@ -1,0 +1,12 @@
+toISOString : 1970-01-01T00:07:36.789Z
+toJSON : 1970-01-01T00:07:36.789Z
+NaN Date toISOString: RangeError : Number expected
+NaN Date toJSON:: null
+Infinity Date toISOString : RangeError : Number expected
+Infinity Date toJSON : null
+Object toISOString not callable : TypeError : The value of the property 'toISOString' is not a Function object
+Object toJSON : Fake JSON : Object
+String toJSON : Fake JSON : String
+getYear 2000: 100
+getYear 1899: -1
+get fired

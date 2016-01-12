@@ -1,0 +1,4 @@
+o1 instanceof ctor1: true
+o2 instanceof ctor1: false
+o1 instanceof ctor1: false
+o2 instanceof ctor1: false

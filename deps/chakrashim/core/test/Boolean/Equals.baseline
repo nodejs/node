@@ -1,0 +1,132 @@
+true == true: true
+true == false: false
+true == true: true
+true == false: false
+true == -1: false
+true == 0: false
+true == 1: true
+true == 2: false
+true == 1: true
+true == 1.1: false
+true == 0: false
+true == 0: false
+true == 0: false
+true == null: false
+true == undefined: false
+true == [object Object]: false
+true == : false
+true == abc: false
+true == -1: false
+true == 0: false
+true == 1: true
+true == 2: false
+true == true: false
+true == false: false
+true == t: false
+true == f: false
+true == True: false
+true == False: false
+true ==  1.00 : true
+true ==  1. : true
+true ==  +1.0 : true
+true == 0: false
+true == 1: true
+false == true: false
+false == false: true
+false == true: false
+false == false: true
+false == -1: false
+false == 0: true
+false == 1: false
+false == 2: false
+false == 1: false
+false == 1.1: false
+false == 0: true
+false == 0: true
+false == 0: true
+false == null: false
+false == undefined: false
+false == [object Object]: false
+false == : true
+false == abc: false
+false == -1: false
+false == 0: true
+false == 1: false
+false == 2: false
+false == true: false
+false == false: false
+false == t: false
+false == f: false
+false == True: false
+false == False: false
+false ==  1.00 : false
+false ==  1. : false
+false ==  +1.0 : false
+false == 0: true
+false == 1: false
+true == true: true
+true == false: false
+true == true: false
+true == false: false
+true == -1: false
+true == 0: false
+true == 1: true
+true == 2: false
+true == 1: true
+true == 1.1: false
+true == 0: false
+true == 0: false
+true == 0: false
+true == null: false
+true == undefined: false
+true == [object Object]: false
+true == : false
+true == abc: false
+true == -1: false
+true == 0: false
+true == 1: true
+true == 2: false
+true == true: false
+true == false: false
+true == t: false
+true == f: false
+true == True: false
+true == False: false
+true ==  1.00 : true
+true ==  1. : true
+true ==  +1.0 : true
+true == 0: false
+true == 1: false
+false == true: false
+false == false: true
+false == true: false
+false == false: false
+false == -1: false
+false == 0: true
+false == 1: false
+false == 2: false
+false == 1: false
+false == 1.1: false
+false == 0: true
+false == 0: true
+false == 0: true
+false == null: false
+false == undefined: false
+false == [object Object]: false
+false == : true
+false == abc: false
+false == -1: false
+false == 0: true
+false == 1: false
+false == 2: false
+false == true: false
+false == false: false
+false == t: false
+false == f: false
+false == True: false
+false == False: false
+false ==  1.00 : false
+false ==  1. : false
+false ==  +1.0 : false
+false == 0: false
+false == 1: false

@@ -1,0 +1,14 @@
+first switch default
+first switch default
+first switch default
+first switch default
+first switch default
+second switch default
+2
+second switch default
+8
+5
+second switch default
+BailOut: function: g (#3) offset: #0016 Opcode: FromVar
+second switch default
+Bailout from function: function: g, bailOutkind: 1, bailOutKindName: (BailOutIntOnly), bailOutCount: 1, callCount: 25, reJitReason: None, reThunk: false

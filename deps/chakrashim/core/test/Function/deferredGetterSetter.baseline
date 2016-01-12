@@ -1,0 +1,15 @@
+getting x.y
+x.y
+setting x.y
+getting local x.y
+local x.y
+setting local x.y
+getting nested x.y
+nested x.y
+setting nested x.y
+getting nested x.y
+new nested x.y
+getting local x.y
+new local x.y
+getting x.y
+new x.y

@@ -1,0 +1,23 @@
+Error.stackTraceLimit: Infinity
+Error: Out of stack space
+   ...
+	at bar (stacktracelimitoos.js:82:9)
+	at foo (stacktracelimitoos.js:79:9)
+	at bar (stacktracelimitoos.js:82:9)
+	at foo (stacktracelimitoos.js:79:9)
+	at bar (stacktracelimitoos.js:82:9)
+	at foo (stacktracelimitoos.js:79:9)
+	at bar (stacktracelimitoos.js:82:9)
+	at foo (stacktracelimitoos.js:79:9)
+	at bar (stacktracelimitoos.js:82:9)
+	at foo (stacktracelimitoos.js:79:9)
+	at bar (stacktracelimitoos.js:82:9)
+	at foo (stacktracelimitoos.js:79:9)
+	at bar (stacktracelimitoos.js:82:9)
+	at foo (stacktracelimitoos.js:79:9)
+	at throwException (stacktracelimitoos.js:84:5)
+	at throwExceptionWithCatch (stacktracelimitoos.js:68:9)
+	at runtest (stacktracelimitoos.js:89:5)
+	at capture (stacktracelimitoos.js:42:13)
+	at Global code (stacktracelimitoos.js:98:1)
+

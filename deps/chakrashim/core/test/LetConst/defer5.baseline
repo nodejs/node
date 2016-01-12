@@ -1,0 +1,4 @@
+ReferenceError: Use before declaration
+	at foo() (defer5.js:11:9)
+	at test() (defer5.js:14:5)
+	at Global code (defer5.js:18:1)

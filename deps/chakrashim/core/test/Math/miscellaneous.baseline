@@ -1,0 +1,19 @@
+toSubtract:
+    1099511627776
+toMultiply:
+    0.840812748240128
+powResult:
+    36028797018963970
+subtracted:
+    36027697507336190
+multiplied:
+    30292547353907350
+stringed:
+    30292547353907350
+evaled:
+    30292547353907350
+testInlineParameterSideEffects:
+    12345
+testInlineWin8_748804:
+    13
+TypeError

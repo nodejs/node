@@ -1,0 +1,595 @@
+Successfully compiled asm.js code
+set  (a[0](undefined))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[1](null))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[2](true))= undefined
+i1|0;    1
+i2|0;    1
+fi1|0;   1
+fi2|0;   1
++d1;     1
++d2;     1
++fd1;    1
++fd2;    1
+set  (a[3](false))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[4](true))= undefined
+i1|0;    1
+i2|0;    1
+fi1|0;   1
+fi2|0;   1
++d1;     1
++d2;     1
++fd1;    1
++fd2;    1
+set  (a[5](false))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[6](NaN))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[7](0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[8](0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[9](0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[10](1))= undefined
+i1|0;    1
+i2|0;    1
+fi1|0;   1
+fi2|0;   1
++d1;     1
++d2;     1
++fd1;    1
++fd2;    1
+set  (a[11](10))= undefined
+i1|0;    10
+i2|0;    100
+fi1|0;   10
+fi2|0;   100
++d1;     10
++d2;     100
++fd1;    10
++fd2;    100
+set  (a[12](10.1))= undefined
+i1|0;    10
+i2|0;    100
+fi1|0;   10
+fi2|0;   100
++d1;     10.1
++d2;     102.00999999999999
++fd1;    10.1
++fd2;    102.00999999999999
+set  (a[13](-1))= undefined
+i1|0;    -1
+i2|0;    1
+fi1|0;   -1
+fi2|0;   1
++d1;     -1
++d2;     1
++fd1;    -1
++fd2;    1
+set  (a[14](-5))= undefined
+i1|0;    -5
+i2|0;    25
+fi1|0;   -5
+fi2|0;   25
++d1;     -5
++d2;     25
++fd1;    -5
++fd2;    25
+set  (a[15](5))= undefined
+i1|0;    5
+i2|0;    25
+fi1|0;   5
+fi2|0;   25
++d1;     5
++d2;     25
++fd1;    5
++fd2;    25
+set  (a[16](124))= undefined
+i1|0;    124
+i2|0;    15376
+fi1|0;   124
+fi2|0;   15376
++d1;     124
++d2;     15376
++fd1;    124
++fd2;    15376
+set  (a[17](248))= undefined
+i1|0;    248
+i2|0;    61504
+fi1|0;   248
+fi2|0;   61504
++d1;     248
++d2;     61504
++fd1;    248
++fd2;    61504
+set  (a[18](654))= undefined
+i1|0;    654
+i2|0;    427716
+fi1|0;   654
+fi2|0;   427716
++d1;     654
++d2;     427716
++fd1;    654
++fd2;    427716
+set  (a[19](987))= undefined
+i1|0;    987
+i2|0;    974169
+fi1|0;   987
+fi2|0;   974169
++d1;     987
++d2;     974169
++fd1;    987
++fd2;    974169
+set  (a[20](-1026))= undefined
+i1|0;    -1026
+i2|0;    1052676
+fi1|0;   -1026
+fi2|0;   1052676
++d1;     -1026
++d2;     1052676
++fd1;    -1026
++fd2;    1052676
+set  (a[21](98768.2546))= undefined
+i1|0;    98768
+i2|0;    1165183232
+fi1|0;   98768
+fi2|0;   1165183232
++d1;     98768.2546
++d2;     9755168116.730421
++fd1;    98768.2546
++fd2;    9755168116.730421
+set  (a[22](-88754.15478))= undefined
+i1|0;    -88754
+i2|0;    -712662076
+fi1|0;   -88754
+fi2|0;   -712662076
++d1;     -88754.15478
++d2;     7877299990.712196
++fd1;    -88754.15478
++fd2;    7877299990.712196
+set  (a[23](1))= undefined
+i1|0;    1
+i2|0;    1
+fi1|0;   1
+fi2|0;   1
++d1;     1
++d2;     1
++fd1;    1
++fd2;    1
+set  (a[24](-1))= undefined
+i1|0;    -1
+i2|0;    1
+fi1|0;   -1
+fi2|0;   1
++d1;     -1
++d2;     1
++fd1;    -1
++fd2;    1
+set  (a[25](0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[26](-2147483648))= undefined
+i1|0;    -2147483648
+i2|0;    0
+fi1|0;   -2147483648
+fi2|0;   0
++d1;     -2147483648
++d2;     4611686018427388000
++fd1;    -2147483648
++fd2;    4611686018427388000
+set  (a[27](2147483648))= undefined
+i1|0;    -2147483648
+i2|0;    0
+fi1|0;   -2147483648
+fi2|0;   0
++d1;     2147483648
++d2;     4611686018427388000
++fd1;    2147483648
++fd2;    4611686018427388000
+set  (a[28](33554432))= undefined
+i1|0;    33554432
+i2|0;    0
+fi1|0;   33554432
+fi2|0;   0
++d1;     33554432
++d2;     1125899906842624
++fd1;    33554432
++fd2;    1125899906842624
+set  (a[29](-33554432))= undefined
+i1|0;    -33554432
+i2|0;    0
+fi1|0;   -33554432
+fi2|0;   0
++d1;     -33554432
++d2;     1125899906842624
++fd1;    -33554432
++fd2;    1125899906842624
+set  (a[30](65536))= undefined
+i1|0;    65536
+i2|0;    0
+fi1|0;   65536
+fi2|0;   0
++d1;     65536
++d2;     4294967296
++fd1;    65536
++fd2;    4294967296
+set  (a[31](46341))= undefined
+i1|0;    46341
+i2|0;    -2147479015
+fi1|0;   46341
+fi2|0;   -2147479015
++d1;     46341
++d2;     2147488281
++fd1;    46341
++fd2;    2147488281
+set  (a[32](1.7976931348623157e+308))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     1.7976931348623157e+308
++d2;     Infinity
++fd1;    1.7976931348623157e+308
++fd2;    Infinity
+set  (a[33](5e-324))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     5e-324
++d2;     0
++fd1;    5e-324
++fd2;    0
+set  (a[34](NaN))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[35](Infinity))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     Infinity
++d2;     Infinity
++fd1;    Infinity
++fd2;    Infinity
+set  (a[36](-Infinity))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     -Infinity
++d2;     Infinity
++fd1;    -Infinity
++fd2;    Infinity
+set  (a[37](NaN))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[38](0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[39](0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[40](0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[41](1))= undefined
+i1|0;    1
+i2|0;    1
+fi1|0;   1
+fi2|0;   1
++d1;     1
++d2;     1
++fd1;    1
++fd2;    1
+set  (a[42](10))= undefined
+i1|0;    10
+i2|0;    100
+fi1|0;   10
+fi2|0;   100
++d1;     10
++d2;     100
++fd1;    10
++fd2;    100
+set  (a[43](10.1))= undefined
+i1|0;    10
+i2|0;    100
+fi1|0;   10
+fi2|0;   100
++d1;     10.1
++d2;     102.00999999999999
++fd1;    10.1
++fd2;    102.00999999999999
+set  (a[44](1.7976931348623157e+308))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     1.7976931348623157e+308
++d2;     Infinity
++fd1;    1.7976931348623157e+308
++fd2;    Infinity
+set  (a[45](5e-324))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     5e-324
++d2;     0
++fd1;    5e-324
++fd2;    0
+set  (a[46](NaN))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[47](Infinity))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     Infinity
++d2;     Infinity
++fd1;    Infinity
++fd2;    Infinity
+set  (a[48](-Infinity))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     -Infinity
++d2;     Infinity
++fd1;    -Infinity
++fd2;    Infinity
+set  (a[49]())= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[50](hello))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[51](hello))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[52](+0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[53](-0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[54](0))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[55](1))= undefined
+i1|0;    1
+i2|0;    1
+fi1|0;   1
+fi2|0;   1
++d1;     1
++d2;     1
++fd1;    1
++fd2;    1
+set  (a[56](10.0))= undefined
+i1|0;    10
+i2|0;    100
+fi1|0;   10
+fi2|0;   100
++d1;     10
++d2;     100
++fd1;    10
++fd2;    100
+set  (a[57](10.1))= undefined
+i1|0;    10
+i2|0;    100
+fi1|0;   10
+fi2|0;   100
++d1;     10.1
++d2;     102.00999999999999
++fd1;    10.1
++fd2;    102.00999999999999
+set  (a[58]())= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     0
++d2;     0
++fd1;    0
++fd2;    0
+set  (a[59](hello))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[60](hello))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[61]([object Object]))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[62](1,2,3))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[63]([object Object]))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[64](1,2,3))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN
+set  (a[65](function foo() {}))= undefined
+i1|0;    0
+i2|0;    0
+fi1|0;   0
+fi2|0;   0
++d1;     NaN
++d2;     NaN
++fd1;    NaN
++fd2;    NaN

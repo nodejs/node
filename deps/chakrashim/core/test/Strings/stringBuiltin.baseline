@@ -1,0 +1,65 @@
+Test : var ss = new String("String123456EndString");
+ss.substring(3,4):  i
+ss.substring():  String123456EndString
+ss.substring(6,2):  ring
+ss.substring(-6,2):  St
+ss.substr(-6,2):  St
+ss.substr(-1,4):  g
+ss.slice(2, 7):  ring1
+ss.slice():  String123456EndString
+Test : var ss = new String("a");
+ss.substring(3,4):  
+ss.substring():  a
+ss.substring(6,2):  
+ss.substring(-6,2):  a
+ss.substr(-6,2):  a
+ss.substr(-1,4):  a
+3
+ss.slice(2, 7):  
+ss.slice():  a
+3
+Test : var ss = new String("abcdefg123456qweeeeaatt");
+ss.replace():  abcdef******3456qweeeeaatt
+Test : var ss = new String("abcdefg1" + "23456qweeeeaatt");
+ss.replace():  abcdef+++++3456qweeeeaatt
+Test : var ss = new String("abcdefg123456qweeeeaatt");
+ss.indexOf("g123"):  6
+Test : var ss = new String("abcdefg1" + "23456qweeeeaatt");
+ss.indexOf("g123"):  6
+Test : var ss = new String("0123456789" + "abcde" + "" + "fghijk" + "lmnoprs");
+ss.indexOf("89ab", 4):  8
+ss.indexOf("def", 11):  13
+ss.indexOf("klm", 15):  20
+Test : var ss = new String("0123" + "0123456789" + "" + "01234567" + "234567");
+ss.indexOf("0123012"):  0
+ss.indexOf("23", 1):  2
+ss.indexOf("23", 5):  6
+ss.indexOf("23", 10):  16
+Test : var ss = new String("0123" + "0123456789" + "" + "hideundefined01234567" + "234567");
+ss.indexOf():  18
+Test : var ss = new String("aaccca" + "bbcccb" +"cccc"+"0123" + "0123456789" + "" + "hideundefined01234567" + "234567");
+ss.indexOf("6789" + "" + "hideundefined01234567" + "2345", 2):  26
+Test : var ss = new String("abcdefg123456qweeeeaatt");
+ss.lastIndexOf("g123"):  6
+Test : var ss = new String("abcdefg1" + "23456qweeeeaatt");
+ss.lastIndexOf("g123"):  6
+Test : var ss = new String("0123456789" + "abcde" + "" + "fghijk" + "lmnoprs");
+ss.lastIndexOf("89ab", 4):  -1
+ss.lastIndexOf("def", 18):  13
+ss.lastIndexOf("klm", 15):  -1
+Test : var ss = new String("0123" + "0123456789" + "" + "01234567" + "234567");
+ss.lastIndexOf("0123012"):  0
+ss.lastIndexOf("23", 1):  -1
+ss.lastIndexOf("23", 5):  2
+ss.lastIndexOf("23", 10):  6
+Test : var ss = new String("0123" + "0123456789" + "" + "hideundefined01234567" + "234567");
+ss.lastIndexOf():  18
+Test : var ss = new String("String123456EndString");
+ss.search("234"):  7
+ss.search(/234/):  7
+3
+Test : var ss = new String("AAAAAAAAAAbbbbbbbbbb");
+ss.toLowerCase():  aaaaaaaaaabbbbbbbbbb
+Test big string
+ss.toUpperCase():  AAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBBAAAAAAAAAABBBBBBBBBB
+3

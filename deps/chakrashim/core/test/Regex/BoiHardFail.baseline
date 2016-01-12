@@ -1,0 +1,1681 @@
+REGEX AST /^token/ {
+    Concat()
+    {
+        BOL()
+        MatchLiteral("token")
+    }
+}
+REGEX ANNOTATED AST /^token/ {
+    Concat()
+    <
+        features: {BOL,MatchLiteral,Concat}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [5]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: true
+    >
+    {
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [t]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [5]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: true
+        >
+        MatchLiteral("token")
+        <
+            features: {MatchLiteral}
+            firstSet: [t] (exact)
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [5]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: true
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+    }
+}
+REGEX PROGRAM /^token/ 
+Program {
+    source:       ^token
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+               BOITest(hardFail: true)
+        L0000: MatchLiteral(literal: "token")
+        L0010: Succ()
+    }
+}
+REGEX AST /(\w)?^token/ {
+    Concat()
+    {
+        Loop([0-1], greedy)
+        {
+            DefineGroup(1)
+            {
+                MatchSet(positive, [0-9A-Z_a-z])
+            }
+        }
+        BOL()
+        MatchLiteral("token")
+    }
+}
+REGEX ANNOTATED AST /(\w)?^token/ {
+    Concat()
+    <
+        features: {BOL,MatchLiteral,Concat,DefineGroup,Loop,MatchSet}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [5-6]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: false
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: false
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+    {
+        Loop([0-1], greedy)
+        <
+            features: {DefineGroup,Loop,MatchSet}
+            firstSet: [0-9A-Z_a-z]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [0-1]
+            followConsumes: [5]
+            isThisIrrefutable: true
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: false
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: false
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        {
+            DefineGroup(1)
+            <
+                features: {DefineGroup,MatchSet}
+                firstSet: [0-9A-Z_a-z] (exact)
+                followSet: [\x00-\uffff]
+                prevConsumes: [0]
+                thisConsumes: [1]
+                followConsumes: [5]
+                isThisIrrefutable: false
+                isFollowIrrefutable: false
+                isWord: true
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: false
+                isDeterministic: true
+                isNotInLoop: false
+                isNotNegated: true
+                isAtLeastOnce: false
+                hasInitialHardFailBOI: false
+            >
+            {
+                MatchSet(positive, [0-9A-Z_a-z])
+                <
+                    features: {MatchSet}
+                    firstSet: [0-9A-Z_a-z] (exact)
+                    followSet: [\x00-\uffff]
+                    prevConsumes: [0]
+                    thisConsumes: [1]
+                    followConsumes: [5]
+                    isThisIrrefutable: false
+                    isFollowIrrefutable: false
+                    isWord: true
+                    isThisWillNotProgress: true
+                    isThisWillNotRegress: true
+                    isPrevWillNotProgress: false
+                    isPrevWillNotRegress: false
+                    isDeterministic: true
+                    isNotInLoop: false
+                    isNotNegated: true
+                    isAtLeastOnce: false
+                    hasInitialHardFailBOI: false
+                >
+            }
+        }
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [t]
+            prevConsumes: [0-1]
+            thisConsumes: [0]
+            followConsumes: [5]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: false
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        MatchLiteral("token")
+        <
+            features: {MatchLiteral}
+            firstSet: [t] (exact)
+            followSet: [\x00-\uffff]
+            prevConsumes: [0-1]
+            thisConsumes: [5]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: true
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: false
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+    }
+}
+REGEX PROGRAM /(\w)?^token/ 
+Program {
+    source:       (\w)?^token
+    flags:        
+    numGroups:    2
+    numLoops:     0
+    instructions: {
+        L0000: SyncToLiteralAndBackup(literal: "token" (with full map Boyer-Moore scanner), backup: [0-1])
+        L0444: TryMatchSet(set: [0-9A-Z_a-z], failLabel: L0488)
+        L0474: DefineGroupFixed(groupId: 1, length: 1, noNeedToSave: false)
+        L0488: BOITest(hardFail: false)
+        L0494: MatchLiteral(literal: "token")
+        L04a4: Succ()
+    }
+}
+REGEX AST /token/ {
+    MatchLiteral("token")
+}
+REGEX ANNOTATED AST /token/ {
+    MatchLiteral("token")
+    <
+        features: {MatchLiteral}
+        firstSet: [t] (exact)
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [5]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: true
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+}
+REGEX PROGRAM /token/ 
+Program {
+    source:       token
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+        L0000: SyncToLiteralAndConsume(literal: "token" (with full map Boyer-Moore scanner))
+        L043c: Succ()
+    }
+}
+REGEX AST /^^token/ {
+    Concat()
+    {
+        BOL()
+        BOL()
+        MatchLiteral("token")
+    }
+}
+REGEX ANNOTATED AST /^^token/ {
+    Concat()
+    <
+        features: {BOL,MatchLiteral,Concat}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [5]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: true
+    >
+    {
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [5]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: true
+        >
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [t]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [5]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: true
+        >
+        MatchLiteral("token")
+        <
+            features: {MatchLiteral}
+            firstSet: [t] (exact)
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [5]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: true
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+    }
+}
+REGEX PROGRAM /^^token/ 
+Program {
+    source:       ^^token
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+               BOITest(hardFail: true)
+        L0000: MatchLiteral(literal: "token")
+        L0010: Succ()
+    }
+}
+REGEX AST /token^/ {
+    Concat()
+    {
+        MatchLiteral("token")
+        BOL()
+    }
+}
+REGEX ANNOTATED AST /token^/ {
+    Concat()
+    <
+        features: {BOL,MatchLiteral,Concat}
+        firstSet: [t] (exact)
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [5]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+    {
+        MatchLiteral("token")
+        <
+            features: {MatchLiteral}
+            firstSet: [t] (exact)
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [5]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: true
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [5]
+            thisConsumes: [0]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+    }
+}
+REGEX PROGRAM /token^/ 
+Program {
+    source:       token^
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+        L0000: SyncToLiteralAndConsume(literal: "token" (with full map Boyer-Moore scanner))
+        L043c: BOITest(hardFail: true)
+        L0448: Succ()
+    }
+}
+REGEX AST /token^token/ {
+    Concat()
+    {
+        MatchLiteral("token")
+        BOL()
+        MatchLiteral("token")
+    }
+}
+REGEX ANNOTATED AST /token^token/ {
+    Concat()
+    <
+        features: {BOL,MatchLiteral,Concat}
+        firstSet: [t] (exact)
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [10]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+    {
+        MatchLiteral("token")
+        <
+            features: {MatchLiteral}
+            firstSet: [t] (exact)
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [5]
+            followConsumes: [5]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: true
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [t]
+            prevConsumes: [5]
+            thisConsumes: [0]
+            followConsumes: [5]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        MatchLiteral("token")
+        <
+            features: {MatchLiteral}
+            firstSet: [t] (exact)
+            followSet: [\x00-\uffff]
+            prevConsumes: [5]
+            thisConsumes: [5]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: true
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+    }
+}
+REGEX PROGRAM /token^token/ 
+Program {
+    source:       token^token
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+        L0000: SyncToLiteralAndConsume(literal: "token" (with full map Boyer-Moore scanner))
+        L043c: BOITest(hardFail: true)
+        L0448: MatchLiteral(literal: "token")
+        L0458: Succ()
+    }
+}
+REGEX AST /^token|^abc/ {
+    Alt()
+    {
+        Concat()
+        {
+            BOL()
+            MatchLiteral("token")
+        }
+        Concat()
+        {
+            BOL()
+            MatchLiteral("abc")
+        }
+    }
+}
+REGEX ANNOTATED AST /^token|^abc/ {
+    Alt()
+    <
+        features: {BOL,MatchLiteral,Concat,Alt}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [3-5]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: false
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: false
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+    {
+        Concat()
+        <
+            features: {BOL,MatchLiteral,Concat}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [5]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: false
+            hasInitialHardFailBOI: false
+        >
+        {
+            BOL()
+            <
+                features: {BOL}
+                firstSet: [\x00-\uffff]
+                followSet: [t]
+                prevConsumes: [0]
+                thisConsumes: [0]
+                followConsumes: [5]
+                isThisIrrefutable: false
+                isFollowIrrefutable: false
+                isWord: false
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: true
+                isAtLeastOnce: false
+                hasInitialHardFailBOI: false
+            >
+            MatchLiteral("token")
+            <
+                features: {MatchLiteral}
+                firstSet: [t] (exact)
+                followSet: [\x00-\uffff]
+                prevConsumes: [0]
+                thisConsumes: [5]
+                followConsumes: [0]
+                isThisIrrefutable: false
+                isFollowIrrefutable: true
+                isWord: true
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: true
+                isAtLeastOnce: false
+                hasInitialHardFailBOI: false
+            >
+        }
+        Concat()
+        <
+            features: {BOL,MatchLiteral,Concat}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [3]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: false
+            hasInitialHardFailBOI: false
+        >
+        {
+            BOL()
+            <
+                features: {BOL}
+                firstSet: [\x00-\uffff]
+                followSet: [a]
+                prevConsumes: [0]
+                thisConsumes: [0]
+                followConsumes: [3]
+                isThisIrrefutable: false
+                isFollowIrrefutable: false
+                isWord: false
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: true
+                isAtLeastOnce: false
+                hasInitialHardFailBOI: false
+            >
+            MatchLiteral("abc")
+            <
+                features: {MatchLiteral}
+                firstSet: [a] (exact)
+                followSet: [\x00-\uffff]
+                prevConsumes: [0]
+                thisConsumes: [3]
+                followConsumes: [0]
+                isThisIrrefutable: false
+                isFollowIrrefutable: true
+                isWord: true
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: true
+                isAtLeastOnce: false
+                hasInitialHardFailBOI: false
+            >
+        }
+    }
+}
+REGEX PROGRAM /^token|^abc/ 
+Program {
+    source:       ^token|^abc
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+        L0000: Try(failLabel: L0034)
+        L000c: BOITest(hardFail: false)
+        L0018: MatchLiteral(literal: "token")
+        L0028: Jump(targetLabel: L0050)
+        L0034: BOITest(hardFail: false)
+        L0040: MatchLiteral(literal: "abc")
+        L0050: Succ()
+    }
+}
+REGEX AST /(?!token)^abc/ {
+    Concat()
+    {
+        Assertion(negative)
+        {
+            MatchLiteral("token")
+        }
+        BOL()
+        MatchLiteral("abc")
+    }
+}
+REGEX ANNOTATED AST /(?!token)^abc/ {
+    Concat()
+    <
+        features: {BOL,MatchLiteral,Concat,Assertion}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [3]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: true
+    >
+    {
+        Assertion(negative)
+        <
+            features: {MatchLiteral,Assertion}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [3]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        {
+            MatchLiteral("token")
+            <
+                features: {MatchLiteral}
+                firstSet: [t] (exact)
+                followSet: [\x00-\uffff]
+                prevConsumes: [0]
+                thisConsumes: [5]
+                followConsumes: [0-inf]
+                isThisIrrefutable: false
+                isFollowIrrefutable: true
+                isWord: true
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: false
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: false
+            >
+        }
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [a]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [3]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: true
+        >
+        MatchLiteral("abc")
+        <
+            features: {MatchLiteral}
+            firstSet: [a] (exact)
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [3]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: true
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+    }
+}
+REGEX PROGRAM /(?!token)^abc/ 
+Program {
+    source:       (?!token)^abc
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+        L0000: BeginAssertion(isNegation: true, nextLabel: L0030, minBodyGroupId: 1, maxBodyGroupId: -1)
+        L0018: MatchLiteral(literal: "token")
+        L0028: EndAssertion()
+        L0030: BOITest(hardFail: true)
+        L003c: MatchLiteral(literal: "abc")
+        L004c: Succ()
+    }
+}
+REGEX AST /(?=^abc)/ {
+    Assertion(positive)
+    {
+        Concat()
+        {
+            BOL()
+            MatchLiteral("abc")
+        }
+    }
+}
+REGEX ANNOTATED AST /(?=^abc)/ {
+    Assertion(positive)
+    <
+        features: {BOL,MatchLiteral,Concat,Assertion}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [0]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: true
+    >
+    {
+        Concat()
+        <
+            features: {BOL,MatchLiteral,Concat}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [3]
+            followConsumes: [0-inf]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: true
+        >
+        {
+            BOL()
+            <
+                features: {BOL}
+                firstSet: [\x00-\uffff]
+                followSet: [a]
+                prevConsumes: [0]
+                thisConsumes: [0]
+                followConsumes: [3-inf]
+                isThisIrrefutable: false
+                isFollowIrrefutable: false
+                isWord: false
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: true
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: true
+            >
+            MatchLiteral("abc")
+            <
+                features: {MatchLiteral}
+                firstSet: [a] (exact)
+                followSet: [\x00-\uffff]
+                prevConsumes: [0]
+                thisConsumes: [3]
+                followConsumes: [0-inf]
+                isThisIrrefutable: false
+                isFollowIrrefutable: true
+                isWord: true
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: true
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: false
+            >
+        }
+    }
+}
+REGEX PROGRAM /(?=^abc)/ 
+Program {
+    source:       (?=^abc)
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+        L0000: BeginAssertion(isNegation: false, nextLabel: L003c, minBodyGroupId: 1, maxBodyGroupId: -1)
+        L0018: BOITest(hardFail: true)
+        L0024: MatchLiteral(literal: "abc")
+        L0034: EndAssertion()
+        L003c: Succ()
+    }
+}
+REGEX AST /(^token)/ {
+    DefineGroup(1)
+    {
+        Concat()
+        {
+            BOL()
+            MatchLiteral("token")
+        }
+    }
+}
+REGEX ANNOTATED AST /(^token)/ {
+    DefineGroup(1)
+    <
+        features: {BOL,MatchLiteral,Concat,DefineGroup}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [5]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: true
+    >
+    {
+        Concat()
+        <
+            features: {BOL,MatchLiteral,Concat}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [5]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: true
+        >
+        {
+            BOL()
+            <
+                features: {BOL}
+                firstSet: [\x00-\uffff]
+                followSet: [t]
+                prevConsumes: [0]
+                thisConsumes: [0]
+                followConsumes: [5]
+                isThisIrrefutable: false
+                isFollowIrrefutable: false
+                isWord: false
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: true
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: true
+            >
+            MatchLiteral("token")
+            <
+                features: {MatchLiteral}
+                firstSet: [t] (exact)
+                followSet: [\x00-\uffff]
+                prevConsumes: [0]
+                thisConsumes: [5]
+                followConsumes: [0]
+                isThisIrrefutable: false
+                isFollowIrrefutable: true
+                isWord: true
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: true
+                isNotNegated: true
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: false
+            >
+        }
+    }
+}
+REGEX PROGRAM /(^token)/ 
+Program {
+    source:       (^token)
+    flags:        
+    numGroups:    2
+    numLoops:     0
+    instructions: {
+               BOITest(hardFail: true)
+        L0000: MatchLiteral(literal: "token")
+        L0010: DefineGroupFixed(groupId: 1, length: 5, noNeedToSave: true)
+        L0024: Succ()
+    }
+}
+REGEX AST /(^a)+/ {
+    Loop([1-inf], greedy)
+    {
+        DefineGroup(1)
+        {
+            Concat()
+            {
+                BOL()
+                MatchChar('a')
+            }
+        }
+    }
+}
+REGEX ANNOTATED AST /(^a)+/ {
+    Loop([1-inf], greedy)
+    <
+        features: {BOL,MatchChar,Concat,DefineGroup,Loop}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [1-inf]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: false
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: false
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+    {
+        DefineGroup(1)
+        <
+            features: {BOL,MatchChar,Concat,DefineGroup}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0-inf]
+            thisConsumes: [1]
+            followConsumes: [0-inf]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: false
+            isDeterministic: true
+            isNotInLoop: false
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        {
+            Concat()
+            <
+                features: {BOL,MatchChar,Concat}
+                firstSet: [\x00-\uffff]
+                followSet: [\x00-\uffff]
+                prevConsumes: [0-inf]
+                thisConsumes: [1]
+                followConsumes: [0-inf]
+                isThisIrrefutable: false
+                isFollowIrrefutable: true
+                isWord: false
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: false
+                isDeterministic: true
+                isNotInLoop: false
+                isNotNegated: true
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: false
+            >
+            {
+                BOL()
+                <
+                    features: {BOL}
+                    firstSet: [\x00-\uffff]
+                    followSet: [a]
+                    prevConsumes: [0-inf]
+                    thisConsumes: [0]
+                    followConsumes: [1-inf]
+                    isThisIrrefutable: false
+                    isFollowIrrefutable: false
+                    isWord: false
+                    isThisWillNotProgress: true
+                    isThisWillNotRegress: true
+                    isPrevWillNotProgress: false
+                    isPrevWillNotRegress: false
+                    isDeterministic: true
+                    isNotInLoop: false
+                    isNotNegated: true
+                    isAtLeastOnce: true
+                    hasInitialHardFailBOI: false
+                >
+                MatchChar('a')
+                <
+                    features: {MatchChar}
+                    firstSet: [a] (exact)
+                    followSet: [\x00-\uffff]
+                    prevConsumes: [0-inf]
+                    thisConsumes: [1]
+                    followConsumes: [0-inf]
+                    isThisIrrefutable: false
+                    isFollowIrrefutable: true
+                    isWord: true
+                    isThisWillNotProgress: true
+                    isThisWillNotRegress: true
+                    isPrevWillNotProgress: false
+                    isPrevWillNotRegress: false
+                    isDeterministic: true
+                    isNotInLoop: false
+                    isNotNegated: true
+                    isAtLeastOnce: true
+                    hasInitialHardFailBOI: false
+                >
+            }
+        }
+    }
+}
+REGEX PROGRAM /(^a)+/ 
+Program {
+    source:       (^a)+
+    flags:        
+    numGroups:    2
+    numLoops:     1
+    instructions: {
+        L0000: SyncToCharAndBackup(c: 'a', backup: [0-inf])
+        L0014: BeginLoopFixedGroupLastIteration(loopId: 0, repeats: [1-inf], exitLabel: L0060, hasOuterLoops: false, hasInnerNondet: false, length: 1, groupId: 1, noNeedToSave: true)
+        L003c: BOITest(hardFail: false)
+        L0048: MatchChar(c: 'a')
+        L0054: RepeatLoopFixedGroupLastIteration(beginLabel: L0014)
+        L0060: Succ()
+    }
+}
+REGEX AST /(?=^)/ {
+    Assertion(positive)
+    {
+        BOL()
+    }
+}
+REGEX ANNOTATED AST /(?=^)/ {
+    Assertion(positive)
+    <
+        features: {BOL,Assertion}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [0]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: true
+    >
+    {
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [0-inf]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: true
+        >
+    }
+}
+REGEX PROGRAM /(?=^)/ 
+Program {
+    source:       (?=^)
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+        L0000: BeginAssertion(isNegation: false, nextLabel: L002c, minBodyGroupId: 1, maxBodyGroupId: -1)
+        L0018: BOITest(hardFail: true)
+        L0024: EndAssertion()
+        L002c: Succ()
+    }
+}
+REGEX AST /(^)/ {
+    DefineGroup(1)
+    {
+        BOL()
+    }
+}
+REGEX ANNOTATED AST /(^)/ {
+    DefineGroup(1)
+    <
+        features: {BOL,DefineGroup}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [0]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: true
+    >
+    {
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: true
+        >
+    }
+}
+REGEX PROGRAM /(^)/ 
+Program {
+    source:       (^)
+    flags:        
+    numGroups:    2
+    numLoops:     0
+    instructions: {
+               BOITest(hardFail: true)
+        L0000: DefineGroupFixed(groupId: 1, length: 0, noNeedToSave: true)
+        L0014: Succ()
+    }
+}
+REGEX AST /(^)+/ {
+    Loop([1-inf], greedy)
+    {
+        DefineGroup(1)
+        {
+            BOL()
+        }
+    }
+}
+REGEX ANNOTATED AST /(^)+/ {
+    Loop([1-inf], greedy)
+    <
+        features: {BOL,DefineGroup,Loop}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [0]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: false
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: false
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+    {
+        DefineGroup(1)
+        <
+            features: {BOL,DefineGroup}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [0]
+            isThisIrrefutable: false
+            isFollowIrrefutable: false
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: false
+            isDeterministic: true
+            isNotInLoop: false
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        {
+            BOL()
+            <
+                features: {BOL}
+                firstSet: [\x00-\uffff]
+                followSet: [\x00-\uffff]
+                prevConsumes: [0]
+                thisConsumes: [0]
+                followConsumes: [0]
+                isThisIrrefutable: false
+                isFollowIrrefutable: false
+                isWord: false
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: false
+                isDeterministic: true
+                isNotInLoop: false
+                isNotNegated: true
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: false
+            >
+        }
+    }
+}
+REGEX PROGRAM /(^)+/ 
+Program {
+    source:       (^)+
+    flags:        
+    numGroups:    2
+    numLoops:     1
+    instructions: {
+        L0000: BeginLoop(loopId: 0, repeats: [1-inf], exitLabel: L0054, hasOuterLoops: false, hasInnerNondet: false, minBodyGroupId: 1, maxBodyGroupId: 1, greedy: true)
+        L0028: BOITest(hardFail: false)
+        L0034: DefineGroupFixed(groupId: 1, length: 0, noNeedToSave: false)
+        L0048: RepeatLoop(beginLabel: L0000)
+        L0054: Succ()
+    }
+}
+REGEX AST /(?!^)/ {
+    Assertion(negative)
+    {
+        BOL()
+    }
+}
+REGEX ANNOTATED AST /(?!^)/ {
+    Assertion(negative)
+    <
+        features: {BOL,Assertion}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [0]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: true
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: true
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+    {
+        BOL()
+        <
+            features: {BOL}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0]
+            thisConsumes: [0]
+            followConsumes: [0-inf]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: true
+            isNotNegated: false
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+    }
+}
+REGEX PROGRAM /(?!^)/ 
+Program {
+    source:       (?!^)
+    flags:        
+    numGroups:    1
+    numLoops:     0
+    instructions: {
+        L0000: BeginAssertion(isNegation: true, nextLabel: L002c, minBodyGroupId: 1, maxBodyGroupId: -1)
+        L0018: BOITest(hardFail: false)
+        L0024: EndAssertion()
+        L002c: Succ()
+    }
+}
+REGEX AST /(?:^abc)+?/ {
+    Loop([1-inf], non-greedy)
+    {
+        Concat()
+        {
+            BOL()
+            MatchLiteral("abc")
+        }
+    }
+}
+REGEX ANNOTATED AST /(?:^abc)+?/ {
+    Loop([1-inf], non-greedy)
+    <
+        features: {BOL,MatchLiteral,Concat,Loop}
+        firstSet: [\x00-\uffff]
+        followSet: [\x00-\uffff]
+        prevConsumes: [0]
+        thisConsumes: [3-inf]
+        followConsumes: [0]
+        isThisIrrefutable: false
+        isFollowIrrefutable: true
+        isWord: false
+        isThisWillNotProgress: false
+        isThisWillNotRegress: true
+        isPrevWillNotProgress: false
+        isPrevWillNotRegress: true
+        isDeterministic: false
+        isNotInLoop: true
+        isNotNegated: true
+        isAtLeastOnce: true
+        hasInitialHardFailBOI: false
+    >
+    {
+        Concat()
+        <
+            features: {BOL,MatchLiteral,Concat}
+            firstSet: [\x00-\uffff]
+            followSet: [\x00-\uffff]
+            prevConsumes: [0-inf]
+            thisConsumes: [3]
+            followConsumes: [0-inf]
+            isThisIrrefutable: false
+            isFollowIrrefutable: true
+            isWord: false
+            isThisWillNotProgress: true
+            isThisWillNotRegress: true
+            isPrevWillNotProgress: false
+            isPrevWillNotRegress: true
+            isDeterministic: true
+            isNotInLoop: false
+            isNotNegated: true
+            isAtLeastOnce: true
+            hasInitialHardFailBOI: false
+        >
+        {
+            BOL()
+            <
+                features: {BOL}
+                firstSet: [\x00-\uffff]
+                followSet: [a]
+                prevConsumes: [0-inf]
+                thisConsumes: [0]
+                followConsumes: [3-inf]
+                isThisIrrefutable: false
+                isFollowIrrefutable: false
+                isWord: false
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: false
+                isNotNegated: true
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: false
+            >
+            MatchLiteral("abc")
+            <
+                features: {MatchLiteral}
+                firstSet: [a] (exact)
+                followSet: [\x00-\uffff]
+                prevConsumes: [0-inf]
+                thisConsumes: [3]
+                followConsumes: [0-inf]
+                isThisIrrefutable: false
+                isFollowIrrefutable: true
+                isWord: true
+                isThisWillNotProgress: true
+                isThisWillNotRegress: true
+                isPrevWillNotProgress: false
+                isPrevWillNotRegress: true
+                isDeterministic: true
+                isNotInLoop: false
+                isNotNegated: true
+                isAtLeastOnce: true
+                hasInitialHardFailBOI: false
+            >
+        }
+    }
+}
+REGEX PROGRAM /(?:^abc)+?/ 
+Program {
+    source:       (?:^abc)+?
+    flags:        
+    numGroups:    1
+    numLoops:     1
+    instructions: {
+        L0000: SyncToLiteralAndBackup(literal: "abc" (with linear map Boyer-Moore scanner), backup: [0-inf])
+        L0040: BeginLoop(loopId: 0, repeats: [1-inf], exitLabel: L0090, hasOuterLoops: false, hasInnerNondet: false, minBodyGroupId: 1, maxBodyGroupId: -1, greedy: false)
+        L0068: BOITest(hardFail: true)
+        L0074: MatchLiteral(literal: "abc")
+        L0084: RepeatLoop(beginLabel: L0040)
+        L0090: Succ()
+    }
+}

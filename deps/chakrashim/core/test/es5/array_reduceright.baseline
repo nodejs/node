@@ -1,0 +1,37 @@
+accumulator:0 value:5 index:4 Object:1,2,3,4,5
+accumulator:5 value:4 index:3 Object:1,2,3,4,5
+accumulator:9 value:3 index:2 Object:1,2,3,4,5
+accumulator:12 value:2 index:1 Object:1,2,3,4,5
+accumulator:14 value:1 index:0 Object:1,2,3,4,5
+15
+accumulator:0 value:50 index:4 Object:10,20,30,40,50
+accumulator:2500 value:40 index:3 Object:10,20,30,40,50
+accumulator:4100 value:30 index:2 Object:10,20,30,40,50
+accumulator:5000 value:20 index:1 Object:10,20,30,40,50
+accumulator:5400 value:10 index:0 Object:10,20,30,40,50
+5500
+accumulator:50 value:40 index:3 Object:10,20,30,40,50
+accumulator:93 value:30 index:2 Object:10,20,30,40,50
+accumulator:125 value:20 index:1 Object:10,20,30,40,50
+accumulator:146 value:10 index:0 Object:10,20,30,40,50
+156
+accumulator: value:xyz index:2 Object:[object Object]
+accumulator:xyz value:def index:1 Object:[object Object]
+accumulator:xyzdef value:abc index:0 Object:[object Object]
+xyzdefabc
+accumulator: value:xyz index:2 Object:[object Object]
+accumulator:xyzxyz value:def index:1 Object:[object Object]
+accumulator:xyzxyzdefdef value:abc index:0 Object:[object Object]
+xyzxyzdefdefabcabc
+accumulator: value:xyz index:2 Object:[object Object]
+accumulator:xyz2 value:def index:1 Object:[object Object]
+accumulator:xyz2def1 value:abc index:0 Object:[object Object]
+xyz2def1abc0
+accumulator:30 value:10 index:8 Object:10,20,30,40,50,,20,,10
+accumulator:40 value:20 index:6 Object:10,20,30,40,50,,20,,10
+accumulator:60 value:50 index:4 Object:10,20,30,40,50,,20,,10
+accumulator:110 value:40 index:3 Object:10,20,30,40,50,,20,,10
+accumulator:150 value:30 index:2 Object:10,20,30,40,50,,20,,10
+accumulator:180 value:20 index:1 Object:10,20,30,40,50,,20,,10
+accumulator:200 value:10 index:0 Object:10,20,30,40,50,,20,,10
+210

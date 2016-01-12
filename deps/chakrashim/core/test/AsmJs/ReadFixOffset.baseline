@@ -1,0 +1,513 @@
+Successfully compiled asm.js code
+read8    HEAP8  [4095]   = all[0](undefined); = 0
+read16   HEAP16 [4095]   = all[0](undefined); = 0
+read32   HEAP32 [4095]   = all[0](undefined); = 0
+readU8   HEAPU8 [4095]   = all[0](undefined); = 0
+readU16  HEAPU16[4095]   = all[0](undefined); = 0
+readU32  HEAPU32[4095]   = all[0](undefined); = 0
+readF32  HEAPF32[4095]   = all[0](undefined); = NaN
+read64   HEAP64 [4095]   = all[0](undefined); = NaN
+read8    HEAP8  [4095]   = all[1](null); = 0
+read16   HEAP16 [4095]   = all[1](null); = 0
+read32   HEAP32 [4095]   = all[1](null); = 0
+readU8   HEAPU8 [4095]   = all[1](null); = 0
+readU16  HEAPU16[4095]   = all[1](null); = 0
+readU32  HEAPU32[4095]   = all[1](null); = 0
+readF32  HEAPF32[4095]   = all[1](null); = 0
+read64   HEAP64 [4095]   = all[1](null); = 0
+read8    HEAP8  [4095]   = all[2](true); = 1
+read16   HEAP16 [4095]   = all[2](true); = 1
+read32   HEAP32 [4095]   = all[2](true); = 1
+readU8   HEAPU8 [4095]   = all[2](true); = 1
+readU16  HEAPU16[4095]   = all[2](true); = 1
+readU32  HEAPU32[4095]   = all[2](true); = 1
+readF32  HEAPF32[4095]   = all[2](true); = 1
+read64   HEAP64 [4095]   = all[2](true); = 1
+read8    HEAP8  [4095]   = all[3](false); = 0
+read16   HEAP16 [4095]   = all[3](false); = 0
+read32   HEAP32 [4095]   = all[3](false); = 0
+readU8   HEAPU8 [4095]   = all[3](false); = 0
+readU16  HEAPU16[4095]   = all[3](false); = 0
+readU32  HEAPU32[4095]   = all[3](false); = 0
+readF32  HEAPF32[4095]   = all[3](false); = 0
+read64   HEAP64 [4095]   = all[3](false); = 0
+read8    HEAP8  [4095]   = all[4](true); = 1
+read16   HEAP16 [4095]   = all[4](true); = 1
+read32   HEAP32 [4095]   = all[4](true); = 1
+readU8   HEAPU8 [4095]   = all[4](true); = 1
+readU16  HEAPU16[4095]   = all[4](true); = 1
+readU32  HEAPU32[4095]   = all[4](true); = 1
+readF32  HEAPF32[4095]   = all[4](true); = 1
+read64   HEAP64 [4095]   = all[4](true); = 1
+read8    HEAP8  [4095]   = all[5](false); = 0
+read16   HEAP16 [4095]   = all[5](false); = 0
+read32   HEAP32 [4095]   = all[5](false); = 0
+readU8   HEAPU8 [4095]   = all[5](false); = 0
+readU16  HEAPU16[4095]   = all[5](false); = 0
+readU32  HEAPU32[4095]   = all[5](false); = 0
+readF32  HEAPF32[4095]   = all[5](false); = 0
+read64   HEAP64 [4095]   = all[5](false); = 0
+read8    HEAP8  [4095]   = all[6](NaN); = 0
+read16   HEAP16 [4095]   = all[6](NaN); = 0
+read32   HEAP32 [4095]   = all[6](NaN); = 0
+readU8   HEAPU8 [4095]   = all[6](NaN); = 0
+readU16  HEAPU16[4095]   = all[6](NaN); = 0
+readU32  HEAPU32[4095]   = all[6](NaN); = 0
+readF32  HEAPF32[4095]   = all[6](NaN); = NaN
+read64   HEAP64 [4095]   = all[6](NaN); = NaN
+read8    HEAP8  [4095]   = all[7](0); = 0
+read16   HEAP16 [4095]   = all[7](0); = 0
+read32   HEAP32 [4095]   = all[7](0); = 0
+readU8   HEAPU8 [4095]   = all[7](0); = 0
+readU16  HEAPU16[4095]   = all[7](0); = 0
+readU32  HEAPU32[4095]   = all[7](0); = 0
+readF32  HEAPF32[4095]   = all[7](0); = 0
+read64   HEAP64 [4095]   = all[7](0); = 0
+read8    HEAP8  [4095]   = all[8](0); = 0
+read16   HEAP16 [4095]   = all[8](0); = 0
+read32   HEAP32 [4095]   = all[8](0); = 0
+readU8   HEAPU8 [4095]   = all[8](0); = 0
+readU16  HEAPU16[4095]   = all[8](0); = 0
+readU32  HEAPU32[4095]   = all[8](0); = 0
+readF32  HEAPF32[4095]   = all[8](0); = 0
+read64   HEAP64 [4095]   = all[8](0); = 0
+read8    HEAP8  [4095]   = all[9](0); = 0
+read16   HEAP16 [4095]   = all[9](0); = 0
+read32   HEAP32 [4095]   = all[9](0); = 0
+readU8   HEAPU8 [4095]   = all[9](0); = 0
+readU16  HEAPU16[4095]   = all[9](0); = 0
+readU32  HEAPU32[4095]   = all[9](0); = 0
+readF32  HEAPF32[4095]   = all[9](0); = 0
+read64   HEAP64 [4095]   = all[9](0); = 0
+read8    HEAP8  [4095]   = all[10](1); = 1
+read16   HEAP16 [4095]   = all[10](1); = 1
+read32   HEAP32 [4095]   = all[10](1); = 1
+readU8   HEAPU8 [4095]   = all[10](1); = 1
+readU16  HEAPU16[4095]   = all[10](1); = 1
+readU32  HEAPU32[4095]   = all[10](1); = 1
+readF32  HEAPF32[4095]   = all[10](1); = 1
+read64   HEAP64 [4095]   = all[10](1); = 1
+read8    HEAP8  [4095]   = all[11](10); = 10
+read16   HEAP16 [4095]   = all[11](10); = 10
+read32   HEAP32 [4095]   = all[11](10); = 10
+readU8   HEAPU8 [4095]   = all[11](10); = 10
+readU16  HEAPU16[4095]   = all[11](10); = 10
+readU32  HEAPU32[4095]   = all[11](10); = 10
+readF32  HEAPF32[4095]   = all[11](10); = 10
+read64   HEAP64 [4095]   = all[11](10); = 10
+read8    HEAP8  [4095]   = all[12](10.1); = 10
+read16   HEAP16 [4095]   = all[12](10.1); = 10
+read32   HEAP32 [4095]   = all[12](10.1); = 10
+readU8   HEAPU8 [4095]   = all[12](10.1); = 10
+readU16  HEAPU16[4095]   = all[12](10.1); = 10
+readU32  HEAPU32[4095]   = all[12](10.1); = 10
+readF32  HEAPF32[4095]   = all[12](10.1); = 10.100000381469726
+read64   HEAP64 [4095]   = all[12](10.1); = 10.1
+read8    HEAP8  [4095]   = all[13](-1); = -1
+read16   HEAP16 [4095]   = all[13](-1); = -1
+read32   HEAP32 [4095]   = all[13](-1); = -1
+readU8   HEAPU8 [4095]   = all[13](-1); = 255
+readU16  HEAPU16[4095]   = all[13](-1); = 65535
+readU32  HEAPU32[4095]   = all[13](-1); = 4294967295
+readF32  HEAPF32[4095]   = all[13](-1); = -1
+read64   HEAP64 [4095]   = all[13](-1); = -1
+read8    HEAP8  [4095]   = all[14](-5); = -5
+read16   HEAP16 [4095]   = all[14](-5); = -5
+read32   HEAP32 [4095]   = all[14](-5); = -5
+readU8   HEAPU8 [4095]   = all[14](-5); = 251
+readU16  HEAPU16[4095]   = all[14](-5); = 65531
+readU32  HEAPU32[4095]   = all[14](-5); = 4294967291
+readF32  HEAPF32[4095]   = all[14](-5); = -5
+read64   HEAP64 [4095]   = all[14](-5); = -5
+read8    HEAP8  [4095]   = all[15](5); = 5
+read16   HEAP16 [4095]   = all[15](5); = 5
+read32   HEAP32 [4095]   = all[15](5); = 5
+readU8   HEAPU8 [4095]   = all[15](5); = 5
+readU16  HEAPU16[4095]   = all[15](5); = 5
+readU32  HEAPU32[4095]   = all[15](5); = 5
+readF32  HEAPF32[4095]   = all[15](5); = 5
+read64   HEAP64 [4095]   = all[15](5); = 5
+read8    HEAP8  [4095]   = all[16](124); = 124
+read16   HEAP16 [4095]   = all[16](124); = 124
+read32   HEAP32 [4095]   = all[16](124); = 124
+readU8   HEAPU8 [4095]   = all[16](124); = 124
+readU16  HEAPU16[4095]   = all[16](124); = 124
+readU32  HEAPU32[4095]   = all[16](124); = 124
+readF32  HEAPF32[4095]   = all[16](124); = 124
+read64   HEAP64 [4095]   = all[16](124); = 124
+read8    HEAP8  [4095]   = all[17](248); = -8
+read16   HEAP16 [4095]   = all[17](248); = 248
+read32   HEAP32 [4095]   = all[17](248); = 248
+readU8   HEAPU8 [4095]   = all[17](248); = 248
+readU16  HEAPU16[4095]   = all[17](248); = 248
+readU32  HEAPU32[4095]   = all[17](248); = 248
+readF32  HEAPF32[4095]   = all[17](248); = 248
+read64   HEAP64 [4095]   = all[17](248); = 248
+read8    HEAP8  [4095]   = all[18](654); = -114
+read16   HEAP16 [4095]   = all[18](654); = 654
+read32   HEAP32 [4095]   = all[18](654); = 654
+readU8   HEAPU8 [4095]   = all[18](654); = 142
+readU16  HEAPU16[4095]   = all[18](654); = 654
+readU32  HEAPU32[4095]   = all[18](654); = 654
+readF32  HEAPF32[4095]   = all[18](654); = 654
+read64   HEAP64 [4095]   = all[18](654); = 654
+read8    HEAP8  [4095]   = all[19](987); = -37
+read16   HEAP16 [4095]   = all[19](987); = 987
+read32   HEAP32 [4095]   = all[19](987); = 987
+readU8   HEAPU8 [4095]   = all[19](987); = 219
+readU16  HEAPU16[4095]   = all[19](987); = 987
+readU32  HEAPU32[4095]   = all[19](987); = 987
+readF32  HEAPF32[4095]   = all[19](987); = 987
+read64   HEAP64 [4095]   = all[19](987); = 987
+read8    HEAP8  [4095]   = all[20](-1026); = -2
+read16   HEAP16 [4095]   = all[20](-1026); = -1026
+read32   HEAP32 [4095]   = all[20](-1026); = -1026
+readU8   HEAPU8 [4095]   = all[20](-1026); = 254
+readU16  HEAPU16[4095]   = all[20](-1026); = 64510
+readU32  HEAPU32[4095]   = all[20](-1026); = 4294966270
+readF32  HEAPF32[4095]   = all[20](-1026); = -1026
+read64   HEAP64 [4095]   = all[20](-1026); = -1026
+read8    HEAP8  [4095]   = all[21](98768.2546); = -48
+read16   HEAP16 [4095]   = all[21](98768.2546); = -32304
+read32   HEAP32 [4095]   = all[21](98768.2546); = 98768
+readU8   HEAPU8 [4095]   = all[21](98768.2546); = 208
+readU16  HEAPU16[4095]   = all[21](98768.2546); = 33232
+readU32  HEAPU32[4095]   = all[21](98768.2546); = 98768
+readF32  HEAPF32[4095]   = all[21](98768.2546); = 98768.2578125
+read64   HEAP64 [4095]   = all[21](98768.2546); = 98768.2546
+read8    HEAP8  [4095]   = all[22](-88754.15478); = 78
+read16   HEAP16 [4095]   = all[22](-88754.15478); = -23218
+read32   HEAP32 [4095]   = all[22](-88754.15478); = -88754
+readU8   HEAPU8 [4095]   = all[22](-88754.15478); = 78
+readU16  HEAPU16[4095]   = all[22](-88754.15478); = 42318
+readU32  HEAPU32[4095]   = all[22](-88754.15478); = 4294878542
+readF32  HEAPF32[4095]   = all[22](-88754.15478); = -88754.15625
+read64   HEAP64 [4095]   = all[22](-88754.15478); = -88754.15478
+read8    HEAP8  [4095]   = all[23](1); = 1
+read16   HEAP16 [4095]   = all[23](1); = 1
+read32   HEAP32 [4095]   = all[23](1); = 1
+readU8   HEAPU8 [4095]   = all[23](1); = 1
+readU16  HEAPU16[4095]   = all[23](1); = 1
+readU32  HEAPU32[4095]   = all[23](1); = 1
+readF32  HEAPF32[4095]   = all[23](1); = 1
+read64   HEAP64 [4095]   = all[23](1); = 1
+read8    HEAP8  [4095]   = all[24](-1); = -1
+read16   HEAP16 [4095]   = all[24](-1); = -1
+read32   HEAP32 [4095]   = all[24](-1); = -1
+readU8   HEAPU8 [4095]   = all[24](-1); = 255
+readU16  HEAPU16[4095]   = all[24](-1); = 65535
+readU32  HEAPU32[4095]   = all[24](-1); = 4294967295
+readF32  HEAPF32[4095]   = all[24](-1); = -1
+read64   HEAP64 [4095]   = all[24](-1); = -1
+read8    HEAP8  [4095]   = all[25](0); = 0
+read16   HEAP16 [4095]   = all[25](0); = 0
+read32   HEAP32 [4095]   = all[25](0); = 0
+readU8   HEAPU8 [4095]   = all[25](0); = 0
+readU16  HEAPU16[4095]   = all[25](0); = 0
+readU32  HEAPU32[4095]   = all[25](0); = 0
+readF32  HEAPF32[4095]   = all[25](0); = 0
+read64   HEAP64 [4095]   = all[25](0); = 0
+read8    HEAP8  [4095]   = all[26](-2147483648); = 0
+read16   HEAP16 [4095]   = all[26](-2147483648); = 0
+read32   HEAP32 [4095]   = all[26](-2147483648); = -2147483648
+readU8   HEAPU8 [4095]   = all[26](-2147483648); = 0
+readU16  HEAPU16[4095]   = all[26](-2147483648); = 0
+readU32  HEAPU32[4095]   = all[26](-2147483648); = 2147483648
+readF32  HEAPF32[4095]   = all[26](-2147483648); = -2147483648
+read64   HEAP64 [4095]   = all[26](-2147483648); = -2147483648
+read8    HEAP8  [4095]   = all[27](2147483648); = 0
+read16   HEAP16 [4095]   = all[27](2147483648); = 0
+read32   HEAP32 [4095]   = all[27](2147483648); = -2147483648
+readU8   HEAPU8 [4095]   = all[27](2147483648); = 0
+readU16  HEAPU16[4095]   = all[27](2147483648); = 0
+readU32  HEAPU32[4095]   = all[27](2147483648); = 2147483648
+readF32  HEAPF32[4095]   = all[27](2147483648); = 2147483648
+read64   HEAP64 [4095]   = all[27](2147483648); = 2147483648
+read8    HEAP8  [4095]   = all[28](33554432); = 0
+read16   HEAP16 [4095]   = all[28](33554432); = 0
+read32   HEAP32 [4095]   = all[28](33554432); = 33554432
+readU8   HEAPU8 [4095]   = all[28](33554432); = 0
+readU16  HEAPU16[4095]   = all[28](33554432); = 0
+readU32  HEAPU32[4095]   = all[28](33554432); = 33554432
+readF32  HEAPF32[4095]   = all[28](33554432); = 33554432
+read64   HEAP64 [4095]   = all[28](33554432); = 33554432
+read8    HEAP8  [4095]   = all[29](-33554432); = 0
+read16   HEAP16 [4095]   = all[29](-33554432); = 0
+read32   HEAP32 [4095]   = all[29](-33554432); = -33554432
+readU8   HEAPU8 [4095]   = all[29](-33554432); = 0
+readU16  HEAPU16[4095]   = all[29](-33554432); = 0
+readU32  HEAPU32[4095]   = all[29](-33554432); = 4261412864
+readF32  HEAPF32[4095]   = all[29](-33554432); = -33554432
+read64   HEAP64 [4095]   = all[29](-33554432); = -33554432
+read8    HEAP8  [4095]   = all[30](1.7976931348623157e+308); = 0
+read16   HEAP16 [4095]   = all[30](1.7976931348623157e+308); = 0
+read32   HEAP32 [4095]   = all[30](1.7976931348623157e+308); = 0
+readU8   HEAPU8 [4095]   = all[30](1.7976931348623157e+308); = 0
+readU16  HEAPU16[4095]   = all[30](1.7976931348623157e+308); = 0
+readU32  HEAPU32[4095]   = all[30](1.7976931348623157e+308); = 0
+readF32  HEAPF32[4095]   = all[30](1.7976931348623157e+308); = Infinity
+read64   HEAP64 [4095]   = all[30](1.7976931348623157e+308); = 1.7976931348623157e+308
+read8    HEAP8  [4095]   = all[31](5e-324); = 0
+read16   HEAP16 [4095]   = all[31](5e-324); = 0
+read32   HEAP32 [4095]   = all[31](5e-324); = 0
+readU8   HEAPU8 [4095]   = all[31](5e-324); = 0
+readU16  HEAPU16[4095]   = all[31](5e-324); = 0
+readU32  HEAPU32[4095]   = all[31](5e-324); = 0
+readF32  HEAPF32[4095]   = all[31](5e-324); = 0
+read64   HEAP64 [4095]   = all[31](5e-324); = 5e-324
+read8    HEAP8  [4095]   = all[32](NaN); = 0
+read16   HEAP16 [4095]   = all[32](NaN); = 0
+read32   HEAP32 [4095]   = all[32](NaN); = 0
+readU8   HEAPU8 [4095]   = all[32](NaN); = 0
+readU16  HEAPU16[4095]   = all[32](NaN); = 0
+readU32  HEAPU32[4095]   = all[32](NaN); = 0
+readF32  HEAPF32[4095]   = all[32](NaN); = NaN
+read64   HEAP64 [4095]   = all[32](NaN); = NaN
+read8    HEAP8  [4095]   = all[33](Infinity); = 0
+read16   HEAP16 [4095]   = all[33](Infinity); = 0
+read32   HEAP32 [4095]   = all[33](Infinity); = 0
+readU8   HEAPU8 [4095]   = all[33](Infinity); = 0
+readU16  HEAPU16[4095]   = all[33](Infinity); = 0
+readU32  HEAPU32[4095]   = all[33](Infinity); = 0
+readF32  HEAPF32[4095]   = all[33](Infinity); = Infinity
+read64   HEAP64 [4095]   = all[33](Infinity); = Infinity
+read8    HEAP8  [4095]   = all[34](-Infinity); = 0
+read16   HEAP16 [4095]   = all[34](-Infinity); = 0
+read32   HEAP32 [4095]   = all[34](-Infinity); = 0
+readU8   HEAPU8 [4095]   = all[34](-Infinity); = 0
+readU16  HEAPU16[4095]   = all[34](-Infinity); = 0
+readU32  HEAPU32[4095]   = all[34](-Infinity); = 0
+readF32  HEAPF32[4095]   = all[34](-Infinity); = -Infinity
+read64   HEAP64 [4095]   = all[34](-Infinity); = -Infinity
+read8    HEAP8  [4095]   = all[35](NaN); = 0
+read16   HEAP16 [4095]   = all[35](NaN); = 0
+read32   HEAP32 [4095]   = all[35](NaN); = 0
+readU8   HEAPU8 [4095]   = all[35](NaN); = 0
+readU16  HEAPU16[4095]   = all[35](NaN); = 0
+readU32  HEAPU32[4095]   = all[35](NaN); = 0
+readF32  HEAPF32[4095]   = all[35](NaN); = NaN
+read64   HEAP64 [4095]   = all[35](NaN); = NaN
+read8    HEAP8  [4095]   = all[36](0); = 0
+read16   HEAP16 [4095]   = all[36](0); = 0
+read32   HEAP32 [4095]   = all[36](0); = 0
+readU8   HEAPU8 [4095]   = all[36](0); = 0
+readU16  HEAPU16[4095]   = all[36](0); = 0
+readU32  HEAPU32[4095]   = all[36](0); = 0
+readF32  HEAPF32[4095]   = all[36](0); = 0
+read64   HEAP64 [4095]   = all[36](0); = 0
+read8    HEAP8  [4095]   = all[37](0); = 0
+read16   HEAP16 [4095]   = all[37](0); = 0
+read32   HEAP32 [4095]   = all[37](0); = 0
+readU8   HEAPU8 [4095]   = all[37](0); = 0
+readU16  HEAPU16[4095]   = all[37](0); = 0
+readU32  HEAPU32[4095]   = all[37](0); = 0
+readF32  HEAPF32[4095]   = all[37](0); = 0
+read64   HEAP64 [4095]   = all[37](0); = 0
+read8    HEAP8  [4095]   = all[38](0); = 0
+read16   HEAP16 [4095]   = all[38](0); = 0
+read32   HEAP32 [4095]   = all[38](0); = 0
+readU8   HEAPU8 [4095]   = all[38](0); = 0
+readU16  HEAPU16[4095]   = all[38](0); = 0
+readU32  HEAPU32[4095]   = all[38](0); = 0
+readF32  HEAPF32[4095]   = all[38](0); = 0
+read64   HEAP64 [4095]   = all[38](0); = 0
+read8    HEAP8  [4095]   = all[39](1); = 1
+read16   HEAP16 [4095]   = all[39](1); = 1
+read32   HEAP32 [4095]   = all[39](1); = 1
+readU8   HEAPU8 [4095]   = all[39](1); = 1
+readU16  HEAPU16[4095]   = all[39](1); = 1
+readU32  HEAPU32[4095]   = all[39](1); = 1
+readF32  HEAPF32[4095]   = all[39](1); = 1
+read64   HEAP64 [4095]   = all[39](1); = 1
+read8    HEAP8  [4095]   = all[40](10); = 10
+read16   HEAP16 [4095]   = all[40](10); = 10
+read32   HEAP32 [4095]   = all[40](10); = 10
+readU8   HEAPU8 [4095]   = all[40](10); = 10
+readU16  HEAPU16[4095]   = all[40](10); = 10
+readU32  HEAPU32[4095]   = all[40](10); = 10
+readF32  HEAPF32[4095]   = all[40](10); = 10
+read64   HEAP64 [4095]   = all[40](10); = 10
+read8    HEAP8  [4095]   = all[41](10.1); = 10
+read16   HEAP16 [4095]   = all[41](10.1); = 10
+read32   HEAP32 [4095]   = all[41](10.1); = 10
+readU8   HEAPU8 [4095]   = all[41](10.1); = 10
+readU16  HEAPU16[4095]   = all[41](10.1); = 10
+readU32  HEAPU32[4095]   = all[41](10.1); = 10
+readF32  HEAPF32[4095]   = all[41](10.1); = 10.100000381469726
+read64   HEAP64 [4095]   = all[41](10.1); = 10.1
+read8    HEAP8  [4095]   = all[42](1.7976931348623157e+308); = 0
+read16   HEAP16 [4095]   = all[42](1.7976931348623157e+308); = 0
+read32   HEAP32 [4095]   = all[42](1.7976931348623157e+308); = 0
+readU8   HEAPU8 [4095]   = all[42](1.7976931348623157e+308); = 0
+readU16  HEAPU16[4095]   = all[42](1.7976931348623157e+308); = 0
+readU32  HEAPU32[4095]   = all[42](1.7976931348623157e+308); = 0
+readF32  HEAPF32[4095]   = all[42](1.7976931348623157e+308); = Infinity
+read64   HEAP64 [4095]   = all[42](1.7976931348623157e+308); = 1.7976931348623157e+308
+read8    HEAP8  [4095]   = all[43](5e-324); = 0
+read16   HEAP16 [4095]   = all[43](5e-324); = 0
+read32   HEAP32 [4095]   = all[43](5e-324); = 0
+readU8   HEAPU8 [4095]   = all[43](5e-324); = 0
+readU16  HEAPU16[4095]   = all[43](5e-324); = 0
+readU32  HEAPU32[4095]   = all[43](5e-324); = 0
+readF32  HEAPF32[4095]   = all[43](5e-324); = 0
+read64   HEAP64 [4095]   = all[43](5e-324); = 5e-324
+read8    HEAP8  [4095]   = all[44](NaN); = 0
+read16   HEAP16 [4095]   = all[44](NaN); = 0
+read32   HEAP32 [4095]   = all[44](NaN); = 0
+readU8   HEAPU8 [4095]   = all[44](NaN); = 0
+readU16  HEAPU16[4095]   = all[44](NaN); = 0
+readU32  HEAPU32[4095]   = all[44](NaN); = 0
+readF32  HEAPF32[4095]   = all[44](NaN); = NaN
+read64   HEAP64 [4095]   = all[44](NaN); = NaN
+read8    HEAP8  [4095]   = all[45](Infinity); = 0
+read16   HEAP16 [4095]   = all[45](Infinity); = 0
+read32   HEAP32 [4095]   = all[45](Infinity); = 0
+readU8   HEAPU8 [4095]   = all[45](Infinity); = 0
+readU16  HEAPU16[4095]   = all[45](Infinity); = 0
+readU32  HEAPU32[4095]   = all[45](Infinity); = 0
+readF32  HEAPF32[4095]   = all[45](Infinity); = Infinity
+read64   HEAP64 [4095]   = all[45](Infinity); = Infinity
+read8    HEAP8  [4095]   = all[46](-Infinity); = 0
+read16   HEAP16 [4095]   = all[46](-Infinity); = 0
+read32   HEAP32 [4095]   = all[46](-Infinity); = 0
+readU8   HEAPU8 [4095]   = all[46](-Infinity); = 0
+readU16  HEAPU16[4095]   = all[46](-Infinity); = 0
+readU32  HEAPU32[4095]   = all[46](-Infinity); = 0
+readF32  HEAPF32[4095]   = all[46](-Infinity); = -Infinity
+read64   HEAP64 [4095]   = all[46](-Infinity); = -Infinity
+read8    HEAP8  [4095]   = all[47](); = 0
+read16   HEAP16 [4095]   = all[47](); = 0
+read32   HEAP32 [4095]   = all[47](); = 0
+readU8   HEAPU8 [4095]   = all[47](); = 0
+readU16  HEAPU16[4095]   = all[47](); = 0
+readU32  HEAPU32[4095]   = all[47](); = 0
+readF32  HEAPF32[4095]   = all[47](); = 0
+read64   HEAP64 [4095]   = all[47](); = 0
+read8    HEAP8  [4095]   = all[48](hello); = 0
+read16   HEAP16 [4095]   = all[48](hello); = 0
+read32   HEAP32 [4095]   = all[48](hello); = 0
+readU8   HEAPU8 [4095]   = all[48](hello); = 0
+readU16  HEAPU16[4095]   = all[48](hello); = 0
+readU32  HEAPU32[4095]   = all[48](hello); = 0
+readF32  HEAPF32[4095]   = all[48](hello); = NaN
+read64   HEAP64 [4095]   = all[48](hello); = NaN
+read8    HEAP8  [4095]   = all[49](hello); = 0
+read16   HEAP16 [4095]   = all[49](hello); = 0
+read32   HEAP32 [4095]   = all[49](hello); = 0
+readU8   HEAPU8 [4095]   = all[49](hello); = 0
+readU16  HEAPU16[4095]   = all[49](hello); = 0
+readU32  HEAPU32[4095]   = all[49](hello); = 0
+readF32  HEAPF32[4095]   = all[49](hello); = NaN
+read64   HEAP64 [4095]   = all[49](hello); = NaN
+read8    HEAP8  [4095]   = all[50](+0); = 0
+read16   HEAP16 [4095]   = all[50](+0); = 0
+read32   HEAP32 [4095]   = all[50](+0); = 0
+readU8   HEAPU8 [4095]   = all[50](+0); = 0
+readU16  HEAPU16[4095]   = all[50](+0); = 0
+readU32  HEAPU32[4095]   = all[50](+0); = 0
+readF32  HEAPF32[4095]   = all[50](+0); = 0
+read64   HEAP64 [4095]   = all[50](+0); = 0
+read8    HEAP8  [4095]   = all[51](-0); = 0
+read16   HEAP16 [4095]   = all[51](-0); = 0
+read32   HEAP32 [4095]   = all[51](-0); = 0
+readU8   HEAPU8 [4095]   = all[51](-0); = 0
+readU16  HEAPU16[4095]   = all[51](-0); = 0
+readU32  HEAPU32[4095]   = all[51](-0); = 0
+readF32  HEAPF32[4095]   = all[51](-0); = 0
+read64   HEAP64 [4095]   = all[51](-0); = 0
+read8    HEAP8  [4095]   = all[52](0); = 0
+read16   HEAP16 [4095]   = all[52](0); = 0
+read32   HEAP32 [4095]   = all[52](0); = 0
+readU8   HEAPU8 [4095]   = all[52](0); = 0
+readU16  HEAPU16[4095]   = all[52](0); = 0
+readU32  HEAPU32[4095]   = all[52](0); = 0
+readF32  HEAPF32[4095]   = all[52](0); = 0
+read64   HEAP64 [4095]   = all[52](0); = 0
+read8    HEAP8  [4095]   = all[53](1); = 1
+read16   HEAP16 [4095]   = all[53](1); = 1
+read32   HEAP32 [4095]   = all[53](1); = 1
+readU8   HEAPU8 [4095]   = all[53](1); = 1
+readU16  HEAPU16[4095]   = all[53](1); = 1
+readU32  HEAPU32[4095]   = all[53](1); = 1
+readF32  HEAPF32[4095]   = all[53](1); = 1
+read64   HEAP64 [4095]   = all[53](1); = 1
+read8    HEAP8  [4095]   = all[54](10.0); = 10
+read16   HEAP16 [4095]   = all[54](10.0); = 10
+read32   HEAP32 [4095]   = all[54](10.0); = 10
+readU8   HEAPU8 [4095]   = all[54](10.0); = 10
+readU16  HEAPU16[4095]   = all[54](10.0); = 10
+readU32  HEAPU32[4095]   = all[54](10.0); = 10
+readF32  HEAPF32[4095]   = all[54](10.0); = 10
+read64   HEAP64 [4095]   = all[54](10.0); = 10
+read8    HEAP8  [4095]   = all[55](10.1); = 10
+read16   HEAP16 [4095]   = all[55](10.1); = 10
+read32   HEAP32 [4095]   = all[55](10.1); = 10
+readU8   HEAPU8 [4095]   = all[55](10.1); = 10
+readU16  HEAPU16[4095]   = all[55](10.1); = 10
+readU32  HEAPU32[4095]   = all[55](10.1); = 10
+readF32  HEAPF32[4095]   = all[55](10.1); = 10.100000381469726
+read64   HEAP64 [4095]   = all[55](10.1); = 10.1
+read8    HEAP8  [4095]   = all[56](); = 0
+read16   HEAP16 [4095]   = all[56](); = 0
+read32   HEAP32 [4095]   = all[56](); = 0
+readU8   HEAPU8 [4095]   = all[56](); = 0
+readU16  HEAPU16[4095]   = all[56](); = 0
+readU32  HEAPU32[4095]   = all[56](); = 0
+readF32  HEAPF32[4095]   = all[56](); = 0
+read64   HEAP64 [4095]   = all[56](); = 0
+read8    HEAP8  [4095]   = all[57](hello); = 0
+read16   HEAP16 [4095]   = all[57](hello); = 0
+read32   HEAP32 [4095]   = all[57](hello); = 0
+readU8   HEAPU8 [4095]   = all[57](hello); = 0
+readU16  HEAPU16[4095]   = all[57](hello); = 0
+readU32  HEAPU32[4095]   = all[57](hello); = 0
+readF32  HEAPF32[4095]   = all[57](hello); = NaN
+read64   HEAP64 [4095]   = all[57](hello); = NaN
+read8    HEAP8  [4095]   = all[58](hello); = 0
+read16   HEAP16 [4095]   = all[58](hello); = 0
+read32   HEAP32 [4095]   = all[58](hello); = 0
+readU8   HEAPU8 [4095]   = all[58](hello); = 0
+readU16  HEAPU16[4095]   = all[58](hello); = 0
+readU32  HEAPU32[4095]   = all[58](hello); = 0
+readF32  HEAPF32[4095]   = all[58](hello); = NaN
+read64   HEAP64 [4095]   = all[58](hello); = NaN
+read8    HEAP8  [4095]   = all[59]([object Object]); = 0
+read16   HEAP16 [4095]   = all[59]([object Object]); = 0
+read32   HEAP32 [4095]   = all[59]([object Object]); = 0
+readU8   HEAPU8 [4095]   = all[59]([object Object]); = 0
+readU16  HEAPU16[4095]   = all[59]([object Object]); = 0
+readU32  HEAPU32[4095]   = all[59]([object Object]); = 0
+readF32  HEAPF32[4095]   = all[59]([object Object]); = NaN
+read64   HEAP64 [4095]   = all[59]([object Object]); = NaN
+read8    HEAP8  [4095]   = all[60](1,2,3); = 0
+read16   HEAP16 [4095]   = all[60](1,2,3); = 0
+read32   HEAP32 [4095]   = all[60](1,2,3); = 0
+readU8   HEAPU8 [4095]   = all[60](1,2,3); = 0
+readU16  HEAPU16[4095]   = all[60](1,2,3); = 0
+readU32  HEAPU32[4095]   = all[60](1,2,3); = 0
+readF32  HEAPF32[4095]   = all[60](1,2,3); = NaN
+read64   HEAP64 [4095]   = all[60](1,2,3); = NaN
+read8    HEAP8  [4095]   = all[61]([object Object]); = 0
+read16   HEAP16 [4095]   = all[61]([object Object]); = 0
+read32   HEAP32 [4095]   = all[61]([object Object]); = 0
+readU8   HEAPU8 [4095]   = all[61]([object Object]); = 0
+readU16  HEAPU16[4095]   = all[61]([object Object]); = 0
+readU32  HEAPU32[4095]   = all[61]([object Object]); = 0
+readF32  HEAPF32[4095]   = all[61]([object Object]); = NaN
+read64   HEAP64 [4095]   = all[61]([object Object]); = NaN
+read8    HEAP8  [4095]   = all[62](1,2,3); = 0
+read16   HEAP16 [4095]   = all[62](1,2,3); = 0
+read32   HEAP32 [4095]   = all[62](1,2,3); = 0
+readU8   HEAPU8 [4095]   = all[62](1,2,3); = 0
+readU16  HEAPU16[4095]   = all[62](1,2,3); = 0
+readU32  HEAPU32[4095]   = all[62](1,2,3); = 0
+readF32  HEAPF32[4095]   = all[62](1,2,3); = NaN
+read64   HEAP64 [4095]   = all[62](1,2,3); = NaN
+read8    HEAP8  [4095]   = all[63](function foo() {}); = 0
+read16   HEAP16 [4095]   = all[63](function foo() {}); = 0
+read32   HEAP32 [4095]   = all[63](function foo() {}); = 0
+readU8   HEAPU8 [4095]   = all[63](function foo() {}); = 0
+readU16  HEAPU16[4095]   = all[63](function foo() {}); = 0
+readU32  HEAPU32[4095]   = all[63](function foo() {}); = 0
+readF32  HEAPF32[4095]   = all[63](function foo() {}); = NaN
+read64   HEAP64 [4095]   = all[63](function foo() {}); = NaN

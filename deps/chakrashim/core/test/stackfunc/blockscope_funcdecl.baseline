@@ -1,0 +1,6 @@
+HasFuncDecl: test
+HasFuncDecl: a
+HasFuncAssignment: a
+HasMaybeEscapedUse: b
+HasMaybeEscapedUse: a
+HasMaybeEscapedNestedFunc (MaybeEscapedUse): test (function  (#1.1), #2)

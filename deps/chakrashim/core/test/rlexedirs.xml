@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+<dir>
+  <default>
+    <files>UnitTestFramework</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Array</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Basics</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>es5</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>EH</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>InlineCaches</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>LetConst</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Basics</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Generated</files>
+    <tags>Slow</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Closures</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Strings</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Date</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Error</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Boolean</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Number</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>ControlFlow</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Math</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Array</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>TaggedIntegers</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>TaggedFloats</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Optimizer</files>
+    <tags>require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Function</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Object</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Regex</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Prototypes</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>GlobalFunctions</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Operators</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Conversions</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>RWC</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>VT_DATE</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Lib</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>JSON</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Bugs</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>strict</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Utf8</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>UnifiedRegex</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>typedarray</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>bailout</files>
+    <tags>require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Loop</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>StackTrace</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>Miscellaneous</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>fieldopts</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>FixedFields</files>
+    <tags>require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>inlining</files>
+    <tags>require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>DynamicCode</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>es6</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>switchStatement</files>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>stackfunc</files>
+    <tags>exclude_serialized,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>PerfHint</files>
+    <tags>exclude_serialized,exclude_snap,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>AsmJs</files>
+    <tags>exclude_serialized,exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>AsmJsFloat</files>
+    <tags>exclude_serialized,exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>AsmJsParser</files>
+    <tags>exclude_serialized,exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>SIMD.float32x4</files>
+    <tags>exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>SIMD.int32x4</files>
+    <tags>exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>SIMD.int8x16</files>
+    <tags>exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>SIMD.float32x4.asmjs</files>
+    <tags>exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>SIMD.int32x4.asmjs</files>
+    <tags>exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+<dir>
+  <default>
+    <files>SIMD.workloads.asmjs</files>
+    <tags>exclude_serialized,exclude_arm,exclude_arm64,require_backend</tags>
+  </default>
+</dir>
+</regress-exe>

@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Runtime.Language</TargetName>
+    <ProjectGuid>{706083F7-6AA4-4558-A153-6352EF9110F8}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+    <Import Project="$(BuildConfig_ARMASM_Path)armasm.props" />
+  </ImportGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        $(MSBuildThisFileDirectory)..\..\Common;
+        $(MSBuildThisFileDirectory)..\..\Parser;
+        $(MSBuildThisFileDirectory)..\..\Backend;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>RuntimeLanguagePch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)i386\stackframe.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32'">true</ExcludedFromBuild>
+      <ObjectFileName Condition="'$(Platform)'!='Win32'">$(IntDir)\i386</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\stackframe.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+      <ObjectFileName Condition="'$(Platform)'!='x64'">$(IntDir)\amd64</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\stackframe.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+      <ObjectFileName Condition="'$(Platform)'!='ARM'">$(IntDir)\arm</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm64\stackframe.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+      <ObjectFileName Condition="'$(Platform)'!='Arm64'">$(IntDir)\arm64</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)i386\AsmJSJitTemplate.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32'">true</ExcludedFromBuild>
+      <ObjectFileName Condition="'$(Platform)'!='Win32'">$(IntDir)\i386</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\AsmJSJitTemplate.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+      <ObjectFileName Condition="'$(Platform)'!='x64'">$(IntDir)\amd64</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJSCodeGenerator.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32' AND '$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJSEncoder.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32' AND '$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJS.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJSBytecodeGenerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJSLink.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJSModule.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJSTypes.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)AsmJSUtils.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CacheOperators.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CodeGenRecyclableData.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DynamicProfileInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DynamicProfileMutator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DynamicProfileStorage.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ExecutionMode.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FunctionCodeGenJitTimeData.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FunctionCodeGenRuntimeData.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InlineCache.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptExceptionObject.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptExceptionOperators.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptMathOperators.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ProfilingHelpers.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ReadOnlyDynamicProfileInfo.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDFloat32x4Operation.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM' AND '$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDfloat32x4OperationX86X64.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32' AND '$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDInt32x4Operation.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM' AND '$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDInt32x4OperationX86X64.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32' AND '$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDInt8x16Operation.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM' AND '$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDInt8x16OperationX86X64.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32' AND '$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDFloat64x2Operation.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM' AND '$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDfloat64x2OperationX86X64.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32' AND '$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)SIMDUtils.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SourceDynamicProfileManager.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)StackTraceArguments.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)TaggedInt.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ValueType.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InterpreterStackFrame.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptConversion.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptOperators.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptStackWalker.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)RuntimeLanguagePch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)JavascriptNativeOperators.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="amd64\stackframe.h">
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="arm\stackframe.h">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="AsmJS.h" />
+    <ClInclude Include="AsmJSBytecodeGenerator.h" />
+    <ClInclude Include="AsmJSCodeGenerator.h" />
+    <ClInclude Include="AsmJSEncoder.h">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32' AND '$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="AsmJSJitTemplate.h" />
+    <ClInclude Include="AsmJSLink.h" />
+    <ClInclude Include="AsmJSModule.h" />
+    <ClInclude Include="AsmJsBuiltinNames.h" />
+    <ClInclude Include="AsmJSTypes.h" />
+    <ClInclude Include="AsmJSUtils.h" />
+    <ClInclude Include="CacheOperators.h" />
+    <ClInclude Include="i386\AsmJsInstructionTemplate.h">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="InterpreterProcessOpCodeAsmJs.h" />
+    <ClInclude Include="CodeGenRecyclableData.h" />
+    <ClInclude Include="DynamicProfileInfo.h" />
+    <ClInclude Include="DynamicProfileMutator.h" />
+    <ClInclude Include="DynamicProfileStorage.h" />
+    <ClInclude Include="EvalMapRecord.h" />
+    <ClInclude Include="ExecutionMode.h" />
+    <ClInclude Include="ExecutionModes.h" />
+    <ClInclude Include="FunctionCodeGenJitTimeData.h" />
+    <ClInclude Include="FunctionCodeGenRuntimeData.h" />
+    <ClInclude Include="i386\stackframe.h">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="InlineCache.h" />
+    <ClInclude Include="InlineCachePointerArray.h" />
+    <ClInclude Include="JavascriptExceptionOperators.h" />
+    <ClInclude Include="JavascriptMathOperators.h" />
+    <ClInclude Include="JavascriptNativeOperators.h" />
+    <ClInclude Include="ProfilingHelpers.h" />
+    <ClInclude Include="ReadOnlyDynamicProfileInfo.h" />
+    <ClInclude Include="SourceDynamicProfileManager.h" />
+    <ClInclude Include="StackTraceArguments.h" />
+    
+    <ClInclude Include="ValueType.h" />
+    <ClInclude Include="Arguments.h" />
+    <ClInclude Include="InterpreterStackFrame.h" />
+    <ClInclude Include="JavascriptConversion.h" />
+    <ClInclude Include="JavascriptExceptionContext.h" />
+    <ClInclude Include="JavascriptExceptionObject.h" />
+    <ClInclude Include="JavascriptOperators.h" />
+    <ClInclude Include="JavascriptFunctionArgIndex.h" />
+    <ClInclude Include="JavascriptStackWalker.h" />
+    <ClInclude Include="SIMDFloat32x4Operation.h" />
+    <ClInclude Include="SIMDFloat64x2Operation.h" />
+    <ClInclude Include="SIMDInt32x4Operation.h" />
+    <ClInclude Include="SIMDInt8x16Operation.h" />
+    <ClInclude Include="SimdOps.h" />
+    <ClInclude Include="SIMDUtils.h" />
+    <ClInclude Include="TaggedInt.h" />
+    <ClInclude Include="RuntimeLanguagePch.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="$(MSBuildThisFileDirectory)amd64\JavascriptOperatorsA.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </MASM>
+    <MASM Include="$(MSBuildThisFileDirectory)amd64\amd64_Thunks.asm">
+      <PreprocessorDefinitions Condition="'$(BuildJIT)'!='false'">%(PreprocessorDefinitions);_ENABLE_DYNAMIC_THUNKS=1</PreprocessorDefinitions>
+      <ExcludedFromBuild Condition="'$(Platform)'!='x64'">true</ExcludedFromBuild>
+    </MASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_Thunks.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_CallEhFrame.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='ARM'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_Thunks.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_CallEhFrame.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'!='Arm64'">true</ExcludedFromBuild>
+    </ARMASM>
+    <None Include="amd64\stackframe.inl" />
+    <None Include="AsmJSEncoder.inl" />
+    <None Include="AsmJSEncoderHandler.inl" />
+    <None Include="CacheOperators.inl" />
+    <None Include="i386\AsmJsInstructionTemplate.inl" />
+    <None Include="InlineCache.inl" />
+    <None Include="InlineCachePointerArray.inl" />
+    <None Include="InterpreterHandler.inl" />
+    <None Include="InterpreterHandlerAsmJs.inl" />
+    <None Include="InterpreterLoop.inl" />
+    <None Include="JavascriptMathOperators.inl" />
+    <None Include="JavascriptConversion.inl" />
+    <None Include="JavascriptOperators.inl" />
+    <None Include="TaggedInt.inl" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')"/>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+    <Import Project="$(BuildConfig_ARMASM_Path)armasm.targets" />
+  </ImportGroup>
+</Project>

@@ -1,0 +1,4 @@
+HasFuncDecl: test
+HasMaybeEscapedNestedFunc (CrossFuncAssignment): test (function  (#1.1), #2)
+test1
+test2

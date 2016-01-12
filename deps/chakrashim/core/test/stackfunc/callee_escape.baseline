@@ -1,0 +1,11 @@
+HasFuncDecl: test
+HasFuncDecl: nested
+HasFuncDecl: escape
+HasMaybeEscapedUse: glo
+HasMaybeEscapedUse: arguments
+DoStackNestedFunc: test (function  (#1.1), #2)
+StackScriptFunction (callee): box and disable stack function: escape (function  (#1.3), #4)
+Boxing StackScriptFunction Object: escape (function Id:  (#1.3), #4)
+Boxing StackScriptFunction Object: nested (function Id:  (#1.2), #3)
+Boxing Frame [Interpreted]: test  (#1.1), #2
+test1

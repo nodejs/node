@@ -1,0 +1,71 @@
+*** Running test #1 (test01): 8.12.9.4.a (variation 1): define generic property, check default attrbitues
+PASSED
+*** Running test #2 (test02): 8.12.9.4.a (variation 2): define data property, check default attrbitues
+PASSED
+*** Running test #3 (test03): 8.12.9.4.a (variation 3): define generic property by specifying some attributes, check attrbitues
+PASSED
+*** Running test #4 (test04): 8.12.9.4.b: define accessor property, check default attrbitues
+PASSED
+*** Running test #5 (test05): 8.12.9.5: re-define property: use descriptor with all fields absent, check that nothing happens to previous descriptor
+PASSED
+*** Running test #6 (test06): 8.12.9.6: re-define property: use equal descriptor with data field, check that nothing happens to previous descriptor
+PASSED
+*** Running test #7 (test07): 8.12.9.7.a: re-define property: current descriptor is not configurable and descriptor is configurable, check that it throws TypeError
+PASSED
+*** Running test #8 (test08): 8.12.9.7.b (variation 1): re-define property: current descriptor is not configurable and descriptor enumerable is specified and it's negation of current enumerable, check that it throws TypeError
+PASSED
+*** Running test #9 (test09): 8.12.9.7.b (variation 2): re-define property: current descriptor is not configurable and descriptor enumerable is not specified, check that it does not throw
+PASSED
+*** Running test #10 (test10): 8.12.9.7.b (variation 3): re-define property: current descriptor is not configurable and descriptor enumerable is same as current enumerable, check that it does not throw
+PASSED
+*** Running test #11 (test11): 8.12.9.8: re-define property: descriptor is not empty, generic and is different from current
+PASSED
+*** Running test #12 (test12): 8.12.9.9.a: re-define property: descriptor.IsData != current.IsData and current is not configurable, check that it throws TypeError
+PASSED
+*** Running test #13 (test13): 8.12.9.9.b (variation 1): re-define property: convert from data to accessor descriptor, check that configurable/enumerable (true) are preserved
+PASSED
+*** Running test #14 (test14): 8.12.9.9.b (variation 2): re-define property: convert from data to accessor descriptor, check that enumerable (false) is preserved
+PASSED
+*** Running test #15 (test15): 8.12.9.9.b (variation 3): re-define property: convert from data to accessor descriptor, check that configurable/enumerable not preserved when specified by descriptor
+PASSED
+*** Running test #16 (test16): 8.12.9.9.c (variation 1): re-define property: convert from accessor to data descriptor, check that configurable/enumerable (true) are preserved
+PASSED
+*** Running test #17 (test17): 8.12.9.9.c (variation 2): re-define property: convert from accessor to data descriptor, check that enumerable (false) is preserved
+PASSED
+*** Running test #18 (test18): 8.12.9.9.c (variation 3): re-define property: convert from accessor to data descriptor, check that configurable/enumerable (true/false) not preserved when specified by descriptor (false/absent)
+PASSED
+*** Running test #19 (test19): 8.12.9.9.c (variation 4): re-define property: convert from accessor to data descriptor, check that configurable/enumerable (true/true) not preserved when specified by descriptor (absent/false)
+PASSED
+*** Running test #20 (test20): 8.12.9.10.a (variation 1): re-define data property: current is not configurable/not writable and descriptor writable is absent/value is same
+PASSED
+*** Running test #21 (test21): 8.12.9.10.a.i: re-define data property: current is not configurable/not writable and descriptor is writable, check that it throws TypeError
+PASSED
+*** Running test #22 (test22): 8.12.9.10.a.ii: re-define data property: current is not configurable/not writable and descriptor writable is false and value is different, check that it throws TypeError
+PASSED
+*** Running test #23 (test23): 8.12.9.10.a (variation 2): re-define data property: current is configurable
+PASSED
+*** Running test #24 (test24): Test: 8.12.9.11 (variation 1): re-define accessor property: curent configurable is true: valid case
+PASSED
+*** Running test #25 (test25): 8.12.9.11.a.i: re-define accessor property: curent configurable is false, descriptor specifies setter as different, expect TypeError
+PASSED
+*** Running test #26 (test26): 8.12.9.11.a.ii: re-define accessor property: curent configurable is false, descriptor specifies getter as different, expect TypeError
+PASSED
+*** Running test #27 (test27): 8.12.9.11 (variation 2): re-define accessor property: curent configurable is true and no getter, descriptor specifies getter as undefined, setter as same
+PASSED
+*** Running test #28 (test28): Re-define property from data to accessor property. Make sure that setter is called when setting the value.
+PASSED
+*** Running test #29 (test29): Define property 'length' as accessor property on array: check that it throws TypeError.
+PASSED
+*** Running test #30 (test30): Define property with getter specified as undefined, then access the property (WOOB bug 1123281)
+PASSED
+*** Running test #31 (test31): Define property with setter specified as undefined, then set the property (WOOB bug 1123281)
+PASSED
+*** Running test #32 (test32): Convert data to accessor property with getter specified as undefined, then access the property (WOOB bug 1123281)
+PASSED
+*** Running test #33 (test33): Convert data to accessor property with setter specified as undefined, then set the property (WOOB bug 1123281)
+PASSED
+*** Running test #34 (test34): Convert accessor to a data property for non-extensible object (WIN8 bug 463559)
+PASSED
+*** Running test #35 (test_last_01): 8.12.9.3: define property for non-extensible object, check that it throws TypeError
+PASSED
+Summary of tests: total executed: 35; passed: 35; failed: 0

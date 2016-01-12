@@ -1,0 +1,10 @@
+HasFuncDecl: test
+HasFuncDecl: simple_stackfunc
+HasFuncDecl: test
+HasFuncDecl: simple_stackfunc
+DoStackNestedFunc: test (function  (#1.1), #2)
+HasFuncDecl: simple_stackfunc
+RestoreHasFuncAssignment: simple_stackfunc
+HasMaybeEscapedUse: i
+1
+1

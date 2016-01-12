@@ -1,0 +1,6 @@
+o.x : 10
+o.value : 10
+Return: Property named eval
+o.x : 10
+o.value : 10
+Return: Property named arguments

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ProjectSchemaDefinitions xmlns="http://schemas.microsoft.com/build/2009/properties" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=mscorlib">
+  <Rule
+    Name="ARMASM"
+    PageTemplate="tool"
+    DisplayName="Microsoft Macro Assembler"
+    Order="200">
+    <Rule.DataSource>
+      <DataSource
+        Persistence="ProjectFile"
+        ItemType="ARMASM" />
+    </Rule.DataSource>
+    <Rule.Categories>
+      <Category
+        Name="General">
+        <Category.DisplayName>
+          <sys:String>General</sys:String>
+        </Category.DisplayName>
+      </Category>
+      <Category
+        Name="Command Line"
+        Subtype="CommandLine">
+        <Category.DisplayName>
+          <sys:String>Command Line</sys:String>
+        </Category.DisplayName>
+      </Category>
+    </Rule.Categories>
+    <StringProperty
+      Name="Inputs"
+      Category="Command Line"
+      IsRequired="true">
+      <StringProperty.DataSource>
+        <DataSource
+          Persistence="ProjectFile"
+          ItemType="ARMASM"
+          SourceType="Item" />
+      </StringProperty.DataSource>
+    </StringProperty>
+    <BoolProperty
+      Name="GenerateDebugInformation"
+      DisplayName="Generate Debug Information"
+      Description="Generates Debug Information.     (-g)"
+      Switch="-g" />
+    <StringProperty
+      Name="ObjectFileName"
+      Category="Object File"
+      DisplayName="Object File Name"
+      Description="Specifies the name of the output object file.     (/Fo:[file])"
+      Switch="-o &quot;[value]&quot;" />
+    <StringListProperty
+      Name="IncludePaths"
+      HelpUrl="http://msdn.microsoft.com/library/default.asp?url=/library/en-us/vcmasm/html/vclrfml.asp"
+      DisplayName="Include Paths"
+      Description="Sets path for include file. A maximum of 10 /I options is allowed.     (/I [path])"
+      Switch="-I &quot;[value]&quot;" />
+    <EnumProperty
+      Name="ErrorReporting"
+      Category="Advanced"
+      HelpUrl="http://msdn.microsoft.com/library/default.asp?url=/library/en-us/vcmasm/html/vclrfml.asp"
+      DisplayName="Error Reporting"
+      Description="Reports internal assembler errors to Microsoft.     (/errorReport:[method])">
+      <EnumValue
+        Name="0"
+        DisplayName="Prompt to send report immediately (/errorReport:prompt)"
+        Switch="-errorReport:prompt" />
+      <EnumValue
+        Name="1"
+        DisplayName="Prompt to send report at the next logon (/errorReport:queue)"
+        Switch="-errorReport:queue" />
+      <EnumValue
+        Name="2"
+        DisplayName="Automatically send report (/errorReport:send)"
+        Switch="-errorReport:send" />
+      <EnumValue
+        Name="3"
+        DisplayName="Do not send report (/errorReport:none)"
+        Switch="-errorReport:none" />
+    </EnumProperty>
+    <StringProperty
+      Name="CommandLineTemplate"
+      DisplayName="Command Line"
+      Visible="False"
+      IncludeInCommandLine="False" />
+    <DynamicEnumProperty
+     Name="ARMASMBeforeTargets"
+     Category="General"
+     EnumProvider="Targets"
+     IncludeInCommandLine="False">
+      <DynamicEnumProperty.DisplayName>
+        <sys:String>Execute Before</sys:String>
+      </DynamicEnumProperty.DisplayName>
+      <DynamicEnumProperty.Description>
+        <sys:String>Specifies the targets for the build customization to run before.</sys:String>
+      </DynamicEnumProperty.Description>
+      <DynamicEnumProperty.ProviderSettings>
+        <NameValuePair
+          Name="Exclude"
+          Value="^ARMASMBeforeTargets|^Compute" />
+      </DynamicEnumProperty.ProviderSettings>
+      <DynamicEnumProperty.DataSource>
+        <DataSource
+          Persistence="ProjectFile"
+          ItemType=""
+          HasConfigurationCondition="true" />
+      </DynamicEnumProperty.DataSource>
+    </DynamicEnumProperty>
+    <DynamicEnumProperty
+      Name="ARMASMAfterTargets"
+      Category="General"
+      EnumProvider="Targets"
+      IncludeInCommandLine="False">
+      <DynamicEnumProperty.DisplayName>
+        <sys:String>Execute After</sys:String>
+      </DynamicEnumProperty.DisplayName>
+      <DynamicEnumProperty.Description>
+        <sys:String>Specifies the targets for the build customization to run after.</sys:String>
+      </DynamicEnumProperty.Description>
+      <DynamicEnumProperty.ProviderSettings>
+        <NameValuePair
+          Name="Exclude"
+          Value="^ARMASMAfterTargets|^Compute" />
+      </DynamicEnumProperty.ProviderSettings>
+      <DynamicEnumProperty.DataSource>
+        <DataSource
+          Persistence="ProjectFile"
+          ItemType=""
+          HasConfigurationCondition="true" />
+      </DynamicEnumProperty.DataSource>
+    </DynamicEnumProperty>
+    <StringProperty
+      Name="ExecutionDescription"
+      DisplayName="Execution Description"
+      IncludeInCommandLine="False"
+      Visible="False" />
+    <StringListProperty
+      Name="AdditionalDependencies"
+      DisplayName="Additional Dependencies"
+      IncludeInCommandLine="False"
+      Visible="False" />
+    <StringProperty
+      Subtype="AdditionalOptions"
+      Name="AdditionalOptions"
+      Category="Command Line">
+      <StringProperty.DisplayName>
+        <sys:String>Additional Options</sys:String>
+      </StringProperty.DisplayName>
+      <StringProperty.Description>
+        <sys:String>Additional Options</sys:String>
+      </StringProperty.Description>
+    </StringProperty>
+  </Rule>
+  <ItemType
+    Name="ARMASM"
+    DisplayName="Microsoft ARM Macro Assembler" />
+  <FileExtension
+    Name="*.asm"
+    ContentType="ARMASM" />
+  <ContentType
+    Name="ARMASM"
+    DisplayName="Microsoft ARM Macro Assembler"
+    ItemType="ARMASM" />
+</ProjectSchemaDefinitions>

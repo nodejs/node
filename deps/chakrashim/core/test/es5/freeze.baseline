@@ -1,0 +1,14 @@
+TestCase1
+1
+false
+TestCase2 - freeze & add a property
+x,y
+true
+TestCase3 - freeze & delete a property
+x,y
+true
+20
+TestCase4 - freeze & modify a property
+x,y
+true
+20

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="$(MsBuildThisFileDirectory)..\StdAfx.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)AsmJS.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)AsmJSBytecodeGenerator.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)AsmJSCodeGenerator.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)AsmJSEncoder.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)AsmJSLink.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)AsmJSModule.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)AsmJSTypes.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)AsmJSUtils.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ByteCodeSerializer.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)CacheOperators.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)CallInfo.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)CodeGenRecyclableData.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DynamicProfileInfo.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DynamicProfileMutator.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DynamicProfileStorage.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ExecutionMode.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)FunctionCodeGenJitTimeData.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)FunctionCodeGenRuntimeData.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)InlineCache.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)JavascriptExceptionOperators.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)JavascriptMathOperators.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ProfilingHelpers.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)PropertyRecord.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ReadOnlyDynamicProfileInfo.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)SourceDynamicProfileManager.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)SourceHolder.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)StackTraceArguments.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)Utf8SourceInfo.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ValueType.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ScriptContextOptimizationOverrideInfo.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)DiagHelperMethodWrapper.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)InterpreterStackFrame.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)JavascriptConversion.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)JavascriptOperators.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)JavascriptStackWalker.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ScriptContext.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)ScriptContextProfiler.cpp" />
+    <ClCompile Include="$(MsBuildThisFileDirectory)amd64\AsmJSJitTemplate.cpp">
+      <Filter>amd64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)i386\AsmJSJitTemplate.cpp">
+      <Filter>i386</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)amd64\stackframe.cpp">
+      <Filter>amd64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)i386\stackframe.cpp">
+      <Filter>i386</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm64\stackframe.cpp">
+      <Filter>arm64</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)arm\stackframe.cpp">
+      <Filter>arm</Filter>
+    </ClCompile>
+    <ClCompile Include="JavascriptNativeOperators.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AsmJS.h" />
+    <ClInclude Include="AsmJSBytecodeGenerator.h" />
+    <ClInclude Include="AsmJSCodeGenerator.h" />
+    <ClInclude Include="AsmJSEncoder.h" />
+    <ClInclude Include="AsmJSJitTemplate.h" />
+    <ClInclude Include="AsmJSLink.h" />
+    <ClInclude Include="AsmJSModule.h" />
+    <ClInclude Include="AsmJSUtils.h" />
+    <ClInclude Include="byteCodeCacheReleaseFileVersion.h" />
+    <ClInclude Include="CacheOperators.h" />
+    <ClInclude Include="InterpreterProcessOpCodeAsmJs.h" />
+    <ClInclude Include="CodeGenRecyclableData.h" />
+    <ClInclude Include="DynamicProfileInfo.h" />
+    <ClInclude Include="DynamicProfileMutator.h" />
+    <ClInclude Include="DynamicProfileStorage.h" />
+    <ClInclude Include="EvalMapRecord.h" />
+    <ClInclude Include="ExecutionMode.h" />
+    <ClInclude Include="ExecutionModes.h" />
+    <ClInclude Include="FunctionCodeGenJitTimeData.h" />
+    <ClInclude Include="FunctionCodeGenRuntimeData.h" />
+    <ClInclude Include="InlineCache.h" />
+    <ClInclude Include="InlineCachePointerArray.h" />
+    <ClInclude Include="JavascriptExceptionOperators.h" />
+    <ClInclude Include="JavascriptMathOperators.h" />
+    <ClInclude Include="LeaveScriptObject.h" />
+    <ClInclude Include="ProfilingHelpers.h" />
+    <ClInclude Include="PropertyRecord.h" />
+    <ClInclude Include="ReadOnlyDynamicProfileInfo.h" />
+    <ClInclude Include="SourceDynamicProfileManager.h" />
+    <ClInclude Include="SourceHolder.h" />
+    <ClInclude Include="StackTraceArguments.h" />
+    <ClInclude Include="Utf8SourceInfo.h" />
+    <ClInclude Include="ValueType.h" />
+    <ClInclude Include="ScriptContextOptimizationOverrideInfo.h" />
+    <ClInclude Include="Arguments.h" />
+    <ClInclude Include="CallInfo.h" />
+    <ClInclude Include="DiagHelperMethodWrapper.h" />
+    <ClInclude Include="InterpreterStackFrame.h" />
+    <ClInclude Include="JavascriptConversion.h" />
+    <ClInclude Include="JavascriptOperators.h" />
+    <ClInclude Include="JavascriptFunctionArgIndex.h" />
+    <ClInclude Include="JavascriptStackWalker.h" />
+    <ClInclude Include="ScriptContext.h" />
+    <ClInclude Include="ScriptContextProfiler.h" />
+    <ClInclude Include="i386\AsmJsInstructionTemplate.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="amd64\stackframe.h">
+      <Filter>amd64</Filter>
+    </ClInclude>
+    <ClInclude Include="i386\stackframe.h">
+      <Filter>i386</Filter>
+    </ClInclude>
+    <ClInclude Include="arm\stackframe.h">
+      <Filter>arm</Filter>
+    </ClInclude>
+    <ClInclude Include="ByteCodeSerializeFlags.h" />
+    <ClInclude Include="ScriptContextBase.h" />
+    <ClInclude Include="AsmJSTypes.h" />
+    <ClInclude Include="AsmJsBuiltinNames.h" />
+    <ClInclude Include="JavascriptNativeOperators.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="$(MSBuildThisFileDirectory)amd64\amd64_Thunks.asm">
+      <Filter>amd64</Filter>
+    </MASM>
+    <MASM Include="$(MSBuildThisFileDirectory)amd64\JavascriptOperatorsA.asm">
+      <Filter>amd64</Filter>
+    </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="AsmJSEncoder.inl" />
+    <None Include="AsmJSEncoderHandler.inl" />
+    <None Include="CacheOperators.inl" />
+    <None Include="InlineCache.inl" />
+    <None Include="InlineCachePointerArray.inl" />
+    <None Include="InterpreterHandler.inl" />
+    <None Include="InterpreterHandlerAsmJs.inl" />
+    <None Include="InterpreterLoop.inl" />
+    <None Include="JavascriptExceptionOperators.inl" />
+    <None Include="JavascriptMathOperators.inl" />
+    <None Include="JavascriptObject.inl" />
+    <None Include="InterpreterStackFrame.inl" />
+    <None Include="JavascriptConversion.inl" />
+    <None Include="JavascriptOperators.inl" />
+    <None Include="ScriptContext.inl" />
+    <None Include="DiagHelperMethodWrapper.inl" />
+    <None Include="amd64\stackframe.inl">
+      <Filter>amd64</Filter>
+    </None>
+    <None Include="i386\AsmJsInstructionTemplate.inl">
+      <Filter>i386</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="amd64">
+      <UniqueIdentifier>{4e93923e-1e63-4f8e-93ab-4015a8f4dfe2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="arm">
+      <UniqueIdentifier>{f9327b60-3e20-4b93-b8ff-835fab180090}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="arm64">
+      <UniqueIdentifier>{88887430-4252-4438-a157-ff7b193085a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="i386">
+      <UniqueIdentifier>{dd87d172-424d-422f-8c0c-23f324878ed6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_Thunks.asm">
+      <Filter>arm</Filter>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm\arm_CallEhFrame.asm">
+      <Filter>arm</Filter>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_Thunks.asm">
+      <Filter>arm64</Filter>
+    </ARMASM>
+    <ARMASM Include="$(MSBuildThisFileDirectory)arm64\arm64_CallEhFrame.asm">
+      <Filter>arm64</Filter>
+    </ARMASM>
+  </ItemGroup>
+</Project>

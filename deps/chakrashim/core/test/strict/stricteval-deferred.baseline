@@ -1,0 +1,2 @@
+SyntaxError: Invalid usage of 'eval' in strict mode
+	at code (stricteval-deferred.js:8:66)

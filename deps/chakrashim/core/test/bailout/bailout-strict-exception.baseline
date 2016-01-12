@@ -1,0 +1,6 @@
+RangeError: Array length must be assigned a finite positive integer
+RangeError: Array length must be assigned a finite positive integer
+obj1.prop0 = 0
+obj1.prop0 = 0
+TypeError: Assignment to read-only properties is not allowed in strict mode
+obj1.prop0 = 0

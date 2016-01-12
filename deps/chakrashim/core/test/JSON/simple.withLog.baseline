@@ -1,0 +1,52 @@
+---------------
+level 1:
+{"a":1, "b":2}
+JSON:ScanString(): direct-mapped string as 'a'
+JSON:ScanString(): direct-mapped string as 'b'
+JSON.Parse result - [object Object]
+level 1:a: 1
+level 1:b: 2
+---------------
+---------------
+level 1+:
+{"a":1, "b":2}
+JSON:ScanString(): direct-mapped string as 'a'
+JSON:ScanString(): direct-mapped string as 'b'
+JSON.Parse result - [object Object]
+level 1+:a: 1
+level 1+:b: 2
+---------------
+---------------
+level 1:
+{"a":{"aa":10, "ab":11}, "b":{"ba":"this is\t a test!", "bb":"a"}}
+JSON:ScanString(): direct-mapped string as 'a'
+JSON:ScanString(): direct-mapped string as 'aa'
+JSON:ScanString(): direct-mapped string as 'ab'
+JSON:ScanString(): direct-mapped string as 'b'
+JSON:ScanString(): direct-mapped string as 'ba'
+JSON:BuildUnescapedString(): unescaped string as 'this is	 a test!'
+JSON:ScanString(): direct-mapped string as 'bb'
+JSON:ScanString(): direct-mapped string as 'a'
+JSON.Parse result - [object Object]
+level 1:a: [object Object]
+level 1:b: [object Object]
+---------------
+---------------
+level 1+:
+{"a":{"aa":10, "ab":11}, "b":{"ba":"this is\t a test!", "bb":"a"}}
+JSON:ScanString(): direct-mapped string as 'a'
+JSON:ScanString(): direct-mapped string as 'aa'
+JSON:ScanString(): direct-mapped string as 'ab'
+JSON:ScanString(): direct-mapped string as 'b'
+JSON:ScanString(): direct-mapped string as 'ba'
+JSON:BuildUnescapedString(): unescaped string as 'this is	 a test!'
+JSON:ScanString(): direct-mapped string as 'bb'
+JSON:ScanString(): direct-mapped string as 'a'
+JSON.Parse result - [object Object]
+level 1+:a: [object Object]
+level 1+:  aa: 10
+level 1+:  ab: 11
+level 1+:b: [object Object]
+level 1+:  ba: this is	 a test!
+level 1+:  bb: a
+---------------

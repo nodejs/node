@@ -1,0 +1,123 @@
+Global member missing
+  ReferenceError
+
+Global member undefined
+  Evaluate arg list
+  TypeError
+
+Global member null
+  Evaluate arg list
+  TypeError
+
+Global member is not callable
+  Evaluate arg list
+  TypeError
+
+Global member getter returns undefined
+  Evaluate arg list
+  TypeError
+
+Global member getter returns null
+  Evaluate arg list
+  TypeError
+
+
+Global member missing via property reference via dot syntax
+  Evaluate arg list
+  TypeError
+
+Global member undefined via property reference via dot syntax
+  Evaluate arg list
+  TypeError
+
+Global member null via property reference via dot syntax
+  Evaluate arg list
+  TypeError
+
+Global member is not callable via property reference via dot syntax
+  Evaluate arg list
+  TypeError
+
+Global member getter returns undefined via property reference via dot syntax
+  Evaluate arg list
+  TypeError
+
+Global member getter returns null via property reference via dot syntax
+  Evaluate arg list
+  TypeError
+
+
+Global member missing via property reference via element access syntax
+  Evaluate arg list
+  TypeError
+
+Global member undefined via property reference via element access syntax
+  Evaluate arg list
+  TypeError
+
+Global member null via property reference via element access syntax
+  Evaluate arg list
+  TypeError
+
+Global member is not callable via property reference via element access syntax
+  Evaluate arg list
+  TypeError
+
+Global member getter returns undefined via property reference via element access syntax
+  Evaluate arg list
+  TypeError
+
+Global member getter returns null via property reference via element access syntax
+  Evaluate arg list
+  TypeError
+
+
+Object member missing
+  Evaluate arg list
+  TypeError
+
+Object member undefined
+  Evaluate arg list
+  TypeError
+
+Object member null
+  Evaluate arg list
+  TypeError
+
+Object member is not callable
+  Evaluate arg list
+  TypeError
+
+Object member getter returns undefined
+  Evaluate arg list
+  TypeError
+
+Object member getter returns null
+  Evaluate arg list
+  TypeError
+
+
+Object element missing
+  Evaluate arg list
+  TypeError
+
+Object element undefined
+  Evaluate arg list
+  TypeError
+
+Object element null
+  Evaluate arg list
+  TypeError
+
+Object element is not callable
+  Evaluate arg list
+  TypeError
+
+Object element getter returns undefined
+  Evaluate arg list
+  TypeError
+
+Object element getter returns null
+  Evaluate arg list
+  TypeError
+

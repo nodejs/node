@@ -1,0 +1,120 @@
+Test 01:
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 02:
+o = ,,,,,,,,, ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = ,,,,,,,,, ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = ,,,,,,,,, ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 03:
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 04:
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+
+Test 11:
+o = false ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = false ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = false ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 12:
+o = true ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = true ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = true ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 13:
+o = false ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = false ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = false ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 14:
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+
+Test 21:
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 22:
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 23:
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = 0 ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 24:
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+
+Test 31:
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 32:
+o = text ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = text ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = text ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 33:
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o =  ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 34:
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+
+Test 41:
+o = Tue Dec 03 2013 00:00:00 GMT-0800 (Pacific Standard Time) ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = Tue Dec 03 2013 00:00:00 GMT-0800 (Pacific Standard Time) ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = Tue Dec 03 2013 00:00:00 GMT-0800 (Pacific Standard Time) ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 42:
+o = Tue Dec 03 2013 00:00:00 GMT-0800 (Pacific Standard Time) ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = Tue Dec 03 2013 00:00:00 GMT-0800 (Pacific Standard Time) ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = Tue Dec 03 2013 00:00:00 GMT-0800 (Pacific Standard Time) ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 43:
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1041, q: 1042, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1041, q: 1042, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1041, q: 1042, x: 4, y: 5 })
+
+Test 51:
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 52:
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: 1041, q: 1042, x: 4, y: 5 })
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: 1041, q: 1042, x: 4, y: 5 })
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: 1041, q: 1042, x: 4, y: 5 })
+
+Test 53:
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+o = [object Object] ({ a: undefined, b: undefined, c: undefined, p: undefined, q: undefined, x: 4, y: 5 })
+
+Test 54:
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1001, q: 1002, x: 4, y: 5 })
+
+Test 55:
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1041, q: 1042, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1041, q: 1042, x: 4, y: 5 })
+o = [object Object] ({ a: 1, b: 2, c: 3, p: 1041, q: 1042, x: 4, y: 5 })
+

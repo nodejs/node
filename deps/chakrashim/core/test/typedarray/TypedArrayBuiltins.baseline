@@ -1,0 +1,3 @@
+*** Running test #1 (0): TypedArray builtin properties can't be overwritten, but writing to them does not throw an error
+PASSED
+Summary of tests: total executed: 1; passed: 1; failed: 0

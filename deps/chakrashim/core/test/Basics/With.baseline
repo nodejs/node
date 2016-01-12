@@ -1,0 +1,26 @@
+4
+y.j
+1
+99
+undefined
+null
+3
+99
+4
+99
+0
+undefined
+undefined
+undefined
+x.k
+null
+x.foo
+local.i
+5
+ReferenceError: 'f' is undefined
+abcd
+O.evalinwith
+local evalinwith
+global evalinwith
+Value of level1 after assignment at level 1: level1
+a is called

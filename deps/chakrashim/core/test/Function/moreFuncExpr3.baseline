@@ -1,0 +1,13 @@
+Decalaration Test1
+Decalaration Test1
+Expression Test1
+Test2: Greater 0
+Test2: Less 0
+Test3 factorial : 6
+Second declaration of Test4
+Second declaration of Test4
+Test5 factorial : -3
+function Test6()
+{
+    write(Test6)
+}

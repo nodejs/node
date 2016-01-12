@@ -1,0 +1,178 @@
+Test length : eval:               1
+Test length : parseInt:           2
+Test length : parseFloat:         1
+Test length : isNaN:              1
+Test length : isFinite:           1
+Test length : decodeURI:          1
+Test length : decodeURIComponent: 1
+Test length : encodeURI:          1
+Test length : encodeURIComponent: 1
+
+Test length : Object:                                 1
+Test length : Object.prototype.constructor:           1
+Test length : Object.prototype.hasOwnProperty:        1
+Test length : Object.prototype.propertyIsEnumerable:  1
+Test length : Object.prototype.isPrototypeOf:         1
+Test length : Object.prototype.toString:              0
+Test length : Object.prototype.toLocaleString:        0
+Test length : Object.prototype.valueOf:               0
+
+Test length : Array:                          1
+Test length : Array.prototype.constructor:    1
+Test length : Array.prototype.concat:         1
+Test length : Array.prototype.join:           1
+Test length : Array.prototype.reverse:        0
+Test length : Array.prototype.shift:          0
+Test length : Array.prototype.slice:          2
+Test length : Array.prototype.sort:           1
+Test length : Array.prototype.splice:         2
+Test length : Array.prototype.toLocaleString: 0
+Test length : Array.prototype.toString:       0
+Test length : Array.prototype.unshift:        1
+
+Test length : Error :                                 1
+Test length : Error.prototype.constructor :           1
+Test length : Error.prototype.toString :              0
+
+Test length : EvalError :                             1
+Test length : EvalError.prototype.constructor :       1
+Test length : EvalError.prototype.toString :          0
+
+Test length : RangeError :                            1
+Test length : RangeError.prototype.constructor :      1
+Test length : RangeError.prototype.toString :         0
+
+Test length : ReferenceError :                        1
+Test length : ReferenceError.prototype.constructor :  1
+Test length : ReferenceError.prototype.toString :     0
+
+Test length : SyntaxError :                           1
+Test length : SyntaxError.prototype.constructor :     1
+Test length : SyntaxError.prototype.toString :        0
+
+Test length : TypeError :                             1
+Test length : TypeError.prototype.constructor :       1
+Test length : TypeError.prototype.toString :          0
+
+Test length : URIError :                              1
+Test length : URIError.prototype.constructor :        1
+Test length : URIError.prototype.toString :           0
+
+Test length : Boolean :                               1
+Test length : Boolean.prototype.constructor :         1
+Test length : Boolean.prototype.toString :            0
+Test length : Boolean.prototype.valueOf :             0
+
+Test length : Date :                              7
+Test length : Date.prototype.constructor :        7
+Test length : Date.parse :                        1
+Test length : Date.UTC :                          7
+Test length : Date.prototype.getDate :            0
+Test length : Date.prototype.getDay :             0
+Test length : Date.prototype.getFullYear :        0
+Test length : Date.prototype.getHours :           0
+Test length : Date.prototype.getMilliseconds :    0
+Test length : Date.prototype.getMinutes :         0
+Test length : Date.prototype.getMonth :           0
+Test length : Date.prototype.getSeconds :         0
+Test length : Date.prototype.getTime :            0
+Test length : Date.prototype.getTimezoneOffset :  0
+Test length : Date.prototype.getUTCDate :         0
+Test length : Date.prototype.getUTCDay :          0
+Test length : Date.prototype.getUTCFullYear :     0
+Test length : Date.prototype.getUTCHours :        0
+Test length : Date.prototype.getUTCMilliseconds : 0
+Test length : Date.prototype.getUTCMinutes :      0
+Test length : Date.prototype.getUTCMonth :        0
+Test length : Date.prototype.getUTCSeconds :      0
+Test length : Date.prototype.getYear :            0
+Test length : Date.prototype.setDate :            1
+Test length : Date.prototype.setFullYear :        3
+Test length : Date.prototype.setHours :           4
+Test length : Date.prototype.setMilliseconds :    1
+Test length : Date.prototype.setMinutes :         3
+Test length : Date.prototype.setMonth :           2
+Test length : Date.prototype.setSeconds :         2
+Test length : Date.prototype.setTime :            1
+Test length : Date.prototype.setUTCDate :         1
+Test length : Date.prototype.setUTCFullYear :     3
+Test length : Date.prototype.setUTCHours :        4
+Test length : Date.prototype.setUTCMilliseconds : 1
+Test length : Date.prototype.setUTCMinutes :      3
+Test length : Date.prototype.setUTCMonth :        2
+Test length : Date.prototype.setUTCSeconds :      2
+Test length : Date.prototype.setYear :            1
+Test length : Date.prototype.toDateString :       0
+Test length : Date.prototype.toLocaleDateString : 0
+Test length : Date.prototype.toLocaleString :     0
+Test length : Date.prototype.toLocaleTimeString : 0
+Test length : Date.prototype.toString :           0
+Test length : Date.prototype.toTimeString :       0
+Test length : Date.prototype.toUTCString :        0
+Test length : Date.prototype.valueOf :            0
+
+Test length : Function :                          1
+Test length : Function.prototype.constructor :    1
+Test length : Function.apply :                    2
+Test length : Function.call :                     1
+Test length : Function.toString :                 0
+
+Test length : Math.abs :    1
+Test length : Math.acos :   1
+Test length : Math.asin :   1
+Test length : Math.atan :   1
+Test length : Math.atan2 :  2
+Test length : Math.ceil :   1
+Test length : Math.cos :    1
+Test length : Math.exp :    1
+Test length : Math.floor :  1
+Test length : Math.log :    1
+Test length : Math.max :    2
+Test length : Math.min :    2
+Test length : Math.pow :    2
+Test length : Math.random : 0
+Test length : Math.round :  1
+Test length : Math.sin :    1
+Test length : Math.sqrt :   1
+Test length : Math.tan :    1
+
+Test length : Number :                            1
+Test length : Number.prototype.constructor :      1
+Test length : Number.prototype.toExponential :    1
+Test length : Number.prototype.toFixed :          1
+Test length : Number.prototype.toPrecision :      1
+Test length : Number.prototype.toLocaleString :   0
+Test length : Number.prototype.toString :         1
+Test length : Number.prototype.valueOf :          0
+
+Test length : RegExp :                        2
+Test length : RegExp.prototype.constructor :  2
+Test length : RegExp.prototype.exec :         1
+Test length : RegExp.prototype.test :         1
+Test length : RegExp.prototype.toString :     0
+
+Test length : String :                             1
+Test length : String.prototype.constructor :       1
+Test length : String.fromCharCode :                1
+Test length : String.prototype.charAt :            1
+Test length : String.prototype.charCodeAt :        1
+Test length : String.prototype.concat :            1
+Test length : String.prototype.indexOf :           1
+Test length : String.prototype.lastIndexOf :       1
+Test length : String.prototype.localeCompare :     1
+Test length : String.prototype.match :             1
+Test length : String.prototype.replace :           2
+Test length : String.prototype.search :            1
+Test length : String.prototype.slice :             2
+Test length : String.prototype.split :             2
+Test length : String.prototype.substring :         2
+Test length : String.prototype.substr :            2
+Test length : String.prototype.toLocaleLowerCase : 0
+Test length : String.prototype.toLocaleUpperCase : 0
+Test length : String.prototype.toLowerCase :       0
+Test length : String.prototype.toString :          0
+Test length : String.prototype.toUpperCase :       0
+Test length : String.prototype.valueOf :           0
+
+Test length : ActiveX :                             1
+Test length : ActiveX.prototype.constructor :       1

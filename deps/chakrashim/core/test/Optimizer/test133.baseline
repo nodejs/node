@@ -1,0 +1,3 @@
+ReferenceError: 'o' is undefined
+	at test0(number) (test133.js:8:9)
+	at Global code (test133.js:12:1)

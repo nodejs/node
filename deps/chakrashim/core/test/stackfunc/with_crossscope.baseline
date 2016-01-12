@@ -1,0 +1,2 @@
+HasFuncDecl: e
+HasMaybeEscapedNestedFunc (InterleavingDynamicScope): Anonymous function (function  (#1.1), #2)

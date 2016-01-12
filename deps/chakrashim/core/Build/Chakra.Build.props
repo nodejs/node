@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="Common.Build.props"/>
+  <PropertyGroup>
+    <Win32_WinNTVersion Condition="'$(NtTargetVersion)'=='$(NtTargetVersion_Win7)'">0x0601</Win32_WinNTVersion>
+    <Win32_WinNTVersion Condition="'$(NtTargetVersion)'=='$(NtTargetVersion_Win8)'">0x0602</Win32_WinNTVersion>
+    <Win32_WinNTVersion Condition="'$(NtTargetVersion)'=='$(NtTargetVersion_Win10)'">0x0A00</Win32_WinNTVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <NoThrowNewLib>nothrownew.obj</NoThrowNewLib>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RunCodeAnalysis)'=='' AND '$(Configuration)'=='Release'">
+    <RunCodeAnalysis>$(BuildWithCodeAnalysis)</RunCodeAnalysis>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>
+        %(PreprocessorDefinitions);
+        _WIN32_WINNT=$(Win32_WinNTVersion);
+        WINVER=$(Win32_WinNTVersion);
+        WIN32_LEAN_AND_MEAN=1
+      </PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(BuildJIT)'=='false'">
+        %(PreprocessorDefinitions);
+        DISABLE_JIT=1
+      </PreprocessorDefinitions>
+      <!-- REVIEW: These are warning are introduced when moving to VS2015 tools, may want to clean these up -->
+      <DisableSpecificWarnings>
+        %(DisableSpecificWarnings);
+        4456;     <!-- declaration of '' hides previous local declaration -->
+        4457;     <!-- declaration of '' hides function parameter -->
+        4458;     <!-- declaration of '' hides class memeber -->
+        4091;     <!-- '': ignore on lef of 'type' when no variable is declared -->
+        4838;     <!-- conversion from 'unsigned int' to 'int requires a narrowing conversion -->
+        4499;     <!-- explicit specialization cannot have a storage class (ignored) -->
+        4463;     <!-- overflow; assigning 1 to bit-field that can only hold values from -1 to 0 -->
+        4311;     <!-- 'type cast': pointer truncation from '' to '' -->
+        4312;     <!-- 'type cast': conversion from '' to '' of greater size -->
+      </DisableSpecificWarnings>
+      <!-- Use the debug CRT in debug build -->
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug' AND '$(RuntimeLib)'!='static_library'">MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug' AND '$(RuntimeLib)'=='static_library'">MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>
+        $(ChakraCoreRootDirectory)\lib\common\placeholder;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+
+      <!-- ======== For Code Covearge ======== -->
+      <Optimization Condition="'$(ENABLE_CODECOVERAGE)'=='true'">Disabled</Optimization>
+    </ClCompile>
+
+    <Link>
+      <!-- ======== For Code Covearge ======== -->
+      <AdditionalOptions Condition="'$(ENABLE_CODECOVERAGE)'=='true'">%(AdditionalOptions) /DEBUGTYPE:CV,FIXUP</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+</Project>

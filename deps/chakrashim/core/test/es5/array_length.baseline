@@ -1,0 +1,307 @@
+0. [[Value]] absent, set enumerable: true
+TypeError : Cannot redefine non-configurable property 'length'
+  length: 0 writable
+
+
+1. [[Value]] absent, set configurable: true
+TypeError : Cannot redefine non-configurable property 'length'
+  length: 0 writable
+
+
+2. [[Value]] absent, empty descriptor
+  length: 0 writable
+
+
+3. [[Value]] absent, no change
+  length: 0 writable
+
+
+4. [[Value]] absent, set writable: true
+  length: 0 writable
+  length: 10
+
+
+5. [[Value]] absent, set writable: false
+  length: 0
+  length: 0
+
+
+6. [[Value]] absent, set multiple -- configurable: false, writable: false
+  length: 0
+
+
+7. [[Value]] absent, set multiple -- enumerable: false, writable: false
+  length: 0
+
+
+8. [[Value]] invalid 1
+RangeError : Array length must be assigned a finite positive integer
+  length: 3 writable
+  0,1,2
+
+
+9. [[Value]] invalid 2
+RangeError : Array length must be assigned a finite positive integer
+  length: 3 writable
+  0,1,2
+
+
+10. newLen >= oldLen, set enumerable: true
+TypeError : Cannot redefine non-configurable property 'length'
+  length: 3 writable
+  0,1,2
+
+
+11. newLen >= oldLen, set enumerable: false
+  length: 5 writable
+  0,1,2,,
+
+
+12. newLen >= oldLen, set configurable: true
+TypeError : Cannot redefine non-configurable property 'length'
+  length: 3 writable
+  0,1,2
+
+
+13. newLen >= oldLen, set configurable: false
+  length: 5 writable
+  0,1,2,,
+
+
+14. newLen >= oldLen, set configurable: false, enumerable: false
+  length: 5 writable
+  0,1,2,,
+
+
+15. newLen >= oldLen, set configurable: false, enumerable: true
+TypeError : Cannot redefine non-configurable property 'length'
+
+
+16. newLen >= oldLen, set writable: true
+  length: 5 writable
+  0,1,2,,
+  0,1,2,,,,,,,
+
+
+17. newLen >= oldLen, set writable: false
+  length: 5
+  0,1,2,,
+  0,1,2,,
+
+
+18. newLen < oldLen, oldLen writable: false
+TypeError : Cannot modify non-writable property 'length'
+  length: 3
+  0,1,2
+  0,1,2
+
+
+19. newLen < oldLen, set enumerable: true
+TypeError : Cannot redefine non-configurable property 'length'
+  length: 3 writable
+  0,1,2
+
+
+20. newLen < oldLen, set configurable: true
+TypeError : Cannot redefine non-configurable property 'length'
+  length: 3 writable
+  0,1,2
+
+
+21. newLen < oldLen, set writable: true
+  length: 2 writable
+  0,1
+  0,1,,,,,,,,
+
+
+22. newLen < oldLen, set writable: false
+  length: 2
+  0,1
+  0,1
+
+
+23. newLen < oldLen, set writable: true, an element can't delete
+  3: 3 enumerable writable
+TypeError : Cannot define property 'length'
+  length: 4 writable
+  0,1,2,3
+
+
+24. newLen < oldLen, set writable: false, an element can't delete
+  3: 3 enumerable writable
+TypeError : Cannot define property 'length'
+  length: 4
+  0,1,2,3
+
+
+25. newLen < oldLen, an accessor can't delete
+  3: get 3 enumerable
+TypeError : Cannot define property 'length'
+  length: 4
+  0,1,2,get 3
+
+
+26. newLen < oldLen, an element can't delete, newLen == it
+  3: 3 enumerable writable
+TypeError : Cannot define property 'length'
+  length: 4
+  0,1,2,3
+
+
+27. newLen < oldLen, an element can't delete, but newLen beyond it
+  3: 3 enumerable writable
+  length: 4
+  0,1,2,3
+
+
+28. newLen < oldLen, many attributes
+  0: get0 configurable
+  1: 1 configurable
+  2: get2 configurable
+  3: 3 configurable
+  4: get4 configurable
+  5: 5 configurable
+  6: get6 configurable
+  7: 7 configurable
+  8: get8 configurable
+  9: 9 configurable
+  get8,1,get8,3,get8,5,get8,7,get8,9
+  length: 4
+  get8,1,get8,3
+  0: get8 configurable
+  1: 1 configurable
+  2: get8 configurable
+  3: 3 configurable
+  4: undefined
+  5: undefined
+  6: undefined
+  7: undefined
+  8: undefined
+  9: undefined
+
+
+29. newLen < oldLen, many attributes, one cannot delete
+  0: get0 configurable
+  1: 1 configurable
+  2: get2 configurable
+  3: 3 configurable
+  4: get4 configurable
+  5: 5
+  6: get6 configurable
+  7: 7 configurable
+  8: get8 configurable
+  9: 9 configurable
+  get8,1,get8,3,get8,5,get8,7,get8,9
+TypeError : Cannot define property 'length'
+  length: 6
+  get8,1,get8,3,get8,5
+  0: get8 configurable
+  1: 1 configurable
+  2: get8 configurable
+  3: 3 configurable
+  4: get8 configurable
+  5: 5
+  6: undefined
+  7: undefined
+  8: undefined
+  9: undefined
+
+
+30. newLen < oldLen, many attributes, data item cannot delete
+  get8,1,get8,3,get8,5,get8,7,get8,9,10,11,12,13,14
+TypeError : Cannot define property 'length'
+  length: 15
+  get8,1,get8,3,get8,5,get8,7,get8,9,10,11,12,13,14
+
+
+31. newLen < oldLen, a few attributes, one cannot delete
+  0,1,2,3,4,5,6,7,8,9
+TypeError : Cannot define property 'length'
+  length: 6
+  0,1,2,3,4,5
+
+
+32. newLen < oldLen, no attributes, data item cannot delete
+  0,1,2,3,4,5,6,7,8,9
+TypeError : Cannot define property 'length'
+  length: 10
+  0,1,2,3,4,5,6,7,8,9
+
+
+33. [[Put]] length: newLen < oldLen, many attributes
+  0: get0 configurable
+  1: 1 configurable
+  2: get2 configurable
+  3: 3 configurable
+  4: get4 configurable
+  5: 5 configurable
+  6: get6 configurable
+  7: 7 configurable
+  8: get8 configurable
+  9: 9 configurable
+  get8,1,get8,3,get8,5,get8,7,get8,9
+  length: 4 writable
+  get8,1,get8,3
+  0: get8 configurable
+  1: 1 configurable
+  2: get8 configurable
+  3: 3 configurable
+  4: undefined
+  5: undefined
+  6: undefined
+  7: undefined
+  8: undefined
+  9: undefined
+
+
+34. [[Put]] length: newLen < oldLen, many attributes, one cannot delete
+  0: get0 configurable
+  1: 1 configurable
+  2: get2 configurable
+  3: 3 configurable
+  4: get4 configurable
+  5: 5
+  6: get6 configurable
+  7: 7 configurable
+  8: get8 configurable
+  9: 9 configurable
+  get8,1,get8,3,get8,5,get8,7,get8,9
+  length: 6 writable
+  get8,1,get8,3,get8,5
+  0: get8 configurable
+  1: 1 configurable
+  2: get8 configurable
+  3: 3 configurable
+  4: get8 configurable
+  5: 5
+  6: undefined
+  7: undefined
+  8: undefined
+  9: undefined
+
+
+35. Add item beyond non-writable length
+TypeError : Cannot modify property '9': 'length' is not writable
+  0,1,2,3,4,5
+
+
+36. Add accessor beyond non-writable length
+TypeError : Cannot modify property '9': 'length' is not writable
+  0,1,2,3,4,5
+
+
+37. SetItem beyond non-writable length
+  0,1,2,3,4,5
+
+
+38. SetItem with name beyond non-writable length
+  0,1,2,3,4,5
+
+
+39. freeze should set length writable: false
+  length: 6
+
+
+40. isFrozen should check length writable
+isFrozen: false
+isFrozen: true

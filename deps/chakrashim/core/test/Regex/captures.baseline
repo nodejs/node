@@ -1,0 +1,17 @@
+ab,ab,
+ac,,ac
+abab,ab,
+abab,
+abab
+file://d:\foo.txt,file://d:\foo.txt
+file://d:\foo.txt,file://
+file://
+http://ezedev/WAC/onenoteframe.aspx,http://ezedev/WAC/onenoteframe.aspx
+http://ezedev/WAC/onenoteframe.aspx,http://ezedev/WAC/
+http://ezedev/WAC/
+[foo] [bar]
+ab
+numberedRegex test 1 passed
+numberedRegex test 2 passed
+numberedRegex test 3 passed
+numberedRegex test 4 passed

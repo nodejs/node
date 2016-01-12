@@ -1,0 +1,51 @@
+HasFuncDecl: test
+HasFuncDecl: nested1
+HasFuncDecl: nested2
+HasFuncDecl: blah
+HasFuncDecl: escape
+HasFuncDecl: test
+HasFuncDecl: nested1
+HasFuncDecl: nested2
+HasFuncDecl: blah
+HasFuncDecl: escape
+DoStackNestedFunc: test (function  (#1.1), #2)
+HasFuncDecl: nested1
+RestoreHasFuncAssignment: nested1
+HasFuncDecl: blah
+RestoreHasFuncAssignment: blah
+HasFuncDecl: escape
+RestoreHasFuncAssignment: escape
+HasFuncDecl: nested2
+HasMaybeEscapedUse: recurse
+DoStackNestedFunc: nested1 (function  (#1.2), #4)
+HasFuncDecl: nested1
+RestoreHasFuncAssignment: nested1
+HasFuncDecl: blah
+RestoreHasFuncAssignment: blah
+HasFuncDecl: escape
+RestoreHasFuncAssignment: escape
+HasFuncDecl: nested2
+RestoreHasFuncAssignment: nested2
+test1test1test1test1test1test1test1test1test1test1undefined123456789
+test2test2test2test2test2test2test2test2test2test2undefined123456789
+HasFuncDecl: nested1
+RestoreHasFuncAssignment: nested1
+HasFuncDecl: blah
+RestoreHasFuncAssignment: blah
+HasFuncDecl: escape
+RestoreHasFuncAssignment: escape
+HasMaybeEscapedUse: blah
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): test (function  (#1.1), #2)
+DeferParse: box and disable stack function: test (function  (#1.1), #2)
+Boxing StackScriptFunction Object: nested1 (function Id:  (#1.2), #4)
+Boxing StackScriptFunction Object: blah (function Id:  (#1.4), #5)
+Boxing StackScriptFunction Object: escape (function Id:  (#1.5), #6)
+Boxing Frame [Native]: test  (#1.1), #2
+HasFuncDecl: nested1
+RestoreHasFuncAssignment: nested1
+HasFuncDecl: blah
+RestoreHasFuncAssignment: blah
+HasFuncDecl: escape
+RestoreHasFuncAssignment: escape
+blah
+blah

@@ -1,0 +1,252 @@
+TypeError (-2146823286): Function expected
+TypeError (-2146827843): Object doesn't support this action
+TypeError (-2146823286): Function expected
+TypeError (-2146827843): Object doesn't support this action
+TypeError (-2146823281): Object expected
+TypeError (-2146823281): Object expected
+TypeError (-2146823286): Function expected
+TypeError (-2146827843): Object doesn't support this action
+TypeError (-2146823286): Function expected
+TypeError (-2146823286): The value of the property '0' is not a Function object
+TypeError (-2146823281): Object expected
+TypeError (-2146823286): The value of the property '1' is not a Function object
+TypeError (-2146827843): Object doesn't support this action
+TypeError (-2146823281): Unable to get property '1' of undefined or null reference
+TypeError (-2146823281): Unable to get property '1' of undefined or null reference
+TypeError (-2146823281): Unable to get property 'prop' of undefined or null reference
+TypeError (-2146823281): Unable to get property 'prop' of undefined or null reference
+TypeError (-2146823281): Object expected
+TypeError (-2146823281): Object expected
+
+
+--- Test case: implicit global, do delete: false ---
+
+safeCall(function(){g0();});
+ReferenceError (-2146823279): 'g0' is undefined
+
+safeCall(function(){g1=undefined;g1();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){g2=null;g2();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){g3=1;g3();});
+TypeError (-2146823286): Function expected
+
+safeCall(function(){g4={};g4();});
+TypeError (-2146823286): Function expected
+
+
+--- Test case: implicit global, do delete: true ---
+
+safeCall(function(){g6=undefined;delete g6;g6();});
+ReferenceError (-2146823279): 'g6' is undefined
+
+safeCall(function(){g7=null;delete g7;g7();});
+ReferenceError (-2146823279): 'g7' is undefined
+
+safeCall(function(){g8=1;delete g8;g8();});
+ReferenceError (-2146823279): 'g8' is undefined
+
+safeCall(function(){g9={};delete g9;g9();});
+ReferenceError (-2146823279): 'g9' is undefined
+
+
+--- Test case: global using window, do delete: false ---
+
+Only valid in IE:
+safeCall(function(){window.g10();});
+ReferenceError (-2146823279): 'window' is undefined
+
+Only valid in IE:
+safeCall(function(){window.g11=undefined;window.g11();});
+ReferenceError (-2146823279): 'window' is undefined
+
+Only valid in IE:
+safeCall(function(){window.g12=null;window.g12();});
+ReferenceError (-2146823279): 'window' is undefined
+
+Only valid in IE:
+safeCall(function(){window.g13=1;window.g13();});
+ReferenceError (-2146823279): 'window' is undefined
+
+Only valid in IE:
+safeCall(function(){window.g14={};window.g14();});
+ReferenceError (-2146823279): 'window' is undefined
+
+
+--- Test case: global using window, do delete: true ---
+
+Only valid in IE:
+safeCall(function(){window.g16=undefined;delete window.g16;window.g16();});
+ReferenceError (-2146823279): 'window' is undefined
+
+Only valid in IE:
+safeCall(function(){window.g17=null;delete window.g17;window.g17();});
+ReferenceError (-2146823279): 'window' is undefined
+
+Only valid in IE:
+safeCall(function(){window.g18=1;delete window.g18;window.g18();});
+ReferenceError (-2146823279): 'window' is undefined
+
+Only valid in IE:
+safeCall(function(){window.g19={};delete window.g19;window.g19();});
+ReferenceError (-2146823279): 'window' is undefined
+
+
+--- Test case: global using this, do delete: false ---
+
+INCORRECT in JC all versions:
+safeCall(function(){this.g20();});
+TypeError (-2146827850): Object doesn't support property or method 'g20'
+
+safeCall(function(){this.g21=undefined;this.g21();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){this.g22=null;this.g22();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){this.g23=1;this.g23();});
+TypeError (-2146823286): Function expected
+
+safeCall(function(){this.g24={};this.g24();});
+TypeError (-2146823286): Function expected
+
+
+--- Test case: global using this, do delete: true ---
+
+INCORRECT in JC all versions:
+safeCall(function(){this.g26=undefined;delete this.g26;this.g26();});
+TypeError (-2146827850): Object doesn't support property or method 'g26'
+
+INCORRECT in JC all versions:
+safeCall(function(){this.g27=null;delete this.g27;this.g27();});
+TypeError (-2146827850): Object doesn't support property or method 'g27'
+
+INCORRECT in JC all versions:
+safeCall(function(){this.g28=1;delete this.g28;this.g28();});
+TypeError (-2146827850): Object doesn't support property or method 'g28'
+
+INCORRECT in JC all versions:
+safeCall(function(){this.g29={};delete this.g29;this.g29();});
+TypeError (-2146827850): Object doesn't support property or method 'g29'
+
+
+--- Test case: local, do delete: false ---
+
+safeCall(function(){var v;v();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){var v=undefined;v();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){var v=null;v();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){var v=1;v();});
+TypeError (-2146823286): Function expected
+
+safeCall(function(){var v={};v();});
+TypeError (-2146823286): Function expected
+
+
+--- Test case: object, do delete: false ---
+
+safeCall(function(){var o={};o.p();});
+TypeError (-2146827850): Object doesn't support property or method 'p'
+
+safeCall(function(){var o={p:undefined};o.p();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){var o={p:null};o.p();});
+TypeError (-2146823281): Object expected
+
+safeCall(function(){var o={p:1};o.p();});
+TypeError (-2146823286): Function expected
+
+safeCall(function(){var o={p:{}};o.p();});
+TypeError (-2146823286): Function expected
+
+
+--- Test case: object, do delete: true ---
+
+safeCall(function(){var o={p:undefined};delete o.p;o.p();});
+TypeError (-2146827850): Object doesn't support property or method 'p'
+
+safeCall(function(){var o={p:null};delete o.p;o.p();});
+TypeError (-2146827850): Object doesn't support property or method 'p'
+
+safeCall(function(){var o={p:1};delete o.p;o.p();});
+TypeError (-2146827850): Object doesn't support property or method 'p'
+
+safeCall(function(){var o={p:{}};delete o.p;o.p();});
+TypeError (-2146827850): Object doesn't support property or method 'p'
+
+
+--- Test case: array initialized, do delete: false ---
+
+safeCall(function(){var a=[];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+INCORRECT in compat modes:
+safeCall(function(){var a=[undefined];a[0]();});
+TypeError (-2146823286): The value of the property '0' is not a Function object
+
+safeCall(function(){var a=[null];a[0]();});
+TypeError (-2146823286): The value of the property '0' is not a Function object
+
+safeCall(function(){var a=[1];a[0]();});
+TypeError (-2146823286): The value of the property '0' is not a Function object
+
+safeCall(function(){var a=[{}];a[0]();});
+TypeError (-2146823286): The value of the property '0' is not a Function object
+
+
+--- Test case: array initialized, do delete: true ---
+
+safeCall(function(){var a=[undefined];delete a[0];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+safeCall(function(){var a=[null];delete a[0];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+safeCall(function(){var a=[1];delete a[0];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+safeCall(function(){var a=[{}];delete a[0];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+
+--- Test case: array assigned, do delete: false ---
+
+safeCall(function(){var a=[];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+safeCall(function(){var a=[];a[0]=undefined;a[0]();});
+TypeError (-2146823286): The value of the property '0' is not a Function object
+
+safeCall(function(){var a=[];a[0]=null;a[0]();});
+TypeError (-2146823286): The value of the property '0' is not a Function object
+
+safeCall(function(){var a=[];a[0]=1;a[0]();});
+TypeError (-2146823286): The value of the property '0' is not a Function object
+
+safeCall(function(){var a=[];a[0]={};a[0]();});
+TypeError (-2146823286): The value of the property '0' is not a Function object
+
+
+--- Test case: array assigned, do delete: true ---
+
+safeCall(function(){var a=[];a[0]=undefined;delete a[0];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+safeCall(function(){var a=[];a[0]=null;delete a[0];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+safeCall(function(){var a=[];a[0]=1;delete a[0];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+safeCall(function(){var a=[];a[0]={};delete a[0];a[0]();});
+TypeError (-2146827850): Object doesn't support property or method '0'
+
+

@@ -1,0 +1,44 @@
+AllChars : Hello. Length : 5
+72
+101
+108
+108
+111
+AllChars : HelloWorld. Length : 10
+72
+101
+108
+108
+111
+87
+111
+114
+108
+100
+Got a exception. String.prototype.charCodeAt: 'this' is null or undefined
+>> FirstChar : undefined
+Got a exception. String.prototype.charCodeAt: 'this' is null or undefined
+>> FirstChar : 0
+48
+<< FirstChar.
+>> FirstChar : 1.1
+49
+<< FirstChar.
+>> FirstChar : 10
+49
+<< FirstChar.
+>> FirstChar : Hello
+72
+<< FirstChar.
+>> FirstChar : true
+116
+<< FirstChar.
+>> FirstChar : false
+102
+<< FirstChar.
+>> FirstChar : true
+116
+<< FirstChar.
+>> FirstChar : [object Object]
+91
+<< FirstChar.

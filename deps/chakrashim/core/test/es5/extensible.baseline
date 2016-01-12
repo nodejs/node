@@ -1,0 +1,21 @@
+TestCase1
+1
+true
+TestCase2 - preventExtensions & add a property
+x,y
+false
+TestCase3 - preventExtensions & delete a property
+undefined
+false
+TestCase4 - preventExtensions & modify a property
+x,y
+false
+40
+TestCase5 - preventExtension on global object & declare a var
+Exception: TypeError
+TestCase6 - preventExtensions, delete property and set remaining properties to non configurable/writable - SimpleDictionaryTypeHandler
+true
+true
+TestCase7 - preventExtensions, delete property and set remaining properties to non configurable/writable - DictionaryTypeHandler
+true
+true

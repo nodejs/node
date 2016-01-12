@@ -1,0 +1,20 @@
+Test0:
+obj0 === obj1: false
+obj0: { prop0: 1, a: undefined, b: undefined, x: 21, y: 22 }
+obj1: { prop0: 1, a: 11, b: 12, x: undefined, y: undefined }
+obj0 === obj1: false
+obj0: { prop0: 1, a: undefined, b: undefined, x: 21, y: 22 }
+obj1: { prop0: 1, a: 11, b: 12, x: undefined, y: undefined }
+obj0 === obj1: true
+obj0: { prop0: 1, a: 11, b: 12, x: 21, y: 22 }
+obj1: { prop0: 1, a: 11, b: 12, x: 21, y: 22 }
+Test1:
+obj0 === obj1: false
+obj0: { prop0: 1, a: undefined, b: undefined, x: 21, y: 22 }
+obj1: { prop0: 1, a: 11, b: 12, x: undefined, y: undefined }
+obj0 === obj1: false
+obj0: { prop0: 1, a: undefined, b: undefined, x: 21, y: 22 }
+obj1: { prop0: 1, a: 11, b: 12, x: undefined, y: undefined }
+obj0 === obj1: true
+obj0: { prop0: 1, a: 11, b: 12, x: 21, y: 22 }
+obj1: { prop0: 1, a: 11, b: 12, x: 21, y: 22 }

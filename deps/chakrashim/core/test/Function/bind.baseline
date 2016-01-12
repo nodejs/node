@@ -1,0 +1,86 @@
+IncrVal:: 100 args.length : 0
+PASS: global object:101 0
+IncrVal:: 101 args.length : 1
+PASS: global object:102 1
+IncrVal:: 102 args.length : 2
+PASS: global object:103 2
+IncrVal:: 100 args.length : 0
+PASS: global object:101 0
+IncrVal:: 101 args.length : 1
+PASS: global object:102 1
+IncrVal:: 102 args.length : 2
+PASS: global object:103 2
+IncrVal:: 100 args.length : 1
+PASS: global object:101 1
+IncrVal:: 101 args.length : 2
+PASS: global object:102 2
+IncrVal:: 102 args.length : 3
+PASS: global object:103 3
+IncrVal:: 100 args.length : 2
+PASS: global object:101 2
+IncrVal:: 101 args.length : 3
+PASS: global object:102 3
+IncrVal:: 102 args.length : 4
+PASS: global object:103 4
+Testing Bind to global object
+PASS: GlobalObject length:0
+IncrVal:: 100 args.length : 0
+PASS: global object:101 0
+IncrVal:: 101 args.length : 1
+PASS: global object:102 1
+IncrVal:: 102 args.length : 2
+PASS: global object:103 2
+Testing Bind to local object
+PASS: Local length:0
+IncrVal:: 200 args.length : 0
+PASS: Local object1:201 0
+IncrVal:: 201 args.length : 1
+PASS: Local object2:202 1
+IncrVal:: 202 args.length : 2
+PASS: Local object3:203 2
+PASS: local length:0
+IncrVal:: 200 args.length : 1
+PASS: local object:201 1
+IncrVal:: 201 args.length : 2
+PASS: local object:202 2
+IncrVal:: 202 args.length : 3
+PASS: local object:203 3
+PASS: local length:0
+IncrVal:: 200 args.length : 2
+PASS: local object:201 2
+IncrVal:: 201 args.length : 3
+PASS: local object:202 3
+IncrVal:: 202 args.length : 4
+PASS: local object:203 4
+Testing Length
+PASS: 1 Length0 :0
+PASS: 1 Length1 :1
+PASS: 1 Length2 :2
+PASS: 1 Length3 :3
+PASS: 1 Length4 :4
+PASS: 1 Length5 :5
+PASS: 2 Length0 :0
+PASS: 2 Length1 :1
+PASS: 2 Length2 :2
+PASS: 2 Length3 :3
+PASS: 2 Length4 :4
+PASS: 2 Length5 :5
+PASS: 3 Length0 :0
+PASS: 3 Length1 :0
+PASS: 3 Length2 :1
+PASS: 3 Length3 :2
+PASS: 3 Length4 :3
+PASS: 3 Length5 :4
+Testing Construction
+PASS: Construction :30
+PASS: Add Test:50
+PASS: f Test:11
+PASS: Proto Test:true
+PASS: TestConstruction0 x:0
+PASS: TestConstruction0 y:1
+PASS: TestConstruction1 x:100
+PASS: TestConstruction1 y:101
+PASS: TestConstruction2 x:200
+PASS: TestConstruction2 y:201
+PASS: TestConstruction3 x:300
+PASS: TestConstruction3 y:301

@@ -1,0 +1,14 @@
+1000
+1 2 3
+true
+true
+x
+getOwnPropertyNames
+Length: 1
+0 => prop2
+keys
+Length: 1
+0 => prop2
+for-in loop head declarations cannot have an initializer
+for-in loop head declarations cannot have an initializer
+done

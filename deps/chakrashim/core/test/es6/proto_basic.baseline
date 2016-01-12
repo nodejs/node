@@ -1,0 +1,124 @@
+*** Running test #1 (0): Test Object.prototype.__proto__ attributes
+get: 
+function() {
+    [native code]
+}
+
+set: 
+function() {
+    [native code]
+}
+
+enumerable: false
+configurable: true
+PASSED
+*** Running test #2 (1): Read built-in __proto__
+PASSED
+*** Running test #3 (2): Change built-in's __proto__ chain
+Number.prototype -> Array.prototype -> Object.prototype
+Boolean.prototype -> "abc" -> String.prototype -> Object.prototype
+PASSED
+*** Running test #4 (3): Change __proto__ to null/undefined
+PASSED
+*** Running test #5 (4): Change __proto__ to neither Object nor null, should throw
+PASSED
+*** Running test #6 (5): Change object.__proto__ to an object
+b: 200
+c: 200
+a (inherited): 100
+
+-- delete b.b --
+c: 200
+a (inherited): 100
+b (inherited): 100
+PASSED
+*** Running test #7 (6): Change object.__proto__ to an array
+b: 200
+0 (inherited): 8
+1 (inherited): 3
+2 (inherited): 9
+3 (inherited): 5
+
+-- a.sort --
+b: 200
+0 (inherited): 3
+1 (inherited): 5
+2 (inherited): 8
+3 (inherited): 9
+
+-- b.sort --
+0: 3
+1: 5
+2: 8
+3: 9
+b: 200
+PASSED
+*** Running test #8 (7): Change array.__proto__ to an object
+0: 8
+1: 3
+2: 9
+3: 5
+a (inherited): 100
+
+-- sort.apply --
+0: 3
+1: 5
+2: 8
+3: 9
+a (inherited): 100
+PASSED
+*** Running test #9 (8): Attempt to change DOM object __proto__
+PASSED
+*** Running test #10 (9): __proto__ and instanceof/isPrototypeOf
+PASSED
+*** Running test #11 (10): Verify we reject simple __proto__ cycle
+PASSED
+*** Running test #12 (11): Verify proto cache is discarded
+Before change
+1, 2
+After change
+3, 4
+PASSED
+*** Running test #13 (12): Verify proto getter cache is discarded
+Before change
+1, 7
+After change
+3, 4
+PASSED
+*** Running test #14 (13): Verify the new proto object is marked as proto, so that changing the proto object invalidates related proto cache
+Before change
+undefined, undefined
+After change
+3, 4
+After change proto property
+9, 4
+PASSED
+*** Running test #15 (14): Verify changing __proto__ works safely with ObjTypeSpec
+PASSED
+*** Running test #16 (15): Verify PathTypeHandler successor Types continue to work, case 1
+PASSED
+*** Running test #17 (16): Verify PathTypeHandler successor Types continue to work, case 2
+PASSED
+*** Running test #18 (17): Verify that we can shadow __proto__ property
+PASSED
+*** Running test #19 (18): Test fast path o[i] with changed prototype
+PASSED
+*** Running test #20 (19): Test fast path o[i] when o.__proto__ == null
+PASSED
+*** Running test #21 (20): Test fast path o[i] when o.__proto__.__proto__ == null
+PASSED
+*** Running test #22 (21): Test Array methods with changed prototype
+PASSED
+*** Running test #23 (22): Test cross-site change prototype
+PASSED
+*** Running test #24 (23): Test change prototype of global object
+PASSED
+*** Running test #25 (24): Blue 62526: __proto__: ArrayElementEnumerator does not expect non-TypeIds_Object on prototype
+PASSED
+*** Running test #26 (25): Blue 114364: __proto__: Object.preventExtensions should make [[prototype]] immutable
+PASSED
+*** Running test #27 (26): Blue 245453: __proto__: Invalid has-only-writable-data-property cache
+PASSED
+*** Running test #28 (27): Blue 245453: __proto__: Invalid has-only-writable-data-property cache -- verify cross-context
+PASSED
+Summary of tests: total executed: 28; passed: 28; failed: 0

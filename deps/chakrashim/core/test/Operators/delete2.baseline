@@ -1,0 +1,23 @@
+delete uninitialized variable globalX: false
+globalX : undefined
+delete explicitVar       : false
+value  explicitVar       : 10
+delete implicitVar       : true
+value  implicitVar       : Exception
+delete explicitVarInEval : true
+value  explicitVarInEval : Exception
+delete implicitVarInEval : true
+value  implicitVarInEval : Exception
+a[1] = 200
+delete a[1] : true
+a[1] = undefined
+a[2] = 100
+delete a[2] : true
+a[2] = 100
+o.x = 1
+delete o.x : true
+o.x = undefined
+delete o.x (again): true
+o.z = undefined
+delete o.z (non existing property): true
+o.z = undefined

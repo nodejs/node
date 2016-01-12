@@ -1,0 +1,741 @@
+********** Test #1 **********
+ ***   Iteration#1
+ var re=/b12/y
+ var str='b12asd\nb12'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/b12/y
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+ ***   Iteration#3
+ var re=/b12/y
+ var str='b12asd\nb12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b12/y
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+********** Test #2 **********
+ ***   Iteration#1
+ var re=/b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 1
+ Result = b12
+ re.lastIndex = 4
+ ***   Iteration#2
+ var re=/b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 4
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #3 **********
+ ***   Iteration#1
+ var re=/b/y
+ var str='ab'
+ re.lastIndex = 1
+ Result = b
+ re.lastIndex = 2
+ ***   Iteration#2
+ var re=/b/y
+ var str='ab'
+ re.lastIndex = 2
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/b/y
+ var str='ab'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b/y
+ var str='ab'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #4 **********
+ ***   Iteration#1
+ var re=/abc/y
+ var str='abcabcababc'
+ re.lastIndex = 3
+ Result = abc
+ re.lastIndex = 6
+ ***   Iteration#2
+ var re=/abc/y
+ var str='abcabcababc'
+ re.lastIndex = 6
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/abc/y
+ var str='abcabcababc'
+ re.lastIndex = 0
+ Result = abc
+ re.lastIndex = 3
+ ***   Iteration#4
+ var re=/abc/y
+ var str='abcabcababc'
+ re.lastIndex = 3
+ Result = abc
+ re.lastIndex = 6
+********** Test #5 **********
+ ***   Iteration#1
+ var re=/b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #6 **********
+ ***   Iteration#1
+ var re=/b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 1
+ Result = b12
+ re.lastIndex = 4
+ ***   Iteration#2
+ var re=/b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 4
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #7 **********
+ ***   Iteration#1
+ var re=/b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+ ***   Iteration#3
+ var re=/b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+********** Test #8 **********
+ ***   Iteration#1
+ var re=/^b12/y
+ var str='b12asd\nb12'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^b12/y
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+ ***   Iteration#3
+ var re=/^b12/y
+ var str='b12asd\nb12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b12/y
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+********** Test #9 **********
+ ***   Iteration#1
+ var re=/^b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #10 **********
+ ***   Iteration#1
+ var re=/^b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b12/y
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #11 **********
+ ***   Iteration#1
+ var re=/^b12/y
+ var str='b12b12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^b12/y
+ var str='b12b12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+ ***   Iteration#3
+ var re=/^b12/y
+ var str='b12b12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b12/y
+ var str='b12b12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+********** Test #12 **********
+ ***   Iteration#1
+ var re=/a|^b/gy
+ var str='baba'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+ ***   Iteration#2
+ var re=/a|^b/gy
+ var str='baba'
+ re.lastIndex = 1
+ Result = a
+ re.lastIndex = 2
+ ***   Iteration#3
+ var re=/a|^b/gy
+ var str='baba'
+ re.lastIndex = 2
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/a|^b/gy
+ var str='baba'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+********** Test #13 **********
+ ***   Iteration#1
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+ ***   Iteration#2
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+ ***   Iteration#4
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+********** Test #14 **********
+ ***   Iteration#1
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+ ***   Iteration#3
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+********** Test #15 **********
+ ***   Iteration#1
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 7
+ Result = b12
+ re.lastIndex = 10
+ ***   Iteration#2
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 10
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 0
+ Result = b12
+ re.lastIndex = 3
+ ***   Iteration#4
+ var re=/^b12/my
+ var str='b12asd\nb12'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+********** Test #16 **********
+ ***   Iteration#1
+ var re=/^b12/my
+ var str='asdsa123asd\nb12'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^b12/my
+ var str='asdsa123asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^b12/my
+ var str='asdsa123asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b12/my
+ var str='asdsa123asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #17 **********
+ ***   Iteration#1
+ var re=/^b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #18 **********
+ ***   Iteration#1
+ var re=/^b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b12/my
+ var str='ab12asd\nb12'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #19 **********
+ ***   Iteration#1
+ var re=/^b/my
+ var str='a\nb'
+ re.lastIndex = 2
+ Result = b
+ re.lastIndex = 3
+ ***   Iteration#2
+ var re=/^b/my
+ var str='a\nb'
+ re.lastIndex = 3
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^b/my
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^b/my
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+abc
+,def
+,ghi
+,jkl
+,mno
+,pqr
+,stu
+,vwx
+
+********** Test #20 **********
+ ***   Iteration#1
+ var re=/^ba/my
+ var str='ba\nba'
+ re.lastIndex = 0
+ Result = ba
+ re.lastIndex = 2
+ ***   Iteration#2
+ var re=/^ba/my
+ var str='ba\nba'
+ re.lastIndex = 2
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/^ba/my
+ var str='ba\nba'
+ re.lastIndex = 0
+ Result = ba
+ re.lastIndex = 2
+ ***   Iteration#4
+ var re=/^ba/my
+ var str='ba\nba'
+ re.lastIndex = 2
+ Result = null
+ re.lastIndex = 0
+********** Test #21 **********
+ ***   Iteration#1
+ var re=/^ba/my
+ var str='ba\nba'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/^ba/my
+ var str='ba\nba'
+ re.lastIndex = 0
+ Result = ba
+ re.lastIndex = 2
+ ***   Iteration#3
+ var re=/^ba/my
+ var str='ba\nba'
+ re.lastIndex = 2
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/^ba/my
+ var str='ba\nba'
+ re.lastIndex = 0
+ Result = ba
+ re.lastIndex = 2
+********** Test #22 **********
+ ***   Iteration#1
+ var re=/\b\w+\b/y
+ var str='( ab )'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/\b\w+\b/y
+ var str='( ab )'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/\b\w+\b/y
+ var str='( ab )'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/\b\w+\b/y
+ var str='( ab )'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #23 **********
+ ***   Iteration#1
+ var re=/\b\w+\b/y
+ var str='( ab )'
+ re.lastIndex = 2
+ Result = ab
+ re.lastIndex = 4
+ ***   Iteration#2
+ var re=/\b\w+\b/y
+ var str='( ab )'
+ re.lastIndex = 4
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/\b\w+\b/y
+ var str='( ab )'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/\b\w+\b/y
+ var str='( ab )'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #24 **********
+ ***   Iteration#1
+ var re=/b/my
+ var str='ba\nb'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+ ***   Iteration#2
+ var re=/b/my
+ var str='ba\nb'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/b/my
+ var str='ba\nb'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+ ***   Iteration#4
+ var re=/b/my
+ var str='ba\nb'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+********** Test #25 **********
+ ***   Iteration#1
+ var re=/b/my
+ var str='ba\nb'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/b/my
+ var str='ba\nb'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+ ***   Iteration#3
+ var re=/b/my
+ var str='ba\nb'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b/my
+ var str='ba\nb'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+********** Test #26 **********
+ ***   Iteration#1
+ var re=/b/y
+ var str='ba\nb'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+ ***   Iteration#2
+ var re=/b/y
+ var str='ba\nb'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/b/y
+ var str='ba\nb'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+ ***   Iteration#4
+ var re=/b/y
+ var str='ba\nb'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+********** Test #27 **********
+ ***   Iteration#1
+ var re=/b/y
+ var str='ba\nb'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/b/y
+ var str='ba\nb'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+ ***   Iteration#3
+ var re=/b/y
+ var str='ba\nb'
+ re.lastIndex = 1
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b/y
+ var str='ba\nb'
+ re.lastIndex = 0
+ Result = b
+ re.lastIndex = 1
+********** Test #28 **********
+ ***   Iteration#1
+ var re=/b/y
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/b/y
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/b/y
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b/y
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #29 **********
+ ***   Iteration#1
+ var re=/b/my
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#2
+ var re=/b/my
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#3
+ var re=/b/my
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+ ***   Iteration#4
+ var re=/b/my
+ var str='a\nb'
+ re.lastIndex = 0
+ Result = null
+ re.lastIndex = 0
+********** Test #30 **********
+ ***   Iteration#1
+ var re=/^\s*|\s*$/y
+ var str=' ab'
+ re.lastIndex = 1
+ Result = 
+ re.lastIndex = 3

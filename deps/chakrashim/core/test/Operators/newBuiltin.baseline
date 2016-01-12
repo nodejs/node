@@ -1,0 +1,3 @@
+test0: Test passed, expected no exception thrown
+test1: Test passed, expected TypeError-Function is not a constructor
+Passed

@@ -1,0 +1,34 @@
+HasFuncDecl: kspuxw
+HasFuncDecl: handlerFactory
+HasFuncDecl: v0
+HasFuncDecl: v2
+HasFuncDecl: kspuxw
+HasFuncDecl: handlerFactory
+DoStackNestedFunc: Anonymous function (function  (#1.3), #4)
+HasFuncDecl: handlerFactory
+HasMaybeEscapedNestedFunc (UnknownUse): handlerFactory (function  (#1.5), #8)
+HasMaybeEscapedNestedFunc (DeferredChild): Anonymous function (function  (#1.3), #4)
+DeferParse: box and disable stack function: Anonymous function (function  (#1.3), #4)
+Boxing Frame [Native]: Anonymous function  (#1.3), #4
+Boxing StackScriptFunction Object: handlerFactory (function Id:  (#1.5), #8)
+Boxing StackScriptFunction Object: kspuxw (function Id:  (#1.4), #7)
+HasFuncDecl: kspuxw
+HasMaybeEscapedUse: kspuxw
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): kspuxw (function  (#1.4), #7)
+HasFuncDecl: v0
+HasFuncDecl: v2
+DoStackNestedFunc: Anonymous function (function  (#1.7), #5)
+HasFuncDecl: v0
+RestoreHasFuncAssignment: v0
+HasFuncDecl: v2
+HasMaybeEscapedUse: arguments
+DoStackNestedFunc: v0 (function  (#1.8), #10)
+StackScriptFunction (callee): box and disable stack function: v0 (function  (#1.8), #10)
+Boxing StackScriptFunction Object: v0 (function Id:  (#1.8), #10)
+Boxing Frame [Native]: Anonymous function  (#1.7), #5
+HasFuncDecl: v0
+RestoreHasFuncAssignment: v0
+HasFuncDecl: v2
+DoStackNestedFunc: Anonymous function (function  (#1.9), #11)
+function eval() { [native code] }
+PASS

@@ -1,0 +1,40 @@
+Return: Unresolvable reference
+Return: Test1_eval: Unresolvable reference
+Return: Test1_1: Globally resolvable reference
+Return: Test1_2: Parent resolvable reference
+Return: Test1_3: Explicitly bound reference
+Return: Test1_3_eval: Explicitly bound reference
+Return: Readonly property
+Return: Test2_1: Readonly property on global
+Return: Test2_2: Readonly property on global
+Return: Test2_3: Readonly property on prototype
+Return: Test2_3_int: Readonly property on Number prototype
+Return: Test2_4: Readonly property with index property name
+Return: Test2_4_arr: Readonly property on array with index property name
+Return: Test2_4_eval: Readonly property with index property name
+Return: Test2_5: Readonly property with index property name
+Return: Test2_5_arr: Readonly property on array with index property name
+Return: Test2_5_eval: Readonly property with index property name
+Return: Test2_6: Readonly property on arguments (empty)
+Return: Test2_7: Readonly property on arguments (with formals)
+Return: Test2_8: Undefined setter on arguments (with formals)
+Return: Test2_9: Readonly property indexed by variable
+Return: Setter undefined
+Return: Test3_eval: Setter undefined
+Return: Test3_1: Setter undefined
+Return: Test3_2: Setter undefined on prototype
+Return: Test3_2_int: Setter undefined on Number prototype
+Return: Test3_3: Setter undefined on index property name
+Return: Test3_3_arr: Setter undefined on array with index property name
+Return: Test3_4: Setter undefined on index property name
+Return: Test3_4_arr: Setter undefined on array with index property name
+Return: Test3_5: Setter undefined and indexed by variable
+Return: Adding non-existent property to non-extensible object
+Return: Test4_1: Adding non-existent index property to non-extensible object
+Return: Test4_arr_1: Adding non-existent property to non-extensible array with index property name
+Return: Test4_arr_2: Adding non-existent property to non-extensible array with index property name
+Return: Postfix increment to non-writable property
+Return: Postfix increment on non-extensible object's non-existent property
+Return: Assign NaN of globalObject via property
+Return: Assign Infinity of globalObject via indexer/literal
+Return: Assign Infinity of globalObject via indexer/string

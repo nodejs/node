@@ -1,0 +1,30 @@
+ Array.prototype.sort.call(document);; throws;;   -expected: es3 TypeError ::: ReferenceError: 'document' is undefined
+ Array.prototype.slice.call(document);; throws;;   -expected: es3 TypeError ::: ReferenceError: 'document' is undefined
+ Array.prototype.shift.call(document);; throws;;   -expected: es3 TypeError ::: ReferenceError: 'document' is undefined
+ Array.prototype.reverse.call(document);; throws;;   -expected: es3 TypeError ::: ReferenceError: 'document' is undefined
+ Array.prototype.push.call(document);; throws;;   -expected: es3 TypeError ::: ReferenceError: 'document' is undefined
+ Array.prototype.pop.call(document);; throws;;   -expected: es3 TypeError ::: ReferenceError: 'document' is undefined
+ Array.prototype.join.call(document);; throws;;   -expected: es3 TypeError ::: ReferenceError: 'document' is undefined
+ Object.prototype.propertyIsEnumerable.call(document);; throws;;   -expected: es3 TypeError ::: ReferenceError: 'document' is undefined
+ delete this; ends without error; 
+ var xnew = new Object(); var y = new xnew(); throws;;   -expected: es3, es5 TypeError ::: TypeError: Object doesn't support this action
+ var x = new Object(); var y = x.ffm; ends without error; 
+var x = new Object(); x.ff() throws;;   -expected: es3, es5 TypeError ::: TypeError: Object doesn't support property or method 'ff'
+var x = function f(){return "inner";}();   -expected: es3, es5 R3eferenceError ::: ReferenceError: 'ff' is undefined
+call to undefined fg() throws;   -expected: es3 - TypeError, es5-ReferenceError ::: ReferenceError: 'fg' is undefined
+ call to an non function object ooj();;;   -expected: es3, es5 TypeError ::: TypeError: Function expected
+ o_undef();;;   -expected: es3, es5 TypeError ::: TypeError: Object expected
+ o_null();;;   -expected: es3, es5 TypeError ::: TypeError: Object expected
+undefined.toString();   -expected: es3, es5 TypeError ::: TypeError: Unable to get property 'toString' of undefined or null reference
+ null.anchor();;   -expected: es3, es5 TypeError ::: TypeError: Unable to get property 'anchor' of undefined or null reference
+ NaN.anchor();;   -expected: es3, es5 TypeError ::: TypeError: Object doesn't support property or method 'anchor'
+ true.anchor();;   -expected: es3, es5 TypeError ::: TypeError: Object doesn't support property or method 'anchor'
+new Array(12.4) - RangeError exception:  expected in es3 and es5::: RangeError: Array length must be a finite positive integer
+new Array(12.4); x.length = 12.5; - RangeError exception: es5-expected, ES3-not expected  ::: RangeError: Array length must be assigned a finite positive integer
+(123.45).toFixed(25); - RangeError exception : expected es3, es5::: RangeError: The number of fractional digits is out of range
+(123.45).toExponential(-25); - RangeError exception : expected es3, es5 ::: RangeError: The number of fractional digits is out of range
+eval("blah."); -expected es3-EvalError exception : expected es5-SyntaxException ::: SyntaxError: Expected identifier
+f = new Function("a", "b", "return a+b."); -expected es3 and es5-SyntaxError exception ::: SyntaxError: Expected identifier
+var num = 0.0009;var x = num.toFixed(3);  - no exception: not expected es3, es5  ::: value = 0.001
+var re = /a{5,4}/;   -expected: es3 -RegexExpError, es5-SyntaxError exception ::: SyntaxError: Syntax error in regular expression
+var re = new RegExp("\\0a");  - no exception: not expected es3, es5  ::: value = 

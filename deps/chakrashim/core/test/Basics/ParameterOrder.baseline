@@ -1,0 +1,10 @@
+Regular function call
+a()
+b()
+c(p1, p2)
+-1
+Constructor function call
+a()
+b()
+MyClass(p1, p2)
+-1

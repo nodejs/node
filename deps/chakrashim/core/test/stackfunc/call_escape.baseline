@@ -1,0 +1,7 @@
+HasFuncDecl: func
+HasFuncDecl: test
+HasFuncAssignment: call_escape
+HasMaybeEscapedUse: call_escape
+HasMaybeEscapedNestedFunc (MaybeEscapedUse): test (function  (#1.2), #3)
+test1
+test2

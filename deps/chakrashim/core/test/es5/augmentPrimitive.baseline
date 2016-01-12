@@ -1,0 +1,1680 @@
+** Testing int, property 'foo' (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing int, property 'bar' (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing int, property 42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing int, property 43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing int, property -42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing int, property -43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing int, property 'foo_strict' (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing int, property 'bar_strict' (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing int, property 142 (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing int, property 143 (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing int, property -142 (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing int, property -143 (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing large int, property 'foo' (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing large int, property 'bar' (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing large int, property 42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing large int, property 43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing large int, property -42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing large int, property -43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing large int, property 'foo_strict' (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing large int, property 'bar_strict' (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing large int, property 142 (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing large int, property 143 (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing large int, property -142 (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing large int, property -143 (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing float, property 'foo' (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing float, property 'bar' (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing float, property 42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing float, property 43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing float, property -42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+
+** Testing float, property -43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  true
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing float, property 'foo_strict' (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing float, property 'bar_strict' (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing float, property 142 (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing float, property 143 (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing float, property -142 (value, strict mode) **
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing float, property -143 (function, strict mode) **
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: number
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing bool, property 'foo' (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+
+** Testing bool, property 'bar' (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+
+** Testing bool, property 42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+
+** Testing bool, property 43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+
+** Testing bool, property -42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+
+** Testing bool, property -43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: true
+    Is String:  false
+  ... returning from function
+
+** Testing bool, property 'foo_strict' (value, strict mode) **
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing bool, property 'bar_strict' (function, strict mode) **
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing bool, property 142 (value, strict mode) **
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing bool, property 143 (function, strict mode) **
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing bool, property -142 (value, strict mode) **
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing bool, property -143 (function, strict mode) **
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: boolean
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing string, property 'foo' (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+
+** Testing string, property 'bar' (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+
+** Testing string, property 42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+
+** Testing string, property 43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+
+** Testing string, property -42 (value) **
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+Executing getter:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+
+** Testing string, property -43 (function) **
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+Executing function:
+  Type: object
+    Is Object:  true
+    Is Number:  false
+    Is Boolean: false
+    Is String:  true
+  ... returning from function
+
+** Testing string, property 'foo_strict' (value, strict mode) **
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing string, property 'bar_strict' (function, strict mode) **
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing string, property 142 (value, strict mode) **
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing string, property 143 (function, strict mode) **
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+
+** Testing string, property -142 (value, strict mode) **
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+Executing getter:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+
+** Testing string, property -143 (function, strict mode) **
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+Executing function:
+  Type: string
+    Is Object:  false
+    Is Number:  false
+    Is Boolean: false
+    Is String:  false
+  ... returning from function
+

@@ -1,0 +1,4 @@
+Exception: var named eval SyntaxError
+Exception: var named eval inital value SyntaxError
+Exception: var named arguments SyntaxError
+Exception: var named arguments inital value SyntaxError

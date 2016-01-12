@@ -1,0 +1,112 @@
+match(/a*/g /*lastIndex=0*/ , "aaabbaababab");
+["aaa","","","aa","","a","","a","",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababab","","","","","","","","",""]
+match(/a+/g /*lastIndex=0*/ , "aaabbaababab");
+["aaa","aa","a","a"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababab","","","","","","","","",""]
+match(/a{2,3}$/g /*lastIndex=0*/ , "aaabbaababaa");
+["aa"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababaa","","","","","","","","",""]
+match(/^a{3,12}/g /*lastIndex=0*/ , "aaabbaababaa");
+["aaa"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababaa","","","","","","","","",""]
+match(/a{4,12}/g /*lastIndex=0*/ , "aaabbaababaa");
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababaa","","","","","","","","",""]
+match(/^[ab]{12,20}$/g /*lastIndex=0*/ , "aaabbaababaa");
+["aaabbaababaa"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababaa","","","","","","","","",""]
+match(/^(?:a|b){12,20}$/g /*lastIndex=0*/ , "aaabbaababaa");
+["aaabbaababaa"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababaa","","","","","","","","",""]
+match(/^a|[ab]{12,20}$/g /*lastIndex=0*/ , "aaabbaababaa");
+["a"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababaa","","","","","","","","",""]
+match(/^[ab]{13,20}$/ /*lastIndex=0*/ , "aaabbaababaa");
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["aaabbaababaa","","","","","","","","",""]
+exec(/a*/g /*lastIndex=0*/ , "cdsddfs");
+[""] /*input="cdsddfs", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["cdsddfs","","","","","","","","",""]
+exec(/a*/g /*lastIndex=0*/ , "cdsddfs");
+[""] /*input="cdsddfs", index=0*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["cdsddfs","","","","","","","","",""]
+match(/a+/ /*lastIndex=0*/ , "cdsddfs");
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["cdsddfs","","","","","","","","",""]
+match(/a+/g /*lastIndex=0*/ , "cdsddfs");
+null
+r.lastIndex=0
+RegExp.${_,1,...,9}=["cdsddfs","","","","","","","","",""]
+match(/a*b+?/g /*lastIndex=0*/ , "abaaabbb");
+["ab","aaab","b","b"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abaaabbb","","","","","","","","",""]
+exec(/a*b+?$/ /*lastIndex=0*/ , "abaaabbb");
+["aaabbb"] /*input="abaaabbb", index=2*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abaaabbb","","","","","","","","",""]
+match(/a*/g /*lastIndex=0*/ , "bbb\u000abaa\u000aaaa\u000aaaaab");
+["","","","","","aa","","aaa","","aaaa","",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bbb\u000abaa\u000aaaa\u000aaaaab","","","","","","","","",""]
+match(/^a*/gm /*lastIndex=0*/ , "bbb\u000abaa\u000aaaa\u000aaaaab");
+["","","aaa","aaaa"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bbb\u000abaa\u000aaaa\u000aaaaab","","","","","","","","",""]
+match(/a*$/g /*lastIndex=0*/ , "bbb\u000abaa\u000aaaa\u000aaaaa");
+["aaaa",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bbb\u000abaa\u000aaaa\u000aaaaa","","","","","","","","",""]
+match(/a*$/gm /*lastIndex=0*/ , "bbb\u000abaa\u000aaaa\u000aaaaa");
+["","aa","","aaa","","aaaa",""]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bbb\u000abaa\u000aaaa\u000aaaaa","","","","","","","","",""]
+match(/^a*$/gm /*lastIndex=0*/ , "bbb\u000abaa\u000aaaa\u000aaaaab");
+["aaa"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["bbb\u000abaa\u000aaaa\u000aaaaab","","","","","","","","",""]
+match(/a*b*a/g /*lastIndex=0*/ , "abbba");
+["abbba"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abbba","","","","","","","","",""]
+match(/a*b*a$/g /*lastIndex=0*/ , "abbbabbbba");
+["abbbba"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abbbabbbba","","","","","","","","",""]
+match(/b*a/g /*lastIndex=0*/ , "abbbcbba");
+["a","bba"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abbbcbba","","","","","","","","",""]
+match(/b*$/ /*lastIndex=0*/ , "abbbcbb");
+["bb"] /*input="abbbcbb", index=5*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["abbbcbb","","","","","","","","",""]
+match(/[b\x0a]{2,4}/ /*lastIndex=0*/ , "ab\u000abbb");
+["b\u000abb"] /*input="ab\u000abbb", index=1*/ 
+r.lastIndex=0
+RegExp.${_,1,...,9}=["ab\u000abbb","","","","","","","","",""]
+match(/^[b\x0a]{2,8}$/g /*lastIndex=0*/ , "\u000ab\u000abbb");
+["\u000ab\u000abbb"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["\u000ab\u000abbb","","","","","","","","",""]
+match(/^[b\x0a]{2,4}$/gm /*lastIndex=0*/ , "ab\u000abb\u000abbb");
+["bb","bbb"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["ab\u000abb\u000abbb","","","","","","","","",""]
+match(/^[b\x0a]{2,8}$/gm /*lastIndex=0*/ , "ab\u000abb\u000abbb");
+["bb\u000abbb"]
+r.lastIndex=0
+RegExp.${_,1,...,9}=["ab\u000abb\u000abbb","","","","","","","","",""]

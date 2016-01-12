@@ -1,0 +1,160 @@
+function () { return new Constructor(); }
+{}
+New object: {p: 0}
+
+function () { return new Constructor(0, 1); }
+{0: 0, 1: 1}
+New object: {p: 0}
+
+function () { return new Constructor(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16); }
+{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16}
+New object: {p: 0}
+
+function () { return new Constructor(0, new Constructor(0, 1).p, new ApplyArgsConstructor(0, 1).p); }
+{0: 0, 1: 1}
+{0: 0, 1: 1}
+{0: 0, 1: 0, 2: 0}
+New object: {p: 0}
+
+function () { return new ApplyArgsConstructor(); }
+{}
+New object: {p: 0}
+
+function () { return new ApplyArgsConstructor(0, 1); }
+{0: 0, 1: 1}
+New object: {p: 0}
+
+function () { return new ApplyArgsConstructor(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16); }
+{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16}
+New object: {p: 0}
+
+function () { return new ApplyArgsConstructor(0, new Constructor(0, 1).p, new ApplyArgsConstructor(0, 1).p); }
+{0: 0, 1: 1}
+{0: 0, 1: 1}
+{0: 0, 1: 0, 2: 0}
+New object: {p: 0}
+
+function () { return new RecursiveConstructor(); }
+{}
+{0: undefined}
+New object: {p: 0}
+
+function () { return new RecursiveConstructor(0, 1); }
+{0: 0, 1: 1}
+{0: 0}
+New object: {p: 0}
+
+function () { return new RecursiveConstructor(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16); }
+{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16}
+{0: 0}
+New object: {p: 0}
+
+function () { return new RecursiveConstructor(0, new Constructor(0, 1).p, new ApplyArgsConstructor(0, 1).p); }
+{0: 0, 1: 1}
+{0: 0, 1: 1}
+{0: 0, 1: 0, 2: 0}
+{0: 0}
+New object: {p: 0}
+
+function () { return new RecursiveApplyArgsConstructor(); }
+{}
+{0: undefined}
+New object: {p: 0}
+
+function () { return new RecursiveApplyArgsConstructor(0, 1); }
+{0: 0, 1: 1}
+{0: 0}
+New object: {p: 0}
+
+function () { return new RecursiveApplyArgsConstructor(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16); }
+{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16}
+{0: 0}
+New object: {p: 0}
+
+function () { return new RecursiveApplyArgsConstructor(0, new Constructor(0, 1).p, new ApplyArgsConstructor(0, 1).p); }
+{0: 0, 1: 1}
+{0: 0, 1: 1}
+{0: 0, 1: 0, 2: 0}
+{0: 0}
+New object: {p: 0}
+
+function () { return new ReturningConstructor(); }
+{}
+New object: {q: 0}
+
+function () { return new ReturningConstructor(0, 1); }
+{0: 0, 1: 1}
+New object: {q: 0}
+
+function () { return new ReturningConstructor(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16); }
+{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16}
+New object: {q: 0}
+
+function () { return new ReturningConstructor(0, new Constructor(0, 1).p, new ApplyArgsConstructor(0, 1).p); }
+{0: 0, 1: 1}
+{0: 0, 1: 1}
+{0: 0, 1: 0, 2: 0}
+New object: {q: 0}
+
+function () { return new ReturningApplyArgsConstructor(); }
+{}
+New object: {q: 0}
+
+function () { return new ReturningApplyArgsConstructor(0, 1); }
+{0: 0, 1: 1}
+New object: {q: 0}
+
+function () { return new ReturningApplyArgsConstructor(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16); }
+{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16}
+New object: {q: 0}
+
+function () { return new ReturningApplyArgsConstructor(0, new Constructor(0, 1).p, new ApplyArgsConstructor(0, 1).p); }
+{0: 0, 1: 1}
+{0: 0, 1: 1}
+{0: 0, 1: 0, 2: 0}
+New object: {q: 0}
+
+function () { return new ReturningRecursiveConstructor(); }
+{}
+{0: undefined}
+New object: {q: 0}
+
+function () { return new ReturningRecursiveConstructor(0, 1); }
+{0: 0, 1: 1}
+{0: 0}
+New object: {q: 0}
+
+function () { return new ReturningRecursiveConstructor(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16); }
+{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16}
+{0: 0}
+New object: {q: 0}
+
+function () { return new ReturningRecursiveConstructor(0, new Constructor(0, 1).p, new ApplyArgsConstructor(0, 1).p); }
+{0: 0, 1: 1}
+{0: 0, 1: 1}
+{0: 0, 1: 0, 2: 0}
+{0: 0}
+New object: {q: 0}
+
+function () { return new ReturningRecursiveApplyArgsConstructor(); }
+{}
+{0: undefined}
+New object: {q: 0}
+
+function () { return new ReturningRecursiveApplyArgsConstructor(0, 1); }
+{0: 0, 1: 1}
+{0: 0}
+New object: {q: 0}
+
+function () { return new ReturningRecursiveApplyArgsConstructor(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16); }
+{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16}
+{0: 0}
+New object: {q: 0}
+
+function () { return new ReturningRecursiveApplyArgsConstructor(0, new Constructor(0, 1).p, new ApplyArgsConstructor(0, 1).p); }
+{0: 0, 1: 1}
+{0: 0, 1: 1}
+{0: 0, 1: 0, 2: 0}
+{0: 0}
+New object: {q: 0}
+

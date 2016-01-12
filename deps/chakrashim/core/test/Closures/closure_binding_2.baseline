@@ -1,0 +1,17 @@
+Scenario: testing binding to the closure
+Setting x to 0
+Setting x to 100
+x = 0
+x = 100
+Setting x to 1
+Setting x to 101
+x = 1
+x = 101
+Setting x to 2
+Setting x to 102
+x = 2
+x = 102
+Setting x to 3
+Setting x to 103
+x = 3
+x = 103

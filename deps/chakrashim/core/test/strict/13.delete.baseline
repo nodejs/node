@@ -1,0 +1,6 @@
+Return: obj.foo false
+Return: 'hello'[0] false
+Return: 'hello'.length false
+Return: reg.source false
+Return: reg.global false
+Return: reg.lastIndex false

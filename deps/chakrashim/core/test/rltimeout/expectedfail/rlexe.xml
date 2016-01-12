@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<regress-exe>
+  <test>
+    <default>
+      <!-- should timeout after default timeout or command line specified default timeout -->
+      <files>%REGRESS%\longrunning.js</files>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <!-- should timeout after 3 seconds -->
+      <files>%REGRESS%\mediumrunning.js</files>
+      <timeout>3</timeout>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+  <test>
+    <default>
+      <!-- should timeout after 1 second; verify timeout works with command tag tests -->
+      <files>%REGRESS%\mediumrunning.js</files>
+      <command>%REGRESS%\runjsfile.cmd %REGRESS%\mediumrunning.js</command>
+      <timeout>1</timeout>
+      <tags>exclude_dynapogo</tags>
+    </default>
+  </test>
+</regress-exe>

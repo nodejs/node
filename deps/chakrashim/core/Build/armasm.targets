@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <PropertyPageSchema
+      Include="$(MSBuildThisFileDirectory)$(MSBuildThisFileName).xml" />
+      <AvailableItemName Include="ARMASM">
+        <Targets>_ARMASM</Targets>
+      </AvailableItemName>
+  </ItemGroup>
+  <PropertyGroup>
+    <ComputeLinkInputsTargets>
+      $(ComputeLinkInputsTargets);
+      ComputeARMASMOutput;
+    </ComputeLinkInputsTargets>
+    <ComputeLibInputsTargets>
+      $(ComputeLibInputsTargets);
+      ComputeARMASMOutput;
+    </ComputeLibInputsTargets>
+  </PropertyGroup>
+  <UsingTask
+    TaskName="ARMASM"
+    TaskFactory="XamlTaskFactory"
+    AssemblyName="Microsoft.Build.Tasks.v4.0, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <Task>$(MSBuildThisFileDirectory)$(MSBuildThisFileName).xml</Task>
+  </UsingTask>
+  <Target
+    Name="PreprocessForARMASM"
+    Condition="'@(ARMASM)' != ''"
+    BeforeTargets="_ARMASM">
+    <ItemGroup>
+      <BuildARMASM Include="@(ARMASM)" Condition="'%(ARMASM.ExcludedFromBuild)'!='true'" />
+    </ItemGroup>
+    <CL Condition="'@(BuildARMASM)' != ''"
+       BuildingInIDE                      ="$(BuildingInsideVisualStudio)"
+       Sources                            ="@(BuildARMASM)"
+
+       AdditionalIncludeDirectories       ="%(ClCompile.AdditionalIncludeDirectories)"
+       AdditionalOptions                  =""
+       AdditionalUsingDirectories         ="%(ClCompile.AdditionalUsingDirectories)"
+       AssemblerListingLocation           ="%(ClCompile.AssemblerListingLocation)"
+       AssemblerOutput                    ="%(ClCompile.AssemblerOutput)"
+       BasicRuntimeChecks                 ="%(ClCompile.BasicRuntimeChecks)"
+       BrowseInformation                  ="%(ClCompile.BrowseInformation)"
+       BrowseInformationFile              ="%(ClCompile.BrowseInformationFile)"
+       BufferSecurityCheck                ="%(ClCompile.BufferSecurityCheck)"
+       CallingConvention                  ="%(ClCompile.CallingConvention)"
+       CompileAsManaged                   ="%(ClCompile.CompileAsManaged)"
+       CompileAs                          ="CompileAsC"
+       DebugInformationFormat             ="%(ClCompile.DebugInformationFormat)"
+       DisableLanguageExtensions          ="%(ClCompile.DisableLanguageExtensions)"
+       DisableSpecificWarnings            ="%(ClCompile.DisableSpecificWarnings)"
+       EnableFiberSafeOptimizations       ="%(ClCompile.EnableFiberSafeOptimizations)"
+       EnablePREfast                      ="%(ClCompile.EnablePREfast)"
+       ErrorReporting                     ="%(ClCompile.ErrorReporting)"
+       ExceptionHandling                  ="%(ClCompile.ExceptionHandling)"
+       ExcludedInputPaths                 ="$(ExcludePath)"
+       ExpandAttributedSource             ="%(ClCompile.ExpandAttributedSource)"
+       FavorSizeOrSpeed                   ="%(ClCompile.FavorSizeOrSpeed)"
+       FloatingPointExceptions            ="%(ClCompile.FloatingPointExceptions)"
+       FloatingPointModel                 ="%(ClCompile.FloatingPointModel)"
+       ForceConformanceInForLoopScope     ="%(ClCompile.ForceConformanceInForLoopScope)"
+       ForcedUsingFiles                   ="%(ClCompile.ForcedUsingFiles)"
+       FunctionLevelLinking               ="%(ClCompile.FunctionLevelLinking)"
+       GenerateXMLDocumentationFiles      ="%(ClCompile.GenerateXMLDocumentationFiles)"
+       IgnoreStandardIncludePath          ="%(ClCompile.IgnoreStandardIncludePath)"
+       InlineFunctionExpansion            ="%(ClCompile.InlineFunctionExpansion)"
+       IntrinsicFunctions                 ="%(ClCompile.IntrinsicFunctions)"
+       MinimalRebuild                     ="%(ClCompile.MinimalRebuild)"
+       MultiProcessorCompilation          ="%(ClCompile.MultiProcessorCompilation)"
+       ObjectFileName                     ="$(IntDir)"
+       OmitDefaultLibName                 ="%(ClCompile.OmitDefaultLibName)"
+       OmitFramePointers                  ="%(ClCompile.OmitFramePointers)"
+       OpenMPSupport                      ="%(ClCompile.OpenMPSupport)"
+       Optimization                       ="%(ClCompile.Optimization)"
+       PrecompiledHeader                  =""
+       PrecompiledHeaderFile              ="NotUsing"
+       PrecompiledHeaderOutputFile        =""
+       PreprocessKeepComments             ="%(ClCompile.PreprocessKeepComments)"
+       PreprocessorDefinitions            ="%(ClCompile.PreprocessorDefinitions)"
+       PreprocessSuppressLineNumbers      ="%(ClCompile.PreprocessSuppressLineNumbers)"
+       PreprocessToFile                   ="true"
+       ProcessorNumber                    ="%(ClCompile.ProcessorNumber)"
+       ProgramDataBaseFileName            ="%(ClCompile.ProgramDataBaseFileName)"
+       RuntimeLibrary                     ="%(ClCompile.RuntimeLibrary)"
+       RuntimeTypeInfo                    ="%(ClCompile.RuntimeTypeInfo)"
+       ShowIncludes                       ="%(ClCompile.ShowIncludes)"
+       SmallerTypeCheck                   ="%(ClCompile.SmallerTypeCheck)"
+       StringPooling                      ="%(ClCompile.StringPooling)"
+       StructMemberAlignment              ="%(ClCompile.StructMemberAlignment)"
+       SuppressStartupBanner              ="%(ClCompile.SuppressStartupBanner)"
+       TreatSpecificWarningsAsErrors      ="%(ClCompile.TreatSpecificWarningsAsErrors)"
+       TreatWarningAsError                ="%(ClCompile.TreatWarningAsError)"
+       TreatWChar_tAsBuiltInType          ="%(ClCompile.TreatWChar_tAsBuiltInType)"
+       UndefineAllPreprocessorDefinitions ="%(ClCompile.UndefineAllPreprocessorDefinitions)"
+       UndefinePreprocessorDefinitions    ="%(ClCompile.UndefinePreprocessorDefinitions)"
+       UseFullPaths                       ="%(ClCompile.UseFullPaths)"
+       UseUnicodeForAssemblerListing      ="%(ClCompile.UseUnicodeForAssemblerListing)"
+       WarningLevel                       ="%(ClCompile.WarningLevel)"
+       WholeProgramOptimization           ="%(ClCompile.WholeProgramOptimization)"
+       XMLDocumentationFileName           ="%(ClCompile.XMLDocumentationFileName)"
+
+       TrackerLogDirectory                ="%(ClCompile.TrackerLogDirectory)"
+
+       TLogReadFiles                      ="@(CLTLogReadFiles)"
+       TLogWriteFiles                     ="@(CLTLogWriteFiles)"
+       ToolExe                            ="$(CLToolExe)"
+       ToolPath                           ="$(CLToolPath)"
+       TrackFileAccess                    ="$(TrackFileAccess)"
+       MinimalRebuildFromTracking         ="%(ClCompile.MinimalRebuildFromTracking)"
+       ToolArchitecture                   ="$(CLToolArchitecture)"
+       TrackerFrameworkPath               ="$(CLTrackerFrameworkPath)"
+       TrackerSdkPath                     ="$(CLTrackerSdkPath)"
+       TrackedInputFilesToIgnore             ="@(ClNoDependencies)"
+
+       AcceptableNonZeroExitCodes         ="%(ClCompile.AcceptableNonZeroExitCodes)"
+       YieldDuringToolExecution           ="$(ClYieldDuringToolExecution)"
+        >
+    </CL>
+  </Target>
+  <Target
+    Name="_ARMASM"
+    BeforeTargets="$(ARMASMBeforeTargets)"
+    AfterTargets="$(ARMASMAfterTargets)"
+    Condition="'@(ARMASM)' != ''"
+    Outputs="%(ARMASM.ObjectFileName)"
+    Inputs="%(ARMASM.PPFileName);%(ARMASM.AdditionalDependencies);$(MSBuildProjectFile)"
+    DependsOnTargets="_SelectedFiles">
+    <ItemGroup Condition="'@(SelectedFiles)' != ''">
+      <ARMASM Remove="@(ARMASM)" Condition="'%(Identity)' != '@(SelectedFiles)'" />
+    </ItemGroup>
+    <ItemGroup>
+      <ARMASM_tlog Include="%(ARMASM.ObjectFileName)" Condition="'%(ARMASM.ObjectFileName)' != '' and '%(ARMASM.ExcludedFromBuild)' != 'true'">
+        <Source>@(ARMASM, '|')</Source>
+      </ARMASM_tlog>
+    </ItemGroup>
+    <Message
+      Importance="High"
+      Text="%(ARMASM.ExecutionDescription)"
+      Condition="'@(ARMASM)' != '' and '%(ARMASM.ExcludedFromBuild)' != 'true'"/>
+    <WriteLinesToFile
+      Condition="'@(ARMASM_tlog)' != '' and '%(ARMASM_tlog.ExcludedFromBuild)' != 'true'"
+      File="$(TLogLocation)$(ProjectName).write.1u.tlog"
+      Lines="^%(ARMASM_tlog.Source);@(ARMASM_tlog-&gt;'%(Fullpath)')"
+      Encoding="Unicode"/>
+    <ARMASM
+      Condition="'@(ARMASM)' != '' and '%(ARMASM.ExcludedFromBuild)' != 'true'"
+      CommandLineTemplate="%(ARMASM.CommandLineTemplate)"
+      GenerateDebugInformation="%(ARMASM.GenerateDebugInformation)"
+      ObjectFileName="%(ARMASM.ObjectFileName)"
+      IncludePaths="%(ARMASM.IncludePaths)"
+      ErrorReporting="%(ARMASM.ErrorReporting)"
+      AdditionalOptions="%(ARMASM.AdditionalOptions)"
+      Inputs="%(ARMASM.PPFileName)" />
+  </Target>
+  <Target
+    Name="ComputeARMASMOutput"
+    Condition="'@(ARMASM)' != ''">
+    <ItemGroup>
+      <Link Include="@(ARMASM->Metadata('ObjectFileName')->Distinct()->ClearMetadata())" Condition="'%(ARMASM.ExcludedFromBuild)' != 'true'"/>
+      <Lib Include="@(ARMASM->Metadata('ObjectFileName')->Distinct()->ClearMetadata())" Condition="'%(ARMASM.ExcludedFromBuild)' != 'true'"/>
+    </ItemGroup>
+  </Target>
+</Project>

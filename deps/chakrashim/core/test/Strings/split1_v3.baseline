@@ -1,0 +1,24 @@
+Test : var ss = new String("HellosWorldsTosFoosBar");
+ss.split(): Length:1. Values:HellosWorldsTosFoosBar
+ss.split(""): Length:22. Values:H,e,l,l,o,s,W,o,r,l,d,s,T,o,s,F,o,o,s,B,a,r
+ss.split("s"): Length:5. Values:Hello,World,To,Foo,Bar
+Test : var ss = new String("firstbsecondb" + "thirdbfo" + "urthbfifthb");
+ss.split(): Length:1. Values:firstbsecondbthirdbfourthbfifthb
+ss.split(""): Length:32. Values:f,i,r,s,t,b,s,e,c,o,n,d,b,t,h,i,r,d,b,f,o,u,r,t,h,b,f,i,f,t,h,b
+ss.split("b"): Length:6. Values:first,second,third,fourth,fifth,
+Test : var ss = new String("0123" + "0123456789" + "" + "hideundefined01234567" + "234567");
+ss.split(): Length:1. Values:01230123456789hideundefined01234567234567
+ss.split(""): Length:41. Values:0,1,2,3,0,1,2,3,4,5,6,7,8,9,h,i,d,e,u,n,d,e,f,i,n,e,d,0,1,2,3,4,5,6,7,2,3,4,5,6,7
+ss.split("undefined"): Length:2. Values:01230123456789hide,01234567234567
+ss.split("2", 1000): Length:5. Values:01,301,3456789hideundefined01,34567,34567
+ss.split("2", 2): Length:2. Values:01,301
+ss.split("2", 0): Length:0. Values:
+ss.split("2", undefined): Length:5. Values:01,301,3456789hideundefined01,34567,34567
+ss.split("2", null): Length:0. Values:
+ss.split("2", -3): Length:5. Values:01,301,3456789hideundefined01,34567,34567
+ss.split("2", 1.3): Length:1. Values:01
+ss.split("2", -1.3): Length:5. Values:01,301,3456789hideundefined01,34567,34567
+ss.split("2", 2 - Math.pow(2, 32)): Length:2. Values:01,301
+ss.split("2", 2.3 - Math.pow(2, 32)): Length:3. Values:01,301,3456789hideundefined01
+ss.split(void 0, 0): Length:0. Values:
+3

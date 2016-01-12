@@ -1,0 +1,5 @@
+In toString() 
+Test call ToString - user defined object: foo
+Test call ToString - bool: true
+Test call ToString - number: 123
+Test call ToString - date: wed dec 31 1969 16:00:20 gmt-0800 (pacific standard time)

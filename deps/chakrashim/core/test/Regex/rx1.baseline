@@ -1,0 +1,453 @@
+******** replace tests
+JavaScript Is More Fun Than Java
+John Doe
+$1-$11,$1-$22
+original string:  Doe, John Abe, gold  C,B  alan, bart  replaced string:  John Doe gold Abe  B C  bart alan
+fn trace :  matched str: Doe, John capture1: Doe capture2: John offset: 0 org str: Doe, John Abe, gold  C,B  alan, bart
+fn trace :  matched str: Abe, gold capture1: Abe capture2: gold offset: 10 org str: Doe, John Abe, gold  C,B  alan, bart
+fn trace :  matched str: C,B capture1: C capture2: B offset: 21 org str: Doe, John Abe, gold  C,B  alan, bart
+fn trace :  matched str: alan, bart capture1: alan capture2: bart offset: 26 org str: Doe, John Abe, gold  C,B  alan, bart
+original string:  Doe, John Abe, gold  C,B  alan, bart function replaced string:  Doe, John Abe, gold  C,B  Alan, bart
+original string:  a   b  replaced string:  a b
+******** split tests
+regObjInst.lastIndex: 0
+regObjInst.Source: (<[^>]*>)
+regObjInst.global: false
+regObjInst.ignoreCase: false
+regObjInst.multiline: false
+regObjInst.options: 
+RegExp.input: hello <b>world</b>
+RegExp.input, $_: hello <b>world</b>
+RegExp.index: 14
+RegExp.lastIndex: undefined
+RegExp.lastMatch: </b>
+RegExp.lastMatch, $&: </b>
+RegExp.lastParen: </b>
+RegExp.lastParen $+: </b>
+RegExp.leftContext: hello <b>world
+RegExp.leftContext $`: hello <b>world
+RegExp.rightContext: 
+RegExp.rightContext $': 
+RegExp.$1: </b>
+RegExp.$2: 
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : hello ,<b>,world,</b>,
+Array input: undefined
+Array index: undefined
+Array lastIndex: undefined
+
+regObjInst.lastIndex: 0
+regObjInst.Source: \s*,\s*
+regObjInst.global: false
+regObjInst.ignoreCase: false
+regObjInst.multiline: false
+regObjInst.options: 
+RegExp.input: 1, 2, 3, 4, 5
+RegExp.input, $_: 1, 2, 3, 4, 5
+RegExp.index: 10
+RegExp.lastIndex: undefined
+RegExp.lastMatch: , 
+RegExp.lastMatch, $&: , 
+RegExp.lastParen: 
+RegExp.lastParen $+: 
+RegExp.leftContext: 1, 2, 3, 4
+RegExp.leftContext $`: 1, 2, 3, 4
+RegExp.rightContext: 5
+RegExp.rightContext $': 5
+RegExp.$1: 
+RegExp.$2: 
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : 1,2,3,4,5
+Array input: undefined
+Array index: undefined
+Array lastIndex: undefined
+
+regObjInst.lastIndex: 0
+regObjInst.Source: a*?
+regObjInst.global: false
+regObjInst.ignoreCase: false
+regObjInst.multiline: false
+regObjInst.options: 
+RegExp.input: ab
+RegExp.input, $_: ab
+RegExp.index: 1
+RegExp.lastIndex: undefined
+RegExp.lastMatch: 
+RegExp.lastMatch, $&: 
+RegExp.lastParen: 
+RegExp.lastParen $+: 
+RegExp.leftContext: a
+RegExp.leftContext $`: a
+RegExp.rightContext: b
+RegExp.rightContext $': b
+RegExp.$1: 
+RegExp.$2: 
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : a,b
+Array input: undefined
+Array index: undefined
+Array lastIndex: undefined
+
+regObjInst.lastIndex: 0
+regObjInst.Source: a*
+regObjInst.global: false
+regObjInst.ignoreCase: false
+regObjInst.multiline: false
+regObjInst.options: 
+RegExp.input: ab
+RegExp.input, $_: ab
+RegExp.index: 1
+RegExp.lastIndex: undefined
+RegExp.lastMatch: 
+RegExp.lastMatch, $&: 
+RegExp.lastParen: 
+RegExp.lastParen $+: 
+RegExp.leftContext: a
+RegExp.leftContext $`: a
+RegExp.rightContext: b
+RegExp.rightContext $': b
+RegExp.$1: 
+RegExp.$2: 
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : ,b
+Array input: undefined
+Array index: undefined
+Array lastIndex: undefined
+
+regObjInst.lastIndex: 0
+regObjInst.Source: <(\/)?([^<>]+)>
+regObjInst.global: false
+regObjInst.ignoreCase: false
+regObjInst.multiline: false
+regObjInst.options: 
+RegExp.input: A<B>bold</B>and<CODE>coded</CODE>
+RegExp.input, $_: A<B>bold</B>and<CODE>coded</CODE>
+RegExp.index: 26
+RegExp.lastIndex: undefined
+RegExp.lastMatch: </CODE>
+RegExp.lastMatch, $&: </CODE>
+RegExp.lastParen: CODE
+RegExp.lastParen $+: CODE
+RegExp.leftContext: A<B>bold</B>and<CODE>coded
+RegExp.leftContext $`: A<B>bold</B>and<CODE>coded
+RegExp.rightContext: 
+RegExp.rightContext $': 
+RegExp.$1: /
+RegExp.$2: CODE
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : A,,B,bold,/,B,and,,CODE,coded,/,CODE,
+Array input: undefined
+Array index: undefined
+Array lastIndex: undefined
+
+******** string.match, regexp.exec tests   
+regObjInst.lastIndex: 5
+regObjInst.Source: d(b+)(d)
+regObjInst.global: true
+regObjInst.ignoreCase: true
+regObjInst.multiline: false
+regObjInst.options: gi
+RegExp.input: cdbBdbsbdbdz
+RegExp.input, $_: cdbBdbsbdbdz
+RegExp.index: 1
+RegExp.lastIndex: undefined
+RegExp.lastMatch: dbBd
+RegExp.lastMatch, $&: dbBd
+RegExp.lastParen: d
+RegExp.lastParen $+: d
+RegExp.leftContext: c
+RegExp.leftContext $`: c
+RegExp.rightContext: bsbdbdz
+RegExp.rightContext $': bsbdbdz
+RegExp.$1: bB
+RegExp.$2: d
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : dbBd,bB,d
+Array input: cdbBdbsbdbdz
+Array index: 1
+Array lastIndex: undefined
+
+regObjInst.lastIndex: 0
+regObjInst.Source: d(b+)(d)
+regObjInst.global: true
+regObjInst.ignoreCase: true
+regObjInst.multiline: false
+regObjInst.options: gi
+RegExp.input: cdbBdbsbdbdz
+RegExp.input, $_: cdbBdbsbdbdz
+RegExp.index: 8
+RegExp.lastIndex: undefined
+RegExp.lastMatch: dbd
+RegExp.lastMatch, $&: dbd
+RegExp.lastParen: d
+RegExp.lastParen $+: d
+RegExp.leftContext: cdbBdbsb
+RegExp.leftContext $`: cdbBdbsb
+RegExp.rightContext: z
+RegExp.rightContext $': z
+RegExp.$1: b
+RegExp.$2: d
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : dbBd,dbd
+Array input: undefined
+Array index: undefined
+Array lastIndex: undefined
+
+regObjInst.lastIndex: 11
+regObjInst.Source: d(b+)(d)
+regObjInst.global: true
+regObjInst.ignoreCase: true
+regObjInst.multiline: false
+regObjInst.options: gi
+RegExp.input: cdbBdbsbdbdz
+RegExp.input, $_: cdbBdbsbdbdz
+RegExp.index: 8
+RegExp.lastIndex: undefined
+RegExp.lastMatch: dbd
+RegExp.lastMatch, $&: dbd
+RegExp.lastParen: d
+RegExp.lastParen $+: d
+RegExp.leftContext: cdbBdbsb
+RegExp.leftContext $`: cdbBdbsb
+RegExp.rightContext: z
+RegExp.rightContext $': z
+RegExp.$1: b
+RegExp.$2: d
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : dbd,b,d
+Array input: cdbBdbsbdbdz
+Array index: 8
+Array lastIndex: undefined
+
+regObjInst.lastIndex: 0
+regObjInst.Source: d(b+)(d)
+regObjInst.global: false
+regObjInst.ignoreCase: true
+regObjInst.multiline: false
+regObjInst.options: i
+RegExp.input: cdbBdbsbdbdz
+RegExp.input, $_: cdbBdbsbdbdz
+RegExp.index: 1
+RegExp.lastIndex: undefined
+RegExp.lastMatch: dbBd
+RegExp.lastMatch, $&: dbBd
+RegExp.lastParen: d
+RegExp.lastParen $+: d
+RegExp.leftContext: c
+RegExp.leftContext $`: c
+RegExp.rightContext: bsbdbdz
+RegExp.rightContext $': bsbdbdz
+RegExp.$1: bB
+RegExp.$2: d
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+Array : dbBd,bB,d
+Array input: cdbBdbsbdbdz
+Array index: 1
+Array lastIndex: undefined
+
+result match empty: 
+Matched 'Java' at position 0; next search begins at 4
+Matched 'Java' at position 28; next search begins at 32
+Result matching MMMM|MMM|MM|M with MM/dd/yyyy: MM
+Result match aa|a with aa: aa
+******** test empty regex expressions.
+true
+true
+true
+******** search tests
+true
+result search: 1
+cdbBdbsbdbdz
+cdbBdbsbdbdz
+result search: 18
+true
+result search: 18
+regObjInst.lastIndex: 0
+regObjInst.Source: falls
+regObjInst.global: false
+regObjInst.ignoreCase: true
+regObjInst.multiline: true
+regObjInst.options: im
+RegExp.input: The rain in Spain falls mainly in the plain.
+RegExp.input, $_: The rain in Spain falls mainly in the plain.
+RegExp.index: 18
+RegExp.lastIndex: undefined
+RegExp.lastMatch: falls
+RegExp.lastMatch, $&: falls
+RegExp.lastParen: 
+RegExp.lastParen $+: 
+RegExp.leftContext: The rain in Spain 
+RegExp.leftContext $`: The rain in Spain 
+RegExp.rightContext:  mainly in the plain.
+RegExp.rightContext $':  mainly in the plain.
+RegExp.$1: 
+RegExp.$2: 
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+
+regObjInst.lastIndex: 0
+regObjInst.Source: falls
+regObjInst.global: false
+regObjInst.ignoreCase: true
+regObjInst.multiline: true
+regObjInst.options: im
+RegExp.input: foooooooooo
+RegExp.input, $_: foooooooooo
+RegExp.index: 18
+RegExp.lastIndex: undefined
+RegExp.lastMatch: falls
+RegExp.lastMatch, $&: falls
+RegExp.lastParen: 
+RegExp.lastParen $+: 
+RegExp.leftContext: The rain in Spain 
+RegExp.leftContext $`: The rain in Spain 
+RegExp.rightContext:  mainly in the plain.
+RegExp.rightContext $':  mainly in the plain.
+RegExp.$1: 
+RegExp.$2: 
+RegExp.$3: 
+RegExp.$4: 
+RegExp.$5: 
+RegExp.$6: 
+RegExp.$7: 
+RegExp.$8: 
+RegExp.$9: 
+
+
+result search: 0
+regObjInst.lastIndex: 0
+regObjInst.Source: (\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d+)
+regObjInst.global: true
+regObjInst.ignoreCase: false
+regObjInst.multiline: false
+regObjInst.options: g
+RegExp.input: 1@2@3@4@5@6@7@8@9@1@523
+RegExp.input, $_: 1@2@3@4@5@6@7@8@9@1@523
+RegExp.index: 0
+RegExp.lastIndex: undefined
+RegExp.lastMatch: 1@2@3@4@5@6@7@8@9@1@523
+RegExp.lastMatch, $&: 1@2@3@4@5@6@7@8@9@1@523
+RegExp.lastParen: 523
+RegExp.lastParen $+: 523
+RegExp.leftContext: 
+RegExp.leftContext $`: 
+RegExp.rightContext: 
+RegExp.rightContext $': 
+RegExp.$1: 1
+RegExp.$2: 2
+RegExp.$3: 3
+RegExp.$4: 4
+RegExp.$5: 5
+RegExp.$6: 6
+RegExp.$7: 7
+RegExp.$8: 8
+RegExp.$9: 9
+
+
+regObjInst.lastIndex: 0
+regObjInst.Source: (\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d)@(\d+)
+regObjInst.global: true
+regObjInst.ignoreCase: false
+regObjInst.multiline: false
+regObjInst.options: g
+RegExp.input: foooooooooo
+RegExp.input, $_: foooooooooo
+RegExp.index: 0
+RegExp.lastIndex: undefined
+RegExp.lastMatch: 1@2@3@4@5@6@7@8@9@1@523
+RegExp.lastMatch, $&: 1@2@3@4@5@6@7@8@9@1@523
+RegExp.lastParen: 523
+RegExp.lastParen $+: 523
+RegExp.leftContext: 
+RegExp.leftContext $`: 
+RegExp.rightContext: 
+RegExp.rightContext $': 
+RegExp.$1: 1
+RegExp.$2: 2
+RegExp.$3: 3
+RegExp.$4: 4
+RegExp.$5: 5
+RegExp.$6: 6
+RegExp.$7: 7
+RegExp.$8: 8
+RegExp.$9: 9
+
+
+******** Match Demo indirect names
+reg match: first dolar arg contains: bB
+second dolar arg contains: d
+third dolar arg contains: 
+******** Misc
+/abc/
+8
+aaaa
+a,a,a,a,a,a

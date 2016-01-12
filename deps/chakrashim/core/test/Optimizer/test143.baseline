@@ -1,0 +1,9 @@
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Separating array checks with bailout
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Hoisting array checks with bailout out of loop
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Eliminating array checks
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Separating array checks with bailout
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Hoisting array checks with bailout out of loop
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Eliminating array checks
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Separating array checks with bailout
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Hoisting array checks with bailout out of loop
+Testtrace: ArrayCheckHoist function test0 ( (#1.1), #2): Eliminating array checks

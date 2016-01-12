@@ -1,0 +1,17 @@
+-1335766487
+d = 1
+f = 1
+g = 0
+obj0 = 0
+obj1 = 0
+obj0.a = 0
+obj0.b = 0
+obj0.length = 0
+obj1.a = 0
+obj1.b = 0
+obj1.length = 0
+ary[0] = 0
+ary[1] = 0
+ary[100] = 0
+ary[ary.length-1] = 0
+ary.length = 0

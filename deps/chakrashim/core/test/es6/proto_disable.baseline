@@ -1,0 +1,23 @@
+*** Running test #1 (0): Change Object.prototype.__proto__ value
+Object.prototype.__proto__ = null
+PASSED
+*** Running test #2 (1): seal/freeze Object.prototype
+Object.seal(Object.prototype)
+Object.freeze(Object.prototype)
+PASSED
+*** Running test #3 (2): delete Object.prototype.__proto__
+delete Object.prototype.__proto__
+PASSED
+*** Running test #4 (3): DefineOwnProperty with missing/different attribute set
+Object.defineProperty(Object.prototype, "__proto__", {})
+Object.defineProperty(Object.prototype, "__proto__", {enumerable: false})
+Object.defineProperty(Object.prototype, "__proto__", {configurable: true})
+Object.defineProperty(Object.prototype, "__proto__", {enumerable: true, configurable: true})
+Object.defineProperty(Object.prototype, "__proto__", {enumerable: false, configurable: false})
+Object.defineProperty(Object.prototype, "__proto__", {enumerable: false, configurable: true})
+Object.defineProperty(Object.prototype, "__proto__", {value: 234, writable: true, enumerable: false, configurable: true})
+Object.defineProperty(Object.prototype, "__proto__", {set: function () { return "custom setter" }, enumerable: false, configurable: true})
+PASSED
+*** Running test #5 (4): Change Object.prototype.__proto__ getter or setter
+PASSED
+Summary of tests: total executed: 5; passed: 5; failed: 0

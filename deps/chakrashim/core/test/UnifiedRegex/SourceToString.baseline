@@ -1,0 +1,30 @@
+(?:)
+/(?:)/g
+(?:)
+/(?:)/i
+(?:)
+/(?:)/m
+a\tb
+/a\tb/gi
+a	b
+/a	b/gi
+a\tb
+/a\tb/gm
+a\nb
+/a\nb/gm
+a\nb
+/a\nb/im
+a\nb
+/a\nb/im
+a\x0ab
+/a\x0ab/gim
+a\nb
+/a\nb/gim
+a\x0ab
+/a\x0ab/gim
+a\u000ab
+/a\u000ab/gim
+a\nb
+/a\nb/gim
+a\u000ab
+/a\u000ab/gim

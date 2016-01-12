@@ -1,0 +1,88 @@
+(function(){"use strict";echo("hasOwnProperty(caller): ", arguments.hasOwnProperty("caller"));})();
+hasOwnProperty(caller): true
+
+var foo = function(){"use strict";};(function(){echo("hasOwnProperty(caller): ", foo.hasOwnProperty("caller"));})();
+hasOwnProperty(caller): false
+
+var foo = function(){"use strict";};(function(){"use strict";echo("hasOwnProperty(caller): ", foo.hasOwnProperty("caller"));})();
+hasOwnProperty(caller): false
+
+(function(){"use strict";echo("hasOwnProperty(callee): ", arguments.hasOwnProperty("callee"));})();
+hasOwnProperty(callee): true
+
+var foo = function(){"use strict";};(function(){echo("hasOwnProperty(arguments): ", foo.hasOwnProperty("arguments"));})();
+hasOwnProperty(arguments): false
+
+var foo = function(){"use strict";};(function(){"use strict";echo("hasOwnProperty(arguments): ", foo.hasOwnProperty("arguments"));})();
+hasOwnProperty(arguments): false
+
+(function(){"use strict";arguments.caller;})();
+TypeError: Accessing the 'caller' property is restricted in this context
+
+var foo = function(){"use strict";};(function(){foo.caller;})();
+TypeError: Accessing the 'caller' property is restricted in this context
+
+var foo = function(){"use strict";};(function(){"use strict";foo.caller;})();
+TypeError: Accessing the 'caller' property is restricted in this context
+
+(function(){"use strict";arguments.callee;})();
+TypeError: Accessing the 'callee' property of an arguments object is not allowed in strict mode
+
+var foo = function(){"use strict";};(function(){foo.arguments;})();
+TypeError: Accessing the 'arguments' property is restricted in this context
+
+var foo = function(){"use strict";};(function(){"use strict";foo.arguments;})();
+TypeError: Accessing the 'arguments' property is restricted in this context
+
+(function(){"use strict";arguments.caller = 0;})();
+TypeError: Accessing the 'caller' property is restricted in this context
+
+var foo = function(){"use strict";};(function(){foo.caller = 0;})();
+TypeError: Accessing the 'caller' property is restricted in this context
+
+var foo = function(){"use strict";};(function(){"use strict";foo.caller = 0;})();
+TypeError: Accessing the 'caller' property is restricted in this context
+
+(function(){"use strict";arguments.callee = 0;})();
+TypeError: Accessing the 'callee' property of an arguments object is not allowed in strict mode
+
+var foo = function(){"use strict";};(function(){foo.arguments = 0;})();
+TypeError: Accessing the 'arguments' property is restricted in this context
+
+var foo = function(){"use strict";};(function(){"use strict";foo.arguments = 0;})();
+TypeError: Accessing the 'arguments' property is restricted in this context
+
+(function(){"use strict";Object.defineProperty(arguments, "caller", {value: 0});})();
+TypeError: Cannot redefine non-configurable property 'caller'
+
+var foo = function(){"use strict";};(function(){Object.defineProperty(foo, "caller", {value: 0});})();
+
+var foo = function(){"use strict";};(function(){"use strict";Object.defineProperty(foo, "caller", {value: 0});})();
+
+(function(){"use strict";Object.defineProperty(arguments, "callee", {value: 0});})();
+TypeError: Cannot redefine non-configurable property 'callee'
+
+var foo = function(){"use strict";};(function(){Object.defineProperty(foo, "arguments", {value: 0});})();
+
+var foo = function(){"use strict";};(function(){"use strict";Object.defineProperty(foo, "arguments", {value: 0});})();
+
+(function(){"use strict";var descriptor = Object.getOwnPropertyDescriptor(arguments, "caller");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+TypeError: Accessing the 'caller' property is restricted in this context
+TypeError: Accessing the 'caller' property is restricted in this context
+
+var foo = function(){"use strict";};(function(){var descriptor = Object.getOwnPropertyDescriptor(foo, "caller");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+TypeError: Unable to get property 'hasOwnProperty' of undefined or null reference
+
+var foo = function(){"use strict";};(function(){"use strict";var descriptor = Object.getOwnPropertyDescriptor(foo, "caller");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+TypeError: Unable to get property 'hasOwnProperty' of undefined or null reference
+
+(function(){"use strict";var descriptor = Object.getOwnPropertyDescriptor(arguments, "callee");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+TypeError: Accessing the 'callee' property of an arguments object is not allowed in strict mode
+TypeError: Accessing the 'callee' property of an arguments object is not allowed in strict mode
+
+var foo = function(){"use strict";};(function(){var descriptor = Object.getOwnPropertyDescriptor(foo, "arguments");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+TypeError: Unable to get property 'hasOwnProperty' of undefined or null reference
+
+var foo = function(){"use strict";};(function(){"use strict";var descriptor = Object.getOwnPropertyDescriptor(foo, "arguments");if(descriptor.hasOwnProperty("get")) safeCall(descriptor.get);if(descriptor.hasOwnProperty("set")) safeCall(descriptor.set);})();
+TypeError: Unable to get property 'hasOwnProperty' of undefined or null reference
+

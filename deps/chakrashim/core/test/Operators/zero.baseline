@@ -1,0 +1,47 @@
+ 0* 0 : 0 false
+-0* 0 : 0 true
+ 0*-0 : 0 true
+-0*-0 : 0 false
+ 5* 5 : 25 false
+-5* 5 : -25 false
+ 5*-5 : -25 false
+-5*-5 : 25 false
+ 0* 5 : 0 false
+-0* 5 : 0 true
+ 0*-5 : 0 true
+-0*-5 : 0 false
+ 0/ 0 : NaN false
+-0/ 0 : NaN false
+ 0/-0 : NaN false
+-0/-0 : NaN false
+ 5/ 5 : 1 false
+-5/ 5 : -1 false
+ 5/-5 : -1 false
+-5/-5 : 1 false
+ 0/ 5 : 0 false
+-0/ 5 : 0 true
+ 0/-5 : 0 true
+-0/-5 : 0 false
+ 0% 0 : NaN false
+-0% 0 : NaN false
+ 0%-0 : NaN false
+-0%-0 : NaN false
+ 5% 5 : 0 false
+-5% 5 : 0 true
+ 5%-5 : 0 false
+-5%-5 : 0 true
+ 0% 5 : 0 false
+-0% 5 : 0 true
+ 0%-5 : 0 false
+-0%-5 : 0 true
+-Infinity true
+-Infinity true
+-Infinity true
+-Infinity true
+-Infinity true
+Infinity false
+-Infinity true
+Infinity false
+0 true
+0 true
+0 false

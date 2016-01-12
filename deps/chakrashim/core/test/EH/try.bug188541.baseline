@@ -1,0 +1,20 @@
+foo():
+Caught e=10
+
+foo2():
+On entry: e=undefined
+Caught e=10
+On exit: e=undefined
+
+foo3():
+On entry: e=undefined
+Caught e=10
+On exit: e=undefined
+
+foo4():
+On entry: e=undefined
+Caught e=20
+Caught e=20
+On exit: e=undefined
+
+PASSED

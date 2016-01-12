@@ -1,0 +1,21 @@
+typeof (new String()) : object
+typeof () : string
+typeof (new Boolean(false)) : object
+typeof (false) : boolean
+typeof (new Number(0)) : object
+typeof (0) : number
+typeof (new Number(12345.678)) : object
+typeof (12345.678) : number
+typeof function : function
+typeof function returning function : function
+Caught JS error on undefined var
+undefined
+typeof empty obj : object
+typeof obj : object
+typeof array element with number : number
+typeof undef element array : undefined
+typeof array : object
+typeof (err) : object
+typeof ( new Date) : object
+typeof (new Array()) : object
+typeof(regex) : object

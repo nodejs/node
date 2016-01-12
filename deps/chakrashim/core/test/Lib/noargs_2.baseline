@@ -1,0 +1,28 @@
+escape = undefined
+unescape = undefined
+eval = undefined
+parseInt = NaN
+parseFloat = NaN
+isNaN = true
+isFinite = false
+decodeURI = undefined
+encodeURI = undefined
+decodeURIComponent = undefined
+encodeURIComponent = undefined
+Object = [object Object]
+Function = function anonymous() {
+
+}
+Array = 
+String = 
+Boolean = false
+Number = 0
+RegExp = /(?:)/
+Error = Error
+EvalError = EvalError
+RangeError = RangeError
+ReferenceError = ReferenceError
+SyntaxError = SyntaxError
+TypeError = TypeError
+URIError = URIError
+write: function write(v) { WScript.Echo(v + ""); }

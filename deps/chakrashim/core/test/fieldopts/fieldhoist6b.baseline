@@ -1,0 +1,3 @@
+ReferenceError: 'f' is undefined
+	at Anonymous function() (fieldhoist6b.js:13:5)
+	at Global code (fieldhoist6b.js:7:2)

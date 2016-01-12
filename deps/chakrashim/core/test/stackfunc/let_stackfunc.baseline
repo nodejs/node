@@ -1,0 +1,16 @@
+HasFuncDecl: test
+HasFuncDecl: nested
+HasMaybeEscapedUse: x
+HasMaybeEscapedUse: x
+HasMaybeEscapedUse: x
+HasFuncAssignment: f
+HasMaybeEscapedUse: i
+HasFuncAssignment: f2
+HasFuncAssignment: f3
+DoStackNestedFunc: test (function  (#1.1), #2)
+test1glo yes
+test2glo yes
+0
+f30
+undefined
+f3undefined

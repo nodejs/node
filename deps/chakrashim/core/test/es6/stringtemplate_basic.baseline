@@ -1,0 +1,114 @@
+Tag function takes less formal arguments than string template produces:
+callsiteObj[0]=str1 
+callsiteObj[1]= str3 
+callsiteObj[2]= str5
+callsiteObj.raw[0]=str1 
+callsiteObj.raw[1]= str3 
+callsiteObj.raw[2]= str5
+str2
+callsiteObj[0]=str1 
+callsiteObj[1]= str3 
+callsiteObj[2]= str5 
+callsiteObj[3]= str7
+callsiteObj.raw[0]=str1 
+callsiteObj.raw[1]= str3 
+callsiteObj.raw[2]= str5 
+callsiteObj.raw[3]= str7
+str2
+
+Simple tag function which assembles arguments:
+str1 str2 str3 str4 str5 str6 str7 str8 str9
+
+Simple tag function which assembles raw arguments:
+str1 str2 str3 str4 str5 str6 str7 str8 str9
+
+Substitution which calls a function:
+thirty = 30. sixty = 60.
+
+Function which returns a template literal:
+8
+600
+hello world 1
+
+Substitution calls a built-in operator:
+typeof 1 == number.
+
+Nested templates with substitutions:
+this is a nested (nested template funcreturn!) string template... funcreturns!
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+Verifying siteObj against a known set of cooked and raw values...
+PASSED
+
+string literal pre string expression pre \0 string expression post string literal post

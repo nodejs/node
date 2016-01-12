@@ -1,0 +1,38 @@
+Syntax check succeeded
+Syntax check succeeded
+SyntaxError: Assignment to const
+SyntaxError: Assignment to const
+SyntaxError: Assignment to const
+SyntaxError: Assignment to const
+Syntax check succeeded
+SyntaxError: Assignment to const
+Syntax check succeeded
+Syntax check succeeded
+SyntaxError: Assignment to const
+SyntaxError: Const must be initialized
+SyntaxError: Const must be initialized
+SyntaxError: Const must be initialized
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+Syntax check succeeded
+Syntax check succeeded
+Syntax check succeeded
+Syntax check succeeded
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration
+SyntaxError: Let/Const redeclaration

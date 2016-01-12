@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{80A70F57-0F89-458F-AFD3-CE2159EB9BB1}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <TargetName>rl</TargetName>
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>
+        %(AdditionalDependencies);
+        oleaut32.lib;
+        ole32.lib;
+        kernel32.lib;
+        xmllite.lib;
+        $(NoThrowNewLib)
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)rl.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)rlfeint.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)rlmp.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)rlrun.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)rlregr.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)xmlreader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="rl.h" />
+    <ClInclude Include="rlfeint.h" />
+    <ClInclude Include="xmlreader.h" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <PropertyGroup>
+    <RunCodeAnalysisOnThisProject>false</RunCodeAnalysisOnThisProject>
+  </PropertyGroup>
+</Project>

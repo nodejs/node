@@ -1,0 +1,360 @@
+-- Error.stackTraceLimit property descriptor
+value: 10
+writable: true
+enumerable: true
+configurable: true
+
+-- Error.stackTraceLimit: 10
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+
+-- Error.stackTraceLimit: 4
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+
+-- Error.stackTraceLimit: Infinity
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at runtest (longcallstackthrow.js:56:5)
+	at testLongCallStack (stacktracelimit.js:23:5)
+	at Global code (stacktracelimit.js:29:1)
+
+-- Error.stackTraceLimit: 1
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+
+-- Error.stackTraceLimit: 20
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+
+-- Error.stackTraceLimit: 5.1
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+
+-- Error.stackTraceLimit: -1
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at runtest (longcallstackthrow.js:56:5)
+	at testLongCallStack (stacktracelimit.js:23:5)
+	at Global code (stacktracelimit.js:33:1)
+
+-- Error.stackTraceLimit: -3.2
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at runtest (longcallstackthrow.js:56:5)
+	at testLongCallStack (stacktracelimit.js:23:5)
+	at Global code (stacktracelimit.js:34:1)
+
+-- Error.stackTraceLimit: -Infinity
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at runtest (longcallstackthrow.js:56:5)
+	at testLongCallStack (stacktracelimit.js:23:5)
+	at Global code (stacktracelimit.js:35:1)
+
+-- Error.stackTraceLimit: 0
+Error: this is my error
+
+-- Error.stackTraceLimit: 0
+Error: this is my error
+
+-- Error.stackTraceLimit: 0
+Error: this is my error
+
+-- Error.stackTraceLimit: NaN
+Error: this is my error
+
+-- Error.stackTraceLimit: not a number
+Error: this is my error
+
+-- Error.stackTraceLimit: [object Object]
+Error: this is my error
+
+-- preset Error.stackTraceLimit: 8
+
+--Reconfigure to a getter
+** Custom stackTraceLimit getter Called, return 3
+** Custom stackTraceLimit getter Called, return 3
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+
+--Delete it
+-- Error.stackTraceLimit: undefined
+Error: this is my error
+
+--Available on prototype
+-- Error.stackTraceLimit: 2
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+
+--Set to data property again
+-- Error.stackTraceLimit: 5
+Error: this is my error
+	at throwException (longcallstackthrow.js:34:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+
+--Throw in getter
+** Custom stackTraceLimit getter Called, throw
+My error in custom stackTraceLimit getter
+
+--Throw new Error() in getter
+Error: Out of stack space
+
+--Throw new Error() in getter for a number of times
+Error: My error in custom stackTraceLimit getter
+	at get stackTraceLimit (stacktracelimit.js:94:13)
+	at get stackTraceLimit (stacktracelimit.js:94:13)
+	at get stackTraceLimit (stacktracelimit.js:94:13)
+	at get stackTraceLimit (stacktracelimit.js:94:13)
+	at throwException (longcallstackthrow.js:33:5)
+	at throwExceptionWithCatch (longcallstackthrow.js:22:9)
+	at Anonymous function (longcallstackthrow.js:45:17)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at Anonymous function (longcallstackthrow.js:47:13)
+	at runtest (longcallstackthrow.js:56:5)
+	at testLongCallStack (stacktracelimit.js:23:5)
+	at Global code (stacktracelimit.js:101:1)
+
+-- Error.stackTraceLimit: null
+Error: this is my error
+
+-- Error.stackTraceLimit: undefined
+Error: this is my error
+
+-- Error.stackTraceLimit: true
+Error: this is my error
+
+-- Error.stackTraceLimit: false
+Error: this is my error
+
+-- Error.stackTraceLimit: true
+Error: this is my error
+
+-- Error.stackTraceLimit: false
+Error: this is my error
+
+-- Error.stackTraceLimit: 4
+Error: this is my error
+
+-- Error.stackTraceLimit: 5
+Error: this is my error
+
+-- Error.stackTraceLimit: 6
+Error: this is my error
+
+-- Error.stackTraceLimit: NaN
+Error: this is my error
+
+-- Error.stackTraceLimit: NaN
+Error: this is my error
+
+-- Error.stackTraceLimit: -2
+Error: this is my error
+
+-- Error.stackTraceLimit: 
+Error: this is my error
+
+-- Error.stackTraceLimit: 1,2,3
+Error: this is my error
+
+-- Error.stackTraceLimit: [object Object]
+Error: this is my error
+
+-- Error.stackTraceLimit: valueOf override
+Error: this is my error
+
+-- Error.stackTraceLimit: valueOf override throw
+Error: this is my error
+

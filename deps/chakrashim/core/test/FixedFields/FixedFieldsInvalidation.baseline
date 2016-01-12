@@ -1,0 +1,36 @@
+Testing invalidation due to overwrite:
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (overwritten)
+x + y = 1 (overwritten)
+x - y = -1 (overwritten)
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (original)
+x + y = 1 (original)
+x - y = -1 (overwritten)
+
+Testing invalidation due to delete:
+x + y = 1 (from proto1)
+x - y = -1 (from proto1)
+x + y = 1 (from proto1)
+x - y = -1 (from proto1)
+x + y = 1 (from proto1)
+x - y = -1 (from proto2)
+x + y = 1 (from proto2)
+x - y = -1 (from proto2)
+
+Testing invalidation due to shadowing:
+x + y = 1 (from proto2)
+x - y = -1 (from proto2)
+x + y = 1 (from proto2)
+x - y = -1 (from proto2)
+x + y = 1 (from proto2)
+x - y = -1 (from proto1)
+x + y = 1 (from proto1)
+x - y = -1 (from proto1)
+

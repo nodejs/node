@@ -1,0 +1,30 @@
+PASS: 1: new Function succeeded as expected
+PASS: 1: new Function succeeded as expected
+PASS: 2: new Function succeeded as expected
+PASS: 3: new Function succeeded as expected
+PASS: 4: new Function succeeded as expected
+PASS: 5: new Function succeeded as expected
+PASS: 6: new Function succeeded as expected
+PASS: 7: new Function succeeded as expected
+PASS: 8: new Function succeeded as expected
+PASS: 9: new Function succeeded as expected
+PASS: 10: new Function succeeded as expected
+PASS: 100: new Function failed as expected. SyntaxError: Syntax error
+PASS: 100: new Function failed as expected. SyntaxError: Syntax error
+PASS: 101: new Function failed as expected. SyntaxError: Syntax error
+PASS: 102: new Function failed as expected. SyntaxError: Syntax error
+PASS: 103: new Function failed as expected. SyntaxError: Syntax error
+PASS: 104: new Function failed as expected. SyntaxError: Syntax error
+PASS: 105: new Function failed as expected. SyntaxError: Syntax error
+PASS: 200: new Function failed as expected. SyntaxError: Expected identifier
+PASS: 200: new Function failed as expected. SyntaxError: Expected identifier
+PASS: 201: new Function failed as expected. SyntaxError: Expected identifier
+PASS: 202: new Function failed as expected. SyntaxError: Expected ')'
+PASS: 203: new Function failed as expected. SyntaxError: Expected identifier
+PASS: 300: new Function succeeded as expected
+PASS: 301: new Function succeeded as expected
+PASS: 302: new Function succeeded as expected
+PASS: 303: new Function succeeded as expected
+PASS: 304: new Function succeeded as expected
+PASS: 305: new Function succeeded as expected
+PASS: 306: new Function succeeded as expected

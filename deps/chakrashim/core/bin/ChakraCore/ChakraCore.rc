@@ -1,0 +1,19 @@
+//-------------------------------------------------------------------------------------------------------
+// Copyright (C) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
+//-------------------------------------------------------------------------------------------------------
+#include <windows.h>
+
+#define VER_PRODUCTNAME                 L"Microsoft \x00ae Chakra Core"
+#define VER_FILESUBTYPE                 VFT2_UNKNOWN
+#define VER_INTERNALNAME_STR            "chakracore.dll"
+#define VER_FILETYPE                    VFT_DLL
+
+#include "..\CoreCommon.ver"
+
+#include "jserr.rc2"
+
+#ifdef ENABLE_JS_ETW
+#include "Microsoft-Scripting-chakraEvents.rc"
+#endif
+

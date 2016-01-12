@@ -1,0 +1,38 @@
+value:1 index:0 Object:1,2,3,4,5
+value:2 index:1 Object:1,2,3,4,5
+value:3 index:2 Object:1,2,3,4,5
+value:4 index:3 Object:1,2,3,4,5
+value:5 index:4 Object:1,2,3,4,5
+1,4,9,16,25
+value:10 index:0 Object:10,20,30,40,50
+value:20 index:1 Object:10,20,30,40,50
+value:30 index:2 Object:10,20,30,40,50
+value:40 index:3 Object:10,20,30,40,50
+value:50 index:4 Object:10,20,30,40,50
+0,1,4,9,16
+value:10 index:0 Object:10,20,30,40,50
+value:20 index:1 Object:10,20,30,40,50
+value:30 index:2 Object:10,20,30,40,50
+value:40 index:3 Object:10,20,30,40,50
+value:50 index:4 Object:10,20,30,40,50
+0,20,60,120,200
+value:abc index:0 Object:[object Object]
+value:def index:1 Object:[object Object]
+value:xyz index:2 Object:[object Object]
+NaN,NaN,NaN
+value:abc index:0 Object:[object Object]
+value:def index:1 Object:[object Object]
+value:xyz index:2 Object:[object Object]
+0,1,4
+value:abc index:0 Object:[object Object]
+value:def index:1 Object:[object Object]
+value:xyz index:2 Object:[object Object]
+NaN,NaN,NaN
+value:10 index:0 Object:10,20,30,40,50,,20,,10
+value:20 index:1 Object:10,20,30,40,50,,20,,10
+value:30 index:2 Object:10,20,30,40,50,,20,,10
+value:40 index:3 Object:10,20,30,40,50,,20,,10
+value:50 index:4 Object:10,20,30,40,50,,20,,10
+value:20 index:6 Object:10,20,30,40,50,,20,,10
+value:10 index:8 Object:10,20,30,40,50,,20,,10
+100,400,900,1600,2500,,400,,100

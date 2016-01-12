@@ -1,0 +1,47 @@
+arguments.callee:configurable : true
+arguments.callee:enumerable   : false
+arguments.callee:writable     : true
+arguments.callee:getter       : undefined
+arguments.callee:setter       : undefined
+arguments.callee:value        : function Test1() {
+    var propDesc;
+
+    try {
+        propDesc = Object.getOwnPropertyDescriptor(arguments, "callee");
+        PrintDescriptor("arguments.callee", propDesc);
+    } catch (e) {
+        write("Exception: " + e.message);
+    }
+
+    try {
+        propDesc = Object.getOwnPropertyDescriptor(arguments, "caller");
+        PrintDescriptor("arguments.caller", propDesc);
+    } catch (e) {
+        write("Exception: " + e.message);
+    }
+
+    try {
+        var c = arguments.caller;
+    } catch (e) {
+        write("Exception: " + e.message);
+    }
+
+    try {
+        arguments.caller = 10;
+    } catch (e) {
+        write("Exception: " + e.message);
+    }
+
+    try {
+        var y = arguments.callee;
+    } catch (e) {
+        write("Exception: " + e.message);
+    }
+
+    try {
+        arguments.callee = 20;
+    } catch (e) {
+        write("Exception: " + e.message);
+    }
+}
+arguments.caller :propDesc undefined

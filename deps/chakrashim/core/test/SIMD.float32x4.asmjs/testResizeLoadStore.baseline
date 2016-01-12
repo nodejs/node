@@ -1,0 +1,6 @@
+Successfully compiled asm.js code
+Float32x4(5.1,6.1,-0.0,0.0)
+Float32x4(5.1,6.1,7.1,8.1)
+Correct
+true
+Float32x4(5.1,6.1,7.1,8.1)

@@ -1,0 +1,17 @@
+In foo: 2. this.x: global.x type: object
+In foo: undefined. this.x: global.x type: object
+In foo: undefined. this.x: undefined type: object
+In foo: undefined. this.x: global.x type: object
+In foo: undefined. this.x: global.x type: object
+In foo: undefined. this.x: undefined type: object
+In foo: undefined. this.x: global.x type: object
+In foo: undefined. this.x: global.x type: object
+true
+In foo: undefined. this.x: global.x type: object
+In foo: undefined. this.x: undefined type: object
+In foo: undefined. this.x: global.x type: object
+In foo: undefined. this.x: global.x type: object
+In foo: undefined. this.x: undefined type: object
+In foo: undefined. this.x: global.x type: object
+In foo: undefined. this.x: global.x type: object
+true

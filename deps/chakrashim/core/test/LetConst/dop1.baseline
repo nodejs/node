@@ -1,0 +1,4 @@
+exception: TypeError: Cannot define property 'x': object is not extensible
+let x
+undefined
+true

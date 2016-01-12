@@ -1,0 +1,5 @@
+In foo: 1. this.x: global.x
+In foo: 1. this.x: global.x
+ReferenceError (-2146823280): Invalid left-hand side in assignment
+In foo: 3. this.x: object.x
+1,2,5,10,17,26,37,50,65,82

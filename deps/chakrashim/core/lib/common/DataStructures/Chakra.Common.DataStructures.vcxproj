@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Condition="'$(ChakraBuildPathImported)'!='true'" Project="$(SolutionDir)Chakra.Build.Paths.props"/>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.ProjectConfiguration.props" />
+  <PropertyGroup Label="Globals">
+    <TargetName>Chakra.Common.DataStructures</TargetName>
+    <ProjectGuid>{5643D42A-C38D-4D82-9662-58470B3AC9F7}</ProjectGuid>
+    <RootNamespace>JS</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.props" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(MSBuildThisFileDirectory)..;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>CommonDataStructuresPch.h</PrecompiledHeaderFile>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)BigInt.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)BufferBuilder.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)DictionaryStats.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)growingArray.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)ImmutableList.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InternalString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Interval.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FixedBitVector.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)FixedBitVectorEnumerator.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)InternalStringNoCaseComparer.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SizePolicy.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)SparseBitVector.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)CommonDataStructuresPch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BigInt.h" />
+    <ClInclude Include="BaseDictionary.h" />
+    <ClInclude Include="BufferBuilder.h" />
+    <ClInclude Include="Cache.h" />
+    <ClInclude Include="CharacterBuffer.h" />
+    <ClInclude Include="CommonDataStructuresPch.h" />
+    <ClInclude Include="ContinuousPageStack.h" />
+    <ClInclude Include="DoublyLinkedList.h" />
+    <ClInclude Include="DoublyLinkedListElement.h" />
+    <ClInclude Include="growingArray.h" />
+    <ClInclude Include="ImmutableList.h" />
+    <ClInclude Include="interval.h" />
+    <ClInclude Include="LineOffsetCache.h" />
+    <ClInclude Include="LeafValueDictionary.h" />
+    <ClInclude Include="MruDictionary.h" />
+    <ClInclude Include="PageStack.h" />
+    <ClInclude Include="Pair.h" />
+    <ClInclude Include="Queue.h" />
+    <ClInclude Include="RegexKey.h" />
+    <ClInclude Include="SizePolicy.h" />
+    <ClInclude Include="InternalString.h" />
+    <ClInclude Include="BitVector.h" />
+    <ClInclude Include="comparer.h" />
+    <ClInclude Include="dictionary.h" />
+    <ClInclude Include="DictionaryEntry.h" />
+    <ClInclude Include="Dlist.h" />
+    <ClInclude Include="FixedBitVector.h" />
+    <ClInclude Include="FixedBitVectorEnumerator.h" />
+    <ClInclude Include="FixedStack.h" />
+    <ClInclude Include="HashTable.h" />
+    <ClInclude Include="KeyValuePair.h" />
+    <ClInclude Include="LargeStack.h" />
+    <ClInclude Include="list.h" />
+    <ClInclude Include="quicksort.h" />
+    <ClInclude Include="SimpleHashTable.h" />
+    <ClInclude Include="SList.h" />
+    <ClInclude Include="SparseArray.h" />
+    <ClInclude Include="SparseBitVector.h" />
+    <ClInclude Include="stack.h" />
+    <ClInclude Include="StringBuilder.h" />
+    <ClInclude Include="Tree.h" />
+    <ClInclude Include="UnitBitVector.h" />
+    <ClInclude Include="WeakReferenceDictionary.h" />
+    <ClInclude Include="InternalStringNoCaseComparer.h" />
+    <ClInclude Include="Option.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DoublyLinkedList.inl" />
+    <None Include="DoublyLinkedListElement.inl" />
+  </ItemGroup>
+  <Import Project="$(BuildConfigPropsPath)Chakra.Build.targets" Condition="exists('$(BuildConfigPropsPath)Chakra.Build.targets')"/>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

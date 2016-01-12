@@ -1,0 +1,11 @@
+HasFuncDecl: test
+HasFuncDecl: f1
+HasFuncDecl: test
+HasFuncDecl: f1
+HasMaybeEscapedUse: f1
+HasMaybeEscapedNestedFunc (MaybeEscapedUseFuncDecl): test (function  (#1.1), #2)
+HasFuncDecl: f1
+RestoreHasFuncAssignment: f1
+HasMaybeEscapedUse: i
+1
+1

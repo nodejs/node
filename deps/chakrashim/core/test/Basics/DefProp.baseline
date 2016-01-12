@@ -1,0 +1,32 @@
+array[0]
+array[0]
+array[0]
+sum
+sum
+sum
+array[0]
+array[0]
+array[0]
+sum1
+sum1
+sum1
+** Testing property 'foo'
+Type: object
+  Is Object: true
+  Is Number: true
+
+** Testing property 42
+Type: object
+  Is Object: true
+  Is Number: true
+
+** Testing property 'foo'
+Type: object
+  Is Object: true
+  Is Number: true
+
+** Testing property 42
+Type: object
+  Is Object: true
+  Is Number: true
+

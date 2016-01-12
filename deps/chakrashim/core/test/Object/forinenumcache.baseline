@@ -1,0 +1,33 @@
+test 1
+a = 1
+b = 2
+c = 3
+d = 4
+test 2
+a = 1
+b = 2
+c = 3
+d = 4
+test 3
+a = 1
+b = 2
+c = 3
+test 4
+a = 1
+b = 2
+c = 3
+d = 5
+test 5
+e,e
+e,b
+b,e
+b,b
+b,c
+c,e
+c,b
+c,c
+c,d
+d,e
+d,b
+d,c
+d,d

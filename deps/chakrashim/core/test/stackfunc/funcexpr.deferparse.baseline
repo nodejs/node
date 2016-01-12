@@ -1,0 +1,11 @@
+HasFuncDecl: x
+HasFuncDecl: x
+DoStackNestedFunc: Anonymous function (function  (#1.2), #3)
+HasMaybeEscapedNestedFunc (UnknownUse): Anonymous function (function  (#1.5), #6)
+HasMaybeEscapedNestedFunc (DeferredChild): Anonymous function (function  (#1.2), #3)
+DeferParse: box and disable stack function: Anonymous function (function  (#1.2), #3)
+Boxing Frame [Interpreted]: Anonymous function  (#1.2), #3
+Boxing StackScriptFunction Object: x (function Id:  (#1.3), #5)
+Boxing StackScriptFunction Object: Anonymous function (function Id:  (#1.5), #6)
+HasFuncDecl: x
+HasMaybeEscapedNestedFunc (UnknownUse): x (function  (#1.3), #5)

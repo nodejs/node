@@ -1,0 +1,203 @@
+>>> Start reverse test for object: 1,2,5,10,last
+Before Orig: 1,2,5,10,last,:: Length: 5
+After  Orig: last,10,5,2,1,:: Length: 5
+Result     : last,10,5,2,1,:: Length: 5
+<<< Stop reverse test for object: last,10,5,2,1
+>>> Start reverse test for object: 1,,5,,17,last
+Before Orig: 1,undefined,5,undefined,17,last,:: Length: 6
+After  Orig: last,17,undefined,5,undefined,1,:: Length: 6
+Result     : last,17,undefined,5,undefined,1,:: Length: 6
+<<< Stop reverse test for object: last,17,,5,,1
+>>> Start reverse test for object: 1,,,10,,,last
+Before Orig: 1,undefined,undefined,10,undefined,undefined,last,:: Length: 7
+After  Orig: last,undefined,undefined,10,undefined,undefined,1,:: Length: 7
+Result     : last,undefined,undefined,10,undefined,undefined,1,:: Length: 7
+<<< Stop reverse test for object: last,,,10,,,1
+>>> Start reverse test for object: 1,,,,17,,,last
+Before Orig: 1,undefined,undefined,undefined,17,undefined,undefined,last,:: Length: 8
+After  Orig: last,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 8
+Result     : last,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 8
+<<< Stop reverse test for object: last,,,17,,,,1
+>>> Start reverse test for object: 1,,,,,,,,last
+Before Orig: 1,undefined,undefined,undefined,undefined,undefined,undefined,undefined,last,:: Length: 9
+After  Orig: last,undefined,undefined,undefined,undefined,undefined,undefined,undefined,1,:: Length: 9
+Result     : last,undefined,undefined,undefined,undefined,undefined,undefined,undefined,1,:: Length: 9
+<<< Stop reverse test for object: last,,,,,,,,1
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,2,5,10,last,:: Length: 5
+After  Orig: last,10,5,2,1,:: Length: 5
+Result     : last,10,5,2,1,:: Length: 5
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,undefined,5,undefined,17,last,:: Length: 6
+After  Orig: last,17,undefined,5,undefined,1,:: Length: 6
+Result     : last,17,undefined,5,undefined,1,:: Length: 6
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,undefined,undefined,10,undefined,undefined,last,:: Length: 7
+After  Orig: last,undefined,undefined,10,undefined,undefined,1,:: Length: 7
+Result     : last,undefined,undefined,10,undefined,undefined,1,:: Length: 7
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,undefined,undefined,undefined,17,undefined,undefined,last,:: Length: 8
+After  Orig: last,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 8
+Result     : last,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 8
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,undefined,undefined,undefined,undefined,undefined,undefined,undefined,last,:: Length: 9
+After  Orig: last,undefined,undefined,undefined,undefined,undefined,undefined,undefined,1,:: Length: 9
+Result     : last,undefined,undefined,undefined,undefined,undefined,undefined,undefined,1,:: Length: 9
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: 10
+Before Orig: undefined,undefined,undefined,undefined,last,:: Length: 5
+After  Orig: last,undefined,undefined,undefined,undefined,:: Length: 5
+Result     : last,undefined,undefined,undefined,undefined,:: Length: 5
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: 10
+Before Orig: 1,2,5,10,17,last,:: Length: 6
+After  Orig: last,17,10,5,2,1,:: Length: 6
+Result     : last,17,10,5,2,1,:: Length: 6
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: 10
+Before Orig: 1,undefined,5,undefined,17,undefined,last,:: Length: 7
+After  Orig: last,undefined,17,undefined,5,undefined,1,:: Length: 7
+Result     : last,undefined,17,undefined,5,undefined,1,:: Length: 7
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: 10
+Before Orig: 1,undefined,undefined,10,undefined,undefined,undefined,last,:: Length: 8
+After  Orig: last,undefined,undefined,undefined,10,undefined,undefined,1,:: Length: 8
+Result     : last,undefined,undefined,undefined,10,undefined,undefined,1,:: Length: 8
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: 10
+Before Orig: 1,undefined,undefined,undefined,17,undefined,undefined,undefined,last,:: Length: 9
+After  Orig: last,undefined,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 9
+Result     : last,undefined,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 9
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: false
+Before Orig: undefined,undefined,undefined,undefined,last,:: Length: 5
+After  Orig: last,undefined,undefined,undefined,undefined,:: Length: 5
+Result     : last,undefined,undefined,undefined,undefined,:: Length: 5
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: false
+Before Orig: 1,2,5,10,17,last,:: Length: 6
+After  Orig: last,17,10,5,2,1,:: Length: 6
+Result     : last,17,10,5,2,1,:: Length: 6
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: false
+Before Orig: 1,undefined,5,undefined,17,undefined,last,:: Length: 7
+After  Orig: last,undefined,17,undefined,5,undefined,1,:: Length: 7
+Result     : last,undefined,17,undefined,5,undefined,1,:: Length: 7
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: false
+Before Orig: 1,undefined,undefined,10,undefined,undefined,undefined,last,:: Length: 8
+After  Orig: last,undefined,undefined,undefined,10,undefined,undefined,1,:: Length: 8
+Result     : last,undefined,undefined,undefined,10,undefined,undefined,1,:: Length: 8
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: false
+Before Orig: 1,undefined,undefined,undefined,17,undefined,undefined,undefined,last,:: Length: 9
+After  Orig: last,undefined,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 9
+Result     : last,undefined,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 9
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: 1,2,5,10,last
+Before Orig: 1,2,5,10,last,:: Length: 5
+After  Orig: last,10,5,2,1,:: Length: 5
+Result     : last,10,5,2,1,:: Length: 5
+<<< Stop reverse test for object: last,10,5,2,1
+>>> Start reverse test for object: 1,,5,,17,last
+Before Orig: 1,undefined,5,undefined,17,last,:: Length: 6
+After  Orig: last,17,undefined,5,undefined,1,:: Length: 6
+Result     : last,17,undefined,5,undefined,1,:: Length: 6
+<<< Stop reverse test for object: last,17,,5,,1
+>>> Start reverse test for object: 1,,,10,,,last
+Before Orig: 1,undefined,undefined,10,undefined,undefined,last,:: Length: 7
+After  Orig: last,undefined,undefined,10,undefined,undefined,1,:: Length: 7
+Result     : last,undefined,undefined,10,undefined,undefined,1,:: Length: 7
+<<< Stop reverse test for object: last,,,10,,,1
+>>> Start reverse test for object: 1,,,,17,,,last
+Before Orig: 1,undefined,undefined,undefined,17,undefined,undefined,last,:: Length: 8
+After  Orig: last,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 8
+Result     : last,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 8
+<<< Stop reverse test for object: last,,,17,,,,1
+>>> Start reverse test for object: 1,,,,,,,,last
+Before Orig: 1,undefined,undefined,undefined,undefined,undefined,undefined,undefined,last,:: Length: 9
+After  Orig: last,undefined,undefined,undefined,undefined,undefined,undefined,undefined,1,:: Length: 9
+Result     : last,undefined,undefined,undefined,undefined,undefined,undefined,undefined,1,:: Length: 9
+<<< Stop reverse test for object: last,,,,,,,,1
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,2,5,10,last,:: Length: 5
+After  Orig: last,10,5,2,1,:: Length: 5
+Result     : last,10,5,2,1,:: Length: 5
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,undefined,5,undefined,17,last,:: Length: 6
+After  Orig: last,17,undefined,5,undefined,1,:: Length: 6
+Result     : last,17,undefined,5,undefined,1,:: Length: 6
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,undefined,undefined,10,undefined,undefined,last,:: Length: 7
+After  Orig: last,undefined,undefined,10,undefined,undefined,1,:: Length: 7
+Result     : last,undefined,undefined,10,undefined,undefined,1,:: Length: 7
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,undefined,undefined,undefined,17,undefined,undefined,last,:: Length: 8
+After  Orig: last,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 8
+Result     : last,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 8
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: [object Object]
+Before Orig: 1,undefined,undefined,undefined,undefined,undefined,undefined,undefined,last,:: Length: 9
+After  Orig: last,undefined,undefined,undefined,undefined,undefined,undefined,undefined,1,:: Length: 9
+Result     : last,undefined,undefined,undefined,undefined,undefined,undefined,undefined,1,:: Length: 9
+<<< Stop reverse test for object: [object Object]
+>>> Start reverse test for object: 10
+Before Orig: undefined,undefined,undefined,undefined,last,:: Length: 5
+After  Orig: last,undefined,undefined,undefined,undefined,:: Length: 5
+Result     : last,undefined,undefined,undefined,undefined,:: Length: 5
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: 10
+Before Orig: 1,2,5,10,17,last,:: Length: 6
+After  Orig: last,17,10,5,2,1,:: Length: 6
+Result     : last,17,10,5,2,1,:: Length: 6
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: 10
+Before Orig: 1,undefined,5,undefined,17,undefined,last,:: Length: 7
+After  Orig: last,undefined,17,undefined,5,undefined,1,:: Length: 7
+Result     : last,undefined,17,undefined,5,undefined,1,:: Length: 7
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: 10
+Before Orig: 1,undefined,undefined,10,undefined,undefined,undefined,last,:: Length: 8
+After  Orig: last,undefined,undefined,undefined,10,undefined,undefined,1,:: Length: 8
+Result     : last,undefined,undefined,undefined,10,undefined,undefined,1,:: Length: 8
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: 10
+Before Orig: 1,undefined,undefined,undefined,17,undefined,undefined,undefined,last,:: Length: 9
+After  Orig: last,undefined,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 9
+Result     : last,undefined,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 9
+<<< Stop reverse test for object: 10
+>>> Start reverse test for object: false
+Before Orig: undefined,undefined,undefined,undefined,last,:: Length: 5
+After  Orig: last,undefined,undefined,undefined,undefined,:: Length: 5
+Result     : last,undefined,undefined,undefined,undefined,:: Length: 5
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: false
+Before Orig: 1,2,5,10,17,last,:: Length: 6
+After  Orig: last,17,10,5,2,1,:: Length: 6
+Result     : last,17,10,5,2,1,:: Length: 6
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: false
+Before Orig: 1,undefined,5,undefined,17,undefined,last,:: Length: 7
+After  Orig: last,undefined,17,undefined,5,undefined,1,:: Length: 7
+Result     : last,undefined,17,undefined,5,undefined,1,:: Length: 7
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: false
+Before Orig: 1,undefined,undefined,10,undefined,undefined,undefined,last,:: Length: 8
+After  Orig: last,undefined,undefined,undefined,10,undefined,undefined,1,:: Length: 8
+Result     : last,undefined,undefined,undefined,10,undefined,undefined,1,:: Length: 8
+<<< Stop reverse test for object: false
+>>> Start reverse test for object: false
+Before Orig: 1,undefined,undefined,undefined,17,undefined,undefined,undefined,last,:: Length: 9
+After  Orig: last,undefined,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 9
+Result     : last,undefined,undefined,undefined,17,undefined,undefined,undefined,1,:: Length: 9
+<<< Stop reverse test for object: false
+12,12
+10,10
+10,10

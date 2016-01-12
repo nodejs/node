@@ -1,0 +1,9 @@
+*** Running test #1 (test01): Make sure when called with -nonative, marshaling of results is correct (Win8 628808)
+PASSED
+*** Running test #2 (test02): lastIndex behavior
+PASSED
+*** Running test #3 (test03): Updating $1, $2,.. behavior
+PASSED
+*** Running test #4 (test04): Check in which context the results are created
+PASSED
+Summary of tests: total executed: 4; passed: 4; failed: 0

@@ -1,0 +1,34 @@
+Test 1.1
+blah<END>
+====================
+Test 1.2
+blah  <END>
+====================
+Test 1.3
+ blah<END>
+====================
+Test 2.1 (Multiline)
+<E>blah<E>
+   blah<E>
+<E>blah
+<E>blah<E><END>
+====================
+Test 2.2 (Multiline)
+<E><END>
+====================
+Test 2.3 (Multiline)
+<E>b<E>
+b<E><END>
+====================
+Test 3.1 (Multiline)
+<E>blah<E><E>
+<E>blah<E><E>
+<E>blah<E>
+<E>blah<E><E><END>
+====================
+Test 3.2 (Multiline)
+<E><E><END>
+====================
+Test 3.3 (Multiline)
+<E><E>b<E><E>
+<E>b<E><E><END>
