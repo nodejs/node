@@ -28,7 +28,7 @@ module.exports = function(context) {
         var locStart = node.loc.start;
         var locEnd = node.loc.end;
 
-        errors = errors.filter(function (error) {
+        errors = errors.filter(function(error) {
             var errorLoc = error[1];
             if (errorLoc.line >= locStart.line && errorLoc.line <= locEnd.line) {
                 if (errorLoc.column >= locStart.column && (errorLoc.column <= locEnd.column || errorLoc.line < locEnd.line)) {
@@ -63,7 +63,7 @@ module.exports = function(context) {
     function checkForIrregularWhitespace(node) {
         var sourceLines = context.getSourceLines();
 
-        sourceLines.forEach(function (sourceLine, lineIndex) {
+        sourceLines.forEach(function(sourceLine, lineIndex) {
             var lineNumber = lineIndex + 1,
                 location,
                 match;
@@ -108,7 +108,7 @@ module.exports = function(context) {
     }
 
     return {
-        "Program": function (node) {
+        "Program": function(node) {
             /**
              * As we can easily fire warnings for all white space issues with all the source its simpler to fire them here
              * This means we can check all the application code without having to worry about issues caused in the parser tokens
@@ -122,11 +122,11 @@ module.exports = function(context) {
 
         "Identifier": removeInvalidNodeErrors,
         "Literal": removeInvalidNodeErrors,
-        "Program:exit": function () {
+        "Program:exit": function() {
 
             // If we have any errors remaining report on them
-            errors.forEach(function (error) {
-                context.report.apply(this, error);
+            errors.forEach(function(error) {
+                context.report.apply(context, error);
             });
         }
     };

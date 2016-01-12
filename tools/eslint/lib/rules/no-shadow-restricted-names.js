@@ -13,6 +13,12 @@ module.exports = function(context) {
 
     var RESTRICTED = ["undefined", "NaN", "Infinity", "arguments", "eval"];
 
+    /**
+     * Check if the node name is present inside the restricted list
+     * @param {ASTNode} id id to evaluate
+     * @returns {void}
+     * @private
+     */
     function checkForViolation(id) {
         if (RESTRICTED.indexOf(id.name) > -1) {
             context.report(id, "Shadowing of global property \"" + id.name + "\".");

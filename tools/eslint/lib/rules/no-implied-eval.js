@@ -12,51 +12,86 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    var IMPLIED_EVAL = /set(?:Timeout|Interval)/;
+    var CALLEE_RE = /set(?:Timeout|Interval)|execScript/;
+
+    // Figures out if we should inspect a given binary expression. Is a stack of
+    // stacks, where the first element in each substack is a CallExpression.
+    var impliedEvalAncestorsStack = [];
 
     //--------------------------------------------------------------------------
     // Helpers
     //--------------------------------------------------------------------------
 
     /**
-     * Checks if the first argument of a given CallExpression node is a string literal.
-     * @param {ASTNode} node The CallExpression node the check.
-     * @returns {boolean} True if the first argument is a string literal, false if not.
+     * Get the last element of an array, without modifying arr, like pop(), but non-destructive.
+     * @param {array} arr What to inspect
+     * @returns {*} The last element of arr
+     * @private
      */
-    function hasStringLiteralArgument(node) {
-        var firstArgument = node.arguments[0];
-
-        return firstArgument && firstArgument.type === "Literal" && typeof firstArgument.value === "string";
+    function last(arr) {
+        return arr ? arr[arr.length - 1] : null;
     }
 
     /**
-     * Checks if the given MemberExpression node is window.setTimeout or window.setInterval.
+     * Checks if the given MemberExpression node is a potentially implied eval identifier on window.
      * @param {ASTNode} node The MemberExpression node to check.
-     * @returns {boolean} Whether or not the given node is window.set*.
+     * @returns {boolean} Whether or not the given node is potentially an implied eval.
+     * @private
      */
-    function isSetMemberExpression(node) {
+    function isImpliedEvalMemberExpression(node) {
         var object = node.object,
             property = node.property,
-            hasSetPropertyName = IMPLIED_EVAL.test(property.name) || IMPLIED_EVAL.test(property.value);
+            hasImpliedEvalName = CALLEE_RE.test(property.name) || CALLEE_RE.test(property.value);
 
-        return object.name === "window" && hasSetPropertyName;
-
+        return object.name === "window" && hasImpliedEvalName;
     }
 
     /**
-     * Determines if a node represents a call to setTimeout/setInterval with
-     * a string argument.
-     * @param {ASTNode} node The node to check.
+     * Determines if a node represents a call to a potentially implied eval.
+     *
+     * This checks the callee name and that there's an argument, but not the type of the argument.
+     *
+     * @param {ASTNode} node The CallExpression to check.
      * @returns {boolean} True if the node matches, false if not.
      * @private
      */
-    function isImpliedEval(node) {
+    function isImpliedEvalCallExpression(node) {
         var isMemberExpression = (node.callee.type === "MemberExpression"),
             isIdentifier = (node.callee.type === "Identifier"),
-            isSetMethod = (isIdentifier && IMPLIED_EVAL.test(node.callee.name)) ||
-                (isMemberExpression && isSetMemberExpression(node.callee));
+            isImpliedEvalCallee =
+                (isIdentifier && CALLEE_RE.test(node.callee.name)) ||
+                (isMemberExpression && isImpliedEvalMemberExpression(node.callee));
 
-        return isSetMethod && hasStringLiteralArgument(node);
+        return isImpliedEvalCallee && node.arguments.length;
+    }
+
+    /**
+     * Checks that the parent is a direct descendent of an potential implied eval CallExpression, and if the parent is a CallExpression, that we're the first argument.
+     * @param {ASTNode} node The node to inspect the parent of.
+     * @returns {boolean} Was the parent a direct descendent, and is the child therefore potentially part of a dangerous argument?
+     * @private
+     */
+    function hasImpliedEvalParent(node) {
+        // make sure our parent is marked
+        return node.parent === last(last(impliedEvalAncestorsStack)) &&
+            // if our parent is a CallExpression, make sure we're the first argument
+            (node.parent.type !== "CallExpression" || node === node.parent.arguments[0]);
+    }
+
+    /**
+     * Checks if our parent is marked as part of an implied eval argument. If
+     * so, collapses the top of impliedEvalAncestorsStack and reports on the
+     * original CallExpression.
+     * @param {ASTNode} node The CallExpression to check.
+     * @returns {boolean} True if the node matches, false if not.
+     * @private
+     */
+    function checkString(node) {
+        if (hasImpliedEvalParent(node)) {
+            // remove the entire substack, to avoid duplicate reports
+            var substack = impliedEvalAncestorsStack.pop();
+            context.report(substack[0], "Implied eval. Consider passing a function instead of a string.");
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -65,9 +100,41 @@ module.exports = function(context) {
 
     return {
         "CallExpression": function(node) {
-            if (isImpliedEval(node)) {
-                context.report(node, "Implied eval. Consider passing a function instead of a string.");
+            if (isImpliedEvalCallExpression(node)) {
+                // call expressions create a new substack
+                impliedEvalAncestorsStack.push([node]);
             }
+        },
+
+        "CallExpression:exit": function(node) {
+            if (node === last(last(impliedEvalAncestorsStack))) {
+                // destroys the entire sub-stack, rather than just using
+                // last(impliedEvalAncestorsStack).pop(), as a CallExpression is
+                // always the bottom of a impliedEvalAncestorsStack substack.
+                impliedEvalAncestorsStack.pop();
+            }
+        },
+
+        "BinaryExpression": function(node) {
+            if (node.operator === "+" && hasImpliedEvalParent(node)) {
+                last(impliedEvalAncestorsStack).push(node);
+            }
+        },
+
+        "BinaryExpression:exit": function(node) {
+            if (node === last(last(impliedEvalAncestorsStack))) {
+                last(impliedEvalAncestorsStack).pop();
+            }
+        },
+
+        "Literal": function(node) {
+            if (typeof node.value === "string") {
+                checkString(node);
+            }
+        },
+
+        "TemplateLiteral": function(node) {
+            checkString(node);
         }
     };
 

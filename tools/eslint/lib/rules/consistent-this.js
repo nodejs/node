@@ -53,39 +53,35 @@ module.exports = function(context) {
      */
     function ensureWasAssigned() {
         var scope = context.getScope();
+        var variable = scope.set.get(alias);
+        if (!variable) {
+            return;
+        }
 
-        scope.variables.some(function (variable) {
-            var lookup;
+        if (variable.defs.some(function(def) {
+            return def.node.type === "VariableDeclarator" &&
+                def.node.init !== null;
+        })) {
+            return;
+        }
 
-            if (variable.name === alias) {
-                if (variable.defs.some(function (def) {
-                    return def.node.type === "VariableDeclarator" &&
-                        def.node.init !== null;
-                })) {
-                    return true;
-                }
+        var lookup = (variable.references.length === 0 && scope.type === "global") ? scope : variable;
 
-                lookup = scope.type === "global" ? scope : variable;
+        // The alias has been declared and not assigned: check it was
+        // assigned later in the same scope.
+        if (!lookup.references.some(function(reference) {
+            var write = reference.writeExpr;
 
-                // The alias has been declared and not assigned: check it was
-                // assigned later in the same scope.
-                if (!lookup.references.some(function (reference) {
-                    var write = reference.writeExpr;
-
-                    if (reference.from === scope &&
-                            write && write.type === "ThisExpression" &&
-                            write.parent.operator === "=") {
-                        return true;
-                    }
-                })) {
-                    variable.defs.map(function (def) {
-                        return def.node;
-                    }).forEach(reportBadAssignment);
-                }
-
+            if (reference.from === scope &&
+                    write && write.type === "ThisExpression" &&
+                    write.parent.operator === "=") {
                 return true;
             }
-        });
+        })) {
+            variable.defs.map(function(def) {
+                return def.node;
+            }).forEach(reportBadAssignment);
+        }
     }
 
     return {
@@ -93,7 +89,7 @@ module.exports = function(context) {
         "FunctionExpression:exit": ensureWasAssigned,
         "FunctionDeclaration:exit": ensureWasAssigned,
 
-        "VariableDeclarator": function (node) {
+        "VariableDeclarator": function(node) {
             var id = node.id;
             var isDestructuring =
                 id.type === "ArrayPattern" || id.type === "ObjectPattern";
@@ -103,7 +99,7 @@ module.exports = function(context) {
             }
         },
 
-        "AssignmentExpression": function (node) {
+        "AssignmentExpression": function(node) {
             if (node.left.type === "Identifier") {
                 checkAssignment(node, node.left.name, node.right);
             }

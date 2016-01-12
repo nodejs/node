@@ -7,5 +7,5 @@ module.exports = function (str) {
 		throw new TypeError('Expected a string');
 	}
 
-	return str.replace(matchOperatorsRe,  '\\$&');
+	return str.replace(matchOperatorsRe, '\\$&');
 };

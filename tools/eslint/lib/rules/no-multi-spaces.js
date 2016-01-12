@@ -20,7 +20,7 @@ module.exports = function(context) {
         lastCommentIndex = 0;
 
     if (options && options.exceptions) {
-        Object.keys(options.exceptions).forEach(function (key) {
+        Object.keys(options.exceptions).forEach(function(key) {
             if (options.exceptions[key]) {
                 exceptions[key] = true;
             } else {
@@ -72,7 +72,22 @@ module.exports = function(context) {
                 allComments = context.getAllComments(),
                 pattern = /[^\n\r\u2028\u2029 ] {2,}/g,  // note: repeating space
                 token,
+                previousToken,
                 parent;
+
+
+            /**
+             * Creates a fix function that removes the multiple spaces between the two tokens
+             * @param {RuleFixer} leftToken left token
+             * @param {RuleFixer} rightToken right token
+             * @returns {function} fix function
+             * @private
+             */
+            function createFix(leftToken, rightToken) {
+                return function(fixer) {
+                    return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ");
+                };
+            }
 
             while (pattern.test(source)) {
 
@@ -80,16 +95,21 @@ module.exports = function(context) {
                 if (!isIndexInComment(pattern.lastIndex, allComments)) {
 
                     token = context.getTokenByRangeStart(pattern.lastIndex);
-
                     if (token) {
+                        previousToken = context.getTokenBefore(token);
+
                         if (hasExceptions) {
                             parent = context.getNodeByRangeIndex(pattern.lastIndex - 1);
                         }
 
                         if (!parent || !exceptions[parent.type]) {
-                            context.report(token, token.loc.start,
-                                "Multiple spaces found before '{{value}}'.",
-                                { value: token.value });
+                            context.report({
+                                node: token,
+                                loc: token.loc.start,
+                                message: "Multiple spaces found before '{{value}}'.",
+                                data: { value: token.value },
+                                fix: createFix(previousToken, token)
+                            });
                         }
                     }
 

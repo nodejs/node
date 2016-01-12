@@ -1,6 +1,8 @@
 /**
  * @fileoverview Rule to flag statements that use != and == instead of !== and ===
  * @author Nicholas C. Zakas
+ * @copyright 2013 Nicholas C. Zakas. All rights reserved.
+ * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -10,6 +12,12 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
+    var sourceCode = context.getSourceCode(),
+        replacements = {
+            "==": "===",
+            "!=": "!=="
+        };
 
     /**
      * Checks if an expression is a typeof expression
@@ -71,7 +79,7 @@ module.exports = function(context) {
             }
 
             if (context.options[0] === "smart" && (isTypeOfBinary(node) ||
-                    areLiteralsAndSameType(node)) || isNullCheck(node)) {
+                    areLiteralsAndSameType(node) || isNullCheck(node))) {
                 return;
             }
 
@@ -79,11 +87,27 @@ module.exports = function(context) {
                 return;
             }
 
-            context.report(
-                node, getOperatorLocation(node),
-                "Expected '{{op}}=' and instead saw '{{op}}'.",
-                {op: node.operator}
-            );
+            context.report({
+                node: node,
+                loc: getOperatorLocation(node),
+                message: "Expected '{{op}}=' and instead saw '{{op}}'.",
+                data: { op: node.operator },
+                fix: function(fixer) {
+                    var tokens = sourceCode.getTokensBetween(node.left, node.right),
+                        opToken,
+                        i;
+
+                    for (i = 0; i < tokens.length; ++i) {
+                        if (tokens[i].value === node.operator) {
+                            opToken = tokens[i];
+                            break;
+                        }
+                    }
+
+                    return fixer.replaceTextRange(opToken.range, replacements[node.operator]);
+                }
+            });
+
         }
     };
 

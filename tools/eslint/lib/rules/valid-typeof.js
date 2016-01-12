@@ -19,7 +19,7 @@ module.exports = function(context) {
 
     return {
 
-        "UnaryExpression": function (node) {
+        "UnaryExpression": function(node) {
             var parent, sibling;
 
             if (node.operator === "typeof") {

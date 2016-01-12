@@ -5,7 +5,7 @@
 
 ## Install
 
-```sh
+```
 $ npm install --save user-home
 ```
 
@@ -16,25 +16,16 @@ $ npm install --save user-home
 var userHome = require('user-home');
 
 console.log(userHome);
-//=> /Users/sindresorhus
+//=> '/Users/sindresorhus'
 ```
 
 Returns `null` in the unlikely scenario that the home directory can't be found.
 
 
-## CLI
+## Related
 
-```sh
-$ npm install --global user-home
-```
-
-```sh
-$ user-home --help
-
-Example
-  $ user-home
-  /Users/sindresorhus
-```
+- [user-home-cli](https://github.com/sindresorhus/user-home-cli) - CLI for this module
+- [home-or-tmp](https://github.com/sindresorhus/home-or-tmp) - Get the user home directory with fallback to the system temp directory
 
 
 ## License

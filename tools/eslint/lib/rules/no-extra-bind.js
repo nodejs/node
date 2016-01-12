@@ -2,6 +2,7 @@
  * @fileoverview Rule to flag unnecessary bind calls
  * @author Bence Dányi <bence@danyi.me>
  * @copyright 2014 Bence Dányi. All rights reserved.
+ * See LICENSE in root directory for full license.
  */
 "use strict";
 
@@ -56,8 +57,10 @@ module.exports = function(context) {
             }
         },
         "CallExpression:exit": function(node) {
-            var top = getTopScope();
-            if (top.call === node && top.found === 0) {
+            var top = getTopScope(),
+                isArrowFunction = node.callee.type === "MemberExpression" && node.callee.object.type === "ArrowFunctionExpression";
+
+            if (top.call === node && (top.found === 0 || isArrowFunction)) {
                 context.report(node, "The function binding is unnecessary.");
                 scope.pop();
             }

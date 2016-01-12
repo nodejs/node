@@ -44,11 +44,12 @@ module.exports = function(context) {
                 return;
             }
 
-            if (node.kind === "get" || node.kind === "set") {
+            // getters, setters and computed properties are ignored
+            if (node.kind === "get" || node.kind === "set" || node.computed) {
                 return;
             }
 
-            if (node.value.type === "FunctionExpression" && node.value.id == null && APPLY_TO_METHODS) {
+            if (node.value.type === "FunctionExpression" && !node.value.id && APPLY_TO_METHODS) {
 
                 // {x: function(){}} should be written as {x() {}}
                 context.report(node, "Expected method shorthand.");
