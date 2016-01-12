@@ -1,0 +1,5 @@
+!core
+!core/**/*.sln
+!core/**/*.vcxproj
+!core/**/*.vcxproj.filters
+!core/**/Debug/
