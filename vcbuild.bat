@@ -15,6 +15,7 @@ if /i "%1"=="/?" goto help
 set config=Release
 set target=Build
 set target_arch=x86
+set target_env=
 set noprojgen=
 set nobuild=
 set nosign=
@@ -44,6 +45,8 @@ if /i "%1"=="clean"         set target=Clean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
+if /i "%1"=="vc2013"        set target_env=vc2013&goto arg-ok
+if /i "%1"=="vc2015"        set target_env=vc2015&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set nosign=1&goto arg-ok
@@ -109,6 +112,10 @@ call :getnodeversion || exit /b 1
 
 @rem Set environment for msbuild
 
+if "%target_env%"=="vc2015" goto vc-set-2015
+if "%target_env%"=="vc2013" goto vc-set-2013
+
+:vc-set-2015
 @rem Look for Visual Studio 2015
 echo Looking for Visual Studio 2015
 if not defined VS140COMNTOOLS goto vc-set-2013
@@ -261,7 +268,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [download-all] [enable-vtune]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [vc2013/vc2015] [download-all] [enable-vtune]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
