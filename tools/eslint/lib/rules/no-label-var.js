@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -15,28 +21,15 @@ module.exports = function(context) {
     // Helpers
     //--------------------------------------------------------------------------
 
-    function findIdentifier(scope, identifier) {
-        var found = false;
-
-        scope.variables.forEach(function(variable) {
-            if (variable.name === identifier) {
-                found = true;
-            }
-        });
-
-        scope.references.forEach(function(reference) {
-            if (reference.identifier.name === identifier) {
-                found = true;
-            }
-        });
-
-        // If we have not found the identifier in this scope, check the parent
-        // scope.
-        if (scope.upper && !found) {
-            return findIdentifier(scope.upper, identifier);
-        }
-
-        return found;
+    /**
+     * Check if the identifier is present inside current scope
+     * @param {object} scope current scope
+     * @param {string} name To evaluate
+     * @returns {boolean} True if its present
+     * @private
+     */
+    function findIdentifier(scope, name) {
+        return astUtils.getVariableByName(scope, name) !== null;
     }
 
     //--------------------------------------------------------------------------

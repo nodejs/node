@@ -2,6 +2,8 @@
  * @fileoverview Util class to find config files.
  * @author Aliaksei Shytkin
  * @copyright 2014 Michael McLaughlin. All rights reserved.
+ * @copyright 2014 Aliaksei Shytkin. All rights reserved.
+ * See LICENSE in root directory for full license.
  */
 "use strict";
 
@@ -54,13 +56,14 @@ function FileFinder() {
  * @param  {string} directory The directory to start the search from.
  * @returns {string} Path of the file found, or an empty string if not found.
  */
-FileFinder.prototype.findInDirectoryOrParents = function (directory) {
+FileFinder.prototype.findInDirectoryOrParents = function(directory) {
     var cache = this.cache,
         child,
         dirs,
         filePath,
         i,
         name,
+        names,
         searched;
 
     if (!directory) {
@@ -74,20 +77,26 @@ FileFinder.prototype.findInDirectoryOrParents = function (directory) {
     dirs = [];
     searched = 0;
     name = this.fileNames[0];
+    names = Array.isArray(name) ? name : [name];
 
-    while (directory !== child) {
-        dirs[searched++] = directory;
+    (function() {
+        while (directory !== child) {
+            dirs[searched++] = directory;
 
-        if (getDirectoryEntries(directory).indexOf(name) !== -1 && fs.statSync(path.resolve(directory, name)).isFile()) {
-            filePath = path.resolve(directory, name);
-            break;
+            for (var k = 0, found = false; k < names.length && !found; k++) {
+
+                if (getDirectoryEntries(directory).indexOf(names[k]) !== -1 && fs.statSync(path.resolve(directory, names[k])).isFile()) {
+                    filePath = path.resolve(directory, names[k]);
+                    return;
+                }
+            }
+
+            child = directory;
+
+            // Assign parent directory to directory.
+            directory = path.dirname(directory);
         }
-
-        child = directory;
-
-        // Assign parent directory to directory.
-        directory = path.dirname(directory);
-    }
+    }());
 
     for (i = 0; i < searched; i++) {
         cache[dirs[i]] = filePath;
@@ -105,7 +114,7 @@ FileFinder.prototype.findInDirectoryOrParents = function (directory) {
  * @param  {string} directory The directory to start the search from.
  * @returns {string[]} The file paths found.
  */
-FileFinder.prototype.findAllInDirectoryAndParents = function (directory) {
+FileFinder.prototype.findAllInDirectoryAndParents = function(directory) {
     var cache = this.cache,
         child,
         dirs,
@@ -137,14 +146,24 @@ FileFinder.prototype.findAllInDirectoryAndParents = function (directory) {
         for (i = 0; i < fileNamesCount; i++) {
             name = fileNames[i];
 
-            if (getDirectoryEntries(directory).indexOf(name) !== -1 && fs.statSync(path.resolve(directory, name)).isFile()) {
-                filePath = path.resolve(directory, name);
+            // convert to an array for easier handling
+            if (!Array.isArray(name)) {
+                name = [name];
+            }
 
-                // Add the file path to the cache of each directory searched.
-                for (j = 0; j < searched; j++) {
-                    cache[dirs[j]].push(filePath);
+            for (var k = 0, found = false; k < name.length && !found; k++) {
+
+                if (getDirectoryEntries(directory).indexOf(name[k]) !== -1 && fs.statSync(path.resolve(directory, name[k])).isFile()) {
+                    filePath = path.resolve(directory, name[k]);
+                    found = true;
+
+                    // Add the file path to the cache of each directory searched.
+                    for (j = 0; j < searched; j++) {
+                        cache[dirs[j]].push(filePath);
+                    }
                 }
             }
+
         }
         child = directory;
 

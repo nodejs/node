@@ -11,35 +11,58 @@
 
 module.exports = function(context) {
 
-    var NATIVE_OBJECTS = ["Array", "Boolean", "Date", "decodeURI",
-                        "decodeURIComponent", "encodeURI", "encodeURIComponent",
-                        "Error", "eval", "EvalError", "Function", "isFinite",
-                        "isNaN", "JSON", "Math", "Number", "Object", "parseInt",
-                        "parseFloat", "RangeError", "ReferenceError", "RegExp",
-                        "String", "SyntaxError", "TypeError", "URIError",
-                        "Map", "NaN", "Set", "WeakMap", "Infinity", "undefined"];
-    var config = context.options[0] || {};
-    var exceptions = config.exceptions || [];
-    var modifiedNativeObjects = NATIVE_OBJECTS;
+    var config = context.options[0];
+    var exceptions = (config && config.exceptions) || [];
 
-    if (exceptions.length) {
-        modifiedNativeObjects = NATIVE_OBJECTS.filter(function(builtIn) {
-            return exceptions.indexOf(builtIn) === -1;
-        });
+    /**
+     * Gets the names of writeable built-in variables.
+     * @param {escope.Scope} scope - A scope to get.
+     * @returns {object} A map that its key is variable names.
+     */
+    function getBuiltinGlobals(scope) {
+        return scope.variables.reduce(function(retv, variable) {
+            if (variable.writeable === false && variable.name !== "__proto__") {
+                retv[variable.name] = true;
+            }
+            return retv;
+        }, Object.create(null));
+    }
+
+    /**
+     * Reports if a given reference's name is same as native object's.
+     * @param {object} builtins - A map that its key is a variable name.
+     * @param {Reference} reference - A reference to check.
+     * @param {int} index - The index of the reference in the references.
+     * @param {Reference[]} references - The array that the reference belongs to.
+     * @returns {void}
+     */
+    function checkThroughReference(builtins, reference, index, references) {
+        var identifier = reference.identifier;
+
+        if (identifier &&
+            builtins[identifier.name] &&
+            exceptions.indexOf(identifier.name) === -1 &&
+            reference.init === false &&
+            reference.isWrite() &&
+            // Destructuring assignments can have multiple default value,
+            // so possibly there are multiple writeable references for the same identifier.
+            (index === 0 || references[index - 1].identifier !== identifier)
+        ) {
+            context.report(
+                identifier,
+                "{{name}} is a read-only native object.",
+                {name: identifier.name});
+        }
     }
 
     return {
-
-        "AssignmentExpression": function(node) {
-            if (modifiedNativeObjects.indexOf(node.left.name) >= 0) {
-                context.report(node, node.left.name + " is a read-only native object.");
-            }
-        },
-
-        "VariableDeclarator": function(node) {
-            if (modifiedNativeObjects.indexOf(node.id.name) >= 0) {
-                context.report(node, "Redefinition of '{{nativeObject}}'.", { nativeObject: node.id.name });
-            }
+        // Checks assignments of global variables.
+        // References to implicit global variables are not resolved,
+        // so those are in the `through` of the global scope.
+        "Program": function() {
+            var globalScope = context.getScope();
+            var builtins = getBuiltinGlobals(globalScope);
+            globalScope.through.forEach(checkThroughReference.bind(null, builtins));
         }
     };
 
@@ -51,9 +74,7 @@ module.exports.schema = [
         "properties": {
             "exceptions": {
                 "type": "array",
-                "items": {
-                    "type": "string"
-                },
+                "items": {"type": "string"},
                 "uniqueItems": true
             }
         },

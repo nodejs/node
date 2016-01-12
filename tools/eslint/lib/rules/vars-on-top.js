@@ -11,7 +11,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
+module.exports = function(context) {
     var errorMessage = "All \"var\" declarations must be at the top of the function scope.";
 
     //--------------------------------------------------------------------------
@@ -95,13 +95,13 @@ module.exports = function (context) {
     //--------------------------------------------------------------------------
 
     return {
-        "VariableDeclaration": function (node) {
+        "VariableDeclaration": function(node) {
             var ancestors = context.getAncestors();
             var parent = ancestors.pop();
             var grandParent = ancestors.pop();
 
-            if (node.kind === "var") {// check variable is `var` type and not `let` or `const`
-                if (parent.type === "Program") {// That means its a global variable
+            if (node.kind === "var") { // check variable is `var` type and not `let` or `const`
+                if (parent.type === "Program") { // That means its a global variable
                     globalVarCheck(node, parent);
                 } else {
                     blockScopeVarCheck(node, parent, grandParent);

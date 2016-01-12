@@ -17,7 +17,13 @@ module.exports = function(context) {
      * @returns {void}
      */
     function report(nodeOrToken) {
-        context.report(nodeOrToken, "Unnecessary semicolon.");
+        context.report({
+            node: nodeOrToken,
+            message: "Unnecessary semicolon.",
+            fix: function(fixer) {
+                return fixer.remove(nodeOrToken);
+            }
+        });
     }
 
     /**
@@ -40,11 +46,18 @@ module.exports = function(context) {
 
     return {
         /**
-         * Reports this empty statement.
+         * Reports this empty statement, except if the parent node is a loop.
          * @param {Node} node - A EmptyStatement node to be reported.
          * @returns {void}
          */
-        "EmptyStatement": report,
+        "EmptyStatement": function(node) {
+            var parent = node.parent,
+                allowedParentTypes = ["ForStatement", "ForInStatement", "ForOfStatement", "WhileStatement", "DoWhileStatement"];
+
+            if (allowedParentTypes.indexOf(parent.type) === -1) {
+                report(node);
+            }
+        },
 
         /**
          * Checks tokens from the head of this class body to the first MethodDefinition or the end of this class body.

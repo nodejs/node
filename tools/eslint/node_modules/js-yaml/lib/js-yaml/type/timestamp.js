@@ -19,12 +19,7 @@ function resolveYamlTimestamp(data) {
     return false;
   }
 
-  var match, year, month, day, hour, minute, second, fraction = 0,
-      delta = null, tz_hour, tz_minute, date;
-
-  match = YAML_TIMESTAMP_REGEXP.exec(data);
-
-  if (null === match) {
+  if (YAML_TIMESTAMP_REGEXP.exec(data) === null) {
     return false;
   }
 

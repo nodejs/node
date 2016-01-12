@@ -31,6 +31,31 @@ After that, you can run ESLint on any JavaScript file:
 
     eslint test.js test2.js
 
+## Configuration
+
+After running `eslint --init`, you'll have a `.eslintrc` file in your directory. In it, you'll see some rules configured like this:
+
+```json
+{
+    "rules": {
+        "semi": [2, "always"],
+        "quotes": [2, "double"]
+    }
+}
+```
+
+The names `"semi"` and `"quotes"` are the names of [rules](http://eslint.org/docs/rules) in ESLint. The number is the error level of the rule and can be one of the three values:
+
+* `0` - turn the rule off
+* `1` - turn the rule on as a warning (doesn't affect exit code)
+* `2` - turn the rule on as an error (exit code will be 1)
+
+The three error levels allow you fine-grained control over how ESLint applies rules (for more configuration options and details, see the [configuration docs](http://eslint.org/docs/user-guide/configuring)).
+
+## Sponsors
+
+* Development is sponsored by [Box](https://box.com)
+
 ## Team
 
 These folks keep the project moving and are resources for help:
@@ -38,10 +63,17 @@ These folks keep the project moving and are resources for help:
 * Nicholas C. Zakas ([@nzakas](https://github.com/nzakas)) - project lead
 * Ilya Volodin ([@ilyavolodin](https://github.com/ilyavolodin)) - reviewer
 * Brandon Mills ([@btmills](https://github.com/btmills)) - reviewer
+* Gyandeep Singh ([@gyandeeps](https://github.com/gyandeeps)) - reviewer
 * Mathias Schreck ([@lo1tuma](https://github.com/lo1tuma)) - committer
-* Gyandeep Singh ([@gyandeeps](https://github.com/gyandeeps)) - committer
 * Jamund Ferguson ([@xjamundx](https://github.com/xjamundx)) - committer
+* Ian VanSchooten ([@ianvs](https://github.com/ianvs)) - committer
+* Toru Nagashima ([@mysticatea](https://github.com/mysticatea)) - committer
+* Burak Yiğit Kaya ([@byk](https://github.com/byk)) - committer
+* Alberto Rodríguez ([@alberto](https://github.com/alberto)) - committer
 
+## Releases
+
+We have scheduled releases every two weeks on Friday or Saturday.
 
 ## Frequently Asked Questions
 
@@ -67,23 +99,6 @@ If you are using both JSHint and JSCS on your files, then using just ESLint will
 
 ESLint does both traditional linting (looking for problematic patterns) and style checking (enforcement of conventions). You can use it for both.
 
-### Who is using ESLint?
-
-The following projects are using ESLint to validate their JavaScript:
-
-* [Drupal](https://www.drupal.org/node/2274223)
-* [Esprima](https://github.com/ariya/esprima)
-* [io.js](https://github.com/iojs/io.js/commit/f9dd34d301ab385ae316769b85ef916f9b70b6f6)
-* [WebKit](https://bugs.webkit.org/show_bug.cgi?id=125048)
-
-In addition, the following companies are using ESLint internally to validate their JavaScript:
-
-* [Box](https://box.com)
-* [CustomInk](https://customink.com)
-* [Fitbit](http://www.fitbit.com)
-* [HolidayCheck](http://holidaycheck.de)
-* [the native web](http://www.thenativeweb.io)
-
 ### What about ECMAScript 6 support?
 
 ESLint has full support for ECMAScript 6. By default, this support is off. You can enable ECMAScript 6 support through [configuration](http://eslint.org/docs/user-guide/configuring).
@@ -102,10 +117,10 @@ Join our [Mailing List](https://groups.google.com/group/eslint) or [Chatroom](ht
 
 
 [npm-image]: https://img.shields.io/npm/v/eslint.svg?style=flat-square
-[npm-url]: https://npmjs.org/package/eslint
+[npm-url]: https://www.npmjs.com/package/eslint
 [travis-image]: https://img.shields.io/travis/eslint/eslint/master.svg?style=flat-square
 [travis-url]: https://travis-ci.org/eslint/eslint
 [coveralls-image]: https://img.shields.io/coveralls/eslint/eslint/master.svg?style=flat-square
 [coveralls-url]: https://coveralls.io/r/eslint/eslint?branch=master
-[downloads-image]: http://img.shields.io/npm/dm/eslint.svg?style=flat-square
-[downloads-url]: https://npmjs.org/package/eslint
+[downloads-image]: https://img.shields.io/npm/dm/eslint.svg?style=flat-square
+[downloads-url]: https://www.npmjs.com/package/eslint

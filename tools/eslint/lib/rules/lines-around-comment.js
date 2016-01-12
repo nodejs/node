@@ -1,9 +1,21 @@
 /**
  * @fileoverview Enforces empty lines around comments.
  * @author Jamund Ferguson
+ * @copyright 2015 Mathieu M-Gosselin. All rights reserved.
  * @copyright 2015 Jamund Ferguson. All rights reserved.
+ * @copyright 2015 Gyandeep Singh. All rights reserved.
  */
 "use strict";
+
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var assign = require("object-assign");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
 
 /**
  * Return an array with with any line numbers that are empty.
@@ -31,7 +43,7 @@ function getEmptyLineNums(lines) {
  */
 function getCommentLineNums(comments) {
     var lines = [];
-    comments.forEach(function (token) {
+    comments.forEach(function(token) {
         var start = token.loc.start.line;
         var end = token.loc.end.line;
         lines.push(start, end);
@@ -55,7 +67,7 @@ function contains(val, array) {
 
 module.exports = function(context) {
 
-    var options = context.options[0] || {};
+    var options = context.options[0] ? assign({}, context.options[0]) : {};
     options.beforeLineComment = options.beforeLineComment || false;
     options.afterLineComment = options.afterLineComment || false;
     options.beforeBlockComment = typeof options.beforeBlockComment !== "undefined" ? options.beforeBlockComment : true;
@@ -63,26 +75,83 @@ module.exports = function(context) {
     options.allowBlockStart = options.allowBlockStart || false;
     options.allowBlockEnd = options.allowBlockEnd || false;
 
+    var sourceCode = context.getSourceCode();
     /**
-     * Returns whether or not comments are not on lines starting with or ending with code
+     * Returns whether or not comments are on lines starting with or ending with code
      * @param {ASTNode} node The comment node to check.
      * @returns {boolean} True if the comment is not alone.
      */
     function codeAroundComment(node) {
+        var token;
 
-        var lines = context.getSourceLines();
+        token = node;
+        do {
+            token = sourceCode.getTokenOrCommentBefore(token);
+        } while (token && (token.type === "Block" || token.type === "Line"));
 
-        // Get the whole line and cut it off at the start of the comment
-        var startLine = lines[node.loc.start.line - 1];
-        var endLine = lines[node.loc.end.line - 1];
+        if (token && token.loc.end.line === node.loc.start.line) {
+            return true;
+        }
 
-        var preamble = startLine.slice(0, node.loc.start.column).trim();
+        token = node;
+        do {
+            token = sourceCode.getTokenOrCommentAfter(token);
+        } while (token && (token.type === "Block" || token.type === "Line"));
 
-        // Also check after the comment
-        var postamble = endLine.slice(node.loc.end.column).trim();
+        if (token && token.loc.start.line === node.loc.end.line) {
+            return true;
+        }
 
-        // Should be false if there was only whitespace around the comment
-        return !!(preamble || postamble);
+        return false;
+    }
+
+    /**
+     * Returns whether or not comments are inside a node type or not.
+     * @param {ASTNode} node The Comment node.
+     * @param {ASTNode} parent The Comment parent node.
+     * @param {string} nodeType The parent type to check against.
+     * @returns {boolean} True if the comment is inside nodeType.
+     */
+    function isCommentInsideNodeType(node, parent, nodeType) {
+        return parent.type === nodeType ||
+            (parent.body && parent.body.type === nodeType) ||
+            (parent.consequent && parent.consequent.type === nodeType);
+    }
+
+    /**
+     * Returns whether or not comments are at the parent start or not.
+     * @param {ASTNode} node The Comment node.
+     * @param {string} nodeType The parent type to check against.
+     * @returns {boolean} True if the comment is at parent start.
+     */
+    function isCommentAtParentStart(node, nodeType) {
+        var ancestors = context.getAncestors();
+        var parent;
+
+        if (ancestors.length) {
+            parent = ancestors.pop();
+        }
+
+        return parent && isCommentInsideNodeType(node, parent, nodeType) &&
+                node.loc.start.line - parent.loc.start.line === 1;
+    }
+
+    /**
+     * Returns whether or not comments are at the parent end or not.
+     * @param {ASTNode} node The Comment node.
+     * @param {string} nodeType The parent type to check against.
+     * @returns {boolean} True if the comment is at parent end.
+     */
+    function isCommentAtParentEnd(node, nodeType) {
+        var ancestors = context.getAncestors();
+        var parent;
+
+        if (ancestors.length) {
+            parent = ancestors.pop();
+        }
+
+        return parent && isCommentInsideNodeType(node, parent, nodeType) &&
+                parent.loc.end.line - node.loc.end.line === 1;
     }
 
     /**
@@ -91,14 +160,7 @@ module.exports = function(context) {
      * @returns {boolean} True if the comment is at block start.
      */
     function isCommentAtBlockStart(node) {
-        var ancestors = context.getAncestors();
-        var parent;
-
-        if (ancestors.length) {
-            parent = ancestors.pop();
-        }
-        return parent && (parent.type === "BlockStatement" || parent.body.type === "BlockStatement") &&
-                node.loc.start.line - parent.loc.start.line === 1;
+        return isCommentAtParentStart(node, "ClassBody") || isCommentAtParentStart(node, "BlockStatement");
     }
 
     /**
@@ -107,14 +169,43 @@ module.exports = function(context) {
      * @returns {boolean} True if the comment is at block end.
      */
     function isCommentAtBlockEnd(node) {
-        var ancestors = context.getAncestors();
-        var parent;
+        return isCommentAtParentEnd(node, "ClassBody") || isCommentAtParentEnd(node, "BlockStatement");
+    }
 
-        if (ancestors.length) {
-            parent = ancestors.pop();
-        }
-        return parent && (parent.type === "BlockStatement" || parent.body.type === "BlockStatement") &&
-                parent.loc.end.line - node.loc.end.line === 1;
+    /**
+     * Returns whether or not comments are at the object start or not.
+     * @param {ASTNode} node The Comment node.
+     * @returns {boolean} True if the comment is at object start.
+     */
+    function isCommentAtObjectStart(node) {
+        return isCommentAtParentStart(node, "ObjectExpression") || isCommentAtParentStart(node, "ObjectPattern");
+    }
+
+    /**
+     * Returns whether or not comments are at the object end or not.
+     * @param {ASTNode} node The Comment node.
+     * @returns {boolean} True if the comment is at object end.
+     */
+    function isCommentAtObjectEnd(node) {
+        return isCommentAtParentEnd(node, "ObjectExpression") || isCommentAtParentEnd(node, "ObjectPattern");
+    }
+
+    /**
+     * Returns whether or not comments are at the array start or not.
+     * @param {ASTNode} node The Comment node.
+     * @returns {boolean} True if the comment is at array start.
+     */
+    function isCommentAtArrayStart(node) {
+        return isCommentAtParentStart(node, "ArrayExpression") || isCommentAtParentStart(node, "ArrayPattern");
+    }
+
+    /**
+     * Returns whether or not comments are at the array end or not.
+     * @param {ASTNode} node The Comment node.
+     * @returns {boolean} True if the comment is at array end.
+     */
+    function isCommentAtArrayEnd(node) {
+        return isCommentAtParentEnd(node, "ArrayExpression") || isCommentAtParentEnd(node, "ArrayPattern");
     }
 
     /**
@@ -142,7 +233,14 @@ module.exports = function(context) {
             commentIsNotAlone = codeAroundComment(node);
 
         var blockStartAllowed = options.allowBlockStart && isCommentAtBlockStart(node),
-            blockEndAllowed = options.allowBlockEnd && isCommentAtBlockEnd(node);
+            blockEndAllowed = options.allowBlockEnd && isCommentAtBlockEnd(node),
+            objectStartAllowed = options.allowObjectStart && isCommentAtObjectStart(node),
+            objectEndAllowed = options.allowObjectEnd && isCommentAtObjectEnd(node),
+            arrayStartAllowed = options.allowArrayStart && isCommentAtArrayStart(node),
+            arrayEndAllowed = options.allowArrayEnd && isCommentAtArrayEnd(node);
+
+        var exceptionStartAllowed = blockStartAllowed || objectStartAllowed || arrayStartAllowed;
+        var exceptionEndAllowed = blockEndAllowed || objectEndAllowed || arrayEndAllowed;
 
         // ignore top of the file and bottom of the file
         if (prevLineNum < 1) {
@@ -158,12 +256,12 @@ module.exports = function(context) {
         }
 
         // check for newline before
-        if (!blockStartAllowed && before && !contains(prevLineNum, commentAndEmptyLines)) {
+        if (!exceptionStartAllowed && before && !contains(prevLineNum, commentAndEmptyLines)) {
             context.report(node, "Expected line before comment.");
         }
 
         // check for newline after
-        if (!blockEndAllowed && after && !contains(nextLineNum, commentAndEmptyLines)) {
+        if (!exceptionEndAllowed && after && !contains(nextLineNum, commentAndEmptyLines)) {
             context.report(node, "Expected line after comment.");
         }
 
@@ -216,6 +314,18 @@ module.exports.schema = [
                 "type": "boolean"
             },
             "allowBlockEnd": {
+                "type": "boolean"
+            },
+            "allowObjectStart": {
+                "type": "boolean"
+            },
+            "allowObjectEnd": {
+                "type": "boolean"
+            },
+            "allowArrayStart": {
+                "type": "boolean"
+            },
+            "allowArrayEnd": {
                 "type": "boolean"
             }
         },

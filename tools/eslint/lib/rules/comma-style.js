@@ -7,6 +7,8 @@
 
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -23,17 +25,6 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
     // Helpers
     //--------------------------------------------------------------------------
-
-    /**
-     * Checks whether two tokens are on the same line.
-     * @param {ASTNode} left The leftmost token.
-     * @param {ASTNode} right The rightmost token.
-     * @returns {boolean} True if the tokens are on the same line, false if not.
-     * @private
-     */
-    function isSameLine(left, right) {
-        return left.loc.end.line === right.loc.start.line;
-    }
 
     /**
      * Determines if a given token is a comma operator.
@@ -57,13 +48,13 @@ module.exports = function(context) {
     function validateCommaItemSpacing(previousItemToken, commaToken, currentItemToken, reportItem) {
 
         // if single line
-        if (isSameLine(commaToken, currentItemToken) &&
-                isSameLine(previousItemToken, commaToken)) {
+        if (astUtils.isTokenOnSameLine(commaToken, currentItemToken) &&
+                astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
 
             return;
 
-        } else if (!isSameLine(commaToken, currentItemToken) &&
-                !isSameLine(previousItemToken, commaToken)) {
+        } else if (!astUtils.isTokenOnSameLine(commaToken, currentItemToken) &&
+                !astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
 
             // lone comma
             context.report(reportItem, {
@@ -71,11 +62,11 @@ module.exports = function(context) {
                 column: commaToken.loc.start.column
             }, "Bad line breaking before and after ','.");
 
-        } else if (style === "first" && !isSameLine(commaToken, currentItemToken)) {
+        } else if (style === "first" && !astUtils.isTokenOnSameLine(commaToken, currentItemToken)) {
 
             context.report(reportItem, "',' should be placed first.");
 
-        } else if (style === "last" && isSameLine(commaToken, currentItemToken)) {
+        } else if (style === "last" && astUtils.isTokenOnSameLine(commaToken, currentItemToken)) {
 
             context.report(reportItem, {
                 line: commaToken.loc.end.line,

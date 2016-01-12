@@ -14,6 +14,12 @@ module.exports = function(context) {
 
     var style = context.options[0] || "outside";
 
+    /**
+     * Check if the node is wrapped in ()
+     * @param {ASTNode} node node to evaluate
+     * @returns {boolean} True if it is wrapped
+     * @private
+     */
     function wrapped(node) {
         var previousToken = context.getTokenBefore(node),
             nextToken = context.getTokenAfter(node);

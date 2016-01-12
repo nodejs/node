@@ -11,13 +11,25 @@
 
 module.exports = function(context) {
 
-    return {
+    //--------------------------------------------------------------------------
+    // Helpers
+    //--------------------------------------------------------------------------
 
-        "NewExpression": function(node) {
-            if (node.callee.name === "Function") {
-                context.report(node, "The Function constructor is eval.");
-            }
+    /**
+     * Checks if the callee if the Function constructor, and if so, reports an issue.
+     * @param {ASTNode} node The node to check and report on
+     * @returns {void}
+     * @private
+     */
+    function validateCallee(node) {
+        if (node.callee.name === "Function") {
+            context.report(node, "The Function constructor is eval.");
         }
+    }
+
+    return {
+        "NewExpression": validateCallee,
+        "CallExpression": validateCallee
     };
 
 };
