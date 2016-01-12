@@ -11,6 +11,12 @@
 
 module.exports = function(context) {
 
+    /**
+     * Disallow construction of dense arrays using the Array constructor
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function check(node) {
         if (
             node.arguments.length !== 1 &&

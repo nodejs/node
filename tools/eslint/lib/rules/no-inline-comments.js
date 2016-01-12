@@ -5,6 +5,8 @@
  */
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -28,8 +30,11 @@ module.exports = function(context) {
         // Also check after the comment
         var postamble = endLine.slice(node.loc.end.column).trim();
 
+        // Check that this comment isn't an ESLint directive
+        var isDirective = astUtils.isDirectiveComment(node);
+
         // Should be empty if there was only whitespace around the comment
-        if (preamble || postamble) {
+        if (!isDirective && (preamble || postamble)) {
             context.report(node, "Unexpected comment inline with code.");
         }
     }

@@ -19,10 +19,21 @@ module.exports = function(context) {
     var functionStack = [],
         maxStatements = context.options[0] || 10;
 
+    /**
+     * When parsing a new function, store it in our function stack
+     * @returns {void}
+     * @private
+     */
     function startFunction() {
         functionStack.push(0);
     }
 
+    /**
+     * Evaluate the node at the end of function
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function endFunction(node) {
         var count = functionStack.pop();
 
@@ -32,6 +43,12 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Increment the count of the functions
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function countStatements(node) {
         functionStack[functionStack.length - 1] += node.body.length;
     }

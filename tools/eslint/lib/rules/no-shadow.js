@@ -7,14 +7,32 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
 
     var options = {
-        hoist: (context.options[0] && context.options[0].hoist) || "functions"
+        builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals),
+        hoist: (context.options[0] && context.options[0].hoist) || "functions",
+        allow: (context.options[0] && context.options[0].allow) || []
     };
+
+    /**
+     * Check if variable name is allowed.
+     *
+     * @param  {ASTNode} variable The variable to check.
+     * @returns {boolean} Whether or not the variable name is allowed.
+     */
+    function isAllowed(variable) {
+        return options.allow.indexOf(variable.name) !== -1;
+    }
 
     /**
      * Checks if a variable of the class name in the class scope of ClassDeclaration.
@@ -49,8 +67,8 @@ module.exports = function(context) {
         var inner = innerDef && innerDef.name.range;
 
         return (
-            outer != null &&
-            inner != null &&
+            outer &&
+            inner &&
             outer[0] < inner[0] &&
             inner[1] < outer[1] &&
             ((innerDef.type === "FunctionName" && innerDef.node.type === "FunctionExpression") || innerDef.node.type === "ClassExpression") &&
@@ -79,55 +97,12 @@ module.exports = function(context) {
         var inner = getNameRange(variable);
         var outer = getNameRange(scopeVar);
         return (
-            inner != null &&
-            outer != null &&
+            inner &&
+            outer &&
             inner[1] < outer[0] &&
             // Excepts FunctionDeclaration if is {"hoist":"function"}.
-            (options.hoist !== "functions" || outerDef == null || outerDef.node.type !== "FunctionDeclaration")
+            (options.hoist !== "functions" || !outerDef || outerDef.node.type !== "FunctionDeclaration")
         );
-    }
-
-    /**
-     * Checks if a variable is contained in the list of given scope variables.
-     * @param {Object} variable The variable to check.
-     * @param {Array} scopeVars The scope variables to look for.
-     * @returns {boolean} Whether or not the variable is contains in the list of scope variables.
-     */
-    function isContainedInScopeVars(variable, scopeVars) {
-        return scopeVars.some(function (scopeVar) {
-            return (
-                scopeVar.identifiers.length > 0 &&
-                variable.name === scopeVar.name &&
-                !isDuplicatedClassNameVariable(scopeVar) &&
-                !isOnInitializer(variable, scopeVar) &&
-                !(options.hoist !== "all" && isInTdz(variable, scopeVar))
-            );
-        });
-    }
-
-    /**
-     * Checks if the given variables are shadowed in the given scope.
-     * @param {Array} variables The variables to look for
-     * @param {Object} scope The scope to be checked.
-     * @returns {Array} Variables which are not declared in the given scope.
-     */
-    function checkShadowsInScope(variables, scope) {
-
-        var passedVars = [];
-
-        variables.forEach(function (variable) {
-            // "arguments" is a special case that has no identifiers (#1759)
-            if (variable.identifiers.length > 0 && isContainedInScopeVars(variable, scope.variables)) {
-                context.report(
-                    variable.identifiers[0],
-                    "{{name}} is already declared in the upper scope.",
-                    {name: variable.name});
-            } else {
-                passedVars.push(variable);
-            }
-        });
-
-        return passedVars;
     }
 
     /**
@@ -136,28 +111,39 @@ module.exports = function(context) {
      * @returns {void}
      */
     function checkForShadows(scope) {
-        var variables = scope.variables.filter(function(variable) {
-            return (
-                // Skip "arguments".
-                variable.identifiers.length > 0 &&
-                // Skip variables of a class name in the class scope of ClassDeclaration.
-                !isDuplicatedClassNameVariable(variable)
-            );
-        });
+        var variables = scope.variables;
+        for (var i = 0; i < variables.length; ++i) {
+            var variable = variables[i];
 
-        // iterate through the array of variables and find duplicates with the upper scope
-        var upper = scope.upper;
-        while (upper && variables.length) {
-            variables = checkShadowsInScope(variables, upper);
-            upper = upper.upper;
+            // Skips "arguments" or variables of a class name in the class scope of ClassDeclaration.
+            if (variable.identifiers.length === 0 ||
+                isDuplicatedClassNameVariable(variable) ||
+                isAllowed(variable)
+            ) {
+                continue;
+            }
+
+            // Gets shadowed variable.
+            var shadowed = astUtils.getVariableByName(scope.upper, variable.name);
+            if (shadowed &&
+                (shadowed.identifiers.length > 0 || (options.builtinGlobals && "writeable" in shadowed)) &&
+                !isOnInitializer(variable, shadowed) &&
+                !(options.hoist !== "all" && isInTdz(variable, shadowed))
+            ) {
+                context.report({
+                    node: variable.identifiers[0],
+                    message: "\"{{name}}\" is already declared in the upper scope.",
+                    data: variable
+                });
+            }
         }
     }
 
     return {
-        "Program:exit": function () {
-            var globalScope = context.getScope(),
-                stack = globalScope.childScopes.slice(),
-                scope;
+        "Program:exit": function() {
+            var globalScope = context.getScope();
+            var stack = globalScope.childScopes.slice();
+            var scope;
 
             while (stack.length) {
                 scope = stack.pop();
@@ -173,9 +159,15 @@ module.exports.schema = [
     {
         "type": "object",
         "properties": {
-            "hoist": {
-                "enum": ["all", "functions", "never"]
+            "builtinGlobals": {"type": "boolean"},
+            "hoist": {"enum": ["all", "functions", "never"]},
+            "allow": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
             }
-        }
+        },
+        "additionalProperties": false
     }
 ];

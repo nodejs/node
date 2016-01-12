@@ -109,9 +109,21 @@ module.exports = {
         }
 
         if (lastChild) {
-            if (lastChild.leadingComments && lastChild.leadingComments[lastChild.leadingComments.length - 1].range[1] <= node.range[0]) {
-                node.leadingComments = lastChild.leadingComments;
-                delete lastChild.leadingComments;
+            if (lastChild.leadingComments) {
+                if (lastChild.leadingComments[lastChild.leadingComments.length - 1].range[1] <= node.range[0]) {
+                    node.leadingComments = lastChild.leadingComments;
+                    delete lastChild.leadingComments;
+                } else {
+                    // A leading comment for an anonymous class had been stolen by its first MethodDefinition,
+                    // so this takes back the leading comment.
+                    // See Also: https://github.com/eslint/espree/issues/158
+                    for (i = lastChild.leadingComments.length - 2; i >= 0; --i) {
+                        if (lastChild.leadingComments[i].range[1] <= node.range[0]) {
+                            node.leadingComments = lastChild.leadingComments.splice(0, i + 1);
+                            break;
+                        }
+                    }
+                }
             }
         } else if (extra.leadingComments.length > 0) {
 
