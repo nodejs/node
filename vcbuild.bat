@@ -112,10 +112,7 @@ call :getnodeversion || exit /b 1
 
 @rem Set environment for msbuild
 
-if "%target_env%"=="vc2015" goto vc-set-2015
-if "%target_env%"=="vc2013" goto vc-set-2013
-
-:vc-set-2015
+if defined target_env if "%target_env%" NEQ "vc2015" goto vc-set-2013
 @rem Look for Visual Studio 2015
 echo Looking for Visual Studio 2015
 if not defined VS140COMNTOOLS goto vc-set-2013
@@ -139,6 +136,7 @@ set PLATFORM_TOOLSET=v140
 goto msbuild-found
 
 :vc-set-2013
+if defined target_env if "%target_env%" NEQ "vc2013" goto msbuild-not-found
 @rem Look for Visual Studio 2013
 echo Looking for Visual Studio 2013
 if not defined VS120COMNTOOLS goto msbuild-not-found
