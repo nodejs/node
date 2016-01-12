@@ -22,13 +22,18 @@ module.exports = function(context) {
             var nodeProps = Object.create(null);
 
             node.properties.forEach(function(property) {
+
+                if (property.type !== "Property") {
+                    return;
+                }
+
                 var keyName = property.key.name || property.key.value,
                     key = property.kind + "-" + keyName,
                     checkProperty = (!property.computed || property.key.type === "Literal");
 
                 if (checkProperty) {
                     if (nodeProps[key]) {
-                        context.report(node, "Duplicate key '{{key}}'.", { key: keyName });
+                        context.report(node, property.loc.start, "Duplicate key '{{key}}'.", { key: keyName });
                     } else {
                         nodeProps[key] = true;
                     }

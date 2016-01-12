@@ -2,6 +2,7 @@
  * @fileoverview Rule to validate spacing before function paren.
  * @author Mathias Schreck <https://github.com/lo1tuma>
  * @copyright 2015 Mathias Schreck
+ * See LICENSE in root directory for full license.
  */
 "use strict";
 
@@ -12,6 +13,7 @@
 module.exports = function(context) {
 
     var configuration = context.options[0],
+        sourceCode = context.getSourceCode(),
         requireAnonymousFunctionSpacing = true,
         requireNamedFunctionSpacing = true;
 
@@ -21,16 +23,6 @@ module.exports = function(context) {
     } else if (configuration === "never") {
         requireAnonymousFunctionSpacing = false;
         requireNamedFunctionSpacing = false;
-    }
-
-    /**
-     * Determines whether two adjacent tokens are have whitespace between them.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
-     * @returns {boolean} Whether or not there is space between the tokens.
-     */
-    function isSpaced(left, right) {
-        return left.range[1] < right.range[0];
     }
 
     /**
@@ -45,7 +37,7 @@ module.exports = function(context) {
             return true;
         }
 
-        parent = context.getAncestors().pop();
+        parent = node.parent;
         return parent.type === "MethodDefinition" ||
             (parent.type === "Property" &&
                 (
@@ -63,7 +55,6 @@ module.exports = function(context) {
      */
     function validateSpacingBeforeParentheses(node) {
         var isNamed = isNamedFunction(node),
-            tokens,
             leftToken,
             rightToken,
             location;
@@ -72,40 +63,34 @@ module.exports = function(context) {
             return;
         }
 
-        tokens = context.getTokens(node);
-
-        if (node.generator) {
-            if (node.id) {
-                leftToken = tokens[2];
-                rightToken = tokens[3];
-            } else {
-                // Object methods are named but don't have an id
-                leftToken = context.getTokenBefore(node);
-                rightToken = tokens[0];
-            }
-        } else if (isNamed) {
-            if (node.id) {
-                leftToken = tokens[1];
-                rightToken = tokens[2];
-            } else {
-                // Object methods are named but don't have an id
-                leftToken = context.getTokenBefore(node);
-                rightToken = tokens[0];
-            }
-        } else {
-            leftToken = tokens[0];
-            rightToken = tokens[1];
+        rightToken = sourceCode.getFirstToken(node);
+        while (rightToken.value !== "(") {
+            rightToken = sourceCode.getTokenAfter(rightToken);
         }
-
+        leftToken = context.getTokenBefore(rightToken);
         location = leftToken.loc.end;
 
-        if (isSpaced(leftToken, rightToken)) {
+        if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken)) {
             if ((isNamed && !requireNamedFunctionSpacing) || (!isNamed && !requireAnonymousFunctionSpacing)) {
-                context.report(node, location, "Unexpected space before function parentheses.");
+                context.report({
+                    node: node,
+                    loc: location,
+                    message: "Unexpected space before function parentheses.",
+                    fix: function(fixer) {
+                        return fixer.removeRange([leftToken.range[1], rightToken.range[0]]);
+                    }
+                });
             }
         } else {
             if ((isNamed && requireNamedFunctionSpacing) || (!isNamed && requireAnonymousFunctionSpacing)) {
-                context.report(node, location, "Missing space before function parentheses.");
+                context.report({
+                    node: node,
+                    loc: location,
+                    message: "Missing space before function parentheses.",
+                    fix: function(fixer) {
+                        return fixer.insertTextAfter(leftToken, " ");
+                    }
+                });
             }
         }
     }

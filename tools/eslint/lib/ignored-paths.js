@@ -35,6 +35,12 @@ var ESLINT_IGNORE_FILENAME = ".eslintignore";
 function loadIgnoreFile(filepath) {
     var ignorePatterns = [];
 
+    /**
+     * Check if string is not empty
+     * @param {string} line string to examine
+     * @returns {boolean} True is its not empty
+     * @private
+     */
     function nonEmpty(line) {
         return line.trim() !== "" && line[0] !== "#";
     }
@@ -85,7 +91,7 @@ function IgnoredPaths(patterns) {
  * @param {Object} options object containing 'ignore' and 'ignorePath' properties
  * @returns {IgnoredPaths} object, with patterns loaded from the ignore file
  */
-IgnoredPaths.load = function (options) {
+IgnoredPaths.load = function(options) {
     var patterns;
 
     options = options || {};
@@ -97,7 +103,7 @@ IgnoredPaths.load = function (options) {
     }
 
     if (options.ignorePattern) {
-        patterns.push(options.ignorePattern);
+        patterns = patterns.concat(options.ignorePattern);
     }
 
     return new IgnoredPaths(patterns);
@@ -108,7 +114,7 @@ IgnoredPaths.load = function (options) {
  * @param {string} filepath Path to check
  * @returns {boolean} true if the file path matches one or more patterns, false otherwise
  */
-IgnoredPaths.prototype.contains = function (filepath) {
+IgnoredPaths.prototype.contains = function(filepath) {
     if (this.patterns === null) {
         throw new Error("No ignore patterns loaded, call 'load' first");
     }

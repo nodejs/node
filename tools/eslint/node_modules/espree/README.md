@@ -119,6 +119,9 @@ var ast = espree.parse(code, {
         // enable parsing classes
         classes: true,
 
+        // enable parsing of new.target
+        newTarget: false,
+
         // enable parsing of modules
         modules: true,
 
@@ -126,7 +129,10 @@ var ast = espree.parse(code, {
         jsx: true,
 
         // enable return in global scope
-        globalReturn: true
+        globalReturn: true,
+
+        // allow experimental object rest/spread
+        experimentalObjectRestSpread: true
     }
 });
 ```

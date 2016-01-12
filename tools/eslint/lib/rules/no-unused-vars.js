@@ -6,31 +6,46 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var escape = require("escape-string-regexp");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
 
-    var MESSAGE = "{{name}} is defined but never used";
+    var MESSAGE = "\"{{name}}\" is defined but never used";
 
     var config = {
         vars: "all",
         args: "after-used"
     };
 
-    if (context.options[0]) {
-        if (typeof context.options[0] === "string") {
-            config.vars = context.options[0];
+    var firstOption = context.options[0];
+
+    if (firstOption) {
+        if (typeof firstOption === "string") {
+            config.vars = firstOption;
         } else {
-            config.vars = context.options[0].vars || config.vars;
-            config.args = context.options[0].args || config.args;
+            config.vars = firstOption.vars || config.vars;
+            config.args = firstOption.args || config.args;
+
+            if (firstOption.varsIgnorePattern) {
+                config.varsIgnorePattern = new RegExp(firstOption.varsIgnorePattern);
+            }
+
+            if (firstOption.argsIgnorePattern) {
+                config.argsIgnorePattern = new RegExp(firstOption.argsIgnorePattern);
+            }
         }
     }
 
     //--------------------------------------------------------------------------
     // Helpers
     //--------------------------------------------------------------------------
-
 
     /**
      * Determines if a given variable is being exported from a module.
@@ -47,7 +62,7 @@ module.exports = function(context) {
             var node = definition.node;
             if (node.type === "VariableDeclarator") {
                 node = node.parent;
-            } else if (definition.type === "Parameter" && node.type === "FunctionDeclaration") {
+            } else if (definition.type === "Parameter") {
                 return false;
             }
 
@@ -77,7 +92,7 @@ module.exports = function(context) {
     function isSelfReference(ref, nodes) {
         var scope = ref.from;
 
-        while (scope != null) {
+        while (scope) {
             if (nodes.indexOf(scope.block) >= 0) {
                 return true;
             }
@@ -95,14 +110,14 @@ module.exports = function(context) {
      * @returns {boolean} True if the variable is used
      */
     function isUsedVariable(variable, references) {
-        var functionNodes = variable.defs.filter(function (def) {
-            return def.type === "FunctionName";
-        }).map(function (def) {
-            return def.node;
-        }),
+        var functionNodes = variable.defs.filter(function(def) {
+                return def.type === "FunctionName";
+            }).map(function(def) {
+                return def.node;
+            }),
             isFunctionDefinition = functionNodes.length > 0;
 
-        return references.some(function (ref) {
+        return references.some(function(ref) {
             return isReadRef(ref) && !(isFunctionDefinition && isSelfReference(ref, functionNodes));
         });
     }
@@ -156,7 +171,7 @@ module.exports = function(context) {
                 if (scope.type === "class" && scope.block.id === variable.identifiers[0]) {
                     continue;
                 }
-                // skip function expression names
+                // skip function expression names and variables marked with markVariableAsUsed()
                 if (scope.functionExpressionScope || variable.eslintUsed) {
                     continue;
                 }
@@ -167,7 +182,7 @@ module.exports = function(context) {
 
                 // explicit global variables don't have definitions.
                 var def = variable.defs[0];
-                if (def != null) {
+                if (def) {
                     var type = def.type;
 
                     // skip catch variables
@@ -175,19 +190,31 @@ module.exports = function(context) {
                         continue;
                     }
 
-                    // skip any setter argument
-                    if (type === "Parameter" && def.node.parent.type === "Property" && def.node.parent.kind === "set") {
-                        continue;
-                    }
+                    if (type === "Parameter") {
+                        // skip any setter argument
+                        if (def.node.parent.type === "Property" && def.node.parent.kind === "set") {
+                            continue;
+                        }
 
-                    // if "args" option is "none", skip any parameter
-                    if (config.args === "none" && type === "Parameter") {
-                        continue;
-                    }
+                        // if "args" option is "none", skip any parameter
+                        if (config.args === "none") {
+                            continue;
+                        }
 
-                    // if "args" option is "after-used", skip all but the last parameter
-                    if (config.args === "after-used" && type === "Parameter" && def.index < def.node.params.length - 1) {
-                        continue;
+                        // skip ignored parameters
+                        if (config.argsIgnorePattern && config.argsIgnorePattern.test(def.name.name)) {
+                            continue;
+                        }
+
+                        // if "args" option is "after-used", skip all but the last parameter
+                        if (config.args === "after-used" && def.index < def.node.params.length - 1) {
+                            continue;
+                        }
+                    } else {
+                        // skip ignored variables
+                        if (config.varsIgnorePattern && config.varsIgnorePattern.test(def.name.name)) {
+                            continue;
+                        }
                     }
                 }
 
@@ -206,6 +233,50 @@ module.exports = function(context) {
         return unusedVars;
     }
 
+    /**
+     * Gets the index of a given variable name in a given comment.
+     * @param {escope.Variable} variable - A variable to get.
+     * @param {ASTNode} comment - A comment node which includes the variable name.
+     * @returns {number} The index of the variable name's location.
+     */
+    function getColumnInComment(variable, comment) {
+        var namePattern = new RegExp("[\\s,]" + escape(variable.name) + "(?:$|[\\s,:])", "g");
+
+        // To ignore the first text "global".
+        namePattern.lastIndex = comment.value.indexOf("global") + 6;
+
+        // Search a given variable name.
+        var match = namePattern.exec(comment.value);
+        return match ? match.index + 1 : 0;
+    }
+
+    /**
+     * Creates the correct location of a given variables.
+     * The location is at its name string in a `/*global` comment.
+     *
+     * @param {escope.Variable} variable - A variable to get its location.
+     * @returns {{line: number, column: number}} The location object for the variable.
+     */
+    function getLocation(variable) {
+        var comment = variable.eslintExplicitGlobalComment;
+        var baseLoc = comment.loc.start;
+        var column = getColumnInComment(variable, comment);
+        var prefix = comment.value.slice(0, column);
+        var lineInComment = (prefix.match(/\n/g) || []).length;
+
+        if (lineInComment > 0) {
+            column -= 1 + prefix.lastIndexOf("\n");
+        } else {
+            // 2 is for `/*`
+            column += baseLoc.column + 2;
+        }
+
+        return {
+            line: baseLoc.line + lineInComment,
+            column: column
+        };
+    }
+
     //--------------------------------------------------------------------------
     // Public
     //--------------------------------------------------------------------------
@@ -219,8 +290,10 @@ module.exports = function(context) {
             for (var i = 0, l = unusedVars.length; i < l; ++i) {
                 var unusedVar = unusedVars[i];
 
-                if (unusedVar.eslintExplicitGlobal) {
-                    context.report(programNode, MESSAGE, unusedVar);
+                if (unusedVar.eslintUsed) {
+                    continue; // explicitly exported variables
+                } else if (unusedVar.eslintExplicitGlobal) {
+                    context.report(programNode, getLocation(unusedVar), MESSAGE, unusedVar);
                 } else if (unusedVar.defs.length > 0) {
                     context.report(unusedVar.identifiers[0], MESSAGE, unusedVar);
                 }
@@ -242,8 +315,14 @@ module.exports.schema = [
                     "vars": {
                         "enum": ["all", "local"]
                     },
+                    "varsIgnorePattern": {
+                        "type": "string"
+                    },
                     "args": {
                         "enum": ["all", "after-used", "none"]
+                    },
+                    "argsIgnorePattern": {
+                        "type": "string"
                     }
                 }
             }
