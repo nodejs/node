@@ -6,31 +6,34 @@
 
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
-    var requireSpace = context.options[0] !== "never";
+module.exports = function(context) {
+    var config = context.options[0],
+        sourceCode = context.getSourceCode(),
+        checkFunctions = true,
+        checkKeywords = true;
 
-    /**
-     * Determines whether two adjacent tokens are have whitespace between them.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
-     * @returns {boolean} Whether or not there is space between the tokens.
-     */
-    function isSpaced(left, right) {
-        return left.range[1] < right.range[0];
+    if (typeof config === "object") {
+        checkFunctions = config.functions !== "never";
+        checkKeywords = config.keywords !== "never";
+    } else if (config === "never") {
+        checkFunctions = false;
+        checkKeywords = false;
     }
 
     /**
-     * Determines whether two adjacent tokens are on the same line.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
-     * @returns {boolean} Whether or not the tokens are on the same line.
+     * Checks whether or not a given token is an arrow operator (=>).
+     *
+     * @param {Token} token - A token to check.
+     * @returns {boolean} `true` if the token is an arrow operator.
      */
-    function isSameLine(left, right) {
-        return left.loc.start.line === right.loc.start.line;
+    function isArrow(token) {
+        return token.type === "Punctuator" && token.value === "=>";
     }
 
     /**
@@ -40,18 +43,38 @@ module.exports = function (context) {
      */
     function checkPrecedingSpace(node) {
         var precedingToken = context.getTokenBefore(node),
-            hasSpace;
+            hasSpace,
+            parent,
+            requireSpace;
 
-        if (precedingToken && isSameLine(precedingToken, node)) {
-            hasSpace = isSpaced(precedingToken, node);
+        if (precedingToken && !isArrow(precedingToken) && astUtils.isTokenOnSameLine(precedingToken, node)) {
+            hasSpace = sourceCode.isSpaceBetweenTokens(precedingToken, node);
+            parent = context.getAncestors().pop();
+            if (parent.type === "FunctionExpression" || parent.type === "FunctionDeclaration") {
+                requireSpace = checkFunctions;
+            } else {
+                requireSpace = checkKeywords;
+            }
 
             if (requireSpace) {
                 if (!hasSpace) {
-                    context.report(node, "Missing space before opening brace.");
+                    context.report({
+                        node: node,
+                        message: "Missing space before opening brace.",
+                        fix: function(fixer) {
+                            return fixer.insertTextBefore(node, " ");
+                        }
+                    });
                 }
             } else {
                 if (hasSpace) {
-                    context.report(node, "Unexpected space before opening brace.");
+                    context.report({
+                        node: node,
+                        message: "Unexpected space before opening brace.",
+                        fix: function(fixer) {
+                            return fixer.removeRange([precedingToken.range[1], node.range[0]]);
+                        }
+                    });
                 }
             }
         }
@@ -79,6 +102,7 @@ module.exports = function (context) {
 
     return {
         "BlockStatement": checkPrecedingSpace,
+        "ClassBody": checkPrecedingSpace,
         "SwitchStatement": checkSpaceBeforeCaseBlock
     };
 
@@ -86,6 +110,22 @@ module.exports = function (context) {
 
 module.exports.schema = [
     {
-        "enum": ["always", "never"]
+        "oneOf": [
+            {
+                "enum": ["always", "never"]
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "keywords": {
+                        "enum": ["always", "never"]
+                    },
+                    "functions": {
+                        "enum": ["always", "never"]
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
     }
 ];

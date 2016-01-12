@@ -6,26 +6,17 @@
 
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
+module.exports = function(context) {
 
     var config = context.options[0],
         // default to onObject if no preference is passed
         onObject = config === "object" || !config;
-
-    /**
-     * Checks whether two tokens are on the same line.
-     * @param {Object} left The leftmost token.
-     * @param {Object} right The rightmost token.
-     * @returns {boolean} True if the tokens are on the same line, false if not.
-     * @private
-     */
-    function isSameLine(left, right) {
-        return left.loc.end.line === right.loc.start.line;
-    }
 
     /**
      * Reports if the dot between object and property is on the correct loccation.
@@ -39,10 +30,10 @@ module.exports = function (context) {
 
         if (dot.type === "Punctuator" && dot.value === ".") {
             if (onObject) {
-                if (!isSameLine(obj, dot)) {
+                if (!astUtils.isTokenOnSameLine(obj, dot)) {
                     context.report(node, dot.loc.start, "Expected dot to be on same line as object.");
                 }
-            } else if (!isSameLine(dot, prop)) {
+            } else if (!astUtils.isTokenOnSameLine(dot, prop)) {
                 context.report(node, dot.loc.start, "Expected dot to be on same line as property.");
             }
         }
@@ -61,3 +52,9 @@ module.exports = function (context) {
         "MemberExpression": checkNode
     };
 };
+
+module.exports.schema = [
+    {
+        "enum": ["object", "property"]
+    }
+];

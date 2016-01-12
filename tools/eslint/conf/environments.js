@@ -5,7 +5,15 @@
  */
 "use strict";
 
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
 var globals = require("globals");
+
+//------------------------------------------------------------------------------
+// Public Interface
+//------------------------------------------------------------------------------
 
 module.exports = {
     builtin: globals.builtin,
@@ -16,16 +24,12 @@ module.exports = {
         globals: globals.node,
         ecmaFeatures: {
             globalReturn: true
-        },
-        rules: {
-            "no-catch-shadow": 0,
-            "no-console": 0,
-            "no-mixed-requires": 2,
-            "no-new-require": 2,
-            "no-path-concat": 2,
-            "no-process-exit": 2,
-            "global-strict": [0, "always"],
-            "handle-callback-err": [2, "err"]
+        }
+    },
+    commonjs: {
+        globals: globals.commonjs,
+        ecmaFeatures: {
+            globalReturn: true
         }
     },
     worker: {
@@ -40,11 +44,17 @@ module.exports = {
     jasmine: {
         globals: globals.jasmine
     },
+    jest: {
+        globals: globals.jest
+    },
     phantomjs: {
-        globals: globals.phantom
+        globals: globals.phantomjs
     },
     jquery: {
         globals: globals.jquery
+    },
+    qunit: {
+        globals: globals.qunit
     },
     prototypejs: {
         globals: globals.prototypejs
@@ -58,8 +68,23 @@ module.exports = {
     mongo: {
         globals: globals.mongo
     },
+    protractor: {
+        globals: globals.protractor
+    },
     applescript: {
         globals: globals.applescript
+    },
+    nashorn: {
+        globals: globals.nashorn
+    },
+    serviceworker: {
+        globals: globals.serviceworker
+    },
+    embertest: {
+        globals: globals.embertest
+    },
+    webextensions: {
+        globals: globals.webextensions
     },
     es6: {
         ecmaFeatures: {
@@ -81,7 +106,9 @@ module.exports = {
             objectLiteralDuplicateProperties: true,
             generators: true,
             destructuring: true,
-            classes: true
+            classes: true,
+            spread: true,
+            newTarget: true
         }
     }
 };

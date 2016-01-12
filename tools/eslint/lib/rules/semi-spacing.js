@@ -6,15 +6,18 @@
 
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
+module.exports = function(context) {
 
     var config = context.options[0],
         requireSpaceBefore = false,
-        requireSpaceAfter = true;
+        requireSpaceAfter = true,
+        sourceCode = context.getSourceCode();
 
     if (typeof config === "object") {
         if (config.hasOwnProperty("before")) {
@@ -26,34 +29,13 @@ module.exports = function (context) {
     }
 
     /**
-     * Determines whether two adjacent tokens have whitespace between them.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
-     * @returns {boolean} Whether or not there is space between the tokens.
-     */
-    function isSpaced(left, right) {
-        return left.range[1] < right.range[0];
-    }
-
-    /**
-     * Checks whether two tokens are on the same line.
-     * @param {Object} left The leftmost token.
-     * @param {Object} right The rightmost token.
-     * @returns {boolean} True if the tokens are on the same line, false if not.
-     * @private
-     */
-    function isSameLine(left, right) {
-        return left.loc.end.line === right.loc.start.line;
-    }
-
-    /**
      * Checks if a given token has leading whitespace.
      * @param {Object} token The token to check.
      * @returns {boolean} True if the given token has leading space, false if not.
      */
     function hasLeadingSpace(token) {
         var tokenBefore = context.getTokenBefore(token);
-        return tokenBefore && isSameLine(tokenBefore, token) && isSpaced(tokenBefore, token);
+        return tokenBefore && astUtils.isTokenOnSameLine(tokenBefore, token) && sourceCode.isSpaceBetweenTokens(tokenBefore, token);
     }
 
     /**
@@ -63,7 +45,7 @@ module.exports = function (context) {
      */
     function hasTrailingSpace(token) {
         var tokenAfter = context.getTokenAfter(token);
-        return tokenAfter && isSameLine(token, tokenAfter) && isSpaced(token, tokenAfter);
+        return tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter) && sourceCode.isSpaceBetweenTokens(token, tokenAfter);
     }
 
     /**
@@ -73,7 +55,31 @@ module.exports = function (context) {
      */
     function isLastTokenInCurrentLine(token) {
         var tokenAfter = context.getTokenAfter(token);
-        return !(tokenAfter && isSameLine(token, tokenAfter));
+        return !(tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter));
+    }
+
+    /**
+     * Checks if the given token is the first token in its line
+     * @param {Token} token The token to check.
+     * @returns {boolean} Whether or not the token is the first in its line.
+     */
+    function isFirstTokenInCurrentLine(token) {
+        var tokenBefore = context.getTokenBefore(token);
+        return !(tokenBefore && astUtils.isTokenOnSameLine(token, tokenBefore));
+    }
+
+    /**
+     * Checks if the next token of a given token is a closing parenthesis.
+     * @param {Token} token The token to check.
+     * @returns {boolean} Whether or not the next token of a given token is a closing parenthesis.
+     */
+    function isBeforeClosingParen(token) {
+        var nextToken = context.getTokenAfter(token);
+        return (
+            nextToken &&
+            nextToken.type === "Punctuator" &&
+            (nextToken.value === "}" || nextToken.value === ")")
+        );
     }
 
     /**
@@ -107,7 +113,7 @@ module.exports = function (context) {
                 }
             }
 
-            if (!isLastTokenInCurrentLine(token)) {
+            if (!isFirstTokenInCurrentLine(token) && !isLastTokenInCurrentLine(token) && !isBeforeClosingParen(token)) {
                 if (hasTrailingSpace(token)) {
                     if (!requireSpaceAfter) {
                         context.report(node, location, "Unexpected whitespace after semicolon.");
@@ -139,7 +145,7 @@ module.exports = function (context) {
         "DebuggerStatement": checkNode,
         "ReturnStatement": checkNode,
         "ThrowStatement": checkNode,
-        "ForStatement": function (node) {
+        "ForStatement": function(node) {
             if (node.init) {
                 checkSemicolonSpacing(context.getTokenAfter(node.init), node);
             }

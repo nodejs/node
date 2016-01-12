@@ -1,11 +1,39 @@
 #!/usr/bin/env node
-var concat = require("concat-stream"),
-    configInit = require("../lib/config-initializer"),
-    cli = require("../lib/cli");
+
+/**
+ * @fileoverview Main CLI that is run via the eslint command.
+ * @author Nicholas C. Zakas
+ * @copyright 2013 Nicholas C. Zakas. All rights reserved.
+ * See LICENSE file in root directory for full license.
+ */
+
+"use strict";
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
 
 var exitCode = 0,
     useStdIn = (process.argv.indexOf("--stdin") > -1),
-    init = (process.argv.indexOf("--init") > -1);
+    init = (process.argv.indexOf("--init") > -1),
+    debug = (process.argv.indexOf("--debug") > -1);
+
+// must do this initialization *before* other requires in order to work
+if (debug) {
+    require("debug").enable("eslint:*");
+}
+
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+// now we can safely include the other modules that use debug
+var concat = require("concat-stream"),
+    cli = require("../lib/cli");
+
+//------------------------------------------------------------------------------
+// Execution
+//------------------------------------------------------------------------------
 
 if (useStdIn) {
     process.stdin.pipe(concat({ encoding: "string" }, function(text) {
@@ -18,13 +46,13 @@ if (useStdIn) {
         }
     }));
 } else if (init) {
+    var configInit = require("../lib/config/config-initializer");
     configInit.initializeConfig(function(err) {
         if (err) {
             exitCode = 1;
             console.error(err.message);
             console.error(err.stack);
         } else {
-            console.log("Successfully created .eslintrc file in " + process.cwd());
             exitCode = 0;
         }
     });

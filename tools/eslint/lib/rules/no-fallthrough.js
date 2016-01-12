@@ -5,7 +5,7 @@
 "use strict";
 
 
-var FALLTHROUGH_COMMENT = /falls\sthrough/;
+var FALLTHROUGH_COMMENT = /falls?\s?through/i;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -48,8 +48,7 @@ module.exports = function(context) {
 
                 // check for comment
                 if (!comment || !FALLTHROUGH_COMMENT.test(comment.value)) {
-
-                    context.report(switchData.lastCase,
+                    context.report(node,
                         "Expected a \"break\" statement before \"{{code}}\".",
                         { code: node.test ? "case" : "default" });
                 }

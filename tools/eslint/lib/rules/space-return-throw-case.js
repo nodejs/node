@@ -10,12 +10,24 @@
 
 module.exports = function(context) {
 
+    /**
+     * Check if the node for spaces
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function check(node) {
         var tokens = context.getFirstTokens(node, 2),
             value = tokens[0].value;
 
         if (tokens[0].range[1] >= tokens[1].range[0]) {
-            context.report(node, "Keyword \"" + value + "\" must be followed by whitespace.");
+            context.report({
+                node: node,
+                message: "Keyword \"" + value + "\" must be followed by whitespace.",
+                fix: function(fixer) {
+                    return fixer.insertTextAfterRange(tokens[0].range, " ");
+                }
+            });
         }
     }
 

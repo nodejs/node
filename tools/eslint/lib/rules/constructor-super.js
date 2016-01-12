@@ -18,7 +18,7 @@ module.exports = function(context) {
      * @returns {ClassDeclaration|ClassExpression|null} the found class node or `null`.
      */
     function getClassInAncestor(node) {
-        while (node != null) {
+        while (node) {
             if (node.type === "ClassDeclaration" || node.type === "ClassExpression") {
                 return node;
             }
@@ -34,7 +34,7 @@ module.exports = function(context) {
      * @returns {boolean} whether or not a node is the null literal.
      */
     function isNullLiteral(node) {
-        return node != null && node.type === "Literal" && node.value === null;
+        return node && node.type === "Literal" && node.value === null;
     }
 
     /**
@@ -43,7 +43,7 @@ module.exports = function(context) {
      * @returns {boolean} whether or not the current traversal context is on constructors.
      */
     function isOnConstructor(item) {
-        return item != null && item.scope === context.getScope().variableScope.upper.variableScope;
+        return item && item.scope === context.getScope().variableScope.upper.variableScope;
     }
 
     // A stack for checking context.
@@ -78,7 +78,7 @@ module.exports = function(context) {
 
             var classNode = getClassInAncestor(node);
             /* istanbul ignore if */
-            if (classNode == null) {
+            if (!classNode) {
                 return;
             }
 

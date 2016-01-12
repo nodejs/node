@@ -17,7 +17,7 @@ function resolveYamlBinary(data) {
     return false;
   }
 
-  var code, idx, bitlen = 0, len = 0, max = data.length, map = BASE64_MAP;
+  var code, idx, bitlen = 0, max = data.length, map = BASE64_MAP;
 
   // Convert one by one.
   for (idx = 0; idx < max; idx++) {
@@ -37,7 +37,7 @@ function resolveYamlBinary(data) {
 }
 
 function constructYamlBinary(data) {
-  var code, idx, tailbits,
+  var idx, tailbits,
       input = data.replace(/[\r\n=]/g, ''), // remove CR/LF & padding to simplify scan
       max = input.length,
       map = BASE64_MAP,
