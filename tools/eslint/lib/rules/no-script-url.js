@@ -2,8 +2,8 @@
  * @fileoverview Rule to flag when using javascript: urls
  * @author Ilya Volodin
  */
-/*jshint scripturl: true */
-/*eslint no-script-url: 0*/
+/* jshint scripturl: true */
+/* eslint no-script-url: 0 */
 
 "use strict";
 

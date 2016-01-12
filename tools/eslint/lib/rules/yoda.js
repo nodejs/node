@@ -114,7 +114,7 @@ function same(a, b) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
+module.exports = function(context) {
 
     // Default to "never" (!always) if no option
     var always = (context.options[0] === "always");
@@ -197,6 +197,7 @@ module.exports = function (context) {
             // Comparisons must always be yoda-style: if ("blue" === color)
             if (
                 (node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
+                !(node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
                 !(!isEqualityOperator(node.operator) && onlyEquality) &&
                 isComparisonOperator(node.operator) &&
                 !(exceptRange && isRangeTest(context.getAncestors().pop()))
@@ -209,6 +210,7 @@ module.exports = function (context) {
             // Comparisons must never be yoda-style (default)
             if (
                 (node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
+                !(node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
                 !(!isEqualityOperator(node.operator) && onlyEquality) &&
                 isComparisonOperator(node.operator) &&
                 !(exceptRange && isRangeTest(context.getAncestors().pop()))

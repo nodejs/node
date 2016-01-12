@@ -13,7 +13,7 @@
 module.exports = function(context) {
 
     return {
-        "VariableDeclaration": function (node) {
+        "VariableDeclaration": function(node) {
             if (node.kind === "var") {
                 context.report(node, "Unexpected var, use let or const instead.");
             }

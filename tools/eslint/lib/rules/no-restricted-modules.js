@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
+module.exports = function(context) {
     // trim restricted module names
     var restrictedModules = context.options;
 
@@ -57,7 +57,7 @@ module.exports = function (context) {
     }
 
     return {
-        "CallExpression": function (node) {
+        "CallExpression": function(node) {
             if (isRequireCall(node)) {
                 var restrictedModuleName = getRestrictedModuleName(node);
 

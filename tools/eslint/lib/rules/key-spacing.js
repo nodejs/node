@@ -94,8 +94,26 @@ module.exports = function(context) {
 
     var options = context.options[0] || {},
         align = options.align,
+        mode = options.mode || "strict",
         beforeColon = +!!options.beforeColon, // Defaults to false
         afterColon = +!(options.afterColon === false); // Defaults to true
+
+    /**
+     * Starting from the given a node (a property.key node here) looks forward
+     * until it finds the last token before a colon punctuator and returns it.
+     * @param {ASTNode} node The node to start looking from.
+     * @returns {ASTNode} The last token before a colon punctuator.
+     */
+    function getLastTokenBeforeColon(node) {
+        var prevNode;
+
+        while (node && (node.type !== "Punctuator" || node.value !== ":")) {
+            prevNode = node;
+            node = context.getTokenAfter(node);
+        }
+
+        return prevNode;
+    }
 
     /**
      * Gets an object literal property's key as the identifier name or string value.
@@ -127,7 +145,9 @@ module.exports = function(context) {
             firstTokenAfterColon = context.getTokenAfter(key, 1),
             location = side === "key" ? key.loc.start : firstTokenAfterColon.loc.start;
 
-        if (diff && !(expected && containsLineTerminator(whitespace))) {
+        if ((diff && mode === "strict" || diff < 0 && mode === "minimum") &&
+            !(expected && containsLineTerminator(whitespace))
+        ) {
             context.report(property[side], location, messages[side], {
                 error: diff > 0 ? "Extra" : "Missing",
                 computed: property.computed ? "computed " : "",
@@ -143,26 +163,17 @@ module.exports = function(context) {
      * @returns {int} Width of the key.
      */
     function getKeyWidth(property) {
-        var key = property.key,
-            startToken, endToken;
+        var startToken, endToken;
 
-        // [computed]: value
-        if (property.computed) {
-            startToken = context.getTokenBefore(key);
-            endToken = context.getTokenAfter(key);
-            return endToken.range[1] - startToken.range[0];
+        // Ignore shorthand methods and properties, as they have no colon
+        if (property.method || property.shorthand) {
+            return 0;
         }
 
-        // name: value
-        if (key.type === "Identifier") {
-            return key.name.length;
-        }
+        startToken = context.getFirstToken(property);
+        endToken = getLastTokenBeforeColon(property.key);
 
-        // "literal": value
-        // 42: value
-        if (key.type === "Literal") {
-            return key.raw.length;
-        }
+        return endToken.range[1] - startToken.range[0];
     }
 
     /**
@@ -297,7 +308,7 @@ module.exports = function(context) {
     } else { // Strictly obey beforeColon and afterColon in each property
 
         return {
-            "Property": function (node) {
+            "Property": function(node) {
                 verifySpacing(node);
             }
         };
@@ -312,6 +323,9 @@ module.exports.schema = [
         "properties": {
             "align": {
                 "enum": ["colon", "value"]
+            },
+            "mode": {
+                "enum": ["strict", "minimum"]
             },
             "beforeColon": {
                 "type": "boolean"
