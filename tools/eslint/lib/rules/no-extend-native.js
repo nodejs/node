@@ -9,11 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var BUILTINS = [
-    "Object", "Function", "Array", "String", "Boolean", "Number", "Date",
-    "RegExp", "Error", "EvalError", "RangeError", "ReferenceError",
-    "SyntaxError", "TypeError", "URIError"
-];
+var globals = require("globals");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -23,10 +19,12 @@ module.exports = function(context) {
 
     var config = context.options[0] || {};
     var exceptions = config.exceptions || [];
-    var modifiedBuiltins = BUILTINS;
+    var modifiedBuiltins = Object.keys(globals.builtin).filter(function(builtin) {
+        return builtin[0].toUpperCase() === builtin[0];
+    });
 
     if (exceptions.length) {
-        modifiedBuiltins = BUILTINS.filter(function(builtIn) {
+        modifiedBuiltins = modifiedBuiltins.filter(function(builtIn) {
             return exceptions.indexOf(builtIn) === -1;
         });
     }
@@ -56,22 +54,21 @@ module.exports = function(context) {
             });
         },
 
-        // handle the Object.defineProperty(Array.prototype) case
+        // handle the Object.definePropert[y|ies](Array.prototype) case
         "CallExpression": function(node) {
 
             var callee = node.callee,
                 subject,
                 object;
 
-            // only worry about Object.defineProperty
+            // only worry about Object.definePropert[y|ies]
             if (callee.type === "MemberExpression" &&
                 callee.object.name === "Object" &&
-                callee.property.name === "defineProperty") {
+                (callee.property.name === "defineProperty" || callee.property.name === "defineProperties")) {
 
                 // verify the object being added to is a native prototype
                 subject = node.arguments[0];
-                object = subject.object;
-
+                object = subject && subject.object;
                 if (object &&
                     object.type === "Identifier" &&
                     (modifiedBuiltins.indexOf(object.name) > -1) &&

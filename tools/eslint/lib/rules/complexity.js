@@ -21,18 +21,28 @@ module.exports = function(context) {
     // Using a stack to store complexity (handling nested functions)
     var fns = [];
 
-    // When parsing a new function, store it in our function stack
+    /**
+     * When parsing a new function, store it in our function stack
+     * @returns {void}
+     * @private
+     */
     function startFunction() {
         fns.push(1);
     }
 
+    /**
+     * Evaluate the node at the end of function
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function endFunction(node) {
         var complexity = fns.pop(),
             name = "anonymous";
 
         if (node.id) {
             name = node.id.name;
-        } else if (node.parent.type === "MethodDefinition") {
+        } else if (node.parent.type === "MethodDefinition" || node.parent.type === "Property") {
             name = node.parent.key.name;
         }
 
@@ -41,12 +51,23 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Increase the complexity of the function in context
+     * @returns {void}
+     * @private
+     */
     function increaseComplexity() {
         if (fns.length) {
             fns[fns.length - 1] ++;
         }
     }
 
+    /**
+     * Increase the switch complexity in context
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function increaseSwitchComplexity(node) {
         // Avoiding `default`
         if (node.test) {
@@ -54,6 +75,12 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Increase the logical path complexity in context
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function increaseLogicalComplexity(node) {
         // Avoiding &&
         if (node.operator === "||") {

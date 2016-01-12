@@ -80,15 +80,30 @@ module.exports = function(context) {
     /**
      * Check the consequent/body node to make sure it is not
      * a ReturnStatement or an IfStatement that returns on both
-     * code paths.  If it is, display the context report.
+     * code paths.
      *
      * @param {Node} node The consequent or body node
      * @param {Node} alternate The alternate node
-     * @returns {void}
+     * @returns {boolean} `true` if it is a Return/If node that always returns.
      */
-    function checkForReturnOrIf(node, alternate) {
-        if (checkForReturn(node) || checkForIf(node)) {
-            displayReport(alternate);
+    function checkForReturnOrIf(node) {
+        return checkForReturn(node) || checkForIf(node);
+    }
+
+
+    /**
+     * Check whether a node returns in every codepath.
+     * @param {Node} node The node to be checked
+     * @returns {boolean} `true` if it returns on every codepath.
+     */
+    function alwaysReturns(node) {
+        // If we have a BlockStatement, check each consequent body node.
+        if (node.type === "BlockStatement") {
+            return node.body.some(checkForReturnOrIf);
+        // If not a block statement, make sure the consequent isn't a ReturnStatement
+        // or an IfStatement with returns on both paths
+        } else {
+            return checkForReturnOrIf(node);
         }
     }
 
@@ -98,23 +113,27 @@ module.exports = function(context) {
 
     return {
 
-        "IfStatement": function (node) {
-            // Don't bother finding a ReturnStatement, if there's no `else`
-            // or if the alternate is also an if (indicating an else if).
-            if (hasElse(node)) {
-                var consequent = node.consequent,
-                    alternate = node.alternate;
-                // If we have a BlockStatement, check each consequent body node.
-                if (consequent.type === "BlockStatement") {
-                    var body = consequent.body;
-                    body.forEach(function (bodyNode) {
-                        checkForReturnOrIf(bodyNode, alternate);
-                    });
-                // If not a block statement, make sure the consequent isn't a ReturnStatement
-                // or an IfStatement with returns on both paths
-                } else {
-                    checkForReturnOrIf(consequent, alternate);
+        "IfStatement": function(node) {
+            var parent = context.getAncestors().pop(),
+                consequents,
+                alternate;
+
+            // Only "top-level" if statements are checked, meaning the first `if`
+            // in a `if-else-if-...` chain.
+            if (parent.type === "IfStatement" && parent.alternate === node) {
+                return;
+            }
+
+            for (consequents = []; node.type === "IfStatement"; node = node.alternate) {
+                if (!node.alternate) {
+                    return;
                 }
+                consequents.push(node.consequent);
+                alternate = node.alternate;
+            }
+
+            if (consequents.every(alwaysReturns)) {
+                displayReport(alternate);
             }
         }
 

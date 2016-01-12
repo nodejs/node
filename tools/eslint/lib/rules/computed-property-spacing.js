@@ -5,11 +5,14 @@
  */
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+    var sourceCode = context.getSourceCode();
     var propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
 
     //--------------------------------------------------------------------------
@@ -17,45 +20,39 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
 
     /**
-     * Determines whether two adjacent tokens are have whitespace between them.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
-     * @returns {boolean} Whether or not there is space between the tokens.
-     */
-    function isSpaced(left, right) {
-        return left.range[1] < right.range[0];
-    }
-
-    /**
-     * Determines whether two adjacent tokens are on the same line.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
-     * @returns {boolean} Whether or not the tokens are on the same line.
-     */
-    function isSameLine(left, right) {
-        return left.loc.start.line === right.loc.start.line;
-    }
-
-    /**
     * Reports that there shouldn't be a space after the first token
     * @param {ASTNode} node - The node to report in the event of an error.
     * @param {Token} token - The token to use for the report.
+    * @param {Token} tokenAfter - The token after `token`.
     * @returns {void}
     */
-    function reportNoBeginningSpace(node, token) {
-        context.report(node, token.loc.start,
-            "There should be no space after '" + token.value + "'");
+    function reportNoBeginningSpace(node, token, tokenAfter) {
+        context.report({
+            node: node,
+            loc: token.loc.start,
+            message: "There should be no space after '" + token.value + "'",
+            fix: function(fixer) {
+                return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
+            }
+        });
     }
 
     /**
     * Reports that there shouldn't be a space before the last token
     * @param {ASTNode} node - The node to report in the event of an error.
     * @param {Token} token - The token to use for the report.
+    * @param {Token} tokenBefore - The token before `token`.
     * @returns {void}
     */
-    function reportNoEndingSpace(node, token) {
-        context.report(node, token.loc.start,
-            "There should be no space before '" + token.value + "'");
+    function reportNoEndingSpace(node, token, tokenBefore) {
+        context.report({
+            node: node,
+            loc: token.loc.start,
+            message: "There should be no space before '" + token.value + "'",
+            fix: function(fixer) {
+                return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
+            }
+        });
     }
 
     /**
@@ -65,8 +62,14 @@ module.exports = function(context) {
     * @returns {void}
     */
     function reportRequiredBeginningSpace(node, token) {
-        context.report(node, token.loc.start,
-            "A space is required after '" + token.value + "'");
+        context.report({
+            node: node,
+            loc: token.loc.start,
+            message: "A space is required after '" + token.value + "'",
+            fix: function(fixer) {
+                return fixer.insertTextAfter(token, " ");
+            }
+        });
     }
 
     /**
@@ -76,8 +79,14 @@ module.exports = function(context) {
     * @returns {void}
     */
     function reportRequiredEndingSpace(node, token) {
-        context.report(node, token.loc.start,
-                    "A space is required before '" + token.value + "'");
+        context.report({
+            node: node,
+            loc: token.loc.start,
+            message: "A space is required before '" + token.value + "'",
+            fix: function(fixer) {
+                return fixer.insertTextBefore(token, " ");
+            }
+        });
     }
 
     /**
@@ -99,26 +108,26 @@ module.exports = function(context) {
                 last = context.getLastToken(property),
                 after = context.getTokenAfter(property);
 
-            if (isSameLine(before, first)) {
+            if (astUtils.isTokenOnSameLine(before, first)) {
                 if (propertyNameMustBeSpaced) {
-                    if (!isSpaced(before, first) && isSameLine(before, first)) {
+                    if (!sourceCode.isSpaceBetweenTokens(before, first) && astUtils.isTokenOnSameLine(before, first)) {
                         reportRequiredBeginningSpace(node, before);
                     }
                 } else {
-                    if (isSpaced(before, first)) {
-                        reportNoBeginningSpace(node, before);
+                    if (sourceCode.isSpaceBetweenTokens(before, first)) {
+                        reportNoBeginningSpace(node, before, first);
                     }
                 }
             }
 
-            if (isSameLine(last, after)) {
+            if (astUtils.isTokenOnSameLine(last, after)) {
                 if (propertyNameMustBeSpaced) {
-                    if (!isSpaced(last, after) && isSameLine(last, after)) {
+                    if (!sourceCode.isSpaceBetweenTokens(last, after) && astUtils.isTokenOnSameLine(last, after)) {
                         reportRequiredEndingSpace(node, after);
                     }
                 } else {
-                    if (isSpaced(last, after)) {
-                        reportNoEndingSpace(node, after);
+                    if (sourceCode.isSpaceBetweenTokens(last, after)) {
+                        reportNoEndingSpace(node, after, last);
                     }
                 }
             }

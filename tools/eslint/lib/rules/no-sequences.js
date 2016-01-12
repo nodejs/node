@@ -34,7 +34,7 @@ module.exports = function(context) {
      * @returns {boolean} True if parens around node belong to parent node.
      */
     function requiresExtraParens(node) {
-        return node.parent && parenthesized[node.parent.type] != null &&
+        return node.parent && parenthesized[node.parent.type] &&
                 node === node.parent[parenthesized[node.parent.type]];
     }
 
@@ -85,7 +85,8 @@ module.exports = function(context) {
                 }
             }
 
-            context.report(node, "Unexpected use of comma operator.");
+            var child = context.getTokenAfter(node.expressions[0]);
+            context.report(node, child.loc.start, "Unexpected use of comma operator.");
         }
     };
 

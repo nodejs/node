@@ -5,15 +5,18 @@
 
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
+module.exports = function(context) {
 
     var configuration = context.options[0] || {},
         warningTerms = configuration.terms || ["todo", "fixme", "xxx"],
         location = configuration.location || "start",
+        selfConfigRegEx = /\bno-warning-comments\b/,
         warningRegExps;
 
     /**
@@ -54,7 +57,7 @@ module.exports = function (context) {
     function commentContainsWarningTerm(comment) {
         var matches = [];
 
-        warningRegExps.forEach(function (regex, index) {
+        warningRegExps.forEach(function(regex, index) {
             if (regex.test(comment)) {
                 matches.push(warningTerms[index]);
             }
@@ -69,10 +72,14 @@ module.exports = function (context) {
      * @returns {void} undefined.
      */
     function checkComment(node) {
+        if (astUtils.isDirectiveComment(node) && selfConfigRegEx.test(node.value)) {
+            return;
+        }
+
         var matches = commentContainsWarningTerm(node.value);
 
-        matches.forEach(function (matchedTerm) {
-            context.report(node, "Unexpected " + matchedTerm + " comment.");
+        matches.forEach(function(matchedTerm) {
+            context.report(node, "Unexpected \"" + matchedTerm + "\" comment.");
         });
     }
 

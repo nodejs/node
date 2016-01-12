@@ -17,12 +17,13 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
 
     /**
-    * Check if the parent unary operator is "!" in order to know if it's "!!" convert to Boolean or just "!" negation
+    * Check if the node is the first "!" in a "!!" convert to Boolean expression
     * @param {ASTnode} node AST node
-    * @returns {boolean} Whether or not the parent is unary "!" operator
+    * @returns {boolean} Whether or not the node is first "!" in "!!"
     */
-    function isParentUnaryBangExpression(node) {
-        return node && node.parent && node.parent.type === "UnaryExpression" && node.parent.operator === "!";
+    function isFirstBangInBangBangExpression(node) {
+        return node && node.type === "UnaryExpression" && node.argument.operator === "!" &&
+            node.argument && node.argument.type === "UnaryExpression" && node.argument.operator === "!";
     }
 
     /**
@@ -39,18 +40,33 @@ module.exports = function(context) {
     * @param {ASTnode} node AST node
     * @param {object} firstToken first token from the AST node
     * @param {object} secondToken second token from the AST node
+    * @param {string} word The word to be used for reporting
     * @returns {void}
     */
-    function checkUnaryWordOperatorForSpaces(node, firstToken, secondToken) {
+    function checkUnaryWordOperatorForSpaces(node, firstToken, secondToken, word) {
+        word = word || firstToken.value;
+
         if (options.words) {
             if (secondToken.range[0] === firstToken.range[1]) {
-                context.report(node, "Unary word operator \"" + firstToken.value + "\" must be followed by whitespace.");
+                context.report({
+                    node: node,
+                    message: "Unary word operator \"" + word + "\" must be followed by whitespace.",
+                    fix: function(fixer) {
+                        return fixer.insertTextAfter(firstToken, " ");
+                    }
+                });
             }
         }
 
         if (!options.words && isArgumentObjectExpression(node)) {
             if (secondToken.range[0] > firstToken.range[1]) {
-                context.report(node, "Unexpected space after unary word operator \"" + firstToken.value + "\".");
+                context.report({
+                    node: node,
+                    message: "Unexpected space after unary word operator \"" + word + "\".",
+                    fix: function(fixer) {
+                        return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                    }
+                });
             }
         }
     }
@@ -72,25 +88,49 @@ module.exports = function(context) {
 
         if (options.nonwords) {
             if (node.prefix) {
-                if (isParentUnaryBangExpression(node)) {
+                if (isFirstBangInBangBangExpression(node)) {
                     return void 0;
                 }
                 if (firstToken.range[1] === secondToken.range[0]) {
-                    context.report(node, "Unary operator \"" + firstToken.value + "\" must be followed by whitespace.");
+                    context.report({
+                        node: node,
+                        message: "Unary operator \"" + firstToken.value + "\" must be followed by whitespace.",
+                        fix: function(fixer) {
+                            return fixer.insertTextAfter(firstToken, " ");
+                        }
+                    });
                 }
             } else {
                 if (firstToken.range[1] === secondToken.range[0]) {
-                    context.report(node, "Space is required before unary expressions \"" + secondToken.value + "\".");
+                    context.report({
+                        node: node,
+                        message: "Space is required before unary expressions \"" + secondToken.value + "\".",
+                        fix: function(fixer) {
+                            return fixer.insertTextBefore(secondToken, " ");
+                        }
+                    });
                 }
             }
         } else {
             if (node.prefix) {
                 if (secondToken.range[0] > firstToken.range[1]) {
-                    context.report(node, "Unexpected space after unary operator \"" + firstToken.value + "\".");
+                    context.report({
+                        node: node,
+                        message: "Unexpected space after unary operator \"" + firstToken.value + "\".",
+                        fix: function(fixer) {
+                            return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                        }
+                    });
                 }
             } else {
                 if (secondToken.range[0] > firstToken.range[1]) {
-                    context.report(node, "Unexpected space before unary operator \"" + secondToken.value + "\".");
+                    context.report({
+                        node: node,
+                        message: "Unexpected space before unary operator \"" + secondToken.value + "\".",
+                        fix: function(fixer) {
+                            return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                        }
+                    });
                 }
             }
         }
@@ -103,7 +143,22 @@ module.exports = function(context) {
     return {
         "UnaryExpression": checkForSpaces,
         "UpdateExpression": checkForSpaces,
-        "NewExpression": checkForSpaces
+        "NewExpression": checkForSpaces,
+        "YieldExpression": function(node) {
+            var tokens = context.getFirstTokens(node, 3),
+                word = "yield";
+
+            if (!node.argument) {
+                return;
+            }
+
+            if (node.delegate) {
+                word += "*";
+                checkUnaryWordOperatorForSpaces(node, tokens[1], tokens[2], word);
+            } else {
+                checkUnaryWordOperatorForSpaces(node, tokens[0], tokens[1], word);
+            }
+        }
     };
 
 };

@@ -50,8 +50,8 @@ module.exports = function(context) {
             var references = variable.references;
             var identifier = variable.identifiers[0];
 
-            if (statement != null &&
-                identifier != null &&
+            if (statement &&
+                identifier &&
                 declaration.type === "VariableDeclaration" &&
                 declaration.kind === "let" &&
                 (statement.type !== "ForStatement" || statement.init !== declaration) &&
@@ -75,7 +75,7 @@ module.exports = function(context) {
     var pushAll = Function.apply.bind(Array.prototype.push);
 
     return {
-        "Program:exit": function () {
+        "Program:exit": function() {
             var stack = [context.getScope()];
             while (stack.length) {
                 var scope = stack.pop();

@@ -33,7 +33,7 @@ module.exports = function(rulesDir) {
         if (path.extname(file) !== ".js") {
             return;
         }
-        rules[file.slice(0, -3)] = require(path.join(rulesDir, file));
+        rules[file.slice(0, -3)] = path.join(rulesDir, file);
     });
     return rules;
 };

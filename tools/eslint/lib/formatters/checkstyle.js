@@ -8,6 +8,12 @@
 // Helper Functions
 //------------------------------------------------------------------------------
 
+/**
+ * Returns the severity of warning or error
+ * @param {object} message message object to examine
+ * @returns {string} severity level
+ * @private
+ */
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
         return "error";
@@ -16,6 +22,12 @@ function getMessageType(message) {
     }
 }
 
+/**
+ * Returns the escaped value for a character
+ * @param {string} s string to examine
+ * @returns {string} severity level
+ * @private
+ */
 function xmlEscape(s) {
     return ("" + s).replace(/[<>&"']/g, function(c) {
         switch (c) {
@@ -55,7 +67,8 @@ module.exports = function(results) {
                 "column=\"" + xmlEscape(message.column) + "\" " +
                 "severity=\"" + xmlEscape(getMessageType(message)) + "\" " +
                 "message=\"" + xmlEscape(message.message) +
-                (message.ruleId ? " (" + message.ruleId + ")" : "") + "\" />";
+                (message.ruleId ? " (" + message.ruleId + ")" : "") + "\" " +
+                "source=\"" + (message.ruleId ? xmlEscape("eslint.rules." + message.ruleId) : "") + "\" />";
         });
 
         output += "</file>";
