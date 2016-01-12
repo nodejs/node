@@ -347,7 +347,7 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
 
   if (buf->base == nullptr && suggested_size > 0) {
     FatalError("node::UDPWrap::OnAlloc(uv_handle_t*, size_t, uv_buf_t*)",
-               "Out Of Memory");
+               STR_OUTOFMEMORY);
   }
 }
 

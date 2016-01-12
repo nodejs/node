@@ -309,7 +309,7 @@ test('end(chunk) two times is an error', function(t) {
   var gotError = false;
   w.on('error', function(er) {
     gotError = true;
-    t.equal(er.message, 'write after end');
+    assert(/^write after end/.test(er.message));
   });
   w.end('this is the end');
   w.end('and so is this');

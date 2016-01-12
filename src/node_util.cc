@@ -41,10 +41,10 @@ static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsObject())
-    return env->ThrowTypeError("obj must be an object");
+    return THROWI18NTYPEERROR(env, OBJ_OBJECT);
 
   if (!args[1]->IsString())
-    return env->ThrowTypeError("name must be a string");
+    return THROWI18NTYPEERROR(env, NAME_STRING);
 
   Local<Object> obj = args[0].As<Object>();
   Local<String> name = args[1].As<String>();
@@ -56,10 +56,10 @@ static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsObject())
-    return env->ThrowTypeError("obj must be an object");
+    return THROWI18NTYPEERROR(env, OBJ_OBJECT);
 
   if (!args[1]->IsString())
-    return env->ThrowTypeError("name must be a string");
+    return THROWI18NTYPEERROR(env, NAME_STRING);
 
   Local<Object> obj = args[0].As<Object>();
   Local<String> name = args[1].As<String>();

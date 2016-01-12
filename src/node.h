@@ -95,6 +95,15 @@ NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
                                              const char* message,
                                              const char* path,
                                              const char* dest);
+NODE_EXTERN v8::Local<v8::Value> I18NRangeError(v8::Isolate* isolate,
+                                                const char* key,
+                                                const char* message);
+NODE_EXTERN v8::Local<v8::Value> I18NTypeError(v8::Isolate* isolate,
+                                                const char* key,
+                                                const char* message);
+NODE_EXTERN v8::Local<v8::Value> I18NError(v8::Isolate* isolate,
+                                                const char* key,
+                                                const char* message);
 
 NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                 inline v8::Local<v8::Value> ErrnoException(
@@ -156,6 +165,8 @@ NODE_EXTERN v8::Local<v8::Value> MakeCallback(
 #include "node_internals.h"
 #endif
 
+#include "messages/messages.h"
+
 #include <assert.h>
 #include <stdint.h>
 
@@ -174,7 +185,6 @@ typedef intptr_t ssize_t;
 #else  // !_WIN32
 # include <sys/types.h>  // size_t, ssize_t
 #endif  // _WIN32
-
 
 namespace node {
 

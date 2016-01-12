@@ -54,25 +54,28 @@ const unixSpecialCaseFormatTests = [
   [{}, '']
 ];
 
+const regex1 = /^'path' argument must be a\(n\) string/;
+const regex2 = /^'pathObject' argument must be a\(n\) object/;
+
 const errors = [
   {method: 'parse', input: [null],
-   message: /Path must be a string. Received null/},
+   message: regex1},
   {method: 'parse', input: [{}],
-   message: /Path must be a string. Received {}/},
+   message: regex1},
   {method: 'parse', input: [true],
-   message: /Path must be a string. Received true/},
+   message: regex1},
   {method: 'parse', input: [1],
-   message: /Path must be a string. Received 1/},
+   message: regex1},
   {method: 'parse', input: [],
-   message: /Path must be a string. Received undefined/},
+   message: regex1},
   {method: 'format', input: [null],
-   message: /Parameter "pathObject" must be an object, not/},
+   message: regex2},
   {method: 'format', input: [''],
-   message: /Parameter "pathObject" must be an object, not string/},
+   message: regex2},
   {method: 'format', input: [true],
-   message: /Parameter "pathObject" must be an object, not boolean/},
+   message: regex2},
   {method: 'format', input: [1],
-   message: /Parameter "pathObject" must be an object, not number/},
+   message: regex2},
 ];
 
 checkParseFormat(path.win32, winPaths);
@@ -88,10 +91,7 @@ function checkErrors(path) {
       path[errorCase.method].apply(path, errorCase.input);
     } catch(err) {
       assert.ok(err instanceof TypeError);
-      assert.ok(
-        errorCase.message.test(err.message),
-        'expected ' + errorCase.message + ' to match ' + err.message
-      );
+      assert(errorCase.message.test(err.message));
       return;
     }
 

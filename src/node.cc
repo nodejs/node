@@ -1,5 +1,6 @@
 #include "node.h"
 #include "node_buffer.h"
+#include "node_messages.h"
 #include "node_constants.h"
 #include "node_file.h"
 #include "node_http_parser.h"
@@ -737,6 +738,41 @@ void ThrowUVException(v8::Isolate* isolate,
       ->ThrowUVException(errorno, syscall, message, path, dest);
 }
 
+Local<Value> I18NError(Isolate* isolate,
+                       const char* key,
+                       const char* msg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<String> message = OneByteString(env->isolate(), msg);
+  Local<String> skey = OneByteString(env->isolate(), key);
+  Local<Value> e = Exception::Error(message);
+  Local<Object> obj = e->ToObject(env->isolate());
+  obj->Set(OneByteString(env->isolate(), "key"), skey);
+  return e;
+}
+
+Local<Value> I18NRangeError(Isolate* isolate,
+                            const char* key,
+                            const char* msg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<String> message = OneByteString(env->isolate(), msg);
+  Local<String> skey = OneByteString(env->isolate(), key);
+  Local<Value> e = Exception::RangeError(message);
+  Local<Object> obj = e->ToObject(env->isolate());
+  obj->Set(OneByteString(env->isolate(), "key"), skey);
+  return e;
+}
+
+Local<Value> I18NTypeError(Isolate* isolate,
+                           const char* key,
+                           const char* msg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<String> message = OneByteString(env->isolate(), msg);
+  Local<String> skey = OneByteString(env->isolate(), key);
+  Local<Value> e = Exception::TypeError(message);
+  Local<Object> obj = e->ToObject(env->isolate());
+  obj->Set(OneByteString(env->isolate(), "key"), skey);
+  return e;
+}
 
 Local<Value> ErrnoException(Isolate* isolate,
                             int errorno,
@@ -1027,7 +1063,7 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
       process_object->Get(tick_callback_function_key).As<Function>();
 
   if (!tick_callback_function->IsFunction()) {
-    fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
+    fprintf(stderr, STR_PROCESS_TICKDOMAIN_NONFUNCTION);
     ABORT();
   }
 
@@ -1381,8 +1417,7 @@ ssize_t DecodeBytes(Isolate* isolate,
   HandleScope scope(isolate);
 
   if (val->IsArray()) {
-    fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
-                    "Use 'binary'.\n");
+    fprintf(stderr, STR_RAW_ENCODING_REMOVED);
     UNREACHABLE();
     return -1;
   }
@@ -2241,7 +2276,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
-             "Module version mismatch. Expected %d, got %d.",
+             STR_MODULE_VERSION_MISMATCH,
              NODE_MODULE_VERSION, mp->nm_version);
 
     // NOTE: `mp` is allocated inside of the shared library's memory, calling
@@ -2368,7 +2403,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 
   // Append a string to process.moduleLoadList
   char buf[1024];
-  snprintf(buf, sizeof(buf), "Binding %s", *module_v);
+  snprintf(buf, sizeof(buf), STR_BINDING, *module_v);
 
   Local<Array> modules = env->module_load_list_array();
   uint32_t l = modules->Length();
@@ -2384,6 +2419,10 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     mod->nm_context_register_func(exports, unused,
       env->context(), mod->nm_priv);
     cache->Set(module, exports);
+  } else if (!strcmp(*module_v, "messages")) {
+    exports = Object::New(env->isolate());
+    DefineMessages(env, exports);
+    cache->Set(module, exports);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
     DefineConstants(exports);
@@ -2396,7 +2435,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
-             "No such module: %s",
+             STR_NO_SUCH_MODULE,
              *module_v);
     return env->ThrowError(errmsg);
   }
@@ -2422,7 +2461,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
-             "No such module was linked: %s",
+             STR_NO_SUCH_MODULE_LINKED,
              *module_v);
     return env->ThrowError(errmsg);
   }
@@ -3228,7 +3267,7 @@ static bool ParseDebugOpt(const char* arg) {
   if (port != nullptr) {
     debug_port = atoi(port);
     if (debug_port < 1024 || debug_port > 65535) {
-      fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
+      fprintf(stderr, STR_DEBUGPORT_OUTOFRANGE);
       PrintHelp();
       exit(12);
     }
@@ -3238,57 +3277,7 @@ static bool ParseDebugOpt(const char* arg) {
 }
 
 static void PrintHelp() {
-  printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
-         "       node debug script.js [arguments] \n"
-         "\n"
-         "Options:\n"
-         "  -v, --version         print Node.js version\n"
-         "  -e, --eval script     evaluate script\n"
-         "  -p, --print           evaluate script and print result\n"
-         "  -c, --check           syntax check script without executing\n"
-         "  -i, --interactive     always enter the REPL even if stdin\n"
-         "                        does not appear to be a terminal\n"
-         "  -r, --require         module to preload (option can be repeated)\n"
-         "  --no-deprecation      silence deprecation warnings\n"
-         "  --throw-deprecation   throw an exception anytime a deprecated "
-         "function is used\n"
-         "  --trace-deprecation   show stack traces on deprecations\n"
-         "  --trace-sync-io       show stack trace when use of sync IO\n"
-         "                        is detected after the first tick\n"
-         "  --track-heap-objects  track heap object allocations for heap "
-         "snapshots\n"
-         "  --prof-process        process v8 profiler output generated\n"
-         "                        using --prof\n"
-         "  --v8-options          print v8 command line options\n"
-#if HAVE_OPENSSL
-         "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
-#endif
-#if defined(NODE_HAVE_I18N_SUPPORT)
-         "  --icu-data-dir=dir    set ICU data load path to dir\n"
-         "                        (overrides NODE_ICU_DATA)\n"
-#if !defined(NODE_HAVE_SMALL_ICU)
-         "                        note: linked-in ICU data is\n"
-         "                        present.\n"
-#endif
-#endif
-         "\n"
-         "Environment variables:\n"
-#ifdef _WIN32
-         "NODE_PATH               ';'-separated list of directories\n"
-#else
-         "NODE_PATH               ':'-separated list of directories\n"
-#endif
-         "                        prefixed to the module search path.\n"
-         "NODE_DISABLE_COLORS     set to 1 to disable colors in the REPL\n"
-#if defined(NODE_HAVE_I18N_SUPPORT)
-         "NODE_ICU_DATA           data path for ICU (Intl object) data\n"
-#if !defined(NODE_HAVE_SMALL_ICU)
-         "                        (will extend linked-in data)\n"
-#endif
-#endif
-         "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
-         "\n"
-         "Documentation can be found at https://nodejs.org/\n");
+  printf(STR_NODEHELP);
 }
 
 
@@ -3356,7 +3345,7 @@ static void ParseArgs(int* argc,
         args_consumed += 1;
         eval_string = argv[index + 1];
         if (eval_string == nullptr) {
-          fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+          fprintf(stderr, STR_REQUIRES_ARGUMENT, argv[0], arg);
           exit(9);
         }
       } else if ((index + 1 < nargs) &&
@@ -3373,7 +3362,7 @@ static void ParseArgs(int* argc,
                strcmp(arg, "-r") == 0) {
       const char* module = argv[index + 1];
       if (module == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        fprintf(stderr, STR_REQUIRES_ARGUMENT, argv[0], arg);
         exit(9);
       }
       args_consumed += 1;
@@ -3464,7 +3453,7 @@ static void StartDebug(Environment* env, bool wait) {
         DispatchMessagesDebugAgentCallback);
   debugger_running = env->debugger_agent()->Start(debug_port, wait);
   if (debugger_running == false) {
-    fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
+    fprintf(stderr, STR_START_DEBUGGER_FAIL, debug_port);
     fflush(stderr);
     return;
   }
@@ -3513,7 +3502,7 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
   } while (isolate == nullptr);
 
   if (debugger_running == false) {
-    fprintf(stderr, "Starting debugger agent.\n");
+    fprintf(stderr, STR_START_DEBUGGER_AGENT);
 
     HandleScope scope(isolate);
     Environment* env = Environment::GetCurrent(isolate);
@@ -3874,7 +3863,7 @@ void Init(int* argc,
 
   // Anything that's still in v8_argv is not a V8 or a node option.
   for (int i = 1; i < v8_argc; i++) {
-    fprintf(stderr, "%s: bad option: %s\n", argv[0], v8_argv[i]);
+    fprintf(stderr, "%s: " STR_BAD_OPTION ": %s\n", argv[0], v8_argv[i]);
   }
   delete[] v8_argv;
   v8_argv = nullptr;

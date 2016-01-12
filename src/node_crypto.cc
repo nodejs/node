@@ -36,14 +36,14 @@
 #define THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(val)         \
   do {                                                        \
     if (!Buffer::HasInstance(val) && !val->IsString()) {      \
-      return env->ThrowTypeError("Not a string or buffer");   \
+      return THROWI18NTYPEERROR(env, NOT_STRING_BUFFER);           \
     }                                                         \
   } while (0)
 
 #define THROW_AND_RETURN_IF_NOT_BUFFER(val)                   \
   do {                                                        \
     if (!Buffer::HasInstance(val)) {                          \
-      return env->ThrowTypeError("Not a buffer");             \
+      return THROWI18NTYPEERROR(env, NOT_BUFFER);                  \
     }                                                         \
   } while (0)
 
@@ -347,17 +347,17 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     // protocols are supported unless explicitly disabled (which we do below
     // for SSLv2 and SSLv3.)
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
-      return env->ThrowError("SSLv2 methods disabled");
+      return THROWI18NERROR(env, SSLV2_METHODS_DISABLED);
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
-      return env->ThrowError("SSLv2 methods disabled");
+      return THROWI18NERROR(env, SSLV2_METHODS_DISABLED);
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
-      return env->ThrowError("SSLv2 methods disabled");
+      return THROWI18NERROR(env, SSLV2_METHODS_DISABLED);
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
-      return env->ThrowError("SSLv3 methods disabled");
+      return THROWI18NERROR(env, SSLV3_METHODS_DISABLED);
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
-      return env->ThrowError("SSLv3 methods disabled");
+      return THROWI18NERROR(env, SSLV3_METHODS_DISABLED);
     } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
-      return env->ThrowError("SSLv3 methods disabled");
+      return THROWI18NERROR(env, SSLV3_METHODS_DISABLED);
     } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
       method = SSLv23_method();
     } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
@@ -383,7 +383,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     } else if (strcmp(*sslmethod, "TLSv1_2_client_method") == 0) {
       method = TLSv1_2_client_method();
     } else {
-      return env->ThrowError("Unknown method");
+      return THROWI18NERROR(env, UNKNOWN_METHOD);
     }
   }
 
@@ -445,10 +445,10 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   unsigned int len = args.Length();
   if (len != 1 && len != 2) {
-    return env->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
   if (len == 2 && !args[1]->IsString()) {
-    return env->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   BIO *bio = LoadBIO(env, args[0]);
@@ -466,7 +466,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
     BIO_free_all(bio);
     unsigned long err = ERR_get_error();
     if (!err) {
-      return env->ThrowError("PEM_read_bio_PrivateKey");
+      return THROWI18NERROR(env, PEM_READ_BIO);
     }
     return ThrowCryptoError(env, err);
   }
@@ -478,7 +478,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   if (!rv) {
     unsigned long err = ERR_get_error();
     if (!err)
-      return env->ThrowError("SSL_CTX_use_PrivateKey");
+      return THROWI18NERROR(env, CTX_USE_PRIVATEKEY);
     return ThrowCryptoError(env, err);
   }
 }
@@ -647,7 +647,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   BIO* bio = LoadBIO(env, args[0]);
@@ -674,7 +674,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   if (!rv) {
     unsigned long err = ERR_get_error();
     if (!err) {
-      return env->ThrowError("SSL_CTX_use_certificate_chain");
+      return THROWI18NERROR(env, CTX_USE_CERT_CHAIN);
     }
     return ThrowCryptoError(env, err);
   }
@@ -690,7 +690,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   (void) &clear_error_on_return;  // Silence compiler warning.
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   if (!sc->ca_store_) {
@@ -722,7 +722,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
 
   if (args.Length() != 1) {
-    return env->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   ClearErrorOnReturn clear_error_on_return;
@@ -788,11 +788,12 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
+  Environment* env = sc->env();
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence compiler warning.
 
   if (args.Length() != 1 || !args[0]->IsString()) {
-    return sc->env()->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
@@ -805,19 +806,19 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = sc->env();
 
   if (args.Length() != 1 || !args[0]->IsString())
-    return env->ThrowTypeError("First argument should be a string");
+    return THROWI18NTYPEERROR(env, FIRST_ARGUMENT_STRING);
 
   node::Utf8Value curve(env->isolate(), args[0]);
 
   int nid = OBJ_sn2nid(*curve);
 
   if (nid == NID_undef)
-    return env->ThrowTypeError("First argument should be a valid curve name");
+    return THROWI18NTYPEERROR(env, INVALID_CURVE_NAME);
 
   EC_KEY* ecdh = EC_KEY_new_by_curve_name(nid);
 
   if (ecdh == nullptr)
-    return env->ThrowTypeError("First argument should be a valid curve name");
+    return THROWI18NTYPEERROR(env, INVALID_CURVE_NAME);
 
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_ECDH_USE);
   SSL_CTX_set_tmp_ecdh(sc->ctx_, ecdh);
@@ -835,7 +836,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   // Auto DH is not supported in openssl 1.0.1, so dhparam needs
   // to be specifed explicitly
   if (args.Length() != 1)
-    return env->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
 
   // Invalid dhparam is silently discarded and DHE is no longer used.
   BIO* bio = LoadBIO(env, args[0]);
@@ -850,10 +851,10 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
 
   const int size = BN_num_bits(dh->p);
   if (size < 1024) {
-    return env->ThrowError("DH parameter is less than 1024 bits");
+    return THROWI18NERROR(env, SMALL_DH_PARAMETER);
   } else if (size < 2048) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
-        env->isolate(), "WARNING: DH parameter is less than 2048 bits"));
+        env->isolate(), STR_WARN_SMALL_DH));
   }
 
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_DH_USE);
@@ -861,15 +862,16 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   DH_free(dh);
 
   if (!r)
-    return env->ThrowTypeError("Error setting temp DH parameter");
+    return THROWI18NTYPEERROR(env, SET_DH_ERROR);
 }
 
 
 void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
+  Environment* env = sc->env();
 
   if (args.Length() != 1 || !args[0]->IntegerValue()) {
-    return sc->env()->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   SSL_CTX_set_options(sc->ctx_, static_cast<long>(args[0]->IntegerValue()));
@@ -879,9 +881,10 @@ void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
 void SecureContext::SetSessionIdContext(
     const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
+  Environment* env = sc->env();
 
   if (args.Length() != 1 || !args[0]->IsString()) {
-    return sc->env()->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   const node::Utf8Value sessionIdContext(args.GetIsolate(), args[0]);
@@ -900,7 +903,7 @@ void SecureContext::SetSessionIdContext(
   bio = BIO_new(BIO_s_mem());
   if (bio == nullptr) {
     message = FIXED_ONE_BYTE_STRING(args.GetIsolate(),
-                                    "SSL_CTX_set_session_id_context error");
+                                    STR_CTX_SET_SESSION_ID_ERR);
   } else {
     ERR_print_errors(bio);
     BIO_get_mem_ptr(bio, &mem);
@@ -914,9 +917,10 @@ void SecureContext::SetSessionIdContext(
 
 void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
+  Environment* env = sc->env();
 
   if (args.Length() != 1 || !args[0]->IsInt32()) {
-    return sc->env()->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   int32_t sessionTimeout = args[0]->Int32Value();
@@ -947,12 +951,12 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   (void) &clear_error_on_return;  // Silence compiler warning.
 
   if (args.Length() < 1) {
-    return env->ThrowTypeError("Bad parameter");
+    return THROWI18NTYPEERROR(env, BAD_PARAMETER);
   }
 
   in = LoadBIO(env, args[0]);
   if (in == nullptr) {
-    return env->ThrowError("Unable to load BIO");
+    return THROWI18NERROR(env, UNABLE_TO_LOAD_BIO);
   }
 
   if (args.Length() >= 2) {
@@ -1012,7 +1016,8 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   if (SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_,
                                      Buffer::Data(buff),
                                      Buffer::Length(buff)) != 1) {
-    return wrap->env()->ThrowError("Failed to fetch tls ticket keys");
+    Environment* env = wrap->env();
+    return THROWI18NERROR(env, FAILED_FETCH_TLS_TICKET);
   }
 
   args.GetReturnValue().Set(buff);
@@ -1027,13 +1032,13 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 ||
       !Buffer::HasInstance(args[0]) ||
       Buffer::Length(args[0]) != 48) {
-    return wrap->env()->ThrowTypeError("Bad argument");
+    return THROWI18NTYPEERROR(wrap->env(), BAD_ARGUMENT);
   }
 
   if (SSL_CTX_set_tlsext_ticket_keys(wrap->ctx_,
                                      Buffer::Data(args[0]),
                                      Buffer::Length(args[0])) != 1) {
-    return wrap->env()->ThrowError("Failed to fetch tls ticket keys");
+    return THROWI18NERROR(wrap->env(), FAILED_FETCH_TLS_TICKET);
   }
 
   args.GetReturnValue().Set(true);
@@ -1659,7 +1664,7 @@ void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 1 ||
       (!args[0]->IsString() && !Buffer::HasInstance(args[0]))) {
-    return env->ThrowTypeError("Bad argument");
+    return THROWI18NTYPEERROR(env, BAD_ARGUMENT);
   }
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
@@ -1679,7 +1684,7 @@ void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
   SSL_SESSION_free(sess);
 
   if (!r)
-    return env->ThrowError("SSL_set_session error");
+    return THROWI18NERROR(env, SSL_SET_SESSION_ERROR);
 }
 
 
@@ -1783,8 +1788,9 @@ void SSLWrap<Base>::SetOCSPResponse(
   HandleScope scope(args.GetIsolate());
 
   Base* w = Unwrap<Base>(args.Holder());
-  if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
-    return w->env()->ThrowTypeError("Must give a Buffer as first argument");
+  if (args.Length() < 1 || !Buffer::HasInstance(args[0])) {
+    return THROWI18NTYPEERROR(w->env(), FIRST_ARGUMENT_BUFFER);
+  }
 
   w->ocsp_response_.Reset(args.GetIsolate(), args[0].As<Object>());
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
@@ -2073,7 +2079,7 @@ void SSLWrap<Base>::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
   Environment* env = w->env();
 
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
-    return env->ThrowTypeError("Must give a Buffer as first argument");
+    return THROWI18NTYPEERROR(env, FIRST_ARGUMENT_BUFFER);
 
   Local<Value> npn_buffer =  Local<Value>::New(env->isolate(), args[0]);
   bool r = w->object()->SetHiddenValue(env->npn_buffer_string(), npn_buffer);
@@ -2154,7 +2160,7 @@ void SSLWrap<Base>::SetALPNProtocols(
   Base* w = Unwrap<Base>(args.Holder());
   Environment* env = w->env();
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
-    return env->ThrowTypeError("Must give a Buffer as first argument");
+    return THROWI18NTYPEERROR(env, FIRST_ARGUMENT_BUFFER);
 
   if (w->is_client()) {
     const unsigned char* alpn_protos =
@@ -2316,7 +2322,7 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     if (!rv) {
       unsigned long err = ERR_get_error();
       if (!err)
-        return env->ThrowError("CertCbDone");
+        return THROWI18NERROR(env, CERTCBDONE);
       return ThrowCryptoError(env, err);
     }
   } else {
@@ -2715,8 +2721,7 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
-    env->ThrowError("First argument must be a tls module SecureContext");
-    return;
+    return THROWI18NERROR(env, FIRST_ARGUMENT_SECURECONTEXT);
   }
 
   SecureContext* sc = Unwrap<SecureContext>(args[0]->ToObject(env->isolate()));
@@ -2811,11 +2816,11 @@ void Connection::EncIn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = conn->env();
 
   if (args.Length() < 3) {
-    return env->ThrowTypeError("Takes 3 parameters");
+    return THROWI18NTYPEERROR(env, TAKES_THREE_ARGS);
   }
 
   if (!Buffer::HasInstance(args[0])) {
-    return env->ThrowTypeError("Second argument should be a buffer");
+    return THROWI18NTYPEERROR(env, SECOND_ARGUMENT_BUFFER);
   }
 
   char* buffer_data = Buffer::Data(args[0]);
@@ -2825,7 +2830,7 @@ void Connection::EncIn(const FunctionCallbackInfo<Value>& args) {
   size_t len = args[2]->Int32Value();
 
   if (!Buffer::IsWithinBounds(off, len, buffer_length))
-    return env->ThrowError("off + len > buffer.length");
+    return THROWI18NERROR(env, OFF_LEN_BUFLEN);
 
   int bytes_written;
   char* data = buffer_data + off;
@@ -2860,11 +2865,11 @@ void Connection::ClearOut(const FunctionCallbackInfo<Value>& args) {
   Environment* env = conn->env();
 
   if (args.Length() < 3) {
-    return env->ThrowTypeError("Takes 3 parameters");
+    return THROWI18NERROR(env, TAKES_THREE_ARGS);
   }
 
   if (!Buffer::HasInstance(args[0])) {
-    return env->ThrowTypeError("Second argument should be a buffer");
+    return THROWI18NTYPEERROR(env, SECOND_ARGUMENT_BUFFER);
   }
 
   char* buffer_data = Buffer::Data(args[0]);
@@ -2874,7 +2879,7 @@ void Connection::ClearOut(const FunctionCallbackInfo<Value>& args) {
   size_t len = args[2]->Int32Value();
 
   if (!Buffer::IsWithinBounds(off, len, buffer_length))
-    return env->ThrowError("off + len > buffer.length");
+    return THROWI18NERROR(env, OFF_LEN_BUFLEN);
 
   if (!SSL_is_init_finished(conn->ssl_)) {
     int rv;
@@ -2928,11 +2933,11 @@ void Connection::EncOut(const FunctionCallbackInfo<Value>& args) {
   Environment* env = conn->env();
 
   if (args.Length() < 3) {
-    return env->ThrowTypeError("Takes 3 parameters");
+    return THROWI18NTYPEERROR(env, TAKES_THREE_ARGS);
   }
 
   if (!Buffer::HasInstance(args[0])) {
-    return env->ThrowTypeError("Second argument should be a buffer");
+    return THROWI18NTYPEERROR(env, SECOND_ARGUMENT_BUFFER);
   }
 
   char* buffer_data = Buffer::Data(args[0]);
@@ -2942,7 +2947,7 @@ void Connection::EncOut(const FunctionCallbackInfo<Value>& args) {
   size_t len = args[2]->Int32Value();
 
   if (!Buffer::IsWithinBounds(off, len, buffer_length))
-    return env->ThrowError("off + len > buffer.length");
+    return THROWI18NERROR(env, OFF_LEN_BUFLEN);
 
   int bytes_read = BIO_read(conn->bio_write_, buffer_data + off, len);
 
@@ -2958,11 +2963,11 @@ void Connection::ClearIn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = conn->env();
 
   if (args.Length() < 3) {
-    return env->ThrowTypeError("Takes 3 parameters");
+    return THROWI18NTYPEERROR(env, TAKES_THREE_ARGS);
   }
 
   if (!Buffer::HasInstance(args[0])) {
-    return env->ThrowTypeError("Second argument should be a buffer");
+    return THROWI18NTYPEERROR(env, SECOND_ARGUMENT_BUFFER);
   }
 
   char* buffer_data = Buffer::Data(args[0]);
@@ -2972,7 +2977,7 @@ void Connection::ClearIn(const FunctionCallbackInfo<Value>& args) {
   size_t len = args[2]->Int32Value();
 
   if (!Buffer::IsWithinBounds(off, len, buffer_length))
-    return env->ThrowError("off + len > buffer.length");
+    return THROWI18NERROR(env, OFF_LEN_BUFLEN);
 
   if (!SSL_is_init_finished(conn->ssl_)) {
     int rv;
@@ -3057,7 +3062,7 @@ void Connection::SetSNICallback(const FunctionCallbackInfo<Value>& args) {
   Environment* env = conn->env();
 
   if (args.Length() < 1 || !args[0]->IsFunction()) {
-    return env->ThrowError("Must give a Function as first argument");
+    return THROWI18NERROR(env, FIRST_ARGUMENT_FUNCTION);
   }
 
   Local<Object> obj = Object::New(env->isolate());
@@ -3100,14 +3105,13 @@ void CipherBase::Init(const char* cipher_type,
   HandleScope scope(env()->isolate());
 
 #ifdef NODE_FIPS_MODE
-  return env()->ThrowError(
-    "crypto.createCipher() is not supported in FIPS mode.");
+  return THROWI18NERROR(env, CRYPTO_CREATECIPHER_NOT_SUPPORTED);
 #endif  // NODE_FIPS_MODE
 
   CHECK_EQ(cipher_, nullptr);
   cipher_ = EVP_get_cipherbyname(cipher_type);
   if (cipher_ == nullptr) {
-    return env()->ThrowError("Unknown cipher");
+    return THROWI18NERROR(env(), UNKNOWN_CIPHER);
   }
 
   unsigned char key[EVP_MAX_KEY_LENGTH];
@@ -3127,7 +3131,7 @@ void CipherBase::Init(const char* cipher_type,
   EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
     EVP_CIPHER_CTX_cleanup(&ctx_);
-    return env()->ThrowError("Invalid key length");
+    return THROWI18NERROR(env(), INVALID_KEYLEN);
   }
 
   EVP_CipherInit_ex(&ctx_,
@@ -3145,7 +3149,7 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 2 ||
       !(args[0]->IsString() && Buffer::HasInstance(args[1]))) {
-    return cipher->env()->ThrowError("Must give cipher-type, key");
+    return THROWI18NERROR(cipher->env(), MUST_GIVE_CIPHER_TYPE);
   }
 
   const node::Utf8Value cipher_type(args.GetIsolate(), args[0]);
@@ -3164,21 +3168,21 @@ void CipherBase::InitIv(const char* cipher_type,
 
   cipher_ = EVP_get_cipherbyname(cipher_type);
   if (cipher_ == nullptr) {
-    return env()->ThrowError("Unknown cipher");
+    return THROWI18NERROR(env(), UNKNOWN_CIPHER);
   }
 
   /* OpenSSL versions up to 0.9.8l failed to return the correct
      iv_length (0) for ECB ciphers */
   if (EVP_CIPHER_iv_length(cipher_) != iv_len &&
       !(EVP_CIPHER_mode(cipher_) == EVP_CIPH_ECB_MODE && iv_len == 0)) {
-    return env()->ThrowError("Invalid IV length");
+    return THROWI18NERROR(env(), INVALID_IVLEN);
   }
   EVP_CIPHER_CTX_init(&ctx_);
   const bool encrypt = (kind_ == kCipher);
   EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
     EVP_CIPHER_CTX_cleanup(&ctx_);
-    return env()->ThrowError("Invalid key length");
+    return THROWI18NERROR(env(), INVALID_KEYLEN);
   }
 
   EVP_CipherInit_ex(&ctx_,
@@ -3196,7 +3200,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   Environment* env = cipher->env();
 
   if (args.Length() < 3 || !args[0]->IsString()) {
-    return env->ThrowError("Must give cipher-type, key, and iv as argument");
+    return THROWI18NERROR(env, MUST_GIVE_CIPHER_TYPE_KEY_IV);
   }
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1]);
@@ -3243,7 +3247,7 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
     Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
     args.GetReturnValue().Set(buf);
   } else {
-    env->ThrowError("Attempting to get auth tag in unsupported state");
+    THROWI18NERROR(env, CANNOT_GET_AUTH_TAG);
   }
 }
 
@@ -3264,12 +3268,12 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> buf = args[0].As<Object>();
   if (!buf->IsObject() || !Buffer::HasInstance(buf))
-    return env->ThrowTypeError("Argument must be a Buffer");
+    return THROWI18NTYPEERROR(env, ARGUMENT_BUFFER);
 
   CipherBase* cipher = Unwrap<CipherBase>(args.Holder());
 
   if (!cipher->SetAuthTag(Buffer::Data(buf), Buffer::Length(buf)))
-    env->ThrowError("Attempting to set auth tag in unsupported state");
+    THROWI18NERROR(env, CANNOT_SET_AUTH_TAG);
 }
 
 
@@ -3296,7 +3300,7 @@ void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher = Unwrap<CipherBase>(args.Holder());
 
   if (!cipher->SetAAD(Buffer::Data(args[0]), Buffer::Length(args[0])))
-    env->ThrowError("Attempting to set AAD in unsupported state");
+    THROWI18NERROR(env, CANNOT_SET_AAD);
 }
 
 
@@ -3354,7 +3358,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
     delete[] out;
     return ThrowCryptoError(env,
                             ERR_get_error(),
-                            "Trying to add data in unsupported state");
+                            STR_CANNOT_ADD_DATA);
   }
 
   CHECK(out != nullptr || out_len == 0);
@@ -3425,8 +3429,8 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     out_len = 0;
     if (!r) {
       const char* msg = cipher->IsAuthenticatedMode() ?
-          "Unsupported state or unable to authenticate data" :
-          "Unsupported state";
+          STR_UNSUPPORTED_STATE_UNABLE_TO_AUTH :
+          STR_UNSUPOPORTED_STATE;
 
       return ThrowCryptoError(env,
                               ERR_get_error(),
@@ -3468,7 +3472,7 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   CHECK_EQ(md_, nullptr);
   md_ = EVP_get_digestbyname(hash_type);
   if (md_ == nullptr) {
-    return env()->ThrowError("Unknown message digest");
+    return THROWI18NERROR(env(), UNKNOWN_MESSAGE_DIGEST);
   }
   HMAC_CTX_init(&ctx_);
   int result = 0;
@@ -3489,7 +3493,7 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = hmac->env();
 
   if (args.Length() < 2 || !args[0]->IsString()) {
-    return env->ThrowError("Must give hashtype string, key as arguments");
+    return THROWI18NERROR(env, MUST_GIVE_HASHTYPE);
   }
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1]);
@@ -3530,7 +3534,7 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!r) {
-    return env->ThrowTypeError("HmacUpdate fail");
+    return THROWI18NTYPEERROR(env, HMACUPDATE_FAIL);
   }
 }
 
@@ -3592,7 +3596,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return env->ThrowError("Must give hashtype string as argument");
+    return THROWI18NERROR(env, MUST_GIVE_HASHTYPE_ARG);
   }
 
   const node::Utf8Value hash_type(env->isolate(), args[0]);
@@ -3600,7 +3604,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
   Hash* hash = new Hash(env, args.This());
   if (!hash->HashInit(*hash_type)) {
     return ThrowCryptoError(env, ERR_get_error(),
-                            "Digest method not supported");
+                            STR_DIGEST_METHOD_NOT_SUPPORTED);
   }
 }
 
@@ -3649,7 +3653,7 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!r) {
-    return env->ThrowTypeError("HashUpdate fail");
+    return THROWI18NTYPEERROR(env, HASHUPDATE_FAIL);
   }
 }
 
@@ -3660,7 +3664,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   Hash* hash = Unwrap<Hash>(args.Holder());
 
   if (!hash->initialised_) {
-    return env->ThrowError("Not initialized");
+    return THROWI18NERROR(env, NOT_INITIALIZED);
   }
 
   enum encoding encoding = BUFFER;
@@ -3690,10 +3694,10 @@ void SignBase::CheckThrow(SignBase::Error error) {
 
   switch (error) {
     case kSignUnknownDigest:
-      return env()->ThrowError("Unknown message digest");
+      return THROWI18NERROR(env(), UNKNOWN_MESSAGE_DIGEST);
 
     case kSignNotInitialised:
-      return env()->ThrowError("Not initialised");
+      return THROWI18NERROR(env(), NOT_INITIALIZED);
 
     case kSignInit:
     case kSignUpdate:
@@ -3705,13 +3709,13 @@ void SignBase::CheckThrow(SignBase::Error error) {
           return ThrowCryptoError(env(), err);
         switch (error) {
           case kSignInit:
-            return env()->ThrowError("EVP_SignInit_ex failed");
+            return THROWI18NERROR(env(), EVP_SIGNINIT_EX_FAIL);
           case kSignUpdate:
-            return env()->ThrowError("EVP_SignUpdate failed");
+            return THROWI18NERROR(env(), EVP_SIGNUPDATE_FAIL);
           case kSignPrivateKey:
-            return env()->ThrowError("PEM_read_bio_PrivateKey failed");
+            return THROWI18NERROR(env(), PEM_READ_BIO_PRIVATEKEY_FAIL);
           case kSignPublicKey:
-            return env()->ThrowError("PEM_read_bio_PUBKEY failed");
+            return THROWI18NERROR(env(), PEM_READ_BIO_PUBKEY_FAIL);
           default:
             ABORT();
         }
@@ -3763,7 +3767,7 @@ void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
   Sign* sign = Unwrap<Sign>(args.Holder());
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return sign->env()->ThrowError("Must give signtype string as argument");
+    return THROWI18NERROR(sign->env(), MUST_GIVE_SIGNTYPE_ARG);
   }
 
   const node::Utf8Value sign_type(args.GetIsolate(), args[0]);
@@ -3963,7 +3967,7 @@ void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
   Verify* verify = Unwrap<Verify>(args.Holder());
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return verify->env()->ThrowError("Must give verifytype string as argument");
+    return THROWI18NERROR(verify->env(), MUST_GIVE_VERIFYTYPE_ARG);
   }
 
   const node::Utf8Value verify_type(args.GetIsolate(), args[0]);
@@ -4361,7 +4365,7 @@ void DiffieHellman::DiffieHellmanGroup(
   DiffieHellman* diffieHellman = new DiffieHellman(env, args.This());
 
   if (args.Length() != 1 || !args[0]->IsString()) {
-    return env->ThrowError("No group name given");
+    return THROWI18NERROR(env, NO_GROUP_NAME);
   }
 
   bool initialized = false;
@@ -4378,11 +4382,11 @@ void DiffieHellman::DiffieHellmanGroup(
                                       it->gen,
                                       it->gen_size);
     if (!initialized)
-      env->ThrowError("Initialization failed");
+      THROWI18NERROR(env, INIT_FAILED);
     return;
   }
 
-  env->ThrowError("Unknown group");
+  THROWI18NERROR(env, UNKNOWN_GROUP);
 }
 
 
@@ -4413,7 +4417,7 @@ void DiffieHellman::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!initialized) {
-    return ThrowCryptoError(env, ERR_get_error(), "Initialization failed");
+    return ThrowCryptoError(env, ERR_get_error(), STR_INIT_FAILED);
   }
 }
 
@@ -4424,11 +4428,11 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
   if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
+    return ThrowCryptoError(env, ERR_get_error(), STR_NOT_INITIALIZED);
   }
 
   if (!DH_generate_key(diffieHellman->dh)) {
-    return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
+    return ThrowCryptoError(env, ERR_get_error(), STR_KEY_GENERATION_FAIL);
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->pub_key);
@@ -4447,7 +4451,7 @@ void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
   if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
+    return ThrowCryptoError(env, ERR_get_error(), STR_NOT_INITIALIZED);
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->p);
@@ -4465,7 +4469,7 @@ void DiffieHellman::GetGenerator(const FunctionCallbackInfo<Value>& args) {
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
   if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
+    return ThrowCryptoError(env, ERR_get_error(), STR_NOT_INITIALIZED);
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->g);
@@ -4483,11 +4487,11 @@ void DiffieHellman::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
   if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
+    return ThrowCryptoError(env, ERR_get_error(), STR_NOT_INITIALIZED);
   }
 
   if (diffieHellman->dh->pub_key == nullptr) {
-    return env->ThrowError("No public key - did you forget to generate one?");
+    return THROWI18NERROR(env, NO_PUBKEY);
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->pub_key);
@@ -4506,11 +4510,11 @@ void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
   if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
+    return ThrowCryptoError(env, ERR_get_error(), STR_NOT_INITIALIZED);
   }
 
   if (diffieHellman->dh->priv_key == nullptr) {
-    return env->ThrowError("No private key - did you forget to generate one?");
+    return THROWI18NERROR(env, NO_PVTKEY);
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->priv_key);
@@ -4529,7 +4533,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   DiffieHellman* diffieHellman = Unwrap<DiffieHellman>(args.Holder());
 
   if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
+    return ThrowCryptoError(env, ERR_get_error(), STR_NOT_INITIALIZED);
   }
 
   ClearErrorOnReturn clear_error_on_return;
@@ -4537,7 +4541,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   BIGNUM* key = nullptr;
 
   if (args.Length() == 0) {
-    return env->ThrowError("First argument must be other party's public key");
+    return THROWI18NERROR(env, FIRST_ARGUMENT_PUBKEY);
   } else {
     THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
     key = BN_bin2bn(
@@ -4562,17 +4566,17 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     delete[] data;
 
     if (!checked) {
-      return ThrowCryptoError(env, ERR_get_error(), "Invalid Key");
+      return ThrowCryptoError(env, ERR_get_error(), STR_INVALID_KEY);
     } else if (checkResult) {
       if (checkResult & DH_CHECK_PUBKEY_TOO_SMALL) {
-        return env->ThrowError("Supplied key is too small");
+        return THROWI18NERROR(env, SUPPLIED_KEY_SMALL);
       } else if (checkResult & DH_CHECK_PUBKEY_TOO_LARGE) {
-        return env->ThrowError("Supplied key is too large");
+        return THROWI18NERROR(env, SUPPLIED_KEY_LARGE);
       } else {
-        return env->ThrowError("Invalid key");
+        return THROWI18NERROR(env, INVALID_KEY);
       }
     } else {
-      return env->ThrowError("Invalid key");
+      return THROWI18NERROR(env, INVALID_KEY);
     }
   }
 
@@ -4599,11 +4603,11 @@ void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = diffieHellman->env();
 
   if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
+    return ThrowCryptoError(env, ERR_get_error(), STR_NOT_INITIALIZED);
   }
 
   if (args.Length() == 0) {
-    return env->ThrowError("First argument must be public key");
+    return THROWI18NERROR(env, FIRST_ARGUMENT_PUBKEY2);
   } else {
     THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
     diffieHellman->dh->pub_key = BN_bin2bn(
@@ -4618,11 +4622,11 @@ void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = diffieHellman->env();
 
   if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
+    return ThrowCryptoError(env, ERR_get_error(), STR_NOT_INITIALIZED);
   }
 
   if (args.Length() == 0) {
-    return env->ThrowError("First argument must be private key");
+    return THROWI18NERROR(env, FIRST_ARGUMENT_PVTKEY);
   } else {
     THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
     diffieHellman->dh->priv_key = BN_bin2bn(
@@ -4641,7 +4645,7 @@ void DiffieHellman::VerifyErrorGetter(Local<String> property,
 
   if (!diffieHellman->initialised_)
     return ThrowCryptoError(diffieHellman->env(), ERR_get_error(),
-                            "Not initialized");
+                            STR_NOT_INITIALIZED);
 
   args.GetReturnValue().Set(diffieHellman->verifyError_);
 }
@@ -4684,11 +4688,11 @@ void ECDH::New(const FunctionCallbackInfo<Value>& args) {
 
   int nid = OBJ_sn2nid(*curve);
   if (nid == NID_undef)
-    return env->ThrowTypeError("First argument should be a valid curve name");
+    return THROWI18NTYPEERROR(env, INVALID_CURVE_NAME);
 
   EC_KEY* key = EC_KEY_new_by_curve_name(nid);
   if (key == nullptr)
-    return env->ThrowError("Failed to create EC_KEY using curve name");
+    return THROWI18NERROR(env, CREATE_ECKEY_FAIL);
 
   new ECDH(env, args.This(), key);
 }
@@ -4700,7 +4704,7 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
   if (!EC_KEY_generate_key(ecdh->key_))
-    return env->ThrowError("Failed to generate EC_KEY");
+    return THROWI18NERROR(env, GENERATE_ECKEY_FAIL);
 }
 
 
@@ -4710,7 +4714,7 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
 
   pub = EC_POINT_new(group_);
   if (pub == nullptr) {
-    env()->ThrowError("Failed to allocate EC_POINT for a public key");
+    THROWI18NERROR(env(), ALLOCATE_ECPOINT_FAIL);
     return nullptr;
   }
 
@@ -4721,7 +4725,7 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
       len,
       nullptr);
   if (!r) {
-    env()->ThrowError("Failed to translate Buffer to a EC_POINT");
+    THROWI18NERROR(env(), TRANSLATE_BUFFER_FAIL);
     goto fatal;
   }
 
@@ -4741,7 +4745,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
   if (!ecdh->IsKeyPairValid())
-    return env->ThrowError("Invalid key pair");
+    return THROWI18NERROR(env, INVALID_KEYPAIR);
 
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
                                       Buffer::Length(args[0]));
@@ -4758,7 +4762,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   EC_POINT_free(pub);
   if (!r) {
     free(out);
-    return env->ThrowError("Failed to compute ECDH key");
+    return THROWI18NERROR(env, COMPUTEECDH_FAIL);
   }
 
   Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
@@ -4776,7 +4780,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   const EC_POINT* pub = EC_KEY_get0_public_key(ecdh->key_);
   if (pub == nullptr)
-    return env->ThrowError("Failed to get ECDH public key");
+    return THROWI18NERROR(env, GETECDH_FAIL);
 
   int size;
   point_conversion_form_t form =
@@ -4784,7 +4788,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   size = EC_POINT_point2oct(ecdh->group_, pub, form, nullptr, 0, nullptr);
   if (size == 0)
-    return env->ThrowError("Failed to get public key length");
+    return THROWI18NERROR(env, GET_PUBKEY_FAIL);
 
   unsigned char* out = static_cast<unsigned char*>(malloc(size));
   CHECK_NE(out, nullptr);
@@ -4792,7 +4796,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, nullptr);
   if (r != size) {
     free(out);
-    return env->ThrowError("Failed to get public key");
+    return THROWI18NERROR(env, GET_PUBKEY_FAIL2);
   }
 
   Local<Object> buf =
@@ -4808,7 +4812,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   const BIGNUM* b = EC_KEY_get0_private_key(ecdh->key_);
   if (b == nullptr)
-    return env->ThrowError("Failed to get ECDH private key");
+    return THROWI18NERROR(env, GET_ECDH_PVTKEY_FAIL);
 
   int size = BN_num_bytes(b);
   unsigned char* out = static_cast<unsigned char*>(malloc(size));
@@ -4816,7 +4820,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   if (size != BN_bn2bin(b, out)) {
     free(out);
-    return env->ThrowError("Failed to convert ECDH private key to Buffer");
+    return THROWI18NERROR(env, CONVERT_ECDH_PVTKEY_FAIL);
   }
 
   Local<Object> buf =
@@ -4837,18 +4841,18 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
       Buffer::Length(args[0].As<Object>()),
       nullptr);
   if (priv == nullptr)
-    return env->ThrowError("Failed to convert Buffer to BN");
+    return THROWI18NERROR(env, CONVERT_BUFFER_BN_FAIL);
 
   if (!ecdh->IsKeyValidForCurve(priv)) {
     BN_free(priv);
-    return env->ThrowError("Private key is not valid for specified curve.");
+    return THROWI18NERROR(env, PVTKEY_NOTVALID_CURVE);
   }
 
   int result = EC_KEY_set_private_key(ecdh->key_, priv);
   BN_free(priv);
 
   if (!result) {
-    return env->ThrowError("Failed to convert BN to a private key");
+    return THROWI18NERROR(env, CONVERT_BN_PVTKEY_FAIL);
   }
 
   // To avoid inconsistency, clear the current public key in-case computing
@@ -4866,12 +4870,12 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   if (!EC_POINT_mul(ecdh->group_, pub, priv_key, nullptr, nullptr, nullptr)) {
     EC_POINT_free(pub);
-    return env->ThrowError("Failed to generate ECDH public key");
+    return THROWI18NERROR(env, GENERATE_ECDH_PUBKEY_FAIL);
   }
 
   if (!EC_KEY_set_public_key(ecdh->key_, pub)) {
     EC_POINT_free(pub);
-    return env->ThrowError("Failed to set generated public key");
+    return THROWI18NERROR(env, SET_PUBKEY_FAIL);
   }
 
   EC_POINT_free(pub);
@@ -4888,7 +4892,7 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
                                       Buffer::Length(args[0].As<Object>()));
   if (pub == nullptr)
-    return env->ThrowError("Failed to convert Buffer to EC_POINT");
+    return THROWI18NERROR(env, CONVERT_BUFFER_ECPOINT_FAIL);
 
   int r = EC_KEY_set_public_key(ecdh->key_, pub);
   EC_POINT_free(pub);
@@ -5120,24 +5124,24 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   memcpy(salt, Buffer::Data(args[1]), saltlen);
 
   if (!args[2]->IsNumber()) {
-    type_error = "Iterations not a number";
+    type_error = STR_ITERATIONS_NOT_NUMBER;
     goto err;
   }
 
   iter = args[2]->Int32Value();
   if (iter < 0) {
-    type_error = "Bad iterations";
+    type_error = STR_BAD_ITERATIONS;
     goto err;
   }
 
   if (!args[3]->IsNumber()) {
-    type_error = "Key length not a number";
+    type_error = STR_KEYLEN_NOT_NUMBER;
     goto err;
   }
 
   keylen = args[3]->NumberValue();
   if (keylen < 0 || isnan(keylen) || isinf(keylen)) {
-    type_error = "Bad key length";
+    type_error = STR_BAD_KEYLEN;
     goto err;
   }
 
@@ -5145,7 +5149,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     node::Utf8Value digest_name(env->isolate(), args[4]);
     digest = EVP_get_digestbyname(*digest_name);
     if (digest == nullptr) {
-      type_error = "Bad digest name";
+      type_error = STR_BAD_DIGEST_NAME;
       goto err;
     }
   }
@@ -5278,7 +5282,7 @@ void RandomBytesWork(uv_work_t* work_req) {
 // don't call this function without a valid HandleScope
 void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
   if (req->error()) {
-    char errmsg[256] = "Operation not supported";
+    char errmsg[256] = STR_OPERATION_NOT_SUPPORTED;
 
     if (req->error() != static_cast<unsigned long>(-1))
       ERR_error_string_n(req->error(), errmsg, sizeof errmsg);
@@ -5316,12 +5320,12 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   // maybe allow a buffer to write to? cuts down on object creation
   // when generating random data in a loop
   if (!args[0]->IsUint32()) {
-    return env->ThrowTypeError("size must be a number >= 0");
+    return THROWI18NTYPEERROR(env, POSITIVE_NUMBER);
   }
 
   const int64_t size = args[0]->IntegerValue();
   if (size < 0 || size > Buffer::kMaxLength)
-    return env->ThrowRangeError("size is not a valid Smi");
+    return THROWI18NRANGEERROR(env, SIZE_NOT_VALID_SMI);
 
   Local<Object> obj = env->NewInternalFieldObject();
   RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
@@ -5356,13 +5360,13 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
 
   SSL_CTX* ctx = SSL_CTX_new(TLSv1_server_method());
   if (ctx == nullptr) {
-    return env->ThrowError("SSL_CTX_new() failed.");
+    return THROWI18NERROR(env, SSL_CTL_NEW_FAIL);
   }
 
   SSL* ssl = SSL_new(ctx);
   if (ssl == nullptr) {
     SSL_CTX_free(ctx);
-    return env->ThrowError("SSL_new() failed.");
+    return THROWI18NERROR(env, SSL_NEW_FAIL);
   }
 
   Local<Array> arr = Array::New(env->isolate());
@@ -5502,7 +5506,7 @@ void Certificate::VerifySpkac(const FunctionCallbackInfo<Value>& args) {
   bool i = false;
 
   if (args.Length() < 1)
-    return env->ThrowTypeError("Missing argument");
+    return THROWI18NTYPEERROR(env, MISSING_ARGUMENT);
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
@@ -5566,7 +5570,7 @@ void Certificate::ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   Certificate* certificate = Unwrap<Certificate>(args.Holder());
 
   if (args.Length() < 1)
-    return env->ThrowTypeError("Missing argument");
+    return THROWI18NTYPEERROR(env, MISSING_ARGUMENT);
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
@@ -5611,7 +5615,7 @@ void Certificate::ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   Certificate* crt = Unwrap<Certificate>(args.Holder());
 
   if (args.Length() < 1)
-    return env->ThrowTypeError("Missing argument");
+    return THROWI18NTYPEERROR(env, MISSING_ARGUMENT);
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0]);
 
@@ -5646,7 +5650,7 @@ void InitCryptoOnce() {
 #ifdef NODE_FIPS_MODE
   if (!FIPS_mode_set(1)) {
     int err = ERR_get_error();
-    fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
+    fprintf(stderr, STR_OPENSSL_FIPS_FAIL, ERR_error_string(err, NULL));
     UNREACHABLE();
   }
 #endif  // NODE_FIPS_MODE
@@ -5698,7 +5702,7 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
     int err = ERR_get_error();
     if (err == 0) {
       char tmp[1024];
-      snprintf(tmp, sizeof(tmp), "Engine \"%s\" was not found", *engine_id);
+      snprintf(tmp, sizeof(tmp), STR_ENGINE_NOT_FOUND, *engine_id);
       return env->ThrowError(tmp);
     } else {
       return ThrowCryptoError(env, err);

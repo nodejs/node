@@ -28,9 +28,11 @@ try {
   return;
 }
 
-assert.throws(function() {
+const erregex = /^'toString\(\)' failed/;
+
+assert.throws(() => {
   buf.toString('binary');
-}, /"toString\(\)" failed/);
+}, err => erregex.test(err.message));
 
 var maxString = buf.toString('binary', 1);
 assert.equal(maxString.length, kStringMaxLength);

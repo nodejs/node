@@ -1,11 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 function close() { this.close(); }
 net.Server().listen({ port: undefined }, close);
 net.Server().listen({ port: '' + common.PORT }, close);
+
+const regex1 = /^Port should be > 0 and < 65536/;
+const regex2 = /^Invalid listen argument/;
 
 [ 'nan',
   -1,
@@ -14,14 +17,14 @@ net.Server().listen({ port: '' + common.PORT }, close);
   1 / 0,
   -1 / 0,
   '+Infinity',
-  '-Infinity' ].forEach(function(port) {
-  assert.throws(function() {
-    net.Server().listen({ port: port }, assert.fail);
-  }, /"port" option should be >= 0 and < 65536/i);
-});
+  '-Infinity' ].forEach((port) => {
+    assert.throws(() => {
+      net.Server().listen({ port: port }, assert.fail);
+    }, err => regex1.test(err.message));
+  });
 
-[null, true, false].forEach(function(port) {
-  assert.throws(function() {
+[null, true, false].forEach((port) => {
+  assert.throws(() => {
     net.Server().listen({ port: port }, assert.fail);
-  }, /invalid listen argument/i);
+  }, err => regex2.test(err.message));
 });

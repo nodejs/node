@@ -164,15 +164,13 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
-    return env->ThrowTypeError(
-        "First argument should be a StreamWrap instance");
+    return THROWI18NTYPEERROR(env, FIRST_ARGUMENT_STREAMWRAP);
   }
   if (args.Length() < 2 || !args[1]->IsObject()) {
-    return env->ThrowTypeError(
-        "Second argument should be a SecureContext instance");
+    return THROWI18NTYPEERROR(env, SECOND_ARGUMENT_SECURECONTEXT);
   }
   if (args.Length() < 3 || !args[2]->IsBoolean())
-    return env->ThrowTypeError("Third argument should be boolean");
+    return THROWI18NTYPEERROR(env, THIRD_AGUMENT_BOOLEAN);
 
   Local<External> stream_obj = args[0].As<External>();
   Local<Object> sc = args[1].As<Object>();
@@ -217,7 +215,7 @@ void TLSWrap::Start(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
 
   if (wrap->started_)
-    return env->ThrowError("Already started.");
+    return THROWI18NERROR(env, ALREADY_STARTED);
   wrap->started_ = true;
 
   // Send ClientHello handshake
@@ -726,10 +724,10 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
 
   if (args.Length() < 2 || !args[0]->IsBoolean() || !args[1]->IsBoolean())
-    return env->ThrowTypeError("Bad arguments, expected two booleans");
+    return THROWI18NTYPEERROR(env, BAD_ARGUMENTS_TWO_BOOLEANS);
 
   if (wrap->ssl_ == nullptr)
-    return env->ThrowTypeError("SetVerifyMode after destroySSL");
+    return THROWI18NTYPEERROR(env, SETVERIFYMODE_AFTER_DESTROYSSL);
 
   int verify_mode;
   if (wrap->is_server()) {
@@ -757,8 +755,8 @@ void TLSWrap::EnableSessionCallbacks(
     const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
   if (wrap->ssl_ == nullptr) {
-    return wrap->env()->ThrowTypeError(
-        "EnableSessionCallbacks after destroySSL");
+    return THROWI18NTYPEERROR(wrap->env(),
+                              ENABLESESSIONCALLBACKS_AFTER_DESTROYSSL);
   }
   wrap->enable_session_callbacks();
   NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
@@ -821,10 +819,10 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
 
   if (args.Length() < 1 || !args[0]->IsString())
-    return env->ThrowTypeError("First argument should be a string");
+    return THROWI18NTYPEERROR(env, FIRST_ARGUMENT_STRING);
 
   if (wrap->started_)
-    return env->ThrowError("Already started.");
+    return THROWI18NERROR(env, ALREADY_STARTED);
 
   if (!wrap->is_client())
     return;

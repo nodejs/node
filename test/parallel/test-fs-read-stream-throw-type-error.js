@@ -6,28 +6,30 @@ const path = require('path');
 
 const example = path.join(common.fixturesDir, 'x.txt');
 
-assert.doesNotThrow(function() {
+const regex = /^'options' argument must be a string or object/;
+
+assert.doesNotThrow(() => {
   fs.createReadStream(example, undefined);
 });
-assert.doesNotThrow(function() {
+assert.doesNotThrow(() => {
   fs.createReadStream(example, 'utf8');
 });
-assert.doesNotThrow(function() {
+assert.doesNotThrow(() => {
   fs.createReadStream(example, {encoding: 'utf8'});
 });
 
-assert.throws(function() {
+assert.throws(() => {
   fs.createReadStream(example, null);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, err => regex.test(err.message));
+assert.throws(() => {
   fs.createReadStream(example, 123);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, err => regex.test(err.message));
+assert.throws(() => {
   fs.createReadStream(example, 0);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, err => regex.test(err.message));
+assert.throws(() => {
   fs.createReadStream(example, true);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, err => regex.test(err.message));
+assert.throws(() => {
   fs.createReadStream(example, false);
-}, /"options" argument must be a string or an object/);
+}, err => regex.test(err.message));

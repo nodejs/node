@@ -460,6 +460,54 @@ inline void Environment::ThrowUVException(int errorno,
       UVException(isolate(), errorno, syscall, message, path, dest));
 }
 
+inline void Environment::ThrowI18NError(const char* msg,
+                                        const char* key) {
+  isolate()->ThrowException(I18NError(isolate(), key, msg));
+}
+
+inline void Environment::ThrowI18NTypeError(const char* msg,
+                                            const char* key) {
+  isolate()->ThrowException(I18NTypeError(isolate(), key, msg));
+}
+
+inline void Environment::ThrowI18NRangeError(const char* msg,
+                                             const char* key) {
+  isolate()->ThrowException(I18NRangeError(isolate(), key, msg));
+}
+
+inline void Environment::ThrowI18NErrorV(const char* msg,
+                                         const char* key,
+                                         ...) {
+  va_list args;
+  va_start(args, key);
+  char tmp[1024];
+  vsnprintf(tmp, sizeof(tmp), msg, args);
+  isolate()->ThrowException(I18NError(isolate(), key, tmp));
+  va_end(args);
+}
+
+inline void Environment::ThrowI18NTypeErrorV(const char* msg,
+                                             const char* key,
+                                             ...) {
+  va_list args;
+  va_start(args, key);
+  char tmp[1024];
+  vsnprintf(tmp, sizeof(tmp), msg, args);
+  isolate()->ThrowException(I18NTypeError(isolate(), key, tmp));
+  va_end(args);
+}
+
+inline void Environment::ThrowI18NRangeErrorV(const char* msg,
+                                              const char* key,
+                                              ...) {
+  va_list args;
+  va_start(args, key);
+  char tmp[1024];
+  vsnprintf(tmp, sizeof(tmp), msg, args);
+  isolate()->ThrowException(I18NRangeError(isolate(), key, tmp));
+  va_end(args);
+}
+
 inline v8::Local<v8::FunctionTemplate>
     Environment::NewFunctionTemplate(v8::FunctionCallback callback,
                                      v8::Local<v8::Signature> signature) {

@@ -201,7 +201,7 @@ try {
 } catch (err) {
   caught_error = err;
 }
-assert.strictEqual('Unknown encoding: invalid', caught_error.message);
+assert(/^Unknown encoding: invalid/.test(caught_error.message));
 
 // invalid encoding for Buffer.write
 caught_error = null;
@@ -210,7 +210,7 @@ try {
 } catch (err) {
   caught_error = err;
 }
-assert.strictEqual('Unknown encoding: invalid', caught_error.message);
+assert(/^Unknown encoding: invalid/.test(caught_error.message));
 
 // try to create 0-length buffers
 new Buffer('');
@@ -1319,13 +1319,15 @@ assert.throws(function() {
   Buffer(10).copy();
 });
 
+const erregex = /^'obj' must be a number, Buffer, array or string/;
+
 assert.throws(function() {
   new Buffer();
-}, /Must start with number, buffer, array or string/);
+}, err => erregex.test(err.message));
 
 assert.throws(function() {
   new Buffer(null);
-}, /Must start with number, buffer, array or string/);
+}, err => erregex.test(err.message));
 
 
 // Test prototype getters don't throw

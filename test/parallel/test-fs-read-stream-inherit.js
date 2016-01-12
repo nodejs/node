@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path');
-var fs = require('fs');
-var fn = path.join(common.fixturesDir, 'elipses.txt');
-var rangeFile = path.join(common.fixturesDir, 'x.txt');
+const path = require('path');
+const fs = require('fs');
+const fn = path.join(common.fixturesDir, 'elipses.txt');
+const rangeFile = path.join(common.fixturesDir, 'x.txt');
 
-var callbacks = { open: 0, end: 0, close: 0 };
+const callbacks = { open: 0, end: 0, close: 0 };
 
 var paused = false;
 
-var file = fs.ReadStream(fn);
+const file = fs.ReadStream(fn);
 
 file.on('open', function(fd) {
   file.length = 0;
@@ -112,9 +112,11 @@ file6.on('end', function() {
   assert.equal(file6.data, 'yz\n');
 });
 
-assert.throws(function() {
+const regex = /^'start' option must be <= 'end' option/;
+
+assert.throws(() => {
   fs.createReadStream(rangeFile, Object.create({start: 10, end: 2}));
-}, /"start" option must be <= "end" option/);
+}, err => regex.test(err.message));
 
 var stream = fs.createReadStream(rangeFile, Object.create({ start: 0,
                                  end: 0 }));

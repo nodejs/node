@@ -28,6 +28,8 @@ try {
   return;
 }
 
-assert.throws(function() {
+const erregex = /^'toString\(\)' failed/;
+
+assert.throws(() => {
   buf.toString('hex');
-}, /"toString\(\)" failed/);
+}, err => erregex.test(err.message));

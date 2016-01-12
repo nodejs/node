@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var readline = require('readline');
-var EventEmitter = require('events').EventEmitter;
-var inherits = require('util').inherits;
+const assert = require('assert');
+const readline = require('readline');
+const EventEmitter = require('events');
+const inherits = require('util').inherits;
 
 function FakeInput() {
   EventEmitter.call(this);
@@ -215,14 +215,14 @@ function isWarned(emitter) {
 
   // constructor throws if completer is not a function or undefined
   fi = new FakeInput();
-  assert.throws(function() {
+  assert.throws(() => {
     readline.createInterface({
       input: fi,
       completer: 'string is not valid'
     });
-  }, function(err) {
+  }, (err) => {
     if (err instanceof TypeError) {
-      if (/Argument "completer" must be a function/.test(err)) {
+      if (/^'completer' must be a function/.test(err.message)) {
         return true;
       }
     }

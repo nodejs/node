@@ -74,6 +74,7 @@
       'lib/internal/freelist.js',
       'lib/internal/linkedlist.js',
       'lib/internal/module.js',
+      'lib/internal/messages.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/socket_list.js',
@@ -115,6 +116,7 @@
       ],
 
       'sources': [
+        '/src/messages/messages.cc',
         'src/debug-agent.cc',
         'src/async-wrap.cc',
         'src/env.cc',
@@ -125,6 +127,7 @@
         'src/node.cc',
         'src/node_buffer.cc',
         'src/node_constants.cc',
+        'src/node_messages.cc',
         'src/node_contextify.cc',
         'src/node_file.cc',
         'src/node_http_parser.cc',
@@ -150,6 +153,8 @@
         'src/udp_wrap.cc',
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
+        'src/messages/messages.h',
+        'src/messages/en/messages.h',
         'src/async-wrap.h',
         'src/async-wrap-inl.h',
         'src/base-object.h',
@@ -160,6 +165,7 @@
         'src/handle_wrap.h',
         'src/js_stream.h',
         'src/node.h',
+        'src/node_messages.h',
         'src/node_buffer.h',
         'src/node_constants.h',
         'src/node_file.h',

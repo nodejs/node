@@ -105,9 +105,11 @@ file6.on('end', function() {
   assert.equal(file6.data, 'yz\n');
 });
 
-assert.throws(function() {
+const regex = /^'start' option must be <= 'end' option/;
+
+assert.throws(() => {
   fs.createReadStream(rangeFile, {start: 10, end: 2});
-}, /"start" option must be <= "end" option/);
+}, err => regex.test(err.message));
 
 var stream = fs.createReadStream(rangeFile, { start: 0, end: 0 });
 stream.data = '';

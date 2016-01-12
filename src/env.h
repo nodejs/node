@@ -478,6 +478,28 @@ class Environment {
                                const char* path = nullptr,
                                const char* dest = nullptr);
 
+  inline void ThrowI18NErrorV(const char* msg, const char* key, ...);
+  inline void ThrowI18NTypeErrorV(const char* msg, const char* key, ...);
+  inline void ThrowI18NRangeErrorV(const char* msg, const char* key, ...);
+
+  inline void ThrowI18NError(const char* msg, const char* key);
+  inline void ThrowI18NTypeError(const char* msg, const char* key);
+  inline void ThrowI18NRangeError(const char* msg, const char* key);
+
+  #define THROWI18NERROR(env, key)                                            \
+    env->ThrowI18NError(STR_ ## key, #key)
+  #define THROWI18NTYPEERROR(env, key)                                        \
+    env->ThrowI18NTypeError(STR_ ## key, #key)
+  #define THROWI18NRANGEERROR(env, key)                                       \
+    env->ThrowI18NRangeError(STR_ ## key, #key)
+
+  #define VTHROWI18NERROR(env, key, ...)                                      \
+    env->ThrowI18NErrorV(STR_ ## key, #key, __VA_ARGS__)
+  #define VTHROWI18NTYPEERROR(env, key, ...)                                  \
+    env->ThrowI18NTypeErrorV(STR_ ## key, #key, __VA_ARGS__)
+  #define VTHROWI18NRANGEERROR(env, key, ...)                                 \
+    env->ThrowI18NRangeErrorV(STR_ ## key, #key, __VA_ARGS__)
+
   // Convenience methods for contextify
   inline static void ThrowError(v8::Isolate* isolate, const char* errmsg);
   inline static void ThrowTypeError(v8::Isolate* isolate, const char* errmsg);
