@@ -858,6 +858,7 @@ implement Readable streams in your programs.
   * `objectMode` {Boolean} Whether this stream should behave
     as a stream of objects. Meaning that stream.read(n) returns
     a single value instead of a Buffer of size n.  Default=false
+  * `read` {Function} Implementation for the [`_read()`][] method.
 
 In classes that extend the Readable class, make sure to call the
 Readable constructor so that the buffering settings can be properly
@@ -1111,7 +1112,9 @@ also implement the `_flush()` method.  (See below.)
 #### new stream.Transform([options])
 
 * `options` {Object} Passed to both Writable and Readable
-  constructors.
+  constructors.  Also has the following fields:
+  * `transform` {Function} Implementation for the [`_transform()`][] method.
+  * `flush` {Function} Implementation for the [`_flush()`][] method.
 
 In classes that extend the Transform class, make sure to call the
 constructor so that the buffering settings can be properly
@@ -1300,6 +1303,8 @@ how to implement Writable streams in your programs.
   * `objectMode` {Boolean} Whether or not the `write(anyObj)` is
     a valid operation. If set you can write arbitrary data instead
     of only `Buffer` / `String` data.  Default=false
+  * `write` {Function} Implementation for the [`_write()`][] method.
+  * `writev` {Function} Implementation for the [`_writev()`][] method.
 
 In classes that extend the Writable class, make sure to call the
 constructor so that the buffering settings can be properly
