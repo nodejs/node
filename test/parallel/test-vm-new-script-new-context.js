@@ -25,8 +25,11 @@ var error;
 script = new Script('foo.bar = 5;');
 assert.throws(function() {
   script.runInNewContext();
-}, /not defined/);
-
+},
+common.engineSpecificMessage({
+  v8 : /not defined/,
+  chakracore : /undefined or null/
+}));
 
 hello = 5;
 script = new Script('hello = 2');
@@ -60,7 +63,11 @@ assert.equal(f.a, 2);
 
 assert.throws(function() {
   script.runInNewContext();
-}, /f is not defined/);
+},
+common.engineSpecificMessage({
+  v8 : /f is not defined/,
+  chakracore : /'a' of undefined or null/
+}));
 
 console.error('invalid this');
 assert.throws(function() {

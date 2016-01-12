@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+var common = require('../common');
 var assert = require('assert');
 var util = require('util');
 
@@ -19,7 +19,10 @@ var tests = [
   {input: null, output: 'null'},
   {input: false, output: 'false'},
   {input: 42, output: '42'},
-  {input: function() {}, output: '[Function]'},
+  {input: function() {}, output: common.engineSpecificMessage({
+    v8 : '[Function]',
+    chakracore : '[Function: input]'
+  })},
   {input: parseInt('not a number', 10), output: 'NaN'},
   {input: {answer: 42}, output: '{ answer: 42 }'},
   {input: [1, 2, 3], output: '[ 1, 2, 3 ]'}
@@ -31,6 +34,7 @@ tests.forEach(function(test) {
   var result = strings.shift().trim(),
       re = (/[0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} - (.+)$/),
       match = re.exec(result);
+
   assert.ok(match);
   assert.equal(match[1], test.output);
 });

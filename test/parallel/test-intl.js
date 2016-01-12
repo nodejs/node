@@ -1,9 +1,14 @@
 'use strict';
-require('../common');
+var common = require('../common');
 var assert = require('assert');
 
 // does node think that i18n was enabled?
-var enablei18n = process.config.variables.v8_enable_i18n_support;
+// for chakra i18n is enabled
+var enablei18n = common.engineSpecificMessage({
+  v8 : process.config.variables.v8_enable_i18n_support,
+  chakracore : true
+});
+
 if (enablei18n === undefined) {
   enablei18n = false;
 }

@@ -6,7 +6,7 @@ var assert = require('assert'),
     spawn = require('child_process').spawn;
 
 // We're trying to reproduce:
-// $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
+// $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/O/
 
 var grep, sed, echo;
 

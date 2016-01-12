@@ -1,0 +1,8 @@
+Exiting with code=1
+AssertionError: 1 == 2
+   at Anonymous function (*test*message*error_exit.js:*:*)
+   at Module.prototype._compile (module.js:*:*)
+   at Module._extensions[.js] (module.js:*:*)
+   at Module.prototype.load (module.js:*:*)
+   at Module._load (module.js:*:*)
+   at Module.runMain (module.js:*:*)

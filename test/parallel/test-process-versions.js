@@ -3,13 +3,14 @@ var common = require('../common');
 var assert = require('assert');
 
 var expected_keys = ['ares', 'http_parser', 'modules', 'node',
-                     'uv', 'v8', 'zlib'];
+                     'uv', 'zlib'];
+expected_keys.push(process.jsEngine);
 
 if (common.hasCrypto) {
   expected_keys.push('openssl');
 }
 
-if (typeof Intl !== 'undefined') {
+if (!common.isChakraEngine && typeof Intl !== 'undefined') {
   expected_keys.push('icu');
 }
 

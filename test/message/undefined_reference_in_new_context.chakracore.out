@@ -1,0 +1,12 @@
+before
+TypeError: Unable to set property 'bar' of undefined or null reference
+   at Global code (evalmachine.<anonymous>:1:1)
+   at Script.prototype.runInNewContext (vm.js:*)
+   at exports.runInNewContext (vm.js:*)
+   at Anonymous function (*test*message*undefined_reference_in_new_context.js:*)
+   at Module.prototype._compile (module.js:*:*)
+   at Module._extensions[.js] (module.js:*:*)
+   at Module.prototype.load (module.js:*:*)
+   at Module._load (module.js:*:*)
+   at Module.runMain (module.js:*:*)
+   at startup (node.js:*:*)

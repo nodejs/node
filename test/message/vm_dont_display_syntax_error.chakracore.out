@@ -1,0 +1,12 @@
+beginning
+middle
+SyntaxError: Expected identifier
+   at exports.runInThisContext (vm.js:*)
+   at Anonymous function (*test*message*vm_dont_display_syntax_error.js:*)
+   at Module.prototype._compile (module.js:*)
+   at Module._extensions[.js] (module.js:*)
+   at Module.prototype.load (module.js:*)
+   at Module._load (module.js:*)
+   at Module.runMain (module.js:*)
+   at startup (node.js:*)
+   at Anonymous function (node.js:*)

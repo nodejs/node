@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+var common = require('../common');
 var assert = require('assert');
 
 assert.ok(process.stdout.writable);
@@ -25,6 +25,12 @@ var strings = [];
 global.process.stdout.write = function(string) {
   strings.push(string);
 };
+
+var expectedFuncToString = common.engineSpecificMessage({
+  v8 : "{ foo: 'bar', inspect: [Function] }\n",
+  chakracore : "{ foo: 'bar', inspect: [Function: inspect] }\n"
+});
+
 console._stderr = process.stdout;
 
 // test console.log()
@@ -72,8 +78,8 @@ assert.equal('foo bar\n', strings.shift());
 assert.equal('foo bar hop\n', strings.shift());
 assert.equal("{ slashes: '\\\\\\\\' }\n", strings.shift());
 assert.equal('inspect\n', strings.shift());
-assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
-assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
+assert.equal(expectedFuncToString, strings.shift());
+assert.equal(expectedFuncToString, strings.shift());
 assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
 assert.equal(-1, strings.shift().indexOf('baz'));
 assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',

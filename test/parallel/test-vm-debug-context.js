@@ -19,7 +19,11 @@ assert.throws(function() {
 
 assert.throws(function() {
   vm.runInDebugContext('(function(f) { f(f) })(function(f) { f(f) })');
-}, /RangeError/);
+},
+common.engineSpecificMessage({
+  v8 : /RangeError/,
+  chakracore : /Error\: Out of stack space/
+}));
 
 assert.equal(typeof(vm.runInDebugContext('this')), 'object');
 assert.equal(typeof(vm.runInDebugContext('Debug')), 'object');

@@ -111,6 +111,7 @@ class MessageTestConfiguration(test.TestConfiguration):
 
   def __init__(self, context, root):
     super(MessageTestConfiguration, self).__init__(context, root)
+    self.engine = context.engine
 
   def Ls(self, path):
     if isdir(path):
@@ -125,11 +126,15 @@ class MessageTestConfiguration(test.TestConfiguration):
       if self.Contains(path, test):
         file_prefix = join(self.root, reduce(join, test[1:], ""))
         file_path = file_prefix + ".js"
+        engine_output_path = file_prefix + (".%s.out" % self.engine)
         output_path = file_prefix + ".out"
-        if not exists(output_path):
-          print "Could not find %s" % output_path
-          continue
-        result.append(MessageTestCase(test, file_path, output_path,
+        if exists(engine_output_path):
+          output_path = engine_output_path
+        else:
+          if not exists(output_path):
+            print "Could not find %s or %s" % (output_path, engine_output_path)
+            continue
+          result.append(MessageTestCase(test, file_path, output_path,
                                       arch, mode, self.context, self))
     return result
 

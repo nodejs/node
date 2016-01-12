@@ -1,0 +1,7 @@
+ReferenceError: 'undefined_reference_error_maker' is undefined
+   at Anonymous function (*test*message*nexttick_throw.js:*:*)
+   at nextTickCallbackWith0Args (node.js:*:*)
+   at _tickCallback (node.js:*:*)
+   at Module.runMain (module.js:*:*)
+   at startup (node.js:*:*)
+   at Anonymous function (node.js:*:*)

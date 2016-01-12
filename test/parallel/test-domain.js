@@ -1,7 +1,7 @@
 'use strict';
 // Simple tests of most basic domain functionality.
 
-require('../common');
+var common = require('../common');
 var assert = require('assert');
 var domain = require('domain');
 var events = require('events');
@@ -28,6 +28,12 @@ d.on('error', function(er) {
       er_message = er_message.replace(dir, '');
     }
   }
+
+  const typeErrMsg = common.engineSpecificMessage({
+    v8 : "Cannot read property 'isDirectory' of undefined",
+    chakracore : "Unable to get property 'isDirectory' of undefined or\
+ null reference"
+  });
 
   switch (er_message) {
     case 'emitted':
@@ -84,7 +90,7 @@ d.on('error', function(er) {
       assert.ok(!er.domainBound);
       break;
 
-    case 'Cannot read property \'isDirectory\' of undefined':
+    case typeErrMsg:
       assert.equal(er.domain, d);
       assert.ok(!er.domainEmitter);
       assert.ok(!er.domainBound);

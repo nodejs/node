@@ -13,8 +13,10 @@ function errExec(script, callback) {
     // There was some error
     assert.ok(err);
 
-    // More than one line of error output.
-    assert.ok(stderr.split('\n').length > 2);
+    if (!common.isChakraEngine) {
+      // More than one line of error output. (not necessarily for chakra engine)
+      assert.ok(stderr.split('\n').length > 2);
+    }
 
     // Assert the script is mentioned in error output.
     assert.ok(stderr.indexOf(script) >= 0);
