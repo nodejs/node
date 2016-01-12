@@ -48,9 +48,36 @@ module.exports = function(context) {
      * @private
      */
     function report(mainNode, culpritToken) {
-        context.report(mainNode, culpritToken.loc.start, "Infix operators must be spaced.");
+        context.report({
+            node: mainNode,
+            loc: culpritToken.loc.start,
+            message: "Infix operators must be spaced.",
+            fix: function(fixer) {
+                var previousToken = context.getTokenBefore(culpritToken);
+                var afterToken = context.getTokenAfter(culpritToken);
+                var fixString = "";
+
+                if (culpritToken.range[0] - previousToken.range[1] === 0) {
+                    fixString = " ";
+                }
+
+                fixString += culpritToken.value;
+
+                if (afterToken.range[0] - culpritToken.range[1] === 0) {
+                    fixString += " ";
+                }
+
+                return fixer.replaceText(culpritToken, fixString);
+            }
+        });
     }
 
+    /**
+     * Check if the node is binary then report
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function checkBinary(node) {
         var nonSpacedNode = getFirstNonSpacedToken(node.left, node.right);
 
@@ -61,6 +88,12 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Check if the node is conditional
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function checkConditional(node) {
         var nonSpacedConsequesntNode = getFirstNonSpacedToken(node.test, node.consequent);
         var nonSpacedAlternateNode = getFirstNonSpacedToken(node.consequent, node.alternate);
@@ -72,6 +105,12 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Check if the node is a variable
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function checkVar(node) {
         var nonSpacedNode;
 
@@ -85,6 +124,7 @@ module.exports = function(context) {
 
     return {
         "AssignmentExpression": checkBinary,
+        "AssignmentPattern": checkBinary,
         "BinaryExpression": checkBinary,
         "LogicalExpression": checkBinary,
         "ConditionalExpression": checkConditional,

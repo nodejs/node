@@ -6,76 +6,80 @@
 
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+    var unresolved = Object.create(null);
 
-    /*
-     * Walk the scope chain looking for either a FunctionDeclaration or a
-     * VariableDeclaration with the same name as left-hand side of the
-     * AssignmentExpression. If we find the FunctionDeclaration first, then we
-     * warn, because a FunctionDeclaration is trying to become a Variable or a
-     * FunctionExpression. If we find a VariableDeclaration first, then we have
-     * a legitimate shadow variable.
+    /**
+     * Collects unresolved references from the global scope, then creates a map to references from its name.
+     * Usage of the map is explained at `checkVariable(variable)`.
+     * @returns {void}
      */
-    function checkIfIdentifierIsFunction(scope, name) {
-        var variable,
-            def,
-            i,
-            j;
+    function collectUnresolvedReferences() {
+        unresolved = Object.create(null);
 
-        // Loop over all of the identifiers available in scope.
-        for (i = 0; i < scope.variables.length; i++) {
-            variable = scope.variables[i];
+        var references = context.getScope().through;
+        for (var i = 0; i < references.length; ++i) {
+            var reference = references[i];
+            var name = reference.identifier.name;
 
-            // For each identifier, see if it was defined in _this_ scope.
-            for (j = 0; j < variable.defs.length; j++) {
-                def = variable.defs[j];
-
-                // Identifier is a function and was declared in this scope
-                if (def.type === "FunctionName" && def.name.name === name) {
-                    return true;
-                }
-
-                // Identifier is a variable and was declared in this scope. This
-                // is a legitimate shadow variable.
-                if (def.name && def.name.name === name) {
-                    return false;
-                }
+            if (name in unresolved === false) {
+                unresolved[name] = [];
             }
+            unresolved[name].push(reference);
         }
-
-        // Check the upper scope.
-        if (scope.upper) {
-            return checkIfIdentifierIsFunction(scope.upper, name);
-        }
-
-        // We've reached the global scope and haven't found anything.
-        return false;
     }
 
-    //--------------------------------------------------------------------------
-    // Public API
-    //--------------------------------------------------------------------------
+    /**
+     * Reports a reference if is non initializer and writable.
+     * @param {References} references - Collection of reference to check.
+     * @returns {void}
+     */
+    function checkReference(references) {
+        astUtils.getModifyingReferences(references).forEach(function(reference) {
+            context.report(
+                reference.identifier,
+                "'{{name}}' is a function.",
+                {name: reference.identifier.name});
+        });
+    }
+
+    /**
+     * Finds and reports references that are non initializer and writable.
+     * @param {Variable} variable - A variable to check.
+     * @returns {void}
+     */
+    function checkVariable(variable) {
+        if (variable.defs[0].type === "FunctionName") {
+            // If the function is in global scope, its references are not resolved (by escope's design).
+            // So when references of the function are nothing, this checks in unresolved.
+            if (variable.references.length > 0) {
+                checkReference(variable.references);
+            } else if (unresolved[variable.name]) {
+                checkReference(unresolved[variable.name]);
+            }
+        }
+    }
+
+    /**
+     * Checks parameters of a given function node.
+     * @param {ASTNode} node - A function node to check.
+     * @returns {void}
+     */
+    function checkForFunction(node) {
+        context.getDeclaredVariables(node).forEach(checkVariable);
+    }
 
     return {
-
-        "AssignmentExpression": function(node) {
-            var scope = context.getScope(),
-                name = node.left.name;
-
-            if (checkIfIdentifierIsFunction(scope, name)) {
-                context.report(node, "'{{name}}' is a function.", { name: name });
-            }
-
-        }
-
+        "Program": collectUnresolvedReferences,
+        "FunctionDeclaration": checkForFunction,
+        "FunctionExpression": checkForFunction
     };
 
 };

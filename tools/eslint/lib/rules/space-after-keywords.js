@@ -23,13 +23,45 @@ module.exports = function(context) {
      * @returns {void}
      */
     function checkTokens(node, left, right) {
+        if (right.type !== "Punctuator") {
+            return;
+        }
+
         var hasSpace = left.range[1] < right.range[0],
             value = left.value;
 
         if (hasSpace !== requiresSpace) {
-            context.report(node, "Keyword \"{{value}}\" must {{not}}be followed by whitespace.", {
-                value: value,
-                not: requiresSpace ? "" : "not "
+            context.report({
+                node: node,
+                loc: left.loc.end,
+                message: "Keyword \"{{value}}\" must {{not}}be followed by whitespace.",
+                data: {
+                    value: value,
+                    not: requiresSpace ? "" : "not "
+                },
+                fix: function(fixer) {
+                    if (requiresSpace) {
+                        return fixer.insertTextAfter(left, " ");
+                    } else {
+                        return fixer.removeRange([left.range[1], right.range[0]]);
+                    }
+                }
+            });
+        } else if (left.loc.end.line !== right.loc.start.line) {
+            context.report({
+                node: node,
+                loc: left.loc.end,
+                message: "Keyword \"{{value}}\" must not be followed by a newline.",
+                data: {
+                    value: value
+                },
+                fix: function(fixer) {
+                    var text = "";
+                    if (requiresSpace) {
+                        text = " ";
+                    }
+                    return fixer.replaceTextRange([left.range[1], right.range[0]], text);
+                }
             });
         }
     }
@@ -45,7 +77,7 @@ module.exports = function(context) {
     }
 
     return {
-        "IfStatement": function (node) {
+        "IfStatement": function(node) {
             check(node);
             // check the `else`
             if (node.alternate && node.alternate.type !== "IfStatement") {
@@ -56,21 +88,21 @@ module.exports = function(context) {
         "ForOfStatement": check,
         "ForInStatement": check,
         "WhileStatement": check,
-        "DoWhileStatement": function (node) {
+        "DoWhileStatement": function(node) {
             check(node);
             // check the `while`
             var whileTokens = context.getTokensAfter(node.body, 2);
             checkTokens(node, whileTokens[0], whileTokens[1]);
         },
         "SwitchStatement": check,
-        "TryStatement": function (node) {
+        "TryStatement": function(node) {
             check(node);
             // check the `finally`
             if (node.finalizer) {
                 checkTokens(node.finalizer, context.getTokenBefore(node.finalizer), context.getFirstToken(node.finalizer));
             }
         },
-        "CatchStatement": check,
+        "CatchClause": check,
         "WithStatement": check
     };
 };

@@ -17,7 +17,9 @@ var messages = {
     global: "Use the global form of \"use strict\".",
     multiple: "Multiple \"use strict\" directives.",
     never: "Strict mode is not permitted.",
-    unnecessary: "Unnecessary \"use strict\" directive."
+    unnecessary: "Unnecessary \"use strict\" directive.",
+    unnecessaryInModules: "\"use strict\" is unnecessary inside of modules.",
+    unnecessaryInClasses: "\"use strict\" is unnecessary inside of classes."
 };
 
 /**
@@ -53,10 +55,7 @@ function getUseStrictDirectives(statements) {
 
 module.exports = function(context) {
 
-    var mode = context.options[0],
-        isModule = context.ecmaFeatures.modules,
-        modes = {},
-        scopes = [];
+    var mode = context.options[0];
 
     /**
      * Report a node or array of nodes with a given message.
@@ -77,116 +76,86 @@ module.exports = function(context) {
     }
 
     //--------------------------------------------------------------------------
-    // "deprecated" mode (default)
-    //--------------------------------------------------------------------------
-
-    /**
-     * Determines if a given node is "use strict".
-     * @param {ASTNode} node The node to check.
-     * @returns {boolean} True if the node is a strict pragma, false if not.
-     * @void
-     */
-    function isStrictPragma(node) {
-        return (node && node.type === "ExpressionStatement" &&
-                node.expression.value === "use strict");
-    }
-
-    /**
-     * When you enter a scope, push the strict value from the previous scope
-     * onto the stack.
-     * @param {ASTNode} node The AST node being checked.
-     * @returns {void}
-     * @private
-     */
-    function enterScope(node) {
-
-        var isStrict = false,
-            isProgram = (node.type === "Program"),
-            isParentGlobal = scopes.length === 1,
-            isParentStrict = scopes.length ? scopes[scopes.length - 1] : false;
-
-        // look for the "use strict" pragma
-        if (isModule) {
-            isStrict = true;
-        } else if (isProgram) {
-            isStrict = isStrictPragma(node.body[0]) || isParentStrict;
-        } else {
-            isStrict = node.body.body && isStrictPragma(node.body.body[0]) || isParentStrict;
-        }
-
-        scopes.push(isStrict);
-
-        // never warn if the parent is strict or the function is strict
-        if (!isParentStrict && !isStrict && isParentGlobal) {
-            context.report(node, "Missing \"use strict\" statement.");
-        }
-    }
-
-    /**
-     * When you exit a scope, pop off the top scope and see if it's true or
-     * false.
-     * @returns {void}
-     * @private
-     */
-    function exitScope() {
-        scopes.pop();
-    }
-
-    modes.deprecated = {
-        "Program": enterScope,
-        "FunctionDeclaration": enterScope,
-        "FunctionExpression": enterScope,
-        "ArrowFunctionExpression": enterScope,
-
-        "Program:exit": exitScope,
-        "FunctionDeclaration:exit": exitScope,
-        "FunctionExpression:exit": exitScope,
-        "ArrowFunctionExpression:exit": exitScope
-    };
-
-    //--------------------------------------------------------------------------
     // "never" mode
     //--------------------------------------------------------------------------
 
-    modes.never = {
-        "Program": function(node) {
-            report(getUseStrictDirectives(node.body), messages.never);
-        },
-        "FunctionDeclaration": function(node) {
-            report(getUseStrictDirectives(node.body.body), messages.never);
-        },
-        "FunctionExpression": function(node) {
-            report(getUseStrictDirectives(node.body.body), messages.never);
-        }
-    };
+    if (mode === "never") {
+        return {
+            "Program": function(node) {
+                report(getUseStrictDirectives(node.body), messages.never);
+            },
+            "FunctionDeclaration": function(node) {
+                report(getUseStrictDirectives(node.body.body), messages.never);
+            },
+            "FunctionExpression": function(node) {
+                report(getUseStrictDirectives(node.body.body), messages.never);
+            },
+            "ArrowFunctionExpression": function(node) {
+                if (node.body.type === "BlockStatement") {
+                    report(getUseStrictDirectives(node.body.body), messages.never);
+                }
+            }
+        };
+    }
+
+    //--------------------------------------------------------------------------
+    // If this is modules, all "use strict" directives are unnecessary.
+    //--------------------------------------------------------------------------
+
+    if (context.ecmaFeatures.modules) {
+        return {
+            "Program": function(node) {
+                report(getUseStrictDirectives(node.body), messages.unnecessaryInModules);
+            },
+            "FunctionDeclaration": function(node) {
+                report(getUseStrictDirectives(node.body.body), messages.unnecessaryInModules);
+            },
+            "FunctionExpression": function(node) {
+                report(getUseStrictDirectives(node.body.body), messages.unnecessaryInModules);
+            },
+            "ArrowFunctionExpression": function(node) {
+                if (node.body.type === "BlockStatement") {
+                    report(getUseStrictDirectives(node.body.body), messages.unnecessaryInModules);
+                }
+            }
+        };
+    }
 
     //--------------------------------------------------------------------------
     // "global" mode
     //--------------------------------------------------------------------------
 
-    modes.global = {
-        "Program": function(node) {
-            var useStrictDirectives = getUseStrictDirectives(node.body);
+    if (mode === "global") {
+        return {
+            "Program": function(node) {
+                var useStrictDirectives = getUseStrictDirectives(node.body);
 
-            if (!isModule && node.body.length && useStrictDirectives.length < 1) {
-                report(node, messages.global);
-            } else if (isModule) {
-                report(useStrictDirectives, messages.unnecessary);
-            } else {
-                report(useStrictDirectives.slice(1), messages.multiple);
+                if (node.body.length > 0 && useStrictDirectives.length === 0) {
+                    report(node, messages.global);
+                } else {
+                    report(useStrictDirectives.slice(1), messages.multiple);
+                }
+            },
+            "FunctionDeclaration": function(node) {
+                report(getUseStrictDirectives(node.body.body), messages.global);
+            },
+            "FunctionExpression": function(node) {
+                report(getUseStrictDirectives(node.body.body), messages.global);
+            },
+            "ArrowFunctionExpression": function(node) {
+                if (node.body.type === "BlockStatement") {
+                    report(getUseStrictDirectives(node.body.body), messages.global);
+                }
             }
-        },
-        "FunctionDeclaration": function(node) {
-            report(getUseStrictDirectives(node.body.body), messages.global);
-        },
-        "FunctionExpression": function(node) {
-            report(getUseStrictDirectives(node.body.body), messages.global);
-        }
-    };
+        };
+    }
 
     //--------------------------------------------------------------------------
-    // "function" mode
+    // "function" mode (Default)
     //--------------------------------------------------------------------------
+
+    var scopes = [],
+        classScopes = [];
 
     /**
      * Entering a function pushes a new nested scope onto the stack. The new
@@ -195,18 +164,22 @@ module.exports = function(context) {
      * @returns {void}
      */
     function enterFunction(node) {
-        var useStrictDirectives = getUseStrictDirectives(node.body.body),
-            isParentGlobal = scopes.length === 0,
-            isParentStrict = isModule || (scopes.length && scopes[scopes.length - 1]),
-            isStrict = useStrictDirectives.length > 0 || isModule;
+        var isInClass = classScopes.length > 0,
+            isParentGlobal = scopes.length === 0 && classScopes.length === 0,
+            isParentStrict = scopes.length > 0 && scopes[scopes.length - 1],
+            isNotBlock = node.body.type !== "BlockStatement",
+            useStrictDirectives = isNotBlock ? [] : getUseStrictDirectives(node.body.body),
+            isStrict = useStrictDirectives.length > 0;
 
         if (isStrict) {
-            if (isParentStrict && useStrictDirectives.length) {
+            if (isParentStrict) {
                 report(useStrictDirectives[0], messages.unnecessary);
+            } else if (isInClass) {
+                report(useStrictDirectives[0], messages.unnecessaryInClasses);
             }
 
             report(useStrictDirectives.slice(1), messages.multiple);
-        } else if (isParentGlobal && !isModule) {
+        } else if (isParentGlobal) {
             report(node, messages.function);
         }
 
@@ -221,18 +194,27 @@ module.exports = function(context) {
         scopes.pop();
     }
 
-    modes.function = {
+    return {
         "Program": function(node) {
             report(getUseStrictDirectives(node.body), messages.function);
         },
+
+        // Inside of class bodies are always strict mode.
+        "ClassBody": function() {
+            classScopes.push(true);
+        },
+        "ClassBody:exit": function() {
+            classScopes.pop();
+        },
+
         "FunctionDeclaration": enterFunction,
         "FunctionExpression": enterFunction,
+        "ArrowFunctionExpression": enterFunction,
+
         "FunctionDeclaration:exit": exitFunction,
-        "FunctionExpression:exit": exitFunction
+        "FunctionExpression:exit": exitFunction,
+        "ArrowFunctionExpression:exit": exitFunction
     };
-
-    return modes[mode || "deprecated"];
-
 };
 
 module.exports.schema = [

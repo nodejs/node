@@ -44,7 +44,7 @@ module.exports = function(context) {
      * @returns {array} All parameters of the given scope.
      */
     function getParameters(scope) {
-        return scope.variables.filter(function (variable) {
+        return scope.variables.filter(function(variable) {
             return variable.defs[0] && variable.defs[0].type === "Parameter";
         });
     }

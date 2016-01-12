@@ -14,10 +14,11 @@ module.exports = function(context) {
     var params = context.options[1] || {};
 
     var OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
+        OPEN_MESSAGE_ALLMAN = "Opening curly brace appears on the same line as controlling statement.",
         BODY_MESSAGE = "Statement inside of curly braces should be on next line.",
         CLOSE_MESSAGE = "Closing curly brace does not appear on the same line as the subsequent block.",
         CLOSE_MESSAGE_SINGLE = "Closing curly brace should be on the same line as opening curly brace or on the line after the previous block.",
-        CLOSE_MESSAGE_STROUSTRUP = "Closing curly brace appears on the same line as the subsequent block.";
+        CLOSE_MESSAGE_STROUSTRUP_ALLMAN = "Closing curly brace appears on the same line as the subsequent block.";
 
     //--------------------------------------------------------------------------
     // Helpers
@@ -57,28 +58,30 @@ module.exports = function(context) {
         return function(node) {
             [].forEach.call(blockProperties, function(blockProp) {
                 var block = node[blockProp], previousToken, curlyToken, curlyTokenEnd, curlyTokensOnSameLine;
-                block = node[blockProp];
 
-                if (isBlock(block)) {
+                if (!isBlock(block)) {
+                    return;
+                }
 
-                    previousToken = context.getTokenBefore(block);
-                    curlyToken = context.getFirstToken(block);
-                    curlyTokenEnd = context.getLastToken(block);
-                    curlyTokensOnSameLine = curlyToken.loc.start.line === curlyTokenEnd.loc.start.line;
+                previousToken = context.getTokenBefore(block);
+                curlyToken = context.getFirstToken(block);
+                curlyTokenEnd = context.getLastToken(block);
+                curlyTokensOnSameLine = curlyToken.loc.start.line === curlyTokenEnd.loc.start.line;
 
-                    if (previousToken.loc.start.line !== curlyToken.loc.start.line) {
-                        context.report(node, OPEN_MESSAGE);
-                    } else if (block.body.length && params.allowSingleLine) {
+                if (style !== "allman" && previousToken.loc.start.line !== curlyToken.loc.start.line) {
+                    context.report(node, OPEN_MESSAGE);
+                } else if (style === "allman" && previousToken.loc.start.line === curlyToken.loc.start.line && !params.allowSingleLine) {
+                    context.report(node, OPEN_MESSAGE_ALLMAN);
+                }
 
-                        if (curlyToken.loc.start.line === block.body[0].loc.start.line && !curlyTokensOnSameLine) {
-                            context.report(block.body[0], BODY_MESSAGE);
-                        } else if (curlyTokenEnd.loc.start.line === block.body[block.body.length - 1].loc.start.line && !curlyTokensOnSameLine) {
-                            context.report(block.body[block.body.length - 1], CLOSE_MESSAGE_SINGLE);
-                        }
+                if (!block.body.length || curlyTokensOnSameLine && params.allowSingleLine) {
+                    return;
+                }
 
-                    } else if (block.body.length && curlyToken.loc.start.line === block.body[0].loc.start.line) {
-                        context.report(block.body[0], BODY_MESSAGE);
-                    }
+                if (curlyToken.loc.start.line === block.body[0].loc.start.line) {
+                    context.report(block.body[0], BODY_MESSAGE);
+                } else if (curlyTokenEnd.loc.start.line === block.body[block.body.length - 1].loc.start.line) {
+                    context.report(block.body[block.body.length - 1], CLOSE_MESSAGE_SINGLE);
                 }
             });
         };
@@ -106,13 +109,13 @@ module.exports = function(context) {
                 tokens = context.getTokensBefore(node.alternate, 2);
 
                 if (style === "1tbs") {
-                    if (tokens[0].loc.start.line !== tokens[1].loc.start.line && isCurlyPunctuator(tokens[0]) ) {
+                    if (tokens[0].loc.start.line !== tokens[1].loc.start.line &&
+                        node.consequent.type === "BlockStatement" &&
+                        isCurlyPunctuator(tokens[0]) ) {
                         context.report(node.alternate, CLOSE_MESSAGE);
                     }
-                } else if (style === "stroustrup") {
-                    if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
-                        context.report(node.alternate, CLOSE_MESSAGE_STROUSTRUP);
-                    }
+                } else if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
+                    context.report(node.alternate, CLOSE_MESSAGE_STROUSTRUP_ALLMAN);
                 }
             }
 
@@ -136,10 +139,8 @@ module.exports = function(context) {
                 if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
                     context.report(node.finalizer, CLOSE_MESSAGE);
                 }
-            } else if (style === "stroustrup") {
-                if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
-                    context.report(node.finalizer, CLOSE_MESSAGE_STROUSTRUP);
-                }
+            } else if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
+                context.report(node.finalizer, CLOSE_MESSAGE_STROUSTRUP_ALLMAN);
             }
         }
     }
@@ -161,9 +162,9 @@ module.exports = function(context) {
                 if (previousToken.loc.start.line !== firstToken.loc.start.line) {
                     context.report(node, CLOSE_MESSAGE);
                 }
-            } else if (style === "stroustrup") {
+            } else {
                 if (previousToken.loc.start.line === firstToken.loc.start.line) {
-                    context.report(node, CLOSE_MESSAGE_STROUSTRUP);
+                    context.report(node, CLOSE_MESSAGE_STROUSTRUP_ALLMAN);
                 }
             }
         }
@@ -179,14 +180,14 @@ module.exports = function(context) {
         var tokens;
         if (node.cases && node.cases.length) {
             tokens = context.getTokensBefore(node.cases[0], 2);
-            if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
-                context.report(node, OPEN_MESSAGE);
-            }
         } else {
             tokens = context.getLastTokens(node, 3);
-            if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
-                context.report(node, OPEN_MESSAGE);
-            }
+        }
+
+        if (style !== "allman" && tokens[0].loc.start.line !== tokens[1].loc.start.line) {
+            context.report(node, OPEN_MESSAGE);
+        } else if (style === "allman" && tokens[0].loc.start.line === tokens[1].loc.start.line) {
+            context.report(node, OPEN_MESSAGE_ALLMAN);
         }
     }
 
@@ -214,7 +215,7 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "enum": ["1tbs", "stroustrup"]
+        "enum": ["1tbs", "stroustrup", "allman"]
     },
     {
         "type": "object",

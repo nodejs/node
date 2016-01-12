@@ -17,7 +17,7 @@ module.exports = function(context) {
             var type = node.body.type;
 
             if (type !== "ForStatement" && type !== "WhileStatement" && type !== "DoWhileStatement" && type !== "SwitchStatement" && type !== "ForInStatement" && type !== "ForOfStatement") {
-                context.report(node, "Unexpected label {{l}}", {l: node.label.name});
+                context.report(node, "Unexpected label \"{{l}}\"", {l: node.label.name});
             }
         }
     };

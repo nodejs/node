@@ -10,10 +10,13 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+    var config = context.options[0] || {},
+        allowShortCircuit = config.allowShortCircuit || false,
+        allowTernary = config.allowTernary || false;
 
     /**
      * @param {ASTNode} node - any node
-     * @returns {Boolean} whether the given node structurally represents a directive
+     * @returns {boolean} whether the given node structurally represents a directive
      */
     function looksLikeDirective(node) {
         return node.type === "ExpressionStatement" &&
@@ -45,7 +48,7 @@ module.exports = function(context) {
     /**
      * @param {ASTNode} node - any node
      * @param {ASTNode[]} ancestors - the given node's ancestors
-     * @returns {Boolean} whether the given node is considered a directive in its current position
+     * @returns {boolean} whether the given node is considered a directive in its current position
      */
     function isDirective(node, ancestors) {
         var parent = ancestors[ancestors.length - 1],
@@ -55,17 +58,31 @@ module.exports = function(context) {
                 directives(parent).indexOf(node) >= 0;
     }
 
+    /**
+     * Determines whether or not a given node is a valid expression. Recurses on short circuit eval and ternary nodes if enabled by flags.
+     * @param {ASTNode} node - any node
+     * @returns {boolean} whether the given node is a valid expression
+     */
+    function isValidExpression(node) {
+        if (allowTernary) {
+            // Recursive check for ternary and logical expressions
+            if (node.type === "ConditionalExpression") {
+                return isValidExpression(node.consequent) && isValidExpression(node.alternate);
+            }
+        }
+        if (allowShortCircuit) {
+            if (node.type === "LogicalExpression") {
+                return isValidExpression(node.right);
+            }
+        }
+
+        return /^(?:Assignment|Call|New|Update|Yield)Expression$/.test(node.type) ||
+            (node.type === "UnaryExpression" && ["delete", "void"].indexOf(node.operator) >= 0);
+    }
+
     return {
         "ExpressionStatement": function(node) {
-
-            var type = node.expression.type,
-                ancestors = context.getAncestors();
-
-            if (
-                !/^(?:Assignment|Call|New|Update|Yield)Expression$/.test(type) &&
-                (type !== "UnaryExpression" || ["delete", "void"].indexOf(node.expression.operator) < 0) &&
-                !isDirective(node, ancestors)
-            ) {
+            if (!isValidExpression(node.expression) && !isDirective(node, context.getAncestors())) {
                 context.report(node, "Expected an assignment or function call and instead saw an expression.");
             }
         }
@@ -73,4 +90,17 @@ module.exports = function(context) {
 
 };
 
-module.exports.schema = [];
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "allowShortCircuit": {
+                "type": "boolean"
+            },
+            "allowTernary": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];
