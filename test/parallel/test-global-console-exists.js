@@ -27,6 +27,7 @@ const e = new EventEmitter();
 e.on('hello', function() {});
 e.on('hello', function() {});
 
+// TODO validate console
 assert.equal(write_calls, 2);
 
 EventEmitter.defaultMaxListeners = old_default;
