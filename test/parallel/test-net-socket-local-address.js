@@ -20,12 +20,6 @@ const server = net.createServer(function(socket) {
 
 const client = new net.Socket();
 
-server.on('close', common.mustCall(function() {
-  assert.deepEqual(clientLocalPorts, serverRemotePorts,
-                   'client and server should agree on the ports used');
-  assert.equal(2, conns);
-}));
-
 server.listen(common.PORT, common.localhostIPv4, testConnect);
 
 function testConnect() {
@@ -44,3 +38,9 @@ function testConnect() {
   });
   conns++;
 }
+
+process.on('exit', function() {
+  assert.deepEqual(clientLocalPorts, serverRemotePorts,
+                   'client and server should agree on the ports used');
+  assert.equal(2, conns);
+});
