@@ -117,6 +117,18 @@ options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
 ```
 
+### agent.createConnection(options[, callback])
+
+Produces a socket/stream to be used for HTTP requests.
+
+By default, this function is the same as [`net.createConnection()`][]. However,
+custom Agents may override this method in case greater flexibility is desired.
+
+A socket/stream can be supplied in one of two ways: by returning the
+socket/stream from this function, or by passing the socket/stream to `callback`.
+
+`callback` has a signature of `(err, stream)`.
+
 ### agent.destroy()
 
 Destroy any sockets that are currently in use by the agent.
@@ -1117,6 +1129,10 @@ Options:
  - `Agent` object: explicitly use the passed in `Agent`.
  - `false`: opts out of connection pooling with an Agent, defaults request to
    `Connection: close`.
+- `createConnection`: A function that produces a socket/stream to use for the
+  request when the `agent` option is not used. This can be used to avoid
+  creating a custom Agent class just to override the default `createConnection`
+  function. See [`agent.createConnection()`][] for more details.
 
 The optional `callback` parameter will be added as a one time listener for
 the `'response'` event.
@@ -1192,6 +1208,7 @@ There are a few special headers that should be noted.
 [`'listening'`]: net.html#net_event_listening
 [`'response'`]: #http_event_response
 [`Agent`]: #http_class_http_agent
+[`agent.createConnection`]: #http_agent_createconnection
 [`Buffer`]: buffer.html#buffer_buffer
 [`destroy()`]: #http_agent_destroy
 [`EventEmitter`]: events.html#events_class_events_eventemitter
@@ -1203,6 +1220,7 @@ There are a few special headers that should be noted.
 [`http.Server`]: #http_class_http_server
 [`http.ServerResponse`]: #http_class_http_serverresponse
 [`message.headers`]: #http_message_headers
+[`net.createConnection`]: net.html#net_net_createconnection_options_connectlistener
 [`net.Server`]: net.html#net_class_net_server
 [`net.Server.close()`]: net.html#net_server_close_callback
 [`net.Server.listen()`]: net.html#net_server_listen_handle_callback
