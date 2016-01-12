@@ -60,8 +60,8 @@ The `child_process.spawn()`, `child_process.fork()`, `child_process.exec()`,
 and `child_process.execFile()` methods all follow the idiomatic asynchronous
 programming pattern typical of other Node.js APIs.
 
-Each of the methods returns a [ChildProcess][] instance. These objects
-implement the Node.js [EventEmitter][] API, allowing the parent process to
+Each of the methods returns a [`ChildProcess`][] instance. These objects
+implement the Node.js [`EventEmitter`][] API, allowing the parent process to
 register listener functions that are called when certain events occur during
 the life cycle of the child process.
 
@@ -221,9 +221,8 @@ spawned directly as a new process making it slightly more efficient than
     (Default: `process.execArgv`)
   * `silent` {Boolean} If true, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
-    the `'pipe'` and `'inherit'` options for [`spawn()`][]'s [`stdio`][] for
-    more details
-    (default is false)
+    the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
+    [`stdio`][] for more details (default is false)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: ChildProcess object
@@ -922,6 +921,7 @@ then this will be `undefined`.
 to the same value.
 
 [`popen(3)`]: http://linux.die.net/man/3/popen
+[`ChildProcess`]: #child_process_child_process
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
 [`child_process.execFile()`]: #child_process_child_process_execfile_file_args_options_callback
 [`child_process.fork()`]: #child_process_child_process_fork_modulepath_args_options
@@ -930,6 +930,7 @@ to the same value.
 [`ChildProcess#kill()`]: #child_process_child_kill_signal
 [`ChildProcess#send()`]: #child_process_child_send_message_sendhandle_callback
 [`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html#events_class_events_eventemitter
 [`EventEmitters`]: events.html#events_class_events_eventemitter
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
