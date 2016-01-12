@@ -15,6 +15,10 @@ var server1 = net.createServer({pauseOnConnect: true}, function(socket) {
     server1.close();
   });
 
+  // No 'pause' event should be emitted because the socket 'connection' event
+  // should be emitted after the 'pause' event is.
+  socket.on('pause', assert.fail);
+
   setTimeout(function() {
     // After 50(ish) ms, the other socket should have already read the data.
     assert.equal(read, true);
@@ -36,6 +40,9 @@ var server2 = net.createServer({pauseOnConnect: false}, function(socket) {
     socket.end();
     server2.close();
   });
+
+  // No 'pause' event anyways.
+  socket.on('pause', assert.fail);
 });
 
 server1.listen(common.PORT, function() {
