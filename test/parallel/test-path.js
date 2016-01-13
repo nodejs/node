@@ -406,6 +406,13 @@ assert.equal(path.win32.delimiter, ';');
 // posix
 assert.equal(path.posix.delimiter, ':');
 
+// ensure ext comparison is case-insensitive on windows
+const upBaseName = path.win32.basename('same.txt', '.TXT');
+const loBaseName = path.win32.basename('SAME.TXT', '.txt');
+
+assert.strictEqual(upBaseName.length,
+                   loBaseName.length,
+                   'both should return "same"');
 
 if (common.isWindows)
   assert.deepEqual(path, path.win32, 'should be win32 path module');
