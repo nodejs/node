@@ -327,6 +327,7 @@ void uv__util_init();
 
 uint64_t uv__hrtime(double scale);
 int uv_parent_pid();
+int uv_current_pid();
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
 
 

@@ -277,10 +277,12 @@
                   }],
                 ],
               }],
-              # Disable LTO for v8
-              # v8 is optimized for speed, which takes precedence over
-              # size optimization in LTO.
-              ['use_lto==1', {
+              # Disable GCC LTO for v8
+              # v8 is optimized for speed. Because GCC LTO merges flags at link
+              # time, we disable LTO to prevent any -O2 flags from taking
+              # precedence over v8's -Os flag. However, LLVM LTO does not work
+              # this way so we keep LTO enabled under LLVM.
+              ['clang==0 and use_lto==1', {
                 'cflags!': [
                   '-flto',
                   '-ffat-lto-objects',
@@ -339,7 +341,8 @@
         'cflags': ['-march=i586'],
       }],  # v8_target_arch=="x87"
       ['(v8_target_arch=="mips" or v8_target_arch=="mipsel" \
-        or v8_target_arch=="mips64el") and v8_target_arch==target_arch', {
+        or v8_target_arch=="mips64" or v8_target_arch=="mips64el") \
+         and v8_target_arch==target_arch', {
         'target_conditions': [
           ['_toolset=="target"', {
             # Target built with a Mips CXX compiler.
@@ -741,7 +744,7 @@
           }],
         ],
       }],  # v8_target_arch=="mipsel"
-      ['v8_target_arch=="mips64el"', {
+      ['v8_target_arch=="mips64el" or v8_target_arch=="mips64"', {
         'defines': [
           'V8_TARGET_ARCH_MIPS64',
         ],
@@ -749,6 +752,16 @@
           [ 'v8_can_use_fpu_instructions=="true"', {
             'defines': [
               'CAN_USE_FPU_INSTRUCTIONS',
+            ],
+          }],
+          [ 'v8_host_byteorder=="little"', {
+            'defines': [
+              'V8_TARGET_ARCH_MIPS64_LE',
+            ],
+          }],
+          [ 'v8_host_byteorder=="big"', {
+            'defines': [
+              'V8_TARGET_ARCH_MIPS64_BE',
             ],
           }],
           [ 'v8_use_mips_abi_hardfloat=="true"', {
@@ -767,11 +780,17 @@
             'conditions': [
               ['v8_target_arch==target_arch', {
                 'cflags': [
-                  '-EL',
                   '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
                 ],
-                'ldflags': ['-EL'],
                 'conditions': [
+                  ['v8_target_arch=="mips64el"', {
+                    'cflags': ['-EL'],
+                    'ldflags': ['-EL'],
+                  }],
+                  ['v8_target_arch=="mips64"', {
+                    'cflags': ['-EB'],
+                    'ldflags': ['-EB'],
+                  }],
                   [ 'v8_use_mips_abi_hardfloat=="true"', {
                     'cflags': ['-mhard-float'],
                     'ldflags': ['-mhard-float'],

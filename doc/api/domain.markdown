@@ -11,7 +11,7 @@ in the future.
 
 Domains provide a way to handle multiple different IO operations as a
 single group.  If any of the event emitters or callbacks registered to a
-domain emit an `error` event, or throw an error, then the domain object
+domain emit an `'error'` event, or throw an error, then the domain object
 will be notified, rather than losing the context of the error in the
 `process.on('uncaughtException')` handler, or causing the program to
 exit immediately with an error code.
@@ -23,7 +23,7 @@ exit immediately with an error code.
 Domain error handlers are not a substitute for closing down your
 process when an error occurs.
 
-By the very nature of how `throw` works in JavaScript, there is almost
+By the very nature of how [`throw`][] works in JavaScript, there is almost
 never any way to safely "pick up where you left off", without leaking
 references, or creating some other sort of undefined brittle state.
 
@@ -48,15 +48,15 @@ For example, this is not a good idea:
 // XXX WARNING!  BAD IDEA!
 
 var d = require('domain').create();
-d.on('error', function(er) {
+d.on('error', (er) => {
   // The error won't crash the process, but what it does is worse!
   // Though we've prevented abrupt process restarting, we are leaking
   // resources like crazy if this ever happens.
   // This is no better than process.on('uncaughtException')!
   console.log('error, but oh well', er.message);
 });
-d.run(function() {
-  require('http').createServer(function(req, res) {
+d.run(() => {
+  require('http').createServer((req, res) => {
     handleRequest(req, res);
   }).listen(PORT);
 });
@@ -69,8 +69,8 @@ appropriately, and handle errors with much greater safety.
 ```javascript
 // Much better!
 
-var cluster = require('cluster');
-var PORT = +process.env.PORT || 1337;
+const cluster = require('cluster');
+const PORT = +process.env.PORT || 1337;
 
 if (cluster.isMaster) {
   // In real life, you'd probably use more than just 2 workers,
@@ -88,7 +88,7 @@ if (cluster.isMaster) {
   cluster.fork();
   cluster.fork();
 
-  cluster.on('disconnect', function(worker) {
+  cluster.on('disconnect', (worker) => {
     console.error('disconnect!');
     cluster.fork();
   });
@@ -98,14 +98,14 @@ if (cluster.isMaster) {
   //
   // This is where we put our bugs!
 
-  var domain = require('domain');
+  const domain = require('domain');
 
   // See the cluster documentation for more details about using
   // worker processes to serve requests.  How it works, caveats, etc.
 
-  var server = require('http').createServer(function(req, res) {
+  const server = require('http').createServer((req, res) => {
     var d = domain.create();
-    d.on('error', function(er) {
+    d.on('error', (er) => {
       console.error('error', er.stack);
 
       // Note: we're in dangerous territory!
@@ -115,7 +115,7 @@ if (cluster.isMaster) {
 
       try {
         // make sure we close down within 30 seconds
-        var killtimer = setTimeout(function() {
+        var killtimer = setTimeout(() => {
           process.exit(1);
         }, 30000);
         // But don't keep the process open just for that!
@@ -146,7 +146,7 @@ if (cluster.isMaster) {
     d.add(res);
 
     // Now run the handler function in the domain.
-    d.run(function() {
+    d.run(() => {
       handleRequest(req, res);
     });
   });
@@ -159,7 +159,7 @@ function handleRequest(req, res) {
   switch(req.url) {
     case '/error':
       // We do some async stuff, and then...
-      setTimeout(function() {
+      setTimeout(() => {
         // Whoops!
         flerb.bark();
       });
@@ -174,11 +174,11 @@ function handleRequest(req, res) {
 
 <!-- type=misc -->
 
-Any time an Error object is routed through a domain, a few extra fields
+Any time an `Error` object is routed through a domain, a few extra fields
 are added to it.
 
 * `error.domain` The domain that first handled the error.
-* `error.domainEmitter` The event emitter that emitted an 'error' event
+* `error.domainEmitter` The event emitter that emitted an `'error'` event
   with the error object.
 * `error.domainBound` The callback function which was bound to the
   domain, and passed an error as its first argument.
@@ -207,8 +207,8 @@ If you *want* to nest Domain objects as children of a parent Domain,
 then you must explicitly add them.
 
 Implicit binding routes thrown errors and `'error'` events to the
-Domain's `error` event, but does not register the EventEmitter on the
-Domain, so `domain.dispose()` will not shut down the EventEmitter.
+Domain's `'error'` event, but does not register the EventEmitter on the
+Domain, so [`domain.dispose()`][] will not shut down the EventEmitter.
 Implicit binding only takes care of thrown errors and `'error'` events.
 
 ## Explicit Binding
@@ -229,18 +229,20 @@ For example:
 
 ```
 // create a top-level domain for the server
-var serverDomain = domain.create();
+const domain = require('domain');
+const http = require('http');
+const serverDomain = domain.create();
 
-serverDomain.run(function() {
+serverDomain.run(() => {
   // server is created in the scope of serverDomain
-  http.createServer(function(req, res) {
+  http.createServer((req, res) => {
     // req and res are also created in the scope of serverDomain
     // however, we'd prefer to have a separate domain for each request.
     // create it first thing, and add req and res to it.
     var reqd = domain.create();
     reqd.add(req);
     reqd.add(res);
-    reqd.on('error', function(er) {
+    reqd.on('error', (er) => {
       console.error('Error', er, req.url);
       try {
         res.writeHead(500);
@@ -264,8 +266,8 @@ Returns a new Domain object.
 The Domain class encapsulates the functionality of routing errors and
 uncaught exceptions to the active Domain object.
 
-Domain is a child class of [EventEmitter][].  To handle the errors that it
-catches, listen to its `error` event.
+Domain is a child class of [`EventEmitter`][].  To handle the errors that it
+catches, listen to its `'error'` event.
 
 ### domain.run(fn[, arg][, ...])
 
@@ -281,14 +283,16 @@ This is the most basic way to use a domain.
 Example:
 
 ```
-var d = domain.create();
-d.on('error', function(er) {
+const domain = require('domain');
+const fs = require('fs');
+const d = domain.create();
+d.on('error', (er) => {
   console.error('Caught error!', er);
 });
-d.run(function() {
-  process.nextTick(function() {
-    setTimeout(function() { // simulating some various async stuff
-      fs.open('non-existent file', 'r', function(er, fd) {
+d.run(() => {
+  process.nextTick(() => {
+    setTimeout(() => { // simulating some various async stuff
+      fs.open('non-existent file', 'r', (er, fd) => {
         if (er) throw er;
         // proceed...
       });
@@ -312,12 +316,12 @@ to the domain.
 * `emitter` {EventEmitter | Timer} emitter or timer to be added to the domain
 
 Explicitly adds an emitter to the domain.  If any event handlers called by
-the emitter throw an error, or if the emitter emits an `error` event, it
-will be routed to the domain's `error` event, just like with implicit
+the emitter throw an error, or if the emitter emits an `'error'` event, it
+will be routed to the domain's `'error'` event, just like with implicit
 binding.
 
-This also works with timers that are returned from `setInterval` and
-`setTimeout`.  If their callback function throws, it will be caught by
+This also works with timers that are returned from [`setInterval()`][] and
+[`setTimeout()`][].  If their callback function throws, it will be caught by
 the domain 'error' handler.
 
 If the Timer or EventEmitter was already bound to a domain, it is removed
@@ -327,7 +331,7 @@ from that one, and bound to this one instead.
 
 * `emitter` {EventEmitter | Timer} emitter or timer to be removed from the domain
 
-The opposite of `domain.add(emitter)`.  Removes domain handling from the
+The opposite of [`domain.add(emitter)`][].  Removes domain handling from the
 specified emitter.
 
 ### domain.bind(callback)
@@ -337,11 +341,11 @@ specified emitter.
 
 The returned function will be a wrapper around the supplied callback
 function.  When the returned function is called, any errors that are
-thrown will be routed to the domain's `error` event.
+thrown will be routed to the domain's `'error'` event.
 
 #### Example
 
-    var d = domain.create();
+    const d = domain.create();
 
     function readSomeFile(filename, cb) {
       fs.readFile(filename, 'utf8', d.bind(function(er, data) {
@@ -350,7 +354,7 @@ thrown will be routed to the domain's `error` event.
       }));
     }
 
-    d.on('error', function(er) {
+    d.on('error', (er) => {
       // an error occurred somewhere.
       // if we throw it now, it will crash the program
       // with the normal line number and stack message.
@@ -361,16 +365,16 @@ thrown will be routed to the domain's `error` event.
 * `callback` {Function} The callback function
 * return: {Function} The intercepted function
 
-This method is almost identical to `domain.bind(callback)`.  However, in
-addition to catching thrown errors, it will also intercept `Error`
+This method is almost identical to [`domain.bind(callback)`][].  However, in
+addition to catching thrown errors, it will also intercept [`Error`][]
 objects sent as the first argument to the function.
 
-In this way, the common `if (er) return callback(er);` pattern can be replaced
+In this way, the common `if (err) return callback(err);` pattern can be replaced
 with a single error handler in a single place.
 
 #### Example
 
-    var d = domain.create();
+    const d = domain.create();
 
     function readSomeFile(filename, cb) {
       fs.readFile(filename, 'utf8', d.intercept(function(data) {
@@ -386,7 +390,7 @@ with a single error handler in a single place.
       }));
     }
 
-    d.on('error', function(er) {
+    d.on('error', (er) => {
       // an error occurred somewhere.
       // if we throw it now, it will crash the program
       // with the normal line number and stack message.
@@ -397,12 +401,12 @@ with a single error handler in a single place.
 The `enter` method is plumbing used by the `run`, `bind`, and `intercept`
 methods to set the active domain. It sets `domain.active` and `process.domain`
 to the domain, and implicitly pushes the domain onto the domain stack managed
-by the domain module (see `domain.exit()` for details on the domain stack). The
+by the domain module (see [`domain.exit()`][] for details on the domain stack). The
 call to `enter` delimits the beginning of a chain of asynchronous calls and I/O
 operations bound to a domain.
 
 Calling `enter` changes only the active domain, and does not alter the domain
-itself. `Enter` and `exit` can be called an arbitrary number of times on a
+itself. `enter` and `exit` can be called an arbitrary number of times on a
 single domain.
 
 If the domain on which `enter` is called has been disposed, `enter` will return
@@ -420,7 +424,7 @@ If there are multiple, nested domains bound to the current execution context,
 `exit` will exit any domains nested within this domain.
 
 Calling `exit` changes only the active domain, and does not alter the domain
-itself. `Enter` and `exit` can be called an arbitrary number of times on a
+itself. `enter` and `exit` can be called an arbitrary number of times on a
 single domain.
 
 If the domain on which `exit` is called has been disposed, `exit` will return
@@ -432,7 +436,15 @@ without exiting the domain.
     explicitly via error event handlers set on the domain.
 
 Once `dispose` has been called, the domain will no longer be used by callbacks
-bound into the domain via `run`, `bind`, or `intercept`, and a `dispose` event
+bound into the domain via `run`, `bind`, or `intercept`, and a `'dispose'` event
 is emitted.
 
-[EventEmitter]: events.html#events_class_events_eventemitter
+[`domain.add(emitter)`]: #domain_domain_add_emitter
+[`domain.bind(callback)`]: #domain_domain_bind_callback
+[`domain.dispose()`]: #domain_domain_dispose
+[`domain.exit()`]: #domain_domain_exit
+[`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`setInterval()`]: timers.html#timers_setinterval_callback_delay_arg
+[`setTimeout()`]: timers.html#timers_settimeout_callback_delay_arg
+[`throw`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw

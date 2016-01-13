@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 // This test verifies that:
@@ -13,7 +13,6 @@ var stream = require('stream');
 var hwm = 10;
 var r = stream.Readable({ highWaterMark: hwm });
 var chunks = 10;
-var t = (chunks * 5);
 
 var data = new Buffer(chunks * hwm + Math.ceil(hwm / 2));
 for (var i = 0; i < data.length; i++) {

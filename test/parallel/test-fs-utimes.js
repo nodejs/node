@@ -23,7 +23,7 @@ function check_mtime(resource, mtime) {
   var real_mtime = fs._toUnixTimestamp(stats.mtime);
   // check up to single-second precision
   // sub-second precision is OS and fs dependant
-  return Math.floor(mtime) == Math.floor(real_mtime);
+  return mtime - real_mtime < 2;
 }
 
 function expect_errno(syscall, resource, err, errno) {
@@ -48,7 +48,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
 // would be even better though (node doesn't have such functionality yet)
 function runTest(atime, mtime, callback) {
 
-  var fd, err;
+  var fd;
   //
   // test synchronized code paths, these functions throw on failure
   //

@@ -2,7 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
-var dns = require('dns');
 var ok = false;
 
 function check(addressType, cb) {

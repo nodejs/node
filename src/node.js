@@ -63,13 +63,14 @@
 
     } else if (process.argv[1] == 'debug') {
       // Start the debugger agent
-      var d = NativeModule.require('_debugger');
-      d.start();
+      NativeModule.require('_debugger').start();
 
     } else if (process.argv[1] == '--debug-agent') {
       // Start the debugger agent
-      var d = NativeModule.require('_debug_agent');
-      d.start();
+      NativeModule.require('_debug_agent').start();
+
+    } else if (process.profProcess) {
+      NativeModule.require('internal/v8_prof_processor');
 
     } else {
       // There is user code to be run
@@ -139,8 +140,6 @@
         }
 
       } else {
-        var Module = NativeModule.require('module');
-
         // If -i or --interactive were passed, or stdin is a TTY.
         if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
           // REPL
@@ -178,12 +177,35 @@
   }
 
   startup.setupProcessObject = function() {
-    process._setupProcessObject(setPropByIndex);
+    const _hrtime = process.hrtime;
+    const hrValues = new Uint32Array(3);
 
-    function setPropByIndex() {
+    process._setupProcessObject(pushValueToArray);
+
+    function pushValueToArray() {
       for (var i = 0; i < arguments.length; i++)
         this.push(arguments[i]);
     }
+
+    process.hrtime = function hrtime(ar) {
+      _hrtime(hrValues);
+
+      if (typeof ar !== 'undefined') {
+        if (Array.isArray(ar)) {
+          return [
+            (hrValues[0] * 0x100000000 + hrValues[1]) - ar[0],
+            hrValues[2] - ar[1]
+          ];
+        }
+
+        throw new TypeError('process.hrtime() only accepts an Array tuple');
+      }
+
+      return [
+        hrValues[0] * 0x100000000 + hrValues[1],
+        hrValues[2]
+      ];
+    };
   };
 
   startup.globalVariables = function() {
@@ -356,20 +378,20 @@
           // callback invocation with small numbers of arguments to avoid the
           // performance hit associated with using `fn.apply()`
           if (args === undefined) {
-            doNTCallback0(callback);
+            nextTickCallbackWith0Args(callback);
           } else {
             switch (args.length) {
               case 1:
-                doNTCallback1(callback, args[0]);
+                nextTickCallbackWith1Arg(callback, args[0]);
                 break;
               case 2:
-                doNTCallback2(callback, args[0], args[1]);
+                nextTickCallbackWith2Args(callback, args[0], args[1]);
                 break;
               case 3:
-                doNTCallback3(callback, args[0], args[1], args[2]);
+                nextTickCallbackWith3Args(callback, args[0], args[1], args[2]);
                 break;
               default:
-                doNTCallbackMany(callback, args);
+                nextTickCallbackWithManyArgs(callback, args);
             }
           }
           if (1e4 < tickInfo[kIndex])
@@ -397,20 +419,20 @@
           // callback invocation with small numbers of arguments to avoid the
           // performance hit associated with using `fn.apply()`
           if (args === undefined) {
-            doNTCallback0(callback);
+            nextTickCallbackWith0Args(callback);
           } else {
             switch (args.length) {
               case 1:
-                doNTCallback1(callback, args[0]);
+                nextTickCallbackWith1Arg(callback, args[0]);
                 break;
               case 2:
-                doNTCallback2(callback, args[0], args[1]);
+                nextTickCallbackWith2Args(callback, args[0], args[1]);
                 break;
               case 3:
-                doNTCallback3(callback, args[0], args[1], args[2]);
+                nextTickCallbackWith3Args(callback, args[0], args[1], args[2]);
                 break;
               default:
-                doNTCallbackMany(callback, args);
+                nextTickCallbackWithManyArgs(callback, args);
             }
           }
           if (1e4 < tickInfo[kIndex])
@@ -424,7 +446,7 @@
       } while (tickInfo[kLength] !== 0);
     }
 
-    function doNTCallback0(callback) {
+    function nextTickCallbackWith0Args(callback) {
       var threw = true;
       try {
         callback();
@@ -435,7 +457,7 @@
       }
     }
 
-    function doNTCallback1(callback, arg1) {
+    function nextTickCallbackWith1Arg(callback, arg1) {
       var threw = true;
       try {
         callback(arg1);
@@ -446,7 +468,7 @@
       }
     }
 
-    function doNTCallback2(callback, arg1, arg2) {
+    function nextTickCallbackWith2Args(callback, arg1, arg2) {
       var threw = true;
       try {
         callback(arg1, arg2);
@@ -457,7 +479,7 @@
       }
     }
 
-    function doNTCallback3(callback, arg1, arg2, arg3) {
+    function nextTickCallbackWith3Args(callback, arg1, arg2, arg3) {
       var threw = true;
       try {
         callback(arg1, arg2, arg3);
@@ -468,7 +490,7 @@
       }
     }
 
-    function doNTCallbackMany(callback, args) {
+    function nextTickCallbackWithManyArgs(callback, args) {
       var threw = true;
       try {
         callback.apply(null, args);
@@ -568,7 +590,7 @@
       // getcwd(3) can fail if the current working directory has been deleted.
       // Fall back to the directory name of the (absolute) executable path.
       // It's not really correct but what are the alternatives?
-      var cwd = path.dirname(process.execPath);
+      cwd = path.dirname(process.execPath);
     }
 
     var module = new Module(name);
@@ -955,7 +977,7 @@
   };
 
   NativeModule.wrapper = [
-    '(function (exports, require, module, __filename, __dirname) {\n',
+    '(function (exports, require, module, __filename, __dirname) { ',
     '\n});'
   ];
 
@@ -963,7 +985,10 @@
     var source = NativeModule.getSource(this.id);
     source = NativeModule.wrap(source);
 
-    var fn = runInThisContext(source, { filename: this.filename });
+    var fn = runInThisContext(source, {
+      filename: this.filename,
+      lineOffset: 0
+    });
     fn(this.exports, NativeModule.require, this, this.filename);
 
     this.loaded = true;

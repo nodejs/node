@@ -19,17 +19,13 @@ namespace internal {
 
 class AstTyper: public AstVisitor {
  public:
-  static void Run(CompilationInfo* info);
-
-  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
-  void operator delete(void* pointer, Zone* zone) { }
-  void operator delete(void* pointer) { }
+  AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
+           Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root);
+  void Run();
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  private:
-  explicit AstTyper(CompilationInfo* info);
-
   Effect ObservedOnStack(Object* value);
   void ObserveTypesAtOsrEntry(IterationStatement* stmt);
 
@@ -37,7 +33,10 @@ class AstTyper: public AstVisitor {
   typedef v8::internal::Effects<int, kNoVar> Effects;
   typedef v8::internal::NestedEffects<int, kNoVar> Store;
 
-  CompilationInfo* info_;
+  Handle<JSFunction> closure_;
+  Scope* scope_;
+  BailoutId osr_ast_id_;
+  FunctionLiteral* root_;
   TypeFeedbackOracle oracle_;
   Store store_;
 

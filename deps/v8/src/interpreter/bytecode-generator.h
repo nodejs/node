@@ -28,12 +28,20 @@ class BytecodeGenerator : public AstVisitor {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
   void VisitArithmeticExpression(BinaryOperation* binop);
+  void VisitPropertyLoad(Register obj, Property* expr);
+  void VisitVariableLoad(Variable* variable);
 
   inline BytecodeArrayBuilder& builder() { return builder_; }
   inline Scope* scope() const { return scope_; }
-  inline void set_scope(Scope* s) { scope_ = s; }
+  inline void set_scope(Scope* scope) { scope_ = scope; }
+  inline CompilationInfo* info() const { return info_; }
+  inline void set_info(CompilationInfo* info) { info_ = info; }
+
+  LanguageMode language_mode() const;
+  int feedback_index(FeedbackVectorICSlot slot) const;
 
   BytecodeArrayBuilder builder_;
+  CompilationInfo* info_;
   Scope* scope_;
 };
 

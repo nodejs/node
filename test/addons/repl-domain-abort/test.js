@@ -46,4 +46,4 @@ var options = {
 };
 
 // Run commands from fake REPL.
-var dummy = repl.start(options);
+repl.start(options);

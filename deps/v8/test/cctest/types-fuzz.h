@@ -39,7 +39,7 @@ template<class Type, class TypeHandle, class Region>
 class Types {
  public:
   Types(Region* region, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : region_(region), rng_(rng) {
+      : region_(region), isolate_(isolate), rng_(rng) {
     #define DECLARE_TYPE(name, value) \
       name = Type::name(region);      \
       types.push_back(name);
@@ -304,6 +304,20 @@ class Types {
         }
         return type;
       }
+      case 8: {  // simd
+        static const int num_simd_types =
+            #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) +1
+            SIMD128_TYPES(COUNT_SIMD_TYPE);
+            #undef COUNT_SIMD_TYPE
+        TypeHandle (*simd_constructors[num_simd_types])(Isolate*, Region*) = {
+          #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
+          &Type::Name,
+          SIMD128_TYPES(COUNT_SIMD_TYPE)
+          #undef COUNT_SIMD_TYPE
+        };
+        return simd_constructors[rng_->NextInt(num_simd_types)](
+            isolate_, region_);
+      }
       default: {  // union
         int n = rng_->NextInt(10);
         TypeHandle type = None;
@@ -321,6 +335,7 @@ class Types {
 
  private:
   Region* region_;
+  Isolate* isolate_;
   v8::base::RandomNumberGenerator* rng_;
 };
 

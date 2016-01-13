@@ -37,11 +37,14 @@ function tmp(p) {
   return path.join(common.tmpDir, p);
 }
 
-var fixturesAbsDir = common.fixturesDir;
+var targetsAbsDir = path.join(common.tmpDir, 'targets');
 var tmpAbsDir = common.tmpDir;
-assert(fixturesAbsDir !== tmpAbsDir);
 
-console.error('absolutes\n%s\n%s', fixturesAbsDir, tmpAbsDir);
+// Set up targetsAbsDir and expected subdirectories
+fs.mkdirSync(targetsAbsDir);
+fs.mkdirSync(path.join(targetsAbsDir, 'nested-index'));
+fs.mkdirSync(path.join(targetsAbsDir, 'nested-index', 'one'));
+fs.mkdirSync(path.join(targetsAbsDir, 'nested-index', 'two'));
 
 function asynctest(testBlock, args, callback, assertBlock) {
   async_expected++;
@@ -109,7 +112,7 @@ function test_simple_absolute_symlink(callback) {
   console.log('using type=%s', type);
 
   var entry = tmpAbsDir + '/symlink',
-      expected = fixturesAbsDir + '/nested-index/one';
+      expected = common.fixturesDir + '/nested-index/one';
   [
     [entry, expected]
   ].forEach(function(t) {
@@ -133,14 +136,15 @@ function test_deep_relative_file_symlink(callback) {
   }
 
   var expected = path.join(common.fixturesDir, 'cycles', 'root.js');
-  var linkData1 = '../../cycles/root.js';
-  var linkPath1 = path.join(common.fixturesDir,
+  var linkData1 = path.relative(path.join(targetsAbsDir, 'nested-index', 'one'),
+    expected);
+  var linkPath1 = path.join(targetsAbsDir,
                             'nested-index', 'one', 'symlink1.js');
   try {fs.unlinkSync(linkPath1);} catch (e) {}
   fs.symlinkSync(linkData1, linkPath1, 'file');
 
   var linkData2 = '../one/symlink1.js';
-  var entry = path.join(common.fixturesDir,
+  var entry = path.join(targetsAbsDir,
                         'nested-index', 'two', 'symlink1-b.js');
   try {fs.unlinkSync(entry);} catch (e) {}
   fs.symlinkSync(linkData2, entry, 'file');
@@ -160,14 +164,14 @@ function test_deep_relative_dir_symlink(callback) {
     return runNextTest();
   }
   var expected = path.join(common.fixturesDir, 'cycles', 'folder');
-  var linkData1b = '../../cycles/folder';
-  var linkPath1b = path.join(common.fixturesDir,
-                             'nested-index', 'one', 'symlink1-dir');
+  var path1b = path.join(targetsAbsDir, 'nested-index', 'one');
+  var linkPath1b = path.join(path1b, 'symlink1-dir');
+  var linkData1b = path.relative(path1b, expected);
   try {fs.unlinkSync(linkPath1b);} catch (e) {}
   fs.symlinkSync(linkData1b, linkPath1b, 'dir');
 
   var linkData2b = '../one/symlink1-dir';
-  var entry = path.join(common.fixturesDir,
+  var entry = path.join(targetsAbsDir,
                         'nested-index', 'two', 'symlink12-dir');
   try {fs.unlinkSync(entry);} catch (e) {}
   fs.symlinkSync(linkData2b, entry, 'dir');
@@ -232,11 +236,10 @@ function test_relative_input_cwd(callback) {
     return runNextTest();
   }
 
-  // we need to get the relative path to the tmp dir from cwd.
-  // When the test runner is running it, that will be .../node/test
-  // but it's more common to run `./node test/.../`, so detect it here.
+  // we need to calculate the relative path to the tmp dir from cwd
   var entrydir = process.cwd();
-  var entry = common.tmpDir.substr(entrydir.length + 1) + '/cycles/realpath-3a';
+  var entry = path.relative(entrydir,
+      path.join(common.tmpDir + '/cycles/realpath-3a'));
   var expected = common.tmpDir + '/cycles/root.js';
   [
     [entry, '../cycles/realpath-3b'],
@@ -273,15 +276,15 @@ function test_deep_symlink_mix(callback) {
   }
 
   /*
-  /tmp/node-test-realpath-f1 -> ../tmp/node-test-realpath-d1/foo
-  /tmp/node-test-realpath-d1 -> ../node-test-realpath-d2
-  /tmp/node-test-realpath-d2/foo -> ../node-test-realpath-f2
+  /tmp/node-test-realpath-f1 -> $tmpDir/node-test-realpath-d1/foo
+  /tmp/node-test-realpath-d1 -> $tmpDir/node-test-realpath-d2
+  /tmp/node-test-realpath-d2/foo -> $tmpDir/node-test-realpath-f2
   /tmp/node-test-realpath-f2
-    -> /node/test/fixtures/nested-index/one/realpath-c
-  /node/test/fixtures/nested-index/one/realpath-c
-    -> /node/test/fixtures/nested-index/two/realpath-c
-  /node/test/fixtures/nested-index/two/realpath-c -> ../../cycles/root.js
-  /node/test/fixtures/cycles/root.js (hard)
+    -> $tmpDir/targets/nested-index/one/realpath-c
+  $tmpDir/targets/nested-index/one/realpath-c
+    -> $tmpDir/targets/nested-index/two/realpath-c
+  $tmpDir/targets/nested-index/two/realpath-c -> $tmpDir/cycles/root.js
+  $tmpDir/targets/cycles/root.js (hard)
   */
   var entry = tmp('node-test-realpath-f1');
   try { fs.unlinkSync(tmp('node-test-realpath-d2/foo')); } catch (e) {}
@@ -289,16 +292,16 @@ function test_deep_symlink_mix(callback) {
   fs.mkdirSync(tmp('node-test-realpath-d2'), 0o700);
   try {
     [
-      [entry, '../' + common.tmpDirName + '/node-test-realpath-d1/foo'],
+      [entry, common.tmpDir + '/node-test-realpath-d1/foo'],
       [tmp('node-test-realpath-d1'),
-          '../' + common.tmpDirName + '/node-test-realpath-d2'],
+        common.tmpDir + '/node-test-realpath-d2'],
       [tmp('node-test-realpath-d2/foo'), '../node-test-realpath-f2'],
-      [tmp('node-test-realpath-f2'), fixturesAbsDir +
-           '/nested-index/one/realpath-c'],
-      [fixturesAbsDir + '/nested-index/one/realpath-c', fixturesAbsDir +
-            '/nested-index/two/realpath-c'],
-      [fixturesAbsDir + '/nested-index/two/realpath-c',
-        '../../../' + common.tmpDirName + '/cycles/root.js']
+      [tmp('node-test-realpath-f2'), targetsAbsDir +
+        '/nested-index/one/realpath-c'],
+      [targetsAbsDir + '/nested-index/one/realpath-c', targetsAbsDir +
+        '/nested-index/two/realpath-c'],
+      [targetsAbsDir + '/nested-index/two/realpath-c',
+        common.tmpDir + '/cycles/root.js']
     ].forEach(function(t) {
       try { fs.unlinkSync(t[0]); } catch (e) {}
       fs.symlinkSync(t[1], t[0]);

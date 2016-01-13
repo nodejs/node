@@ -90,6 +90,7 @@ void OPENSSL_config(const char *config_name)
     CONF_modules_load_file(NULL, config_name,
                                CONF_MFLAGS_DEFAULT_SECTION |
                                CONF_MFLAGS_IGNORE_MISSING_FILE);
+    openssl_configured = 1;
 }
 
 void OPENSSL_no_config()

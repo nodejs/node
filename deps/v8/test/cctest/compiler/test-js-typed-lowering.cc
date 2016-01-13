@@ -41,7 +41,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         typer(main_isolate(), &graph),
         context_node(NULL) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
-    graph.SetEnd(graph.NewNode(common.End(1)));
+    graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
     typer.Run();
   }
 
@@ -58,20 +58,17 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Parameter(Type* t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
-    NodeProperties::SetBounds(n, Bounds(Type::None(), t));
+    NodeProperties::SetType(n, t);
     return n;
   }
 
   Node* UndefinedConstant() {
-    Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
-        isolate->factory()->undefined_value());
-    return graph.NewNode(common.HeapConstant(unique));
+    Handle<HeapObject> value = isolate->factory()->undefined_value();
+    return graph.NewNode(common.HeapConstant(value));
   }
 
   Node* HeapConstant(Handle<HeapObject> constant) {
-    Unique<HeapObject> unique =
-        Unique<HeapObject>::CreateUninitialized(constant);
-    return graph.NewNode(common.HeapConstant(unique));
+    return graph.NewNode(common.HeapConstant(constant));
   }
 
   Node* EmptyFrameState(Node* context) {
@@ -82,7 +79,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     Node* state_node = graph.NewNode(
         common.FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
                           nullptr),
-        parameters, locals, stack, context, UndefinedConstant());
+        parameters, locals, stack, context, UndefinedConstant(), graph.start());
 
     return state_node;
   }
@@ -108,14 +105,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* control() { return start(); }
 
-  void CheckPureBinop(IrOpcode::Value expected, Node* node) {
+  void CheckBinop(IrOpcode::Value expected, Node* node) {
     CHECK_EQ(expected, node->opcode());
-    CHECK_EQ(2, node->InputCount());  // should not have context, effect, etc.
   }
 
-  void CheckPureBinop(const Operator* expected, Node* node) {
+  void CheckBinop(const Operator* expected, Node* node) {
     CHECK_EQ(expected->opcode(), node->op()->opcode());
-    CHECK_EQ(2, node->InputCount());  // should not have context, effect, etc.
   }
 
   Node* ReduceUnop(const Operator* op, Type* input_type) {
@@ -128,16 +123,23 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Binop(const Operator* op, Node* left, Node* right) {
     // JS binops also require context, effect, and control
-    if (OperatorProperties::GetFrameStateInputCount(op) == 1) {
-      return graph.NewNode(op, left, right, context(),
-                           EmptyFrameState(context()), start(), control());
-    } else if (OperatorProperties::GetFrameStateInputCount(op) == 2) {
-      return graph.NewNode(op, left, right, context(),
-                           EmptyFrameState(context()),
-                           EmptyFrameState(context()), start(), control());
-    } else {
-      return graph.NewNode(op, left, right, context(), start(), control());
+    std::vector<Node*> inputs;
+    inputs.push_back(left);
+    inputs.push_back(right);
+    if (OperatorProperties::HasContextInput(op)) {
+      inputs.push_back(context());
     }
+    for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op); i++) {
+      inputs.push_back(EmptyFrameState(context()));
+    }
+    if (op->EffectInputCount() > 0) {
+      inputs.push_back(start());
+    }
+    if (op->ControlInputCount() > 0) {
+      inputs.push_back(control());
+    }
+    return graph.NewNode(op, static_cast<int>(inputs.size()),
+                         &(inputs.front()));
   }
 
   Node* Unop(const Operator* op, Node* input) {
@@ -193,9 +195,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     CheckHandle(isolate->factory()->false_value(), result);
   }
 
-  void CheckHandle(Handle<Object> expected, Node* result) {
+  void CheckHandle(Handle<HeapObject> expected, Node* result) {
     CHECK_EQ(IrOpcode::kHeapConstant, result->opcode());
-    Handle<Object> value = OpParameter<Unique<Object> >(result).handle();
+    Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(result);
     CHECK_EQ(*expected, *value);
   }
 };
@@ -245,7 +247,7 @@ TEST_WITH_STRONG(StringBinops) {
       Node* add = R.Binop(R.javascript.Add(language_mode), p0, p1);
       Node* r = R.reduce(add);
 
-      R.CheckPureBinop(IrOpcode::kStringAdd, r);
+      R.CheckBinop(IrOpcode::kStringAdd, r);
       CHECK_EQ(p0, r->InputAt(0));
       CHECK_EQ(p1, r->InputAt(1));
     }
@@ -262,7 +264,7 @@ TEST_WITH_STRONG(AddNumber1) {
     Node* add = R.Binop(R.javascript.Add(language_mode), p0, p1);
     Node* r = R.reduce(add);
 
-    R.CheckPureBinop(IrOpcode::kNumberAdd, r);
+    R.CheckBinop(IrOpcode::kNumberAdd, r);
     CHECK_EQ(p0, r->InputAt(0));
     CHECK_EQ(p1, r->InputAt(1));
   }
@@ -289,7 +291,7 @@ TEST_WITH_STRONG(NumberBinops) {
         Node* add = R.Binop(ops[k], p0, p1);
         Node* r = R.reduce(add);
 
-        R.CheckPureBinop(ops[k + 1], r);
+        R.CheckBinop(ops[k + 1], r);
         CHECK_EQ(p0, r->InputAt(0));
         CHECK_EQ(p1, r->InputAt(1));
       }
@@ -299,8 +301,8 @@ TEST_WITH_STRONG(NumberBinops) {
 
 
 static void CheckToI32(Node* old_input, Node* new_input, bool is_signed) {
-  Type* old_type = NodeProperties::GetBounds(old_input).upper;
-  Type* new_type = NodeProperties::GetBounds(new_input).upper;
+  Type* old_type = NodeProperties::GetType(old_input);
+  Type* new_type = NodeProperties::GetType(new_input);
   Type* expected_type = I32Type(is_signed);
   CHECK(new_type->Is(expected_type));
   if (old_type->Is(expected_type)) {
@@ -359,7 +361,7 @@ TEST(Int32BitwiseShifts) {
         Node* add = R.Binop(R.ops[k], p0, p1);
         Node* r = R.reduce(add);
 
-        R.CheckPureBinop(R.ops[k + 1], r);
+        R.CheckBinop(R.ops[k + 1], r);
         Node* r0 = r->InputAt(0);
         Node* r1 = r->InputAt(1);
 
@@ -417,7 +419,7 @@ TEST(Int32BitwiseBinops) {
         Node* add = R.Binop(R.ops[k], p0, p1);
         Node* r = R.reduce(add);
 
-        R.CheckPureBinop(R.ops[k + 1], r);
+        R.CheckBinop(R.ops[k + 1], r);
 
         CheckToI32(p0, r->InputAt(0), R.signedness[k]);
         CheckToI32(p1, r->InputAt(1), R.signedness[k + 1]);
@@ -492,7 +494,7 @@ TEST(JSToNumberOfConstant) {
     // Note that either outcome below is correct. It only depends on whether
     // the types of constants are eagerly computed or only computed by the
     // typing pass.
-    if (NodeProperties::GetBounds(n).upper->Is(Type::Number())) {
+    if (NodeProperties::GetType(n)->Is(Type::Number())) {
       // If number constants are eagerly typed, then reduction should
       // remove the ToNumber.
       CHECK_EQ(n, r);
@@ -610,7 +612,7 @@ TEST_WITH_STRONG(StringComparison) {
         Node* cmp = R.Binop(ops[k], p0, p1);
         Node* r = R.reduce(cmp);
 
-        R.CheckPureBinop(ops[k + 1], r);
+        R.CheckBinop(ops[k + 1], r);
         if (k >= 4) {
           // GreaterThan and GreaterThanOrEqual commute the inputs
           // and use the LessThan and LessThanOrEqual operators.
@@ -627,9 +629,9 @@ TEST_WITH_STRONG(StringComparison) {
 
 
 static void CheckIsConvertedToNumber(Node* val, Node* converted) {
-  if (NodeProperties::GetBounds(val).upper->Is(Type::Number())) {
+  if (NodeProperties::GetType(val)->Is(Type::Number())) {
     CHECK_EQ(val, converted);
-  } else if (NodeProperties::GetBounds(val).upper->Is(Type::Boolean())) {
+  } else if (NodeProperties::GetType(val)->Is(Type::Boolean())) {
     CHECK_EQ(IrOpcode::kBooleanToNumber, converted->opcode());
     CHECK_EQ(val, converted->InputAt(0));
   } else {
@@ -658,7 +660,7 @@ TEST_WITH_STRONG(NumberComparison) {
     Node* cmp = R.Binop(ops[k], p0, p1);
     Node* r = R.reduce(cmp);
 
-    R.CheckPureBinop(ops[k + 1], r);
+    R.CheckBinop(ops[k + 1], r);
     if (k >= 4) {
       // GreaterThan and GreaterThanOrEqual commute the inputs
       // and use the LessThan and LessThanOrEqual operators.
@@ -688,13 +690,13 @@ TEST_WITH_STRONG(MixedComparison1) {
         Node* cmp = R.Binop(less_than, p0, p1);
         Node* r = R.reduce(cmp);
         if (types[i]->Is(Type::String()) && types[j]->Is(Type::String())) {
-          R.CheckPureBinop(R.simplified.StringLessThan(), r);
+          R.CheckBinop(R.simplified.StringLessThan(), r);
         } else if ((types[i]->Is(Type::Number()) &&
                     types[j]->Is(Type::Number())) ||
                    (!is_strong(language_mode) &&
                     (!types[i]->Maybe(Type::String()) ||
                      !types[j]->Maybe(Type::String())))) {
-          R.CheckPureBinop(R.simplified.NumberLessThan(), r);
+          R.CheckBinop(R.simplified.NumberLessThan(), r);
         } else {
           // No reduction of mixed types.
           CHECK_EQ(r->op(), less_than);
@@ -831,20 +833,21 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
     Node* p1 = j == 1 ? l : r;
 
     {
-      Node* eq = strict ? R->graph.NewNode(R->javascript.StrictEqual(), p0, p1)
-                        : R->Binop(R->javascript.Equal(), p0, p1);
+      const Operator* op =
+          strict ? R->javascript.StrictEqual() : R->javascript.Equal();
+      Node* eq = R->Binop(op, p0, p1);
       Node* r = R->reduce(eq);
-      R->CheckPureBinop(expected, r);
+      R->CheckBinop(expected, r);
     }
 
     {
-      Node* ne = strict
-                     ? R->graph.NewNode(R->javascript.StrictNotEqual(), p0, p1)
-                     : R->Binop(R->javascript.NotEqual(), p0, p1);
+      const Operator* op =
+          strict ? R->javascript.StrictNotEqual() : R->javascript.NotEqual();
+      Node* ne = R->Binop(op, p0, p1);
       Node* n = R->reduce(ne);
       CHECK_EQ(IrOpcode::kBooleanNot, n->opcode());
       Node* r = n->InputAt(0);
-      R->CheckPureBinop(expected, r);
+      R->CheckBinop(expected, r);
     }
   }
 }
@@ -915,7 +918,7 @@ TEST_WITH_STRONG(RemovePureNumberBinopEffects) {
     BinopEffectsTester B(ops[j], Type::Number(), Type::Number());
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
-    B.R.CheckPureBinop(B.result->opcode(), B.result);
+    B.R.CheckBinop(B.result->opcode(), B.result);
 
     B.CheckNoOp(0);
     B.CheckNoOp(1);
@@ -1055,7 +1058,7 @@ TEST(Int32BinopEffects) {
     BinopEffectsTester B(R.ops[j], I32Type(signed_left), I32Type(signed_right));
     CHECK_EQ(R.ops[j + 1]->opcode(), B.result->op()->opcode());
 
-    B.R.CheckPureBinop(B.result->opcode(), B.result);
+    B.R.CheckBinop(B.result->opcode(), B.result);
 
     B.CheckNoOp(0);
     B.CheckNoOp(1);
@@ -1068,7 +1071,7 @@ TEST(Int32BinopEffects) {
     BinopEffectsTester B(R.ops[j], Type::Number(), Type::Number());
     CHECK_EQ(R.ops[j + 1]->opcode(), B.result->op()->opcode());
 
-    B.R.CheckPureBinop(B.result->opcode(), B.result);
+    B.R.CheckBinop(B.result->opcode(), B.result);
 
     B.CheckConvertedInput(NumberToI32(signed_left), 0, false);
     B.CheckConvertedInput(NumberToI32(signed_right), 1, false);
@@ -1080,7 +1083,7 @@ TEST(Int32BinopEffects) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
     BinopEffectsTester B(R.ops[j], Type::Number(), Type::Primitive());
 
-    B.R.CheckPureBinop(B.result->opcode(), B.result);
+    B.R.CheckBinop(B.result->opcode(), B.result);
 
     Node* i0 = B.CheckConvertedInput(NumberToI32(signed_left), 0, false);
     Node* i1 = B.CheckConvertedInput(NumberToI32(signed_right), 1, false);
@@ -1097,7 +1100,7 @@ TEST(Int32BinopEffects) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
     BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Number());
 
-    B.R.CheckPureBinop(B.result->opcode(), B.result);
+    B.R.CheckBinop(B.result->opcode(), B.result);
 
     Node* i0 = B.CheckConvertedInput(NumberToI32(signed_left), 0, false);
     Node* i1 = B.CheckConvertedInput(NumberToI32(signed_right), 1, false);
@@ -1114,7 +1117,7 @@ TEST(Int32BinopEffects) {
     bool signed_left = R.signedness[j], signed_right = R.signedness[j + 1];
     BinopEffectsTester B(R.ops[j], Type::Primitive(), Type::Primitive());
 
-    B.R.CheckPureBinop(B.result->opcode(), B.result);
+    B.R.CheckBinop(B.result->opcode(), B.result);
 
     Node* i0 = B.CheckConvertedInput(NumberToI32(signed_left), 0, false);
     Node* i1 = B.CheckConvertedInput(NumberToI32(signed_right), 1, false);
@@ -1246,7 +1249,7 @@ TEST_WITH_STRONG(Int32Comparisons) {
         } else {
           expected = ops[o].num_op;
         }
-        R.CheckPureBinop(expected, r);
+        R.CheckBinop(expected, r);
         if (ops[o].commute) {
           CHECK_EQ(p1, r->InputAt(0));
           CHECK_EQ(p0, r->InputAt(1));

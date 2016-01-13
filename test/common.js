@@ -8,6 +8,8 @@ var child_process = require('child_process');
 const stream = require('stream');
 const util = require('util');
 
+const testRoot = path.resolve(process.env.NODE_TEST_DIR ||
+                              path.dirname(__filename));
 
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
@@ -21,6 +23,8 @@ exports.isLinuxPPCBE = (process.platform === 'linux') &&
                        (os.endianness() === 'BE');
 exports.isSunOS = process.platform === 'sunos';
 exports.isFreeBSD = process.platform === 'freebsd';
+
+exports.enoughTestMem = os.totalmem() > 0x20000000; /* 512MB */
 
 function rimrafSync(p) {
   try {
@@ -67,17 +71,27 @@ exports.refreshTmpDir = function() {
 };
 
 if (process.env.TEST_THREAD_ID) {
-  // Distribute ports in parallel tests
-  if (!process.env.NODE_COMMON_PORT)
-    exports.PORT += +process.env.TEST_THREAD_ID * 100;
-
+  exports.PORT += process.env.TEST_THREAD_ID * 100;
   exports.tmpDirName += '.' + process.env.TEST_THREAD_ID;
 }
-exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
+exports.tmpDir = path.join(testRoot, exports.tmpDirName);
 
 var opensslCli = null;
 var inFreeBSDJail = null;
 var localhostIPv4 = null;
+
+exports.localIPv6Hosts = [
+  // Debian/Ubuntu
+  'ip6-localhost',
+  'ip6-loopback',
+
+  // SUSE
+  'ipv6-localhost',
+  'ipv6-loopback',
+
+  // Typically universal
+  'localhost',
+];
 
 Object.defineProperty(exports, 'inFreeBSDJail', {
   get: function() {
@@ -153,19 +167,11 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
 
 if (exports.isWindows) {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
+  if (process.env.TEST_THREAD_ID) {
+    exports.PIPE += '.' + process.env.TEST_THREAD_ID;
+  }
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
-}
-
-if (process.env.NODE_COMMON_PIPE) {
-  exports.PIPE = process.env.NODE_COMMON_PIPE;
-  // Remove manually, the test runner won't do it
-  // for us like it does for files in test/tmp.
-  try {
-    fs.unlinkSync(exports.PIPE);
-  } catch (e) {
-    // Ignore.
-  }
 }
 
 if (exports.isWindows) {
@@ -240,13 +246,21 @@ exports.spawnPwd = function(options) {
 };
 
 exports.platformTimeout = function(ms) {
+  if (process.config.target_defaults.default_configuration === 'Debug')
+    ms = 2 * ms;
+
   if (process.arch !== 'arm')
     return ms;
 
-  if (process.config.variables.arm_version === '6')
+  const armv = process.config.variables.arm_version;
+
+  if (armv === '6')
     return 7 * ms;  // ARMv6
 
-  return 2 * ms;  // ARMv7 and up.
+  if (armv === '7')
+    return 2 * ms;  // ARMv7
+
+  return ms; // ARMv8+
 };
 
 var knownGlobals = [setTimeout,
@@ -469,3 +483,37 @@ ArrayStream.prototype.writable = true;
 ArrayStream.prototype.pause = function() {};
 ArrayStream.prototype.resume = function() {};
 ArrayStream.prototype.write = function() {};
+
+// Returns true if the exit code "exitCode" and/or signal name "signal"
+// represent the exit code and/or signal name of a node process that aborted,
+// false otherwise.
+exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
+  // Depending on the compiler used, node will exit with either
+  // exit code 132 (SIGILL), 133 (SIGTRAP) or 134 (SIGABRT).
+  var expectedExitCodes = [132, 133, 134];
+
+  // On platforms using KSH as the default shell (like SmartOS),
+  // when a process aborts, KSH exits with an exit code that is
+  // greater than 256, and thus the exit code emitted with the 'exit'
+  // event is null and the signal is set to either SIGILL, SIGTRAP,
+  // or SIGABRT (depending on the compiler).
+  const expectedSignals = ['SIGILL', 'SIGTRAP', 'SIGABRT'];
+
+  // On Windows, v8's base::OS::Abort triggers an access violation,
+  // which corresponds to exit code 3221225477 (0xC0000005)
+  if (process.platform === 'win32')
+    expectedExitCodes = [3221225477];
+
+  // When using --abort-on-uncaught-exception, V8 will use
+  // base::OS::Abort to terminate the process.
+  // Depending on the compiler used, the shell or other aspects of
+  // the platform used to build the node binary, this will actually
+  // make V8 exit by aborting or by raising a signal. In any case,
+  // one of them (exit code or signal) needs to be set to one of
+  // the expected exit codes or signals.
+  if (signal !== null) {
+    return expectedSignals.indexOf(signal) > -1;
+  } else {
+    return expectedExitCodes.indexOf(exitCode) > -1;
+  }
+};

@@ -10,6 +10,14 @@
 })();
 
 
+(function TestBasicsGetSet() {
+  var get = 1, set = 2;
+  var object = {get, set};
+  assertEquals(1, object.get);
+  assertEquals(2, object.set);
+})();
+
+
 (function TestDescriptor() {
   var x = 1;
   var object = {x};

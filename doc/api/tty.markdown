@@ -45,20 +45,20 @@ ever created (and only when `isatty(1)` is true).
 Emitted by `refreshSize()` when either of the `columns` or `rows` properties
 has changed.
 
-    process.stdout.on('resize', function() {
+    process.stdout.on('resize', () => {
       console.log('screen size has changed!');
-      console.log(process.stdout.columns + 'x' + process.stdout.rows);
+      console.log(`${process.stdout.columns}x${process.stdout.rows}`);
     });
 
 ### ws.columns
 
 A `Number` that gives the number of columns the TTY currently has. This property
-gets updated on "resize" events.
+gets updated on `'resize'` events.
 
 ### ws.rows
 
 A `Number` that gives the number of rows the TTY currently has. This property
-gets updated on "resize" events.
+gets updated on `'resize'` events.
 
 ## tty.isatty(fd)
 

@@ -36,6 +36,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
     port: common.PORT,
     host: '127.0.0.1',
     headers: {
+      'connection': 'upgrade',
       'upgrade': 'websocket'
     }
   };
@@ -45,9 +46,14 @@ srv.listen(common.PORT, '127.0.0.1', function() {
   req.end();
 
   req.on('upgrade', function(res, socket, upgradeHead) {
-    // XXX: This test isn't fantastic, as it assumes that the entire response
-    //      from the server will arrive in a single data callback
-    assert.equal(upgradeHead, 'nurtzo');
+    var recvData = upgradeHead;
+    socket.on('data', function(d) {
+      recvData += d;
+    });
+
+    socket.on('close', common.mustCall(function() {
+      assert.equal(recvData, 'nurtzo');
+    }));
 
     console.log(res.headers);
     var expectedHeaders = { 'hello': 'world',

@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const repl = require('repl');
-const util = require('util');
 let found = false;
 
 process.on('exit', () => {
@@ -17,7 +16,7 @@ common.ArrayStream.prototype.write = function(output) {
 };
 
 const putIn = new common.ArrayStream();
-const testMe = repl.start('', putIn);
+repl.start('', putIn);
 let file = path.resolve(__dirname, '../fixtures/syntax/bad_syntax');
 
 if (common.isWindows)

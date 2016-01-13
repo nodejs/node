@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var Readable = require('_stream_readable');
 var Writable = require('_stream_writable');
 var assert = require('assert');
@@ -166,8 +166,6 @@ test('read(0) for object streams', function(t) {
 
   r.push('foobar');
   r.push(null);
-
-  var v = r.read(0);
 
   r.pipe(toArray(function(array) {
     assert.deepEqual(array, ['foobar']);

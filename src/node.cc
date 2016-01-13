@@ -68,9 +68,8 @@
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
-#include <process.h>
 #define strcasecmp _stricmp
-#define getpid _getpid
+#define getpid GetCurrentProcessId
 #define umask _umask
 typedef int mode_t;
 #else
@@ -145,6 +144,7 @@ static const char** preload_modules = nullptr;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
+static bool prof_process = false;
 static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
 static node_module* modpending;
@@ -951,17 +951,50 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
   return malloc(size);
 }
 
+static bool DomainHasErrorHandler(const Environment* env,
+                                  const Local<Object>& domain) {
+  HandleScope scope(env->isolate());
 
-static bool IsDomainActive(const Environment* env) {
+  Local<Value> domain_event_listeners_v = domain->Get(env->events_string());
+  if (!domain_event_listeners_v->IsObject())
+    return false;
+
+  Local<Object> domain_event_listeners_o =
+      domain_event_listeners_v.As<Object>();
+
+  Local<Value> domain_error_listeners_v =
+      domain_event_listeners_o->Get(env->error_string());
+
+  if (domain_error_listeners_v->IsFunction() ||
+      (domain_error_listeners_v->IsArray() &&
+      domain_error_listeners_v.As<Array>()->Length() > 0))
+    return true;
+
+  return false;
+}
+
+static bool DomainsStackHasErrorHandler(const Environment* env) {
+  HandleScope scope(env->isolate());
+
   if (!env->using_domains())
     return false;
 
-  Local<Array> domain_array = env->domain_array().As<Array>();
-  if (domain_array->Length() == 0)
+  Local<Array> domains_stack_array = env->domains_stack_array().As<Array>();
+  if (domains_stack_array->Length() == 0)
     return false;
 
-  Local<Value> domain_v = domain_array->Get(0);
-  return !domain_v->IsNull();
+  uint32_t domains_stack_length = domains_stack_array->Length();
+  for (uint32_t i = domains_stack_length; i > 0; --i) {
+    Local<Value> domain_v = domains_stack_array->Get(i - 1);
+    if (!domain_v->IsObject())
+      return false;
+
+    Local<Object> domain = domain_v.As<Object>();
+    if (DomainHasErrorHandler(env, domain))
+      return true;
+  }
+
+  return false;
 }
 
 
@@ -975,7 +1008,7 @@ static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   bool isEmittingTopLevelDomainError =
       process_object->Get(emitting_top_level_domain_error_key)->BooleanValue();
 
-  return !IsDomainActive(env) || isEmittingTopLevelDomainError;
+  return isEmittingTopLevelDomainError || !DomainsStackHasErrorHandler(env);
 }
 
 
@@ -1004,6 +1037,9 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArray());
   env->set_domain_array(args[0].As<Array>());
 
+  CHECK(args[1]->IsArray());
+  env->set_domains_stack_array(args[1].As<Array>());
+
   // Do a little housekeeping.
   env->process_object()->Delete(
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse"));
@@ -1027,7 +1063,7 @@ void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsFunction());
 
-  env->set_add_properties_by_index_function(args[0].As<Function>());
+  env->set_push_values_to_array_function(args[0].As<Function>());
   env->process_object()->Delete(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject"));
 }
@@ -1363,6 +1399,15 @@ ssize_t DecodeWrite(Isolate* isolate,
   return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
 }
 
+bool IsExceptionDecorated(Environment* env, Local<Value> er) {
+  if (!er.IsEmpty() && er->IsObject()) {
+    Local<Object> err_obj = er.As<Object>();
+    Local<Value> decorated = err_obj->GetHiddenValue(env->decorated_string());
+    return !decorated.IsEmpty() && decorated->IsTrue();
+  }
+  return false;
+}
+
 void AppendExceptionLine(Environment* env,
                          Local<Value> er,
                          Local<Message> message) {
@@ -1446,8 +1491,6 @@ void AppendExceptionLine(Environment* env,
   arrow[off + 1] = '\0';
 
   Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
-  Local<Value> msg;
-  Local<Value> stack;
 
   // Allocation failed, just print it out
   if (arrow_str.IsEmpty() || err_obj.IsEmpty() || !err_obj->IsNativeError())
@@ -1474,6 +1517,7 @@ static void ReportException(Environment* env,
 
   Local<Value> trace_value;
   Local<Value> arrow;
+  const bool decorated = IsExceptionDecorated(env, er);
 
   if (er->IsUndefined() || er->IsNull()) {
     trace_value = Undefined(env->isolate());
@@ -1488,7 +1532,7 @@ static void ReportException(Environment* env,
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
-    if (arrow.IsEmpty() || !arrow->IsString()) {
+    if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
       PrintErrorString("%s\n", *trace);
     } else {
       node::Utf8Value arrow_string(env->isolate(), arrow);
@@ -1512,13 +1556,15 @@ static void ReportException(Environment* env,
         name.IsEmpty() ||
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
-      node::Utf8Value message(env->isolate(), er);
-      PrintErrorString("%s\n", *message);
+      String::Utf8Value message(er);
+
+      PrintErrorString("%s\n", *message ? *message :
+                                          "<toString() threw exception>");
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
 
-      if (arrow.IsEmpty() || !arrow->IsString()) {
+      if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
         PrintErrorString("%s: %s\n", *name_string, *message_string);
       } else {
         node::Utf8Value arrow_string(env->isolate(), arrow);
@@ -1571,28 +1617,22 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> ary = Array::New(args.GetIsolate());
   Local<Context> ctx = env->context();
-  Local<Function> fn = env->add_properties_by_index_function();
-  static const size_t argc = 8;
-  Local<Value> argv[argc];
-  size_t i = 0;
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
 
   for (auto w : *env->req_wrap_queue()) {
-    if (w->persistent().IsEmpty() == false) {
-      argv[i++ % argc] = w->object();
-      if ((i % argc) == 0) {
-        HandleScope scope(env->isolate());
-        fn->Call(ctx, ary, argc, argv).ToLocalChecked();
-        for (auto&& arg : argv) {
-          arg = Local<Value>();
-        }
-      }
+    if (w->persistent().IsEmpty())
+      continue;
+    argv[idx] = w->object();
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+      idx = 0;
     }
   }
 
-  const size_t remainder = i % argc;
-  if (remainder > 0) {
-    HandleScope scope(env->isolate());
-    fn->Call(ctx, ary, remainder, argv).ToLocalChecked();
+  if (idx > 0) {
+    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
   }
 
   args.GetReturnValue().Set(ary);
@@ -1605,7 +1645,10 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> ary = Array::New(env->isolate());
-  int i = 0;
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
 
   Local<String> owner_sym = env->owner_string();
 
@@ -1616,7 +1659,14 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
     Local<Value> owner = object->Get(owner_sym);
     if (owner->IsUndefined())
       owner = object;
-    ary->Set(i++, owner);
+    argv[idx] = owner;
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, ary, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
+  }
+  if (idx > 0) {
+    fn->Call(ctx, ary, idx, argv).ToLocalChecked();
   }
 
   args.GetReturnValue().Set(ary);
@@ -2088,26 +2138,17 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
 // and nanoseconds, to avoid any integer overflow possibility.
 // Pass in an Array from a previous hrtime() call to instead get a time diff.
 void Hrtime(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   uint64_t t = uv_hrtime();
 
-  if (args.Length() > 0) {
-    // return a time diff tuple
-    if (!args[0]->IsArray()) {
-      return env->ThrowTypeError(
-          "process.hrtime() only accepts an Array tuple.");
-    }
-    Local<Array> inArray = Local<Array>::Cast(args[0]);
-    uint64_t seconds = inArray->Get(0)->Uint32Value();
-    uint64_t nanos = inArray->Get(1)->Uint32Value();
-    t -= (seconds * NANOS_PER_SEC) + nanos;
-  }
+  Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
+  uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
 
-  Local<Array> tuple = Array::New(env->isolate(), 2);
-  tuple->Set(0, Integer::NewFromUnsigned(env->isolate(), t / NANOS_PER_SEC));
-  tuple->Set(1, Integer::NewFromUnsigned(env->isolate(), t % NANOS_PER_SEC));
-  args.GetReturnValue().Set(tuple);
+  // These three indices will contain the values for the hrtime tuple. The
+  // seconds value is broken into the upper/lower 32 bits and stored in two
+  // uint32 fields to be converted back in JS.
+  fields[0] = (t / NANOS_PER_SEC) >> 32;
+  fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
+  fields[2] = t % NANOS_PER_SEC;
 }
 
 extern "C" void node_module_register(void* m) {
@@ -2519,23 +2560,35 @@ static void EnvDeleter(Local<String> property,
 
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
-  Isolate* isolate = info.GetIsolate();
+  Environment* env = Environment::GetCurrent(info);
+  Isolate* isolate = env->isolate();
+  Local<Context> ctx = env->context();
+  Local<Function> fn = env->push_values_to_array_function();
+  Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  size_t idx = 0;
+
 #ifdef __POSIX__
   int size = 0;
   while (environ[size])
     size++;
 
-  Local<Array> envarr = Array::New(isolate, size);
+  Local<Array> envarr = Array::New(isolate);
 
   for (int i = 0; i < size; ++i) {
     const char* var = environ[i];
     const char* s = strchr(var, '=');
     const int length = s ? s - var : strlen(var);
-    Local<String> name = String::NewFromUtf8(isolate,
-                                             var,
-                                             String::kNormalString,
-                                             length);
-    envarr->Set(i, name);
+    argv[idx] = String::NewFromUtf8(isolate,
+                                    var,
+                                    String::kNormalString,
+                                    length);
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
+  }
+  if (idx > 0) {
+    fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
   }
 #else  // _WIN32
   WCHAR* environment = GetEnvironmentStringsW();
@@ -2543,7 +2596,6 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     return;  // This should not happen.
   Local<Array> envarr = Array::New(isolate);
   WCHAR* p = environment;
-  int i = 0;
   while (*p) {
     WCHAR *s;
     if (*p == L'=') {
@@ -2558,12 +2610,18 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     }
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
     const size_t two_byte_buffer_len = s - p;
-    Local<String> value = String::NewFromTwoByte(isolate,
-                                                 two_byte_buffer,
-                                                 String::kNormalString,
-                                                 two_byte_buffer_len);
-    envarr->Set(i++, value);
+    argv[idx] = String::NewFromTwoByte(isolate,
+                                       two_byte_buffer,
+                                       String::kNormalString,
+                                       two_byte_buffer_len);
+    if (++idx >= ARRAY_SIZE(argv)) {
+      fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
+      idx = 0;
+    }
     p = s + wcslen(s) + 1;
+  }
+  if (idx > 0) {
+    fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
   }
   FreeEnvironmentStringsW(environment);
 #endif
@@ -2957,6 +3015,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
   }
 
+  // --prof-process
+  if (prof_process) {
+    READONLY_PROPERTY(process, "profProcess", True(env->isolate()));
+  }
+
   // --trace-deprecation
   if (trace_deprecation) {
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
@@ -3194,6 +3257,8 @@ static void PrintHelp() {
          "                        is detected after the first tick\n"
          "  --track-heap-objects  track heap object allocations for heap "
          "snapshots\n"
+         "  --prof-process        process v8 profiler output generated\n"
+         "                        using --prof\n"
          "  --v8-options          print v8 command line options\n"
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
@@ -3265,7 +3330,8 @@ static void ParseArgs(int* argc,
   new_argv[0] = argv[0];
 
   unsigned int index = 1;
-  while (index < nargs && argv[index][0] == '-') {
+  bool short_circuit = false;
+  while (index < nargs && argv[index][0] == '-' && !short_circuit) {
     const char* const arg = argv[index];
     unsigned int args_consumed = 1;
 
@@ -3326,6 +3392,9 @@ static void ParseArgs(int* argc,
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
+    } else if (strcmp(arg, "--prof-process") == 0) {
+      prof_process = true;
+      short_circuit = true;
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;

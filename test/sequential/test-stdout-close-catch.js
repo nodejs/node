@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 var child_process = require('child_process');
-var fs = require('fs');
 
 var testScript = path.join(common.fixturesDir, 'catch-stdout-error.js');
 

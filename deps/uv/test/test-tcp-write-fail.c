@@ -43,7 +43,7 @@ static void close_socket(uv_tcp_t* sock) {
   r = uv_fileno((uv_handle_t*)sock, &fd);
   ASSERT(r == 0);
 #ifdef _WIN32
-  r = closesocket(fd);
+  r = closesocket((uv_os_sock_t)fd);
 #else
   r = close(fd);
 #endif

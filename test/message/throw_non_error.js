@@ -1,6 +1,5 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+require('../common');
 
 // custom error throwing
 throw ({ foo: 'bar' });

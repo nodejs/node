@@ -1,7 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
+require('../common');
+const assert = require('assert');
+const util = require('util');
+const vm = require('vm');
 
 assert.equal(util.inspect(1), '1');
 assert.equal(util.inspect(false), 'false');
@@ -12,7 +13,7 @@ assert.equal(util.inspect(undefined), 'undefined');
 assert.equal(util.inspect(null), 'null');
 assert.equal(util.inspect(/foo(bar\n)?/gi), '/foo(bar\\n)?/gi');
 assert.equal(util.inspect(new Date('Sun, 14 Feb 2010 11:48:40 GMT')),
-  new Date('2010-02-14T12:48:40+01:00').toString());
+  new Date('2010-02-14T12:48:40+01:00').toISOString());
 
 assert.equal(util.inspect('\n\u0001'), "'\\n\\u0001'");
 
@@ -68,6 +69,35 @@ for (const showHidden of [true, false]) {
                '  y: 1337 }');
 }
 
+// Now do the same checks but from a different context
+for (const showHidden of [true, false]) {
+  const ab = vm.runInNewContext('new ArrayBuffer(4)');
+  const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab: ab });
+  assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
+  assert.equal(util.inspect(new DataView(ab, 1, 2), showHidden),
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
+               '  buffer: ArrayBuffer { byteLength: 4 } }');
+  assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
+  assert.equal(util.inspect(dv, showHidden),
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
+               '  buffer: ArrayBuffer { byteLength: 4 } }');
+  ab.x = 42;
+  dv.y = 1337;
+  assert.equal(util.inspect(ab, showHidden),
+               'ArrayBuffer { byteLength: 4, x: 42 }');
+  assert.equal(util.inspect(dv, showHidden),
+               'DataView {\n' +
+               '  byteLength: 2,\n' +
+               '  byteOffset: 1,\n' +
+               '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
+               '  y: 1337 }');
+}
+
+
 [ Float32Array,
   Float64Array,
   Int16Array,
@@ -80,6 +110,38 @@ for (const showHidden of [true, false]) {
     const length = 2;
     const byteLength = length * constructor.BYTES_PER_ELEMENT;
     const array = new constructor(new ArrayBuffer(byteLength), 0, length);
+    array[0] = 65;
+    array[1] = 97;
+    assert.equal(util.inspect(array, true),
+                 `${constructor.name} [\n` +
+                 `  65,\n` +
+                 `  97,\n` +
+                 `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
+                 `  [length]: ${length},\n` +
+                 `  [byteLength]: ${byteLength},\n` +
+                 `  [byteOffset]: 0,\n` +
+                 `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
+    assert.equal(util.inspect(array, false), `${constructor.name} [ 65, 97 ]`);
+  });
+
+// Now check that declaring a TypedArray in a different context works the same
+[ Float32Array,
+  Float64Array,
+  Int16Array,
+  Int32Array,
+  Int8Array,
+  Uint16Array,
+  Uint32Array,
+  Uint8Array,
+  Uint8ClampedArray ].forEach(constructor => {
+    const length = 2;
+    const byteLength = length * constructor.BYTES_PER_ELEMENT;
+    const array = vm.runInNewContext('new constructor(new ArrayBuffer(' +
+                                     'byteLength), 0, length)',
+                                     { constructor: constructor,
+                                       byteLength: byteLength,
+                                       length: length
+                                     });
     array[0] = 65;
     array[1] = 97;
     assert.equal(util.inspect(array, true),
@@ -158,7 +220,7 @@ assert.equal(util.inspect(value), '{ /123/gi aprop: 42 }');
 // Dates with properties
 value = new Date('Sun, 14 Feb 2010 11:48:40 GMT');
 value.aprop = 42;
-assert.equal(util.inspect(value), '{ Sun, 14 Feb 2010 11:48:40 GMT aprop: 42 }'
+assert.equal(util.inspect(value), '{ 2010-02-14T11:48:40.000Z aprop: 42 }'
 );
 
 // test the internal isDate implementation
@@ -226,19 +288,33 @@ assert.equal(util.inspect(setter, true), '{ [b]: [Setter] }');
 assert.equal(util.inspect(getterAndSetter, true), '{ [c]: [Getter/Setter] }');
 
 // exceptions should print the error message, not '{}'
-assert.equal(util.inspect(new Error()), '[Error]');
-assert.equal(util.inspect(new Error('FAIL')), '[Error: FAIL]');
-assert.equal(util.inspect(new TypeError('FAIL')), '[TypeError: FAIL]');
-assert.equal(util.inspect(new SyntaxError('FAIL')), '[SyntaxError: FAIL]');
+const errors = [];
+errors.push(new Error());
+errors.push(new Error('FAIL'));
+errors.push(new TypeError('FAIL'));
+errors.push(new SyntaxError('FAIL'));
+errors.forEach(function(err) {
+  assert.equal(util.inspect(err), err.stack);
+});
 try {
   undef();
 } catch (e) {
-  assert.equal(util.inspect(e), '[ReferenceError: undef is not defined]');
+  assert.equal(util.inspect(e), e.stack);
 }
 var ex = util.inspect(new Error('FAIL'), true);
-assert.ok(ex.indexOf('[Error: FAIL]') != -1);
+assert.ok(ex.indexOf('Error: FAIL') != -1);
 assert.ok(ex.indexOf('[stack]') != -1);
 assert.ok(ex.indexOf('[message]') != -1);
+// Doesn't capture stack trace
+function BadCustomError(msg) {
+  Error.call(this);
+  Object.defineProperty(this, 'message',
+                        { value: msg, enumerable: false });
+  Object.defineProperty(this, 'name',
+                        { value: 'BadCustomError', enumerable: false });
+}
+util.inherits(BadCustomError, Error);
+assert.equal(util.inspect(new BadCustomError('foo')), '[BadCustomError: foo]');
 
 // GH-1941
 // should not throw:
@@ -248,6 +324,12 @@ assert.equal(util.inspect(Object.create(Date.prototype)), 'Date {}');
 assert.doesNotThrow(function() {
   var d = new Date();
   d.toUTCString = null;
+  util.inspect(d);
+});
+
+assert.doesNotThrow(function() {
+  var d = new Date();
+  d.toISOString = null;
   util.inspect(d);
 });
 

@@ -3,35 +3,35 @@
 <!-- type=global -->
 
 The `process` object is a global object and can be accessed from anywhere.
-It is an instance of [EventEmitter][].
+It is an instance of [`EventEmitter`][].
 
 ## Event: 'beforeExit'
 
 This event is emitted when Node.js empties its event loop and has nothing else to
 schedule. Normally, Node.js exits when there is no work scheduled, but a listener
-for 'beforeExit' can make asynchronous calls, and cause Node.js to continue.
+for `'beforeExit'` can make asynchronous calls, and cause Node.js to continue.
 
-'beforeExit' is not emitted for conditions causing explicit termination, such as
-`process.exit()` or uncaught exceptions, and should not be used as an
-alternative to the 'exit' event unless the intention is to schedule more work.
+`'beforeExit'` is not emitted for conditions causing explicit termination, such as
+[`process.exit()`][] or uncaught exceptions, and should not be used as an
+alternative to the `'exit'` event unless the intention is to schedule more work.
 
 ## Event: 'exit'
 
 Emitted when the process is about to exit. There is no way to prevent the
-exiting of the event loop at this point, and once all `exit` listeners have
+exiting of the event loop at this point, and once all `'exit'` listeners have
 finished running the process will exit. Therefore you **must** only perform
 **synchronous** operations in this handler. This is a good hook to perform
 checks on the module's state (like for unit tests). The callback takes one
 argument, the code the process is exiting with.
 
-This event is only emitted when node exits explicitly by process.exit() or
+This event is only emitted when Node.js exits explicitly by process.exit() or
 implicitly by the event loop draining.
 
-Example of listening for `exit`:
+Example of listening for `'exit'`:
 
-    process.on('exit', function(code) {
+    process.on('exit', (code) => {
       // do *NOT* do this
-      setTimeout(function() {
+      setTimeout(() => {
         console.log('This will not run');
       }, 0);
       console.log('About to exit with code:', code);
@@ -40,10 +40,10 @@ Example of listening for `exit`:
 ## Event: 'message'
 
 * `message` {Object} a parsed JSON object or primitive value
-* `sendHandle` {Handle object} a [net.Socket][] or [net.Server][] object, or
+* `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
-Messages sent by [ChildProcess.send()][] are obtained using the `'message'`
+Messages sent by [`ChildProcess.send()`][] are obtained using the `'message'`
 event on the child's process object.
 
 ## Event: 'rejectionHandled'
@@ -63,19 +63,19 @@ event loop turn it takes for the `'unhandledRejection'` event to be emitted.
 Another way of stating this is that, unlike in synchronous code where there is
 an ever-growing list of unhandled exceptions, with promises there is a
 growing-and-shrinking list of unhandled rejections. In synchronous code, the
-'uncaughtException' event tells you when the list of unhandled exceptions
+`'uncaughtException'` event tells you when the list of unhandled exceptions
 grows. And in asynchronous code, the `'unhandledRejection'` event tells you
-when the list of unhandled rejections grows, while the 'rejectionHandled'
+when the list of unhandled rejections grows, while the `'rejectionHandled'`
 event tells you when the list of unhandled rejections shrinks.
 
 For example using the rejection detection hooks in order to keep a map of all
 the rejected promise reasons at a given time:
 
-    var unhandledRejections = new Map();
-    process.on('unhandledRejection', function(reason, p) {
+    const unhandledRejections = new Map();
+    process.on('unhandledRejection', (reason, p) => {
       unhandledRejections.set(p, reason);
     });
-    process.on('rejectionHandled', function(p) {
+    process.on('rejectionHandled', (p) => {
       unhandledRejections.delete(p);
     });
 
@@ -91,13 +91,13 @@ Emitted when an exception bubbles all the way back to the event loop. If a
 listener is added for this exception, the default action (which is to print
 a stack trace and exit) will not occur.
 
-Example of listening for `uncaughtException`:
+Example of listening for `'uncaughtException'`:
 
-    process.on('uncaughtException', function(err) {
-      console.log('Caught exception: ' + err);
+    process.on('uncaughtException', (err) => {
+      console.log(`Caught exception: ${err}`);
     });
 
-    setTimeout(function() {
+    setTimeout(() => {
       console.log('This will still run.');
     }, 500);
 
@@ -105,7 +105,7 @@ Example of listening for `uncaughtException`:
     nonexistentFunc();
     console.log('This will not run.');
 
-Note that `uncaughtException` is a very crude mechanism for exception
+Note that `'uncaughtException'` is a very crude mechanism for exception
 handling.
 
 Do *not* use it as the Node.js equivalent of `On Error Resume Next`. An
@@ -115,9 +115,9 @@ is in an undefined state. Blindly resuming means *anything* could happen.
 Think of resuming as pulling the power cord when you are upgrading your system.
 Nine out of ten times nothing happens - but the 10th time, your system is bust.
 
-`uncaughtException` should be used to perform synchronous cleanup before
+`'uncaughtException'` should be used to perform synchronous cleanup before
 shutting down the process. It is not safe to resume normal operation after
-`uncaughtException`. If you do use it, restart your application after every
+`'uncaughtException'`. If you do use it, restart your application after every
 unhandled exception!
 
 You have been warned.
@@ -127,18 +127,18 @@ You have been warned.
 Emitted whenever a `Promise` is rejected and no error handler is attached to
 the promise within a turn of the event loop. When programming with promises
 exceptions are encapsulated as rejected promises. Such promises can be caught
-and handled using `promise.catch(...)` and rejections are propagated through
+and handled using [`promise.catch(...)`][] and rejections are propagated through
 a promise chain. This event is useful for detecting and keeping track of
 promises that were rejected whose rejections were not handled yet. This event
 is emitted with the following arguments:
 
- - `reason` the object with which the promise was rejected (usually an `Error`
+ - `reason` the object with which the promise was rejected (usually an [`Error`][]
 instance).
  - `p` the promise that was rejected.
 
 Here is an example that logs every unhandled rejection to the console
 
-    process.on('unhandledRejection', function(reason, p) {
+    process.on('unhandledRejection', (reason, p) => {
         console.log("Unhandled Rejection at: Promise ", p, " reason: ", reason);
         // application specific logging, throwing an error, or other logic here
     });
@@ -146,8 +146,8 @@ Here is an example that logs every unhandled rejection to the console
 For example, here is a rejection that will trigger the `'unhandledRejection'`
 event:
 
-    somePromise.then(function(res) {
-      return reportToUser(JSON.pasre(res)); // note the typo
+    somePromise.then((res) => {
+      return reportToUser(JSON.parse(res)); // note the typo
     }); // no `.catch` or `.then`
 
 Here is an example of a coding pattern that will also trigger
@@ -165,8 +165,7 @@ In cases like this, you may not want to track the rejection as a developer
 error like you would for other `'unhandledRejection'` events. To address
 this, you can either attach a dummy `.catch(function() { })` handler to
 `resource.loaded`, preventing the `'unhandledRejection'` event from being
-emitted, or you can use the `'rejectionHandled'` event. Below is an
-explanation of how to do that.
+emitted, or you can use the [`'rejectionHandled'`][] event.
 
 ## Exit Codes
 
@@ -175,7 +174,7 @@ operations are pending.  The following status codes are used in other
 cases:
 
 * `1` **Uncaught Fatal Exception** - There was an uncaught exception,
-  and it was not handled by a domain or an `uncaughtException` event
+  and it was not handled by a domain or an `'uncaughtException'` event
   handler.
 * `2` - Unused (reserved by Bash for builtin misuse)
 * `3` **Internal JavaScript Parse Error** - The JavaScript source code
@@ -219,14 +218,14 @@ cases:
 <!--name=SIGINT, SIGHUP, etc.-->
 
 Emitted when the processes receives a signal. See sigaction(2) for a list of
-standard POSIX signal names such as SIGINT, SIGHUP, etc.
+standard POSIX signal names such as `SIGINT`, `SIGHUP`, etc.
 
 Example of listening for `SIGINT`:
 
     // Start reading from stdin so we don't exit.
     process.stdin.resume();
 
-    process.on('SIGINT', function() {
+    process.on('SIGINT', () => {
       console.log('Got SIGINT.  Press Control-D to exit.');
     });
 
@@ -285,8 +284,8 @@ An array containing the command line arguments.  The first element will be
 next elements will be any additional command line arguments.
 
     // print process.argv
-    process.argv.forEach(function(val, index, array) {
-      console.log(index + ': ' + val);
+    process.argv.forEach((val, index, array) => {
+      console.log(`${index}: ${val}`);
     });
 
 This will generate:
@@ -302,20 +301,20 @@ This will generate:
 
 Changes the current working directory of the process or throws an exception if that fails.
 
-    console.log('Starting directory: ' + process.cwd());
+    console.log(`Starting directory: ${process.cwd()}`);
     try {
       process.chdir('/tmp');
-      console.log('New directory: ' + process.cwd());
+      console.log(`New directory: ${process.cwd()}`);
     }
     catch (err) {
-      console.log('chdir: ' + err);
+      console.log(`chdir: ${err}`);
     }
 
 ## process.config
 
 An Object containing the JavaScript representation of the configure options
 that were used to compile the current Node.js executable. This is the same as
-the "config.gypi" file that was produced when running the `./configure` script.
+the `config.gypi` file that was produced when running the `./configure` script.
 
 An example of the possible output looks like:
 
@@ -340,7 +339,7 @@ An example of the possible output looks like:
          target_arch: 'x64',
          v8_use_snapshot: 'true' } }
 
-### process.connected
+## process.connected
 
 * {Boolean} Set to false after `process.disconnect()` is called
 
@@ -350,14 +349,14 @@ If `process.connected` is false, it is no longer possible to send messages.
 
 Returns the current working directory of the process.
 
-   console.log('Current directory: ' + process.cwd());
+    console.log(`Current directory: ${process.cwd()}`);
 
 ## process.disconnect()
 
 Close the IPC channel to the parent process, allowing this child to exit
 gracefully once there are no other connections keeping it alive.
 
-Identical to the parent process's [ChildProcess.disconnect()][].
+Identical to the parent process's [`ChildProcess.disconnect()`][].
 
 If Node.js was not spawned with an IPC channel, `process.disconnect()` will be
 undefined.
@@ -434,7 +433,7 @@ The shell that executed Node.js should see the exit code as 1.
 ## process.exitCode
 
 A number which will be the process exit code, when the process either
-exits gracefully, or is exited via `process.exit()` without specifying
+exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
 
 Specifying a code to `process.exit(code)` will override any previous
@@ -450,7 +449,7 @@ Gets the effective group identity of the process. (See getegid(2).)
 This is the numerical group id, not the group name.
 
     if (process.getegid) {
-      console.log('Current gid: ' + process.getegid());
+      console.log(`Current gid: ${process.getegid()}`);
     }
 
 
@@ -463,7 +462,7 @@ Gets the effective user identity of the process. (See geteuid(2).)
 This is the numerical userid, not the username.
 
     if (process.geteuid) {
-      console.log('Current uid: ' + process.geteuid());
+      console.log(`Current uid: ${process.geteuid()}`);
     }
 
 ## process.getgid()
@@ -475,7 +474,7 @@ Gets the group identity of the process. (See getgid(2).)
 This is the numerical group id, not the group name.
 
     if (process.getgid) {
-      console.log('Current gid: ' + process.getgid());
+      console.log(`Current gid: ${process.getgid()}`);
     }
 
 ## process.getgroups()
@@ -495,7 +494,7 @@ Gets the user identity of the process. (See getuid(2).)
 This is the numerical userid, not the username.
 
     if (process.getuid) {
-      console.log('Current uid: ' + process.getuid());
+      console.log(`Current uid: ${process.getuid()}`);
     }
 
 ## process.hrtime()
@@ -511,7 +510,7 @@ a diff reading, useful for benchmarks and measuring intervals:
     var time = process.hrtime();
     // [ 1800216, 25 ]
 
-    setTimeout(function() {
+    setTimeout(() => {
       var diff = process.hrtime(time);
       // [ 1, 552 ]
 
@@ -527,7 +526,7 @@ Android)
 
 Reads /etc/group and initializes the group access list, using all groups of
 which the user is a member. This is a privileged operation, meaning you need
-to be root or have the CAP_SETGID capability.
+to be root or have the `CAP_SETGID` capability.
 
 `user` is a user name or user ID. `extra_group` is a group name or group ID.
 
@@ -543,7 +542,7 @@ Some care needs to be taken when dropping privileges. Example:
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
-'SIGINT' or 'SIGHUP'.  If omitted, the signal will be 'SIGTERM'.
+`SIGINT` or `SIGHUP`.  If omitted, the signal will be `SIGTERM`.
 See [Signal Events][] and kill(2) for more information.
 
 Will throw an error if target does not exist, and as a special case, a signal
@@ -556,11 +555,11 @@ something other than kill the target process.
 
 Example of sending a signal to yourself:
 
-    process.on('SIGHUP', function() {
+    process.on('SIGHUP', () => {
       console.log('Got SIGHUP signal.');
     });
 
-    setTimeout(function() {
+    setTimeout(() => {
       console.log('Exiting.');
       process.exit(0);
     }, 100);
@@ -584,7 +583,7 @@ As with `require.main`, it will be `undefined` if there was no entry script.
 Returns an object describing the memory usage of the Node.js process
 measured in bytes.
 
-    var util = require('util');
+    const util = require('util');
 
     console.log(util.inspect(process.memoryUsage()));
 
@@ -604,12 +603,12 @@ This will generate:
 Once the current event loop turn runs to completion, call the callback
 function.
 
-This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
+This is *not* a simple alias to [`setTimeout(fn, 0)`][], it's much more
 efficient.  It runs before any additional I/O events (including
 timers) fire in subsequent ticks of the event loop.
 
     console.log('start');
-    process.nextTick(function() {
+    process.nextTick(() => {
       console.log('nextTick callback');
     });
     console.log('scheduled');
@@ -625,7 +624,7 @@ but before any I/O has occurred.
     function MyThing(options) {
       this.setupOptions(options);
 
-      process.nextTick(function() {
+      process.nextTick(() => {
         this.startDoingStuff();
       }.bind(this));
     }
@@ -677,14 +676,14 @@ happening, just like a `while(true);` loop.
 
 The PID of the process.
 
-    console.log('This process is pid ' + process.pid);
+    console.log(`This process is pid ${process.pid}`);
 
 ## process.platform
 
 What platform you're running on:
 `'darwin'`, `'freebsd'`, `'linux'`, `'sunos'` or `'win32'`
 
-    console.log('This platform is ' + process.platform);
+    console.log(`This platform is ${process.platform}`);
 
 ## process.release
 
@@ -693,8 +692,8 @@ for the source tarball and headers-only tarball.
 
 `process.release` contains the following properties:
 
-* `name`: a string with a value that will always be `"node"` for Node.js. For
-  legacy io.js releases, this will be `"io.js"`.
+* `name`: a string with a value that will always be `'node'` for Node.js. For
+  legacy io.js releases, this will be `'io.js'`.
 * `sourceUrl`: a complete URL pointing to a _.tar.gz_ file containing the
   source of the current release.
 * `headersUrl`: a complete URL pointing to a _.tar.gz_ file containing only
@@ -724,7 +723,7 @@ relied upon to exist.
 
 When Node.js is spawned with an IPC channel attached, it can send messages to its
 parent process using `process.send()`. Each will be received as a
-['message'][] event on the parent's `ChildProcess` object.
+[`'message'`][] event on the parent's `ChildProcess` object.
 
 If Node.js was not spawned with an IPC channel, `process.send()` will be undefined.
 
@@ -738,13 +737,13 @@ This accepts either a numerical ID or a groupname string. If a groupname
 is specified, this method blocks while resolving it to a numerical ID.
 
     if (process.getegid && process.setegid) {
-      console.log('Current gid: ' + process.getegid());
+      console.log(`Current gid: ${process.getegid()}`);
       try {
         process.setegid(501);
-        console.log('New gid: ' + process.getegid());
+        console.log(`New gid: ${process.getegid()}`);
       }
       catch (err) {
-        console.log('Failed to set gid: ' + err);
+        console.log(`Failed to set gid: ${err}`);
       }
     }
 
@@ -758,13 +757,13 @@ This accepts either a numerical ID or a username string.  If a username
 is specified, this method blocks while resolving it to a numerical ID.
 
     if (process.geteuid && process.seteuid) {
-      console.log('Current uid: ' + process.geteuid());
+      console.log(`Current uid: ${process.geteuid()}`);
       try {
         process.seteuid(501);
-        console.log('New uid: ' + process.geteuid());
+        console.log(`New uid: ${process.geteuid()}`);
       }
       catch (err) {
-        console.log('Failed to set uid: ' + err);
+        console.log(`Failed to set uid: ${err}`);
       }
     }
 
@@ -778,13 +777,13 @@ a numerical ID or a groupname string. If a groupname is specified, this method
 blocks while resolving it to a numerical ID.
 
     if (process.getgid && process.setgid) {
-      console.log('Current gid: ' + process.getgid());
+      console.log(`Current gid: ${process.getgid()}`);
       try {
         process.setgid(501);
-        console.log('New gid: ' + process.getgid());
+        console.log(`New gid: ${process.getgid()}`);
       }
       catch (err) {
-        console.log('Failed to set gid: ' + err);
+        console.log(`Failed to set gid: ${err}`);
       }
     }
 
@@ -794,7 +793,7 @@ Note: this function is only available on POSIX platforms (i.e. not Windows,
 Android)
 
 Sets the supplementary group IDs. This is a privileged operation, meaning you
-need to be root or have the CAP_SETGID capability.
+need to be root or have the `CAP_SETGID` capability.
 
 The list can contain group IDs, group names or both.
 
@@ -808,13 +807,13 @@ a numerical ID or a username string.  If a username is specified, this method
 blocks while resolving it to a numerical ID.
 
     if (process.getuid && process.setuid) {
-      console.log('Current uid: ' + process.getuid());
+      console.log(`Current uid: ${process.getuid()}`);
       try {
         process.setuid(501);
-        console.log('New uid: ' + process.getuid());
+        console.log(`New uid: ${process.getuid()}`);
       }
       catch (err) {
-        console.log('Failed to set uid: ' + err);
+        console.log(`Failed to set uid: ${err}`);
       }
     }
 
@@ -836,14 +835,14 @@ Example of opening standard input and listening for both events:
 
     process.stdin.setEncoding('utf8');
 
-    process.stdin.on('readable', function() {
+    process.stdin.on('readable', () => {
       var chunk = process.stdin.read();
       if (chunk !== null) {
-        process.stdout.write('data: ' + chunk);
+        process.stdout.write(`data: ${chunk}`);
       }
     });
 
-    process.stdin.on('end', function() {
+    process.stdin.on('end', () => {
       process.stdout.write('end');
     });
 
@@ -865,11 +864,11 @@ A `Writable Stream` to `stdout` (on fd `1`).
 For example, a `console.log` equivalent could look like this:
 
     console.log = function(msg) {
-      process.stdout.write(msg + '\n');
+      process.stdout.write(`${msg}\n`);
     };
 
 `process.stderr` and `process.stdout` are unlike other streams in Node.js in
-that they cannot be closed (`end()` will throw), they never emit the `finish`
+that they cannot be closed (`end()` will throw), they never emit the `'finish'`
 event and that writes can block when output is redirected to a file (although
 disks are fast and operating systems normally employ write-back caching so it
 should be a very rare occurrence indeed.)
@@ -891,7 +890,7 @@ See [the tty docs][] for more information.
 
 ## process.title
 
-Getter/setter to set what is displayed in 'ps'.
+Getter/setter to set what is displayed in `ps`.
 
 When used as a setter, the maximum length is platform-specific and probably
 short.
@@ -909,11 +908,11 @@ Sets or reads the process's file mode creation mask. Child processes inherit
 the mask from the parent process. Returns the old mask if `mask` argument is
 given, otherwise returns the current mask.
 
-    var oldmask, newmask = 0022;
-
-    oldmask = process.umask(newmask);
-    console.log('Changed umask from: ' + oldmask.toString(8) +
-                ' to ' + newmask.toString(8));
+    const newmask = 0o022;
+    const oldmask = process.umask(newmask);
+    console.log(
+      `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
+    );
 
 
 ## process.uptime()
@@ -924,7 +923,7 @@ Number of seconds Node.js has been running.
 
 A compiled-in property that exposes `NODE_VERSION`.
 
-    console.log('Version: ' + process.version);
+    console.log(`Version: ${process.version}`);
 
 ## process.versions
 
@@ -944,13 +943,18 @@ Will print something like:
       icu: '55.1',
       openssl: '1.0.1k' }
 
-[ChildProcess.disconnect()]: child_process.html#child_process_child_disconnect
-[ChildProcess.send()]: child_process.html#child_process_child_send_message_sendhandle_callback
-[Signal Events]: #process_signal_events
-[EventEmitter]: events.html#events_class_events_eventemitter
-[net.Server]: net.html#net_class_net_server
-[net.Socket]: net.html#net_class_net_socket
+[`'message'`]: child_process.html#child_process_event_message
+[`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
+[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_callback
+[`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`net.Server`]: net.html#net_class_net_server
+[`net.Socket`]: net.html#net_class_net_socket
+[`process.exit()`]: #process_process_exit_code
+[`promise.catch(...)`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
+[`'rejectionHandled'`]: #process_event_rejectionhandled
 [`require.main`]: modules.html#modules_accessing_the_main_module
-['message']: child_process.html#child_process_event_message
+[`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_arg
+[Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [the tty docs]: tty.html#tty_tty

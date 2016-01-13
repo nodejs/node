@@ -1,6 +1,5 @@
 'use strict';
 var assert = require('assert');
-var util = require('util');
 var join = require('path').join;
 var fs = require('fs');
 var common = require('../common');
@@ -57,6 +56,14 @@ putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
   assert.equal(data, 'Failed to load:' + loadFile + '\n');
   // eat me to avoid work
+  putIn.write = function() {};
+};
+putIn.run(['.load ' + loadFile]);
+
+// throw error on loading directory
+loadFile = common.tmpDir;
+putIn.write = function(data) {
+  assert.equal(data, 'Failed to load:' + loadFile + ' is not a valid file\n');
   putIn.write = function() {};
 };
 putIn.run(['.load ' + loadFile]);

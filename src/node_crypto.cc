@@ -116,14 +116,6 @@ static X509_NAME *cnnic_ev_name =
     d2i_X509_NAME(nullptr, &cnnic_ev_p,
                   sizeof(CNNIC_EV_ROOT_CA_SUBJECT_DATA)-1);
 
-// Forcibly clear OpenSSL's error stack on return. This stops stale errors
-// from popping up later in the lifecycle of crypto operations where they
-// would cause spurious failures. It's a rather blunt method, though.
-// ERR_clear_error() isn't necessarily cheap either.
-struct ClearErrorOnReturn {
-  ~ClearErrorOnReturn() { ERR_clear_error(); }
-};
-
 static uv_mutex_t* locks;
 
 const char* const root_certs[] = {
@@ -446,26 +438,6 @@ static BIO* LoadBIO(Environment* env, Local<Value> v) {
 }
 
 
-// Takes a string or buffer and loads it into an X509
-// Caller responsible for X509_free-ing the returned object.
-static X509* LoadX509(Environment* env, Local<Value> v) {
-  HandleScope scope(env->isolate());
-
-  BIO *bio = LoadBIO(env, v);
-  if (!bio)
-    return nullptr;
-
-  X509 * x509 = PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr);
-  if (!x509) {
-    BIO_free_all(bio);
-    return nullptr;
-  }
-
-  BIO_free_all(bio);
-  return x509;
-}
-
-
 void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -530,46 +502,35 @@ int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
 }
 
 
-// Read a file that contains our certificate in "PEM" format,
-// possibly followed by a sequence of CA certificates that should be
-// sent to the peer in the Certificate message.
-//
-// Taken from OpenSSL - editted for style.
 int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
-                                  BIO* in,
+                                  X509* x,
+                                  STACK_OF(X509)* extra_certs,
                                   X509** cert,
                                   X509** issuer) {
-  int ret = 0;
-  X509* x = nullptr;
+  CHECK_EQ(*issuer, nullptr);
+  CHECK_EQ(*cert, nullptr);
 
-  x = PEM_read_bio_X509_AUX(in, nullptr, CryptoPemCallback, nullptr);
-
-  if (x == nullptr) {
-    SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_PEM_LIB);
-    goto end;
-  }
-
-  ret = SSL_CTX_use_certificate(ctx, x);
+  int ret = SSL_CTX_use_certificate(ctx, x);
 
   if (ret) {
     // If we could set up our certificate, now proceed to
     // the CA certificates.
-    X509 *ca;
     int r;
-    unsigned long err;
 
     if (ctx->extra_certs != nullptr) {
       sk_X509_pop_free(ctx->extra_certs, X509_free);
       ctx->extra_certs = nullptr;
     }
 
-    while ((ca = PEM_read_bio_X509(in, nullptr, CryptoPemCallback, nullptr))) {
+    for (int i = 0; i < sk_X509_num(extra_certs); i++) {
+      X509* ca = sk_X509_value(extra_certs, i);
+
       // NOTE: Increments reference count on `ca`
       r = SSL_CTX_add1_chain_cert(ctx, ca);
 
       if (!r) {
-        X509_free(ca);
         ret = 0;
+        *issuer = nullptr;
         goto end;
       }
       // Note that we must not free r if it was successfully
@@ -580,17 +541,8 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       // Find issuer
       if (*issuer != nullptr || X509_check_issued(ca, x) != X509_V_OK)
         continue;
-      *issuer = ca;
-    }
 
-    // When the while loop ends, it's usually just EOF.
-    err = ERR_peek_last_error();
-    if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-        ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
-      ERR_clear_error();
-    } else  {
-      // some real error
-      ret = 0;
+      *issuer = ca;
     }
   }
 
@@ -603,13 +555,88 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
       // no need to free `store`
     } else {
       // Increment issuer reference count
-      CRYPTO_add(&(*issuer)->references, 1, CRYPTO_LOCK_X509);
+      *issuer = X509_dup(*issuer);
+      if (*issuer == nullptr) {
+        ret = 0;
+        goto end;
+      }
     }
   }
 
  end:
+  if (ret && x != nullptr) {
+    *cert = X509_dup(x);
+    if (*cert == nullptr)
+      ret = 0;
+  }
+  return ret;
+}
+
+
+// Read a file that contains our certificate in "PEM" format,
+// possibly followed by a sequence of CA certificates that should be
+// sent to the peer in the Certificate message.
+//
+// Taken from OpenSSL - edited for style.
+int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
+                                  BIO* in,
+                                  X509** cert,
+                                  X509** issuer) {
+  X509* x = nullptr;
+
+  // Just to ensure that `ERR_peek_last_error` below will return only errors
+  // that we are interested in
+  ERR_clear_error();
+
+  x = PEM_read_bio_X509_AUX(in, nullptr, CryptoPemCallback, nullptr);
+
+  if (x == nullptr) {
+    SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_PEM_LIB);
+    return 0;
+  }
+
+  X509* extra = nullptr;
+  int ret = 0;
+  unsigned long err = 0;
+
+  // Read extra certs
+  STACK_OF(X509)* extra_certs = sk_X509_new_null();
+  if (extra_certs == nullptr) {
+    SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_MALLOC_FAILURE);
+    goto done;
+  }
+
+  while ((extra = PEM_read_bio_X509(in, nullptr, CryptoPemCallback, nullptr))) {
+    if (sk_X509_push(extra_certs, extra))
+      continue;
+
+    // Failure, free all certs
+    goto done;
+  }
+  extra = nullptr;
+
+  // When the while loop ends, it's usually just EOF.
+  err = ERR_peek_last_error();
+  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+    ERR_clear_error();
+  } else  {
+    // some real error
+    goto done;
+  }
+
+  ret = SSL_CTX_use_certificate_chain(ctx, x, extra_certs, cert, issuer);
+  if (!ret)
+    goto done;
+
+ done:
+  if (extra_certs != nullptr)
+    sk_X509_pop_free(extra_certs, X509_free);
+  if (extra != nullptr)
+    X509_free(extra);
   if (x != nullptr)
-    *cert = x;
+    X509_free(x);
+
   return ret;
 }
 
@@ -626,6 +653,16 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   BIO* bio = LoadBIO(env, args[0]);
   if (!bio)
     return;
+
+  // Free previous certs
+  if (sc->issuer_ != nullptr) {
+    X509_free(sc->issuer_);
+    sc->issuer_ = nullptr;
+  }
+  if (sc->cert_ != nullptr) {
+    X509_free(sc->cert_);
+    sc->cert_ = nullptr;
+  }
 
   int rv = SSL_CTX_use_certificate_chain(sc->ctx_,
                                          bio,
@@ -661,16 +698,19 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
     newCAStore = true;
   }
 
-  X509* x509 = LoadX509(env, args[0]);
-  if (!x509)
-    return;
+  unsigned cert_count = 0;
+  if (BIO* bio = LoadBIO(env, args[0])) {
+    while (X509* x509 =  // NOLINT(whitespace/if-one-line)
+        PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
+      X509_STORE_add_cert(sc->ca_store_, x509);
+      SSL_CTX_add_client_CA(sc->ctx_, x509);
+      X509_free(x509);
+      cert_count += 1;
+    }
+    BIO_free_all(bio);
+  }
 
-  X509_STORE_add_cert(sc->ca_store_, x509);
-  SSL_CTX_add_client_CA(sc->ctx_, x509);
-
-  X509_free(x509);
-
-  if (newCAStore) {
+  if (cert_count > 0 && newCAStore) {
     SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
   }
 }
@@ -898,7 +938,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   PKCS12* p12 = nullptr;
   EVP_PKEY* pkey = nullptr;
   X509* cert = nullptr;
-  STACK_OF(X509)* extraCerts = nullptr;
+  STACK_OF(X509)* extra_certs = nullptr;
   char* pass = nullptr;
   bool ret = false;
 
@@ -923,28 +963,33 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     pass[passlen] = '\0';
   }
 
+  // Free previous certs
+  if (sc->issuer_ != nullptr) {
+    X509_free(sc->issuer_);
+    sc->issuer_ = nullptr;
+  }
+  if (sc->cert_ != nullptr) {
+    X509_free(sc->cert_);
+    sc->cert_ = nullptr;
+  }
+
   if (d2i_PKCS12_bio(in, &p12) &&
-      PKCS12_parse(p12, pass, &pkey, &cert, &extraCerts) &&
-      SSL_CTX_use_certificate(sc->ctx_, cert) &&
+      PKCS12_parse(p12, pass, &pkey, &cert, &extra_certs) &&
+      SSL_CTX_use_certificate_chain(sc->ctx_,
+                                    cert,
+                                    extra_certs,
+                                    &sc->cert_,
+                                    &sc->issuer_) &&
       SSL_CTX_use_PrivateKey(sc->ctx_, pkey)) {
-    // set extra certs
-    while (X509* x509 = sk_X509_pop(extraCerts)) {
-      if (!sc->ca_store_) {
-        sc->ca_store_ = X509_STORE_new();
-        SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
-      }
-
-      X509_STORE_add_cert(sc->ca_store_, x509);
-      SSL_CTX_add_client_CA(sc->ctx_, x509);
-      X509_free(x509);
-    }
-
-    EVP_PKEY_free(pkey);
-    X509_free(cert);
-    sk_X509_free(extraCerts);
-
     ret = true;
   }
+
+  if (pkey != nullptr)
+    EVP_PKEY_free(pkey);
+  if (cert != nullptr)
+    X509_free(cert);
+  if (extra_certs != nullptr)
+    sk_X509_free(extra_certs);
 
   PKCS12_free(p12);
   BIO_free_all(in);
@@ -4656,8 +4701,6 @@ void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 
   if (!EC_KEY_generate_key(ecdh->key_))
     return env->ThrowError("Failed to generate EC_KEY");
-
-  ecdh->generated_ = true;
 }
 
 
@@ -4697,6 +4740,9 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
 
+  if (!ecdh->IsKeyPairValid())
+    return env->ThrowError("Invalid key pair");
+
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
                                       Buffer::Length(args[0]));
   if (pub == nullptr)
@@ -4727,9 +4773,6 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
-
-  if (!ecdh->generated_)
-    return env->ThrowError("You should generate ECDH keys first");
 
   const EC_POINT* pub = EC_KEY_get0_public_key(ecdh->key_);
   if (pub == nullptr)
@@ -4762,9 +4805,6 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   ECDH* ecdh = Unwrap<ECDH>(args.Holder());
-
-  if (!ecdh->generated_)
-    return env->ThrowError("You should generate ECDH keys first");
 
   const BIGNUM* b = EC_KEY_get0_private_key(ecdh->key_);
   if (b == nullptr)
@@ -4799,12 +4839,42 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   if (priv == nullptr)
     return env->ThrowError("Failed to convert Buffer to BN");
 
+  if (!ecdh->IsKeyValidForCurve(priv)) {
+    BN_free(priv);
+    return env->ThrowError("Private key is not valid for specified curve.");
+  }
+
   int result = EC_KEY_set_private_key(ecdh->key_, priv);
   BN_free(priv);
 
   if (!result) {
     return env->ThrowError("Failed to convert BN to a private key");
   }
+
+  // To avoid inconsistency, clear the current public key in-case computing
+  // the new one fails for some reason.
+  EC_KEY_set_public_key(ecdh->key_, nullptr);
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  (void) &mark_pop_error_on_return;  // Silence compiler warning.
+
+  const BIGNUM* priv_key = EC_KEY_get0_private_key(ecdh->key_);
+  CHECK_NE(priv_key, nullptr);
+
+  EC_POINT* pub = EC_POINT_new(ecdh->group_);
+  CHECK_NE(pub, nullptr);
+
+  if (!EC_POINT_mul(ecdh->group_, pub, priv_key, nullptr, nullptr, nullptr)) {
+    EC_POINT_free(pub);
+    return env->ThrowError("Failed to generate ECDH public key");
+  }
+
+  if (!EC_KEY_set_public_key(ecdh->key_, pub)) {
+    EC_POINT_free(pub);
+    return env->ThrowError("Failed to set generated public key");
+  }
+
+  EC_POINT_free(pub);
 }
 
 
@@ -4818,12 +4888,36 @@ void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
                                       Buffer::Length(args[0].As<Object>()));
   if (pub == nullptr)
-    return;
+    return env->ThrowError("Failed to convert Buffer to EC_POINT");
 
   int r = EC_KEY_set_public_key(ecdh->key_, pub);
   EC_POINT_free(pub);
   if (!r)
-    return env->ThrowError("Failed to convert BN to a private key");
+    return env->ThrowError("Failed to set EC_POINT as the public key");
+}
+
+
+bool ECDH::IsKeyValidForCurve(const BIGNUM* private_key) {
+  ASSERT_NE(group_, nullptr);
+  CHECK_NE(private_key, nullptr);
+  // Private keys must be in the range [1, n-1].
+  // Ref: Section 3.2.1 - http://www.secg.org/sec1-v2.pdf
+  if (BN_cmp(private_key, BN_value_one()) < 0) {
+    return false;
+  }
+  BIGNUM* order = BN_new();
+  CHECK_NE(order, nullptr);
+  bool result = EC_GROUP_get_order(group_, order, nullptr) &&
+                BN_cmp(private_key, order) < 0;
+  BN_free(order);
+  return result;
+}
+
+
+bool ECDH::IsKeyPairValid() {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  (void) &mark_pop_error_on_return;  // Silence compiler warning.
+  return 1 == EC_KEY_check_key(key_);
 }
 
 

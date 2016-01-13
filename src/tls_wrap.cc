@@ -31,16 +31,15 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-
 TLSWrap::TLSWrap(Environment* env,
                  Kind kind,
                  StreamBase* stream,
                  SecureContext* sc)
-    : SSLWrap<TLSWrap>(env, sc, kind),
-      StreamBase(env),
-      AsyncWrap(env,
+    : AsyncWrap(env,
                 env->tls_wrap_constructor_function()->NewInstance(),
                 AsyncWrap::PROVIDER_TLSWRAP),
+      SSLWrap<TLSWrap>(env, sc, kind),
+      StreamBase(env),
       sc_(sc),
       stream_(stream),
       enc_in_(nullptr),
@@ -401,6 +400,8 @@ void TLSWrap::ClearOut() {
   if (ssl_ == nullptr)
     return;
 
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   char out[kClearOutChunkSize];
   int read;
   for (;;) {
@@ -409,6 +410,7 @@ void TLSWrap::ClearOut() {
     if (read <= 0)
       break;
 
+    char* current = out;
     while (read > 0) {
       int avail = read;
 
@@ -416,10 +418,11 @@ void TLSWrap::ClearOut() {
       OnAlloc(avail, &buf);
       if (static_cast<int>(buf.len) < avail)
         avail = buf.len;
-      memcpy(buf.base, out, avail);
+      memcpy(buf.base, current, avail);
       OnRead(avail, &buf);
 
       read -= avail;
+      current += avail;
     }
   }
 
@@ -459,6 +462,8 @@ bool TLSWrap::ClearIn() {
 
   if (ssl_ == nullptr)
     return false;
+
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int written = 0;
   while (clear_in_->Length() > 0) {
@@ -587,6 +592,8 @@ int TLSWrap::DoWrite(WriteWrap* w,
   if (ssl_ == nullptr)
     return UV_EPROTO;
 
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   int written = 0;
   for (i = 0; i < count; i++) {
     written = SSL_write(ssl_, bufs[i].base, bufs[i].len);
@@ -702,8 +709,11 @@ void TLSWrap::DoRead(ssize_t nread,
 
 
 int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   if (ssl_ != nullptr && SSL_shutdown(ssl_) == 0)
     SSL_shutdown(ssl_);
+
   shutdown_ = true;
   EncOut();
   return stream_->DoShutdown(req_wrap);

@@ -1,27 +1,26 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var Agent = require('_http_agent').Agent;
-var EventEmitter = require('events').EventEmitter;
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const Agent = require('_http_agent').Agent;
 
-var agent = new Agent({
+const agent = new Agent({
   keepAlive: true,
   keepAliveMsecs: 1000,
   maxSockets: 5,
   maxFreeSockets: 5
 });
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   if (req.url === '/error') {
     res.destroy();
     return;
   } else if (req.url === '/remote_close') {
-    // cache the socket, close it after 100ms
-    var socket = res.connection;
-    setTimeout(function() {
+    // cache the socket, close it after a short delay
+    const socket = res.connection;
+    setImmediate(function() {
       socket.end();
-    }, 100);
+    });
   }
   res.end('hello world');
 });
@@ -35,7 +34,7 @@ function get(path, callback) {
   }, callback);
 }
 
-var name = 'localhost:' + common.PORT + ':';
+const name = 'localhost:' + common.PORT + ':';
 
 function checkDataAndSockets(body) {
   assert.equal(body.toString(), 'hello world');
@@ -77,7 +76,7 @@ function remoteClose() {
           assert.equal(agent.freeSockets[name], undefined,
             'freeSockets is not empty');
           remoteError();
-        }, 200);
+        }, common.platformTimeout(200));
       });
     });
   });
@@ -85,7 +84,7 @@ function remoteClose() {
 
 function remoteError() {
   // remove server will destroy ths socket
-  var req = get('/error', function(res) {
+  const req = get('/error', function(res) {
     throw new Error('should not call this function');
   });
   req.on('error', function(err) {
@@ -98,7 +97,7 @@ function remoteError() {
       assert.equal(agent.sockets[name], undefined);
       assert.equal(agent.freeSockets[name], undefined);
       done();
-    }, 1);
+    }, common.platformTimeout(1));
   });
 }
 

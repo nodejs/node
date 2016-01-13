@@ -1,0 +1,39 @@
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+
+[vcbuild.bat]
+end_of_line = crlf
+
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+
+[{lib,src,test}/**.js]
+indent_style = space
+indent_size = 2
+
+[src/**.{h,cc}]
+indent_style = space
+indent_size = 2
+
+[test/*.py]
+indent_style = space
+indent_size = 2
+
+[configure]
+indent_style = space
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+indent_size = 8
+
+[{deps,tools}/**]
+indent_style = ignore
+indent_size = ignore
+end_of_line = ignore
+trim_trailing_whitespace = ignore
+charset = ignore

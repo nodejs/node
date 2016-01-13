@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-var fs = require('fs');
 var http = require('http');
 
 var status_ok = false; // status code == 200?

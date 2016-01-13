@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var exec = require('child_process').exec;
 var assert = require('assert');
 

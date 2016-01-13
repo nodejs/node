@@ -59,7 +59,7 @@ Previously in Node.js/io.js v2.x, REPL history was controlled by using a
 format. This variable has now been deprecated, and your REPL history will
 automatically be converted to using plain text. The new file will be saved to
 either your home directory, or a directory defined by the `NODE_REPL_HISTORY`
-variable, as documented below.
+variable, as documented [here](#repl_environment_variable_options).
 
 ## REPL Features
 
@@ -85,8 +85,8 @@ a variable to the REPL explicitly by assigning it to the `context` object
 associated with each `REPLServer`.  For example:
 
     // repl_test.js
-    var repl = require('repl'),
-        msg = 'message';
+    const repl = require('repl');
+    var msg = 'message';
 
     repl.start('> ').context.m = msg;
 
@@ -120,7 +120,7 @@ The following key combinations in the REPL have these special effects:
 ### Customizing Object displays in the REPL
 
 The REPL module internally uses
-[util.inspect()][], when printing values. However, `util.inspect` delegates the
+[`util.inspect()`][], when printing values. However, `util.inspect` delegates the
  call to the object's `inspect()` function, if it has one. You can read more
  about this delegation [here][].
 
@@ -147,12 +147,12 @@ This inherits from [Readline Interface][] with the following events:
 `function () {}`
 
 Emitted when the user exits the REPL in any of the defined ways. Namely, typing
-`.exit` at the repl, pressing Ctrl+C twice to signal SIGINT, or pressing Ctrl+D
-to signal "end" on the `input` stream.
+`.exit` at the repl, pressing Ctrl+C twice to signal `SIGINT`, or pressing Ctrl+D
+to signal `'end'` on the `input` stream.
 
 Example of listening for `exit`:
 
-    replServer.on('exit', function () {
+    replServer.on('exit', () => {
       console.log('Got "exit" event from repl!');
       process.exit();
     });
@@ -173,7 +173,7 @@ Example of listening for `reset`:
     someExtension.extend(r.context);
 
     // When a new context is created extend it as well.
-    replServer.on('reset', function (context) {
+    replServer.on('reset', (context) => {
       console.log('repl has a new context');
       someExtension.extend(context);
     });
@@ -196,13 +196,13 @@ If a function is provided instead of an object for `cmd`, it is treated as the
 Example of defining a command:
 
     // repl_test.js
-    var repl = require('repl');
+    const repl = require('repl');
 
     var replServer = repl.start();
     replServer.defineCommand('sayhello', {
       help: 'Say hello',
       action: function(name) {
-        this.write('Hello, ' + name + '!\n');
+        this.write(`Hello, ${name}!\n');
         this.displayPrompt();
       }
     });
@@ -216,8 +216,8 @@ Example of invoking that command from the REPL:
 
 * `preserveCursor` {Boolean}
 
-Like [readline.prompt][] except also adding indents with ellipses when inside
-blocks. The `preserveCursor` argument is passed to [readline.prompt][]. This is
+Like [`readline.prompt`][] except also adding indents with ellipses when inside
+blocks. The `preserveCursor` argument is passed to [`readline.prompt`][]. This is
 used primarily with `defineCommand`. It's also used internally to render each
 prompt line.
 
@@ -277,9 +277,9 @@ will share the same global object but will have unique I/O.
 
 Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
 
-    var net = require('net'),
-        repl = require('repl'),
-        connections = 0;
+    const net = require('net');
+    const repl = require('repl');
+    var connections = 0;
 
     repl.start({
       prompt: 'Node.js via stdin> ',
@@ -287,24 +287,24 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
       output: process.stdout
     });
 
-    net.createServer(function (socket) {
+    net.createServer((socket) => {
       connections += 1;
       repl.start({
         prompt: 'Node.js via Unix socket> ',
         input: socket,
         output: socket
-      }).on('exit', function() {
+      }).on('exit', () => {
         socket.end();
       })
     }).listen('/tmp/node-repl-sock');
 
-    net.createServer(function (socket) {
+    net.createServer((socket) => {
       connections += 1;
       repl.start({
         prompt: 'Node.js via TCP socket> ',
         input: socket,
         output: socket
-      }).on('exit', function() {
+      }).on('exit', () => {
         socket.end();
       });
     }).listen(5001);
@@ -323,7 +323,7 @@ a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 For an example of running a REPL instance over `curl(1)`,
 see: https://gist.github.com/2053342
 
-[Readline Interface]: readline.html#readline_class_interface
-[readline.prompt]: readline.html#readline_rl_prompt_preservecursor
-[util.inspect()]: util.html#util_util_inspect_object_options
+[`readline.prompt`]: readline.html#readline_rl_prompt_preservecursor
+[`util.inspect()`]: util.html#util_util_inspect_object_options
 [here]: util.html#util_custom_inspect_function_on_objects
+[Readline Interface]: readline.html#readline_class_interface

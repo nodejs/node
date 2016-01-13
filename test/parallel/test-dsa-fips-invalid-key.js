@@ -12,8 +12,6 @@ var fs = require('fs');
 
 var input = 'hello';
 
-var dsapub = fs.readFileSync(common.fixturesDir +
-                             '/keys/dsa_public_1025.pem');
 var dsapri = fs.readFileSync(common.fixturesDir +
                              '/keys/dsa_private_1025.pem');
 var sign = crypto.createSign('DSS1');

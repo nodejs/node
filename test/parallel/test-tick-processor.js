@@ -1,14 +1,11 @@
 'use strict';
 var fs = require('fs');
 var assert = require('assert');
-var path = require('path');
 var cp = require('child_process');
 var common = require('../common');
 
 common.refreshTmpDir();
 process.chdir(common.tmpDir);
-var processor =
-    path.join(common.testDir, '..', 'tools', 'v8-prof', 'tick-processor.js');
 // Unknown checked for to prevent flakiness, if pattern is not found,
 // then a large number of unknown ticks should be present
 runTest(/LazyCompile.*\[eval\]:1|.*%  UNKNOWN/,
@@ -45,9 +42,9 @@ function runTest(pattern, code) {
     assert.fail(null, null, 'There should be a single log file.');
   }
   var log = matches[0];
-  var out = cp.execSync(process.execPath + ' ' + processor +
-                        ' --call-graph-size=10 ' + log,
+  var out = cp.execSync(process.execPath +
+                        ' --prof-process --call-graph-size=10 ' + log,
                         {encoding: 'utf8'});
-  assert(out.match(pattern));
+  assert(pattern.test(out));
   fs.unlinkSync(log);
 }

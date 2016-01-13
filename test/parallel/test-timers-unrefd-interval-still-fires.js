@@ -3,10 +3,9 @@
  * This test is a regression test for joyent/node#8900.
  */
 const common = require('../common');
-const assert = require('assert');
 
 const TEST_DURATION = common.platformTimeout(100);
-const N = 5;
+const N = 3;
 var nbIntervalFired = 0;
 
 const keepOpen = setTimeout(() => {
@@ -21,7 +20,7 @@ const timer = setInterval(() => {
     timer._onTimeout = () => {
       throw new Error('Unrefd interval fired after being cleared.');
     };
-    setImmediate(() => clearTimeout(keepOpen));
+    clearTimeout(keepOpen);
   }
 }, 1);
 

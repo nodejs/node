@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const util = require('util');
 const repl = require('repl');
 
 var referenceErrorCount = 0;

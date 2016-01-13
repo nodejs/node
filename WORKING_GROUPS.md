@@ -29,11 +29,15 @@ back in to the TSC.
 * [Addon API](#addon-api)
 * [Benchmarking](#benchmarking)
 * [Post-mortem](#post-mortem)
+* [Intl](#intl)
+* [HTTP](#http)
+
+#### Process:
+
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
-* [Intl](#Intl)
 
-### [Website](https://github.com/nodejs/website)
+### [Website](https://github.com/nodejs/nodejs.org)
 
 The website working group's purpose is to build and maintain a public
 website for the `Node.js` project.
@@ -170,6 +174,19 @@ Their responsibilities are:
 * Publishing regular update summaries and other promotional
 content.
 
+### [HTTP](https://github.com/nodejs/http)
+
+The HTTP working group is chartered for the support and improvement of the
+HTTP implementation in Node. It's responsibilities are:
+
+* Addressing HTTP issues on the Node.js issue tracker.
+* Authoring and editing HTTP documentation within the Node.js project.
+* Reviewing changes to HTTP functionality within the Node.js project.
+* Working with the ecosystem of HTTP related module developers to evolve the
+  HTTP implementation and APIs in core.
+* Advising the CTC on all HTTP related issues and discussions.
+* Messaging about the future of HTTP to give the community advance notice of
+  changes.
 
 ### [Roadmap](https://github.com/nodejs/roadmap)
 
@@ -435,40 +452,13 @@ By making a contribution to this project, I certify that:
 * (c) The contribution was provided directly to me by some other
   person who certified (a), (b) or (c) and I have not modified it.
 
+### Moderation Policy
+
+The [Node.js Moderation Policy] applies to this WG.
 
 ### Code of Conduct
 
-This Code of Conduct is adapted from [Rust's wonderful
-CoC](https://github.com/rust-lang/rust/wiki/Note-development-policy#conduct).
+The [Node.js Code of Conduct][] applies to this WG.
 
-* We are committed to providing a friendly, safe and welcoming
-  environment for all, regardless of gender, sexual orientation,
-  disability, ethnicity, religion, or similar personal characteristic.
-* Please avoid using overtly sexual nicknames or other nicknames that
-  might detract from a friendly, safe and welcoming environment for
-  all.
-* Please be kind and courteous. There's no need to be mean or rude.
-* Respect that people have differences of opinion and that every
-  design or implementation choice carries a trade-off and numerous
-  costs. There is seldom a right answer.
-* Please keep unstructured critique to a minimum. If you have solid
-  ideas you want to experiment with, make a fork and see how it works.
-* We will exclude you from interaction if you insult, demean or harass
-  anyone.  That is not welcome behaviour. We interpret the term
-  "harassment" as including the definition in the [Citizen Code of
-  Conduct](http://citizencodeofconduct.org/); if you have any lack of
-  clarity about what might be included in that concept, please read
-  their definition. In particular, we don't tolerate behavior that
-  excludes people in socially marginalized groups.
-* Private harassment is also unacceptable. No matter who you are, if
-  you feel you have been or are being harassed or made uncomfortable
-  by a community member, please contact one of the channel ops or any
-  of the TC members immediately with a capture (log, photo, email) of
-  the harassment if possible.  Whether you're a regular contributor or
-  a newcomer, we care about making this community a safe place for you
-  and we've got your back.
-* Likewise any spamming, trolling, flaming, baiting or other
-  attention-stealing behaviour is not welcome.
-* Avoid the use of personal pronouns in code comments or
-  documentation. There is no need to address persons when explaining
-  code (e.g. "When the developer")
+[Node.js Code of Conduct]: https://github.com/nodejs/node/blob/master/CODE_OF_CONDUCT.md
+[Node.js Moderation Policy]: https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md

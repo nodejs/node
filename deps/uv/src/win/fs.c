@@ -110,6 +110,9 @@ const WCHAR JUNCTION_PREFIX_LEN = 4;
 const WCHAR LONG_PATH_PREFIX[] = L"\\\\?\\";
 const WCHAR LONG_PATH_PREFIX_LEN = 4;
 
+const WCHAR UNC_PATH_PREFIX[] = L"\\\\?\\UNC\\";
+const WCHAR UNC_PATH_PREFIX_LEN = 8;
+
 
 void uv_fs_init() {
   _fmode = _O_BINARY;
@@ -233,14 +236,61 @@ INLINE static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req,
 }
 
 
+static int fs__wide_to_utf8(WCHAR* w_source_ptr,
+                               DWORD w_source_len,
+                               char** target_ptr,
+                               uint64_t* target_len_ptr) {
+  int r;
+  int target_len;
+  char* target;
+  target_len = WideCharToMultiByte(CP_UTF8,
+                                   0,
+                                   w_source_ptr,
+                                   w_source_len,
+                                   NULL,
+                                   0,
+                                   NULL,
+                                   NULL);
+
+  if (target_len == 0) {
+    return -1;
+  }
+
+  if (target_len_ptr != NULL) {
+    *target_len_ptr = target_len;
+  }
+
+  if (target_ptr == NULL) {
+    return 0;
+  }
+
+  target = uv__malloc(target_len + 1);
+  if (target == NULL) {
+    SetLastError(ERROR_OUTOFMEMORY);
+    return -1;
+  }
+
+  r = WideCharToMultiByte(CP_UTF8,
+                          0,
+                          w_source_ptr,
+                          w_source_len,
+                          target,
+                          target_len,
+                          NULL,
+                          NULL);
+  assert(r == target_len);
+  target[target_len] = '\0';
+  *target_ptr = target;
+  return 0;
+}
+
+
 INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
     uint64_t* target_len_ptr) {
   char buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
   REPARSE_DATA_BUFFER* reparse_data = (REPARSE_DATA_BUFFER*) buffer;
-  WCHAR *w_target;
+  WCHAR* w_target;
   DWORD w_target_len;
-  char* target;
-  int target_len;
   DWORD bytes;
 
   if (!DeviceIoControl(handle,
@@ -333,50 +383,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
     return -1;
   }
 
-  /* If needed, compute the length of the target. */
-  if (target_ptr != NULL || target_len_ptr != NULL) {
-    /* Compute the length of the target. */
-    target_len = WideCharToMultiByte(CP_UTF8,
-                                     0,
-                                     w_target,
-                                     w_target_len,
-                                     NULL,
-                                     0,
-                                     NULL,
-                                     NULL);
-    if (target_len == 0) {
-      return -1;
-    }
-  }
-
-  /* If requested, allocate memory and convert to UTF8. */
-  if (target_ptr != NULL) {
-    int r;
-    target = (char*) uv__malloc(target_len + 1);
-    if (target == NULL) {
-      SetLastError(ERROR_OUTOFMEMORY);
-      return -1;
-    }
-
-    r = WideCharToMultiByte(CP_UTF8,
-                            0,
-                            w_target,
-                            w_target_len,
-                            target,
-                            target_len,
-                            NULL,
-                            NULL);
-    assert(r == target_len);
-    target[target_len] = '\0';
-
-    *target_ptr = target;
-  }
-
-  if (target_len_ptr != NULL) {
-    *target_len_ptr = target_len;
-  }
-
-  return 0;
+  return fs__wide_to_utf8(w_target, w_target_len, target_ptr, target_len_ptr);
 }
 
 
@@ -533,7 +540,15 @@ void fs__close(uv_fs_t* req) {
   else
     result = 0;
 
-  SET_REQ_RESULT(req, result);
+  /* _close doesn't set _doserrno on failure, but it does always set errno
+   * to EBADF on failure.
+   */
+  if (result == -1) {
+    assert(errno == EBADF);
+    SET_REQ_UV_ERROR(req, UV_EBADF, ERROR_INVALID_HANDLE);
+  } else {
+    req->result = 0;
+  }
 }
 
 
@@ -1699,6 +1714,84 @@ static void fs__readlink(uv_fs_t* req) {
 }
 
 
+static size_t fs__realpath_handle(HANDLE handle, char** realpath_ptr) {
+  int r;
+  DWORD w_realpath_len;
+  WCHAR* w_realpath_ptr;
+  WCHAR* w_finalpath_ptr = NULL;
+
+  w_realpath_len = pGetFinalPathNameByHandleW(handle, NULL, 0, VOLUME_NAME_DOS);
+  if (w_realpath_len == 0) {
+    return -1;
+  }
+
+  w_realpath_ptr = uv__malloc((w_realpath_len + 1) * sizeof(WCHAR));
+  if (w_realpath_ptr == NULL) {
+    SetLastError(ERROR_OUTOFMEMORY);
+    return -1;
+  }
+
+  if (pGetFinalPathNameByHandleW(handle,
+                                w_realpath_ptr,
+                                w_realpath_len,
+                                VOLUME_NAME_DOS) == 0) {
+    uv__free(w_realpath_ptr);
+    SetLastError(ERROR_INVALID_HANDLE);
+    return -1;
+  }
+
+  /* convert UNC path to long path */
+  if (wcsncmp(w_realpath_ptr,
+              UNC_PATH_PREFIX,
+              UNC_PATH_PREFIX_LEN) == 0) {
+    w_finalpath_ptr = w_realpath_ptr + 6;
+    *w_finalpath_ptr = L'\\';
+  } else if (wcsncmp(w_realpath_ptr,
+                      LONG_PATH_PREFIX,
+                      LONG_PATH_PREFIX_LEN) == 0) {
+    w_finalpath_ptr = w_realpath_ptr + 4;
+  } else {
+    uv__free(w_realpath_ptr);
+    SetLastError(ERROR_INVALID_HANDLE);
+    return -1;
+  }
+
+  r = fs__wide_to_utf8(w_finalpath_ptr, w_realpath_len, realpath_ptr, NULL);
+  uv__free(w_realpath_ptr);
+  return r;
+}
+
+static void fs__realpath(uv_fs_t* req) {
+  HANDLE handle;
+
+  if (!pGetFinalPathNameByHandleW) {
+    SET_REQ_UV_ERROR(req, UV_ENOSYS, ERROR_NOT_SUPPORTED);
+    return;
+  }
+
+  handle = CreateFileW(req->file.pathw,
+                       0,
+                       0,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS,
+                       NULL);
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    return;
+  }
+
+  if (fs__realpath_handle(handle, (char**) &req->ptr) == -1) {
+    CloseHandle(handle);
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    return;
+  }
+
+  CloseHandle(handle);
+  req->flags |= UV_FS_FREE_PTR;
+  SET_REQ_RESULT(req, 0);
+}
+
 
 static void fs__chown(uv_fs_t* req) {
   req->result = 0;
@@ -1743,6 +1836,7 @@ static void uv__fs_work(struct uv__work* w) {
     XX(LINK, link)
     XX(SYMLINK, symlink)
     XX(READLINK, readlink)
+    XX(REALPATH, realpath)
     XX(CHOWN, chown)
     XX(FCHOWN, fchown);
     default:
@@ -2062,6 +2156,31 @@ int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     return 0;
   } else {
     fs__readlink(req);
+    return req->result;
+  }
+}
+
+
+int uv_fs_realpath(uv_loop_t* loop, uv_fs_t* req, const char* path,
+    uv_fs_cb cb) {
+  int err;
+
+  if (!req || !path) {
+    return UV_EINVAL;
+  }
+
+  uv_fs_req_init(loop, req, UV_FS_REALPATH, cb);
+
+  err = fs__capture_path(req, path, NULL, cb != NULL);
+  if (err) {
+    return uv_translate_sys_error(err);
+  }
+
+  if (cb) {
+    QUEUE_FS_TP_JOB(loop, req);
+    return 0;
+  } else {
+    fs__realpath(req);
     return req->result;
   }
 }

@@ -610,7 +610,7 @@ static int zencod_init(ENGINE *e)
     ptr_zencod_rc4_cipher = ptr_rc4_1;
 
     /*
-     * We should peform a test to see if there is actually any unit runnig on
+     * We should perform a test to see if there is actually any unit runnig on
      * the system ... Even if the cryptozen library is loaded the module coul
      * not be loaded on the system ... For now we may just open and close the
      * device !!

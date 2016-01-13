@@ -293,56 +293,51 @@ class Simulator {
   // Executing is handled based on the instruction type.
   void DecodeTypeRegister(Instruction* instr);
 
-  // Called from DecodeTypeRegisterCOP1
-  void DecodeTypeRegisterDRsType(Instruction* instr, const int32_t& fr_reg,
-                                 const int32_t& fs_reg, const int32_t& ft_reg,
-                                 const int32_t& fd_reg);
-  void DecodeTypeRegisterWRsType(Instruction* instr, int32_t& alu_out,
-                                 const int32_t& fd_reg, const int32_t& fs_reg,
-                                 const int32_t& ft_reg);
-  void DecodeTypeRegisterSRsType(Instruction* instr, const int32_t& ft_reg,
-                                 const int32_t& fs_reg, const int32_t& fd_reg);
-  void DecodeTypeRegisterLRsType(Instruction* instr, const int32_t& ft_reg,
-                                 const int32_t& fs_reg, const int32_t& fd_reg);
+  // Functions called from DecodeTypeRegister.
+  void DecodeTypeRegisterCOP1();
 
-  // Functions called from DeocodeTypeRegister
-  void DecodeTypeRegisterCOP1(
-      Instruction* instr, const int32_t& rs_reg, const int32_t& rs,
-      const uint32_t& rs_u, const int32_t& rt_reg, const int32_t& rt,
-      const uint32_t& rt_u, const int32_t& rd_reg, const int32_t& fr_reg,
-      const int32_t& fs_reg, const int32_t& ft_reg, const int32_t& fd_reg,
-      int64_t& i64hilo, uint64_t& u64hilo, int32_t& alu_out, bool& do_interrupt,
-      int32_t& current_pc, int32_t& next_pc, int32_t& return_addr_reg);
+  void DecodeTypeRegisterCOP1X();
 
+  void DecodeTypeRegisterSPECIAL();
 
-  void DecodeTypeRegisterCOP1X(Instruction* instr, const int32_t& fr_reg,
-                               const int32_t& fs_reg, const int32_t& ft_reg,
-                               const int32_t& fd_reg);
+  void DecodeTypeRegisterSPECIAL2();
 
+  void DecodeTypeRegisterSPECIAL3();
 
-  void DecodeTypeRegisterSPECIAL(
-      Instruction* instr, const int32_t& rs_reg, const int32_t& rs,
-      const uint32_t& rs_u, const int32_t& rt_reg, const int32_t& rt,
-      const uint32_t& rt_u, const int32_t& rd_reg, const int32_t& fr_reg,
-      const int32_t& fs_reg, const int32_t& ft_reg, const int32_t& fd_reg,
-      int64_t& i64hilo, uint64_t& u64hilo, int32_t& alu_out, bool& do_interrupt,
-      int32_t& current_pc, int32_t& next_pc, int32_t& return_addr_reg);
+  // Called from DecodeTypeRegisterCOP1.
+  void DecodeTypeRegisterSRsType();
 
+  void DecodeTypeRegisterDRsType();
 
-  void DecodeTypeRegisterSPECIAL2(Instruction* instr, const int32_t& rd_reg,
-                                  int32_t& alu_out);
+  void DecodeTypeRegisterWRsType();
 
-  void DecodeTypeRegisterSPECIAL3(Instruction* instr, const int32_t& rt_reg,
-                                  const int32_t& rd_reg, int32_t& alu_out);
+  void DecodeTypeRegisterLRsType();
 
-  // Helper function for DecodeTypeRegister.
-  void ConfigureTypeRegister(Instruction* instr,
-                             int32_t* alu_out,
-                             int64_t* i64hilo,
-                             uint64_t* u64hilo,
-                             int32_t* next_pc,
-                             int32_t* return_addr_reg,
-                             bool* do_interrupt);
+  Instruction* currentInstr_;
+  inline Instruction* get_instr() const { return currentInstr_; }
+  inline void set_instr(Instruction* instr) { currentInstr_ = instr; }
+
+  inline int32_t rs_reg() const { return currentInstr_->RsValue(); }
+  inline int32_t rs() const { return get_register(rs_reg()); }
+  inline uint32_t rs_u() const {
+    return static_cast<uint32_t>(get_register(rs_reg()));
+  }
+  inline int32_t rt_reg() const { return currentInstr_->RtValue(); }
+  inline int32_t rt() const { return get_register(rt_reg()); }
+  inline uint32_t rt_u() const {
+    return static_cast<uint32_t>(get_register(rt_reg()));
+  }
+  inline int32_t rd_reg() const { return currentInstr_->RdValue(); }
+  inline int32_t fr_reg() const { return currentInstr_->FrValue(); }
+  inline int32_t fs_reg() const { return currentInstr_->FsValue(); }
+  inline int32_t ft_reg() const { return currentInstr_->FtValue(); }
+  inline int32_t fd_reg() const { return currentInstr_->FdValue(); }
+  inline int32_t sa() const { return currentInstr_->SaValue(); }
+
+  inline void SetResult(int32_t rd_reg, int32_t alu_out) {
+    set_register(rd_reg, alu_out);
+    TraceRegWr(alu_out);
+  }
 
   void DecodeTypeImmediate(Instruction* instr);
   void DecodeTypeJump(Instruction* instr);
@@ -394,10 +389,9 @@ class Simulator {
     kDivideByZero,
     kNumExceptions
   };
-  int16_t exceptions[kNumExceptions];
 
   // Exceptions.
-  void SignalExceptions();
+  void SignalException(Exception e);
 
   // Runtime call support.
   static void* RedirectExternalReference(void* external_function,
@@ -424,7 +418,7 @@ class Simulator {
   static const size_t stack_size_ = 1 * 1024*1024;
   char* stack_;
   bool pc_modified_;
-  int icount_;
+  uint64_t icount_;
   int break_count_;
 
   // Debugger input.

@@ -80,8 +80,10 @@
       req->path = path;                                                       \
     } else {                                                                  \
       req->path = uv__strdup(path);                                           \
-      if (req->path == NULL)                                                  \
+      if (req->path == NULL) {                                                \
+        uv__req_unregister(loop, req);                                        \
         return -ENOMEM;                                                       \
+      }                                                                       \
     }                                                                         \
   }                                                                           \
   while (0)
@@ -97,8 +99,10 @@
       path_len = strlen(path) + 1;                                            \
       new_path_len = strlen(new_path) + 1;                                    \
       req->path = uv__malloc(path_len + new_path_len);                        \
-      if (req->path == NULL)                                                  \
+      if (req->path == NULL) {                                                \
+        uv__req_unregister(loop, req);                                        \
         return -ENOMEM;                                                       \
+      }                                                                       \
       req->new_path = req->path + path_len;                                   \
       memcpy((void*) req->path, path, path_len);                              \
       memcpy((void*) req->new_path, new_path, new_path_len);                  \
@@ -370,20 +374,27 @@ out:
 }
 
 
+static ssize_t uv__fs_pathmax_size(const char* path) {
+  ssize_t pathmax;
+
+  pathmax = pathconf(path, _PC_PATH_MAX);
+
+  if (pathmax == -1) {
+#if defined(PATH_MAX)
+    return PATH_MAX;
+#else
+    return 4096;
+#endif
+  }
+
+  return pathmax;
+}
+
 static ssize_t uv__fs_readlink(uv_fs_t* req) {
   ssize_t len;
   char* buf;
 
-  len = pathconf(req->path, _PC_PATH_MAX);
-
-  if (len == -1) {
-#if defined(PATH_MAX)
-    len = PATH_MAX;
-#else
-    len = 4096;
-#endif
-  }
-
+  len = uv__fs_pathmax_size(req->path);
   buf = uv__malloc(len + 1);
 
   if (buf == NULL) {
@@ -404,6 +415,27 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
   return 0;
 }
 
+static ssize_t uv__fs_realpath(uv_fs_t* req) {
+  ssize_t len;
+  char* buf;
+
+  len = uv__fs_pathmax_size(req->path);
+  buf = uv__malloc(len + 1);
+
+  if (buf == NULL) {
+    errno = ENOMEM;
+    return -1;
+  }
+
+  if (realpath(req->path, buf) == NULL) {
+    uv__free(buf);
+    return -1;
+  }
+
+  req->ptr = buf;
+
+  return 0;
+}
 
 static ssize_t uv__fs_sendfile_emul(uv_fs_t* req) {
   struct pollfd pfd;
@@ -626,7 +658,9 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
    */
 #if defined(__APPLE__)
   static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-  pthread_mutex_lock(&lock);
+
+  if (pthread_mutex_lock(&lock))
+    abort();
 #endif
 
   if (req->off < 0) {
@@ -683,7 +717,8 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
 
 done:
 #if defined(__APPLE__)
-  pthread_mutex_unlock(&lock);
+  if (pthread_mutex_unlock(&lock))
+    abort();
 #endif
 
   return r;
@@ -867,6 +902,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(READ, uv__fs_buf_iter(req, uv__fs_read));
     X(SCANDIR, uv__fs_scandir(req));
     X(READLINK, uv__fs_readlink(req));
+    X(REALPATH, uv__fs_realpath(req));
     X(RENAME, rename(req->path, req->new_path));
     X(RMDIR, rmdir(req->path));
     X(SENDFILE, uv__fs_sendfile(req));
@@ -1062,8 +1098,11 @@ int uv_fs_mkdtemp(uv_loop_t* loop,
                   uv_fs_cb cb) {
   INIT(MKDTEMP);
   req->path = uv__strdup(tpl);
-  if (req->path == NULL)
+  if (req->path == NULL) {
+    if (cb != NULL)
+      uv__req_unregister(loop, req);
     return -ENOMEM;
+  }
   POST;
 }
 
@@ -1099,8 +1138,11 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
   if (nbufs > ARRAY_SIZE(req->bufsml))
     req->bufs = uv__malloc(nbufs * sizeof(*bufs));
 
-  if (req->bufs == NULL)
+  if (req->bufs == NULL) {
+    if (cb != NULL)
+      uv__req_unregister(loop, req);
     return -ENOMEM;
+  }
 
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 
@@ -1126,6 +1168,16 @@ int uv_fs_readlink(uv_loop_t* loop,
                    const char* path,
                    uv_fs_cb cb) {
   INIT(READLINK);
+  PATH;
+  POST;
+}
+
+
+int uv_fs_realpath(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char * path,
+                  uv_fs_cb cb) {
+  INIT(REALPATH);
   PATH;
   POST;
 }
@@ -1224,8 +1276,11 @@ int uv_fs_write(uv_loop_t* loop,
   if (nbufs > ARRAY_SIZE(req->bufsml))
     req->bufs = uv__malloc(nbufs * sizeof(*bufs));
 
-  if (req->bufs == NULL)
+  if (req->bufs == NULL) {
+    if (cb != NULL)
+      uv__req_unregister(loop, req);
     return -ENOMEM;
+  }
 
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 

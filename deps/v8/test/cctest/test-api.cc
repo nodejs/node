@@ -50,6 +50,7 @@
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "src/vm-state.h"
+#include "test/cctest/heap-tester.h"
 
 static const bool kLogThreading = false;
 
@@ -6686,7 +6687,11 @@ static void ResetUseValueAndSetFlag(
 }
 
 
-static void ResetWeakHandle(bool global_gc) {
+void v8::internal::HeapTester::ResetWeakHandle(bool global_gc) {
+  using v8::Context;
+  using v8::Local;
+  using v8::Object;
+
   v8::Isolate* iso = CcTest::isolate();
   v8::HandleScope scope(iso);
   v8::Handle<Context> context = Context::New(iso);
@@ -6701,8 +6706,7 @@ static void ResetWeakHandle(bool global_gc) {
     object_a.handle.Reset(iso, a);
     object_b.handle.Reset(iso, b);
     if (global_gc) {
-      CcTest::heap()->CollectAllGarbage(
-          TestHeap::Heap::kAbortIncrementalMarkingMask);
+      CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
     } else {
       CcTest::heap()->CollectGarbage(i::NEW_SPACE);
     }
@@ -6720,8 +6724,7 @@ static void ResetWeakHandle(bool global_gc) {
     CHECK(object_b.handle.IsIndependent());
   }
   if (global_gc) {
-    CcTest::heap()->CollectAllGarbage(
-        TestHeap::Heap::kAbortIncrementalMarkingMask);
+    CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   } else {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   }
@@ -6730,9 +6733,9 @@ static void ResetWeakHandle(bool global_gc) {
 }
 
 
-THREADED_TEST(ResetWeakHandle) {
-  ResetWeakHandle(false);
-  ResetWeakHandle(true);
+THREADED_HEAP_TEST(ResetWeakHandle) {
+  v8::internal::HeapTester::ResetWeakHandle(false);
+  v8::internal::HeapTester::ResetWeakHandle(true);
 }
 
 
@@ -8789,60 +8792,6 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 }
 
 
-TEST(SuperAccessControl) {
-  i::FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> obj_template =
-      v8::ObjectTemplate::New(isolate);
-  obj_template->SetAccessCheckCallbacks(AccessAlwaysBlocked, NULL);
-  LocalContext env;
-  env->Global()->Set(v8_str("prohibited"), obj_template->NewInstance());
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CompileRun(
-        "var f = { m() { return super.hasOwnProperty; } }.m;"
-        "var m = %ToMethod(f, prohibited);"
-        "m();");
-    CHECK(try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CompileRun(
-        "var f = {m() { return super[42]; } }.m;"
-        "var m = %ToMethod(f, prohibited);"
-        "m();");
-    CHECK(try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CompileRun(
-        "var f = {m() { super.hasOwnProperty = function () {}; } }.m;"
-        "var m = %ToMethod(f, prohibited);"
-        "m();");
-    CHECK(try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CompileRun(
-        "Object.defineProperty(Object.prototype, 'x', { set : function(){}});"
-        "var f = {"
-        "  m() { "
-        "    'use strict';"
-        "    super.x = function () {};"
-        "  }"
-        "}.m;"
-        "var m = %ToMethod(f, prohibited);"
-        "m();");
-    CHECK(try_catch.HasCaught());
-  }
-}
-
-
 TEST(Regress470113) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
@@ -9792,8 +9741,8 @@ THREADED_TEST(ConstructorForObject) {
     value = instance->CallAsConstructor(1, args);
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value2(try_catch.Exception());
-    CHECK_EQ(
-        0, strcmp("TypeError: #<Object> is not a function", *exception_value2));
+    CHECK_EQ(0,
+             strcmp("TypeError: object is not a function", *exception_value2));
     try_catch.Reset();
   }
 
@@ -10162,8 +10111,8 @@ THREADED_TEST(CallAsFunction) {
     CHECK(value.IsEmpty());
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value2(try_catch.Exception());
-    CHECK_EQ(0, strcmp("TypeError: [object Object] is not a function",
-                       *exception_value2));
+    CHECK_EQ(0,
+             strcmp("TypeError: object is not a function", *exception_value2));
     try_catch.Reset();
   }
 
@@ -15861,7 +15810,8 @@ THREADED_TEST(QuietSignalingNaNs) {
       uint64_t stored_bits = DoubleToBits(stored_number);
       // Check if quiet nan (bits 51..62 all set).
 #if (defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)) && \
-    !defined(_MIPS_ARCH_MIPS64R6) && !defined(USE_SIMULATOR)
+    !defined(_MIPS_ARCH_MIPS64R6) && !defined(_MIPS_ARCH_MIPS32R6) &&   \
+    !defined(USE_SIMULATOR)
       // Most significant fraction bit for quiet nan is set to 0
       // on MIPS architecture. Allowed by IEEE-754.
       CHECK_EQ(0xffe, static_cast<int>((stored_bits >> 51) & 0xfff));
@@ -15882,7 +15832,8 @@ THREADED_TEST(QuietSignalingNaNs) {
       uint64_t stored_bits = DoubleToBits(stored_date);
       // Check if quiet nan (bits 51..62 all set).
 #if (defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)) && \
-    !defined(_MIPS_ARCH_MIPS64R6) && !defined(USE_SIMULATOR)
+    !defined(_MIPS_ARCH_MIPS64R6) && !defined(_MIPS_ARCH_MIPS32R6) &&   \
+    !defined(USE_SIMULATOR)
       // Most significant fraction bit for quiet nan is set to 0
       // on MIPS architecture. Allowed by IEEE-754.
       CHECK_EQ(0xffe, static_cast<int>((stored_bits >> 51) & 0xfff));
@@ -16115,8 +16066,7 @@ THREADED_TEST(FunctionGetDisplayName) {
                      "}};"
                      "var g = function() {"
                      "  arguments.callee.displayName = 'set_in_runtime';"
-                     "}; g();"
-                     ;
+                     "}; g();";
   v8::ScriptOrigin origin =
       v8::ScriptOrigin(v8::String::NewFromUtf8(env->GetIsolate(), "test"));
   v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), code), &origin)
@@ -17932,7 +17882,7 @@ TEST(SetErrorMessageForCodeGenFromStrings) {
   v8::HandleScope scope(context->GetIsolate());
   TryCatch try_catch(context->GetIsolate());
 
-  Handle<String> message = v8_str("Message") ;
+  Handle<String> message = v8_str("Message");
   Handle<String> expected_message = v8_str("Uncaught EvalError: Message");
   V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationDisallowed);
   context->AllowCodeGenerationFromStrings(false);
@@ -19296,7 +19246,6 @@ void CheckCorrectThrow(const char* script) {
 
 TEST(AccessCheckThrows) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_turbo_try_catch = true;
   v8::V8::Initialize();
   v8::V8::SetFailedAccessCheckCallbackFunction(&FailedAccessCheckThrows);
   v8::Isolate* isolate = CcTest::isolate();
@@ -19346,8 +19295,7 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%DeleteProperty_Sloppy(other, '1')");
   CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
   CheckCorrectThrow("%HasOwnProperty(other, 'x')");
-  CheckCorrectThrow("%HasProperty(other, 'x')");
-  CheckCorrectThrow("%HasElement(other, 1)");
+  CheckCorrectThrow("%HasProperty('x', other)");
   CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
   // PROPERTY_ATTRIBUTES_NONE = 0
   CheckCorrectThrow("%DefineAccessorPropertyUnchecked("
@@ -21664,14 +21612,14 @@ TEST(StrongObjectDelete) {
 }
 
 
-static void ExtrasExportsTestRuntimeFunction(
+static void ExtrasBindingTestRuntimeFunction(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK_EQ(3, args[0]->Int32Value());
   args.GetReturnValue().Set(v8_num(7));
 }
 
 
-TEST(ExtrasExportsObject) {
+TEST(ExtrasBindingObject) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext env;
@@ -21687,12 +21635,78 @@ TEST(ExtrasExportsObject) {
   CHECK_EQ(5, result->Int32Value());
 
   v8::Handle<v8::FunctionTemplate> runtimeFunction =
-      v8::FunctionTemplate::New(isolate, ExtrasExportsTestRuntimeFunction);
+      v8::FunctionTemplate::New(isolate, ExtrasBindingTestRuntimeFunction);
   binding->Set(v8_str("runtime"), runtimeFunction->GetFunction());
   func =
       binding->Get(v8_str("testExtraShouldCallToRuntime")).As<v8::Function>();
   result = func->Call(undefined, 0, {}).As<v8::Number>();
   CHECK_EQ(7, result->Int32Value());
+}
+
+
+TEST(ExperimentalExtras) {
+  i::FLAG_experimental_extras = true;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  // standalone.gypi ensures we include the test-experimental-extra.js file,
+  // which should export the tested functions.
+  v8::Local<v8::Object> binding = env->GetExtrasBindingObject();
+
+  auto func = binding->Get(v8_str("testExperimentalExtraShouldReturnTen"))
+                  .As<v8::Function>();
+  auto undefined = v8::Undefined(isolate);
+  auto result = func->Call(undefined, 0, {}).As<v8::Number>();
+  CHECK_EQ(10, result->Int32Value());
+
+  v8::Handle<v8::FunctionTemplate> runtimeFunction =
+      v8::FunctionTemplate::New(isolate, ExtrasBindingTestRuntimeFunction);
+  binding->Set(v8_str("runtime"), runtimeFunction->GetFunction());
+  func = binding->Get(v8_str("testExperimentalExtraShouldCallToRuntime"))
+             .As<v8::Function>();
+  result = func->Call(undefined, 0, {}).As<v8::Number>();
+  CHECK_EQ(7, result->Int32Value());
+}
+
+
+TEST(ExtrasUtilsObject) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  LocalContext env;
+  v8::Local<v8::Object> binding = env->GetExtrasBindingObject();
+
+  auto func = binding->Get(v8_str("testExtraCanUseUtils")).As<v8::Function>();
+  auto undefined = v8::Undefined(isolate);
+  auto result = func->Call(undefined, 0, {}).As<v8::Object>();
+
+  auto private_symbol = result->Get(v8_str("privateSymbol")).As<v8::Symbol>();
+  i::Handle<i::Symbol> ips = v8::Utils::OpenHandle(*private_symbol);
+  CHECK_EQ(true, ips->IsPrivate());
+
+  CompileRun("var result = 0; function store(x) { result = x; }");
+  auto store = CompileRun("store").As<v8::Function>();
+
+  auto fulfilled_promise =
+      result->Get(v8_str("fulfilledPromise")).As<v8::Promise>();
+  fulfilled_promise->Then(store);
+  isolate->RunMicrotasks();
+  CHECK_EQ(1, CompileRun("result")->Int32Value());
+
+  auto fulfilled_promise_2 =
+      result->Get(v8_str("fulfilledPromise2")).As<v8::Promise>();
+  fulfilled_promise_2->Then(store);
+  isolate->RunMicrotasks();
+  CHECK_EQ(2, CompileRun("result")->Int32Value());
+
+  auto rejected_promise =
+      result->Get(v8_str("rejectedPromise")).As<v8::Promise>();
+  rejected_promise->Catch(store);
+  isolate->RunMicrotasks();
+  CHECK_EQ(3, CompileRun("result")->Int32Value());
 }
 
 
@@ -21851,7 +21865,6 @@ class FutexInterruptionThread : public v8::base::Thread {
 
 TEST(FutexInterruption) {
   i::FLAG_harmony_sharedarraybuffer = true;
-  i::FLAG_harmony_atomics = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -21866,6 +21879,7 @@ TEST(FutexInterruption) {
       "var i32a = new Int32Array(ab);"
       "Atomics.futexWait(i32a, 0, 0);");
   CHECK(try_catch.HasTerminated());
+  timeout_thread.Join();
 }
 
 
@@ -21874,6 +21888,7 @@ TEST(EstimatedContextSize) {
   v8::HandleScope scope(isolate);
   LocalContext env;
   CHECK(50000 < env->EstimatedSize());
+}
 
 
 static int nb_uncaught_exception_callback_calls = 0;

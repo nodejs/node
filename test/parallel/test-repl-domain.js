@@ -1,12 +1,10 @@
 'use strict';
-var assert = require('assert');
 var common = require('../common');
 
-var util   = require('util');
 var repl   = require('repl');
 
 const putIn = new common.ArrayStream();
-var testMe = repl.start('', putIn);
+repl.start('', putIn);
 
 putIn.write = function(data) {
   // Don't use assert for this because the domain might catch it, and

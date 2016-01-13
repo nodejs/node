@@ -4,7 +4,7 @@
 
 You can access this module with:
 
-    var zlib = require('zlib');
+    const zlib = require('zlib');
 
 This provides bindings to Gzip/Gunzip, Deflate/Inflate, and
 DeflateRaw/InflateRaw classes.  Each class takes the same options, and
@@ -15,24 +15,24 @@ is a readable/writable Stream.
 Compressing or decompressing a file can be done by piping an
 fs.ReadStream into a zlib stream, then into an fs.WriteStream.
 
-    var gzip = zlib.createGzip();
-    var fs = require('fs');
-    var inp = fs.createReadStream('input.txt');
-    var out = fs.createWriteStream('input.txt.gz');
+    const gzip = zlib.createGzip();
+    const fs = require('fs');
+    const inp = fs.createReadStream('input.txt');
+    const out = fs.createWriteStream('input.txt.gz');
 
     inp.pipe(gzip).pipe(out);
 
 Compressing or decompressing data in one step can be done by using
 the convenience methods.
 
-    var input = '.................................';
+    const input = '.................................';
     zlib.deflate(input, function(err, buffer) {
       if (!err) {
         console.log(buffer.toString('base64'));
       }
     });
 
-    var buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
+    const buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
     zlib.unzip(buffer, function(err, buffer) {
       if (!err) {
         console.log(buffer.toString());
@@ -44,18 +44,18 @@ on requests, and the [content-encoding][] header on responses.
 
 **Note: these examples are drastically simplified to show
 the basic concept.**  Zlib encoding can be expensive, and the results
-ought to be cached.  See [Memory Usage Tuning][] below for more information
+ought to be cached.  See [Memory Usage Tuning][] for more information
 on the speed/memory/compression tradeoffs involved in zlib usage.
 
     // client request example
-    var zlib = require('zlib');
-    var http = require('http');
-    var fs = require('fs');
-    var request = http.get({ host: 'izs.me',
+    const zlib = require('zlib');
+    const http = require('http');
+    const fs = require('fs');
+    const request = http.get({ host: 'izs.me',
                              path: '/',
                              port: 80,
                              headers: { 'accept-encoding': 'gzip,deflate' } });
-    request.on('response', function(response) {
+    request.on('response', (response) => {
       var output = fs.createWriteStream('izs.me_index.html');
 
       switch (response.headers['content-encoding']) {
@@ -75,10 +75,10 @@ on the speed/memory/compression tradeoffs involved in zlib usage.
     // server example
     // Running a gzip operation on every request is quite expensive.
     // It would be much more efficient to cache the compressed buffer.
-    var zlib = require('zlib');
-    var http = require('http');
-    var fs = require('fs');
-    http.createServer(function(request, response) {
+    const zlib = require('zlib');
+    const http = require('http');
+    const fs = require('fs');
+    http.createServer((request, response) => {
       var raw = fs.createReadStream('index.html');
       var acceptEncoding = request.headers['accept-encoding'];
       if (!acceptEncoding) {
@@ -356,8 +356,8 @@ Decompress a raw Buffer with Inflate.
 
 Decompress a raw Buffer with Unzip.
 
-[accept-encoding]: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-[content-encoding]: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
+[accept-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+[content-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [zlib documentation]: http://zlib.net/manual.html#Constants
 [options]: #zlib_class_options

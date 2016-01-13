@@ -1,7 +1,13 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
-var domain = require('domain');
+
+// Requiring the domain module here changes the function that is used by node to
+// call process.nextTick's callbacks to a variant that specifically handles
+// domains. We want to test this specific variant in this test, and so even if
+// the domain module is not used, this require call is needed and must not be
+// removed.
+require('domain');
 
 var implementations = [
   function(fn) {

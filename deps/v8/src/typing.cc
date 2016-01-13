@@ -15,33 +15,18 @@ namespace v8 {
 namespace internal {
 
 
-AstTyper::AstTyper(CompilationInfo* info)
-    : info_(info),
-      oracle_(info->isolate(), info->zone(),
-              handle(info->closure()->shared()->code()),
-              handle(info->closure()->shared()->feedback_vector()),
-              handle(info->closure()->context()->native_context())),
-      store_(info->zone()) {
-  InitializeAstVisitor(info->isolate(), info->zone());
+AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
+                   Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root)
+    : closure_(closure),
+      scope_(scope),
+      osr_ast_id_(osr_ast_id),
+      root_(root),
+      oracle_(isolate, zone, handle(closure->shared()->code()),
+              handle(closure->shared()->feedback_vector()),
+              handle(closure->context()->native_context())),
+      store_(zone) {
+  InitializeAstVisitor(isolate, zone);
 }
-
-
-#define RECURSE(call)                         \
-  do {                                        \
-    DCHECK(!visitor->HasStackOverflow());     \
-    call;                                     \
-    if (visitor->HasStackOverflow()) return;  \
-  } while (false)
-
-void AstTyper::Run(CompilationInfo* info) {
-  AstTyper* visitor = new(info->zone()) AstTyper(info);
-  Scope* scope = info->scope();
-
-  RECURSE(visitor->VisitDeclarations(scope->declarations()));
-  RECURSE(visitor->VisitStatements(info->literal()->body()));
-}
-
-#undef RECURSE
 
 
 #ifdef OBJECT_PRINT
@@ -63,18 +48,17 @@ Effect AstTyper::ObservedOnStack(Object* value) {
 
 
 void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
-  if (stmt->OsrEntryId() != info_->osr_ast_id()) return;
+  if (stmt->OsrEntryId() != osr_ast_id_) return;
 
   DisallowHeapAllocation no_gc;
   JavaScriptFrameIterator it(isolate());
   JavaScriptFrame* frame = it.frame();
-  Scope* scope = info_->scope();
 
   // Assert that the frame on the stack belongs to the function we want to OSR.
-  DCHECK_EQ(*info_->closure(), frame->function());
+  DCHECK_EQ(*closure_, frame->function());
 
-  int params = scope->num_parameters();
-  int locals = scope->StackLocalCount();
+  int params = scope_->num_parameters();
+  int locals = scope_->StackLocalCount();
 
   // Use sequential composition to achieve desired narrowing.
   // The receiver is a parameter with index -1.
@@ -89,21 +73,19 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
 
 #ifdef OBJECT_PRINT
   if (FLAG_trace_osr && FLAG_print_scopes) {
-    PrintObserved(scope->receiver(),
-                  frame->receiver(),
+    PrintObserved(scope_->receiver(), frame->receiver(),
                   store_.LookupBounds(parameter_index(-1)).lower);
 
     for (int i = 0; i < params; i++) {
-      PrintObserved(scope->parameter(i),
-                    frame->GetParameter(i),
+      PrintObserved(scope_->parameter(i), frame->GetParameter(i),
                     store_.LookupBounds(parameter_index(i)).lower);
     }
 
     ZoneList<Variable*> local_vars(locals, zone());
-    ZoneList<Variable*> context_vars(scope->ContextLocalCount(), zone());
-    ZoneList<Variable*> global_vars(scope->ContextGlobalCount(), zone());
-    scope->CollectStackAndContextLocals(&local_vars, &context_vars,
-                                        &global_vars);
+    ZoneList<Variable*> context_vars(scope_->ContextLocalCount(), zone());
+    ZoneList<Variable*> global_vars(scope_->ContextGlobalCount(), zone());
+    scope_->CollectStackAndContextLocals(&local_vars, &context_vars,
+                                         &global_vars);
     for (int i = 0; i < locals; i++) {
       PrintObserved(local_vars.at(i),
                     frame->GetExpression(i),
@@ -120,6 +102,12 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
     call;                            \
     if (HasStackOverflow()) return;  \
   } while (false)
+
+
+void AstTyper::Run() {
+  RECURSE(VisitDeclarations(scope_->declarations()));
+  RECURSE(VisitStatements(root_->body()));
+}
 
 
 void AstTyper::VisitStatements(ZoneList<Statement*>* stmts) {
@@ -145,6 +133,12 @@ void AstTyper::VisitExpressionStatement(ExpressionStatement* stmt) {
 
 
 void AstTyper::VisitEmptyStatement(EmptyStatement* stmt) {
+}
+
+
+void AstTyper::VisitSloppyBlockFunctionStatement(
+    SloppyBlockFunctionStatement* stmt) {
+  Visit(stmt->statement());
 }
 
 
@@ -408,8 +402,13 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
           prop->emit_store()) {
         // Record type feed back for the property.
         TypeFeedbackId id = prop->key()->AsLiteral()->LiteralFeedbackId();
+        FeedbackVectorICSlot slot = prop->GetSlot();
         SmallMapList maps;
-        oracle()->CollectReceiverTypes(id, &maps);
+        if (FLAG_vector_stores) {
+          oracle()->CollectReceiverTypes(slot, &maps);
+        } else {
+          oracle()->CollectReceiverTypes(id, &maps);
+        }
         prop->set_receiver_type(maps.length() == 1 ? maps.at(0)
                                                    : Handle<Map>::null());
       }
@@ -438,18 +437,31 @@ void AstTyper::VisitAssignment(Assignment* expr) {
   Property* prop = expr->target()->AsProperty();
   if (prop != NULL) {
     TypeFeedbackId id = expr->AssignmentFeedbackId();
-    expr->set_is_uninitialized(oracle()->StoreIsUninitialized(id));
+    FeedbackVectorICSlot slot = expr->AssignmentSlot();
+    expr->set_is_uninitialized(FLAG_vector_stores
+                                   ? oracle()->StoreIsUninitialized(slot)
+                                   : oracle()->StoreIsUninitialized(id));
     if (!expr->IsUninitialized()) {
+      SmallMapList* receiver_types = expr->GetReceiverTypes();
       if (prop->key()->IsPropertyName()) {
         Literal* lit_key = prop->key()->AsLiteral();
         DCHECK(lit_key != NULL && lit_key->value()->IsString());
         Handle<String> name = Handle<String>::cast(lit_key->value());
-        oracle()->AssignmentReceiverTypes(id, name, expr->GetReceiverTypes());
+        if (FLAG_vector_stores) {
+          oracle()->AssignmentReceiverTypes(slot, name, receiver_types);
+        } else {
+          oracle()->AssignmentReceiverTypes(id, name, receiver_types);
+        }
       } else {
         KeyedAccessStoreMode store_mode;
         IcCheckType key_type;
-        oracle()->KeyedAssignmentReceiverTypes(id, expr->GetReceiverTypes(),
-                                               &store_mode, &key_type);
+        if (FLAG_vector_stores) {
+          oracle()->KeyedAssignmentReceiverTypes(slot, receiver_types,
+                                                 &store_mode, &key_type);
+        } else {
+          oracle()->KeyedAssignmentReceiverTypes(id, receiver_types,
+                                                 &store_mode, &key_type);
+        }
         expr->set_store_mode(store_mode);
         expr->set_key_type(key_type);
       }
@@ -549,8 +561,7 @@ void AstTyper::VisitCall(Call* expr) {
 void AstTyper::VisitCallNew(CallNew* expr) {
   // Collect type feedback.
   FeedbackVectorSlot allocation_site_feedback_slot =
-      FLAG_pretenuring_call_new ? expr->AllocationSiteFeedbackSlot()
-                                : expr->CallNewFeedbackSlot();
+      expr->CallNewFeedbackSlot();
   expr->set_allocation_site(
       oracle()->GetCallNewAllocationSite(allocation_site_feedback_slot));
   bool monomorphic =
@@ -611,12 +622,18 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
   TypeFeedbackId store_id = expr->CountStoreFeedbackId();
+  FeedbackVectorICSlot slot = expr->CountSlot();
   KeyedAccessStoreMode store_mode;
   IcCheckType key_type;
-  oracle()->GetStoreModeAndKeyType(store_id, &store_mode, &key_type);
+  if (FLAG_vector_stores) {
+    oracle()->GetStoreModeAndKeyType(slot, &store_mode, &key_type);
+    oracle()->CountReceiverTypes(slot, expr->GetReceiverTypes());
+  } else {
+    oracle()->GetStoreModeAndKeyType(store_id, &store_mode, &key_type);
+    oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
+  }
   expr->set_store_mode(store_mode);
   expr->set_key_type(key_type);
-  oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
   expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId()));
   // TODO(rossberg): merge the count type with the generic expression type.
 
@@ -751,6 +768,11 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
 
 
 void AstTyper::VisitSpread(Spread* expr) { RECURSE(Visit(expr->expression())); }
+
+
+void AstTyper::VisitEmptyParentheses(EmptyParentheses* expr) {
+  UNREACHABLE();
+}
 
 
 void AstTyper::VisitThisFunction(ThisFunction* expr) {

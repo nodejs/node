@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/debug/debug.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {

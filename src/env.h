@@ -38,6 +38,12 @@ namespace node {
 #define NODE_ISOLATE_SLOT 3
 #endif
 
+// The number of items passed to push_values_to_array_function has diminishing
+// returns around 8. This should be used at all call sites using said function.
+#ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
+#define NODE_PUSH_VAL_TO_ARRAY_MAX 8
+#endif
+
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
@@ -45,7 +51,7 @@ namespace node {
   V(alpn_buffer_string, "alpnBuffer")                                         \
   V(args_string, "args")                                                      \
   V(argv_string, "argv")                                                      \
-  V(arrow_message_string, "arrowMessage")                                     \
+  V(arrow_message_string, "node:arrowMessage")                                \
   V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
   V(atime_string, "atime")                                                    \
@@ -65,6 +71,7 @@ namespace node {
   V(cwd_string, "cwd")                                                        \
   V(debug_port_string, "debugPort")                                           \
   V(debug_string, "debug")                                                    \
+  V(decorated_string, "node:decorated")                                       \
   V(dest_string, "dest")                                                      \
   V(detached_string, "detached")                                              \
   V(dev_string, "dev")                                                        \
@@ -231,17 +238,17 @@ namespace node {
   V(zero_return_string, "ZERO_RETURN")                                        \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
-  V(add_properties_by_index_function, v8::Function)                           \
   V(as_external, v8::External)                                                \
-  V(async_hooks_init_function, v8::Function)                                  \
-  V(async_hooks_pre_function, v8::Function)                                   \
-  V(async_hooks_post_function, v8::Function)                                  \
   V(async_hooks_destroy_function, v8::Function)                               \
+  V(async_hooks_init_function, v8::Function)                                  \
+  V(async_hooks_post_function, v8::Function)                                  \
+  V(async_hooks_pre_function, v8::Function)                                   \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_constructor_function, v8::Function)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_array, v8::Array)                                                  \
+  V(domains_stack_array, v8::Array)                                           \
   V(fs_stats_constructor_function, v8::Function)                              \
   V(generic_internal_field_template, v8::ObjectTemplate)                      \
   V(jsstream_constructor_template, v8::FunctionTemplate)                      \
@@ -249,6 +256,7 @@ namespace node {
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(process_object, v8::Object)                                               \
   V(promise_reject_function, v8::Function)                                    \
+  V(push_values_to_array_function, v8::Function)                              \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \

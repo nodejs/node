@@ -109,12 +109,6 @@ inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
 #endif
 #endif
 
-#if defined(__x86_64__)
-# define BITS_PER_LONG 64
-#else
-# define BITS_PER_LONG 32
-#endif
-
 #ifndef ARRAY_SIZE
 # define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
 #endif
@@ -172,7 +166,7 @@ inline MUST_USE_RESULT bool ParseArrayIndex(v8::Local<v8::Value> arg,
     return true;
   }
 
-  int32_t tmp_i = arg->Int32Value();
+  int32_t tmp_i = arg->Uint32Value();
 
   if (tmp_i < 0)
     return false;

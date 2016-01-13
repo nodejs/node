@@ -9,7 +9,6 @@ if (!common.hasCrypto) {
 var https = require('https');
 
 var net = require('net');
-var tls = require('tls');
 var fs = require('fs');
 
 var clientErrors = 0;
@@ -33,6 +32,7 @@ server.on('clientError', function(err, conn) {
   assert.equal(conn._secureEstablished, false);
   server.close();
   clientErrors++;
+  conn.destroy();
 });
 
 server.listen(common.PORT, function() {

@@ -358,6 +358,8 @@ const char* CompareICState::GetStateName(State state) {
   switch (state) {
     case UNINITIALIZED:
       return "UNINITIALIZED";
+    case BOOLEAN:
+      return "BOOLEAN";
     case SMI:
       return "SMI";
     case NUMBER:
@@ -384,6 +386,8 @@ Type* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
   switch (state) {
     case UNINITIALIZED:
       return Type::None(zone);
+    case BOOLEAN:
+      return Type::Boolean(zone);
     case SMI:
       return Type::SignedSmall(zone);
     case NUMBER:
@@ -410,12 +414,16 @@ CompareICState::State CompareICState::NewInputState(State old_state,
                                                     Handle<Object> value) {
   switch (old_state) {
     case UNINITIALIZED:
+      if (value->IsBoolean()) return BOOLEAN;
       if (value->IsSmi()) return SMI;
       if (value->IsHeapNumber()) return NUMBER;
       if (value->IsInternalizedString()) return INTERNALIZED_STRING;
       if (value->IsString()) return STRING;
       if (value->IsSymbol()) return UNIQUE_NAME;
       if (value->IsJSObject()) return OBJECT;
+      break;
+    case BOOLEAN:
+      if (value->IsBoolean()) return BOOLEAN;
       break;
     case SMI:
       if (value->IsSmi()) return SMI;
@@ -454,6 +462,7 @@ CompareICState::State CompareICState::TargetState(
     bool has_inlined_smi_code, Handle<Object> x, Handle<Object> y) {
   switch (old_state) {
     case UNINITIALIZED:
+      if (x->IsBoolean() && y->IsBoolean()) return BOOLEAN;
       if (x->IsSmi() && y->IsSmi()) return SMI;
       if (x->IsNumber() && y->IsNumber()) return NUMBER;
       if (Token::IsOrderedRelationalCompareOp(op)) {
@@ -470,16 +479,16 @@ CompareICState::State CompareICState::TargetState(
         return Token::IsEqualityOp(op) ? INTERNALIZED_STRING : STRING;
       }
       if (x->IsString() && y->IsString()) return STRING;
-      if (!Token::IsEqualityOp(op)) return GENERIC;
-      if (x->IsUniqueName() && y->IsUniqueName()) return UNIQUE_NAME;
       if (x->IsJSObject() && y->IsJSObject()) {
         if (Handle<JSObject>::cast(x)->map() ==
             Handle<JSObject>::cast(y)->map()) {
           return KNOWN_OBJECT;
         } else {
-          return OBJECT;
+          return Token::IsEqualityOp(op) ? OBJECT : GENERIC;
         }
       }
+      if (!Token::IsEqualityOp(op)) return GENERIC;
+      if (x->IsUniqueName() && y->IsUniqueName()) return UNIQUE_NAME;
       return GENERIC;
     case SMI:
       return x->IsNumber() && y->IsNumber() ? NUMBER : GENERIC;
@@ -496,11 +505,11 @@ CompareICState::State CompareICState::TargetState(
       if (old_right == SMI && y->IsHeapNumber()) return NUMBER;
       return GENERIC;
     case KNOWN_OBJECT:
-      DCHECK(Token::IsEqualityOp(op));
       if (x->IsJSObject() && y->IsJSObject()) {
-        return OBJECT;
+        return Token::IsEqualityOp(op) ? OBJECT : GENERIC;
       }
       return GENERIC;
+    case BOOLEAN:
     case STRING:
     case UNIQUE_NAME:
     case OBJECT:
@@ -510,5 +519,6 @@ CompareICState::State CompareICState::TargetState(
   UNREACHABLE();
   return GENERIC;  // Make the compiler happy.
 }
+
 }  // namespace internal
 }  // namespace v8

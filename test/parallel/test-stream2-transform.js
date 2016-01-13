@@ -1,6 +1,6 @@
 'use strict';
+require('../common');
 var assert = require('assert');
-var common = require('../common');
 var PassThrough = require('_stream_passthrough');
 var Transform = require('_stream_transform');
 
@@ -303,12 +303,9 @@ test('passthrough event emission', function(t) {
   var pt = new PassThrough();
   var emits = 0;
   pt.on('readable', function() {
-    var state = pt._readableState;
     console.error('>>> emit readable %d', emits);
     emits++;
   });
-
-  var i = 0;
 
   pt.write(new Buffer('foog'));
 

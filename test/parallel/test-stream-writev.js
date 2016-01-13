@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var stream = require('stream');
@@ -30,11 +30,9 @@ function test(decode, uncork, multi, next) {
   function cnt(msg) {
     expectCount++;
     var expect = expectCount;
-    var called = false;
     return function(er) {
       if (er)
         throw er;
-      called = true;
       counter++;
       assert.equal(counter, expect);
     };

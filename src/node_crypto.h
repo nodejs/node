@@ -39,6 +39,21 @@
 namespace node {
 namespace crypto {
 
+// Forcibly clear OpenSSL's error stack on return. This stops stale errors
+// from popping up later in the lifecycle of crypto operations where they
+// would cause spurious failures. It's a rather blunt method, though.
+// ERR_clear_error() isn't necessarily cheap either.
+struct ClearErrorOnReturn {
+  ~ClearErrorOnReturn() { ERR_clear_error(); }
+};
+
+// Pop errors from OpenSSL's error stack that were added
+// between when this was constructed and destructed.
+struct MarkPopErrorOnReturn {
+  MarkPopErrorOnReturn() { ERR_set_mark(); }
+  ~MarkPopErrorOnReturn() { ERR_pop_to_mark(); }
+};
+
 enum CheckResult {
   CHECK_CERT_REVOKED = 0,
   CHECK_OK = 1
@@ -693,7 +708,6 @@ class ECDH : public BaseObject {
  protected:
   ECDH(Environment* env, v8::Local<v8::Object> wrap, EC_KEY* key)
       : BaseObject(env, wrap),
-        generated_(false),
         key_(key),
         group_(EC_KEY_get0_group(key_)) {
     MakeWeak<ECDH>(this);
@@ -710,7 +724,9 @@ class ECDH : public BaseObject {
 
   EC_POINT* BufferToPoint(char* data, size_t len);
 
-  bool generated_;
+  bool IsKeyPairValid();
+  bool IsKeyValidForCurve(const BIGNUM* private_key);
+
   EC_KEY* key_;
   const EC_GROUP* group_;
 };

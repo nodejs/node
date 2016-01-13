@@ -52,32 +52,10 @@ struct Diamond {
   Node* Phi(MachineType machine_type, Node* tv, Node* fv) {
     return graph->NewNode(common->Phi(machine_type, 2), tv, fv, merge);
   }
-
-  Node* EffectPhi(Node* tv, Node* fv) {
-    return graph->NewNode(common->EffectPhi(2), tv, fv, merge);
-  }
-
-  void OverwriteWithPhi(Node* node, MachineType machine_type, Node* tv,
-                        Node* fv) {
-    DCHECK(node->InputCount() >= 3);
-    node->set_op(common->Phi(machine_type, 2));
-    node->ReplaceInput(0, tv);
-    node->ReplaceInput(1, fv);
-    node->ReplaceInput(2, merge);
-    node->TrimInputCount(3);
-  }
-
-  void OverwriteWithEffectPhi(Node* node, Node* te, Node* fe) {
-    DCHECK(node->InputCount() >= 3);
-    node->set_op(common->EffectPhi(2));
-    node->ReplaceInput(0, te);
-    node->ReplaceInput(1, fe);
-    node->ReplaceInput(2, merge);
-    node->TrimInputCount(3);
-  }
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_DIAMOND_H_

@@ -4,7 +4,6 @@
 
 var common = require('../common');
 var assert = require('assert');
-var util = require('util');
 var repl = require('repl');
 var referenceErrors = 0;
 var expectedReferenceErrors = 0;
@@ -258,6 +257,7 @@ var array_elements = [ [
   'ary.find',
   'ary.findIndex',
   'ary.forEach',
+  'ary.includes',
   'ary.indexOf',
   'ary.join',
   'ary.keys',

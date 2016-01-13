@@ -1,10 +1,9 @@
 'use strict';
 // test compression/decompression with dictionary
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
-const path = require('path');
 
 const spdyDict = new Buffer([
   'optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-',

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/arm64/interface-descriptors-arm64.h"
+
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/interface-descriptors.h"
@@ -31,6 +33,11 @@ const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return x4; }
 const Register VectorStoreICDescriptor::VectorRegister() { return x3; }
 
 
+const Register VectorStoreTransitionDescriptor::SlotRegister() { return x4; }
+const Register VectorStoreTransitionDescriptor::VectorRegister() { return x3; }
+const Register VectorStoreTransitionDescriptor::MapRegister() { return x5; }
+
+
 const Register StoreTransitionDescriptor::MapRegister() { return x3; }
 
 
@@ -41,20 +48,21 @@ const Register StoreGlobalViaContextDescriptor::SlotRegister() { return x2; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return x0; }
 
 
-const Register InstanceofDescriptor::left() {
-  // Object to check (instanceof lhs).
-  return x11;
-}
+const Register InstanceOfDescriptor::LeftRegister() { return x1; }
+const Register InstanceOfDescriptor::RightRegister() { return x0; }
 
 
-const Register InstanceofDescriptor::right() {
-  // Constructor function (instanceof rhs).
-  return x10;
-}
+const Register StringCompareDescriptor::LeftRegister() { return x1; }
+const Register StringCompareDescriptor::RightRegister() { return x0; }
 
 
 const Register ArgumentsAccessReadDescriptor::index() { return x1; }
 const Register ArgumentsAccessReadDescriptor::parameter_count() { return x0; }
+
+
+const Register ArgumentsAccessNewDescriptor::function() { return x1; }
+const Register ArgumentsAccessNewDescriptor::parameter_count() { return x2; }
+const Register ArgumentsAccessNewDescriptor::parameter_pointer() { return x3; }
 
 
 const Register ApiGetterDescriptor::function_address() { return x2; }
@@ -70,10 +78,10 @@ const Register GrowArrayElementsDescriptor::ObjectRegister() { return x0; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return x3; }
 
 
-void StoreTransitionDescriptor::InitializePlatformSpecific(
+void VectorStoreTransitionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
-                          MapRegister()};
+  Register registers[] = {ReceiverRegister(), NameRegister(),   ValueRegister(),
+                          SlotRegister(),     VectorRegister(), MapRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -100,6 +108,10 @@ void ToNumberDescriptor::InitializePlatformSpecific(
   Register registers[] = {x0};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
+
+
+// static
+const Register ToStringDescriptor::ReceiverRegister() { return x0; }
 
 
 // static
@@ -200,6 +212,15 @@ void CallConstructDescriptor::InitializePlatformSpecific(
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
   Register registers[] = {x0, x1, x4, x2};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void CallTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // x1: target
+  // x0: number of arguments
+  Register registers[] = {x1, x0};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -423,6 +444,18 @@ void MathRoundVariantCallFromOptimizedCodeDescriptor::
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
+
+
+void PushArgsAndCallDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      x0,  // argument count (including receiver)
+      x2,  // address of first argument
+      x1   // the target callable to be call
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/objects.h"
+#include "src/unicode.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -34,7 +35,6 @@ namespace internal {
   F(SpecialArrayFunctions, 0, 1)            \
   F(TransitionElementsKind, 2, 1)           \
   F(PushIfAbsent, 2, 1)                     \
-  F(ArrayConcat, 1, 1)                      \
   F(RemoveArrayHoles, 2, 1)                 \
   F(MoveArrayContents, 2, 1)                \
   F(EstimateNumberOfElements, 1, 1)         \
@@ -80,10 +80,8 @@ namespace internal {
   F(ThrowArrayNotSubclassableError, 0, 1)     \
   F(ThrowStaticPrototypeError, 0, 1)          \
   F(ThrowIfStaticPrototype, 1, 1)             \
-  F(ToMethod, 2, 1)                           \
   F(HomeObjectSymbol, 0, 1)                   \
   F(DefineClass, 5, 1)                        \
-  F(DefineClassStrong, 5, 1)                  \
   F(FinalizeClassDefinition, 2, 1)            \
   F(DefineClassMethod, 3, 1)                  \
   F(ClassGetSourceCode, 1, 1)                 \
@@ -218,8 +216,19 @@ namespace internal {
   F(ForInStep, 1, 1)
 
 
+#define FOR_EACH_INTRINSIC_INTERPRETER(F) \
+  F(InterpreterEquals, 2, 1)              \
+  F(InterpreterNotEquals, 2, 1)           \
+  F(InterpreterStrictEquals, 2, 1)        \
+  F(InterpreterStrictNotEquals, 2, 1)     \
+  F(InterpreterLessThan, 2, 1)            \
+  F(InterpreterGreaterThan, 2, 1)         \
+  F(InterpreterLessThanOrEqual, 2, 1)     \
+  F(InterpreterGreaterThanOrEqual, 2, 1)  \
+  F(InterpreterToBoolean, 1, 1)
+
+
 #define FOR_EACH_INTRINSIC_FUNCTION(F)                      \
-  F(IsSloppyModeFunction, 1, 1)                             \
   F(FunctionGetName, 1, 1)                                  \
   F(FunctionSetName, 2, 1)                                  \
   F(FunctionNameShouldPrintAsAnonymous, 1, 1)               \
@@ -235,7 +244,7 @@ namespace internal {
   F(FunctionSetLength, 2, 1)                                \
   F(FunctionSetPrototype, 2, 1)                             \
   F(FunctionIsAPIFunction, 1, 1)                            \
-  F(FunctionIsBuiltin, 1, 1)                                \
+  F(FunctionHidesSource, 1, 1)                              \
   F(SetCode, 2, 1)                                          \
   F(SetNativeFlag, 1, 1)                                    \
   F(ThrowStrongModeTooFewArguments, 0, 1)                   \
@@ -246,8 +255,6 @@ namespace internal {
   F(NewObjectFromBound, 1, 1)                               \
   F(Call, -1 /* >= 2 */, 1)                                 \
   F(Apply, 5, 1)                                            \
-  F(GetFunctionDelegate, 1, 1)                              \
-  F(GetConstructorDelegate, 1, 1)                           \
   F(GetOriginalConstructor, 0, 1)                           \
   F(CallFunction, -1 /* receiver + n args + function */, 1) \
   F(IsConstructCall, 0, 1)                                  \
@@ -301,9 +308,9 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F)        \
   F(CheckIsBootstrapping, 0, 1)               \
-  F(ImportToRuntime, 1, 1)                    \
-  F(ImportExperimentalToRuntime, 1, 1)        \
-  F(InstallJSBuiltins, 1, 1)                  \
+  F(ExportFromRuntime, 1, 1)                  \
+  F(ExportExperimentalFromRuntime, 1, 1)      \
+  F(InstallToContext, 1, 1)                   \
   F(Throw, 1, 1)                              \
   F(ReThrow, 1, 1)                            \
   F(UnwindAndFindExceptionHandler, 0, 1)      \
@@ -313,30 +320,29 @@ namespace internal {
   F(NewSyntaxError, 2, 1)                     \
   F(NewReferenceError, 2, 1)                  \
   F(ThrowIteratorResultNotAnObject, 1, 1)     \
+  F(ThrowStackOverflow, 0, 1)                 \
   F(ThrowStrongModeImplicitConversion, 0, 1)  \
   F(PromiseRejectEvent, 3, 1)                 \
   F(PromiseRevokeReject, 1, 1)                \
-  F(PromiseHasHandlerSymbol, 0, 1)            \
   F(StackGuard, 0, 1)                         \
   F(Interrupt, 0, 1)                          \
   F(AllocateInNewSpace, 1, 1)                 \
   F(AllocateInTargetSpace, 2, 1)              \
   F(CollectStackTrace, 2, 1)                  \
-  F(RenderCallSite, 0, 1)                     \
   F(MessageGetStartPosition, 1, 1)            \
   F(MessageGetScript, 1, 1)                   \
   F(ErrorToStringRT, 1, 1)                    \
   F(FormatMessageString, 4, 1)                \
-  F(CallSiteGetFileNameRT, 3, 1)              \
-  F(CallSiteGetFunctionNameRT, 3, 1)          \
-  F(CallSiteGetScriptNameOrSourceUrlRT, 3, 1) \
-  F(CallSiteGetMethodNameRT, 3, 1)            \
-  F(CallSiteGetLineNumberRT, 3, 1)            \
-  F(CallSiteGetColumnNumberRT, 3, 1)          \
-  F(CallSiteIsNativeRT, 3, 1)                 \
-  F(CallSiteIsToplevelRT, 3, 1)               \
-  F(CallSiteIsEvalRT, 3, 1)                   \
-  F(CallSiteIsConstructorRT, 3, 1)            \
+  F(CallSiteGetFileNameRT, 1, 1)              \
+  F(CallSiteGetFunctionNameRT, 1, 1)          \
+  F(CallSiteGetScriptNameOrSourceUrlRT, 1, 1) \
+  F(CallSiteGetMethodNameRT, 1, 1)            \
+  F(CallSiteGetLineNumberRT, 1, 1)            \
+  F(CallSiteGetColumnNumberRT, 1, 1)          \
+  F(CallSiteIsNativeRT, 1, 1)                 \
+  F(CallSiteIsToplevelRT, 1, 1)               \
+  F(CallSiteIsEvalRT, 1, 1)                   \
+  F(CallSiteIsConstructorRT, 1, 1)            \
   F(IS_VAR, 1, 1)                             \
   F(IncrementStatsCounter, 1, 1)              \
   F(Likely, 1, 1)                             \
@@ -344,7 +350,8 @@ namespace internal {
   F(HarmonyToString, 0, 1)                    \
   F(GetTypeFeedbackVector, 1, 1)              \
   F(GetCallerJSFunction, 0, 1)                \
-  F(GetCodeStubExportsObject, 0, 1)
+  F(GetCodeStubExportsObject, 0, 1)           \
+  F(ThrowCalledNonCallable, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
@@ -406,28 +413,12 @@ namespace internal {
   F(StringParseFloat, 1, 1)            \
   F(NumberToString, 1, 1)              \
   F(NumberToStringSkipCache, 1, 1)     \
-  F(NumberToInteger, 1, 1)             \
   F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToSmi, 1, 1)                 \
-  F(NumberAdd, 2, 1)                   \
-  F(NumberSub, 2, 1)                   \
-  F(NumberMul, 2, 1)                   \
-  F(NumberUnaryMinus, 1, 1)            \
-  F(NumberDiv, 2, 1)                   \
-  F(NumberMod, 2, 1)                   \
   F(NumberImul, 2, 1)                  \
-  F(NumberOr, 2, 1)                    \
-  F(NumberAnd, 2, 1)                   \
-  F(NumberXor, 2, 1)                   \
-  F(NumberShl, 2, 1)                   \
-  F(NumberShr, 2, 1)                   \
-  F(NumberSar, 2, 1)                   \
-  F(NumberEquals, 2, 1)                \
-  F(NumberCompare, 3, 1)               \
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
   F(IsSmi, 1, 1)                       \
-  F(IsNonNegativeSmi, 1, 1)            \
   F(GetRootNaN, 0, 1)
 
 
@@ -435,7 +426,6 @@ namespace internal {
   F(GetPrototype, 1, 1)                              \
   F(InternalSetPrototype, 2, 1)                      \
   F(SetPrototype, 2, 1)                              \
-  F(IsInPrototypeChain, 2, 1)                        \
   F(GetOwnProperty, 2, 1)                            \
   F(PreventExtensions, 1, 1)                         \
   F(IsExtensible, 1, 1)                              \
@@ -457,7 +447,6 @@ namespace internal {
   F(DeleteProperty_Strict, 2, 1)                     \
   F(HasOwnProperty, 2, 1)                            \
   F(HasProperty, 2, 1)                               \
-  F(HasElement, 2, 1)                                \
   F(IsPropertyEnumerable, 2, 1)                      \
   F(GetPropertyNamesFast, 1, 1)                      \
   F(GetOwnPropertyNames, 2, 1)                       \
@@ -467,10 +456,8 @@ namespace internal {
   F(GetIndexedInterceptorElementNames, 1, 1)         \
   F(OwnKeys, 1, 1)                                   \
   F(ToFastProperties, 1, 1)                          \
-  F(NewStringWrapper, 1, 1)                          \
   F(AllocateHeapNumber, 0, 1)                        \
   F(NewObject, 2, 1)                                 \
-  F(NewObjectWithAllocationSite, 3, 1)               \
   F(FinalizeInstanceSize, 1, 1)                      \
   F(GlobalProxy, 1, 1)                               \
   F(LookupAccessor, 3, 1)                            \
@@ -487,14 +474,27 @@ namespace internal {
   F(HeapObjectGetMap, 1, 1)                          \
   F(MapGetInstanceType, 1, 1)                        \
   F(ObjectEquals, 2, 1)                              \
-  F(IsObject, 1, 1)                                  \
   F(IsSpecObject, 1, 1)                              \
   F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
   F(DefineSetterPropertyUnchecked, 4, 1)             \
   F(ToObject, 1, 1)                                  \
+  F(ToPrimitive, 1, 1)                               \
+  F(ToPrimitive_Number, 1, 1)                        \
+  F(ToPrimitive_String, 1, 1)                        \
+  F(ToNumber, 1, 1)                                  \
+  F(ToInteger, 1, 1)                                 \
+  F(ToLength, 1, 1)                                  \
+  F(ToString, 1, 1)                                  \
+  F(ToName, 1, 1)                                    \
+  F(Equals, 2, 1)                                    \
   F(StrictEquals, 2, 1)                              \
+  F(Compare, 3, 1)                                   \
+  F(Compare_Strong, 3, 1)                            \
+  F(InstanceOf, 2, 1)                                \
+  F(HasInPrototypeChain, 2, 1)                       \
+  F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)
 
 
@@ -511,6 +511,30 @@ namespace internal {
   F(GetObjectContextObjectGetNotifier, 1, 1)     \
   F(GetObjectContextNotifierPerformChange, 1, 1)
 
+
+#define FOR_EACH_INTRINSIC_OPERATORS(F) \
+  F(Multiply, 2, 1)                     \
+  F(Multiply_Strong, 2, 1)              \
+  F(Divide, 2, 1)                       \
+  F(Divide_Strong, 2, 1)                \
+  F(Modulus, 2, 1)                      \
+  F(Modulus_Strong, 2, 1)               \
+  F(Add, 2, 1)                          \
+  F(Add_Strong, 2, 1)                   \
+  F(Subtract, 2, 1)                     \
+  F(Subtract_Strong, 2, 1)              \
+  F(ShiftLeft, 2, 1)                    \
+  F(ShiftLeft_Strong, 2, 1)             \
+  F(ShiftRight, 2, 1)                   \
+  F(ShiftRight_Strong, 2, 1)            \
+  F(ShiftRightLogical, 2, 1)            \
+  F(ShiftRightLogical_Strong, 2, 1)     \
+  F(BitwiseAnd, 2, 1)                   \
+  F(BitwiseAnd_Strong, 2, 1)            \
+  F(BitwiseOr, 2, 1)                    \
+  F(BitwiseOr_Strong, 2, 1)             \
+  F(BitwiseXor, 2, 1)                   \
+  F(BitwiseXor_Strong, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F) \
   F(CreateJSProxy, 2, 1)            \
@@ -535,206 +559,338 @@ namespace internal {
   F(IsRegExp, 1, 1)
 
 
-#define FOR_EACH_INTRINSIC_SCOPES(F)                         \
-  F(ThrowConstAssignError, 0, 1)                             \
-  F(DeclareGlobals, 2, 1)                                    \
-  F(InitializeVarGlobal, 3, 1)                               \
-  F(InitializeConstGlobal, 2, 1)                             \
-  F(DeclareLookupSlot, 2, 1)                                 \
-  F(DeclareReadOnlyLookupSlot, 2, 1)                         \
-  F(InitializeLegacyConstLookupSlot, 3, 1)                   \
-  F(NewArguments, 1, 1) /* TODO(turbofan): Only temporary */ \
-  F(NewSloppyArguments, 3, 1)                                \
-  F(NewStrictArguments, 3, 1)                                \
-  F(NewRestParam, 4, 1)                                      \
-  F(NewRestParamSlow, 2, 1)                                  \
-  F(NewClosureFromStubFailure, 1, 1)                         \
-  F(NewClosure, 3, 1)                                        \
-  F(NewScriptContext, 2, 1)                                  \
-  F(NewFunctionContext, 1, 1)                                \
-  F(PushWithContext, 2, 1)                                   \
-  F(PushCatchContext, 3, 1)                                  \
-  F(PushBlockContext, 2, 1)                                  \
-  F(IsJSModule, 1, 1)                                        \
-  F(PushModuleContext, 2, 1)                                 \
-  F(DeclareModules, 1, 1)                                    \
-  F(DeleteLookupSlot, 2, 1)                                  \
-  F(StoreLookupSlot, 4, 1)                                   \
-  F(ArgumentsLength, 0, 1)                                   \
+#define FOR_EACH_INTRINSIC_SCOPES(F)       \
+  F(ThrowConstAssignError, 0, 1)           \
+  F(DeclareGlobals, 2, 1)                  \
+  F(InitializeVarGlobal, 3, 1)             \
+  F(InitializeConstGlobal, 2, 1)           \
+  F(DeclareLookupSlot, 2, 1)               \
+  F(DeclareReadOnlyLookupSlot, 2, 1)       \
+  F(InitializeLegacyConstLookupSlot, 3, 1) \
+  F(NewSloppyArguments_Generic, 1, 1)      \
+  F(NewStrictArguments_Generic, 1, 1)      \
+  F(NewSloppyArguments, 3, 1)              \
+  F(NewStrictArguments, 3, 1)              \
+  F(NewClosure, 1, 1)                      \
+  F(NewClosure_Tenured, 1, 1)              \
+  F(NewScriptContext, 2, 1)                \
+  F(NewFunctionContext, 1, 1)              \
+  F(PushWithContext, 2, 1)                 \
+  F(PushCatchContext, 3, 1)                \
+  F(PushBlockContext, 2, 1)                \
+  F(IsJSModule, 1, 1)                      \
+  F(PushModuleContext, 2, 1)               \
+  F(DeclareModules, 1, 1)                  \
+  F(DeleteLookupSlot, 2, 1)                \
+  F(StoreLookupSlot, 4, 1)                 \
+  F(ArgumentsLength, 0, 1)                 \
   F(Arguments, 1, 1)
 
 
-#define FOR_EACH_INTRINSIC_SIMD(F)             \
-  F(IsSimdValue, 1, 1)                         \
-  F(SimdToObject, 1, 1)                        \
-  F(SimdEquals, 2, 1)                          \
-  F(SimdSameValue, 2, 1)                       \
-  F(SimdSameValueZero, 2, 1)                   \
-  F(CreateFloat32x4, 4, 1)                     \
-  F(CreateInt32x4, 4, 1)                       \
-  F(CreateBool32x4, 4, 1)                      \
-  F(CreateInt16x8, 8, 1)                       \
-  F(CreateBool16x8, 8, 1)                      \
-  F(CreateInt8x16, 16, 1)                      \
-  F(CreateBool8x16, 16, 1)                     \
-  F(Float32x4Check, 1, 1)                      \
-  F(Float32x4ExtractLane, 2, 1)                \
-  F(Float32x4ReplaceLane, 3, 1)                \
-  F(Float32x4Abs, 1, 1)                        \
-  F(Float32x4Neg, 1, 1)                        \
-  F(Float32x4Sqrt, 1, 1)                       \
-  F(Float32x4RecipApprox, 1, 1)                \
-  F(Float32x4RecipSqrtApprox, 1, 1)            \
-  F(Float32x4Add, 2, 1)                        \
-  F(Float32x4Sub, 2, 1)                        \
-  F(Float32x4Mul, 2, 1)                        \
-  F(Float32x4Div, 2, 1)                        \
-  F(Float32x4Min, 2, 1)                        \
-  F(Float32x4Max, 2, 1)                        \
-  F(Float32x4MinNum, 2, 1)                     \
-  F(Float32x4MaxNum, 2, 1)                     \
-  F(Float32x4LessThan, 2, 1)                   \
-  F(Float32x4LessThanOrEqual, 2, 1)            \
-  F(Float32x4GreaterThan, 2, 1)                \
-  F(Float32x4GreaterThanOrEqual, 2, 1)         \
-  F(Float32x4Equal, 2, 1)                      \
-  F(Float32x4NotEqual, 2, 1)                   \
-  F(Float32x4Select, 3, 1)                     \
-  F(Float32x4Swizzle, 5, 1)                    \
-  F(Float32x4Shuffle, 6, 1)                    \
-  F(Float32x4FromInt32x4, 1, 1)                \
-  F(Float32x4FromInt32x4Bits, 1, 1)            \
-  F(Float32x4FromInt16x8Bits, 1, 1)            \
-  F(Float32x4FromInt8x16Bits, 1, 1)            \
-  F(Int32x4Check, 1, 1)                        \
-  F(Int32x4ExtractLane, 2, 1)                  \
-  F(Int32x4ReplaceLane, 3, 1)                  \
-  F(Int32x4Neg, 1, 1)                          \
-  F(Int32x4Add, 2, 1)                          \
-  F(Int32x4Sub, 2, 1)                          \
-  F(Int32x4Mul, 2, 1)                          \
-  F(Int32x4Min, 2, 1)                          \
-  F(Int32x4Max, 2, 1)                          \
-  F(Int32x4And, 2, 1)                          \
-  F(Int32x4Or, 2, 1)                           \
-  F(Int32x4Xor, 2, 1)                          \
-  F(Int32x4Not, 1, 1)                          \
-  F(Int32x4ShiftLeftByScalar, 2, 1)            \
-  F(Int32x4ShiftRightLogicalByScalar, 2, 1)    \
-  F(Int32x4ShiftRightArithmeticByScalar, 2, 1) \
-  F(Int32x4LessThan, 2, 1)                     \
-  F(Int32x4LessThanOrEqual, 2, 1)              \
-  F(Int32x4GreaterThan, 2, 1)                  \
-  F(Int32x4GreaterThanOrEqual, 2, 1)           \
-  F(Int32x4Equal, 2, 1)                        \
-  F(Int32x4NotEqual, 2, 1)                     \
-  F(Int32x4Select, 3, 1)                       \
-  F(Int32x4Swizzle, 5, 1)                      \
-  F(Int32x4Shuffle, 6, 1)                      \
-  F(Int32x4FromFloat32x4, 1, 1)                \
-  F(Int32x4FromFloat32x4Bits, 1, 1)            \
-  F(Int32x4FromInt16x8Bits, 1, 1)              \
-  F(Int32x4FromInt8x16Bits, 1, 1)              \
-  F(Bool32x4Check, 1, 1)                       \
-  F(Bool32x4ExtractLane, 2, 1)                 \
-  F(Bool32x4ReplaceLane, 3, 1)                 \
-  F(Bool32x4And, 2, 1)                         \
-  F(Bool32x4Or, 2, 1)                          \
-  F(Bool32x4Xor, 2, 1)                         \
-  F(Bool32x4Not, 1, 1)                         \
-  F(Bool32x4AnyTrue, 1, 1)                     \
-  F(Bool32x4AllTrue, 1, 1)                     \
-  F(Bool32x4Equal, 2, 1)                       \
-  F(Bool32x4NotEqual, 2, 1)                    \
-  F(Bool32x4Swizzle, 5, 1)                     \
-  F(Bool32x4Shuffle, 6, 1)                     \
-  F(Int16x8Check, 1, 1)                        \
-  F(Int16x8ExtractLane, 2, 1)                  \
-  F(Int16x8UnsignedExtractLane, 2, 1)          \
-  F(Int16x8ReplaceLane, 3, 1)                  \
-  F(Int16x8Neg, 1, 1)                          \
-  F(Int16x8Add, 2, 1)                          \
-  F(Int16x8AddSaturate, 2, 1)                  \
-  F(Int16x8Sub, 2, 1)                          \
-  F(Int16x8SubSaturate, 2, 1)                  \
-  F(Int16x8Mul, 2, 1)                          \
-  F(Int16x8Min, 2, 1)                          \
-  F(Int16x8Max, 2, 1)                          \
-  F(Int16x8And, 2, 1)                          \
-  F(Int16x8Or, 2, 1)                           \
-  F(Int16x8Xor, 2, 1)                          \
-  F(Int16x8Not, 1, 1)                          \
-  F(Int16x8ShiftLeftByScalar, 2, 1)            \
-  F(Int16x8ShiftRightLogicalByScalar, 2, 1)    \
-  F(Int16x8ShiftRightArithmeticByScalar, 2, 1) \
-  F(Int16x8LessThan, 2, 1)                     \
-  F(Int16x8LessThanOrEqual, 2, 1)              \
-  F(Int16x8GreaterThan, 2, 1)                  \
-  F(Int16x8GreaterThanOrEqual, 2, 1)           \
-  F(Int16x8Equal, 2, 1)                        \
-  F(Int16x8NotEqual, 2, 1)                     \
-  F(Int16x8Select, 3, 1)                       \
-  F(Int16x8Swizzle, 9, 1)                      \
-  F(Int16x8Shuffle, 10, 1)                     \
-  F(Int16x8FromFloat32x4Bits, 1, 1)            \
-  F(Int16x8FromInt32x4Bits, 1, 1)              \
-  F(Int16x8FromInt8x16Bits, 1, 1)              \
-  F(Bool16x8Check, 1, 1)                       \
-  F(Bool16x8ExtractLane, 2, 1)                 \
-  F(Bool16x8ReplaceLane, 3, 1)                 \
-  F(Bool16x8And, 2, 1)                         \
-  F(Bool16x8Or, 2, 1)                          \
-  F(Bool16x8Xor, 2, 1)                         \
-  F(Bool16x8Not, 1, 1)                         \
-  F(Bool16x8AnyTrue, 1, 1)                     \
-  F(Bool16x8AllTrue, 1, 1)                     \
-  F(Bool16x8Equal, 2, 1)                       \
-  F(Bool16x8NotEqual, 2, 1)                    \
-  F(Bool16x8Swizzle, 9, 1)                     \
-  F(Bool16x8Shuffle, 10, 1)                    \
-  F(Int8x16Check, 1, 1)                        \
-  F(Int8x16ExtractLane, 2, 1)                  \
-  F(Int8x16UnsignedExtractLane, 2, 1)          \
-  F(Int8x16ReplaceLane, 3, 1)                  \
-  F(Int8x16Neg, 1, 1)                          \
-  F(Int8x16Add, 2, 1)                          \
-  F(Int8x16AddSaturate, 2, 1)                  \
-  F(Int8x16Sub, 2, 1)                          \
-  F(Int8x16SubSaturate, 2, 1)                  \
-  F(Int8x16Mul, 2, 1)                          \
-  F(Int8x16Min, 2, 1)                          \
-  F(Int8x16Max, 2, 1)                          \
-  F(Int8x16And, 2, 1)                          \
-  F(Int8x16Or, 2, 1)                           \
-  F(Int8x16Xor, 2, 1)                          \
-  F(Int8x16Not, 1, 1)                          \
-  F(Int8x16ShiftLeftByScalar, 2, 1)            \
-  F(Int8x16ShiftRightLogicalByScalar, 2, 1)    \
-  F(Int8x16ShiftRightArithmeticByScalar, 2, 1) \
-  F(Int8x16LessThan, 2, 1)                     \
-  F(Int8x16LessThanOrEqual, 2, 1)              \
-  F(Int8x16GreaterThan, 2, 1)                  \
-  F(Int8x16GreaterThanOrEqual, 2, 1)           \
-  F(Int8x16Equal, 2, 1)                        \
-  F(Int8x16NotEqual, 2, 1)                     \
-  F(Int8x16Select, 3, 1)                       \
-  F(Int8x16Swizzle, 17, 1)                     \
-  F(Int8x16Shuffle, 18, 1)                     \
-  F(Int8x16FromFloat32x4Bits, 1, 1)            \
-  F(Int8x16FromInt32x4Bits, 1, 1)              \
-  F(Int8x16FromInt16x8Bits, 1, 1)              \
-  F(Bool8x16Check, 1, 1)                       \
-  F(Bool8x16ExtractLane, 2, 1)                 \
-  F(Bool8x16ReplaceLane, 3, 1)                 \
-  F(Bool8x16And, 2, 1)                         \
-  F(Bool8x16Or, 2, 1)                          \
-  F(Bool8x16Xor, 2, 1)                         \
-  F(Bool8x16Not, 1, 1)                         \
-  F(Bool8x16AnyTrue, 1, 1)                     \
-  F(Bool8x16AllTrue, 1, 1)                     \
-  F(Bool8x16Equal, 2, 1)                       \
-  F(Bool8x16NotEqual, 2, 1)                    \
-  F(Bool8x16Swizzle, 17, 1)                    \
+#define FOR_EACH_INTRINSIC_SIMD(F)           \
+  F(IsSimdValue, 1, 1)                       \
+  F(SimdSameValue, 2, 1)                     \
+  F(SimdSameValueZero, 2, 1)                 \
+  F(CreateFloat32x4, 4, 1)                   \
+  F(CreateInt32x4, 4, 1)                     \
+  F(CreateUint32x4, 4, 1)                    \
+  F(CreateBool32x4, 4, 1)                    \
+  F(CreateInt16x8, 8, 1)                     \
+  F(CreateUint16x8, 8, 1)                    \
+  F(CreateBool16x8, 8, 1)                    \
+  F(CreateInt8x16, 16, 1)                    \
+  F(CreateUint8x16, 16, 1)                   \
+  F(CreateBool8x16, 16, 1)                   \
+  F(Float32x4Check, 1, 1)                    \
+  F(Float32x4ExtractLane, 2, 1)              \
+  F(Float32x4ReplaceLane, 3, 1)              \
+  F(Float32x4Abs, 1, 1)                      \
+  F(Float32x4Neg, 1, 1)                      \
+  F(Float32x4Sqrt, 1, 1)                     \
+  F(Float32x4RecipApprox, 1, 1)              \
+  F(Float32x4RecipSqrtApprox, 1, 1)          \
+  F(Float32x4Add, 2, 1)                      \
+  F(Float32x4Sub, 2, 1)                      \
+  F(Float32x4Mul, 2, 1)                      \
+  F(Float32x4Div, 2, 1)                      \
+  F(Float32x4Min, 2, 1)                      \
+  F(Float32x4Max, 2, 1)                      \
+  F(Float32x4MinNum, 2, 1)                   \
+  F(Float32x4MaxNum, 2, 1)                   \
+  F(Float32x4Equal, 2, 1)                    \
+  F(Float32x4NotEqual, 2, 1)                 \
+  F(Float32x4LessThan, 2, 1)                 \
+  F(Float32x4LessThanOrEqual, 2, 1)          \
+  F(Float32x4GreaterThan, 2, 1)              \
+  F(Float32x4GreaterThanOrEqual, 2, 1)       \
+  F(Float32x4Select, 3, 1)                   \
+  F(Float32x4Swizzle, 5, 1)                  \
+  F(Float32x4Shuffle, 6, 1)                  \
+  F(Float32x4FromInt32x4, 1, 1)              \
+  F(Float32x4FromUint32x4, 1, 1)             \
+  F(Float32x4FromInt32x4Bits, 1, 1)          \
+  F(Float32x4FromUint32x4Bits, 1, 1)         \
+  F(Float32x4FromInt16x8Bits, 1, 1)          \
+  F(Float32x4FromUint16x8Bits, 1, 1)         \
+  F(Float32x4FromInt8x16Bits, 1, 1)          \
+  F(Float32x4FromUint8x16Bits, 1, 1)         \
+  F(Float32x4Load, 2, 1)                     \
+  F(Float32x4Load1, 2, 1)                    \
+  F(Float32x4Load2, 2, 1)                    \
+  F(Float32x4Load3, 2, 1)                    \
+  F(Float32x4Store, 3, 1)                    \
+  F(Float32x4Store1, 3, 1)                   \
+  F(Float32x4Store2, 3, 1)                   \
+  F(Float32x4Store3, 3, 1)                   \
+  F(Int32x4Check, 1, 1)                      \
+  F(Int32x4ExtractLane, 2, 1)                \
+  F(Int32x4ReplaceLane, 3, 1)                \
+  F(Int32x4Neg, 1, 1)                        \
+  F(Int32x4Add, 2, 1)                        \
+  F(Int32x4Sub, 2, 1)                        \
+  F(Int32x4Mul, 2, 1)                        \
+  F(Int32x4Min, 2, 1)                        \
+  F(Int32x4Max, 2, 1)                        \
+  F(Int32x4And, 2, 1)                        \
+  F(Int32x4Or, 2, 1)                         \
+  F(Int32x4Xor, 2, 1)                        \
+  F(Int32x4Not, 1, 1)                        \
+  F(Int32x4ShiftLeftByScalar, 2, 1)          \
+  F(Int32x4ShiftRightByScalar, 2, 1)         \
+  F(Int32x4Equal, 2, 1)                      \
+  F(Int32x4NotEqual, 2, 1)                   \
+  F(Int32x4LessThan, 2, 1)                   \
+  F(Int32x4LessThanOrEqual, 2, 1)            \
+  F(Int32x4GreaterThan, 2, 1)                \
+  F(Int32x4GreaterThanOrEqual, 2, 1)         \
+  F(Int32x4Select, 3, 1)                     \
+  F(Int32x4Swizzle, 5, 1)                    \
+  F(Int32x4Shuffle, 6, 1)                    \
+  F(Int32x4FromFloat32x4, 1, 1)              \
+  F(Int32x4FromUint32x4, 1, 1)               \
+  F(Int32x4FromFloat32x4Bits, 1, 1)          \
+  F(Int32x4FromUint32x4Bits, 1, 1)           \
+  F(Int32x4FromInt16x8Bits, 1, 1)            \
+  F(Int32x4FromUint16x8Bits, 1, 1)           \
+  F(Int32x4FromInt8x16Bits, 1, 1)            \
+  F(Int32x4FromUint8x16Bits, 1, 1)           \
+  F(Int32x4Load, 2, 1)                       \
+  F(Int32x4Load1, 2, 1)                      \
+  F(Int32x4Load2, 2, 1)                      \
+  F(Int32x4Load3, 2, 1)                      \
+  F(Int32x4Store, 3, 1)                      \
+  F(Int32x4Store1, 3, 1)                     \
+  F(Int32x4Store2, 3, 1)                     \
+  F(Int32x4Store3, 3, 1)                     \
+  F(Uint32x4Check, 1, 1)                     \
+  F(Uint32x4ExtractLane, 2, 1)               \
+  F(Uint32x4ReplaceLane, 3, 1)               \
+  F(Uint32x4Add, 2, 1)                       \
+  F(Uint32x4Sub, 2, 1)                       \
+  F(Uint32x4Mul, 2, 1)                       \
+  F(Uint32x4Min, 2, 1)                       \
+  F(Uint32x4Max, 2, 1)                       \
+  F(Uint32x4And, 2, 1)                       \
+  F(Uint32x4Or, 2, 1)                        \
+  F(Uint32x4Xor, 2, 1)                       \
+  F(Uint32x4Not, 1, 1)                       \
+  F(Uint32x4ShiftLeftByScalar, 2, 1)         \
+  F(Uint32x4ShiftRightByScalar, 2, 1)        \
+  F(Uint32x4Equal, 2, 1)                     \
+  F(Uint32x4NotEqual, 2, 1)                  \
+  F(Uint32x4LessThan, 2, 1)                  \
+  F(Uint32x4LessThanOrEqual, 2, 1)           \
+  F(Uint32x4GreaterThan, 2, 1)               \
+  F(Uint32x4GreaterThanOrEqual, 2, 1)        \
+  F(Uint32x4Select, 3, 1)                    \
+  F(Uint32x4Swizzle, 5, 1)                   \
+  F(Uint32x4Shuffle, 6, 1)                   \
+  F(Uint32x4FromFloat32x4, 1, 1)             \
+  F(Uint32x4FromInt32x4, 1, 1)               \
+  F(Uint32x4FromFloat32x4Bits, 1, 1)         \
+  F(Uint32x4FromInt32x4Bits, 1, 1)           \
+  F(Uint32x4FromInt16x8Bits, 1, 1)           \
+  F(Uint32x4FromUint16x8Bits, 1, 1)          \
+  F(Uint32x4FromInt8x16Bits, 1, 1)           \
+  F(Uint32x4FromUint8x16Bits, 1, 1)          \
+  F(Uint32x4Load, 2, 1)                      \
+  F(Uint32x4Load1, 2, 1)                     \
+  F(Uint32x4Load2, 2, 1)                     \
+  F(Uint32x4Load3, 2, 1)                     \
+  F(Uint32x4Store, 3, 1)                     \
+  F(Uint32x4Store1, 3, 1)                    \
+  F(Uint32x4Store2, 3, 1)                    \
+  F(Uint32x4Store3, 3, 1)                    \
+  F(Bool32x4Check, 1, 1)                     \
+  F(Bool32x4ExtractLane, 2, 1)               \
+  F(Bool32x4ReplaceLane, 3, 1)               \
+  F(Bool32x4And, 2, 1)                       \
+  F(Bool32x4Or, 2, 1)                        \
+  F(Bool32x4Xor, 2, 1)                       \
+  F(Bool32x4Not, 1, 1)                       \
+  F(Bool32x4AnyTrue, 1, 1)                   \
+  F(Bool32x4AllTrue, 1, 1)                   \
+  F(Bool32x4Swizzle, 5, 1)                   \
+  F(Bool32x4Shuffle, 6, 1)                   \
+  F(Int16x8Check, 1, 1)                      \
+  F(Int16x8ExtractLane, 2, 1)                \
+  F(Int16x8ReplaceLane, 3, 1)                \
+  F(Int16x8Neg, 1, 1)                        \
+  F(Int16x8Add, 2, 1)                        \
+  F(Int16x8AddSaturate, 2, 1)                \
+  F(Int16x8Sub, 2, 1)                        \
+  F(Int16x8SubSaturate, 2, 1)                \
+  F(Int16x8Mul, 2, 1)                        \
+  F(Int16x8Min, 2, 1)                        \
+  F(Int16x8Max, 2, 1)                        \
+  F(Int16x8And, 2, 1)                        \
+  F(Int16x8Or, 2, 1)                         \
+  F(Int16x8Xor, 2, 1)                        \
+  F(Int16x8Not, 1, 1)                        \
+  F(Int16x8ShiftLeftByScalar, 2, 1)          \
+  F(Int16x8ShiftRightByScalar, 2, 1)         \
+  F(Int16x8Equal, 2, 1)                      \
+  F(Int16x8NotEqual, 2, 1)                   \
+  F(Int16x8LessThan, 2, 1)                   \
+  F(Int16x8LessThanOrEqual, 2, 1)            \
+  F(Int16x8GreaterThan, 2, 1)                \
+  F(Int16x8GreaterThanOrEqual, 2, 1)         \
+  F(Int16x8Select, 3, 1)                     \
+  F(Int16x8Swizzle, 9, 1)                    \
+  F(Int16x8Shuffle, 10, 1)                   \
+  F(Int16x8FromUint16x8, 1, 1)               \
+  F(Int16x8FromFloat32x4Bits, 1, 1)          \
+  F(Int16x8FromInt32x4Bits, 1, 1)            \
+  F(Int16x8FromUint32x4Bits, 1, 1)           \
+  F(Int16x8FromUint16x8Bits, 1, 1)           \
+  F(Int16x8FromInt8x16Bits, 1, 1)            \
+  F(Int16x8FromUint8x16Bits, 1, 1)           \
+  F(Int16x8Load, 2, 1)                       \
+  F(Int16x8Store, 3, 1)                      \
+  F(Uint16x8Check, 1, 1)                     \
+  F(Uint16x8ExtractLane, 2, 1)               \
+  F(Uint16x8ReplaceLane, 3, 1)               \
+  F(Uint16x8Add, 2, 1)                       \
+  F(Uint16x8AddSaturate, 2, 1)               \
+  F(Uint16x8Sub, 2, 1)                       \
+  F(Uint16x8SubSaturate, 2, 1)               \
+  F(Uint16x8Mul, 2, 1)                       \
+  F(Uint16x8Min, 2, 1)                       \
+  F(Uint16x8Max, 2, 1)                       \
+  F(Uint16x8And, 2, 1)                       \
+  F(Uint16x8Or, 2, 1)                        \
+  F(Uint16x8Xor, 2, 1)                       \
+  F(Uint16x8Not, 1, 1)                       \
+  F(Uint16x8ShiftLeftByScalar, 2, 1)         \
+  F(Uint16x8ShiftRightByScalar, 2, 1)        \
+  F(Uint16x8Equal, 2, 1)                     \
+  F(Uint16x8NotEqual, 2, 1)                  \
+  F(Uint16x8LessThan, 2, 1)                  \
+  F(Uint16x8LessThanOrEqual, 2, 1)           \
+  F(Uint16x8GreaterThan, 2, 1)               \
+  F(Uint16x8GreaterThanOrEqual, 2, 1)        \
+  F(Uint16x8Select, 3, 1)                    \
+  F(Uint16x8Swizzle, 9, 1)                   \
+  F(Uint16x8Shuffle, 10, 1)                  \
+  F(Uint16x8FromInt16x8, 1, 1)               \
+  F(Uint16x8FromFloat32x4Bits, 1, 1)         \
+  F(Uint16x8FromInt32x4Bits, 1, 1)           \
+  F(Uint16x8FromUint32x4Bits, 1, 1)          \
+  F(Uint16x8FromInt16x8Bits, 1, 1)           \
+  F(Uint16x8FromInt8x16Bits, 1, 1)           \
+  F(Uint16x8FromUint8x16Bits, 1, 1)          \
+  F(Uint16x8Load, 2, 1)                      \
+  F(Uint16x8Store, 3, 1)                     \
+  F(Bool16x8Check, 1, 1)                     \
+  F(Bool16x8ExtractLane, 2, 1)               \
+  F(Bool16x8ReplaceLane, 3, 1)               \
+  F(Bool16x8And, 2, 1)                       \
+  F(Bool16x8Or, 2, 1)                        \
+  F(Bool16x8Xor, 2, 1)                       \
+  F(Bool16x8Not, 1, 1)                       \
+  F(Bool16x8AnyTrue, 1, 1)                   \
+  F(Bool16x8AllTrue, 1, 1)                   \
+  F(Bool16x8Swizzle, 9, 1)                   \
+  F(Bool16x8Shuffle, 10, 1)                  \
+  F(Int8x16Check, 1, 1)                      \
+  F(Int8x16ExtractLane, 2, 1)                \
+  F(Int8x16ReplaceLane, 3, 1)                \
+  F(Int8x16Neg, 1, 1)                        \
+  F(Int8x16Add, 2, 1)                        \
+  F(Int8x16AddSaturate, 2, 1)                \
+  F(Int8x16Sub, 2, 1)                        \
+  F(Int8x16SubSaturate, 2, 1)                \
+  F(Int8x16Mul, 2, 1)                        \
+  F(Int8x16Min, 2, 1)                        \
+  F(Int8x16Max, 2, 1)                        \
+  F(Int8x16And, 2, 1)                        \
+  F(Int8x16Or, 2, 1)                         \
+  F(Int8x16Xor, 2, 1)                        \
+  F(Int8x16Not, 1, 1)                        \
+  F(Int8x16ShiftLeftByScalar, 2, 1)          \
+  F(Int8x16ShiftRightByScalar, 2, 1)         \
+  F(Int8x16Equal, 2, 1)                      \
+  F(Int8x16NotEqual, 2, 1)                   \
+  F(Int8x16LessThan, 2, 1)                   \
+  F(Int8x16LessThanOrEqual, 2, 1)            \
+  F(Int8x16GreaterThan, 2, 1)                \
+  F(Int8x16GreaterThanOrEqual, 2, 1)         \
+  F(Int8x16Select, 3, 1)                     \
+  F(Int8x16Swizzle, 17, 1)                   \
+  F(Int8x16Shuffle, 18, 1)                   \
+  F(Int8x16FromUint8x16, 1, 1)               \
+  F(Int8x16FromFloat32x4Bits, 1, 1)          \
+  F(Int8x16FromInt32x4Bits, 1, 1)            \
+  F(Int8x16FromUint32x4Bits, 1, 1)           \
+  F(Int8x16FromInt16x8Bits, 1, 1)            \
+  F(Int8x16FromUint16x8Bits, 1, 1)           \
+  F(Int8x16FromUint8x16Bits, 1, 1)           \
+  F(Int8x16Load, 2, 1)                       \
+  F(Int8x16Store, 3, 1)                      \
+  F(Uint8x16Check, 1, 1)                     \
+  F(Uint8x16ExtractLane, 2, 1)               \
+  F(Uint8x16ReplaceLane, 3, 1)               \
+  F(Uint8x16Add, 2, 1)                       \
+  F(Uint8x16AddSaturate, 2, 1)               \
+  F(Uint8x16Sub, 2, 1)                       \
+  F(Uint8x16SubSaturate, 2, 1)               \
+  F(Uint8x16Mul, 2, 1)                       \
+  F(Uint8x16Min, 2, 1)                       \
+  F(Uint8x16Max, 2, 1)                       \
+  F(Uint8x16And, 2, 1)                       \
+  F(Uint8x16Or, 2, 1)                        \
+  F(Uint8x16Xor, 2, 1)                       \
+  F(Uint8x16Not, 1, 1)                       \
+  F(Uint8x16ShiftLeftByScalar, 2, 1)         \
+  F(Uint8x16ShiftRightByScalar, 2, 1)        \
+  F(Uint8x16Equal, 2, 1)                     \
+  F(Uint8x16NotEqual, 2, 1)                  \
+  F(Uint8x16LessThan, 2, 1)                  \
+  F(Uint8x16LessThanOrEqual, 2, 1)           \
+  F(Uint8x16GreaterThan, 2, 1)               \
+  F(Uint8x16GreaterThanOrEqual, 2, 1)        \
+  F(Uint8x16Select, 3, 1)                    \
+  F(Uint8x16Swizzle, 17, 1)                  \
+  F(Uint8x16Shuffle, 18, 1)                  \
+  F(Uint8x16FromInt8x16, 1, 1)               \
+  F(Uint8x16FromFloat32x4Bits, 1, 1)         \
+  F(Uint8x16FromInt32x4Bits, 1, 1)           \
+  F(Uint8x16FromUint32x4Bits, 1, 1)          \
+  F(Uint8x16FromInt16x8Bits, 1, 1)           \
+  F(Uint8x16FromUint16x8Bits, 1, 1)          \
+  F(Uint8x16FromInt8x16Bits, 1, 1)           \
+  F(Uint8x16Load, 2, 1)                      \
+  F(Uint8x16Store, 3, 1)                     \
+  F(Bool8x16Check, 1, 1)                     \
+  F(Bool8x16ExtractLane, 2, 1)               \
+  F(Bool8x16ReplaceLane, 3, 1)               \
+  F(Bool8x16And, 2, 1)                       \
+  F(Bool8x16Or, 2, 1)                        \
+  F(Bool8x16Xor, 2, 1)                       \
+  F(Bool8x16Not, 1, 1)                       \
+  F(Bool8x16AnyTrue, 1, 1)                   \
+  F(Bool8x16AllTrue, 1, 1)                   \
+  F(Bool8x16Swizzle, 17, 1)                  \
   F(Bool8x16Shuffle, 18, 1)
 
 
@@ -759,7 +915,6 @@ namespace internal {
   F(StringTrim, 3, 1)                           \
   F(TruncateString, 2, 1)                       \
   F(NewString, 2, 1)                            \
-  F(NewConsString, 4, 1)                        \
   F(StringEquals, 2, 1)                         \
   F(FlattenString, 1, 1)                        \
   F(StringCharFromCode, 1, 1)                   \
@@ -769,15 +924,14 @@ namespace internal {
   F(TwoByteSeqStringGetChar, 2, 1)              \
   F(TwoByteSeqStringSetChar, 3, 1)              \
   F(StringCharCodeAt, 2, 1)                     \
-  F(IsStringWrapperSafeForDefaultValueOf, 1, 1) \
   F(StringGetLength, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F) \
   F(CreateSymbol, 1, 1)              \
   F(CreatePrivateSymbol, 1, 1)       \
-  F(CreateGlobalPrivateSymbol, 1, 1) \
   F(SymbolDescription, 1, 1)         \
+  F(SymbolDescriptiveString, 1, 1)   \
   F(SymbolRegistry, 0, 1)            \
   F(SymbolIsPrivate, 1, 1)
 
@@ -810,6 +964,7 @@ namespace internal {
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
   F(HaveSameMap, 2, 1)                        \
+  F(InNewSpace, 1, 1)                         \
   F(HasFastSmiElements, 1, 1)                 \
   F(HasFastObjectElements, 1, 1)              \
   F(HasFastSmiOrObjectElements, 1, 1)         \
@@ -883,7 +1038,6 @@ namespace internal {
   F(LoadIC_Miss, 3, 1)                       \
   F(KeyedLoadIC_Miss, 3, 1)                  \
   F(CallIC_Miss, 3, 1)                       \
-  F(CallIC_Customization_Miss, 3, 1)         \
   F(StoreIC_Miss, 3, 1)                      \
   F(StoreIC_Slow, 3, 1)                      \
   F(KeyedStoreIC_Miss, 3, 1)                 \
@@ -916,6 +1070,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_DATE(F)                \
   FOR_EACH_INTRINSIC_DEBUG(F)               \
   FOR_EACH_INTRINSIC_FORIN(F)               \
+  FOR_EACH_INTRINSIC_INTERPRETER(F)         \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \
   FOR_EACH_INTRINSIC_FUTEX(F)               \
   FOR_EACH_INTRINSIC_GENERATOR(F)           \
@@ -928,6 +1083,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_NUMBERS(F)             \
   FOR_EACH_INTRINSIC_OBJECT(F)              \
   FOR_EACH_INTRINSIC_OBSERVE(F)             \
+  FOR_EACH_INTRINSIC_OPERATORS(F)           \
   FOR_EACH_INTRINSIC_PROXY(F)               \
   FOR_EACH_INTRINSIC_REGEXP(F)              \
   FOR_EACH_INTRINSIC_SCOPES(F)              \
@@ -975,18 +1131,16 @@ class RuntimeState {
 };
 
 
-class JavaScriptFrameIterator;  // Forward declaration.
-
-
 class Runtime : public AllStatic {
  public:
   enum FunctionId {
 #define F(name, nargs, ressize) k##name,
 #define I(name, nargs, ressize) kInline##name,
-    FOR_EACH_INTRINSIC(F) FOR_EACH_INTRINSIC(I)
+  FOR_EACH_INTRINSIC(F)
+  FOR_EACH_INTRINSIC(I)
 #undef I
 #undef F
-        kNumFunctions,
+    kNumFunctions,
   };
 
   enum IntrinsicType { RUNTIME, INLINE };
@@ -998,14 +1152,15 @@ class Runtime : public AllStatic {
     // The JS name of the function.
     const char* name;
 
-    // The C++ (native) entry point.  NULL if the function is inlined.
-    byte* entry;
+    // For RUNTIME functions, this is the C++ entry point.
+    // For INLINE functions this is the C++ entry point of the fall back.
+    Address entry;
 
     // The number of arguments expected. nargs is -1 if the function takes
     // a variable number of arguments.
-    int nargs;
+    int8_t nargs;
     // Size of result.  Most functions return a single pointer, size 1.
-    int result_size;
+    int8_t result_size;
   };
 
   static const int kNotFound = -1;
@@ -1036,31 +1191,8 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       LanguageMode language_mode = SLOPPY);
 
-  MUST_USE_RESULT static MaybeHandle<Object> KeyedGetObjectProperty(
-      Isolate* isolate, Handle<Object> receiver_obj, Handle<Object> key_obj,
-      LanguageMode language_mode);
-
-  MUST_USE_RESULT static MaybeHandle<Object> GetPrototype(
-      Isolate* isolate, Handle<Object> object);
-
-  MUST_USE_RESULT static MaybeHandle<Name> ToName(Isolate* isolate,
-                                                  Handle<Object> key);
-
-  static void SetupArrayBuffer(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer,
-                               bool is_external, void* data,
-                               size_t allocated_length,
-                               SharedFlag shared = SharedFlag::kNotShared);
-
-  static bool SetupArrayBufferAllocatingData(
-      Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-      size_t allocated_length, bool initialize = true,
-      SharedFlag shared = SharedFlag::kNotShared);
-
-  static void NeuterArrayBuffer(Handle<JSArrayBuffer> array_buffer);
-
   enum TypedArrayId {
-    // arrayIds below should be synchromized with typedarray.js natives.
+    // arrayIds below should be synchronized with typedarray.js natives.
     ARRAY_ID_UINT8 = 1,
     ARRAY_ID_INT8 = 2,
     ARRAY_ID_UINT16 = 3,
@@ -1080,29 +1212,20 @@ class Runtime : public AllStatic {
 
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
-      Isolate* isolate, Handle<FixedArray> literals,
+      Isolate* isolate, Handle<LiteralsArray> literals,
       Handle<FixedArray> elements, bool is_strong);
-
-
-  static void JSMapInitialize(Isolate* isolate, Handle<JSMap> map);
-  static void JSMapClear(Isolate* isolate, Handle<JSMap> map);
-  static void JSSetInitialize(Isolate* isolate, Handle<JSSet> set);
-  static void JSSetClear(Isolate* isolate, Handle<JSSet> set);
-
-  static void WeakCollectionInitialize(
-      Isolate* isolate, Handle<JSWeakCollection> weak_collection);
-  static void WeakCollectionSet(Handle<JSWeakCollection> weak_collection,
-                                Handle<Object> key, Handle<Object> value,
-                                int32_t hash);
-  static bool WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
-                                   Handle<Object> key);
-  static bool WeakCollectionDelete(Handle<JSWeakCollection> weak_collection,
-                                   Handle<Object> key, int32_t hash);
 
   static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
                                                     Handle<Object>);
 
-  static bool AtomicIsLockFree(uint32_t size);
+  // Find the arguments of the JavaScript function invocation that called
+  // into C++ code. Collect these in a newly allocated array of handles
+  // (possibly prefixed by a number of empty handles).
+  // TODO(mstarzinger): Temporary workaround until this is only used by the
+  // %_Arguments and %_ArgumentsLength intrinsics. Make this function local to
+  // runtime-scopes.cc then.
+  static base::SmartArrayPointer<Handle<Object>> GetCallerArguments(
+      Isolate* isolate, int prefix_argc, int* total_argc);
 };
 
 
@@ -1118,29 +1241,6 @@ class DeclareGlobalsEvalFlag : public BitField<bool, 0, 1> {};
 class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};
 STATIC_ASSERT(LANGUAGE_END == 3);
 class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 2> {};
-
-//---------------------------------------------------------------------------
-// Inline functions
-
-// Assume that 32-bit architectures don't have 64-bit atomic ops.
-// TODO(binji): can we do better here?
-#if V8_TARGET_ARCH_64_BIT && V8_HOST_ARCH_64_BIT
-
-#define ATOMICS_REQUIRE_LOCK_64_BIT 0
-
-inline bool Runtime::AtomicIsLockFree(uint32_t size) {
-  return size == 1 || size == 2 || size == 4 || size == 8;
-}
-
-#else
-
-#define ATOMICS_REQUIRE_LOCK_64_BIT 1
-
-inline bool Runtime::AtomicIsLockFree(uint32_t size) {
-  return size == 1 || size == 2 || size == 4;
-}
-
-#endif
 
 }  // namespace internal
 }  // namespace v8

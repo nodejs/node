@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-var path = require('path');
 
 // if child process output to console and exit
 if (process.argv[2] === 'child') {

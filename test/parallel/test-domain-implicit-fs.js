@@ -1,15 +1,13 @@
 'use strict';
 // Simple tests of most basic domain functionality.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var domain = require('domain');
-var events = require('events');
 var caught = 0;
 var expectCaught = 1;
 
 var d = new domain.Domain();
-var e = new events.EventEmitter();
 
 d.on('error', function(er) {
   console.error('caught', er);

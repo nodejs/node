@@ -1616,6 +1616,15 @@ $L$8x_tail::
 ALIGN	32
 $L$8x_tail_done::
 	add	r8,QWORD PTR[rdx]
+	adc	r9,0
+	adc	r10,0
+	adc	r11,0
+	adc	r12,0
+	adc	r13,0
+	adc	r14,0
+	adc	r15,0
+
+
 	xor	rax,rax
 
 	neg	rsi

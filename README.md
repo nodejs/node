@@ -3,6 +3,11 @@ Node.js
 
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/nodejs/node?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
+uses an event-driven, non-blocking I/O model that makes it lightweight and
+efficient. The Node.js package ecosystem, npm, is the largest ecosystem of open
+source libraries in the world.
+
 The Node.js project is supported by the
 [Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
 policies and releases are managed under an
@@ -49,8 +54,8 @@ Binaries, installers, and source tarballs are available at
 <https://nodejs.org/download/release/>, listed under their version strings.
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Stable release. The latest LTS release from an LTS
-line is available in the form: latest-lts-_codename_. For example:
-<https://nodejs.org/download/release/latest-lts-argon>
+line is available in the form: latest-_codename_. For example:
+<https://nodejs.org/download/release/latest-argon>
 
 **Nightly** builds are available at
 <https://nodejs.org/download/nightly/>, listed under their version
@@ -147,7 +152,7 @@ $ man doc/node.1
 To test if Node.js was built correctly:
 
 ```
-$ node -e "console.log('Hello from node.js ' + process.version)"
+$ node -e "console.log('Hello from Node.js ' + process.version)"
 ```
 
 ### Windows
@@ -174,7 +179,7 @@ To run the tests:
 To test if Node.js was built correctly:
 
 ```
-$ node -e "console.log('Hello from node.js ' + process.version)"
+$ node -e "console.log('Hello from Node.js ' + process.version)"
 ```
 
 ### Android / Android based devices, aka. Firefox OS
@@ -344,13 +349,13 @@ Instructions:
 * [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 * [CONTRIBUTING.md](./CONTRIBUTING.md)
 * [GOVERNANCE.md](./GOVERNANCE.md)
-* IRC:
-  [#io.js on Freenode.net](http://webchat.freenode.net?channels=io.js&uio=d4)
+* IRC (general questions): [#node.js on Freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
+* IRC (node core development): [#node-dev on Freenode.net](http://webchat.freenode.net?channels=node-dev&uio=d4)
 * [nodejs/node on Gitter](https://gitter.im/nodejs/node)
 
 ## Security
 
-All security bugs in node.js are taken seriously and should be reported by
+All security bugs in Node.js are taken seriously and should be reported by
 emailing security@nodejs.org. This will be delivered to a subset of the project
 team who handle security issues. Please don't disclose security bugs
 publicly until they have been handled by the security team.
@@ -385,15 +390,19 @@ information about the governance of the Node.js project, see
 ### Collaborators
 
 * [brendanashworth](https://github.com/brendanashworth) - **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
+* [calvinmetcalf](https://github.com/calvinmetcalf) - **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
 * [ChALkeR](https://github.com/ChALkeR) - **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt;
 * [domenic](https://github.com/domenic) - **Domenic Denicola** &lt;d@domenic.me&gt;
 * [evanlucas](https://github.com/evanlucas) - **Evan Lucas** &lt;evanlucas@me.com&gt;
 * [geek](https://github.com/geek) - **Wyatt Preul** &lt;wpreul@gmail.com&gt;
+* [iarna](https://github.com/iarna) - **Rebecca Turner** &lt;me@re-becca.org&gt;
 * [isaacs](https://github.com/isaacs) - **Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [jbergstroem](https://github.com/jbergstroem) - **Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [joaocgreis](https://github.com/joaocgreis) - **João Reis** &lt;reis@janeasystems.com&gt;
 * [julianduque](https://github.com/julianduque) - **Julian Duque** &lt;julianduquej@gmail.com&gt;
+* [JungMinu](https://github.com/JungMinu) - **Minwoo Jung** &lt;jmwsoft@gmail.com&gt;
 * [lxe](https://github.com/lxe) - **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
+* [mcollina](https://github.com/mcollina) - **Matteo Collina** &lt;matteo.collina@gmail.com&gt;
 * [mhdawson](https://github.com/mhdawson) - **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt;
 * [micnic](https://github.com/micnic) - **Nicu Micleușanu** &lt;micnic90@gmail.com&gt;
 * [mikeal](https://github.com/mikeal) - **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
@@ -403,6 +412,7 @@ information about the governance of the Node.js project, see
 * [petkaantonov](https://github.com/petkaantonov) - **Petka Antonov** &lt;petka_antonov@hotmail.com&gt;
 * [qard](https://github.com/qard) - **Stephen Belanger** &lt;admin@stephenbelanger.com&gt;
 * [rlidwka](https://github.com/rlidwka) - **Alex Kocharin** &lt;alex@kocharin.ru&gt;
+* [rmg](https://github.com/rmg) - **Ryan Graham** &lt;r.m.graham@gmail.com&gt;
 * [robertkowalski](https://github.com/robertkowalski) - **Robert Kowalski** &lt;rok@kowalski.gd&gt;
 * [romankl](https://github.com/romankl) - **Roman Klauke** &lt;romaaan.git@gmail.com&gt;
 * [saghul](https://github.com/saghul) - **Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
@@ -419,6 +429,7 @@ information about the governance of the Node.js project, see
 * [tunniclm](https://github.com/tunniclm) - **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vkurchatkin](https://github.com/vkurchatkin) - **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) - **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
+* [zkat](https://github.com/zkat) - **Kat Marchán** &lt;kzm@sykosomatic.org&gt;
 
 Collaborators & TSC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the Node.js project.
@@ -433,6 +444,8 @@ Releases of Node.js and io.js will be signed with one of the following GPG keys:
 * **Jeremiah Senkpiel** &lt;fishrock@keybase.io&gt; `FD3A5288F042B6850C66B31F09FE44734EB7990E`
 * **James M Snell** &lt;jasnell@keybase.io&gt; `71DCFD284A79C3B38668286BC97EC7A07EDE3FC1`
 * **Rod Vagg** &lt;rod@vagg.org&gt; `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
+* **Myles Borins** &lt;thealphanerd@keybase.io&gt; `792807C150954BF0299B289A38CE40DEEE898E15`
+* **Evan Lucas** &lt;evanlucas@me.com&gt; `B9AE9905FFD7803F25714661B63B535A4C206CA9`
 
 The full set of trusted release keys can be imported by running:
 
@@ -443,6 +456,8 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys 0034A06D9D9B0064CE8ADF6BF174
 gpg --keyserver pool.sks-keyservers.net --recv-keys FD3A5288F042B6850C66B31F09FE44734EB7990E
 gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
 gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
+gpg --keyserver pool.sks-keyservers.net --recv-keys 792807C150954BF0299B289A38CE40DEEE898E15
+gpg --keyserver pool.sks-keyservers.net --recv-keys B9AE9905FFD7803F25714661B63B535A4C206CA9
 ```
 
 See the section above on [Verifying Binaries](#verifying-binaries) for

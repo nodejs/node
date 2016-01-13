@@ -245,7 +245,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
       branch->NullAllInputs();
       if_true->ReplaceInput(0, node);
     }
-    if_true->set_op(common()->IfValue(value));
+    NodeProperties::ChangeOp(if_true, common()->IfValue(value));
     if_false->NullAllInputs();
     Enqueue(if_true);
 
@@ -261,13 +261,13 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
     return false;
   }
   DCHECK_LT(1u, values.size());
-  node->set_op(common()->Switch(values.size() + 1));
   node->ReplaceInput(0, index);
-  if_true->set_op(common()->IfValue(value));
+  NodeProperties::ChangeOp(node, common()->Switch(values.size() + 1));
   if_true->ReplaceInput(0, node);
+  NodeProperties::ChangeOp(if_true, common()->IfValue(value));
   Enqueue(if_true);
-  if_false->set_op(common()->IfDefault());
   if_false->ReplaceInput(0, node);
+  NodeProperties::ChangeOp(if_false, common()->IfDefault());
   Enqueue(if_false);
   branch->NullAllInputs();
   return true;
