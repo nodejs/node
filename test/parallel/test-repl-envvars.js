@@ -8,30 +8,32 @@ const REPL = require('internal/repl');
 const assert = require('assert');
 const inspect = require('util').inspect;
 
-const tests = [{
-  env: {},
-  expected: { terminal: true, useColors: true }
-},
-{
-  env: { NODE_DISABLE_COLORS: '1' },
-  expected: { terminal: true, useColors: false }
-},
-{
-  env: { NODE_NO_READLINE: '1' },
-  expected: { terminal: false, useColors: false }
-},
-{
-  env: { TERM: 'dumb' },
-  expected: { terminal: true, useColors: false }
-},
-{
-  env: { NODE_NO_READLINE: '1', NODE_DISABLE_COLORS: '1' },
-  expected: { terminal: false, useColors: false }
-},
-{
-  env: { NODE_NO_READLINE: '0' },
-  expected: { terminal: true, useColors: true }
-}];
+const tests = [
+  {
+    env: {},
+    expected: { terminal: true, useColors: true }
+  },
+  {
+    env: { NODE_DISABLE_COLORS: '1' },
+    expected: { terminal: true, useColors: false }
+  },
+  {
+    env: { NODE_NO_READLINE: '1' },
+    expected: { terminal: false, useColors: false }
+  },
+  {
+    env: { TERM: 'dumb' },
+    expected: { terminal: true, useColors: false }
+  },
+  {
+    env: { NODE_NO_READLINE: '1', NODE_DISABLE_COLORS: '1' },
+    expected: { terminal: false, useColors: false }
+  },
+  {
+    env: { NODE_NO_READLINE: '0' },
+    expected: { terminal: true, useColors: true }
+  }
+];
 
 function run(test) {
   const env = test.env;

@@ -2,15 +2,15 @@
 require('../common');
 var assert = require('assert');
 
-var immediateA = false,
-    immediateB = false,
-    immediateC = [],
-    before;
+let immediateA = false;
+let immediateB = false;
+let immediateC = [];
+let before;
 
 setImmediate(function() {
   try {
     immediateA = process.hrtime(before);
-  } catch(e) {
+  } catch (e) {
     console.log('failed to get hrtime with offset');
   }
   clearImmediate(immediateB);

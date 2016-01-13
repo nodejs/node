@@ -5,18 +5,18 @@ var zlib = require('zlib');
 var path = require('path');
 var fs = require('fs');
 
-var file = fs.readFileSync(path.resolve(common.fixturesDir, 'person.jpg')),
-    chunkSize = 16,
-    opts = { level: 0 },
-    deflater = zlib.createDeflate(opts);
+const file = fs.readFileSync(path.resolve(common.fixturesDir, 'person.jpg'));
+const chunkSize = 16;
+const opts = { level: 0 };
+const deflater = zlib.createDeflate(opts);
 
-var chunk = file.slice(0, chunkSize),
-    expectedNone = new Buffer([0x78, 0x01]),
-    blkhdr = new Buffer([0x00, 0x10, 0x00, 0xef, 0xff]),
-    adler32 = new Buffer([0x00, 0x00, 0x00, 0xff, 0xff]),
-    expectedFull = Buffer.concat([blkhdr, chunk, adler32]),
-    actualNone,
-    actualFull;
+const chunk = file.slice(0, chunkSize);
+const expectedNone = new Buffer([0x78, 0x01]);
+const blkhdr = new Buffer([0x00, 0x10, 0x00, 0xef, 0xff]);
+const adler32 = new Buffer([0x00, 0x00, 0x00, 0xff, 0xff]);
+const expectedFull = Buffer.concat([blkhdr, chunk, adler32]);
+let actualNone;
+let actualFull;
 
 deflater.write(chunk, function() {
   deflater.flush(zlib.Z_NO_FLUSH, function() {

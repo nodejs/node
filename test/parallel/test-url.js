@@ -260,19 +260,19 @@ var parseTests = {
   },
 
   'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=':
-      {
-        'href': 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
-            '&hl=en&src=api&x=2&y=2&z=3&s=',
-        'protocol': 'http:',
-        'slashes': true,
-        'host': 'mt0.google.com',
-        'auth': 'user:pass',
-        'hostname': 'mt0.google.com',
-        'search': '???&hl=en&src=api&x=2&y=2&z=3&s=',
-        'query': '??&hl=en&src=api&x=2&y=2&z=3&s=',
-        'pathname': '/vt/lyrs=m@114',
-        'path': '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
-      },
+    {
+      'href': 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
+          '&hl=en&src=api&x=2&y=2&z=3&s=',
+      'protocol': 'http:',
+      'slashes': true,
+      'host': 'mt0.google.com',
+      'auth': 'user:pass',
+      'hostname': 'mt0.google.com',
+      'search': '???&hl=en&src=api&x=2&y=2&z=3&s=',
+      'query': '??&hl=en&src=api&x=2&y=2&z=3&s=',
+      'pathname': '/vt/lyrs=m@114',
+      'path': '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
+    },
 
   'file:///etc/passwd' : {
     'href': 'file:///etc/passwd',
@@ -870,8 +870,8 @@ for (var u in parseTests) {
   assert.deepEqual(actual, expected);
   assert.deepEqual(spaced, expected);
 
-  var expected = parseTests[u].href,
-      actual = url.format(parseTests[u]);
+  expected = parseTests[u].href;
+  actual = url.format(parseTests[u]);
 
   assert.equal(actual, expected,
                'format(' + u + ') == ' + u + '\nactual:' + actual);
@@ -1194,8 +1194,8 @@ var relativeTests = [
   ['http://localhost', 'file://foo/Users', 'file://foo/Users']
 ];
 relativeTests.forEach(function(relativeTest) {
-  var a = url.resolve(relativeTest[0], relativeTest[1]),
-      e = relativeTest[2];
+  const a = url.resolve(relativeTest[0], relativeTest[1]);
+  const e = relativeTest[2];
   assert.equal(a, e,
                'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
                '\n  actual=' + a);
@@ -1504,8 +1504,8 @@ var relativeTests2 = [
    'http://diff:auth@www.example.com/']
 ];
 relativeTests2.forEach(function(relativeTest) {
-  var a = url.resolve(relativeTest[1], relativeTest[0]),
-      e = relativeTest[2];
+  const a = url.resolve(relativeTest[1], relativeTest[0]);
+  const e = relativeTest[2];
   assert.equal(a, e,
                'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
                '\n  actual=' + a);
@@ -1516,8 +1516,8 @@ relativeTests2.forEach(function(relativeTest) {
 
 //format: [from, path, expected]
 relativeTests.forEach(function(relativeTest) {
-  var actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]),
-      expected = url.parse(relativeTest[2]);
+  var actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]);
+  var expected = url.parse(relativeTest[2]);
 
 
   assert.deepEqual(actual, expected);
@@ -1544,13 +1544,13 @@ if (relativeTests2[181][0] === './/g' &&
   relativeTests2.splice(181, 1);
 }
 relativeTests2.forEach(function(relativeTest) {
-  var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]),
-      expected = url.parse(relativeTest[2]);
+  var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
+  var expected = url.parse(relativeTest[2]);
 
   assert.deepEqual(actual, expected);
 
-  var expected = relativeTest[2],
-      actual = url.format(actual);
+  expected = relativeTest[2];
+  actual = url.format(actual);
 
   assert.equal(actual, expected,
                'format(' + relativeTest[1] + ') == ' + expected +

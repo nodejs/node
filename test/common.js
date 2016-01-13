@@ -437,7 +437,7 @@ exports.getServiceName = function getServiceName(port, protocol) {
     if (matches && matches.length > 1) {
       serviceName = matches[1];
     }
-  } catch(e) {
+  } catch (e) {
     console.error('Cannot read file: ', etcServicesFileName);
     return undefined;
   }

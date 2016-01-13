@@ -852,8 +852,8 @@ Buffer(Buffer(0), 0, 0);
 
 // GH-5110
 (function() {
-  var buffer = new Buffer('test'),
-      string = JSON.stringify(buffer);
+  const buffer = new Buffer('test');
+  const string = JSON.stringify(buffer);
 
   assert.equal(string, '{"type":"Buffer","data":[116,101,115,116]}');
 

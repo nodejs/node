@@ -21,7 +21,7 @@ try {
   // Try to allocate memory first then force gc so future allocations succeed.
   new Buffer(2 * kStringMaxLength);
   gc();
-} catch(e) {
+} catch (e) {
   // If the exception is not due to memory confinement then rethrow it.
   if (e.message !== 'Invalid array buffer length') throw (e);
   console.log(skipMessage);
