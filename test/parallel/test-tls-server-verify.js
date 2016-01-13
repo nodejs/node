@@ -87,15 +87,14 @@ var testCases =
       renegotiate: false,
       CAs: ['ca2-cert'],
       crl: 'ca2-crl',
-      clients:
-       [
+      clients: [
         { name: 'agent1', shouldReject: true, shouldAuth: false },
         { name: 'agent2', shouldReject: true, shouldAuth: false },
         { name: 'agent3', shouldReject: false, shouldAuth: true },
         // Agent4 has a cert in the CRL.
         { name: 'agent4', shouldReject: true, shouldAuth: false },
         { name: 'nocert', shouldReject: true }
-       ]
+      ]
     }
     ];
 

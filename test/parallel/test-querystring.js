@@ -182,12 +182,11 @@ assert.equal(
 
 // Test removing limit
 function testUnlimitedKeys() {
-  var query = {},
-      url;
+  const query = {};
 
   for (var i = 0; i < 2000; i++) query[i] = i;
 
-  url = qs.stringify(query);
+  const url = qs.stringify(query);
 
   assert.equal(
       Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,

@@ -23,20 +23,22 @@ server.listen(port, function() {
   var count = 0;
 
   function createRequest() {
-    var req = http.request({port: port, path: '/', agent: agent},
-                           function(res) {
-      req.clearTimeout(callback);
+    const req = http.request(
+      {port: port, path: '/', agent: agent},
+      function(res) {
+        req.clearTimeout(callback);
 
-      res.on('end', function() {
-        count++;
+        res.on('end', function() {
+          count++;
 
-        if (count == 11) {
-          server.close();
-        }
-      });
+          if (count == 11) {
+            server.close();
+          }
+        });
 
-      res.resume();
-    });
+        res.resume();
+      }
+    );
 
     req.setTimeout(1000, callback);
     return req;

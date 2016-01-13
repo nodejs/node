@@ -1,16 +1,16 @@
 'use strict';
 require('../common');
-var assert = require('assert'),
-    dns = require('dns'),
-    net = require('net'),
-    isIPv4 = net.isIPv4,
-    isIPv6 = net.isIPv6;
-var util = require('util');
+const assert = require('assert');
+const dns = require('dns');
+const net = require('net');
+const isIPv4 = net.isIPv4;
+const isIPv6 = net.isIPv6;
+const util = require('util');
 
-var expected = 0,
-    completed = 0,
-    running = false,
-    queue = [];
+let expected = 0;
+let completed = 0;
+let running = false;
+const queue = [];
 
 
 function TEST(f) {

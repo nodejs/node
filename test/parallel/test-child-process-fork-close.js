@@ -1,13 +1,13 @@
 'use strict';
-var assert = require('assert'),
-    common = require('../common'),
-    fork = require('child_process').fork;
+const assert = require('assert');
+const common = require('../common');
+const fork = require('child_process').fork;
 
 var cp = fork(common.fixturesDir + '/child-process-message-and-exit.js');
 
-var gotMessage = false,
-    gotExit = false,
-    gotClose = false;
+let gotMessage = false;
+let gotExit = false;
+let gotClose = false;
 
 cp.on('message', function(message) {
   assert(!gotMessage);
