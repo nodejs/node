@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    repl = require('repl');
+const common = require('../common');
+const assert = require('assert');
+const repl = require('repl');
 
 // Create a dummy stream that does nothing
 const stream = new common.ArrayStream();

@@ -17,19 +17,21 @@ var success_count = 0;
 var error_count = 0;
 
 
-exec('"' + process.execPath + '" -p -e process.versions',
-     function(err, stdout, stderr) {
-  if (err) {
-    error_count++;
-    console.log('error!: ' + err.code);
-    console.log('stdout: ' + JSON.stringify(stdout));
-    console.log('stderr: ' + JSON.stringify(stderr));
-    assert.equal(false, err.killed);
-  } else {
-    success_count++;
-    console.dir(stdout);
+exec(
+  '"' + process.execPath + '" -p -e process.versions',
+  function(err, stdout, stderr) {
+    if (err) {
+      error_count++;
+      console.log('error!: ' + err.code);
+      console.log('stdout: ' + JSON.stringify(stdout));
+      console.log('stderr: ' + JSON.stringify(stderr));
+      assert.equal(false, err.killed);
+    } else {
+      success_count++;
+      console.dir(stdout);
+    }
   }
-});
+);
 
 
 exec('thisisnotavalidcommand', function(err, stdout, stderr) {

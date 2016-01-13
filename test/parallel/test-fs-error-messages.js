@@ -1,14 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-var path = require('path'),
-    fs = require('fs'),
-    fn = path.join(common.fixturesDir, 'non-existent'),
-    existingFile = path.join(common.fixturesDir, 'exit.js'),
-    existingFile2 = path.join(common.fixturesDir, 'create-file.js'),
-    existingDir = path.join(common.fixturesDir, 'empty'),
-    existingDir2 = path.join(common.fixturesDir, 'keys');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+const fn = path.join(common.fixturesDir, 'non-existent');
+const existingFile = path.join(common.fixturesDir, 'exit.js');
+const existingFile2 = path.join(common.fixturesDir, 'create-file.js');
+const existingDir = path.join(common.fixturesDir, 'empty');
+const existingDir2 = path.join(common.fixturesDir, 'keys');
 
 // ASYNC_CALL
 
@@ -78,8 +77,8 @@ fs.readFile(fn, function(err) {
 
 // Sync
 
-var errors = [],
-    expected = 0;
+const errors = [];
+let expected = 0;
 
 try {
   ++expected;
