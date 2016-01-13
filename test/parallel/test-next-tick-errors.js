@@ -2,8 +2,8 @@
 require('../common');
 var assert = require('assert');
 
-var order = [],
-    exceptionHandled = false;
+const order = [];
+let exceptionHandled = false;
 
 // This nextTick function will throw an error.  It should only be called once.
 // When it throws an error, it should still get removed from the queue.

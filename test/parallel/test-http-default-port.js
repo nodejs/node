@@ -1,19 +1,19 @@
 'use strict';
-var common = require('../common');
-var http = require('http'),
-    PORT = common.PORT,
-    SSLPORT = common.PORT + 1,
-    assert = require('assert'),
-    hostExpect = 'localhost',
-    fs = require('fs'),
-    path = require('path'),
-    fixtures = path.resolve(__dirname, '../fixtures/keys'),
-    options = {
-      key: fs.readFileSync(fixtures + '/agent1-key.pem'),
-      cert: fs.readFileSync(fixtures + '/agent1-cert.pem')
-    },
-    gotHttpsResp = false,
-    gotHttpResp = false;
+const common = require('../common');
+const http = require('http');
+const PORT = common.PORT;
+const SSLPORT = common.PORT + 1;
+const assert = require('assert');
+const hostExpect = 'localhost';
+const fs = require('fs');
+const path = require('path');
+const fixtures = path.resolve(__dirname, '../fixtures/keys');
+const options = {
+  key: fs.readFileSync(fixtures + '/agent1-key.pem'),
+  cert: fs.readFileSync(fixtures + '/agent1-cert.pem')
+};
+let gotHttpsResp = false;
+let gotHttpResp = false;
 
 if (common.hasCrypto) {
   var https = require('https');

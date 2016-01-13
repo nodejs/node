@@ -10,8 +10,8 @@ if (common.isWindows) {
 
 console.log('process.pid: ' + process.pid);
 
-var first = 0,
-    second = 0;
+let first = 0;
+let second = 0;
 
 var sighup = false;
 
