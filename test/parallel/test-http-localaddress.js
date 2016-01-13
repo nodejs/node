@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var http = require('http'),
-    assert = require('assert');
+const common = require('../common');
+const http = require('http');
+const assert = require('assert');
 
 if (!common.hasMultiLocalhost()) {
   console.log('1..0 # Skipped: platform-specific test.');

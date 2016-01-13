@@ -66,8 +66,8 @@ if (process.argv[2] === 'child') {
 
   var server = net.createServer();
 
-  var connected = 0,
-      closed = 0;
+  let connected = 0;
+  let closed = 0;
   server.on('connection', function(socket) {
     switch (connected % 6) {
       case 0:

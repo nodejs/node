@@ -57,14 +57,14 @@ assert.equal('D', d4.D());
 assert.ok((new a.SomeClass()) instanceof c.SomeClass);
 
 console.error('test index.js modules ids and relative loading');
-var one = require('../fixtures/nested-index/one'),
-    two = require('../fixtures/nested-index/two');
+const one = require('../fixtures/nested-index/one');
+const two = require('../fixtures/nested-index/two');
 assert.notEqual(one.hello, two.hello);
 
 console.error('test index.js in a folder with a trailing slash');
-var three = require('../fixtures/nested-index/three'),
-    threeFolder = require('../fixtures/nested-index/three/'),
-    threeIndex = require('../fixtures/nested-index/three/index.js');
+const three = require('../fixtures/nested-index/three');
+const threeFolder = require('../fixtures/nested-index/three/');
+const threeIndex = require('../fixtures/nested-index/three/index.js');
 assert.equal(threeFolder, threeIndex);
 assert.notEqual(threeFolder, three);
 
@@ -75,8 +75,8 @@ assert.equal(require('../fixtures/packages/main-index').ok, 'ok',
              'Failed loading package with index.js in main subdir');
 
 console.error('test cycles containing a .. path');
-var root = require('../fixtures/cycles/root'),
-    foo = require('../fixtures/cycles/folder/foo');
+const root = require('../fixtures/cycles/root');
+const foo = require('../fixtures/cycles/folder/foo');
 assert.equal(root.foo, foo);
 assert.equal(root.sayHello(), root.hello);
 
@@ -137,8 +137,8 @@ try {
 // Check load order is as expected
 console.error('load order');
 
-var loadOrder = '../fixtures/module-load-order/',
-    msg = 'Load order incorrect.';
+const loadOrder = '../fixtures/module-load-order/';
+const msg = 'Load order incorrect.';
 
 require.extensions['.reg'] = require.extensions['.js'];
 require.extensions['.reg2'] = require.extensions['.js'];

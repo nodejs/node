@@ -85,8 +85,8 @@ function test_simple_relative_symlink(callback) {
     console.log('1..0 # Skipped: symlink test (no privs)');
     return runNextTest();
   }
-  var entry = common.tmpDir + '/symlink',
-      expected = common.tmpDir + '/cycles/root.js';
+  const entry = common.tmpDir + '/symlink';
+  const expected = common.tmpDir + '/cycles/root.js';
   [
     [entry, '../' + common.tmpDirName + '/cycles/root.js']
   ].forEach(function(t) {
@@ -111,8 +111,8 @@ function test_simple_absolute_symlink(callback) {
 
   console.log('using type=%s', type);
 
-  var entry = tmpAbsDir + '/symlink',
-      expected = common.fixturesDir + '/nested-index/one';
+  const entry = tmpAbsDir + '/symlink';
+  const expected = common.fixturesDir + '/nested-index/one';
   [
     [entry, expected]
   ].forEach(function(t) {
@@ -490,8 +490,8 @@ function test_lying_cache_liar(cb) {
   });
   assert(called === false);
 
-  var test = path.resolve('/a/b/c/d'),
-      expect = path.resolve('/a/b/d');
+  const test = path.resolve('/a/b/c/d');
+  const expect = path.resolve('/a/b/d');
   var actual = fs.realpathSync(test, cache);
   assert.equal(expect, actual);
   fs.realpath(test, cache, function(er, actual) {
