@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
-    fs = require('fs'),
-    filepath = path.join(common.fixturesDir, 'x.txt'),
-    fd = fs.openSync(filepath, 'r'),
-    expected = 'xyz\n',
-    readCalled = 0;
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+const filepath = path.join(common.fixturesDir, 'x.txt');
+const fd = fs.openSync(filepath, 'r');
+const expected = 'xyz\n';
+let readCalled = 0;
 
 fs.read(fd, expected.length, 0, 'utf-8', function(err, str, bytesRead) {
   readCalled++;

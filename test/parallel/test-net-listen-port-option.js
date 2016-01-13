@@ -14,7 +14,8 @@ net.Server().listen({ port: '' + common.PORT }, close);
   1 / 0,
   -1 / 0,
   '+Infinity',
-  '-Infinity' ].forEach(function(port) {
+  '-Infinity'
+].forEach(function(port) {
   assert.throws(function() {
     net.Server().listen({ port: port }, assert.fail);
   }, /port should be >= 0 and < 65536/i);

@@ -23,12 +23,12 @@ tls.createServer({
 }).listen(common.PORT);
 
 var socket = tls.connect({
-    port: common.PORT,
-    ca: cert,
-    // No host set here. 'localhost' is the default,
-    // but tls.checkServerIdentity() breaks before the fix with:
-    // Error: Hostname/IP doesn't match certificate's altnames:
-    //   "Host: undefined. is not cert's CN: localhost"
+  port: common.PORT,
+  ca: cert,
+  // No host set here. 'localhost' is the default,
+  // but tls.checkServerIdentity() breaks before the fix with:
+  // Error: Hostname/IP doesn't match certificate's altnames:
+  //   "Host: undefined. is not cert's CN: localhost"
 }, function() {
   assert(socket.authorized);
   process.exit();

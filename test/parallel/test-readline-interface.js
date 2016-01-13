@@ -259,7 +259,7 @@ function isWarned(emitter) {
   });
   try {
     fi.emit('data', 'fooX');
-  } catch(e) { }
+  } catch (e) { }
   fi.emit('data', 'bar');
   assert.equal(keys.join(''), 'fooXbar');
   rli.close();

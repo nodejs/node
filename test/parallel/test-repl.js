@@ -5,17 +5,17 @@ var assert = require('assert');
 common.globalCheck = false;
 common.refreshTmpDir();
 
-var net = require('net'),
-    repl = require('repl'),
-    message = 'Read, Eval, Print Loop',
-    prompt_unix = 'node via Unix socket> ',
-    prompt_tcp = 'node via TCP socket> ',
-    prompt_multiline = '... ',
-    prompt_npm = 'npm should be run outside of the ' +
-                 'node repl, in your normal shell.\n' +
-                 '(Press Control-D to exit.)\n',
-    expect_npm = prompt_npm + prompt_unix,
-    server_tcp, server_unix, client_tcp, client_unix, timer;
+const net = require('net');
+const repl = require('repl');
+const message = 'Read, Eval, Print Loop';
+const prompt_unix = 'node via Unix socket> ';
+const prompt_tcp = 'node via TCP socket> ';
+const prompt_multiline = '... ';
+const prompt_npm = 'npm should be run outside of the ' +
+                   'node repl, in your normal shell.\n' +
+                   '(Press Control-D to exit.)\n';
+const expect_npm = prompt_npm + prompt_unix;
+var server_tcp, server_unix, client_tcp, client_unix, timer;
 
 
 // absolute path to test/fixtures/a.js

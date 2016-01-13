@@ -1,8 +1,8 @@
 'use strict';
-var http = require('http'),
-    common = require('../common'),
-    assert = require('assert'),
-    httpServer = http.createServer(reqHandler);
+const http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const httpServer = http.createServer(reqHandler);
 
 function reqHandler(req, res) {
   console.log('Got request: ' + req.headers.host + ' ' + req.url);

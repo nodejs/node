@@ -34,8 +34,8 @@ function pingPongTest(port, host) {
   server.on('listening', function() {
     console.log('server listening on ' + port + ' ' + host);
 
-    var buf = new Buffer('PING'),
-        client = dgram.createSocket('udp4');
+    const buf = new Buffer('PING');
+    const client = dgram.createSocket('udp4');
 
     client.on('message', function(msg, rinfo) {
       if (debug) console.log('client got: ' + msg +
