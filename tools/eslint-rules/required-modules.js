@@ -93,9 +93,9 @@ module.exports = function(context) {
 module.exports.schema = {
   'type': 'array',
   'items': [
-  {
-    'enum': [0, 1, 2]
-  }
+    {
+      'enum': [0, 1, 2]
+    }
   ],
   'additionalItems': {
     'type': 'string'
