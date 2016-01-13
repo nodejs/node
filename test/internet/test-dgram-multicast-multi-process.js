@@ -157,14 +157,20 @@ if (process.argv[2] !== 'child') {
       return;
     }
 
-    sendSocket.send(buf, 0, buf.length,
-                    common.PORT, LOCAL_BROADCAST_HOST, function(err) {
-          if (err) throw err;
-          console.error('[PARENT] sent "%s" to %s:%s',
-                        buf.toString(),
-                        LOCAL_BROADCAST_HOST, common.PORT);
-          process.nextTick(sendSocket.sendNext);
-        });
+    sendSocket.send(
+      buf,
+      0,
+      buf.length,
+      common.PORT,
+      LOCAL_BROADCAST_HOST,
+      function(err) {
+        if (err) throw err;
+        console.error('[PARENT] sent "%s" to %s:%s',
+                      buf.toString(),
+                      LOCAL_BROADCAST_HOST, common.PORT);
+        process.nextTick(sendSocket.sendNext);
+      }
+    );
   };
 }
 

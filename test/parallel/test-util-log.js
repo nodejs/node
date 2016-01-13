@@ -28,9 +28,9 @@ var tests = [
 // test util.log()
 tests.forEach(function(test) {
   util.log(test.input);
-  var result = strings.shift().trim(),
-      re = (/[0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} - (.+)$/),
-      match = re.exec(result);
+  const result = strings.shift().trim();
+  const re = (/[0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} - (.+)$/);
+  const match = re.exec(result);
   assert.ok(match);
   assert.equal(match[1], test.output);
 });

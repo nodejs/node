@@ -103,8 +103,8 @@ if (cluster.isWorker) {
 
 function checkResults(expected_results, results) {
   for (var k in expected_results) {
-    var actual = results[k],
-        expected = expected_results[k];
+    const actual = results[k];
+    const expected = expected_results[k];
 
     var msg = (expected[1] || '') +
         (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');

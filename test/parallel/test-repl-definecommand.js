@@ -2,9 +2,9 @@
 
 require('../common');
 
-const stream = require('stream'),
-      assert = require('assert'),
-      repl = require('repl');
+const stream = require('stream');
+const assert = require('assert');
+const repl = require('repl');
 
 var output = '';
 const inputStream = new stream.PassThrough();

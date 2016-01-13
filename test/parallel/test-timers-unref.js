@@ -2,12 +2,12 @@
 require('../common');
 var assert = require('assert');
 
-var interval_fired = false,
-    timeout_fired = false,
-    unref_interval = false,
-    unref_timer = false,
-    unref_callbacks = 0,
-    interval, check_unref, checks = 0;
+let interval_fired = false;
+let timeout_fired = false;
+let unref_interval = false;
+let unref_timer = false;
+let unref_callbacks = 0;
+let interval, check_unref, checks = 0;
 
 var LONG_TIME = 10 * 1000;
 var SHORT_TIME = 100;

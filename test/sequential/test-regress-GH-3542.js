@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs'),
-    path = require('path'),
-    succeeded = 0;
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+let succeeded = 0;
 
 // This test is only relevant on Windows.
 if (!common.isWindows) {

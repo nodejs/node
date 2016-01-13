@@ -20,8 +20,8 @@ repl.addTest('sb(")^$*+?}{|][(.js\\\\", 1)', [
 
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
-    /break in .*[\\\/]mod\.js:23/,
-    /21/, /22/, /23/, /24/, /25/
+  /break in .*[\\\/]mod\.js:23/,
+  /21/, /22/, /23/, /24/, /25/
 ]);
 
 // -- RESTORE BREAKPOINT ON RESTART --

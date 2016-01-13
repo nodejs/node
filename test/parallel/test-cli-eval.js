@@ -5,11 +5,11 @@ if (module.parent) {
   process.exit(42);
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    child = require('child_process'),
-    path = require('path'),
-    nodejs = '"' + process.execPath + '"';
+const common = require('../common');
+const assert = require('assert');
+const child = require('child_process');
+const path = require('path');
+const nodejs = '"' + process.execPath + '"';
 
 
 // replace \ by / because windows uses backslashes in paths, but they're still
