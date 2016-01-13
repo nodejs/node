@@ -38,11 +38,11 @@ module.exports = function(context) {
     function findConditionalAncestor(node) {
         var currentAncestor = node;
 
-        while ((currentAncestor = currentAncestor.parent)) {
+        do {
             if (isConditionalTestExpression(currentAncestor)) {
                 return currentAncestor.parent;
             }
-        }
+        } while ((currentAncestor = currentAncestor.parent));
 
         return null;
     }
@@ -80,9 +80,19 @@ module.exports = function(context) {
      * @returns {void}
      */
     function testForAssign(node) {
-        if (node.test && (node.test.type === "AssignmentExpression") && !isParenthesisedTwice(node.test)) {
+        if (node.test &&
+            (node.test.type === "AssignmentExpression") &&
+            (node.type === "ForStatement" ?
+                !isParenthesised(node.test) :
+                !isParenthesisedTwice(node.test)
+            )
+        ) {
             // must match JSHint's error message
-            context.report(node, "Expected a conditional expression and instead saw an assignment.");
+            context.report({
+                node: node,
+                loc: node.test.loc.start,
+                message: "Expected a conditional expression and instead saw an assignment."
+            });
         }
     }
 

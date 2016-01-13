@@ -19,14 +19,30 @@ module.exports = function(context) {
     var functionStack = [],
         maxDepth = context.options[0] || 4;
 
+    /**
+     * When parsing a new function, store it in our function stack
+     * @returns {void}
+     * @private
+     */
     function startFunction() {
         functionStack.push(0);
     }
 
+    /**
+     * When parsing is done then pop out the reference
+     * @returns {void}
+     * @private
+     */
     function endFunction() {
         functionStack.pop();
     }
 
+    /**
+     * Save the block and Evaluate the node
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function pushBlock(node) {
         var len = ++functionStack[functionStack.length - 1];
 
@@ -36,6 +52,11 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Pop the saved block
+     * @returns {void}
+     * @private
+     */
     function popBlock() {
         functionStack[functionStack.length - 1]--;
     }

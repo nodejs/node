@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert'),
-    exception = null;
+const assert = require('assert');
+let exception = null;
 
 try {
   eval('"\\uc/ef"');

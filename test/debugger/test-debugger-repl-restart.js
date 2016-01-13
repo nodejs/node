@@ -4,7 +4,7 @@ var repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
 var linesWithBreakpoint = [
-    /1/, /2/, /3/, /4/, /5/, /\* 6/
+  /1/, /2/, /3/, /4/, /5/, /\* 6/
 ];
 // We slice here, because addTest will change the given array.
 repl.addTest('sb(6)', linesWithBreakpoint.slice());

@@ -31,8 +31,6 @@ function define(ruleId, ruleModule) {
     rules[ruleId] = ruleModule;
 }
 
-exports.define = define;
-
 /**
  * Loads and registers all rules from passed rules directory.
  * @param {String} [rulesDir] Path to rules directory, may be relative. Defaults to `lib/rules`.
@@ -45,39 +43,49 @@ function load(rulesDir) {
     });
 }
 
-exports.load = load;
-
 /**
  * Registers all given rules of a plugin.
  * @param {Object} pluginRules A key/value map of rule definitions.
  * @param {String} pluginName The name of the plugin without prefix (`eslint-plugin-`).
  * @returns {void}
  */
-exports.import = function (pluginRules, pluginName) {
-    Object.keys(pluginRules).forEach(function (ruleId) {
+function importPlugin(pluginRules, pluginName) {
+    Object.keys(pluginRules).forEach(function(ruleId) {
         var qualifiedRuleId = pluginName + "/" + ruleId,
             rule = pluginRules[ruleId];
 
         define(qualifiedRuleId, rule);
     });
-};
+}
 
 /**
  * Access rule handler by id (file name).
  * @param {String} ruleId Rule id (file name).
  * @returns {Function} Rule handler.
  */
-exports.get = function(ruleId) {
-    return rules[ruleId];
-};
+function get(ruleId) {
+    if (typeof rules[ruleId] === "string") {
+        return require(rules[ruleId]);
+    } else {
+        return rules[ruleId];
+    }
+}
 
 /**
  * Reset rules storage.
  * Should be used only in tests.
  * @returns {void}
  */
-exports.testClear = function() {
+function testClear() {
     rules = Object.create(null);
+}
+
+module.exports = {
+    define: define,
+    load: load,
+    import: importPlugin,
+    get: get,
+    testClear: testClear
 };
 
 //------------------------------------------------------------------------------

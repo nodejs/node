@@ -10,11 +10,35 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
+module.exports = function(context) {
     var requirePadding = context.options[0] !== "never";
 
     var ALWAYS_MESSAGE = "Block must be padded by blank lines.",
         NEVER_MESSAGE = "Block must not be padded by blank lines.";
+
+    /**
+     * Retrieves an array of all comments defined inside the given node.
+     * @param {ASTNode} node The AST node.
+     * @returns {ASTNode[]} An array of comment nodes.
+     */
+    function getCommentsInNode(node) {
+        var allComments = context.getAllComments();
+
+        return allComments.filter(function(comment) {
+            return node.range[0] < comment.range[0] &&
+                node.range[1] > comment.range[1];
+        });
+    }
+
+    /**
+     * Checks if the location of a node or token is before the location of another node or token
+     * @param {ASTNode|Token} a The node or token to check if its location is before b.
+     * @param {ASTNode|Token} b The node or token which will be compared with a.
+     * @returns {boolean} True if a is located before b.
+     */
+    function isLocatedBefore(a, b) {
+        return a.range[1] < b.range[0];
+    }
 
     /**
      * Checks if the given non empty block node has a blank line before its first child node.
@@ -26,10 +50,11 @@ module.exports = function (context) {
             first = node.body[0],
             firstLine = first.loc.start.line,
             expectedFirstLine = blockStart + 2,
-            leadingComments = context.getComments(first).leading;
+            comments = getCommentsInNode(node),
+            firstComment = comments[0];
 
-        if (leadingComments.length > 0) {
-            firstLine = leadingComments[0].loc.start.line;
+        if (firstComment && isLocatedBefore(firstComment, first)) {
+            firstLine = firstComment.loc.start.line;
         }
 
         return expectedFirstLine <= firstLine;
@@ -43,12 +68,14 @@ module.exports = function (context) {
     function isBlockBottomPadded(node) {
         var blockEnd = node.loc.end.line,
             last = node.body[node.body.length - 1],
-            lastLine = context.getLastToken(last).loc.end.line,
+            lastToken = context.getLastToken(last),
+            lastLine = lastToken.loc.end.line,
             expectedLastLine = blockEnd - 2,
-            trailingComments = context.getComments(last).trailing;
+            comments = getCommentsInNode(node),
+            lastComment = comments[comments.length - 1];
 
-        if (trailingComments.length > 0) {
-            lastLine = trailingComments[trailingComments.length - 1].loc.end.line;
+        if (lastComment && isLocatedBefore(lastToken, lastComment)) {
+            lastLine = lastComment.loc.end.line;
         }
 
         return lastLine <= expectedLastLine;

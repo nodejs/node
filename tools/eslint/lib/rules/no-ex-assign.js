@@ -5,36 +5,31 @@
 
 "use strict";
 
+var astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
 
-    var catchStack = [];
+    /**
+     * Finds and reports references that are non initializer and writable.
+     * @param {Variable} variable - A variable to check.
+     * @returns {void}
+     */
+    function checkVariable(variable) {
+        astUtils.getModifyingReferences(variable.references).forEach(function(reference) {
+            context.report(
+                reference.identifier,
+                "Do not assign to the exception parameter.");
+        });
+    }
 
     return {
-
         "CatchClause": function(node) {
-            catchStack.push(node.param.name);
-        },
-
-        "CatchClause:exit": function() {
-            catchStack.pop();
-        },
-
-        "AssignmentExpression": function(node) {
-
-            if (catchStack.length > 0) {
-
-                var exceptionName = catchStack[catchStack.length - 1];
-
-                if (node.left.name && node.left.name === exceptionName) {
-                    context.report(node, "Do not assign to the exception parameter.");
-                }
-            }
+            context.getDeclaredVariables(node).forEach(checkVariable);
         }
-
     };
 
 };
