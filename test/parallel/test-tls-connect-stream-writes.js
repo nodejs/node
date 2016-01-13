@@ -1,16 +1,15 @@
 'use strict';
-var assert = require('assert'),
-    fs = require('fs'),
-    path = require('path'),
-    tls = require('tls'),
-    stream = require('stream'),
-    net = require('net');
-
-var common = require('../common');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const tls = require('tls');
+const stream = require('stream');
+const net = require('net');
 
 var server;
-var cert_dir = path.resolve(__dirname, '../fixtures'),
-    options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
+var cert_dir = path.resolve(__dirname, '../fixtures');
+var options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
                 cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
                 ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
                 ciphers: 'AES256-GCM-SHA384' };

@@ -15,8 +15,8 @@ var options = {
 //http.globalAgent.maxSockets = 15;
 
 var server = http.createServer(function(req, res) {
-  var m = /\/(.*)/.exec(req.url),
-      reqid = parseInt(m[1], 10);
+  const m = /\/(.*)/.exec(req.url);
+  const reqid = parseInt(m[1], 10);
   if ( reqid % 2 ) {
     // do not reply the request
   } else {
