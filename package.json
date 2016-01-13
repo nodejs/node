@@ -18,7 +18,8 @@
     "url": "git://github.com/websockets/ws.git"
   },
   "scripts": {
-    "test": "make test"
+    "flags": "",
+    "test": "NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_PATH=lib mocha -t 5000 -s 2400 test/*.test.js"
   },
   "dependencies": {
     "options": ">=0.0.5",
