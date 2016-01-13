@@ -1,17 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-var path = require('path'),
-    fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
 var file = path.join(common.tmpDir, 'write.txt');
 
 common.refreshTmpDir();
 
 (function() {
-  var stream = fs.WriteStream(file),
-      _fs_close = fs.close;
+  const stream = fs.WriteStream(file);
+  const _fs_close = fs.close;
 
   fs.close = function(fd) {
     assert.ok(fd, 'fs.close must not be called without an undefined fd.');

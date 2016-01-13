@@ -15,11 +15,11 @@ crypto.DEFAULT_ENCODING = 'buffer';
  * Input data
  */
 
-var ODD_LENGTH_PLAIN = 'Hello node world!',
-    EVEN_LENGTH_PLAIN = 'Hello node world!AbC09876dDeFgHi';
+const ODD_LENGTH_PLAIN = 'Hello node world!';
+const EVEN_LENGTH_PLAIN = 'Hello node world!AbC09876dDeFgHi';
 
-var KEY_PLAIN = 'S3c.r.e.t.K.e.Y!',
-    IV_PLAIN = 'blahFizz2011Buzz';
+const KEY_PLAIN = 'S3c.r.e.t.K.e.Y!';
+const IV_PLAIN = 'blahFizz2011Buzz';
 
 var CIPHER_NAME = 'aes-128-cbc';
 

@@ -79,107 +79,109 @@ const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
 const emptyHistoryPath = path.join(fixtures, '.empty-repl-history-file');
 const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
 
-const tests = [{
-  env: { NODE_REPL_HISTORY: '' },
-  test: [UP],
-  expected: [prompt, replDisabled, prompt]
-},
-{
-  env: { NODE_REPL_HISTORY: '',
-         NODE_REPL_HISTORY_FILE: enoentHistoryPath },
-  test: [UP],
-  expected: [prompt, replDisabled, prompt]
-},
-{
-  env: { NODE_REPL_HISTORY: '',
-         NODE_REPL_HISTORY_FILE: oldHistoryPath },
-  test: [UP],
-  expected: [prompt, replDisabled, prompt]
-},
-{
-  env: { NODE_REPL_HISTORY_FILE: emptyHistoryPath },
-  test: [UP],
-  expected: [prompt, convertMsg, prompt]
-},
-{
-  env: { NODE_REPL_HISTORY_FILE: defaultHistoryPath },
-  test: [UP],
-  expected: [prompt, sameHistoryFilePaths, prompt]
-},
-{
-  env: { NODE_REPL_HISTORY: historyPath },
-  test: [UP, CLEAR],
-  expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
-},
-{
-  env: { NODE_REPL_HISTORY: historyPath,
-         NODE_REPL_HISTORY_FILE: oldHistoryPath },
-  test: [UP, CLEAR],
-  expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
-},
-{
-  env: { NODE_REPL_HISTORY: historyPath,
-         NODE_REPL_HISTORY_FILE: '' },
-  test: [UP, CLEAR],
-  expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
-},
-{
-  env: {},
-  test: [UP],
-  expected: [prompt]
-},
-{
-  env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
-  test: [UP, CLEAR, '\'42\'', ENTER],
-  expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
-             '4', '2', '\'', '\'42\'\n', prompt, prompt],
-  after: function ensureHistoryFixture() {
-    // XXX(Fishrock123) Make sure nothing weird happened to our fixture
-    //  or it's temporary copy.
-    // Sometimes this test used to erase the fixture and I'm not sure why.
-    const history = fs.readFileSync(historyFixturePath, 'utf8');
-    assert.strictEqual(history,
-                       '\'you look fabulous today\'\n\'Stay Fresh~\'\n');
-    const historyCopy = fs.readFileSync(historyPath, 'utf8');
-    assert.strictEqual(historyCopy, '\'you look fabulous today\'' + os.EOL +
-                                    '\'Stay Fresh~\'' + os.EOL);
-  }
-},
-{ // Requires the above testcase
-  env: {},
-  test: [UP, UP, ENTER],
-  expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
-             prompt]
-},
-{
-  env: { NODE_REPL_HISTORY: historyPath,
-         NODE_REPL_HISTORY_SIZE: 1 },
-  test: [UP, UP, CLEAR],
-  expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
-},
-{
-  env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
-         NODE_REPL_HISTORY_SIZE: 1 },
-  test: [UP, UP, UP, CLEAR],
-  expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
-},
-{
-  env: { NODE_REPL_HISTORY: historyPathFail,
-         NODE_REPL_HISTORY_SIZE: 1 },
-  test: [UP],
-  expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
-},
-{ // Make sure this is always the last test, since we change os.homedir()
-  before: function mockHomedirFailure() {
-    // Mock os.homedir() failure
-    os.homedir = function() {
-      throw new Error('os.homedir() failure');
-    };
+const tests = [
+  {
+    env: { NODE_REPL_HISTORY: '' },
+    test: [UP],
+    expected: [prompt, replDisabled, prompt]
   },
-  env: {},
-  test: [UP],
-  expected: [prompt, homedirErr, prompt, replDisabled, prompt]
-}];
+  {
+    env: { NODE_REPL_HISTORY: '',
+           NODE_REPL_HISTORY_FILE: enoentHistoryPath },
+    test: [UP],
+    expected: [prompt, replDisabled, prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY: '',
+           NODE_REPL_HISTORY_FILE: oldHistoryPath },
+    test: [UP],
+    expected: [prompt, replDisabled, prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY_FILE: emptyHistoryPath },
+    test: [UP],
+    expected: [prompt, convertMsg, prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY_FILE: defaultHistoryPath },
+    test: [UP],
+    expected: [prompt, sameHistoryFilePaths, prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY: historyPath },
+    test: [UP, CLEAR],
+    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY: historyPath,
+           NODE_REPL_HISTORY_FILE: oldHistoryPath },
+    test: [UP, CLEAR],
+    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY: historyPath,
+           NODE_REPL_HISTORY_FILE: '' },
+    test: [UP, CLEAR],
+    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+  },
+  {
+    env: {},
+    test: [UP],
+    expected: [prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
+    test: [UP, CLEAR, '\'42\'', ENTER],
+    expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
+               '4', '2', '\'', '\'42\'\n', prompt, prompt],
+    after: function ensureHistoryFixture() {
+      // XXX(Fishrock123) Make sure nothing weird happened to our fixture
+      //  or it's temporary copy.
+      // Sometimes this test used to erase the fixture and I'm not sure why.
+      const history = fs.readFileSync(historyFixturePath, 'utf8');
+      assert.strictEqual(history,
+                         '\'you look fabulous today\'\n\'Stay Fresh~\'\n');
+      const historyCopy = fs.readFileSync(historyPath, 'utf8');
+      assert.strictEqual(historyCopy, '\'you look fabulous today\'' + os.EOL +
+                                      '\'Stay Fresh~\'' + os.EOL);
+    }
+  },
+  { // Requires the above testcase
+    env: {},
+    test: [UP, UP, ENTER],
+    expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
+               prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY: historyPath,
+           NODE_REPL_HISTORY_SIZE: 1 },
+    test: [UP, UP, CLEAR],
+    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
+           NODE_REPL_HISTORY_SIZE: 1 },
+    test: [UP, UP, UP, CLEAR],
+    expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
+  },
+  {
+    env: { NODE_REPL_HISTORY: historyPathFail,
+           NODE_REPL_HISTORY_SIZE: 1 },
+    test: [UP],
+    expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
+  },
+  { // Make sure this is always the last test, since we change os.homedir()
+    before: function mockHomedirFailure() {
+      // Mock os.homedir() failure
+      os.homedir = function() {
+        throw new Error('os.homedir() failure');
+      };
+    },
+    env: {},
+    test: [UP],
+    expected: [prompt, homedirErr, prompt, replDisabled, prompt]
+  }
+];
 const numtests = tests.length;
 
 
