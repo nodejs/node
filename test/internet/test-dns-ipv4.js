@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert'),
-    dns = require('dns'),
-    net = require('net'),
-    isIPv4 = net.isIPv4;
+const common = require('../common');
+const assert = require('assert');
+const dns = require('dns');
+const net = require('net');
+const isIPv4 = net.isIPv4;
 
-var expected = 0,
-    completed = 0,
-    running = false,
-    queue = [];
+let expected = 0;
+let completed = 0;
+let running = false;
+const queue = [];
 
 function TEST(f) {
   function next() {
@@ -148,19 +148,22 @@ TEST(function test_lookup_localhost_ipv4(done) {
 });
 
 TEST(function test_lookup_all_ipv4(done) {
-  var req = dns.lookup('www.google.com', {all: true, family: 4},
-                       function(err, ips) {
-    if (err) throw err;
-    assert.ok(Array.isArray(ips));
-    assert.ok(ips.length > 0);
+  var req = dns.lookup(
+    'www.google.com',
+    {all: true, family: 4},
+    function(err, ips) {
+      if (err) throw err;
+      assert.ok(Array.isArray(ips));
+      assert.ok(ips.length > 0);
 
-    ips.forEach(function(ip) {
-      assert.ok(isIPv4(ip.address));
-      assert.strictEqual(ip.family, 4);
-    });
+      ips.forEach(function(ip) {
+        assert.ok(isIPv4(ip.address));
+        assert.strictEqual(ip.family, 4);
+      });
 
-    done();
-  });
+      done();
+    }
+  );
 
   checkWrap(req);
 });

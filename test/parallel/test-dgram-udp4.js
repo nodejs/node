@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-var dgram = require('dgram'), server, client,
-    server_port = common.PORT,
-    message_to_send = 'A message to send',
-    timer;
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
+const server_port = common.PORT;
+const message_to_send = 'A message to send';
+let server, client;
+let timer;
 
 server = dgram.createSocket('udp4');
 server.on('message', function(msg, rinfo) {
@@ -28,13 +28,19 @@ server.on('listening', function() {
     client.close();
     server.close();
   });
-  client.send(message_to_send, 0, message_to_send.length,
-              server_port, 'localhost', function(err) {
-        if (err) {
-          console.log('Caught error in client send.');
-          throw err;
-        }
-      });
+  client.send(
+    message_to_send,
+    0,
+    message_to_send.length,
+    server_port,
+    'localhost',
+    function(err) {
+      if (err) {
+        console.log('Caught error in client send.');
+        throw err;
+      }
+    }
+  );
   client.on('close',
             function() {
               if (server.fd === null) {

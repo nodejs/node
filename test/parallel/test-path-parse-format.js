@@ -80,7 +80,7 @@ function checkErrors(path) {
   errors.forEach(function(errorCase) {
     try {
       path[errorCase.method].apply(path, errorCase.input);
-    } catch(err) {
+    } catch (err) {
       assert.ok(err instanceof TypeError);
       assert.ok(
         errorCase.message.test(err.message),

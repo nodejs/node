@@ -12,8 +12,7 @@ var start = Date.now();
 var err;
 var caught = false;
 
-try
-{
+try {
   var cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
   var ret = execSync(cmd, {timeout: TIMER});
 } catch (e) {

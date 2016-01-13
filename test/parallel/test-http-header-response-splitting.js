@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 var testIndex = 0;
 const testCount = 2 * 4 * 6;
@@ -10,24 +10,24 @@ const responseBody = 'Hi mars!';
 var server = http.createServer(function(req, res) {
   function reply(header) {
     switch (testIndex % 4) {
-    case 0:
-      res.writeHead(200, { a: header, b: header });
-      break;
-    case 1:
-      res.setHeader('a', header);
-      res.setHeader('b', header);
-      res.writeHead(200);
-      break;
-    case 2:
-      res.setHeader('a', header);
-      res.writeHead(200, { b: header });
-      break;
-    case 3:
-      res.setHeader('a', [header]);
-      res.writeHead(200, { b: header });
-      break;
-    default:
-      assert.fail(null, null, 'unreachable');
+      case 0:
+        res.writeHead(200, { a: header, b: header });
+        break;
+      case 1:
+        res.setHeader('a', header);
+        res.setHeader('b', header);
+        res.writeHead(200);
+        break;
+      case 2:
+        res.setHeader('a', header);
+        res.writeHead(200, { b: header });
+        break;
+      case 3:
+        res.setHeader('a', [header]);
+        res.writeHead(200, { b: header });
+        break;
+      default:
+        assert.fail(null, null, 'unreachable');
     }
     res.write(responseBody);
     if (testIndex % 8 < 4) {

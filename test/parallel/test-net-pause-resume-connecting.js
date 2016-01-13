@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var connections = 0,
-    dataEvents = 0,
-    conn;
+let connections = 0;
+let dataEvents = 0;
+let conn;
 
 
 // Server

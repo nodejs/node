@@ -140,24 +140,24 @@ if (process.argv[2] === 'child') {
   }
 
   testDomainExceptionHandling('--abort_on_uncaught_exception', {
-                              throwInDomainErrHandler: false,
-                              useTryCatch: false
-                            });
+    throwInDomainErrHandler: false,
+    useTryCatch: false
+  });
 
   testDomainExceptionHandling('--abort_on_uncaught_exception', {
-                              throwInDomainErrHandler: false,
-                              useTryCatch: true
-                            });
+    throwInDomainErrHandler: false,
+    useTryCatch: true
+  });
 
   testDomainExceptionHandling('--abort_on_uncaught_exception', {
-                              throwInDomainErrHandler: true,
-                              useTryCatch: false
-                            });
+    throwInDomainErrHandler: true,
+    useTryCatch: false
+  });
 
   testDomainExceptionHandling('--abort_on_uncaught_exception', {
-                              throwInDomainErrHandler: true,
-                              useTryCatch: true
-                            });
+    throwInDomainErrHandler: true,
+    useTryCatch: true
+  });
 
   testDomainExceptionHandling({
     throwInDomainErrHandler: false

@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert'),
-    path = require('path'),
-    child_process = require('child_process');
+const assert = require('assert');
+const path = require('path');
+const child_process = require('child_process');
 
 var nodeBinary = process.argv[0];
 
