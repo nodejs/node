@@ -26,8 +26,7 @@
     "autobahn-server": "NODE_PATH=lib node test/autobahn-server.js"
   },
   "dependencies": {
-    "options": ">=0.0.5",
-    "ultron": "1.0.x"
+    "options": ">=0.0.5"
   },
   "devDependencies": {
     "ansi": "0.3.x",
