@@ -2227,10 +2227,8 @@ Statement* Parser::ParseFunctionDeclaration(
   const AstRawString* name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
 
-  if (fni_ != NULL) {
-    fni_->Enter();
-    fni_->PushEnclosingName(name);
-  }
+  FuncNameInferrer::State fni_state(fni_);
+  if (fni_ != NULL) fni_->PushEnclosingName(name);
   FunctionLiteral* fun = ParseFunctionLiteral(
       name, scanner()->location(),
       is_strict_reserved ? kFunctionNameIsStrictReserved
@@ -2239,7 +2237,6 @@ Statement* Parser::ParseFunctionDeclaration(
                    : FunctionKind::kNormalFunction,
       pos, FunctionLiteral::DECLARATION, FunctionLiteral::NORMAL_ARITY,
       language_mode(), CHECK_OK);
-  if (fni_ != NULL) fni_->Leave();
 
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
@@ -2516,7 +2513,7 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   int bindings_start = peek_position();
   bool is_for_iteration_variable;
   do {
-    if (fni_ != NULL) fni_->Enter();
+    FuncNameInferrer::State fni_state(fni_);
 
     // Parse name.
     if (!first_declaration) Consume(Token::COMMA);
@@ -2591,7 +2588,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       value = GetLiteralUndefined(position());
     }
 
-    if (single_name && fni_ != NULL) fni_->Leave();
     parsing_result->declarations.Add(DeclarationParsingResult::Declaration(
         pattern, initializer_position, value));
     first_declaration = false;
@@ -4813,7 +4809,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   const bool has_extends = extends != nullptr;
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
-    if (fni_ != NULL) fni_->Enter();
+    FuncNameInferrer::State fni_state(fni_);
     const bool in_class = true;
     const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
@@ -4831,10 +4827,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
       properties->Add(property, zone());
     }
 
-    if (fni_ != NULL) {
-      fni_->Infer();
-      fni_->Leave();
-    }
+    if (fni_ != NULL) fni_->Infer();
   }
 
   Expect(Token::RBRACE, CHECK_OK);

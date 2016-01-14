@@ -1022,6 +1022,39 @@ Handle<Code> LoadIC::SimpleFieldLoad(FieldIndex index) {
 }
 
 
+bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
+  DCHECK(lookup->state() == LookupIterator::ACCESSOR);
+  Isolate* isolate = lookup->isolate();
+  Handle<Object> accessors = lookup->GetAccessors();
+  if (accessors->IsExecutableAccessorInfo()) {
+    Handle<ExecutableAccessorInfo> info =
+        Handle<ExecutableAccessorInfo>::cast(accessors);
+    if (info->getter() != NULL &&
+        !ExecutableAccessorInfo::IsCompatibleReceiverMap(isolate, info,
+                                                         receiver_map)) {
+      return false;
+    }
+  } else if (accessors->IsAccessorPair()) {
+    Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
+                          isolate);
+    Handle<JSObject> holder = lookup->GetHolder<JSObject>();
+    Handle<Object> receiver = lookup->GetReceiver();
+    if (getter->IsJSFunction() && holder->HasFastProperties()) {
+      Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
+      if (receiver->IsJSObject() || function->shared()->IsBuiltin() ||
+          !is_sloppy(function->shared()->language_mode())) {
+        CallOptimization call_optimization(function);
+        if (call_optimization.is_simple_api_call() &&
+            !call_optimization.IsCompatibleReceiverMap(receiver_map, holder)) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
   if (state() == UNINITIALIZED) {
     // This is the first time we execute this inline cache. Set the target to
@@ -1046,35 +1079,20 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     }
   } else {
     if (lookup->state() == LookupIterator::ACCESSOR) {
-      Handle<Object> accessors = lookup->GetAccessors();
-      Handle<Map> map = receiver_map();
-      if (accessors->IsExecutableAccessorInfo()) {
-        Handle<ExecutableAccessorInfo> info =
-            Handle<ExecutableAccessorInfo>::cast(accessors);
-        if ((v8::ToCData<Address>(info->getter()) != 0) &&
-            !ExecutableAccessorInfo::IsCompatibleReceiverMap(isolate(), info,
-                                                             map)) {
-          TRACE_GENERIC_IC(isolate(), "LoadIC", "incompatible receiver type");
-          code = slow_stub();
-        }
-      } else if (accessors->IsAccessorPair()) {
-        Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
-                              isolate());
-        Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-        Handle<Object> receiver = lookup->GetReceiver();
-        if (getter->IsJSFunction() && holder->HasFastProperties()) {
-          Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
-          if (receiver->IsJSObject() || function->IsBuiltin() ||
-              !is_sloppy(function->shared()->language_mode())) {
-            CallOptimization call_optimization(function);
-            if (call_optimization.is_simple_api_call() &&
-                !call_optimization.IsCompatibleReceiver(receiver, holder)) {
-              TRACE_GENERIC_IC(isolate(), "LoadIC",
-                               "incompatible receiver type");
-              code = slow_stub();
-            }
-          }
-        }
+      if (!IsCompatibleReceiver(lookup, receiver_map())) {
+        TRACE_GENERIC_IC(isolate(), "LoadIC", "incompatible receiver type");
+        code = slow_stub();
+      }
+    } else if (lookup->state() == LookupIterator::INTERCEPTOR) {
+      // Perform a lookup behind the interceptor. Copy the LookupIterator since
+      // the original iterator will be used to fetch the value.
+      LookupIterator it = *lookup;
+      it.Next();
+      LookupForRead(&it);
+      if (it.state() == LookupIterator::ACCESSOR &&
+          !IsCompatibleReceiver(&it, receiver_map())) {
+        TRACE_GENERIC_IC(isolate(), "LoadIC", "incompatible receiver type");
+        code = slow_stub();
       }
     }
     if (code.is_null()) code = ComputeHandler(lookup);

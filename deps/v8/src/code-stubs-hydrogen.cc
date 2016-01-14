@@ -396,8 +396,7 @@ HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
               // Is it an undetectable object?
               IfBuilder is_undetectable(this);
               is_undetectable.If<HCompareNumericAndBranch>(
-                  bit_field_masked, Add<HConstant>(1 << Map::kIsUndetectable),
-                  Token::EQ);
+                  bit_field_masked, graph()->GetConstant0(), Token::NE);
               is_undetectable.Then();
               {
                 // typeof an undetectable object is 'undefined'.

@@ -2770,7 +2770,7 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
 }
 
 
-bool FieldTypeIsCleared(Representation rep, Handle<HeapType> type) {
+bool FieldTypeIsCleared(Representation rep, HeapType* type) {
   return type->Is(HeapType::None()) && rep.IsHeapObject();
 }
 
@@ -2784,7 +2784,7 @@ Handle<HeapType> Map::GeneralizeFieldType(Representation rep1,
   // Cleared field types need special treatment. They represent lost knowledge,
   // so we must be conservative, so their generalization with any other type
   // is "Any".
-  if (FieldTypeIsCleared(rep1, type1) || FieldTypeIsCleared(rep2, type2)) {
+  if (FieldTypeIsCleared(rep1, *type1) || FieldTypeIsCleared(rep2, *type2)) {
     return HeapType::Any(isolate);
   }
   if (type1->NowIs(type2)) return type2;
@@ -2807,7 +2807,7 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
                                   isolate);
 
   if (old_representation.Equals(new_representation) &&
-      !FieldTypeIsCleared(new_representation, new_field_type) &&
+      !FieldTypeIsCleared(new_representation, *new_field_type) &&
       // Checking old_field_type for being cleared is not necessary because
       // the NowIs check below would fail anyway in that case.
       new_field_type->NowIs(old_field_type)) {
@@ -3454,10 +3454,16 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
     switch (new_details.type()) {
       case DATA: {
         HeapType* new_type = new_descriptors->GetFieldType(i);
+        // Cleared field types need special treatment. They represent lost
+        // knowledge, so we must first generalize the new_type to "Any".
+        if (FieldTypeIsCleared(new_details.representation(), new_type)) {
+          return MaybeHandle<Map>();
+        }
         PropertyType old_property_type = old_details.type();
         if (old_property_type == DATA) {
           HeapType* old_type = old_descriptors->GetFieldType(i);
-          if (!old_type->NowIs(new_type)) {
+          if (FieldTypeIsCleared(old_details.representation(), old_type) ||
+              !old_type->NowIs(new_type)) {
             return MaybeHandle<Map>();
           }
         } else {
@@ -13128,6 +13134,8 @@ static bool ShouldConvertToFastElements(JSObject* object,
 
   uint32_t dictionary_size = static_cast<uint32_t>(dictionary->Capacity()) *
                              SeededNumberDictionary::kEntrySize;
+
+  // Turn fast if the dictionary only saves 50% space.
   return 2 * dictionary_size >= *new_capacity;
 }
 
