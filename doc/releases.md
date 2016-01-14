@@ -57,7 +57,7 @@ Create a new branch named _"vx.y.z-proposal"_, or something similar. Using `git 
 For a list of commits that could be landed in a patch release on v5.x
 
 ```
-$ branch-diff v5.x master --exclude-label semver-major,semver-minor,dont-land-on-v5.x --simple
+$ branch-diff v5.x master --exclude-label=semver-major,semver-minor,dont-land-on-v5.x --filter-release --format=simple
 ```
 
 Carefully review the list of commits looking for errors (incorrect `PR-URL`, incorrect semver, etc.). Commits labeled as semver minor or semver major should only be cherry-picked when appropriate for the type of release being made. Previous release commits and version bumps do not need to be cherry-picked.
