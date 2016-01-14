@@ -4678,6 +4678,8 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
   // TODO(indutny): Support raw curves?
   CHECK(args[0]->IsString());
   node::Utf8Value curve(env->isolate(), args[0]);
