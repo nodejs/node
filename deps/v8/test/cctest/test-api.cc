@@ -10258,6 +10258,54 @@ THREADED_TEST(CallableObject) {
 }
 
 
+THREADED_TEST(Regress567998) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  Local<v8::FunctionTemplate> desc =
+      v8::FunctionTemplate::New(env->GetIsolate());
+  desc->InstanceTemplate()->MarkAsUndetectable();  // undetectable
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(ReturnThis);  // callable
+
+  Local<v8::Object> obj = desc->GetFunction(env.local())
+                              .ToLocalChecked()
+                              ->NewInstance(env.local())
+                              .ToLocalChecked();
+  CHECK(
+      env->Global()->Set(env.local(), v8_str("undetectable"), obj).FromJust());
+
+  ExpectString("undetectable.toString()", "[object Object]");
+  ExpectString("typeof undetectable", "undefined");
+  ExpectString("typeof(undetectable)", "undefined");
+  ExpectBoolean("typeof undetectable == 'undefined'", true);
+  ExpectBoolean("typeof undetectable == 'object'", false);
+  ExpectBoolean("if (undetectable) { true; } else { false; }", false);
+  ExpectBoolean("!undetectable", true);
+
+  ExpectObject("true&&undetectable", obj);
+  ExpectBoolean("false&&undetectable", false);
+  ExpectBoolean("true||undetectable", true);
+  ExpectObject("false||undetectable", obj);
+
+  ExpectObject("undetectable&&true", obj);
+  ExpectObject("undetectable&&false", obj);
+  ExpectBoolean("undetectable||true", true);
+  ExpectBoolean("undetectable||false", false);
+
+  ExpectBoolean("undetectable==null", true);
+  ExpectBoolean("null==undetectable", true);
+  ExpectBoolean("undetectable==undefined", true);
+  ExpectBoolean("undefined==undetectable", true);
+  ExpectBoolean("undetectable==undetectable", true);
+
+  ExpectBoolean("undetectable===null", false);
+  ExpectBoolean("null===undetectable", false);
+  ExpectBoolean("undetectable===undefined", false);
+  ExpectBoolean("undefined===undetectable", false);
+  ExpectBoolean("undetectable===undetectable", true);
+}
+
+
 static int Recurse(v8::Isolate* isolate, int depth, int iterations) {
   v8::HandleScope scope(isolate);
   if (depth == 0) return v8::HandleScope::NumberOfHandles(isolate);
