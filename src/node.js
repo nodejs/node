@@ -140,6 +140,7 @@
         }
 
       } else {
+        startup.preloadModules();
         // If -i or --interactive were passed, or stdin is a TTY.
         if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
           // REPL

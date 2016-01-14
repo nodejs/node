@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const child_process = require('child_process');
@@ -21,6 +21,7 @@ var fixture = function(name) {
 var fixtureA = fixture('printA.js');
 var fixtureB = fixture('printB.js');
 var fixtureC = fixture('printC.js');
+const fixtureD = fixture('define-global.js');
 var fixtureThrows = fixture('throws_error4.js');
 
 // test preloading a single module works
@@ -72,6 +73,18 @@ child_process.exec(nodeBinary + ' '
     if (err) throw err;
     assert.equal(stdout, 'A\nB\nhello\n');
   });
+
+// test that preload works with -i
+const interactive = child_process.exec(nodeBinary + ' '
+  + preloadOption([fixtureD])
+  + '-i',
+  common.mustCall(function(err, stdout, stderr) {
+    assert.ifError(err);
+    assert.strictEqual(stdout, `> 'test'\n> `);
+  }));
+
+interactive.stdin.write('a\n');
+interactive.stdin.write('process.exit()\n');
 
 child_process.exec(nodeBinary + ' '
   + '--require ' + fixture('cluster-preload.js') + ' '
