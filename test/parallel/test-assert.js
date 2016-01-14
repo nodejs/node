@@ -73,9 +73,11 @@ assert.throws(makeBlock(a.deepEqual, /a/i, /a/));
 assert.throws(makeBlock(a.deepEqual, /a/m, /a/));
 assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im));
 
-var re1 = /a/;
-re1.lastIndex = 3;
-assert.throws(makeBlock(a.deepEqual, re1, /a/));
+{
+  const re1 = /a/;
+  re1.lastIndex = 3;
+  assert.throws(makeBlock(a.deepEqual, re1, /a/));
+}
 
 
 // 7.4
@@ -172,10 +174,11 @@ assert.throws(makeBlock(a.deepStrictEqual, /a/i, /a/));
 assert.throws(makeBlock(a.deepStrictEqual, /a/m, /a/));
 assert.throws(makeBlock(a.deepStrictEqual, /a/igm, /a/im));
 
-var re1 = /a/;
-re1.lastIndex = 3;
-assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
-
+{
+  const re1 = /a/;
+  re1.lastIndex = 3;
+  assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
+}
 
 // 7.4 - strict
 assert.throws(makeBlock(a.deepStrictEqual, 4, '4'),
