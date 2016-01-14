@@ -928,7 +928,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     char ip[INET6_ADDRSTRLEN];
     const char *addr;
 
-    // Iterate over the IPv4 responses again this time creating javascript
+    // Iterate over the IPv4/IPv6 responses again this time creating javascript
     // strings for each IP and filling the results array.
     address = res;
     while (address) {
@@ -950,20 +950,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
         Local<String> s = OneByteString(env->isolate(), ip);
         results->Set(n, s);
         n++;
-      }
-
-      // Increment
-      address = address->ai_next;
-    }
-
-    // Iterate over the IPv6 responses putting them in the array.
-    address = res;
-    while (address) {
-      CHECK_EQ(address->ai_socktype, SOCK_STREAM);
-
-      // Ignore random ai_family types.
-      if (address->ai_family == AF_INET6) {
-        // Juggle pointers
+      } else if (address->ai_family == AF_INET6) {
         addr = reinterpret_cast<char*>(&(reinterpret_cast<struct sockaddr_in6*>(
             address->ai_addr)->sin6_addr));
         int err = uv_inet_ntop(address->ai_family,
