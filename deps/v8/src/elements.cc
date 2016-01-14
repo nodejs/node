@@ -691,11 +691,12 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   virtual void SetLength(Handle<JSArray> array, uint32_t length) final {
-    ElementsAccessorSubclass::SetLengthImpl(array, length,
+    ElementsAccessorSubclass::SetLengthImpl(array->GetIsolate(), array, length,
                                             handle(array->elements()));
   }
 
-  static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
+  static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
+                            uint32_t length,
                             Handle<FixedArrayBase> backing_store) {
     DCHECK(!array->SetLengthWouldNormalize(length));
     DCHECK(IsFastElementsKind(array->GetElementsKind()));
@@ -712,6 +713,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     // Check whether the backing store should be shrunk.
     uint32_t capacity = backing_store->length();
+    old_length = Min(old_length, capacity);
     if (length == 0) {
       array->initialize_elements();
     } else if (length <= capacity) {
@@ -720,7 +722,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       }
       if (2 * length <= capacity) {
         // If more than half the elements won't be used, trim the array.
-        array->GetHeap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
+        isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
             *backing_store, capacity - length);
       } else {
         // Otherwise, fill the unused tail with holes.
@@ -954,11 +956,11 @@ class DictionaryElementsAccessor
       : ElementsAccessorBase<DictionaryElementsAccessor,
                              ElementsKindTraits<DICTIONARY_ELEMENTS> >(name) {}
 
-  static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
+  static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
+                            uint32_t length,
                             Handle<FixedArrayBase> backing_store) {
     Handle<SeededNumberDictionary> dict =
         Handle<SeededNumberDictionary>::cast(backing_store);
-    Isolate* isolate = array->GetIsolate();
     int capacity = dict->Capacity();
     uint32_t old_length = 0;
     CHECK(array->length()->ToArrayLength(&old_length));
@@ -1181,13 +1183,18 @@ class FastElementsAccessor
       }
       int num_used = 0;
       for (int i = 0; i < backing_store->length(); ++i) {
-        if (!backing_store->is_the_hole(i)) ++num_used;
-        // Bail out early if more than 1/4 is used.
-        if (4 * num_used > backing_store->length()) break;
+        if (!backing_store->is_the_hole(i)) {
+          ++num_used;
+          // Bail out if a number dictionary wouldn't be able to save at least
+          // 75% space.
+          if (4 * SeededNumberDictionary::ComputeCapacity(num_used) *
+                  SeededNumberDictionary::kEntrySize >
+              backing_store->length()) {
+            return;
+          }
+        }
       }
-      if (4 * num_used <= backing_store->length()) {
-        JSObject::NormalizeElements(obj);
-      }
+      JSObject::NormalizeElements(obj);
     }
   }
 
@@ -1293,9 +1300,10 @@ class FastElementsAccessor
         receiver, backing_store, args, unshift_size, AT_START);
   }
 
-  static void MoveElements(Heap* heap, Handle<FixedArrayBase> backing_store,
-                           int dst_index, int src_index, int len,
-                           int hole_start, int hole_end) {
+  static void MoveElements(Isolate* isolate, Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> backing_store, int dst_index,
+                           int src_index, int len, int hole_start,
+                           int hole_end) {
     UNREACHABLE();
   }
 
@@ -1344,13 +1352,13 @@ class FastElementsAccessor
 
     // Delete and move elements to make space for add_count new elements.
     if (add_count < delete_count) {
-      FastElementsAccessorSubclass::SpliceShrinkStep(backing_store, heap, start,
-                                                     delete_count, add_count,
-                                                     length, new_length);
+      FastElementsAccessorSubclass::SpliceShrinkStep(
+          isolate, receiver, backing_store, start, delete_count, add_count,
+          length, new_length);
     } else if (add_count > delete_count) {
       backing_store = FastElementsAccessorSubclass::SpliceGrowStep(
-          receiver, backing_store, isolate, heap, start, delete_count,
-          add_count, length, new_length);
+          isolate, receiver, backing_store, start, delete_count, add_count,
+          length, new_length);
     }
 
     // Copy over the arguments.
@@ -1364,29 +1372,33 @@ class FastElementsAccessor
   }
 
  private:
-  static void SpliceShrinkStep(Handle<FixedArrayBase> backing_store, Heap* heap,
+  // SpliceShrinkStep might modify the backing_store.
+  static void SpliceShrinkStep(Isolate* isolate, Handle<JSArray> receiver,
+                               Handle<FixedArrayBase> backing_store,
                                uint32_t start, uint32_t delete_count,
                                uint32_t add_count, uint32_t len,
                                uint32_t new_length) {
     const int move_left_count = len - delete_count - start;
     const int move_left_dst_index = start + add_count;
     FastElementsAccessorSubclass::MoveElements(
-        heap, backing_store, move_left_dst_index, start + delete_count,
-        move_left_count, new_length, len);
+        isolate, receiver, backing_store, move_left_dst_index,
+        start + delete_count, move_left_count, new_length, len);
   }
 
-
+  // SpliceGrowStep might modify the backing_store.
   static Handle<FixedArrayBase> SpliceGrowStep(
-      Handle<JSArray> receiver, Handle<FixedArrayBase> backing_store,
-      Isolate* isolate, Heap* heap, uint32_t start, uint32_t delete_count,
-      uint32_t add_count, uint32_t length, uint32_t new_length) {
+      Isolate* isolate, Handle<JSArray> receiver,
+      Handle<FixedArrayBase> backing_store, uint32_t start,
+      uint32_t delete_count, uint32_t add_count, uint32_t length,
+      uint32_t new_length) {
     // Check we do not overflow the new_length.
     DCHECK((add_count - delete_count) <= (Smi::kMaxValue - length));
     // Check if backing_store is big enough.
     if (new_length <= static_cast<uint32_t>(backing_store->length())) {
       FastElementsAccessorSubclass::MoveElements(
-          heap, backing_store, start + add_count, start + delete_count,
-          (length - delete_count - start), 0, 0);
+          isolate, receiver, backing_store, start + add_count,
+          start + delete_count, (length - delete_count - start), 0, 0);
+      // MoveElements updates the backing_store in-place.
       return backing_store;
     }
     // New backing storage is needed.
@@ -1407,20 +1419,19 @@ class FastElementsAccessor
   static Handle<Object> RemoveElement(Handle<JSArray> receiver,
                                       Handle<FixedArrayBase> backing_store,
                                       Where remove_position) {
+    Isolate* isolate = receiver->GetIsolate();
     uint32_t length =
         static_cast<uint32_t>(Smi::cast(receiver->length())->value());
-    Isolate* isolate = receiver->GetIsolate();
     DCHECK(length > 0);
     int new_length = length - 1;
     int remove_index = remove_position == AT_START ? 0 : new_length;
     Handle<Object> result =
         FastElementsAccessorSubclass::GetImpl(backing_store, remove_index);
     if (remove_position == AT_START) {
-      Heap* heap = isolate->heap();
-      FastElementsAccessorSubclass::MoveElements(heap, backing_store, 0, 1,
-                                                 new_length, 0, 0);
+      FastElementsAccessorSubclass::MoveElements(
+          isolate, receiver, backing_store, 0, 1, new_length, 0, 0);
     }
-    FastElementsAccessorSubclass::SetLengthImpl(receiver, new_length,
+    FastElementsAccessorSubclass::SetLengthImpl(isolate, receiver, new_length,
                                                 backing_store);
 
     if (IsHoleyElementsKind(KindTraits::Kind) && result->IsTheHole()) {
@@ -1454,8 +1465,8 @@ class FastElementsAccessor
       // If the backing store has enough capacity and we add elements to the
       // start we have to shift the existing objects.
       Isolate* isolate = receiver->GetIsolate();
-      FastElementsAccessorSubclass::MoveElements(isolate->heap(), backing_store,
-                                                 add_size, 0, length, 0, 0);
+      FastElementsAccessorSubclass::MoveElements(
+          isolate, receiver, backing_store, add_size, 0, length, 0, 0);
     }
 
     int insertion_index = remove_position == AT_START ? 0 : length;
@@ -1508,11 +1519,22 @@ class FastSmiOrObjectElementsAccessor
     return backing_store->get(index);
   }
 
-  static void MoveElements(Heap* heap, Handle<FixedArrayBase> backing_store,
-                           int dst_index, int src_index, int len,
-                           int hole_start, int hole_end) {
+  static void MoveElements(Isolate* isolate, Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> backing_store, int dst_index,
+                           int src_index, int len, int hole_start,
+                           int hole_end) {
+    Heap* heap = isolate->heap();
     Handle<FixedArray> dst_elms = Handle<FixedArray>::cast(backing_store);
-    if (len != 0) {
+    if (heap->CanMoveObjectStart(*dst_elms) && dst_index == 0) {
+      // Update all the copies of this backing_store handle.
+      *dst_elms.location() =
+          FixedArray::cast(heap->LeftTrimFixedArray(*dst_elms, src_index));
+      receiver->set_elements(*dst_elms);
+      // Adjust the hole offset as the array has been shrunk.
+      hole_end -= src_index;
+      DCHECK_LE(hole_start, backing_store->length());
+      DCHECK_LE(hole_end, backing_store->length());
+    } else if (len != 0) {
       DisallowHeapAllocation no_gc;
       heap->MoveElements(*dst_elms, dst_index, src_index, len);
     }
@@ -1631,12 +1653,23 @@ class FastDoubleElementsAccessor
     FixedDoubleArray::cast(backing_store)->set(entry, value->Number());
   }
 
-  static void MoveElements(Heap* heap, Handle<FixedArrayBase> backing_store,
-                           int dst_index, int src_index, int len,
-                           int hole_start, int hole_end) {
+  static void MoveElements(Isolate* isolate, Handle<JSArray> receiver,
+                           Handle<FixedArrayBase> backing_store, int dst_index,
+                           int src_index, int len, int hole_start,
+                           int hole_end) {
+    Heap* heap = isolate->heap();
     Handle<FixedDoubleArray> dst_elms =
         Handle<FixedDoubleArray>::cast(backing_store);
-    if (len != 0) {
+    if (heap->CanMoveObjectStart(*dst_elms) && dst_index == 0) {
+      // Update all the copies of this backing_store handle.
+      *dst_elms.location() = FixedDoubleArray::cast(
+          heap->LeftTrimFixedArray(*dst_elms, src_index));
+      receiver->set_elements(*dst_elms);
+      // Adjust the hole offset as the array has been shrunk.
+      hole_end -= src_index;
+      DCHECK_LE(hole_start, backing_store->length());
+      DCHECK_LE(hole_end, backing_store->length());
+    } else if (len != 0) {
       MemMove(dst_elms->data_start() + dst_index,
               dst_elms->data_start() + src_index, len * kDoubleSize);
     }
@@ -1742,7 +1775,8 @@ class TypedElementsAccessor
     return PropertyDetails(DONT_DELETE, DATA, 0, PropertyCellType::kNoCell);
   }
 
-  static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
+  static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
+                            uint32_t length,
                             Handle<FixedArrayBase> backing_store) {
     // External arrays do not support changing their length.
     UNREACHABLE();
@@ -1856,7 +1890,8 @@ class SloppyArgumentsElementsAccessor
     }
   }
 
-  static void SetLengthImpl(Handle<JSArray> array, uint32_t length,
+  static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
+                            uint32_t length,
                             Handle<FixedArrayBase> parameter_map) {
     // Sloppy arguments objects are not arrays.
     UNREACHABLE();

@@ -5993,9 +5993,14 @@ void Heap::FilterStoreBufferEntriesOnAboutToBeFreedPages() {
 
 void Heap::FreeQueuedChunks() {
   if (chunks_queued_for_free_ != NULL) {
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new UnmapFreeMemoryTask(this, chunks_queued_for_free_),
-        v8::Platform::kShortRunningTask);
+    if (FLAG_concurrent_sweeping) {
+      V8::GetCurrentPlatform()->CallOnBackgroundThread(
+          new UnmapFreeMemoryTask(this, chunks_queued_for_free_),
+          v8::Platform::kShortRunningTask);
+    } else {
+      FreeQueuedChunks(chunks_queued_for_free_);
+      pending_unmapping_tasks_semaphore_.Signal();
+    }
     chunks_queued_for_free_ = NULL;
   } else {
     // If we do not have anything to unmap, we just signal the semaphore
