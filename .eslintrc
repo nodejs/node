@@ -48,6 +48,8 @@ rules:
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#best-practices
   ## require falls through comment on switch-case
   no-fallthrough: 2
+  ## disallow declaring the same variable more than once
+  no-redeclare: 2
 
   # Stylistic Issues
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#stylistic-issues
