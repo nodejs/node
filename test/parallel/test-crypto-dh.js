@@ -159,6 +159,11 @@ secret2 = ecdh2.computeSecret(key1, 'binary', 'buffer');
 
 assert.equal(secret1, secret2.toString('base64'));
 
+// Oakley curves do not clean up ERR stack, it was causing unexpected failure
+// when accessing other OpenSSL APIs afterwards.
+crypto.createECDH('Oakley-EC2N-3');
+crypto.createHash('sha256');
+
 // Point formats
 assert.equal(ecdh1.getPublicKey('buffer', 'uncompressed')[0], 4);
 let firstByte = ecdh1.getPublicKey('buffer', 'compressed')[0];
