@@ -103,7 +103,7 @@ function addTest(input, output) {
     } else {
       quit();
     }
-  };
+  }
   expected.push({input: input, lines: output, callback: next});
 }
 
