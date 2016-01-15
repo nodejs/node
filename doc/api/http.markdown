@@ -992,7 +992,7 @@ automatically parsed with [`url.parse()`][].
 
 Options:
 
-- `protocol`: Protocol to use. Defaults to `'http'`.
+- `protocol`: Protocol to use. Defaults to `'http:'`.
 - `host`: A domain name or IP address of the server to issue the request to.
   Defaults to `'localhost'`.
 - `hostname`: Alias for `host`. To support [`url.parse()`][] `hostname` is
