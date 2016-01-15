@@ -33,7 +33,7 @@ deflater.flush(function(err) {
 });
 
 deflater.on('drain', function() {
-  drainCount++;;
+  drainCount++;
 });
 
 process.once('exit', function() {
