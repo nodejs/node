@@ -66,7 +66,7 @@ function runTest(clientsOptions, serverOptions, cb) {
         cb(results);
       }
     });
-  };
+  }
 
 }
 
