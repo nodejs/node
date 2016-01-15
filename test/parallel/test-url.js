@@ -1569,6 +1569,6 @@ var throws = [
 ];
 for (var i = 0; i < throws.length; i++) {
   assert.throws(function() { url.format(throws[i]); }, TypeError);
-};
+}
 assert(url.format('') === '');
 assert(url.format({}) === '');

@@ -23,7 +23,7 @@ var ret;
 function checkSpawnSyncRet(ret) {
   assert.strictEqual(ret.status, 0);
   assert.strictEqual(ret.error, undefined);
-};
+}
 
 function verifyBufOutput(ret) {
   checkSpawnSyncRet(ret);

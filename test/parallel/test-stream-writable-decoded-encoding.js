@@ -8,7 +8,7 @@ var util = require('util');
 function MyWritable(fn, options) {
   stream.Writable.call(this, options);
   this.fn = fn;
-};
+}
 
 util.inherits(MyWritable, stream.Writable);
 
@@ -17,7 +17,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
   callback();
 };
 
-;(function decodeStringsTrue() {
+(function decodeStringsTrue() {
   var m = new MyWritable(function(isBuffer, type, enc) {
     assert(isBuffer);
     assert.equal(type, 'object');
@@ -28,7 +28,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
   m.end();
 })();
 
-;(function decodeStringsFalse() {
+(function decodeStringsFalse() {
   var m = new MyWritable(function(isBuffer, type, enc) {
     assert(!isBuffer);
     assert.equal(type, 'string');
