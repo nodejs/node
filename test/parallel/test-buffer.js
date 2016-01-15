@@ -1006,6 +1006,11 @@ var buf = new Buffer([0xFF]);
 assert.equal(buf.readUInt8(0), 255);
 assert.equal(buf.readInt8(0), -1);
 
+var buf = new Buffer(5);
+var bufZero = new Buffer(5).fill(0);
+
+assert.deepEqual(buf, bufZero);
+
 [16, 32].forEach(function(bits) {
   var buf = new Buffer(bits / 8 - 1);
 
