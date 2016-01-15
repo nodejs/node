@@ -103,7 +103,7 @@ function startTest() {
       // Continue
       start();
     });
-  };
+  }
 
   start();
 }
