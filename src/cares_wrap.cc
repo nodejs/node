@@ -983,6 +983,10 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       address = address->ai_next;
     }
 
+    // No responses were found to return
+    if (n == 0) {
+      argv[0] = Integer::New(env->isolate(), UV_EAI_NODATA);
+    }
 
     argv[1] = results;
   }
