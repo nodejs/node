@@ -10,6 +10,17 @@ var cntr = 0;
 
 var b = Buffer(1024); // safe constructor
 
+function isZeroFilled(b) {
+  for (var i = 0; i < b.length; i++) {
+    if (b[i] != 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+assert.ok(isZeroFilled(b), 'Buffer is not zero-filled.');
+
 console.log('b.length == %d', b.length);
 assert.strictEqual(1024, b.length);
 

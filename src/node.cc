@@ -943,14 +943,6 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 }
 #endif
 
-
-void* ArrayBufferAllocator::Allocate(size_t size) {
-  if (env_ == nullptr || !env_->array_buffer_allocator_info()->no_zero_fill())
-    return calloc(size, 1);
-  env_->array_buffer_allocator_info()->reset_fill_flag();
-  return malloc(size);
-}
-
 static bool DomainHasErrorHandler(const Environment* env,
                                   const Local<Object>& domain) {
   HandleScope scope(env->isolate());
