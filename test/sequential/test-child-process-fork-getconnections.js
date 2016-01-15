@@ -11,7 +11,7 @@ if (process.argv[2] === 'child') {
   process.on('message', function(m, socket) {
     function sendClosed(id) {
       process.send({ id: id, status: 'closed'});
-    };
+    }
 
     if (m.cmd === 'new') {
       assert(socket);
@@ -82,7 +82,7 @@ if (process.argv[2] === 'child') {
     });
     sent++;
     child.send({ id: i, cmd: 'close' });
-  };
+  }
 
   let closeEmitted = false;
   server.on('close', function() {

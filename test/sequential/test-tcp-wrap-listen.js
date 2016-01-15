@@ -65,7 +65,7 @@ server.onconnection = function(err, client) {
         writeCount++;
         console.log('write ' + writeCount);
         maybeCloseClient();
-      };
+      }
 
       sliceCount++;
     } else {
