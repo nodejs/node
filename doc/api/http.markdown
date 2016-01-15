@@ -1096,7 +1096,7 @@ There are a few special headers that should be noted.
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
 [`http.globalAgent`]: #http_http_globalagent
-[`http.IncomingMessage`]: #http_http_incomingmessage
+[`http.IncomingMessage`]: #http_class_http_incomingmessage
 [`http.request()`]: #http_http_request_options_callback
 [`http.Server`]: #http_class_http_server
 [`http.ServerResponse`]: #http_class_http_serverresponse

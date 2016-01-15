@@ -1018,5 +1018,5 @@ Test in JavaScript by running:
 [Native Abstrations for Node.js]: https://github.com/nodejs/nan
 [examples]: https://github.com/nodejs/nan/tree/master/examples/
 [bindings]: https://github.com/TooTallNate/node-bindings
-[Linking to Node.js' own dependencies]: #linking-to-node-js-own-dependencies
+[Linking to Node.js' own dependencies]: #linking-to-nodejs-own-dependencies
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
