@@ -39,7 +39,7 @@ server.listen(common.PORT, common.localhostIPv4, function() {
     if (nbClientsEnded === 2) {
       server.close();
     }
-  };
+  }
 
   const client1 = net.connect({ port: common.PORT });
   client1.on('end', addEndedClient);

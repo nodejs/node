@@ -8,7 +8,7 @@ var util = require('util');
 function MyWritable(fn, options) {
   stream.Writable.call(this, options);
   this.fn = fn;
-};
+}
 
 util.inherits(MyWritable, stream.Writable);
 

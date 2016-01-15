@@ -122,7 +122,7 @@ function check(tests) {
         current++;
         if (ctx.expectClose) return;
         conn.removeListener('close', onclose);
-        conn.removeListener('data', ondata);;
+        conn.removeListener('data', ondata);
         connected();
       }
       conn.on('data', ondata);

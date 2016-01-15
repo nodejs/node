@@ -85,7 +85,7 @@ function startTest() {
 
       callback();
     });
-  };
+  }
 
   connectClient(clientsOptions[0], function() {
     connectClient(clientsOptions[1], function() {
