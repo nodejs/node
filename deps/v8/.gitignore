@@ -40,7 +40,6 @@ gcsuspects
 shell
 shell_g
 /_*
-/base/trace_event/common
 /build/Debug
 /build/gyp
 /build/ipch/
