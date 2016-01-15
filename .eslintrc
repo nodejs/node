@@ -25,6 +25,8 @@ rules:
   no-dupe-keys: 2
   ## check duplicate switch-case
   no-duplicate-case: 2
+  ## disallow superfluous semicolons
+  no-extra-semi: 2
   ## disallow assignment of exceptional params
   no-ex-assign: 2
   ## disallow unreachable code
