@@ -25,9 +25,7 @@
     "autobahn": "NODE_PATH=lib node test/autobahn.js",
     "autobahn-server": "NODE_PATH=lib node test/autobahn-server.js"
   },
-  "dependencies": {
-    "options": ">=0.0.5"
-  },
+  "dependencies": {},
   "devDependencies": {
     "ansi": "0.3.x",
     "benchmark": "0.3.x",
