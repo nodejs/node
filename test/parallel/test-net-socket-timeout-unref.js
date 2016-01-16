@@ -11,15 +11,26 @@ server.listen(common.PORT);
 server.unref();
 
 var timedout = false;
+var connections = 0;
+var sockets = [];
+var delays = [8, 5, 3, 6, 2, 4];
 
-[8, 5, 3, 6, 2, 4].forEach(function(T) {
+delays.forEach(function(T) {
   var socket = net.createConnection(common.PORT, 'localhost');
-  socket.setTimeout(T * 1000, function() {
-    console.log(process._getActiveHandles());
-    timedout = true;
-    socket.destroy();
+  socket.on('connect', function() {
+    if (++connections === delays.length) {
+      sockets.forEach(function(s) {
+        s[0].setTimeout(s[1] * 1000, function() {
+          timedout = true;
+          s[0].destroy();
+        });
+
+        s[0].unref();
+      });
+    }
   });
-  socket.unref();
+
+  sockets.push([socket, T]);
 });
 
 process.on('exit', function() {
