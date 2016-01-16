@@ -20,7 +20,7 @@ WS.Receiver = require('./lib/Receiver');
  * @returns {WS.Server}
  * @api public
  */
-WS.createServer = function createServer(options, fn) {
+WS.prototype.createServer = function createServer(options, fn) {
   var server = new WS.Server(options);
 
   if (typeof fn === 'function') {
@@ -38,7 +38,7 @@ WS.createServer = function createServer(options, fn) {
  * @returns {WS}
  * @api public
  */
-WS.connect = WS.createConnection = function connect(address, fn) {
+WS.prototype.connect = WS.prototype.createConnection = function connect(address, fn) {
   var client = new WS(address);
 
   if (typeof fn === 'function') {
