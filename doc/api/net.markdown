@@ -45,15 +45,17 @@ Returns an object with three properties, e.g.
 
 Example:
 
-    var server = net.createServer((socket) => {
-      socket.end('goodbye\n');
-    });
+```js
+var server = net.createServer((socket) => {
+  socket.end('goodbye\n');
+});
 
-    // grab a random port.
-    server.listen(() => {
-      address = server.address();
-      console.log('opened server on %j', address);
-    });
+// grab a random port.
+server.listen(() => {
+  address = server.address();
+  console.log('opened server on %j', address);
+});
+```
 
 Don't call `server.address()` until the `'listening'` event has been emitted.
 
@@ -127,11 +129,13 @@ underlying handle, allowing connection handling duties to be shared. When
 results in an error. An example which listens on an exclusive port is
 shown below.
 
-    server.listen({
-      host: 'localhost',
-      port: 80,
-      exclusive: true
-    });
+```js
+server.listen({
+  host: 'localhost',
+  port: 80,
+  exclusive: true
+});
+```
 
 ### server.listen(path[, backlog][, callback])
 
@@ -184,15 +188,17 @@ One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
 would be to wait a second and then try again. This can be done with
 
-    server.on('error', (e) => {
-      if (e.code == 'EADDRINUSE') {
-        console.log('Address in use, retrying...');
-        setTimeout(() => {
-          server.close();
-          server.listen(PORT, HOST);
-        }, 1000);
-      }
-    });
+```js
+server.on('error', (e) => {
+  if (e.code == 'EADDRINUSE') {
+    console.log('Address in use, retrying...');
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT, HOST);
+    }, 1000);
+  }
+});
+```
 
 (Note: All sockets in Node.js set `SO_REUSEADDR` already)
 
@@ -233,11 +239,14 @@ Construct a new socket object.
 
 `options` is an object with the following defaults:
 
-    { fd: null,
-      allowHalfOpen: false,
-      readable: false,
-      writable: false
-    }
+```js
+{
+  fd: null,
+  allowHalfOpen: false,
+  readable: false,
+  writable: false
+}
+```
 
 `fd` allows you to specify the existing file descriptor of socket.
 Set `readable` and/or `writable` to `true` to allow reads and/or writes on this
@@ -512,23 +521,27 @@ The `connectListener` parameter will be added as a listener for the
 
 Here is an example of a client of the previously described echo server:
 
-    const net = require('net');
-    const client = net.connect({port: 8124}, () => { //'connect' listener
-      console.log('connected to server!');
-      client.write('world!\r\n');
-    });
-    client.on('data', (data) => {
-      console.log(data.toString());
-      client.end();
-    });
-    client.on('end', () => {
-      console.log('disconnected from server');
-    });
+```js
+const net = require('net');
+const client = net.connect({port: 8124}, () => { //'connect' listener
+  console.log('connected to server!');
+  client.write('world!\r\n');
+});
+client.on('data', (data) => {
+  console.log(data.toString());
+  client.end();
+});
+client.on('end', () => {
+  console.log('disconnected from server');
+});
+```
 
 To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
-    const client = net.connect({path: '/tmp/echo.sock'});
+```js
+const client = net.connect({path: '/tmp/echo.sock'});
+```
 
 ## net.connect(path[, connectListener])
 
@@ -561,24 +574,28 @@ The `connectListener` parameter will be added as a listener for the
 
 Here is an example of a client of the previously described echo server:
 
-    const net = require('net');
-    const client = net.connect({port: 8124},
-        () => { //'connect' listener
-      console.log('connected to server!');
-      client.write('world!\r\n');
-    });
-    client.on('data', (data) => {
-      console.log(data.toString());
-      client.end();
-    });
-    client.on('end', () => {
-      console.log('disconnected from server');
-    });
+```js
+const net = require('net');
+const client = net.connect({port: 8124},
+    () => { //'connect' listener
+  console.log('connected to server!');
+  client.write('world!\r\n');
+});
+client.on('data', (data) => {
+  console.log(data.toString());
+  client.end();
+});
+client.on('end', () => {
+  console.log('disconnected from server');
+});
+```
 
 To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
-    const client = net.connect({path: '/tmp/echo.sock'});
+```js
+const client = net.connect({path: '/tmp/echo.sock'});
+```
 
 ## net.createConnection(path[, connectListener])
 
@@ -605,10 +622,12 @@ automatically set as a listener for the [`'connection'`][] event.
 
 `options` is an object with the following defaults:
 
-    {
-      allowHalfOpen: false,
-      pauseOnConnect: false
-    }
+```js
+{
+  allowHalfOpen: false,
+  pauseOnConnect: false
+}
+```
 
 If `allowHalfOpen` is `true`, then the socket won't automatically send a FIN
 packet when the other end of the socket sends a FIN packet. The socket becomes
@@ -623,31 +642,39 @@ original process. To begin reading data from a paused socket, call [`resume()`][
 Here is an example of an echo server which listens for connections
 on port 8124:
 
-    const net = require('net');
-    const server = net.createServer((c) => { //'connection' listener
-      console.log('client connected');
-      c.on('end', () => {
-        console.log('client disconnected');
-      });
-      c.write('hello\r\n');
-      c.pipe(c);
-    });
-    server.listen(8124, () => { //'listening' listener
-      console.log('server bound');
-    });
+```js
+const net = require('net');
+const server = net.createServer((c) => { //'connection' listener
+  console.log('client connected');
+  c.on('end', () => {
+    console.log('client disconnected');
+  });
+  c.write('hello\r\n');
+  c.pipe(c);
+});
+server.listen(8124, () => { //'listening' listener
+  console.log('server bound');
+});
+```
 
 Test this by using `telnet`:
 
-    telnet localhost 8124
+```
+telnet localhost 8124
+```
 
 To listen on the socket `/tmp/echo.sock` the third line from the last would
 just be changed to
 
-    server.listen('/tmp/echo.sock', () => { //'listening' listener
+```js
+server.listen('/tmp/echo.sock', () => { /* 'listening' listener*/ })
+```
 
 Use `nc` to connect to a UNIX domain socket server:
 
-    nc -U /tmp/echo.sock
+```js
+nc -U /tmp/echo.sock
+```
 
 ## net.isIP(input)
 

@@ -15,29 +15,33 @@ is a readable/writable Stream.
 Compressing or decompressing a file can be done by piping an
 fs.ReadStream into a zlib stream, then into an fs.WriteStream.
 
-    const gzip = zlib.createGzip();
-    const fs = require('fs');
-    const inp = fs.createReadStream('input.txt');
-    const out = fs.createWriteStream('input.txt.gz');
+```js
+const gzip = zlib.createGzip();
+const fs = require('fs');
+const inp = fs.createReadStream('input.txt');
+const out = fs.createWriteStream('input.txt.gz');
 
-    inp.pipe(gzip).pipe(out);
+inp.pipe(gzip).pipe(out);
+```
 
 Compressing or decompressing data in one step can be done by using
 the convenience methods.
 
-    const input = '.................................';
-    zlib.deflate(input, function(err, buffer) {
-      if (!err) {
-        console.log(buffer.toString('base64'));
-      }
-    });
+```js
+const input = '.................................';
+zlib.deflate(input, function(err, buffer) {
+  if (!err) {
+    console.log(buffer.toString('base64'));
+  }
+});
 
-    const buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
-    zlib.unzip(buffer, function(err, buffer) {
-      if (!err) {
-        console.log(buffer.toString());
-      }
-    });
+const buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
+zlib.unzip(buffer, function(err, buffer) {
+  if (!err) {
+    console.log(buffer.toString());
+  }
+});
+```
 
 To use this module in an HTTP client or server, use the [accept-encoding][]
 on requests, and the [content-encoding][] header on responses.
@@ -47,57 +51,59 @@ the basic concept.**  Zlib encoding can be expensive, and the results
 ought to be cached.  See [Memory Usage Tuning][] for more information
 on the speed/memory/compression tradeoffs involved in zlib usage.
 
-    // client request example
-    const zlib = require('zlib');
-    const http = require('http');
-    const fs = require('fs');
-    const request = http.get({ host: 'izs.me',
-                             path: '/',
-                             port: 80,
-                             headers: { 'accept-encoding': 'gzip,deflate' } });
-    request.on('response', (response) => {
-      var output = fs.createWriteStream('izs.me_index.html');
+```js
+// client request example
+const zlib = require('zlib');
+const http = require('http');
+const fs = require('fs');
+const request = http.get({ host: 'izs.me',
+                         path: '/',
+                         port: 80,
+                         headers: { 'accept-encoding': 'gzip,deflate' } });
+request.on('response', (response) => {
+  var output = fs.createWriteStream('izs.me_index.html');
 
-      switch (response.headers['content-encoding']) {
-        // or, just use zlib.createUnzip() to handle both cases
-        case 'gzip':
-          response.pipe(zlib.createGunzip()).pipe(output);
-          break;
-        case 'deflate':
-          response.pipe(zlib.createInflate()).pipe(output);
-          break;
-        default:
-          response.pipe(output);
-          break;
-      }
-    });
+  switch (response.headers['content-encoding']) {
+    // or, just use zlib.createUnzip() to handle both cases
+    case 'gzip':
+      response.pipe(zlib.createGunzip()).pipe(output);
+      break;
+    case 'deflate':
+      response.pipe(zlib.createInflate()).pipe(output);
+      break;
+    default:
+      response.pipe(output);
+      break;
+  }
+});
 
-    // server example
-    // Running a gzip operation on every request is quite expensive.
-    // It would be much more efficient to cache the compressed buffer.
-    const zlib = require('zlib');
-    const http = require('http');
-    const fs = require('fs');
-    http.createServer((request, response) => {
-      var raw = fs.createReadStream('index.html');
-      var acceptEncoding = request.headers['accept-encoding'];
-      if (!acceptEncoding) {
-        acceptEncoding = '';
-      }
+// server example
+// Running a gzip operation on every request is quite expensive.
+// It would be much more efficient to cache the compressed buffer.
+const zlib = require('zlib');
+const http = require('http');
+const fs = require('fs');
+http.createServer((request, response) => {
+  var raw = fs.createReadStream('index.html');
+  var acceptEncoding = request.headers['accept-encoding'];
+  if (!acceptEncoding) {
+    acceptEncoding = '';
+  }
 
-      // Note: this is not a conformant accept-encoding parser.
-      // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-      if (acceptEncoding.match(/\bdeflate\b/)) {
-        response.writeHead(200, { 'content-encoding': 'deflate' });
-        raw.pipe(zlib.createDeflate()).pipe(response);
-      } else if (acceptEncoding.match(/\bgzip\b/)) {
-        response.writeHead(200, { 'content-encoding': 'gzip' });
-        raw.pipe(zlib.createGzip()).pipe(response);
-      } else {
-        response.writeHead(200, {});
-        raw.pipe(response);
-      }
-    }).listen(1337);
+  // Note: this is not a conformant accept-encoding parser.
+  // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+  if (acceptEncoding.match(/\bdeflate\b/)) {
+    response.writeHead(200, { 'content-encoding': 'deflate' });
+    raw.pipe(zlib.createDeflate()).pipe(response);
+  } else if (acceptEncoding.match(/\bgzip\b/)) {
+    response.writeHead(200, { 'content-encoding': 'gzip' });
+    raw.pipe(zlib.createGzip()).pipe(response);
+  } else {
+    response.writeHead(200, {});
+    raw.pipe(response);
+  }
+}).listen(1337);
+```
 
 ## Memory Usage Tuning
 
@@ -107,7 +113,9 @@ From `zlib/zconf.h`, modified to node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
-    (1 << (windowBits+2)) +  (1 << (memLevel+9))
+```
+(1 << (windowBits+2)) +  (1 << (memLevel+9))
+```
 
 that is: 128K for windowBits=15  +  128K for memLevel = 8
 (default values) plus a few kilobytes for small objects.
@@ -115,13 +123,17 @@ that is: 128K for windowBits=15  +  128K for memLevel = 8
 For example, if you want to reduce
 the default memory requirements from 256K to 128K, set the options to:
 
-    { windowBits: 14, memLevel: 7 }
+```
+{ windowBits: 14, memLevel: 7 }
+```
 
 Of course this will generally degrade compression (there's no free lunch).
 
 The memory requirements for inflate are (in bytes)
 
-    1 << windowBits
+```
+1 << windowBits
+```
 
 that is, 32K for windowBits=15 (default value) plus a few kilobytes
 for small objects.

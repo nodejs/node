@@ -10,20 +10,24 @@ in one-to-one correspondence.  As an example, `foo.js` loads the module
 
 The contents of `foo.js`:
 
-    const circle = require('./circle.js');
-    console.log( `The area of a circle of radius 4 is ${circle.area(4)}`);
+```js
+const circle = require('./circle.js');
+console.log( `The area of a circle of radius 4 is ${circle.area(4)}`);
+```
 
 The contents of `circle.js`:
 
-    const PI = Math.PI;
+```js
+const PI = Math.PI;
 
-    exports.area = function (r) {
-      return PI * r * r;
-    };
+exports.area = function (r) {
+  return PI * r * r;
+};
 
-    exports.circumference = function (r) {
-      return 2 * PI * r;
-    };
+exports.circumference = function (r) {
+  return 2 * PI * r;
+};
+```
 
 The module `circle.js` has exported the functions `area()` and
 `circumference()`.  To add functions and objects to the root of your module,
@@ -39,20 +43,24 @@ instead of `exports`.
 
 Below, `bar.js` makes use of the `square` module, which exports a constructor:
 
-    const square = require('./square.js');
-    var mySquare = square(2);
-    console.log(`The area of my square is ${mySquare.area()}`);
+```js
+const square = require('./square.js');
+var mySquare = square(2);
+console.log(`The area of my square is ${mySquare.area()}`);
+```
 
 The `square` module is defined in `square.js`:
 
-    // assigning to exports will not modify module, must use module.exports
-    module.exports = function(width) {
-      return {
-        area: function() {
-          return width * width;
-        }
-      };
+```js
+// assigning to exports will not modify module, must use module.exports
+module.exports = function(width) {
+  return {
+    area: function() {
+      return width * width;
     }
+  };
+}
+```
 
 The module system is implemented in the `require("module")` module.
 
@@ -64,7 +72,9 @@ When a file is run directly from Node.js, `require.main` is set to its
 `module`. That means that you can determine whether a file has been run
 directly by testing
 
-    require.main === module
+```js
+require.main === module
+```
 
 For a file `foo.js`, this will be `true` if run via `node foo.js`, but
 `false` if run by `require('./foo')`.
@@ -137,47 +147,49 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what require.resolve does:
 
-    require(X) from module at path Y
-    1. If X is a core module,
-       a. return the core module
-       b. STOP
-    2. If X begins with './' or '/' or '../'
-       a. LOAD_AS_FILE(Y + X)
-       b. LOAD_AS_DIRECTORY(Y + X)
-    3. LOAD_NODE_MODULES(X, dirname(Y))
-    4. THROW "not found"
+```
+require(X) from module at path Y
+1. If X is a core module,
+   a. return the core module
+   b. STOP
+2. If X begins with './' or '/' or '../'
+   a. LOAD_AS_FILE(Y + X)
+   b. LOAD_AS_DIRECTORY(Y + X)
+3. LOAD_NODE_MODULES(X, dirname(Y))
+4. THROW "not found"
 
-    LOAD_AS_FILE(X)
-    1. If X is a file, load X as JavaScript text.  STOP
-    2. If X.js is a file, load X.js as JavaScript text.  STOP
-    3. If X.json is a file, parse X.json to a JavaScript Object.  STOP
-    4. If X.node is a file, load X.node as binary addon.  STOP
+LOAD_AS_FILE(X)
+1. If X is a file, load X as JavaScript text.  STOP
+2. If X.js is a file, load X.js as JavaScript text.  STOP
+3. If X.json is a file, parse X.json to a JavaScript Object.  STOP
+4. If X.node is a file, load X.node as binary addon.  STOP
 
-    LOAD_AS_DIRECTORY(X)
-    1. If X/package.json is a file,
-       a. Parse X/package.json, and look for "main" field.
-       b. let M = X + (json main field)
-       c. LOAD_AS_FILE(M)
-    2. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
-    3. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
-    4. If X/index.node is a file, load X/index.node as binary addon.  STOP
+LOAD_AS_DIRECTORY(X)
+1. If X/package.json is a file,
+   a. Parse X/package.json, and look for "main" field.
+   b. let M = X + (json main field)
+   c. LOAD_AS_FILE(M)
+2. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
+3. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
+4. If X/index.node is a file, load X/index.node as binary addon.  STOP
 
-    LOAD_NODE_MODULES(X, START)
-    1. let DIRS=NODE_MODULES_PATHS(START)
-    2. for each DIR in DIRS:
-       a. LOAD_AS_FILE(DIR/X)
-       b. LOAD_AS_DIRECTORY(DIR/X)
+LOAD_NODE_MODULES(X, START)
+1. let DIRS=NODE_MODULES_PATHS(START)
+2. for each DIR in DIRS:
+   a. LOAD_AS_FILE(DIR/X)
+   b. LOAD_AS_DIRECTORY(DIR/X)
 
-    NODE_MODULES_PATHS(START)
-    1. let PARTS = path split(START)
-    2. let I = count of PARTS - 1
-    3. let DIRS = []
-    4. while I >= 0,
-       a. if PARTS[I] = "node_modules" CONTINUE
-       c. DIR = path join(PARTS[0 .. I] + "node_modules")
-       b. DIRS = DIRS + DIR
-       c. let I = I - 1
-    5. return DIRS
+NODE_MODULES_PATHS(START)
+1. let PARTS = path split(START)
+2. let I = count of PARTS - 1
+3. let DIRS = []
+4. while I >= 0,
+   a. if PARTS[I] = "node_modules" CONTINUE
+   c. DIR = path join(PARTS[0 .. I] + "node_modules")
+   b. DIRS = DIRS + DIR
+   c. let I = I - 1
+5. return DIRS
+```
 
 ## Caching
 
@@ -230,28 +242,34 @@ Consider this situation:
 
 `a.js`:
 
-    console.log('a starting');
-    exports.done = false;
-    const b = require('./b.js');
-    console.log('in a, b.done = %j', b.done);
-    exports.done = true;
-    console.log('a done');
+```
+console.log('a starting');
+exports.done = false;
+const b = require('./b.js');
+console.log('in a, b.done = %j', b.done);
+exports.done = true;
+console.log('a done');
+```
 
 `b.js`:
 
-    console.log('b starting');
-    exports.done = false;
-    const a = require('./a.js');
-    console.log('in b, a.done = %j', a.done);
-    exports.done = true;
-    console.log('b done');
+```
+console.log('b starting');
+exports.done = false;
+const a = require('./a.js');
+console.log('in b, a.done = %j', a.done);
+exports.done = true;
+console.log('b done');
+```
 
 `main.js`:
 
-    console.log('main starting');
-    const a = require('./a.js');
-    const b = require('./b.js');
-    console.log('in main, a.done=%j, b.done=%j', a.done, b.done);
+```
+console.log('main starting');
+const a = require('./a.js');
+const b = require('./b.js');
+console.log('in main, a.done=%j, b.done=%j', a.done, b.done);
+```
 
 When `main.js` loads `a.js`, then `a.js` in turn loads `b.js`.  At that
 point, `b.js` tries to load `a.js`.  In order to prevent an infinite
@@ -262,15 +280,17 @@ provided to the `a.js` module.
 By the time `main.js` has loaded both modules, they're both finished.
 The output of this program would thus be:
 
-    $ node main.js
-    main starting
-    a starting
-    b starting
-    in b, a.done = false
-    b done
-    in a, b.done = true
-    a done
-    in main, a.done=true, b.done=true
+```
+$ node main.js
+main starting
+a starting
+b starting
+in b, a.done = false
+b done
+in a, b.done = true
+a done
+in main, a.done=true, b.done=true
+```
 
 If you have cyclic module dependencies in your program, make sure to
 plan accordingly.
@@ -314,8 +334,10 @@ The first is to create a `package.json` file in the root of the folder,
 which specifies a `main` module.  An example package.json file might
 look like this:
 
-    { "name" : "some-library",
-      "main" : "./lib/some-library.js" }
+```
+{ "name" : "some-library",
+  "main" : "./lib/some-library.js" }
+```
 
 If this was in a folder at `./some-library`, then
 `require('./some-library')` would attempt to load
@@ -424,22 +446,26 @@ which is probably not what you want to do.
 
 For example suppose we were making a module called `a.js`
 
-    const EventEmitter = require('events');
+```js
+const EventEmitter = require('events');
 
-    module.exports = new EventEmitter();
+module.exports = new EventEmitter();
 
-    // Do some work, and after some time emit
-    // the 'ready' event from the module itself.
-    setTimeout(() => {
-      module.exports.emit('ready');
-    }, 1000);
+// Do some work, and after some time emit
+// the 'ready' event from the module itself.
+setTimeout(() => {
+  module.exports.emit('ready');
+}, 1000);
+```
 
 Then in another file we could do
 
-    const a = require('./a');
-    a.on('ready', () => {
-      console.log('module a is ready');
-    });
+```js
+const a = require('./a');
+a.on('ready', () => {
+  console.log('module a is ready');
+});
+```
 
 
 Note that assignment to `module.exports` must be done immediately. It cannot be
@@ -447,14 +473,18 @@ done in any callbacks.  This does not work:
 
 x.js:
 
-    setTimeout(() => {
-      module.exports = { a: 'hello' };
-    }, 0);
+```js
+setTimeout(() => {
+  module.exports = { a: 'hello' };
+}, 0);
+```
 
 y.js:
 
-    const x = require('./x');
-    console.log(x.a);
+```js
+const x = require('./x');
+console.log(x.a);
+```
 
 #### exports alias
 
@@ -465,16 +495,18 @@ is no longer bound to the previous value.
 To illustrate the behavior, imagine this hypothetical implementation of
 `require()`:
 
-    function require(...) {
-      // ...
-      function (module, exports) {
-        // Your module code here
-        exports = some_func;        // re-assigns exports, exports is no longer
-                                    // a shortcut, and nothing is exported.
-        module.exports = some_func; // makes your module export 0
-      } (module, module.exports);
-      return module;
-    }
+```js
+function require(...) {
+  // ...
+  function (module, exports) {
+    // Your module code here
+    exports = some_func;        // re-assigns exports, exports is no longer
+                                // a shortcut, and nothing is exported.
+    module.exports = some_func; // makes your module export 0
+  } (module, module.exports);
+  return module;
+}
+```
 
 As a guideline, if the relationship between `exports` and `module.exports`
 seems like magic to you, ignore `exports` and only use `module.exports`.

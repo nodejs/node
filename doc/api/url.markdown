@@ -71,7 +71,9 @@ string will not be in the parsed object. Examples are shown for the URL
 Spaces (`' '`) and the following characters will be automatically escaped in the
 properties of URL objects:
 
-    < > " ` \r \n \t { } | \ ^ '
+```
+< > " ` \r \n \t { } | \ ^ '
+```
 
 ---
 
@@ -122,6 +124,8 @@ Pass `true` as the third argument to treat `//foo/bar` as
 Take a base URL, and a href URL, and resolve them as a browser would for
 an anchor tag.  Examples:
 
-    url.resolve('/one/two/three', 'four')         // '/one/two/four'
-    url.resolve('http://example.com/', '/one')    // 'http://example.com/one'
-    url.resolve('http://example.com/one', '/two') // 'http://example.com/two'
+```js
+url.resolve('/one/two/three', 'four')         // '/one/two/four'
+url.resolve('http://example.com/', '/one')    // 'http://example.com/one'
+url.resolve('http://example.com/one', '/two') // 'http://example.com/two'
+```

@@ -31,33 +31,37 @@ automatically added to the `'request'` event.
 
 Example:
 
-    // curl -k https://localhost:8000/
-    const https = require('https');
-    const fs = require('fs');
+```js
+// curl -k https://localhost:8000/
+const https = require('https');
+const fs = require('fs');
 
-    const options = {
-      key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-      cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
-    };
+const options = {
+  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
+  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
+};
 
-    https.createServer(options, (req, res) => {
-      res.writeHead(200);
-      res.end('hello world\n');
-    }).listen(8000);
+https.createServer(options, (req, res) => {
+  res.writeHead(200);
+  res.end('hello world\n');
+}).listen(8000);
+```
 
 Or
 
-    const https = require('https');
-    const fs = require('fs');
+```js
+const https = require('https');
+const fs = require('fs');
 
-    const options = {
-      pfx: fs.readFileSync('server.pfx')
-    };
+const options = {
+  pfx: fs.readFileSync('server.pfx')
+};
 
-    https.createServer(options, (req, res) => {
-      res.writeHead(200);
-      res.end('hello world\n');
-    }).listen(8000);
+https.createServer(options, (req, res) => {
+  res.writeHead(200);
+  res.end('hello world\n');
+}).listen(8000);
+```
 
 ### server.close([callback])
 
@@ -78,19 +82,21 @@ automatically parsed with [`url.parse()`][].
 
 Example:
 
-    const https = require('https');
+```js
+const https = require('https');
 
-    https.get('https://encrypted.google.com/', (res) => {
-      console.log('statusCode: ', res.statusCode);
-      console.log('headers: ', res.headers);
+https.get('https://encrypted.google.com/', (res) => {
+  console.log('statusCode: ', res.statusCode);
+  console.log('headers: ', res.headers);
 
-      res.on('data', (d) => {
-        process.stdout.write(d);
-      });
+  res.on('data', (d) => {
+    process.stdout.write(d);
+  });
 
-    }).on('error', (e) => {
-      console.error(e);
-    });
+}).on('error', (e) => {
+  console.error(e);
+});
+```
 
 ## https.globalAgent
 
@@ -107,28 +113,30 @@ All options from [`http.request()`][] are valid.
 
 Example:
 
-    const https = require('https');
+```js
+const https = require('https');
 
-    var options = {
-      hostname: 'encrypted.google.com',
-      port: 443,
-      path: '/',
-      method: 'GET'
-    };
+var options = {
+  hostname: 'encrypted.google.com',
+  port: 443,
+  path: '/',
+  method: 'GET'
+};
 
-    var req = https.request(options, (res) => {
-      console.log('statusCode: ', res.statusCode);
-      console.log('headers: ', res.headers);
+var req = https.request(options, (res) => {
+  console.log('statusCode: ', res.statusCode);
+  console.log('headers: ', res.headers);
 
-      res.on('data', (d) => {
-        process.stdout.write(d);
-      });
-    });
-    req.end();
+  res.on('data', (d) => {
+    process.stdout.write(d);
+  });
+});
+req.end();
 
-    req.on('error', (e) => {
-      console.error(e);
-    });
+req.on('error', (e) => {
+  console.error(e);
+});
+```
 
 The options argument has the following options
 
@@ -183,37 +191,41 @@ In order to specify these options, use a custom [`Agent`][].
 
 Example:
 
-    var options = {
-      hostname: 'encrypted.google.com',
-      port: 443,
-      path: '/',
-      method: 'GET',
-      key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-      cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
-    };
-    options.agent = new https.Agent(options);
+```js
+var options = {
+  hostname: 'encrypted.google.com',
+  port: 443,
+  path: '/',
+  method: 'GET',
+  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
+  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
+};
+options.agent = new https.Agent(options);
 
-    var req = https.request(options, (res) => {
-      ...
-    }
+var req = https.request(options, (res) => {
+  ...
+}
+```
 
 Alternatively, opt out of connection pooling by not using an `Agent`.
 
 Example:
 
-    var options = {
-      hostname: 'encrypted.google.com',
-      port: 443,
-      path: '/',
-      method: 'GET',
-      key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-      cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
-      agent: false
-    };
+```js
+var options = {
+  hostname: 'encrypted.google.com',
+  port: 443,
+  path: '/',
+  method: 'GET',
+  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
+  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
+  agent: false
+};
 
-    var req = https.request(options, (res) => {
-      ...
-    }
+var req = https.request(options, (res) => {
+  ...
+}
+```
 
 [`Agent`]: #https_class_https_agent
 [`Buffer`]: buffer.html#buffer_buffer

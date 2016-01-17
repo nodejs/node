@@ -10,10 +10,12 @@ will be a `tty.ReadStream` instance and `process.stdout` will be
 a `tty.WriteStream` instance. The preferred way to check if Node.js is being run
 in a TTY context is to check `process.stdout.isTTY`:
 
-    $ node -p -e "Boolean(process.stdout.isTTY)"
-    true
-    $ node -p -e "Boolean(process.stdout.isTTY)" | cat
-    false
+```
+$ node -p -e "Boolean(process.stdout.isTTY)"
+true
+$ node -p -e "Boolean(process.stdout.isTTY)" | cat
+false
+```
 
 ## Class: ReadStream
 
@@ -45,10 +47,12 @@ ever created (and only when `isatty(1)` is true).
 Emitted by `refreshSize()` when either of the `columns` or `rows` properties
 has changed.
 
-    process.stdout.on('resize', () => {
-      console.log('screen size has changed!');
-      console.log(`${process.stdout.columns}x${process.stdout.rows}`);
-    });
+```js
+process.stdout.on('resize', () => {
+  console.log('screen size has changed!');
+  console.log(`${process.stdout.columns}x${process.stdout.rows}`);
+});
+```
 
 ### ws.columns
 

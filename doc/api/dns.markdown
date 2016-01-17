@@ -12,11 +12,13 @@ the same operating system behave should use [`dns.lookup()`][].__
 
 For example, looking up `nodejs.org`.
 
-    const dns = require('dns');
+```js
+const dns = require('dns');
 
-    dns.lookup('nodejs.org', (err, addresses, family) => {
-      console.log('addresses:', addresses);
-    });
+dns.lookup('nodejs.org', (err, addresses, family) => {
+  console.log('addresses:', addresses);
+});
+```
 
 2) Functions that connect to an actual DNS server to perform name resolution,
 and that _always_ use the network to perform DNS queries. This category
@@ -29,22 +31,24 @@ for name resolution, and instead want to _always_ perform DNS queries.
 Below is an example that resolves `'nodejs.org'` then reverse resolves the IP
 addresses that are returned.
 
-    const dns = require('dns');
+```js
+const dns = require('dns');
 
-    dns.resolve4('nodejs.org', (err, addresses) => {
-      if (err) throw err;
+dns.resolve4('nodejs.org', (err, addresses) => {
+  if (err) throw err;
 
-      console.log(`addresses: ${JSON.stringify(addresses)}`);
+  console.log(`addresses: ${JSON.stringify(addresses)}`);
 
-      addresses.forEach((a) => {
-        dns.reverse(a, (err, hostnames) => {
-          if (err) {
-            throw err;
-          }
-          console.log(`reverse for ${a}: ${JSON.stringify(hostnames)}`);
-        });
-      });
+  addresses.forEach((a) => {
+    dns.reverse(a, (err, hostnames) => {
+      if (err) {
+        throw err;
+      }
+      console.log(`reverse for ${a}: ${JSON.stringify(hostnames)}`);
     });
+  });
+});
+```
 
 There are subtle consequences in choosing one over the other, please consult
 the [Implementation considerations section][] for more information.
@@ -76,11 +80,13 @@ Alternatively, `options` can be an object containing these properties:
 
 All properties are optional. An example usage of options is shown below.
 
-    {
-      family: 4,
-      hints: dns.ADDRCONFIG | dns.V4MAPPED,
-      all: false
-    }
+```
+{
+  family: 4,
+  hints: dns.ADDRCONFIG | dns.V4MAPPED,
+  all: false
+}
+```
 
 The `callback` function has arguments `(err, address, family)`. `address` is a
 string representation of an IPv4 or IPv6 address. `family` is either the
@@ -125,11 +131,13 @@ The callback has arguments `(err, hostname, service)`. The `hostname` and
 
 On error, `err` is an [`Error`][] object, where `err.code` is the error code.
 
-    const dns = require('dns');
-    dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
-      console.log(hostname, service);
-        // Prints: localhost ssh
-    });
+```js
+const dns = require('dns');
+dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
+  console.log(hostname, service);
+    // Prints: localhost ssh
+});
+```
 
 ## dns.resolve(hostname[, rrtype], callback)
 
@@ -204,15 +212,17 @@ be an object with the following properties:
 * `expire`
 * `minttl`
 
-    {
-      nsname: 'ns.example.com',
-      hostmaster: 'root.example.com',
-      serial: 2013101809,
-      refresh: 10000,
-      retry: 2400,
-      expire: 604800,
-      minttl: 3600
-    }
+```
+{
+  nsname: 'ns.example.com',
+  hostmaster: 'root.example.com',
+  serial: 2013101809,
+  refresh: 10000,
+  retry: 2400,
+  expire: 604800,
+  minttl: 3600
+}
+```
 
 ## dns.resolveSrv(hostname, callback)
 
@@ -225,12 +235,14 @@ be an array of objects with the following properties:
 * `port`
 * `name`
 
-    {
-      priority: 10,
-      weight: 5,
-      port: 21223,
-      name: 'service.example.com'
-    }
+```
+{
+  priority: 10,
+  weight: 5,
+  port: 21223,
+  name: 'service.example.com'
+}
+```
 
 ## dns.resolveTxt(hostname, callback)
 
