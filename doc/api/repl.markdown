@@ -10,16 +10,18 @@ just trying things out.
 By executing `node` without any arguments from the command-line you will be
 dropped into the REPL. It has simplistic emacs line-editing.
 
-    mjr:~$ node
-    Type '.help' for options.
-    > a = [ 1, 2, 3];
-    [ 1, 2, 3 ]
-    > a.forEach(function (v) {
-    ...   console.log(v);
-    ...   });
-    1
-    2
-    3
+```
+mjr:~$ node
+Type '.help' for options.
+> a = [ 1, 2, 3];
+[ 1, 2, 3 ]
+> a.forEach(function (v){
+...   console.log(v);
+...   });
+1
+2
+3
+```
 
 For advanced line-editors, start Node.js with the environmental variable
 `NODE_NO_READLINE=1`. This will start the main and debugger REPL in canonical
@@ -27,7 +29,9 @@ terminal settings which will allow you to use with `rlwrap`.
 
 For example, you could add this to your bashrc file:
 
-    alias node="env NODE_NO_READLINE=1 rlwrap node"
+```
+alias node="env NODE_NO_READLINE=1 rlwrap node"
+```
 
 ## Environment Variable Options
 
@@ -73,28 +77,34 @@ accessing `fs` will `require()` the `fs` module as `global.fs`.
 
 The special variable `_` (underscore) contains the result of the last expression.
 
-    > [ 'a', 'b', 'c' ]
-    [ 'a', 'b', 'c' ]
-    > _.length
-    3
-    > _ += 1
-    4
+```
+> [ 'a', 'b', 'c' ]
+[ 'a', 'b', 'c' ]
+> _.length
+3
+> _ += 1
+4
+```
 
 The REPL provides access to any variables in the global scope. You can expose
 a variable to the REPL explicitly by assigning it to the `context` object
 associated with each `REPLServer`.  For example:
 
-    // repl_test.js
-    const repl = require('repl');
-    var msg = 'message';
+```js
+// repl_test.js
+const repl = require('repl');
+var msg = 'message';
 
-    repl.start('> ').context.m = msg;
+repl.start('> ').context.m = msg;
+```
 
 Things in the `context` object appear as local within the REPL:
 
-    mjr:~$ node repl_test.js
-    > m
-    'message'
+```
+mjr:~$ node repl_test.js
+> m
+'message'
+```
 
 There are a few special REPL commands:
 
@@ -126,17 +136,21 @@ The REPL module internally uses
 
 For example, if you have defined an `inspect()` function on an object, like this:
 
-    > var obj = { foo: 'this will not show up in the inspect() output' };
-    undefined
-    > obj.inspect = function() {
-    ...   return { bar: 'baz' };
-    ... };
-    [Function]
+```
+> var obj = {foo: 'this will not show up in the inspect() output'};
+undefined
+> obj.inspect = function() {
+...   return {bar: 'baz'};
+... };
+[Function]
+```
 
 and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
 
-    > obj
-    { bar: 'baz' }
+```
+> obj
+{bar: 'baz'}
+```
 
 ## Class: REPLServer
 
@@ -152,10 +166,12 @@ to signal `'end'` on the `input` stream.
 
 Example of listening for `exit`:
 
-    replServer.on('exit', () => {
-      console.log('Got "exit" event from repl!');
-      process.exit();
-    });
+```js
+replServer.on('exit', () => {
+  console.log('Got "exit" event from repl!');
+  process.exit();
+});
+```
 
 
 ### Event: 'reset'
@@ -168,15 +184,17 @@ be emitted.
 
 Example of listening for `reset`:
 
-    // Extend the initial repl context.
-    var replServer = repl.start({ options ... });
-    someExtension.extend(r.context);
+```js
+// Extend the initial repl context.
+var replServer = repl.start({ options ... });
+someExtension.extend(r.context);
 
-    // When a new context is created extend it as well.
-    replServer.on('reset', (context) => {
-      console.log('repl has a new context');
-      someExtension.extend(context);
-    });
+// When a new context is created extend it as well.
+replServer.on('reset', (context) => {
+  console.log('repl has a new context');
+  someExtension.extend(context);
+});
+```
 
 ### replServer.defineCommand(keyword, cmd)
 
@@ -195,22 +213,26 @@ If a function is provided instead of an object for `cmd`, it is treated as the
 
 Example of defining a command:
 
-    // repl_test.js
-    const repl = require('repl');
+```js
+// repl_test.js
+const repl = require('repl');
 
-    var replServer = repl.start();
-    replServer.defineCommand('sayhello', {
-      help: 'Say hello',
-      action: function(name) {
-        this.write(`Hello, ${name}!\n');
-        this.displayPrompt();
-      }
-    });
+var replServer = repl.start();
+replServer.defineCommand('sayhello', {
+  help: 'Say hello',
+  action: function(name) {
+    this.write(`Hello, ${name}!\n`);
+    this.displayPrompt();
+  }
+});
+```
 
 Example of invoking that command from the REPL:
 
-    > .sayhello Node.js User
-    Hello, Node.js User!
+```
+> .sayhello Node.js User
+Hello, Node.js User!
+```
 
 ### replServer.displayPrompt([preserveCursor])
 
@@ -277,37 +299,39 @@ will share the same global object but will have unique I/O.
 
 Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
 
-    const net = require('net');
-    const repl = require('repl');
-    var connections = 0;
+```js
+const net = require('net');
+const repl = require('repl');
+var connections = 0;
 
-    repl.start({
-      prompt: 'Node.js via stdin> ',
-      input: process.stdin,
-      output: process.stdout
-    });
+repl.start({
+  prompt: 'Node.js via stdin> ',
+  input: process.stdin,
+  output: process.stdout
+});
 
-    net.createServer((socket) => {
-      connections += 1;
-      repl.start({
-        prompt: 'Node.js via Unix socket> ',
-        input: socket,
-        output: socket
-      }).on('exit', () => {
-        socket.end();
-      })
-    }).listen('/tmp/node-repl-sock');
+net.createServer((socket) => {
+  connections += 1;
+  repl.start({
+    prompt: 'Node.js via Unix socket> ',
+    input: socket,
+    output: socket
+  }).on('exit', () => {
+    socket.end();
+  })
+}).listen('/tmp/node-repl-sock');
 
-    net.createServer((socket) => {
-      connections += 1;
-      repl.start({
-        prompt: 'Node.js via TCP socket> ',
-        input: socket,
-        output: socket
-      }).on('exit', () => {
-        socket.end();
-      });
-    }).listen(5001);
+net.createServer((socket) => {
+  connections += 1;
+  repl.start({
+    prompt: 'Node.js via TCP socket> ',
+    input: socket,
+    output: socket
+  }).on('exit', () => {
+    socket.end();
+  });
+}).listen(5001);
+```
 
 Running this program from the command line will start a REPL on stdin.  Other
 REPL clients may connect through the Unix socket or TCP socket. `telnet` is useful
