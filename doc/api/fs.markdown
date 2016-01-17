@@ -18,42 +18,50 @@ You can use try/catch to handle exceptions or allow them to bubble up.
 
 Here is an example of the asynchronous version:
 
-    const fs = require('fs');
+```js
+const fs = require('fs');
 
-    fs.unlink('/tmp/hello', (err) => {
-      if (err) throw err;
-      console.log('successfully deleted /tmp/hello');
-    });
+fs.unlink('/tmp/hello', (err) => {
+  if (err) throw err;
+  console.log('successfully deleted /tmp/hello');
+});
+```
 
 Here is the synchronous version:
 
-    const fs = require('fs');
+```js
+const fs = require('fs');
 
-    fs.unlinkSync('/tmp/hello');
-    console.log('successfully deleted /tmp/hello');
+fs.unlinkSync('/tmp/hello');
+console.log('successfully deleted /tmp/hello');
+```
 
 With the asynchronous methods there is no guaranteed ordering. So the
 following is prone to error:
 
-    fs.rename('/tmp/hello', '/tmp/world', (err) => {
-      if (err) throw err;
-      console.log('renamed complete');
-    });
-    fs.stat('/tmp/world', (err, stats) => {
-      if (err) throw err;
-      console.log(`stats: ${JSON.stringify(stats)}`);
-    });
+```js
+fs.rename('/tmp/hello', '/tmp/world', (err) => {
+  if (err) throw err;
+  console.log('renamed complete');
+});
+fs.stat('/tmp/world', (err, stats) => {
+  if (err) throw err;
+  console.log(`stats: ${JSON.stringify(stats)}`);
+});
+```
 
 It could be that `fs.stat` is executed before `fs.rename`.
 The correct way to do this is to chain the callbacks.
 
-    fs.rename('/tmp/hello', '/tmp/world', (err) => {
-      if (err) throw err;
-      fs.stat('/tmp/world', (err, stats) => {
-        if (err) throw err;
-        console.log(`stats: ${JSON.stringify(stats)}`);
-      });
-    });
+```js
+fs.rename('/tmp/hello', '/tmp/world', (err) => {
+  if (err) throw err;
+  fs.stat('/tmp/world', (err, stats) => {
+    if (err) throw err;
+    console.log(`stats: ${JSON.stringify(stats)}`);
+  });
+});
+```
 
 In busy processes, the programmer is _strongly encouraged_ to use the
 asynchronous versions of these calls. The synchronous versions will block
@@ -66,23 +74,25 @@ Most fs functions let you omit the callback argument. If you do, a default
 callback is used that rethrows errors. To get a trace to the original call
 site, set the `NODE_DEBUG` environment variable:
 
-    $ cat script.js
-    function bad() {
-      require('fs').readFile('/');
-    }
-    bad();
+```
+$ cat script.js
+function bad() {
+  require('fs').readFile('/');
+}
+bad();
 
-    $ env NODE_DEBUG=fs node script.js
-    fs.js:66
-            throw err;
-                  ^
-    Error: EISDIR, read
-        at rethrow (fs.js:61:21)
-        at maybeCallback (fs.js:79:42)
-        at Object.fs.readFile (fs.js:153:18)
-        at bad (/path/to/script.js:2:17)
-        at Object.<anonymous> (/path/to/script.js:5:1)
-        <etc.>
+$ env NODE_DEBUG=fs node script.js
+fs.js:66
+        throw err;
+              ^
+Error: EISDIR, read
+    at rethrow (fs.js:61:21)
+    at maybeCallback (fs.js:79:42)
+    at Object.fs.readFile (fs.js:153:18)
+    at bad (/path/to/script.js:2:17)
+    at Object.<anonymous> (/path/to/script.js:5:1)
+    <etc.>
+```
 
 ## Class: fs.FSWatcher
 
@@ -136,20 +146,24 @@ synchronous counterparts are of this type.
 For a regular file [`util.inspect(stats)`][] would return a string very
 similar to this:
 
-    { dev: 2114,
-      ino: 48064969,
-      mode: 33188,
-      nlink: 1,
-      uid: 85,
-      gid: 100,
-      rdev: 0,
-      size: 527,
-      blksize: 4096,
-      blocks: 8,
-      atime: Mon, 10 Oct 2011 23:24:11 GMT,
-      mtime: Mon, 10 Oct 2011 23:24:11 GMT,
-      ctime: Mon, 10 Oct 2011 23:24:11 GMT,
-      birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
+```js
+{
+  dev: 2114,
+  ino: 48064969,
+  mode: 33188,
+  nlink: 1,
+  uid: 85,
+  gid: 100,
+  rdev: 0,
+  size: 527,
+  blksize: 4096,
+  blocks: 8,
+  atime: Mon, 10 Oct 2011 23:24:11 GMT,
+  mtime: Mon, 10 Oct 2011 23:24:11 GMT,
+  ctime: Mon, 10 Oct 2011 23:24:11 GMT,
+  birthtime: Mon, 10 Oct 2011 23:24:11 GMT
+}
+```
 
 Please note that `atime`, `mtime`, `birthtime`, and `ctime` are
 instances of [`Date`][MDN-Date] object and to compare the values of
@@ -224,9 +238,11 @@ a possible error argument. If any of the accessibility checks fail, the error
 argument will be populated. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
-    fs.access('/etc/passwd', fs.R_OK | fs.W_OK, function (err) {
-      console.log(err ? 'no access!' : 'can read/write');
-    });
+```js
+fs.access('/etc/passwd', fs.R_OK | fs.W_OK, function (err) {
+  console.log(err ? 'no access!' : 'can read/write');
+});
+```
 
 ## fs.accessSync(path[, mode])
 
@@ -248,14 +264,18 @@ Asynchronously append data to a file, creating the file if it does not yet exist
 
 Example:
 
-    fs.appendFile('message.txt', 'data to append', (err) => {
-      if (err) throw err;
-      console.log('The "data to append" was appended to file!');
-    });
+```js
+fs.appendFile('message.txt', 'data to append', (err) => {
+  if (err) throw err;
+  console.log('The "data to append" was appended to file!');
+});
+```
 
 If `options` is a string, then it specifies the encoding. Example:
 
-    fs.appendFile('message.txt', 'data to append', 'utf8', callback);
+```js
+fs.appendFile('message.txt', 'data to append', 'utf8', callback);
+```
 
 Any specified file descriptor has to have been opened for appending.
 
@@ -302,12 +322,15 @@ default value of 64 kb for the same parameter.
 
 `options` is an object or string with the following defaults:
 
-    { flags: 'r',
-      encoding: null,
-      fd: null,
-      mode: 0o666,
-      autoClose: true
-    }
+```js
+{
+  flags: 'r',
+  encoding: null,
+  fd: null,
+  mode: 0o666,
+  autoClose: true
+}
+```
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file.  Both `start` and `end` are inclusive and
@@ -329,7 +352,9 @@ file was created.
 
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
-    fs.createReadStream('sample.txt', {start: 90, end: 99});
+```js
+fs.createReadStream('sample.txt', {start: 90, end: 99});
+```
 
 If `options` is a string, then it specifies the encoding.
 
@@ -339,11 +364,15 @@ Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 
 `options` is an object or string with the following defaults:
 
-    { flags: 'w',
-      defaultEncoding: 'utf8',
-      fd: null,
-      mode: 0o666,
-      autoClose: true }
+```js
+{
+  flags: 'w',
+  defaultEncoding: 'utf8',
+  fd: null,
+  mode: 0o666,
+  autoClose: true
+}
+```
 
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file.  Modifying a file rather
@@ -370,9 +399,11 @@ If `options` is a string, then it specifies the encoding.
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
 
-    fs.exists('/etc/passwd', (exists) => {
-      console.log(exists ? 'it\'s there' : 'no passwd!');
-    });
+```js
+fs.exists('/etc/passwd', (exists) => {
+  console.log(exists ? 'it\'s there' : 'no passwd!');
+});
+```
 
 `fs.exists()` should not be used to check if a file exists before calling
 `fs.open()`. Doing so introduces a race condition since other processes may
@@ -594,10 +625,12 @@ Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 
 Asynchronously reads the entire contents of a file. Example:
 
-    fs.readFile('/etc/passwd', (err, data) => {
-      if (err) throw err;
-      console.log(data);
-    });
+```js
+fs.readFile('/etc/passwd', (err, data) => {
+  if (err) throw err;
+  console.log(data);
+});
+```
 
 The callback is passed two arguments `(err, data)`, where `data` is the
 contents of the file.
@@ -606,7 +639,9 @@ If no encoding is specified, then the raw buffer is returned.
 
 If `options` is a string, then it specifies the encoding. Example:
 
-    fs.readFile('/etc/passwd', 'utf8', callback);
+```js
+fs.readFile('/etc/passwd', 'utf8', callback);
+```
 
 Any specified file descriptor has to support reading.
 
@@ -637,11 +672,13 @@ resolution or avoid additional `fs.stat` calls for known real paths.
 
 Example:
 
-    var cache = {'/etc':'/private/etc'};
-    fs.realpath('/etc/passwd', cache, (err, resolvedPath) => {
-      if (err) throw err;
-      console.log(resolvedPath);
-    });
+```js
+var cache = {'/etc':'/private/etc'};
+fs.realpath('/etc/passwd', cache, (err, resolvedPath) => {
+  if (err) throw err;
+  console.log(resolvedPath);
+});
+```
 
 ## fs.readSync(fd, buffer, offset, length, position)
 
@@ -692,7 +729,9 @@ Note that Windows junction points require the destination path to be absolute.  
 
 Here is an example below:
 
-    fs.symlink('./foo', './new-port');
+```js
+fs.symlink('./foo', './new-port');
+```
 
 It would create a symlic link named with "new-port" that points to "foo".
 
@@ -805,14 +844,16 @@ Windows.  Even on supported platforms, `filename` is not always guaranteed to
 be provided. Therefore, don't assume that `filename` argument is always
 provided in the callback, and have some fallback logic if it is null.
 
-    fs.watch('somedir', (event, filename) => {
-      console.log(`event is: ${event}`);
-      if (filename) {
-        console.log(`filename provided: ${filename}`);
-      } else {
-        console.log('filename not provided');
-      }
-    });
+```js
+fs.watch('somedir', (event, filename) => {
+  console.log(`event is: ${event}`);
+  if (filename) {
+    console.log(`filename provided: ${filename}`);
+  } else {
+    console.log('filename not provided');
+  }
+});
+```
 
 ## fs.watchFile(filename[, options], listener)
 
@@ -829,10 +870,12 @@ target should be polled in milliseconds. The default is
 The `listener` gets two arguments the current stat object and the previous
 stat object:
 
-    fs.watchFile('message.text', (curr, prev) => {
-      console.log(`the current mtime is: ${curr.mtime}`);
-      console.log(`the previous mtime was: ${prev.mtime}`);
-    });
+```js
+fs.watchFile('message.text', (curr, prev) => {
+  console.log(`the current mtime is: ${curr.mtime}`);
+  console.log(`the previous mtime was: ${prev.mtime}`);
+});
+```
 
 These stat objects are instances of `fs.Stat`.
 
@@ -915,14 +958,18 @@ to `'utf8'`.
 
 Example:
 
-    fs.writeFile('message.txt', 'Hello Node.js', (err) => {
-      if (err) throw err;
-      console.log('It\'s saved!');
-    });
+```js
+fs.writeFile('message.txt', 'Hello Node.js', (err) => {
+  if (err) throw err;
+  console.log('It\'s saved!');
+});
+```
 
 If `options` is a string, then it specifies the encoding. Example:
 
-    fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
+```js
+fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
+```
 
 Any specified file descriptor has to support writing.
 
