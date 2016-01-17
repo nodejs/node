@@ -10,30 +10,40 @@ Secure Socket Layer: encrypted stream communication.
 TLS/SSL is a public/private key infrastructure. Each client and each
 server must have a private key. A private key is created like this:
 
-    openssl genrsa -out ryans-key.pem 2048
+```
+openssl genrsa -out ryans-key.pem 2048
+```
 
 All servers and some clients need to have a certificate. Certificates are public
 keys signed by a Certificate Authority or self-signed. The first step to
 getting a certificate is to create a "Certificate Signing Request" (CSR)
 file. This is done with:
 
-    openssl req -new -sha256 -key ryans-key.pem -out ryans-csr.pem
+```
+openssl req -new -sha256 -key ryans-key.pem -out ryans-csr.pem
+```
 
 To create a self-signed certificate with the CSR, do this:
 
-    openssl x509 -req -in ryans-csr.pem -signkey ryans-key.pem -out ryans-cert.pem
+```
+openssl x509 -req -in ryans-csr.pem -signkey ryans-key.pem -out ryans-cert.pem
+```
 
 Alternatively you can send the CSR to a Certificate Authority for signing.
 
 For Perfect Forward Secrecy, it is required to generate Diffie-Hellman
 parameters:
 
-    openssl dhparam -outform PEM -out dhparam.pem 2048
+```
+openssl dhparam -outform PEM -out dhparam.pem 2048
+```
 
 To create .pfx or .p12, do this:
 
-    openssl pkcs12 -export -in agent5-cert.pem -inkey agent5-key.pem \
-        -certfile ca-cert.pem -out agent5.pfx
+```
+openssl pkcs12 -export -in agent5-cert.pem -inkey agent5-key.pem \
+      -certfile ca-cert.pem -out agent5.pfx
+```
 
   - `in`:  certificate
   - `inkey`: private key
@@ -81,33 +91,37 @@ times.
 Node.js is built with a default suite of enabled and disabled TLS ciphers.
 Currently, the default cipher suite is:
 
-    ECDHE-RSA-AES128-GCM-SHA256:
-    ECDHE-ECDSA-AES128-GCM-SHA256:
-    ECDHE-RSA-AES256-GCM-SHA384:
-    ECDHE-ECDSA-AES256-GCM-SHA384:
-    DHE-RSA-AES128-GCM-SHA256:
-    ECDHE-RSA-AES128-SHA256:
-    DHE-RSA-AES128-SHA256:
-    ECDHE-RSA-AES256-SHA384:
-    DHE-RSA-AES256-SHA384:
-    ECDHE-RSA-AES256-SHA256:
-    DHE-RSA-AES256-SHA256:
-    HIGH:
-    !aNULL:
-    !eNULL:
-    !EXPORT:
-    !DES:
-    !RC4:
-    !MD5:
-    !PSK:
-    !SRP:
-    !CAMELLIA
+```
+ECDHE-RSA-AES128-GCM-SHA256:
+ECDHE-ECDSA-AES128-GCM-SHA256:
+ECDHE-RSA-AES256-GCM-SHA384:
+ECDHE-ECDSA-AES256-GCM-SHA384:
+DHE-RSA-AES128-GCM-SHA256:
+ECDHE-RSA-AES128-SHA256:
+DHE-RSA-AES128-SHA256:
+ECDHE-RSA-AES256-SHA384:
+DHE-RSA-AES256-SHA384:
+ECDHE-RSA-AES256-SHA256:
+DHE-RSA-AES256-SHA256:
+HIGH:
+!aNULL:
+!eNULL:
+!EXPORT:
+!DES:
+!RC4:
+!MD5:
+!PSK:
+!SRP:
+!CAMELLIA
+```
 
 This default can be overriden entirely using the `--tls-cipher-list` command
 line switch. For instance, the following makes
 `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS cipher suite:
 
-    node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
+```
+node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
+```
 
 Note that the default cipher suite included within Node.js has been carefully
 selected to reflect current security best practices and risk mitigation.
@@ -242,14 +256,16 @@ established after addition of event listener.
 
 Here's an example for using TLS session resumption:
 
-    var tlsSessionStore = {};
-    server.on('newSession', (id, data, cb) => {
-      tlsSessionStore[id.toString('hex')] = data;
-      cb();
-    });
-    server.on('resumeSession', (id, cb) => {
-      cb(null, tlsSessionStore[id.toString('hex')] || null);
-    });
+```js
+var tlsSessionStore = {};
+server.on('newSession', (id, data, cb) => {
+  tlsSessionStore[id.toString('hex')] = data;
+  cb();
+});
+server.on('resumeSession', (id, cb) => {
+  cb(null, tlsSessionStore[id.toString('hex')] || null);
+});
+```
 
 ### Event: 'secureConnection'
 
@@ -450,27 +466,29 @@ if `false` - only the top certificate without `issuer` property.
 
 Example:
 
-    { subject:
-       { C: 'UK',
-         ST: 'Acknack Ltd',
-         L: 'Rhys Jones',
-         O: 'node.js',
-         OU: 'Test TLS Certificate',
-         CN: 'localhost' },
-      issuerInfo:
-       { C: 'UK',
-         ST: 'Acknack Ltd',
-         L: 'Rhys Jones',
-         O: 'node.js',
-         OU: 'Test TLS Certificate',
-         CN: 'localhost' },
-      issuer:
-       { ... another certificate ... },
-      raw: < RAW DER buffer >,
-      valid_from: 'Nov 11 09:52:22 2009 GMT',
-      valid_to: 'Nov  6 09:52:22 2029 GMT',
-      fingerprint: '2A:7A:C2:DD:E5:F9:CC:53:72:35:99:7A:02:5A:71:38:52:EC:8A:DF',
-      serialNumber: 'B9B0D332A1AA5635' }
+```
+{ subject:
+   { C: 'UK',
+     ST: 'Acknack Ltd',
+     L: 'Rhys Jones',
+     O: 'node.js',
+     OU: 'Test TLS Certificate',
+     CN: 'localhost' },
+  issuerInfo:
+   { C: 'UK',
+     ST: 'Acknack Ltd',
+     L: 'Rhys Jones',
+     O: 'node.js',
+     OU: 'Test TLS Certificate',
+     CN: 'localhost' },
+  issuer:
+   { ... another certificate ... },
+  raw: < RAW DER buffer >,
+  valid_from: 'Nov 11 09:52:22 2009 GMT',
+  valid_to: 'Nov  6 09:52:22 2029 GMT',
+  fingerprint: '2A:7A:C2:DD:E5:F9:CC:53:72:35:99:7A:02:5A:71:38:52:EC:8A:DF',
+  serialNumber: 'B9B0D332A1AA5635' }
+```
 
 If the peer does not provide a certificate, it returns `null` or an empty
 object.
@@ -615,54 +633,58 @@ The `callback` parameter will be added as a listener for the
 
 Here is an example of a client of echo server as described previously:
 
-    const tls = require('tls');
-    const fs = require('fs');
+```js
+const tls = require('tls');
+const fs = require('fs');
 
-    const options = {
-      // These are necessary only if using the client certificate authentication
-      key: fs.readFileSync('client-key.pem'),
-      cert: fs.readFileSync('client-cert.pem'),
+const options = {
+  // These are necessary only if using the client certificate authentication
+  key: fs.readFileSync('client-key.pem'),
+  cert: fs.readFileSync('client-cert.pem'),
 
-      // This is necessary only if the server uses the self-signed certificate
-      ca: [ fs.readFileSync('server-cert.pem') ]
-    };
+  // This is necessary only if the server uses the self-signed certificate
+  ca: [ fs.readFileSync('server-cert.pem') ]
+};
 
-    var socket = tls.connect(8000, options, () => {
-      console.log('client connected',
-                  socket.authorized ? 'authorized' : 'unauthorized');
-      process.stdin.pipe(socket);
-      process.stdin.resume();
-    });
-    socket.setEncoding('utf8');
-    socket.on('data', (data) => {
-      console.log(data);
-    });
-    socket.on('end', () => {
-      server.close();
-    });
+var socket = tls.connect(8000, options, () => {
+  console.log('client connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  process.stdin.pipe(socket);
+  process.stdin.resume();
+});
+socket.setEncoding('utf8');
+socket.on('data', (data) => {
+  console.log(data);
+});
+socket.on('end', () => {
+  server.close();
+});
+```
 
 Or
 
-    const tls = require('tls');
-    const fs = require('fs');
+```js
+const tls = require('tls');
+const fs = require('fs');
 
-    const options = {
-      pfx: fs.readFileSync('client.pfx')
-    };
+const options = {
+  pfx: fs.readFileSync('client.pfx')
+};
 
-    var socket = tls.connect(8000, options, () => {
-      console.log('client connected',
-                  socket.authorized ? 'authorized' : 'unauthorized');
-      process.stdin.pipe(socket);
-      process.stdin.resume();
-    });
-    socket.setEncoding('utf8');
-    socket.on('data', (data) => {
-      console.log(data);
-    });
-    socket.on('end', () => {
-      server.close();
-    });
+var socket = tls.connect(8000, options, () => {
+  console.log('client connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  process.stdin.pipe(socket);
+  process.stdin.resume();
+});
+socket.setEncoding('utf8');
+socket.on('data', (data) => {
+  console.log(data);
+});
+socket.on('end', () => {
+  server.close();
+});
+```
 
 
 ## tls.createSecureContext(details)
@@ -751,27 +773,29 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
   - `ciphers`: A string describing the ciphers to use or exclude, separated by
     `:`. The default cipher suite is:
 
-        ECDHE-RSA-AES128-GCM-SHA256:
-        ECDHE-ECDSA-AES128-GCM-SHA256:
-        ECDHE-RSA-AES256-GCM-SHA384:
-        ECDHE-ECDSA-AES256-GCM-SHA384:
-        DHE-RSA-AES128-GCM-SHA256:
-        ECDHE-RSA-AES128-SHA256:
-        DHE-RSA-AES128-SHA256:
-        ECDHE-RSA-AES256-SHA384:
-        DHE-RSA-AES256-SHA384:
-        ECDHE-RSA-AES256-SHA256:
-        DHE-RSA-AES256-SHA256:
-        HIGH:
-        !aNULL:
-        !eNULL:
-        !EXPORT:
-        !DES:
-        !RC4:
-        !MD5:
-        !PSK:
-        !SRP:
-        !CAMELLIA
+    ```js
+    ECDHE-RSA-AES128-GCM-SHA256:
+    ECDHE-ECDSA-AES128-GCM-SHA256:
+    ECDHE-RSA-AES256-GCM-SHA384:
+    ECDHE-ECDSA-AES256-GCM-SHA384:
+    DHE-RSA-AES128-GCM-SHA256:
+    ECDHE-RSA-AES128-SHA256:
+    DHE-RSA-AES128-SHA256:
+    ECDHE-RSA-AES256-SHA384:
+    DHE-RSA-AES256-SHA384:
+    ECDHE-RSA-AES256-SHA256:
+    DHE-RSA-AES256-SHA256:
+    HIGH:
+    !aNULL:
+    !eNULL:
+    !EXPORT:
+    !DES:
+    !RC4:
+    !MD5:
+    !PSK:
+    !SRP:
+    !CAMELLIA
+    ```
 
     The default cipher suite prefers GCM ciphers for [Chrome's 'modern
     cryptography' setting] and also prefers ECDHE and DHE ciphers for Perfect
@@ -856,67 +880,75 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
 
 Here is a simple example echo server:
 
-    const tls = require('tls');
-    const fs = require('fs');
+```js
+const tls = require('tls');
+const fs = require('fs');
 
-    const options = {
-      key: fs.readFileSync('server-key.pem'),
-      cert: fs.readFileSync('server-cert.pem'),
+const options = {
+  key: fs.readFileSync('server-key.pem'),
+  cert: fs.readFileSync('server-cert.pem'),
 
-      // This is necessary only if using the client certificate authentication.
-      requestCert: true,
+  // This is necessary only if using the client certificate authentication.
+  requestCert: true,
 
-      // This is necessary only if the client uses the self-signed certificate.
-      ca: [ fs.readFileSync('client-cert.pem') ]
-    };
+  // This is necessary only if the client uses the self-signed certificate.
+  ca: [ fs.readFileSync('client-cert.pem') ]
+};
 
-    var server = tls.createServer(options, (socket) => {
-      console.log('server connected',
-                  socket.authorized ? 'authorized' : 'unauthorized');
-      socket.write('welcome!\n');
-      socket.setEncoding('utf8');
-      socket.pipe(socket);
-    });
-    server.listen(8000, () => {
-      console.log('server bound');
-    });
+var server = tls.createServer(options, (socket) => {
+  console.log('server connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  socket.write('welcome!\n');
+  socket.setEncoding('utf8');
+  socket.pipe(socket);
+});
+server.listen(8000, () => {
+  console.log('server bound');
+});
+```
 
 Or
 
-    const tls = require('tls');
-    const fs = require('fs');
+```js
+const tls = require('tls');
+const fs = require('fs');
 
-    const options = {
-      pfx: fs.readFileSync('server.pfx'),
+const options = {
+  pfx: fs.readFileSync('server.pfx'),
 
-      // This is necessary only if using the client certificate authentication.
-      requestCert: true,
+  // This is necessary only if using the client certificate authentication.
+  requestCert: true,
 
-    };
+};
 
-    var server = tls.createServer(options, (socket) => {
-      console.log('server connected',
-                  socket.authorized ? 'authorized' : 'unauthorized');
-      socket.write('welcome!\n');
-      socket.setEncoding('utf8');
-      socket.pipe(socket);
-    });
-    server.listen(8000, () => {
-      console.log('server bound');
-    });
+var server = tls.createServer(options, (socket) => {
+  console.log('server connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  socket.write('welcome!\n');
+  socket.setEncoding('utf8');
+  socket.pipe(socket);
+});
+server.listen(8000, () => {
+  console.log('server bound');
+});
+```
+
 You can test this server by connecting to it with `openssl s_client`:
 
+```
+openssl s_client -connect 127.0.0.1:8000
+```
 
-    openssl s_client -connect 127.0.0.1:8000
-  
 ## tls.getCiphers()
 
 Returns an array with the names of the supported SSL ciphers.
 
 Example:
 
-    var ciphers = tls.getCiphers();
-    console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
+```js
+var ciphers = tls.getCiphers();
+console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
+```
 
 
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT

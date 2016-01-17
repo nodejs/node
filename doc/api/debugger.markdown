@@ -9,14 +9,16 @@ via a simple [TCP-based protocol][] and built-in debugging client. To use it,
 start Node.js with the `debug` argument followed by the path to the script to
 debug; a prompt will be displayed indicating successful launch of the debugger:
 
-    % node debug myscript.js
-    < debugger listening on port 5858
-    connecting... ok
-    break in /home/indutny/Code/git/indutny/myscript.js:1
-      1 x = 5;
-      2 setTimeout(function () {
-      3   debugger;
-    debug>
+```
+% node debug myscript.js
+< debugger listening on port 5858
+connecting... ok
+break in /home/indutny/Code/git/indutny/myscript.js:1
+  1 x = 5;
+  2 setTimeout(function () {
+  3   debugger;
+debug>
+```
 
 Node.js's debugger client does not yet support the full range of commands, but
 simple step and inspection are possible.
@@ -26,55 +28,58 @@ enable a breakpoint at that position in the code.
 
 For example, suppose `myscript.js` is written as:
 
-    // myscript.js
-    x = 5;
-    setTimeout(function () {
-      debugger;
-      console.log('world');
-    }, 1000);
-    console.log('hello');
+```js
+// myscript.js
+x = 5;
+setTimeout(function () {
+  debugger;
+  console.log('world');
+}, 1000);
+console.log('hello');
+```
 
 Once the debugger is run, a breakpoint will occur at line 4:
 
-    % node debug myscript.js
-    < debugger listening on port 5858
-    connecting... ok
-    break in /home/indutny/Code/git/indutny/myscript.js:1
-      1 x = 5;
-      2 setTimeout(function () {
-      3   debugger;
-    debug> cont
-    < hello
-    break in /home/indutny/Code/git/indutny/myscript.js:3
-      1 x = 5;
-      2 setTimeout(function () {
-      3   debugger;
-      4   console.log('world');
-      5 }, 1000);
-    debug> next
-    break in /home/indutny/Code/git/indutny/myscript.js:4
-      2 setTimeout(function () {
-      3   debugger;
-      4   console.log('world');
-      5 }, 1000);
-      6 console.log('hello');
-    debug> repl
-    Press Ctrl + C to leave debug repl
-    > x
-    5
-    > 2+2
-    4
-    debug> next
-    < world
-    break in /home/indutny/Code/git/indutny/myscript.js:5
-      3   debugger;
-      4   console.log('world');
-      5 }, 1000);
-      6 console.log('hello');
-      7
-    debug> quit
-    %
-
+```
+% node debug myscript.js
+< debugger listening on port 5858
+connecting... ok
+break in /home/indutny/Code/git/indutny/myscript.js:1
+  1 x = 5;
+  2 setTimeout(function () {
+  3   debugger;
+debug> cont
+< hello
+break in /home/indutny/Code/git/indutny/myscript.js:3
+  1 x = 5;
+  2 setTimeout(function () {
+  3   debugger;
+  4   console.log('world');
+  5 }, 1000);
+debug> next
+break in /home/indutny/Code/git/indutny/myscript.js:4
+  2 setTimeout(function () {
+  3   debugger;
+  4   console.log('world');
+  5 }, 1000);
+  6 console.log('hello');
+debug> repl
+Press Ctrl + C to leave debug repl
+> x
+5
+> 2+2
+4
+debug> next
+< world
+break in /home/indutny/Code/git/indutny/myscript.js:5
+  3   debugger;
+  4   console.log('world');
+  5 }, 1000);
+  6 console.log('hello');
+  7
+debug> quit
+%
+```
 
 The `repl` command allows code to be evaluated remotely. The `next` command
 steps over to the next line. Type `help` to see what other commands are
@@ -115,26 +120,28 @@ on line 1
 It is also possible to set a breakpoint in a file (module) that
 isn't loaded yet:
 
-    % ./node debug test/fixtures/break-in-module/main.js
-    < debugger listening on port 5858
-    connecting to port 5858... ok
-    break in test/fixtures/break-in-module/main.js:1
-      1 var mod = require('./mod.js');
-      2 mod.hello();
-      3 mod.hello();
-    debug> setBreakpoint('mod.js', 23)
-    Warning: script 'mod.js' was not loaded yet.
-      1 var mod = require('./mod.js');
-      2 mod.hello();
-      3 mod.hello();
-    debug> c
-    break in test/fixtures/break-in-module/mod.js:23
-     21
-     22 exports.hello = function() {
-     23   return 'hello from module';
-     24 };
-     25
-    debug>
+```
+% ./node debug test/fixtures/break-in-module/main.js
+< debugger listening on port 5858
+connecting to port 5858... ok
+break in test/fixtures/break-in-module/main.js:1
+  1 var mod = require('./mod.js');
+  2 mod.hello();
+  3 mod.hello();
+debug> setBreakpoint('mod.js', 23)
+Warning: script 'mod.js' was not loaded yet.
+  1 var mod = require('./mod.js');
+  2 mod.hello();
+  3 mod.hello();
+debug> c
+break in test/fixtures/break-in-module/mod.js:23
+ 21
+ 22 exports.hello = function() {
+ 23   return 'hello from module';
+ 24 };
+ 25
+debug>
+```
 
 ### Info
 
