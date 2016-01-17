@@ -391,16 +391,15 @@ controlling terminal.
 
 #### options.stdio
 
-The `options.stdio` property is used to configure the [standard streams][] of a
-child process. This allows a child process to receive input from devices like
-the keyboard and send output to devices like the terminal. Configuring
-`options.stdio` also allows the parent to connect a child to additional
-endpoints like files and sockets.
+The `options.stdio` property is used by the parent process to configure the
+initial [file descriptors][] of a spawning child process. The new child can then
+start streaming data to and from its resources with minimal to no configuration
+of its own.
 
 The `options.stdio` property accepts an `Array` where each index corresponds to
-the child's standard stream file descriptor. Indices 0, 1, and 2 correspond to
-the stdin, stdout, and stderr streams respectively. Indices 3 and up can be used
-to configure non-standard streams.
+a file descriptor for the child. Indices 0, 1, and 2 correspond to the child's
+[standard streams][]—stdin, stdout, and stderr respectively. Indices 3
+and up correspond to its non-standard streams.
 
 The following are the possible values for the `options.stdio` configuration
 `Array`.
@@ -1063,6 +1062,7 @@ to the same value.
 [`options.detached`]: #child_process_options_detached
 [`options.stdio`]: #child_process_options_stdio
 [`stdio`]: #child_process_options_stdio
+[file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [inter-process communication]: https://en.wikipedia.org/wiki/Inter-process_communication
 [standard streams]: https://en.wikipedia.org/wiki/Standard_streams
 [synchronous counterparts]: #child_process_synchronous_process_creation
