@@ -9,35 +9,39 @@ processes to handle the load.
 The cluster module allows you to easily create child processes that
 all share server ports.
 
-    const cluster = require('cluster');
-    const http = require('http');
-    const numCPUs = require('os').cpus().length;
+```js
+const cluster = require('cluster');
+const http = require('http');
+const numCPUs = require('os').cpus().length;
 
-    if (cluster.isMaster) {
-      // Fork workers.
-      for (var i = 0; i < numCPUs; i++) {
-        cluster.fork();
-      }
+if (cluster.isMaster) {
+  // Fork workers.
+  for (var i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
 
-      cluster.on('exit', (worker, code, signal) => {
-        console.log(`worker ${worker.process.pid} died`);
-      });
-    } else {
-      // Workers can share any TCP connection
-      // In this case it is an HTTP server
-      http.createServer((req, res) => {
-        res.writeHead(200);
-        res.end('hello world\n');
-      }).listen(8000);
-    }
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`worker ${worker.process.pid} died`);
+  });
+} else {
+  // Workers can share any TCP connection
+  // In this case it is an HTTP server
+  http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end('hello world\n');
+  }).listen(8000);
+}
+```
 
 Running Node.js will now share port 8000 between the workers:
 
-    % NODE_DEBUG=cluster node server.js
-    23521,Master Worker 23524 online
-    23521,Master Worker 23526 online
-    23521,Master Worker 23523 online
-    23521,Master Worker 23528 online
+```
+% NODE_DEBUG=cluster node server.js
+23521,Master Worker 23524 online
+23521,Master Worker 23526 online
+23521,Master Worker 23523 online
+23521,Master Worker 23528 online
+```
 
 Please note that, on Windows, it is not yet possible to set up a named pipe
 server in a worker.
@@ -113,9 +117,11 @@ it can be obtained using `cluster.worker`.
 
 Similar to the `cluster.on('disconnect')` event, but specific to this worker.
 
-    cluster.fork().on('disconnect', () => {
-      // Worker has disconnected
-    });
+```js
+cluster.fork().on('disconnect', () => {
+  // Worker has disconnected
+});
+```
 
 ### Event: 'error'
 
@@ -131,16 +137,18 @@ In a worker you can also use `process.on('error')`.
 
 Similar to the `cluster.on('exit')` event, but specific to this worker.
 
-    const worker = cluster.fork();
-    worker.on('exit', (code, signal) => {
-      if( signal ) {
-        console.log(`worker was killed by signal: ${signal}`);
-      } else if( code !== 0 ) {
-        console.log(`worker exited with error code: ${code}`);
-      } else {
-        console.log('worker success!');
-      }
-    });
+```js
+const worker = cluster.fork();
+worker.on('exit', (code, signal) => {
+  if( signal ) {
+    console.log(`worker was killed by signal: ${signal}`);
+  } else if( code !== 0 ) {
+    console.log(`worker exited with error code: ${code}`);
+  } else {
+    console.log('worker success!');
+  }
+});
+```
 
 ### Event: 'listening'
 
@@ -148,9 +156,11 @@ Similar to the `cluster.on('exit')` event, but specific to this worker.
 
 Similar to the `cluster.on('listening')` event, but specific to this worker.
 
-    cluster.fork().on('listening', (address) => {
-      // Worker is listening
-    });
+```js
+cluster.fork().on('listening', (address) => {
+  // Worker is listening
+});
+```
 
 It is not emitted in the worker.
 
@@ -167,53 +177,57 @@ In a worker you can also use `process.on('message')`.
 As an example, here is a cluster that keeps count of the number of requests
 in the master process using the message system:
 
-    const cluster = require('cluster');
-    const http = require('http');
+```js
+const cluster = require('cluster');
+const http = require('http');
 
-    if (cluster.isMaster) {
+if (cluster.isMaster) {
 
-      // Keep track of http requests
-      var numReqs = 0;
-      setInterval(() => {
-        console.log('numReqs =', numReqs);
-      }, 1000);
+  // Keep track of http requests
+  var numReqs = 0;
+  setInterval(() => {
+    console.log('numReqs =', numReqs);
+  }, 1000);
 
-      // Count requests
-      function messageHandler(msg) {
-        if (msg.cmd && msg.cmd == 'notifyRequest') {
-          numReqs += 1;
-        }
-      }
-
-      // Start workers and listen for messages containing notifyRequest
-      const numCPUs = require('os').cpus().length;
-      for (var i = 0; i < numCPUs; i++) {
-        cluster.fork();
-      }
-
-      Object.keys(cluster.workers).forEach((id) => {
-        cluster.workers[id].on('message', messageHandler);
-      });
-
-    } else {
-
-      // Worker processes have a http server.
-      http.Server((req, res) => {
-        res.writeHead(200);
-        res.end('hello world\n');
-
-        // notify master about the request
-        process.send({ cmd: 'notifyRequest' });
-      }).listen(8000);
+  // Count requests
+  function messageHandler(msg) {
+    if (msg.cmd && msg.cmd == 'notifyRequest') {
+      numReqs += 1;
     }
+  }
+
+  // Start workers and listen for messages containing notifyRequest
+  const numCPUs = require('os').cpus().length;
+  for (var i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+
+  Object.keys(cluster.workers).forEach((id) => {
+    cluster.workers[id].on('message', messageHandler);
+  });
+
+} else {
+
+  // Worker processes have a http server.
+  http.Server((req, res) => {
+    res.writeHead(200);
+    res.end('hello world\n');
+
+    // notify master about the request
+    process.send({ cmd: 'notifyRequest' });
+  }).listen(8000);
+}
+```
 
 ### Event: 'online'
 
 Similar to the `cluster.on('online')` event, but specific to this worker.
 
-    cluster.fork().on('online', () => {
-      // Worker is online
-    });
+```js
+cluster.fork().on('online', () => {
+  // Worker is online
+});
+```
 
 It is not emitted in the worker.
 
@@ -245,36 +259,38 @@ may be useful to send a message, so application specific actions may be taken to
 close them. It also may be useful to implement a timeout, killing a worker if
 the `'disconnect'` event has not been emitted after some time.
 
-    if (cluster.isMaster) {
-      var worker = cluster.fork();
-      var timeout;
+```js
+if (cluster.isMaster) {
+  var worker = cluster.fork();
+  var timeout;
 
-      worker.on('listening', (address) => {
-        worker.send('shutdown');
-        worker.disconnect();
-        timeout = setTimeout(() => {
-          worker.kill();
-        }, 2000);
-      });
+  worker.on('listening', (address) => {
+    worker.send('shutdown');
+    worker.disconnect();
+    timeout = setTimeout(() => {
+      worker.kill();
+    }, 2000);
+  });
 
-      worker.on('disconnect', () => {
-        clearTimeout(timeout);
-      });
+  worker.on('disconnect', () => {
+    clearTimeout(timeout);
+  });
 
-    } else if (cluster.isWorker) {
-      const net = require('net');
-      var server = net.createServer((socket) => {
-        // connections never end
-      });
+} else if (cluster.isWorker) {
+  const net = require('net');
+  var server = net.createServer((socket) => {
+    // connections never end
+  });
 
-      server.listen(8000);
+  server.listen(8000);
 
-      process.on('message', (msg) => {
-        if(msg === 'shutdown') {
-          // initiate graceful close of any connections to server
-        }
-      });
+  process.on('message', (msg) => {
+    if(msg === 'shutdown') {
+      // initiate graceful close of any connections to server
     }
+  });
+}
+```
 
 ### worker.id
 
@@ -344,15 +360,17 @@ In a worker this sends a message to the master. It is identical to
 
 This example will echo back all messages from the master:
 
-    if (cluster.isMaster) {
-      var worker = cluster.fork();
-      worker.send('hi there');
+```js
+if (cluster.isMaster) {
+  var worker = cluster.fork();
+  worker.send('hi there');
 
-    } else if (cluster.isWorker) {
-      process.on('message', (msg) => {
-        process.send(msg);
-      });
-    }
+} else if (cluster.isWorker) {
+  process.on('message', (msg) => {
+    process.send(msg);
+  });
+}
+```
 
 ### worker.suicide
 
@@ -363,14 +381,16 @@ Set by calling `.kill()` or `.disconnect()`, until then it is `undefined`.
 The boolean `worker.suicide` lets you distinguish between voluntary and accidental
 exit, the master may choose not to respawn a worker based on this value.
 
-    cluster.on('exit', (worker, code, signal) => {
-      if (worker.suicide === true) {
-        console.log('Oh, it was just suicide\' – no need to worry').
-      }
-    });
+```js
+cluster.on('exit', (worker, code, signal) => {
+  if (worker.suicide === true) {
+    console.log('Oh, it was just suicide\' – no need to worry').
+  }
+});
 
-    // kill worker
-    worker.kill();
+// kill worker
+worker.kill();
+```
 
 ## Event: 'disconnect'
 
@@ -384,9 +404,11 @@ There may be a delay between the `'disconnect'` and `'exit'` events.  These even
 can be used to detect if the process is stuck in a cleanup or if there are
 long-living connections.
 
-    cluster.on('disconnect', (worker) => {
-      console.log(`The worker #${worker.id} has disconnected`);
-    });
+```js
+cluster.on('disconnect', (worker) => {
+  console.log(`The worker #${worker.id} has disconnected`);
+});
+```
 
 ## Event: 'exit'
 
@@ -399,11 +421,13 @@ When any of the workers die the cluster module will emit the `'exit'` event.
 
 This can be used to restart the worker by calling `.fork()` again.
 
-    cluster.on('exit', (worker, code, signal) => {
-      console.log('worker %d died (%s). restarting...',
-        worker.process.pid, signal || code);
-      cluster.fork();
-    });
+```js
+cluster.on('exit', (worker, code, signal) => {
+  console.log('worker %d died (%s). restarting...',
+    worker.process.pid, signal || code);
+  cluster.fork();
+});
+```
 
 See [child_process event: 'exit'][].
 
@@ -414,21 +438,23 @@ See [child_process event: 'exit'][].
 When a new worker is forked the cluster module will emit a `'fork'` event.
 This can be used to log worker activity, and create your own timeout.
 
-    var timeouts = [];
-    function errorMsg() {
-      console.error('Something must be wrong with the connection ...');
-    }
+```js
+var timeouts = [];
+function errorMsg() {
+  console.error('Something must be wrong with the connection ...');
+}
 
-    cluster.on('fork', (worker) => {
-      timeouts[worker.id] = setTimeout(errorMsg, 2000);
-    });
-    cluster.on('listening', (worker, address) => {
-      clearTimeout(timeouts[worker.id]);
-    });
-    cluster.on('exit', (worker, code, signal) => {
-      clearTimeout(timeouts[worker.id]);
-      errorMsg();
-    });
+cluster.on('fork', (worker) => {
+  timeouts[worker.id] = setTimeout(errorMsg, 2000);
+});
+cluster.on('listening', (worker, address) => {
+  clearTimeout(timeouts[worker.id]);
+});
+cluster.on('exit', (worker, code, signal) => {
+  clearTimeout(timeouts[worker.id]);
+  errorMsg();
+});
+```
 
 ## Event: 'listening'
 
@@ -443,10 +469,12 @@ object and the `address` object contains the following connection properties:
 `address`, `port` and `addressType`. This is very useful if the worker is listening
 on more than one address.
 
-    cluster.on('listening', (worker, address) => {
-      console.log(
-        `A worker is now connected to ${address.address}:${address.port}`);
-    });
+```js
+cluster.on('listening', (worker, address) => {
+  console.log(
+    `A worker is now connected to ${address.address}:${address.port}`);
+});
+```
 
 The `addressType` is one of:
 
@@ -473,9 +501,11 @@ When the master receives an online message it will emit this event.
 The difference between `'fork'` and `'online'` is that fork is emitted when the
 master forks a worker, and 'online' is emitted when the worker is running.
 
-    cluster.on('online', (worker) => {
-      console.log('Yay, the worker responded after it was forked');
-    });
+```js
+cluster.on('online', (worker) => {
+  console.log('Yay, the worker responded after it was forked');
+});
+```
 
 ## Event: 'setup'
 
@@ -585,17 +615,19 @@ Note that:
 
 Example:
 
-    const cluster = require('cluster');
-    cluster.setupMaster({
-      exec: 'worker.js',
-      args: ['--use', 'https'],
-      silent: true
-    });
-    cluster.fork(); // https worker
-    cluster.setupMaster({
-      args: ['--use', 'http']
-    });
-    cluster.fork(); // http worker
+```js
+const cluster = require('cluster');
+cluster.setupMaster({
+  exec: 'worker.js',
+  args: ['--use', 'https'],
+  silent: true
+});
+cluster.fork(); // https worker
+cluster.setupMaster({
+  args: ['--use', 'http']
+});
+cluster.fork(); // http worker
+```
 
 This can only be called from the master process.
 
@@ -605,15 +637,17 @@ This can only be called from the master process.
 
 A reference to the current worker object. Not available in the master process.
 
-    const cluster = require('cluster');
+```js
+const cluster = require('cluster');
 
-    if (cluster.isMaster) {
-      console.log('I am master');
-      cluster.fork();
-      cluster.fork();
-    } else if (cluster.isWorker) {
-      console.log(`I am worker #${cluster.worker.id}`);
-    }
+if (cluster.isMaster) {
+  console.log('I am master');
+  cluster.fork();
+  cluster.fork();
+} else if (cluster.isWorker) {
+  console.log(`I am worker #${cluster.worker.id}`);
+}
+```
 
 ## cluster.workers
 
@@ -628,22 +662,26 @@ exited. The order between these two events cannot be determined in advance.
 However, it is guaranteed that the removal from the cluster.workers list happens
 before last `'disconnect'` or `'exit'` event is emitted.
 
-    // Go through all workers
-    function eachWorker(callback) {
-      for (var id in cluster.workers) {
-        callback(cluster.workers[id]);
-      }
-    }
-    eachWorker((worker) => {
-      worker.send('big announcement to all workers');
-    });
+```js
+// Go through all workers
+function eachWorker(callback) {
+  for (var id in cluster.workers) {
+    callback(cluster.workers[id]);
+  }
+}
+eachWorker((worker) => {
+  worker.send('big announcement to all workers');
+});
+```
 
 Should you wish to reference a worker over a communication channel, using
 the worker's unique id is the easiest way to find the worker.
 
-    socket.on('data', (id) => {
-      var worker = cluster.workers[id];
-    });
+```js
+socket.on('data', (id) => {
+  var worker = cluster.workers[id];
+});
+```
 
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_callback
