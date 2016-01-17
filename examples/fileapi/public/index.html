@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Tahoma, Geneva, sans-serif;
+      }
+      div {
+        display: inline;
+      }
+    </style>
+    <script src='uploader.js'></script>
+    <script src='app.js'></script>
+  </head>
+  <body>
+    <p>This example will upload an entire directory tree to the node.js server via a fast and persistent WebSocket connection.</p>
+    <p>Note that the example is Chrome only for now.</p>
+    <input type="file" webkitdirectory /><br/><br/>
+    Upload status:
+    <div id='progress'>Please select a directory to upload.</div>
+  </body>
+</html>

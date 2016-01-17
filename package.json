@@ -1,0 +1,38 @@
+{
+  "author": "Einar Otto Stangvik <einaros@gmail.com> (http://2x.io)",
+  "name": "ws",
+  "description": "simple to use, blazing fast and thoroughly tested websocket client, server and console for node.js, up-to-date against RFC-6455",
+  "version": "1.0.1",
+  "license": "MIT",
+  "keywords": [
+    "Hixie",
+    "HyBi",
+    "Push",
+    "RFC-6455",
+    "WebSocket",
+    "WebSockets",
+    "real-time"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/websockets/ws.git"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "dependencies": {
+    "options": ">=0.0.5",
+    "ultron": "1.0.x"
+  },
+  "devDependencies": {
+    "ansi": "0.3.x",
+    "benchmark": "0.3.x",
+    "bufferutil": "1.2.x",
+    "expect.js": "0.3.x",
+    "mocha": "2.3.x",
+    "should": "8.0.x",
+    "tinycolor": "0.0.x",
+    "utf-8-validate": "1.2.x"
+  },
+  "gypfile": true
+}
