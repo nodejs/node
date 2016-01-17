@@ -143,7 +143,7 @@ through the `constructor.super_` property.
 
     stream.on('data', (data) => {
       console.log(`Received data: "${data}"`);
-    })
+    });
     stream.write('It works!'); // Received data: "It works!"
 
 ## util.inspect(object[, options])
