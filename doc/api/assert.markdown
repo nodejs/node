@@ -21,25 +21,27 @@ If `value` is not truthy, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is `undefined`, a default error message is assigned.
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert(true);  // OK
-    assert(1);     // OK
-    assert(false);
-      // throws "AssertionError: false == true"
-    assert(0);
-      // throws "AssertionError: 0 == true"
-    assert(false, 'it\'s false');
-      // throws "AssertionError: it's false"
+assert(true);  // OK
+assert(1);     // OK
+assert(false);
+  // throws "AssertionError: false == true"
+assert(0);
+  // throws "AssertionError: 0 == true"
+assert(false, 'it\'s false');
+  // throws "AssertionError: it's false"
 
-    assert.ok(true);  // OK
-    assert.ok(1);     // OK
-    assert.ok(false);
-      // throws "AssertionError: false == true"
-    assert.ok(0);
-      // throws "AssertionError: 0 == true"
-    assert.ok(false, 'it\'s false');
-      // throws "AssertionError: it's false"
+assert.ok(true);  // OK
+assert.ok(1);     // OK
+assert.ok(false);
+  // throws "AssertionError: false == true"
+assert.ok(0);
+  // throws "AssertionError: 0 == true"
+assert.ok(false, 'it\'s false');
+  // throws "AssertionError: it's false"
+```
 
 ## assert.deepEqual(actual, expected[, message])
 
@@ -52,44 +54,48 @@ non-enumerable properties. This can lead to some potentially surprising
 results. For example, the following example does not throw an `AssertionError`
 because the properties on the [`Error`][] object are non-enumerable:
 
-    // WARNING: This does not throw an AssertionError!
-    assert.deepEqual(Error('a'), Error('b'));
+```js
+// WARNING: This does not throw an AssertionError!
+assert.deepEqual(Error('a'), Error('b'));
+```
 
 "Deep" equality means that the enumerable "own" properties of child objects
 are evaluated also:
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    const obj1 = {
-      a : {
-        b : 1
-      }
-    };
-    const obj2 = {
-      a : {
-        b : 2
-      }
-    };
-    const obj3 = {
-      a : {
-        b : 1
-      }
-    }
-    const obj4 = Object.create(obj1);
+const obj1 = {
+  a : {
+    b : 1
+  }
+};
+const obj2 = {
+  a : {
+    b : 2
+  }
+};
+const obj3 = {
+  a : {
+    b : 1
+  }
+}
+const obj4 = Object.create(obj1);
 
-    assert.deepEqual(obj1, obj1);
-      // OK, object is equal to itself
+assert.deepEqual(obj1, obj1);
+  // OK, object is equal to itself
 
-    assert.deepEqual(obj1, obj2);
-      // AssertionError: { a: { b: 1 } } deepEqual { a: { b: 2 } }
-      // values of b are different
+assert.deepEqual(obj1, obj2);
+  // AssertionError: { a: { b: 1 } } deepEqual { a: { b: 2 } }
+  // values of b are different
 
-    assert.deepEqual(obj1, obj3);
-      // OK, objects are equal
+assert.deepEqual(obj1, obj3);
+  // OK, objects are equal
 
-    assert.deepEqual(obj1, obj4);
-      // AssertionError: { a: { b: 1 } } deepEqual {}
-      // Prototypes are ignored
+assert.deepEqual(obj1, obj4);
+  // AssertionError: { a: { b: 1 } } deepEqual {}
+  // Prototypes are ignored
+```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
@@ -100,14 +106,16 @@ parameter is undefined, a default error message is assigned.
 Generally identical to `assert.deepEqual` with the exception that primitive
 values are compared using the strict equality operator ( `===` ).
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert.deepEqual({a:1}, {a:'1'});
-      // OK, because 1 == '1'
+assert.deepEqual({a:1}, {a:'1'});
+  // OK, because 1 == '1'
 
-    assert.deepStrictEqual({a:1}, {a:'1'});
-      // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
-      // because 1 !== '1' using strict equality
+assert.deepStrictEqual({a:1}, {a:'1'});
+  // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
+  // because 1 !== '1' using strict equality
+```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
@@ -129,52 +137,60 @@ to the caller.
 The following, for instance, will throw the [`TypeError`][] because there is no
 matching error type in the assertion:
 
-    assert.doesNotThrow(
-      function() {
-        throw new TypeError('Wrong value');
-      },
-      SyntaxError
-    );
+```js
+assert.doesNotThrow(
+  function() {
+    throw new TypeError('Wrong value');
+  },
+  SyntaxError
+);
+```
 
 However, the following will result in an `AssertionError` with the message
 'Got unwanted exception (TypeError)..':
 
-    assert.doesNotThrow(
-      function() {
-        throw new TypeError('Wrong value');
-      },
-      TypeError
-    );
+```js
+assert.doesNotThrow(
+  function() {
+    throw new TypeError('Wrong value');
+  },
+  TypeError
+);
+```
 
 If an `AssertionError` is thrown and a value is provided for the `message`
 parameter, the value of `message` will be appended to the `AssertionError`
 message:
 
-    assert.doesNotThrow(
-      function() {
-        throw new TypeError('Wrong value');
-      },
-      TypeError,
-      'Whoops'
-    );
-    // Throws: AssertionError: Got unwanted exception (TypeError). Whoops
+```js
+assert.doesNotThrow(
+  function() {
+    throw new TypeError('Wrong value');
+  },
+  TypeError,
+  'Whoops'
+);
+// Throws: AssertionError: Got unwanted exception (TypeError). Whoops
+```
 
 ## assert.equal(actual, expected[, message])
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
 using the equal comparison operator ( `==` ).
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert.equal(1, 1);
-      // OK, 1 == 1
-    assert.equal(1, '1');
-      // OK, 1 == '1'
+assert.equal(1, 1);
+  // OK, 1 == 1
+assert.equal(1, '1');
+  // OK, 1 == '1'
 
-    assert.equal(1, 2);
-      // AssertionError: 1 == 2
-    assert.equal({a: {b: 1}}, {a: {b: 1}});
-      //AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
+assert.equal(1, 2);
+  // AssertionError: 1 == 2
+assert.equal({a: {b: 1}}, {a: {b: 1}});
+  //AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
+```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
@@ -186,60 +202,66 @@ Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`.
 Otherwise, the error message is the value of `message`.
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert.fail(1, 2, undefined, '>');
-      // AssertionError: 1 > 2
+assert.fail(1, 2, undefined, '>');
+  // AssertionError: 1 > 2
 
-    assert.fail(1, 2, 'whoops', '>');
-      // AssertionError: whoops
+assert.fail(1, 2, 'whoops', '>');
+  // AssertionError: whoops
+```
 
 ## assert.ifError(value)
 
 Throws `value` if `value` is truthy. This is useful when testing the `error`
 argument in callbacks.
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert.ifError(0); // OK
-    assert.ifError(1); // Throws 1
-    assert.ifError('error') // Throws 'error'
-    assert.ifError(new Error()); // Throws Error
+assert.ifError(0); // OK
+assert.ifError(1); // Throws 1
+assert.ifError('error') // Throws 'error'
+assert.ifError(new Error()); // Throws Error
+```
 
 ## assert.notDeepEqual(actual, expected[, message])
 
 Tests for any deep inequality. Opposite of [`assert.deepEqual`][].
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    const obj1 = {
-      a : {
-        b : 1
-      }
-    };
-    const obj2 = {
-      a : {
-        b : 2
-      }
-    };
-    const obj3 = {
-      a : {
-        b : 1
-      }
-    }
-    const obj4 = Object.create(obj1);
+const obj1 = {
+  a : {
+    b : 1
+  }
+};
+const obj2 = {
+  a : {
+    b : 2
+  }
+};
+const obj3 = {
+  a : {
+    b : 1
+  }
+}
+const obj4 = Object.create(obj1);
 
-    assert.deepEqual(obj1, obj1);
-      AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
+assert.deepEqual(obj1, obj1);
+  AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
 
-    assert.deepEqual(obj1, obj2);
-      // OK, obj1 and obj2 are not deeply equal
+assert.deepEqual(obj1, obj2);
+  // OK, obj1 and obj2 are not deeply equal
 
-    assert.deepEqual(obj1, obj3);
-      // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
+assert.deepEqual(obj1, obj3);
+  // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
 
-    assert.deepEqual(obj1, obj4);
-      // OK, obj1 and obj2 are not deeply equal
+assert.deepEqual(obj1, obj4);
+  // OK, obj1 and obj2 are not deeply equal
+```
 
 If the values are deeply equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
@@ -249,13 +271,15 @@ parameter is undefined, a default error message is assigned.
 
 Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual`][].
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert.notDeepEqual({a:1}, {a:'1'});
-      // AssertionError: { a: 1 } notDeepEqual { a: '1' }
+assert.notDeepEqual({a:1}, {a:'1'});
+  // AssertionError: { a: 1 } notDeepEqual { a: '1' }
 
-    assert.notDeepStrictEqual({a:1}, {a:'1'});
-      // OK
+assert.notDeepStrictEqual({a:1}, {a:'1'});
+  // OK
+```
 
 If the values are deeply and strictly equal, an `AssertionError` is thrown
 with a `message` property set equal to the value of the `message` parameter. If
@@ -266,16 +290,18 @@ the `message` parameter is undefined, a default error message is assigned.
 Tests shallow, coercive inequality with the not equal comparison operator
 ( `!=` ).
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert.notEqual(1, 2);
-      // OK
+assert.notEqual(1, 2);
+  // OK
 
-    assert.notEqual(1, 1);
-      // AssertionError: 1 != 1
+assert.notEqual(1, 1);
+  // AssertionError: 1 != 1
 
-    assert.notEqual(1, '1');
-      // AssertionError: 1 != '1'
+assert.notEqual(1, '1');
+  // AssertionError: 1 != '1'
+```
 
 If the values are equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
@@ -286,16 +312,18 @@ parameter is undefined, a default error message is assigned.
 Tests strict inequality as determined by the strict not equal operator
 ( `!==` ).
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert.notStrictEqual(1, 2);
-      // OK
+assert.notStrictEqual(1, 2);
+  // OK
 
-    assert.notStrictEqual(1, 1);
-      // AssertionError: 1 != 1
+assert.notStrictEqual(1, 1);
+  // AssertionError: 1 != 1
 
-    assert.notStrictEqual(1, '1');
-      // OK
+assert.notStrictEqual(1, '1');
+  // OK
+```
 
 If the values are strictly equal, an `AssertionError` is thrown with a
 `message` property set equal to the value of the `message` parameter. If the
@@ -305,16 +333,18 @@ If the values are strictly equal, an `AssertionError` is thrown with a
 
 Tests strict equality as determined by the strict equality operator ( `===` ).
 
-    const assert = require('assert');
+```js
+const assert = require('assert');
 
-    assert.strictEqual(1, 2);
-      // AssertionError: 1 === 2
+assert.strictEqual(1, 2);
+  // AssertionError: 1 === 2
 
-    assert.strictEqual(1, 1);
-      // OK
+assert.strictEqual(1, 1);
+  // OK
 
-    assert.strictEqual(1, '1');
-      // AssertionError: 1 === '1'
+assert.strictEqual(1, '1');
+  // AssertionError: 1 === '1'
+```
 
 If the values are not strictly equal, an `AssertionError` is thrown with a
 `message` property set equal to the value of the `message` parameter. If the
@@ -327,35 +357,41 @@ constructor, [`RegExp`][], or validation function.
 
 Validate instanceof using constructor:
 
-    assert.throws(
-      function() {
-        throw new Error('Wrong value');
-      },
-      Error
-    );
+```js
+assert.throws(
+  function() {
+    throw new Error('Wrong value');
+  },
+  Error
+);
+```
 
 Validate error message using [`RegExp`][]:
 
-    assert.throws(
-      function() {
-        throw new Error('Wrong value');
-      },
-      /value/
-    );
+```js
+assert.throws(
+  function() {
+    throw new Error('Wrong value');
+  },
+  /value/
+);
+```
 
 Custom error validation:
 
-    assert.throws(
-      function() {
-        throw new Error('Wrong value');
-      },
-      function(err) {
-        if ( (err instanceof Error) && /value/.test(err) ) {
-          return true;
-        }
-      },
-      'unexpected error'
-    );
+```js
+assert.throws(
+  function() {
+    throw new Error('Wrong value');
+  },
+  function(err) {
+    if ( (err instanceof Error) && /value/.test(err) ) {
+      return true;
+    }
+  },
+  'unexpected error'
+);
+```
 
 [Locked]: documentation.html#documentation_stability_index
 [`assert.deepEqual`]: #assert_assert_deepequal_actual_expected_message
