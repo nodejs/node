@@ -177,6 +177,7 @@ The following options from [`tls.connect()`][] can also be specified. However, a
 - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
   SSL version 3. The possible values depend on your installation of
   OpenSSL and are defined in the constant [`SSL_METHODS`][].
+- `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
 In order to specify these options, use a custom [`Agent`][].
 
