@@ -23,8 +23,10 @@ The name of the directory that the currently executing script resides in.
 
 Example: running `node example.js` from `/Users/mjr`
 
-    console.log(__dirname);
-    // /Users/mjr
+```js
+console.log(__dirname);
+// /Users/mjr
+```
 
 `__dirname` isn't actually a global but rather local to each module.
 
@@ -41,8 +43,10 @@ to that module file.
 
 Example: running `node example.js` from `/Users/mjr`
 
-    console.log(__filename);
-    // /Users/mjr/example.js
+```js
+console.log(__filename);
+// /Users/mjr/example.js
+```
 
 `__filename` isn't actually a global but rather local to each module.
 
@@ -139,7 +143,9 @@ Instruct `require` on how to handle certain file extensions.
 
 Process files with the extension `.sjs` as `.js`:
 
-    require.extensions['.sjs'] = require.extensions['.js'];
+```js
+require.extensions['.sjs'] = require.extensions['.js'];
+```
 
 **Deprecated**  In the past, this list has been used to load
 non-JavaScript modules into Node.js by compiling them on-demand.

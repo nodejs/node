@@ -6,20 +6,22 @@ The `child_process` module provides the ability to spawn child processes in
 a manner that is similar, but not identical, to [`popen(3)`][]. This capability
 is primarily provided by the `child_process.spawn()` function:
 
-    const spawn = require('child_process').spawn;
-    const ls = spawn('ls', ['-lh', '/usr']);
+```js
+const spawn = require('child_process').spawn;
+const ls = spawn('ls', ['-lh', '/usr']);
 
-    ls.stdout.on('data', (data) => {
-      console.log(`stdout: ${data}`);
-    });
+ls.stdout.on('data', (data) => {
+  console.log(`stdout: ${data}`);
+});
 
-    ls.stderr.on('data', (data) => {
-      console.log(`stderr: ${data}`);
-    });
+ls.stderr.on('data', (data) => {
+  console.log(`stderr: ${data}`);
+});
 
-    ls.on('close', (code) => {
-      console.log(`child process exited with code ${code}`);
-    });
+ls.on('close', (code) => {
+  console.log(`child process exited with code ${code}`);
+});
+```
 
 By default, pipes for `stdin`, `stdout` and `stderr` are established between
 the parent Node.js process and the spawned child. It is possible to stream data
@@ -81,31 +83,33 @@ When running on Windows, `.bat` and `.cmd` files can only be invoked using
 either `child_process.exec()` or by spawning `cmd.exe` and passing the `.bat`
 or `.cmd` file as an argument (which is what `child_process.exec()` does).
 
-    // On Windows Only ...
-    const spawn = require('child_process').spawn;
-    const bat = spawn('cmd.exe', ['/c', 'my.bat']);
+```js
+// On Windows Only ...
+const spawn = require('child_process').spawn;
+const bat = spawn('cmd.exe', ['/c', 'my.bat']);
 
-    bat.stdout.on('data', (data) => {
-      console.log(data);
-    });
+bat.stdout.on('data', (data) => {
+  console.log(data);
+});
 
-    bat.stderr.on('data', (data) => {
-      console.log(data);
-    });
+bat.stderr.on('data', (data) => {
+  console.log(data);
+});
 
-    bat.on('exit', (code) => {
-      console.log(`Child exited with code ${code}`);
-    });
+bat.on('exit', (code) => {
+  console.log(`Child exited with code ${code}`);
+});
 
-    // OR...
-    const exec = require('child_process').exec;
-    exec('my.bat', (err, stdout, stderr) => {
-      if (err) {
-        console.error(err);
-        return;
-      }
-      console.log(stdout);
-    });
+// OR...
+const exec = require('child_process').exec;
+exec('my.bat', (err, stdout, stderr) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  console.log(stdout);
+});
+```
 
 ### child_process.exec(command[, options][, callback])
 
@@ -133,15 +137,17 @@ or `.cmd` file as an argument (which is what `child_process.exec()` does).
 Spawns a shell then executes the `command` within that shell, buffering any
 generated output.
 
-    const exec = require('child_process').exec;
-    const child = exec('cat *.js bad_file | wc -l',
-      (error, stdout, stderr) => {
-        console.log(`stdout: ${stdout}`);
-        console.log(`stderr: ${stderr}`);
-        if (error !== null) {
-          console.log(`exec error: ${error}`);
-        }
-    });
+```js
+const exec = require('child_process').exec;
+const child = exec('cat *.js bad_file | wc -l',
+  (error, stdout, stderr) => {
+    console.log(`stdout: ${stdout}`);
+    console.log(`stderr: ${stderr}`);
+    if (error !== null) {
+      console.log(`exec error: ${error}`);
+    }
+});
+```
 
 If a `callback` function is provided, it is called with the arguments
 `(error, stdout, stderr)`. On success, `error` will be `null`.  On error,
@@ -153,14 +159,16 @@ to be an error.
 The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
 
-    {
-      encoding: 'utf8',
-      timeout: 0,
-      maxBuffer: 200*1024,
-      killSignal: 'SIGTERM',
-      cwd: null,
-      env: null
-    }
+```js
+{
+  encoding: 'utf8',
+  timeout: 0,
+  maxBuffer: 200*1024,
+  killSignal: 'SIGTERM',
+  cwd: null,
+  env: null
+}
+```
 
 If `timeout` is greater than `0`, the parent will send the the signal
 identified by the `killSignal` property (the default is `'SIGTERM'`) if the
@@ -201,13 +209,15 @@ is spawned directly as a new process making it slightly more efficient than
 The same options as `child_process.exec()` are supported. Since a shell is not
 spawned, behaviors such as I/O redirection and file globbing are not supported.
 
-    const execFile = require('child_process').execFile;
-    const child = execFile('node', ['--version'], (error, stdout, stderr) => {
-      if (error) {
-        throw error;
-      }
-      console.log(stdout);
-    });
+```js
+const execFile = require('child_process').execFile;
+const child = execFile('node', ['--version'], (error, stdout, stderr) => {
+  if (error) {
+    throw error;
+  }
+  console.log(stdout);
+});
+```
 
 ### child_process.fork(modulePath[, args][, options])
 
@@ -275,10 +285,12 @@ to an empty array.
 
 A third argument may be used to specify additional options, with these defaults:
 
-    {
-      cwd: undefined,
-      env: process.env
-    }
+```js
+{
+  cwd: undefined,
+  env: process.env
+}
+```
 
 Use `cwd` to specify the working directory from which the process is spawned.
 If not given, the default is to inherit the current working directory.
@@ -289,66 +301,72 @@ process, the default is `process.env`.
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the
 exit code:
 
-    const spawn = require('child_process').spawn;
-    const ls = spawn('ls', ['-lh', '/usr']);
+```js
+const spawn = require('child_process').spawn;
+const ls = spawn('ls', ['-lh', '/usr']);
 
-    ls.stdout.on('data', (data) => {
-      console.log(`stdout: ${data}`);
-    });
+ls.stdout.on('data', (data) => {
+  console.log(`stdout: ${data}`);
+});
 
-    ls.stderr.on('data', (data) => {
-      console.log(`stderr: ${data}`);
-    });
+ls.stderr.on('data', (data) => {
+  console.log(`stderr: ${data}`);
+});
 
-    ls.on('close', (code) => {
-      console.log(`child process exited with code ${code}`);
-    });
+ls.on('close', (code) => {
+  console.log(`child process exited with code ${code}`);
+});
+```
 
 
 Example: A very elaborate way to run 'ps ax | grep ssh'
 
-    const spawn = require('child_process').spawn;
-    const ps = spawn('ps', ['ax']);
-    const grep = spawn('grep', ['ssh']);
+```js
+const spawn = require('child_process').spawn;
+const ps = spawn('ps', ['ax']);
+const grep = spawn('grep', ['ssh']);
 
-    ps.stdout.on('data', (data) => {
-      grep.stdin.write(data);
-    });
+ps.stdout.on('data', (data) => {
+  grep.stdin.write(data);
+});
 
-    ps.stderr.on('data', (data) => {
-      console.log(`ps stderr: ${data}`);
-    });
+ps.stderr.on('data', (data) => {
+  console.log(`ps stderr: ${data}`);
+});
 
-    ps.on('close', (code) => {
-      if (code !== 0) {
-        console.log(`ps process exited with code ${code}`);
-      }
-      grep.stdin.end();
-    });
+ps.on('close', (code) => {
+  if (code !== 0) {
+    console.log(`ps process exited with code ${code}`);
+  }
+  grep.stdin.end();
+});
 
-    grep.stdout.on('data', (data) => {
-      console.log(`${data}`);
-    });
+grep.stdout.on('data', (data) => {
+  console.log(`${data}`);
+});
 
-    grep.stderr.on('data', (data) => {
-      console.log(`grep stderr: ${data}`);
-    });
+grep.stderr.on('data', (data) => {
+  console.log(`grep stderr: ${data}`);
+});
 
-    grep.on('close', (code) => {
-      if (code !== 0) {
-        console.log(`grep process exited with code ${code}`);
-      }
-    });
+grep.on('close', (code) => {
+  if (code !== 0) {
+    console.log(`grep process exited with code ${code}`);
+  }
+});
+```
 
 
 Example of checking for failed exec:
 
-    const spawn = require('child_process').spawn;
-    const child = spawn('bad_command');
+```js
+const spawn = require('child_process').spawn;
+const child = spawn('bad_command');
 
-    child.on('error', (err) => {
-      console.log('Failed to start child process.');
-    });
+child.on('error', (err) => {
+  console.log('Failed to start child process.');
+});
+```
 
 #### options.detached
 
@@ -371,17 +389,19 @@ there is an established IPC channel between the child and parent.
 Example of detaching a long-running process and redirecting its output to a
 file:
 
-     const fs = require('fs');
-     const spawn = require('child_process').spawn;
-     const out = fs.openSync('./out.log', 'a');
-     const err = fs.openSync('./out.log', 'a');
+```js
+const fs = require('fs');
+const spawn = require('child_process').spawn;
+const out = fs.openSync('./out.log', 'a');
+const err = fs.openSync('./out.log', 'a');
 
-     const child = spawn('prg', [], {
-       detached: true,
-       stdio: [ 'ignore', out, err ]
-     });
+const child = spawn('prg', [], {
+ detached: true,
+ stdio: [ 'ignore', out, err ]
+});
 
-     child.unref();
+child.unref();
+```
 
 When using the `detached` option to start a long-running process, the process
 will not stay running in the background after the parent exits unless it is
@@ -441,17 +461,19 @@ pipes between the parent and child. The value is one of the following:
 
 Example:
 
-    const spawn = require('child_process').spawn;
+```js
+const spawn = require('child_process').spawn;
 
-    // Child will use parent's stdios
-    spawn('prg', [], { stdio: 'inherit' });
+// Child will use parent's stdios
+spawn('prg', [], { stdio: 'inherit' });
 
-    // Spawn child sharing only stderr
-    spawn('prg', [], { stdio: ['pipe', 'pipe', process.stderr] });
+// Spawn child sharing only stderr
+spawn('prg', [], { stdio: ['pipe', 'pipe', process.stderr] });
 
-    // Open an extra fd=4, to interact with programs presenting a
-    // startd-style interface.
-    spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
+// Open an extra fd=4, to interact with programs presenting a
+// startd-style interface.
+spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
+```
 
 *It is worth noting that when an IPC channel is established between the
 parent and child processes, and the child is a Node.js process, the child
@@ -679,16 +701,18 @@ The `child.kill()` methods sends a signal to the child process. If no argument
 is given, the process will be sent the `'SIGTERM'` signal. See `signal(7)` for
 a list of available signals.
 
-    const spawn = require('child_process').spawn;
-    const grep = spawn('grep', ['ssh']);
+```js
+const spawn = require('child_process').spawn;
+const grep = spawn('grep', ['ssh']);
 
-    grep.on('close', (code, signal) => {
-      console.log(
-        `child process terminated due to receipt of signal ${signal}`);
-    });
+grep.on('close', (code, signal) => {
+  console.log(
+    `child process terminated due to receipt of signal ${signal}`);
+});
 
-    // Send SIGHUP to process
-    grep.kill('SIGHUP');
+// Send SIGHUP to process
+grep.kill('SIGHUP');
+```
 
 The `ChildProcess` object may emit an `'error'` event if the signal cannot be
 delivered. Sending a signal to a child process that has already exited is not
@@ -709,11 +733,13 @@ Returns the process identifier (PID) of the child process.
 
 Example:
 
-    const spawn = require('child_process').spawn;
-    const grep = spawn('grep', ['ssh']);
+```js
+const spawn = require('child_process').spawn;
+const grep = spawn('grep', ['ssh']);
 
-    console.log(`Spawned child pid: ${grep.pid}`);
-    grep.stdin.end();
+console.log(`Spawned child pid: ${grep.pid}`);
+grep.stdin.end();
+```
 
 ### child.send(message[, sendHandle][, callback])
 
@@ -729,22 +755,26 @@ instance, these messages can be received via the `process.on('message')` event.
 
 For example, in the parent script:
 
-    const cp = require('child_process');
-    const n = cp.fork(`${__dirname}/sub.js`);
+```js
+const cp = require('child_process');
+const n = cp.fork(`${__dirname}/sub.js`);
 
-    n.on('message', (m) => {
-      console.log('PARENT got message:', m);
-    });
+n.on('message', (m) => {
+  console.log('PARENT got message:', m);
+});
 
-    n.send({ hello: 'world' });
+n.send({ hello: 'world' });
+```
 
 And then the child script, `'sub.js'` might look like this:
 
-    process.on('message', (m) => {
-      console.log('CHILD got message:', m);
-    });
+```js
+process.on('message', (m) => {
+  console.log('CHILD got message:', m);
+});
 
-    process.send({ foo: 'bar' });
+process.send({ foo: 'bar' });
+```
 
 Child Node.js processes will have a `process.send()` method of their own that
 allows the child to send messages back to the parent.
@@ -780,26 +810,30 @@ used to implement flow control.
 The `sendHandle` argument can be used, for instance, to pass the handle of
 a TSCP server object to the child process as illustrated in the example below:
 
-    const child = require('child_process').fork('child.js');
+```js
+const child = require('child_process').fork('child.js');
 
-    // Open up the server object and send the handle.
-    const server = require('net').createServer();
-    server.on('connection', (socket) => {
-      socket.end('handled by parent');
-    });
-    server.listen(1337, () => {
-      child.send('server', server);
-    });
+// Open up the server object and send the handle.
+const server = require('net').createServer();
+server.on('connection', (socket) => {
+  socket.end('handled by parent');
+});
+server.listen(1337, () => {
+  child.send('server', server);
+});
+```
 
 The child would then receive the server object as:
 
-    process.on('message', (m, server) => {
-      if (m === 'server') {
-        server.on('connection', (socket) => {
-          socket.end('handled by child');
-        });
-      }
+```js
+process.on('message', (m, server) => {
+  if (m === 'server') {
+    server.on('connection', (socket) => {
+      socket.end('handled by child');
     });
+  }
+});
+```
 
 Once the server is now shared between the parent and child, some connections
 can be handled by the parent and some by the child.
@@ -815,31 +849,35 @@ Similarly, the `sendHandler` argument can be used to pass the handle of a
 socket to the child process. The example below spawns two children that each
 handle connections with "normal" or "special" priority:
 
-    const normal = require('child_process').fork('child.js', ['normal']);
-    const special = require('child_process').fork('child.js', ['special']);
+```js
+const normal = require('child_process').fork('child.js', ['normal']);
+const special = require('child_process').fork('child.js', ['special']);
 
-    // Open up the server and send sockets to child
-    const server = require('net').createServer();
-    server.on('connection', (socket) => {
+// Open up the server and send sockets to child
+const server = require('net').createServer();
+server.on('connection', (socket) => {
 
-      // If this is special priority
-      if (socket.remoteAddress === '74.125.127.100') {
-        special.send('socket', socket);
-        return;
-      }
-      // This is normal priority
-      normal.send('socket', socket);
-    });
-    server.listen(1337);
+  // If this is special priority
+  if (socket.remoteAddress === '74.125.127.100') {
+    special.send('socket', socket);
+    return;
+  }
+  // This is normal priority
+  normal.send('socket', socket);
+});
+server.listen(1337);
+```
 
 The `child.js` would receive the socket handle as the second argument passed
 to the event callback function:
 
-    process.on('message', (m, socket) => {
-      if (m === 'socket') {
-        socket.end(`Request handled with ${process.argv[2]} priority`);
-      }
-    });
+```js
+process.on('message', (m, socket) => {
+  if (m === 'socket') {
+    socket.end(`Request handled with ${process.argv[2]} priority`);
+  }
+});
+```
 
 Once a socket has been passed to a child, the parent is no longer capable of
 tracking when the socket is destroyed. To indicate this, the `.connections`
@@ -887,26 +925,28 @@ In the following example, only the child's fd `1` (stdout) is configured as a
 pipe, so only the parent's `child.stdio[1]` is a stream, all other values in
 the array are `null`.
 
-    const assert = require('assert');
-    const fs = require('fs');
-    const child_process = require('child_process');
+```js
+const assert = require('assert');
+const fs = require('fs');
+const child_process = require('child_process');
 
-    const child = child_process.spawn('ls', {
-        stdio: [
-          0, // Use parents stdin for child
-          'pipe', // Pipe child's stdout to parent
-          fs.openSync('err.out', 'w') // Direct child's stderr to a file
-        ]
-    });
+const child = child_process.spawn('ls', {
+    stdio: [
+      0, // Use parents stdin for child
+      'pipe', // Pipe child's stdout to parent
+      fs.openSync('err.out', 'w') // Direct child's stderr to a file
+    ]
+});
 
-    assert.equal(child.stdio[0], null);
-    assert.equal(child.stdio[0], child.stdin);
+assert.equal(child.stdio[0], null);
+assert.equal(child.stdio[0], child.stdin);
 
-    assert(child.stdout);
-    assert.equal(child.stdio[1], child.stdout);
+assert(child.stdout);
+assert.equal(child.stdio[1], child.stdout);
 
-    assert.equal(child.stdio[2], null);
-    assert.equal(child.stdio[2], child.stderr);
+assert.equal(child.stdio[2], null);
+assert.equal(child.stdio[2], child.stderr);
+```
 
 ### child.stdout
 
