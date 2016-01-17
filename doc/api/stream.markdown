@@ -47,7 +47,7 @@ interfaces in your own program, please also refer to
 Almost all Node.js programs, no matter how simple, use Streams in some
 way. Here is an example of using Streams in an Node.js program:
 
-```javascript
+```js
 const http = require('http');
 
 var server = http.createServer( (req, res) => {
@@ -172,7 +172,7 @@ then be passed as soon as it is available.
 If you just want to get all the data out of the stream as fast as
 possible, this is the best way to do so.
 
-```javascript
+```js
 var readable = getReadableStreamSomehow();
 readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
@@ -187,7 +187,7 @@ Note that the `'end'` event **will not fire** unless the data is
 completely consumed.  This can be done by switching into flowing mode,
 or by calling `read()` repeatedly until you get to the end.
 
-```javascript
+```js
 var readable = getReadableStreamSomehow();
 readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
@@ -231,7 +231,7 @@ In the former case, `.read()` will return that data. In the latter case,
 `.read()` will return null. For instance, in the following example, `foo.txt`
 is an empty file:
 
-```javascript
+```js
 const fs = require('fs');
 var rr = fs.createReadStream('foo.txt');
 rr.on('readable', () => {
@@ -245,7 +245,7 @@ rr.on('end', () => {
 The output of running this script is:
 
 ```
-bash-3.2$ node test.js
+$ node test.js
 readable: null
 end
 ```
@@ -263,7 +263,7 @@ This method returns whether or not the `readable` has been **explicitly**
 paused by client code (using `readable.pause()` without a corresponding
 `readable.resume()`).
 
-```javascript
+```js
 var readable = new stream.Readable
 
 readable.isPaused() // === false
@@ -281,7 +281,7 @@ This method will cause a stream in flowing mode to stop emitting
 `'data'` events, switching out of flowing mode.  Any data that becomes
 available will remain in the internal buffer.
 
-```javascript
+```js
 var readable = getReadableStreamSomehow();
 readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
@@ -306,7 +306,7 @@ the destination is not overwhelmed by a fast readable stream.
 
 Multiple destinations can be piped to safely.
 
-```javascript
+```js
 var readable = getReadableStreamSomehow();
 var writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt'
@@ -316,7 +316,7 @@ readable.pipe(writable);
 This function returns the destination stream, so you can set up pipe
 chains like so:
 
-```javascript
+```js
 var r = fs.createReadStream('file.txt');
 var z = zlib.createGzip();
 var w = fs.createWriteStream('file.txt.gz');
@@ -325,7 +325,7 @@ r.pipe(z).pipe(w);
 
 For example, emulating the Unix `cat` command:
 
-```javascript
+```js
 process.stdin.pipe(process.stdout);
 ```
 
@@ -336,7 +336,7 @@ false }` as `options` to keep the destination stream open.
 This keeps `writer` open so that "Goodbye" can be written at the
 end.
 
-```javascript
+```js
 reader.pipe(writer, { end: false });
 reader.on('end', () => {
   writer.end('Goodbye\n');
@@ -367,7 +367,7 @@ This method should only be called in paused mode.  In flowing mode,
 this method is called automatically until the internal buffer is
 drained.
 
-```javascript
+```js
 var readable = getReadableStreamSomehow();
 readable.on('readable', () => {
   var chunk;
@@ -395,7 +395,7 @@ want to consume the data from a stream, but you *do* want to get to
 its `'end'` event, you can call [`readable.resume()`][] to open the flow of
 data.
 
-```javascript
+```js
 var readable = getReadableStreamSomehow();
 readable.resume();
 readable.on('end', () => {
@@ -420,7 +420,7 @@ potentially mangled if you simply pulled the Buffers directly and
 called `buf.toString(encoding)` on them.  If you want to read the data
 as strings, always use this method.
 
-```javascript
+```js
 var readable = getReadableStreamSomehow();
 readable.setEncoding('utf8');
 readable.on('data', (chunk) => {
@@ -440,7 +440,7 @@ If the destination is not specified, then all pipes are removed.
 If the destination is specified, but no pipe is set up for it, then
 this is a no-op.
 
-```javascript
+```js
 var readable = getReadableStreamSomehow();
 var writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt',
@@ -470,7 +470,7 @@ If you find that you must often call `stream.unshift(chunk)` in your
 programs, consider implementing a [Transform][] stream instead.  (See [API
 for Stream Implementors][].)
 
-```javascript
+```js
 // Pull off a header delimited by \n\n
 // use unshift() if we get too much
 // Call the callback with (error, header, stream)
@@ -504,6 +504,7 @@ function parseHeader(stream, callback) {
   }
 }
 ```
+
 Note that, unlike `stream.push(chunk)`, `stream.unshift(chunk)` will not
 end the reading process by resetting the internal reading state of the
 stream. This can cause unexpected results if `unshift` is called during a
@@ -530,7 +531,7 @@ as a convenience for interacting with old Node.js programs and libraries.
 
 For example:
 
-```javascript
+```js
 const OldReader = require('./old-api-module.js').OldReader;
 const Readable = require('stream').Readable;
 const oreader = new OldReader;
@@ -576,7 +577,7 @@ If a [`writable.write(chunk)`][] call returns false, then the `'drain'`
 event will indicate when it is appropriate to begin writing more data
 to the stream.
 
-```javascript
+```js
 // Write the data to the supplied writable stream one million times.
 // Be attentive to back-pressure.
 function writeOneMillionTimes(writer, data, encoding, callback) {
@@ -633,7 +634,7 @@ writer.on('finish', () => {
 This is emitted whenever the `pipe()` method is called on a readable
 stream, adding this writable to its set of destinations.
 
-```javascript
+```js
 var writer = getWritableStreamSomehow();
 var reader = getReadableStreamSomehow();
 writer.on('pipe', (src) => {
@@ -650,7 +651,7 @@ reader.pipe(writer);
 This is emitted whenever the [`unpipe()`][] method is called on a
 readable stream, removing this writable from its set of destinations.
 
-```javascript
+```js
 var writer = getWritableStreamSomehow();
 var reader = getReadableStreamSomehow();
 writer.on('unpipe', (src) => {
@@ -678,7 +679,7 @@ supplied, the callback is attached as a listener on the `'finish'` event.
 
 Calling [`write()`][] after calling [`end()`][] will raise an error.
 
-```javascript
+```js
 // write 'hello, ' and then end with 'world!'
 var file = fs.createWriteStream('example.txt');
 file.write('hello, ');
@@ -867,7 +868,7 @@ In classes that extend the Readable class, make sure to call the
 Readable constructor so that the buffering settings can be properly
 initialized.
 
-#### readable.\_read(size)
+#### readable._read(size)
 
 * `size` {Number} Number of bytes to read asynchronously
 
@@ -888,7 +889,7 @@ more data from the resource and pushing that data onto the queue.
 Note: once the `_read()` method is called, it will not be called again until
 the `push` method is called.
 
-The `size` argument is advisory.  Implementations where a "read" is a
+The `size` argument is advisory. Implementations where a "read" is a
 single call that returns data can use this to know how much data to
 fetch.  Implementations where that is not relevant, such as TCP or
 TLS, may ignore this argument, and simply provide data whenever it
@@ -918,7 +919,7 @@ you may be wrapping a lower-level source which has some sort of
 pause/resume mechanism, and a data callback.  In those cases, you
 could wrap the low-level source object by doing something like this:
 
-```javascript
+```js
 // source is an object with readStop() and readStart() methods,
 // and an `ondata` member that gets called when it has data, and
 // an `onend` member that gets called when the data is over.
@@ -958,7 +959,7 @@ SourceWrapper.prototype._read = function(size) {
 This is a basic example of a Readable stream.  It emits the numerals
 from 1 to 1,000,000 in ascending order, and then ends.
 
-```javascript
+```js
 const Readable = require('stream').Readable;
 const util = require('util');
 util.inherits(Counter, Readable);
@@ -991,7 +992,7 @@ string.
 However, this would be better implemented as a [Transform][] stream.  See
 [SimpleProtocol v2][] for a better implementation.
 
-```javascript
+```js
 // A parser for a simple data protocol.
 // The "header" is a JSON object, followed by 2 \n characters, and
 // then a message body.
@@ -1131,7 +1132,7 @@ and Readable classes respectively. The `'finish'` event is fired after
 `end` is fired after all data has been output which is after the callback
 in `_flush` has been called.
 
-#### transform.\_flush(callback)
+#### transform._flush(callback)
 
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done flushing any remaining data.
@@ -1158,7 +1159,7 @@ the class that defines it, and should not be called directly by user
 programs.  However, you **are** expected to override this method in
 your own extension classes.
 
-#### transform.\_transform(chunk, encoding, callback)
+#### transform._transform(chunk, encoding, callback)
 
 * `chunk` {Buffer | String} The chunk to be transformed. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
@@ -1190,7 +1191,7 @@ particular input chunk. If you supply a second argument to the callback
 it will be passed to the push method. In other words the following are
 equivalent:
 
-```javascript
+```js
 transform.prototype._transform = function (data, encoding, callback) {
   this.push(data);
   callback();
@@ -1313,7 +1314,7 @@ In classes that extend the Writable class, make sure to call the
 constructor so that the buffering settings can be properly
 initialized.
 
-#### writable.\_write(chunk, encoding, callback)
+#### writable._write(chunk, encoding, callback)
 
 * `chunk` {Buffer | String} The chunk to be written. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
@@ -1346,7 +1347,7 @@ the class that defines it, and should not be called directly by user
 programs.  However, you **are** expected to override this method in
 your own extension classes.
 
-#### writable.\_writev(chunks, callback)
+#### writable._writev(chunks, callback)
 
 * `chunks` {Array} The chunks to be written.  Each chunk has following
   format: `{ chunk: ..., encoding: ... }`.
@@ -1373,7 +1374,8 @@ This can be done by passing the appropriate methods as constructor options:
 Examples:
 
 ### Duplex
-```javascript
+
+```js
 var duplex = new stream.Duplex({
   read: function(n) {
     // sets this._read under the hood
@@ -1410,7 +1412,8 @@ var duplex = new stream.Duplex({
 ```
 
 ### Readable
-```javascript
+
+```js
 var readable = new stream.Readable({
   read: function(n) {
     // sets this._read under the hood
@@ -1423,7 +1426,8 @@ var readable = new stream.Readable({
 ```
 
 ### Transform
-```javascript
+
+```js
 var transform = new stream.Transform({
   transform: function(chunk, encoding, next) {
     // sets this._transform under the hood
@@ -1446,7 +1450,8 @@ var transform = new stream.Transform({
 ```
 
 ### Writable
-```javascript
+
+```js
 var writable = new stream.Writable({
   write: function(chunk, encoding, next) {
     // sets this._write under the hood
@@ -1526,7 +1531,7 @@ introduces an edge case in the following conditions:
 
 For example, consider the following code:
 
-```javascript
+```js
 // WARNING!  BROKEN!
 net.createServer((socket) => {
 
@@ -1546,7 +1551,7 @@ the socket will remain paused forever.
 The workaround in this situation is to call the `resume()` method to
 start the flow of data:
 
-```javascript
+```js
 // Workaround
 net.createServer((socket) => {
 
@@ -1598,7 +1603,7 @@ writable side with `readableObjectMode` and `writableObjectMode`
 respectively. These options can be used to implement parsers and
 serializers with Transform streams.
 
-```javascript
+```js
 const util = require('util');
 const StringDecoder = require('string_decoder').StringDecoder;
 const Transform = require('stream').Transform;

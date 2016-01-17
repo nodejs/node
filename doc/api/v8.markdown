@@ -10,7 +10,7 @@ therefore not covered under the stability index.
 
 Returns an object with the following properties
 
-```
+```js
 {
   total_heap_size: 7326976,
   total_heap_size_executable: 4194304,
@@ -33,7 +33,7 @@ and their effects is available [here][].
 
 Usage:
 
-```
+```js
 // Print GC events to stdout for one minute.
 const v8 = require('v8');
 v8.setFlagsFromString('--trace_gc');

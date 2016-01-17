@@ -6,25 +6,27 @@
 
 The `dgram` module provides an implementation of UDP Datagram sockets.
 
-    const dgram = require('dgram');
-    const server = dgram.createSocket('udp4');
+```js
+const dgram = require('dgram');
+const server = dgram.createSocket('udp4');
 
-    server.on('error', (err) => {
-      console.log(`server error:\n${err.stack}`);
-      server.close();
-    });
+server.on('error', (err) => {
+  console.log(`server error:\n${err.stack}`);
+  server.close();
+});
 
-    server.on('message', (msg, rinfo) => {
-      console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
-    });
+server.on('message', (msg, rinfo) => {
+  console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+});
 
-    server.on('listening', () => {
-      var address = server.address();
-      console.log(`server listening ${address.address}:${address.port}`);
-    });
+server.on('listening', () => {
+  var address = server.address();
+  console.log(`server listening ${address.address}:${address.port}`);
+});
 
-    server.bind(41234);
-    // server listening 0.0.0.0:41234
+server.bind(41234);
+// server listening 0.0.0.0:41234
+```
 
 ## Class: dgram.Socket
 
@@ -61,10 +63,12 @@ The event handler function is passed two arguments: `msg` and `rinfo`. The
 `msg` argument is a [`Buffer`][] and `rinfo` is an object with the sender's
 address information provided by the `address`, `family` and `port` properties:
 
-    socket.on('message', (msg, rinfo) => {
-      console.log('Received %d bytes from %s:%d\n',
-                  msg.length, rinfo.address, rinfo.port);
-    });
+```js
+socket.on('message', (msg, rinfo) => {
+  console.log('Received %d bytes from %s:%d\n',
+              msg.length, rinfo.address, rinfo.port);
+});
+```
 
 ### socket.addMembership(multicastAddress[, multicastInterface])
 
@@ -108,25 +112,27 @@ attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 Example of a UDP server listening on port 41234:
 
-    const dgram = require('dgram');
-    const server = dgram.createSocket('udp4');
+```js
+const dgram = require('dgram');
+const server = dgram.createSocket('udp4');
 
-    server.on('error', (err) => {
-      console.log(`server error:\n${err.stack}`);
-      server.close();
-    });
+server.on('error', (err) => {
+  console.log(`server error:\n${err.stack}`);
+  server.close();
+});
 
-    server.on('message', (msg, rinfo) => {
-      console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
-    });
+server.on('message', (msg, rinfo) => {
+  console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+});
 
-    server.on('listening', () => {
-      var address = server.address();
-      console.log(`server listening ${address.address}:${address.port}`);
-    });
+server.on('listening', () => {
+  var address = server.address();
+  console.log(`server listening ${address.address}:${address.port}`);
+});
 
-    server.bind(41234);
-    // server listening 0.0.0.0:41234
+server.bind(41234);
+// server listening 0.0.0.0:41234
+```
 
 ### socket.bind(options[, callback])
 
@@ -153,11 +159,13 @@ port sharing results in an error.
 
 An example socket listening on an exclusive port is shown below.
 
-    socket.bind({
-      address: 'localhost',
-      port: 8000,
-      exclusive: true
-    });
+```js
+socket.bind({
+  address: 'localhost',
+  port: 8000,
+  exclusive: true
+});
+```
 
 ### socket.close([callback])
 
@@ -218,12 +226,14 @@ the error is emitted as an `'error'` event on the `socket` object.
 
 Example of sending a UDP packet to a random port on `localhost`;
 
-    const dgram = require('dgram');
-    const message = new Buffer('Some bytes');
-    const client = dgram.createSocket('udp4');
-    client.send(message, 0, message.length, 41234, 'localhost', (err) => {
-      client.close();
-    });
+```js
+const dgram = require('dgram');
+const message = new Buffer('Some bytes');
+const client = dgram.createSocket('udp4');
+client.send(message, 0, message.length, 41234, 'localhost', (err) => {
+  client.close();
+});
+```
 
 **A Note about UDP datagram size**
 
@@ -324,17 +334,21 @@ As of Node.js v0.10, [`dgram.Socket#bind()`][] changed to an asynchronous
 execution model. Legacy code that assumes synchronous behavior, as in the
 following example:
 
-    const s = dgram.createSocket('udp4');
-    s.bind(1234);
-    s.addMembership('224.0.0.114');
+```js
+const s = dgram.createSocket('udp4');
+s.bind(1234);
+s.addMembership('224.0.0.114');
+```
 
 Must be changed to pass a callback function to the [`dgram.Socket#bind()`][]
 function:
 
-    const s = dgram.createSocket('udp4');
-    s.bind(1234, () => {
-      s.addMembership('224.0.0.114');
-    });
+```js
+const s = dgram.createSocket('udp4');
+s.bind(1234, () => {
+  s.addMembership('224.0.0.114');
+});
+```
 
 ## `dgram` module functions
 

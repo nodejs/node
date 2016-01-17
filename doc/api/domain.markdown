@@ -44,7 +44,7 @@ the failure, and react accordingly.
 
 For example, this is not a good idea:
 
-```javascript
+```js
 // XXX WARNING!  BAD IDEA!
 
 var d = require('domain').create();
@@ -66,7 +66,7 @@ By using the context of a domain, and the resilience of separating our
 program into multiple worker processes, we can react more
 appropriately, and handle errors with much greater safety.
 
-```javascript
+```js
 // Much better!
 
 const cluster = require('cluster');
@@ -227,7 +227,7 @@ That is possible via explicit binding.
 
 For example:
 
-```
+```js
 // create a top-level domain for the server
 const domain = require('domain');
 const http = require('http');
@@ -282,7 +282,7 @@ This is the most basic way to use a domain.
 
 Example:
 
-```
+```js
 const domain = require('domain');
 const fs = require('fs');
 const d = domain.create();
@@ -345,20 +345,22 @@ thrown will be routed to the domain's `'error'` event.
 
 #### Example
 
-    const d = domain.create();
+```js
+const d = domain.create();
 
-    function readSomeFile(filename, cb) {
-      fs.readFile(filename, 'utf8', d.bind(function(er, data) {
-        // if this throws, it will also be passed to the domain
-        return cb(er, data ? JSON.parse(data) : null);
-      }));
-    }
+function readSomeFile(filename, cb) {
+  fs.readFile(filename, 'utf8', d.bind(function(er, data) {
+    // if this throws, it will also be passed to the domain
+    return cb(er, data ? JSON.parse(data) : null);
+  }));
+}
 
-    d.on('error', (er) => {
-      // an error occurred somewhere.
-      // if we throw it now, it will crash the program
-      // with the normal line number and stack message.
-    });
+d.on('error', (er) => {
+  // an error occurred somewhere.
+  // if we throw it now, it will crash the program
+  // with the normal line number and stack message.
+});
+```
 
 ### domain.intercept(callback)
 
@@ -374,27 +376,29 @@ with a single error handler in a single place.
 
 #### Example
 
-    const d = domain.create();
+```js
+const d = domain.create();
 
-    function readSomeFile(filename, cb) {
-      fs.readFile(filename, 'utf8', d.intercept(function(data) {
-        // note, the first argument is never passed to the
-        // callback since it is assumed to be the 'Error' argument
-        // and thus intercepted by the domain.
+function readSomeFile(filename, cb) {
+  fs.readFile(filename, 'utf8', d.intercept(function(data) {
+    // note, the first argument is never passed to the
+    // callback since it is assumed to be the 'Error' argument
+    // and thus intercepted by the domain.
 
-        // if this throws, it will also be passed to the domain
-        // so the error-handling logic can be moved to the 'error'
-        // event on the domain instead of being repeated throughout
-        // the program.
-        return cb(null, JSON.parse(data));
-      }));
-    }
+    // if this throws, it will also be passed to the domain
+    // so the error-handling logic can be moved to the 'error'
+    // event on the domain instead of being repeated throughout
+    // the program.
+    return cb(null, JSON.parse(data));
+  }));
+}
 
-    d.on('error', (er) => {
-      // an error occurred somewhere.
-      // if we throw it now, it will crash the program
-      // with the normal line number and stack message.
-    });
+d.on('error', (er) => {
+  // an error occurred somewhere.
+  // if we throw it now, it will crash the program
+  // with the normal line number and stack message.
+});
+```
 
 ### domain.enter()
 
