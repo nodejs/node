@@ -10,6 +10,12 @@ assert.equal(Buffer.byteLength(NaN, 'utf8'), 3);
 assert.equal(Buffer.byteLength({}, 'binary'), 15);
 assert.equal(Buffer.byteLength(), 9);
 
+// buffer
+var incomplete = new Buffer([0xe4, 0xb8, 0xad, 0xe6, 0x96]);
+assert.equal(Buffer.byteLength(incomplete), 5);
+var ascii = new Buffer('abc');
+assert.equal(Buffer.byteLength(ascii), 3);
+
 // special case: zero length string
 assert.equal(Buffer.byteLength('', 'ascii'), 0);
 assert.equal(Buffer.byteLength('', 'HeX'), 0);
