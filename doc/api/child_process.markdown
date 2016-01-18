@@ -413,7 +413,7 @@ The following are the possible values for the `options.stdio` configuration
 * `undefined`
 
 For convenience, the `options.stdio` property also accepts one of the following
-`String` shorthands.
+`String` shorthands to represent an `Array` equivalent.
 
 | Shorthand   | Equivalent                       |
 |-------------|----------------------------------|
