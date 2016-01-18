@@ -202,6 +202,11 @@ server.on('error', (e) => {
 
 (Note: All sockets in Node.js set `SO_REUSEADDR` already)
 
+### server.listening
+
+A Boolean indicating whether or not the server is listening for
+connections.
+
 ### server.maxConnections
 
 Set this property to reject connections when the server's connection count gets
