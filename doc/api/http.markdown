@@ -548,6 +548,11 @@ parameter is 511 (not 512).
 This function is asynchronous. The last parameter `callback` will be added as
 a listener for the `'listening'` event.  See also [`net.Server.listen(port)`][].
 
+### server.listening
+
+A Boolean indicating whether or not the server is listening for
+connections.
+
 ### server.maxHeadersCount
 
 Limits maximum incoming headers count, equal to 1000 by default. If set to 0 -

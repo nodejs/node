@@ -196,6 +196,11 @@ would be to wait a second and then try again. This can be done with
 
 (Note: All sockets in Node.js set `SO_REUSEADDR` already)
 
+### server.listening
+
+A Boolean indicating whether or not the server is listening for
+connections.
+
 ### server.maxConnections
 
 Set this property to reject connections when the server's connection count gets
