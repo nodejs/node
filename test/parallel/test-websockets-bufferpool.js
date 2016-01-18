@@ -1,4 +1,5 @@
-var BufferPool = require('../lib/BufferPool');
+'use strict';
+const BufferPool = require('../../lib/BufferPool');
 require('should');
 
 describe('BufferPool', function() {

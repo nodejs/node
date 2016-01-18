@@ -1,7 +1,7 @@
-var assert = require('assert')
-  , Sender = require('../lib/Sender.hixie');
+'use strict';
+const assert = require('assert');
+const Sender = require('../../lib/Sender.hixie');
 require('should');
-require('./hybi-common');
 
 describe('Sender', function() {
   describe('#ctor', function() {

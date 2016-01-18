@@ -1,5 +1,6 @@
-var PerMessageDeflate = require('../lib/PerMessageDeflate');
-var Extensions = require('../lib/Extensions');
+'use strict';
+const PerMessageDeflate = require('../../lib/PerMessageDeflate');
+const Extensions = require('../../lib/Extensions');
 require('should');
 
 describe('PerMessageDeflate', function() {

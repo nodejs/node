@@ -1,5 +1,6 @@
-var Sender = require('../lib/Sender')
-  , PerMessageDeflate = require('../lib/PerMessageDeflate');
+'use strict';
+const Sender = require('../../lib/Sender');
+const PerMessageDeflate = require('../../lib/PerMessageDeflate');
 require('should');
 
 describe('Sender', function() {

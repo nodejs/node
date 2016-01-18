@@ -1,7 +1,9 @@
-var assert = require('assert')
-  , expect = require('expect.js')
-  , Receiver = require('../lib/Receiver.hixie');
-require('./hybi-common');
+'use strict';
+const assert = require('assert');
+const expect = require('expect.js');
+const Receiver = require('../../lib/Receiver.hixie');
+const ws_common = require('../common-websockets');
+require('should');
 
 describe('Receiver', function() {
   describe('#ctor', function() {
@@ -26,7 +28,7 @@ describe('Receiver', function() {
       assert.equal('Hello', data);
     };
 
-    p.add(getBufferFromHexString(packet));
+    p.add(ws_common.getBufferFromHexString(packet));
     expect(gotData).to.equal(true);
   });
 
@@ -41,7 +43,7 @@ describe('Receiver', function() {
       messages.push(data);
     };
 
-    p.add(getBufferFromHexString(packet));
+    p.add(ws_common.getBufferFromHexString(packet));
     expect(gotData).to.equal(true);
     for (var i = 0; i < 2; ++i) {
       expect(messages[i]).to.equal('Hello');
@@ -58,7 +60,7 @@ describe('Receiver', function() {
       assert.equal('', data);
     };
 
-    p.add(getBufferFromHexString(packet));
+    p.add(ws_common.getBufferFromHexString(packet));
     expect(gotData).to.equal(true);
   });
 
@@ -81,7 +83,7 @@ describe('Receiver', function() {
     };
 
     for (var i = 0; i < packets.length; ++i) {
-      p.add(getBufferFromHexString(packets[i]));
+      p.add(ws_common.getBufferFromHexString(packets[i]));
     }
     expect(gotData).to.equal(true);
     for (var i = 0; i < 2; ++i) {
@@ -112,7 +114,7 @@ describe('Receiver', function() {
     };
 
     for (var i = 0; i < packets.length && !gotError; ++i) {
-      p.add(getBufferFromHexString(packets[i]));
+      p.add(ws_common.getBufferFromHexString(packets[i]));
     }
     expect(gotError).to.equal(true);
     expect(messages[0]).to.equal('l');
@@ -136,7 +138,7 @@ describe('Receiver', function() {
     };
 
     for (var i = 0; i < packets.length && !gotError; ++i) {
-      p.add(getBufferFromHexString(packets[i]));
+      p.add(ws_common.getBufferFromHexString(packets[i]));
     }
     expect(gotClose).to.equal(true);
     expect(gotError).to.equal(false);
@@ -160,7 +162,7 @@ describe('Receiver', function() {
     };
 
     for (var i = 0; i < packets.length; ++i) {
-      p.add(getBufferFromHexString(packets[i]));
+      p.add(ws_common.getBufferFromHexString(packets[i]));
     }
     expect(gotData).to.equal(true);
     for (var i = 0; i < 2; ++i) {

@@ -1,4 +1,5 @@
-var Extensions = require('../lib/Extensions');
+'use strict';
+const Extensions = require('../../lib/Extensions');
 require('should');
 
 describe('Extensions', function() {

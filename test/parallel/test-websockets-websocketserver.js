@@ -1,9 +1,10 @@
-var http = require('http')
-  , https = require('https')
-  , WebSocket = require('../')
-  , WebSocketServer = WebSocket.Server
-  , fs = require('fs')
-  , should = require('should');
+'use strict';
+const http = require('http');
+const https = require('https');
+const WebSocket = require('../../');
+const WebSocketServer = WebSocket.Server;
+const fs = require('fs');
+const should = require('should');
 
 var port = 8000;
 
@@ -531,8 +532,8 @@ describe('WebSocketServer', function() {
 
       it('verifyClient has secure:true for ssl connections', function(done) {
         var options = {
-          key: fs.readFileSync('test/fixtures/key.pem'),
-          cert: fs.readFileSync('test/fixtures/certificate.pem')
+          key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+          cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
         };
         var app = https.createServer(options, function (req, res) {
           res.writeHead(200);

@@ -1,13 +1,15 @@
-var assert = require('assert')
-  , https = require('https')
-  , http = require('http')
-  , should = require('should')
-  , WebSocket = require('../')
-  , WebSocketServer = require('../').Server
-  , fs = require('fs')
-  , os = require('os')
-  , server = require('./testserver')
-  , crypto = require('crypto');
+'use strict';
+const assert = require('assert');
+const https = require('https');
+const http = require('http');
+const should = require('should');
+const WebSocket = require('../../');
+const WebSocketServer = require('../../').Server;
+const fs = require('fs');
+const os = require('os');
+const crypto = require('crypto');
+
+const ws_common = require('../common-websockets')
 
 var port = 20000;
 
@@ -131,7 +133,7 @@ describe('WebSocket', function() {
     });
 
     it('#url exposes the server url', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var url = 'ws://localhost:' + port;
         var ws = new WebSocket(url);
         assert.equal(url, ws.url);
@@ -144,7 +146,7 @@ describe('WebSocket', function() {
     });
 
     it('#protocolVersion exposes the protocol version', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var url = 'ws://localhost:' + port;
         var ws = new WebSocket(url);
         assert.equal(13, ws.protocolVersion);
@@ -158,7 +160,7 @@ describe('WebSocket', function() {
 
     describe('#bufferedAmount', function() {
       it('defaults to zero', function(done) {
-        server.createServer(++port, function(srv) {
+        ws_common.createServer(++port, function(srv) {
           var url = 'ws://localhost:' + port;
           var ws = new WebSocket(url);
           assert.equal(0, ws.bufferedAmount);
@@ -171,7 +173,7 @@ describe('WebSocket', function() {
       });
 
       it('defaults to zero upon "open"', function(done) {
-        server.createServer(++port, function(srv) {
+        ws_common.createServer(++port, function(srv) {
           var url = 'ws://localhost:' + port;
           var ws = new WebSocket(url);
           ws.onopen = function() {
@@ -249,7 +251,7 @@ describe('WebSocket', function() {
 
     describe('#readyState', function() {
       it('defaults to connecting', function(done) {
-        server.createServer(++port, function(srv) {
+        ws_common.createServer(++port, function(srv) {
           var ws = new WebSocket('ws://localhost:' + port);
           assert.equal(WebSocket.CONNECTING, ws.readyState);
           ws.terminate();
@@ -261,7 +263,7 @@ describe('WebSocket', function() {
       });
 
       it('set to open once connection is established', function(done) {
-        server.createServer(++port, function(srv) {
+        ws_common.createServer(++port, function(srv) {
           var ws = new WebSocket('ws://localhost:' + port);
           ws.on('open', function() {
             assert.equal(WebSocket.OPEN, ws.readyState);
@@ -272,7 +274,7 @@ describe('WebSocket', function() {
       });
 
       it('set to closed once connection is closed', function(done) {
-        server.createServer(++port, function(srv) {
+        ws_common.createServer(++port, function(srv) {
           var ws = new WebSocket('ws://localhost:' + port);
           ws.close(1001);
           ws.on('close', function() {
@@ -284,7 +286,7 @@ describe('WebSocket', function() {
       });
 
       it('set to closed once connection is terminated', function(done) {
-        server.createServer(++port, function(srv) {
+        ws_common.createServer(++port, function(srv) {
           var ws = new WebSocket('ws://localhost:' + port);
           ws.terminate();
           ws.on('close', function() {
@@ -321,7 +323,7 @@ describe('WebSocket', function() {
       });
     });
 
-    server.createServer(++port, function(srv) {
+    ws_common.createServer(++port, function(srv) {
       var ws = new WebSocket('ws://localhost:' + port);
       Object.keys(readyStates).forEach(function(state) {
         describe('.' + state, function() {
@@ -363,7 +365,7 @@ describe('WebSocket', function() {
 
   describe('connection establishing', function() {
     it('can disconnect before connection is established', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.terminate();
         ws.on('open', function() {
@@ -377,7 +379,7 @@ describe('WebSocket', function() {
     });
 
     it('can close before connection is established', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.close(1001);
         ws.on('open', function() {
@@ -410,7 +412,7 @@ describe('WebSocket', function() {
     });
 
     it('invalid server key is denied', function(done) {
-      server.createServer(++port, server.handlers.invalidKey, function(srv) {
+      ws_common.createServer(++port, ws_common.handlers.invalidKey, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {
           srv.close();
@@ -420,7 +422,7 @@ describe('WebSocket', function() {
     });
 
     it('close event is raised when server closes connection', function(done) {
-      server.createServer(++port, server.handlers.closeAfterConnect, function(srv) {
+      ws_common.createServer(++port, ws_common.handlers.closeAfterConnect, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('close', function() {
           srv.close();
@@ -430,7 +432,7 @@ describe('WebSocket', function() {
     });
 
     it('error is emitted if server aborts connection', function(done) {
-      server.createServer(++port, server.handlers.return401, function(srv) {
+      ws_common.createServer(++port, ws_common.handlers.return401, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           assert.fail('connect shouldnt be raised here');
@@ -443,7 +445,7 @@ describe('WebSocket', function() {
     });
 
     it('unexpected response can be read when sent by server', function(done) {
-      server.createServer(++port, server.handlers.return401, function(srv) {
+      ws_common.createServer(++port, ws_common.handlers.return401, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           assert.fail('connect shouldnt be raised here');
@@ -470,7 +472,7 @@ describe('WebSocket', function() {
     });
 
     it('request can be aborted when unexpected response is sent by server', function(done) {
-      server.createServer(++port, server.handlers.return401, function(srv) {
+      ws_common.createServer(++port, ws_common.handlers.return401, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           assert.fail('connect shouldnt be raised here');
@@ -531,7 +533,7 @@ describe('WebSocket', function() {
 
   describe('#ping', function() {
     it('before connect should fail', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {});
         try {
@@ -546,7 +548,7 @@ describe('WebSocket', function() {
     });
 
     it('before connect can silently fail', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {});
         ws.ping('', {}, true);
@@ -557,7 +559,7 @@ describe('WebSocket', function() {
     });
 
     it('without message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.ping();
@@ -571,7 +573,7 @@ describe('WebSocket', function() {
     });
 
     it('with message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.ping('hi');
@@ -586,7 +588,7 @@ describe('WebSocket', function() {
     });
 
     it('can send safely receive numbers as ping payload', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
 
         ws.on('open', function() {
@@ -603,7 +605,7 @@ describe('WebSocket', function() {
     });
 
     it('with encoded message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.ping('hi', {mask: true});
@@ -621,7 +623,7 @@ describe('WebSocket', function() {
 
   describe('#pong', function() {
     it('before connect should fail', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {});
         try {
@@ -636,7 +638,7 @@ describe('WebSocket', function() {
     });
 
     it('before connect can silently fail', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {});
         ws.pong('', {}, true);
@@ -647,7 +649,7 @@ describe('WebSocket', function() {
     });
 
     it('without message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.pong();
@@ -661,7 +663,7 @@ describe('WebSocket', function() {
     });
 
     it('with message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.pong('hi');
@@ -676,7 +678,7 @@ describe('WebSocket', function() {
     });
 
     it('with encoded message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.pong('hi', {mask: true});
@@ -694,7 +696,7 @@ describe('WebSocket', function() {
 
   describe('#send', function() {
     it('very long binary data can be sent and received (with echoing server)', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var array = new Float32Array(5 * 1024 * 1024);
         for (var i = 0; i < array.length; ++i) array[i] = i / 5;
@@ -712,7 +714,7 @@ describe('WebSocket', function() {
     });
 
     it('can send and receive text data', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.send('hi');
@@ -727,7 +729,7 @@ describe('WebSocket', function() {
     });
 
     it('send and receive binary data as an array', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var array = new Float32Array(6);
         for (var i = 0; i < array.length; ++i) array[i] = i / 2;
@@ -746,7 +748,7 @@ describe('WebSocket', function() {
     });
 
     it('binary data can be sent and received as buffer', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var buf = new Buffer('foobar');
         ws.on('open', function() {
@@ -763,7 +765,7 @@ describe('WebSocket', function() {
     });
 
     it('ArrayBuffer is auto-detected without binary flag', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var array = new Float32Array(5);
         for (var i = 0; i < array.length; ++i) array[i] = i / 2;
@@ -781,7 +783,7 @@ describe('WebSocket', function() {
     });
 
     it('Buffer is auto-detected without binary flag', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var buf = new Buffer('foobar');
         ws.on('open', function() {
@@ -798,7 +800,7 @@ describe('WebSocket', function() {
     });
 
     it('before connect should fail', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {});
         try {
@@ -813,7 +815,7 @@ describe('WebSocket', function() {
     });
 
     it('before connect should pass error through callback, if present', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {});
         ws.send('hi', function(error) {
@@ -826,7 +828,7 @@ describe('WebSocket', function() {
     });
 
     it('without data should be successful', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.send();
@@ -841,7 +843,7 @@ describe('WebSocket', function() {
     });
 
     it('calls optional callback when flushed', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.send('hi', function() {
@@ -854,7 +856,7 @@ describe('WebSocket', function() {
     });
 
     it('with unencoded message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.send('hi');
@@ -869,7 +871,7 @@ describe('WebSocket', function() {
     });
 
     it('with encoded message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.send('hi', {mask: true});
@@ -885,7 +887,7 @@ describe('WebSocket', function() {
     });
 
     it('with unencoded binary message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var array = new Float32Array(5);
         for (var i = 0; i < array.length; ++i) array[i] = i / 2;
@@ -903,7 +905,7 @@ describe('WebSocket', function() {
     });
 
     it('with encoded binary message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var array = new Float32Array(5);
         for (var i = 0; i < array.length; ++i) array[i] = i / 2;
@@ -922,11 +924,11 @@ describe('WebSocket', function() {
     });
 
     it('with binary stream will send fragmented data', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var callbackFired = false;
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.bufferSize = 100;
           ws.send(fileStream, {binary: true}, function(error) {
             assert.equal(null, error);
@@ -935,7 +937,7 @@ describe('WebSocket', function() {
         });
         srv.on('message', function(data, flags) {
           assert.ok(flags.binary);
-          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/textfile'), data));
+          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile'), data));
           ws.terminate();
         });
         ws.on('close', function() {
@@ -947,11 +949,11 @@ describe('WebSocket', function() {
     });
 
     it('with text stream will send fragmented data', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var callbackFired = false;
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
           fileStream.bufferSize = 100;
           ws.send(fileStream, {binary: false}, function(error) {
@@ -961,7 +963,7 @@ describe('WebSocket', function() {
         });
         srv.on('message', function(data, flags) {
           assert.ok(!flags.binary);
-          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/textfile', 'utf8'), data));
+          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile', 'utf8'), data));
           ws.terminate();
         });
         ws.on('close', function() {
@@ -973,10 +975,10 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent send to be delayed in order', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
           fileStream.bufferSize = 100;
           ws.send(fileStream);
@@ -988,7 +990,7 @@ describe('WebSocket', function() {
           ++receivedIndex;
           if (receivedIndex == 1) {
             assert.ok(!flags.binary);
-            assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/textfile', 'utf8'), data));
+            assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile', 'utf8'), data));
           }
           else if (receivedIndex == 2) {
             assert.ok(!flags.binary);
@@ -1006,10 +1008,10 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent stream to be delayed in order', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
           fileStream.bufferSize = 100;
           ws.send(fileStream);
@@ -1025,7 +1027,7 @@ describe('WebSocket', function() {
           ++receivedIndex;
           if (receivedIndex == 1) {
             assert.ok(!flags.binary);
-            assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/textfile', 'utf8'), data));
+            assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile', 'utf8'), data));
           }
           else if (receivedIndex == 2) {
             assert.ok(!flags.binary);
@@ -1039,10 +1041,10 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent ping to be delivered', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
           fileStream.bufferSize = 100;
           ws.send(fileStream);
@@ -1051,7 +1053,7 @@ describe('WebSocket', function() {
         var receivedIndex = 0;
         srv.on('message', function(data, flags) {
           assert.ok(!flags.binary);
-          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/textfile', 'utf8'), data));
+          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile', 'utf8'), data));
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
@@ -1070,10 +1072,10 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent pong to be delivered', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
           fileStream.bufferSize = 100;
           ws.send(fileStream);
@@ -1082,7 +1084,7 @@ describe('WebSocket', function() {
         var receivedIndex = 0;
         srv.on('message', function(data, flags) {
           assert.ok(!flags.binary);
-          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/textfile', 'utf8'), data));
+          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile', 'utf8'), data));
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
@@ -1101,10 +1103,10 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent close to be delivered', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
           fileStream.bufferSize = 100;
           ws.send(fileStream);
@@ -1118,7 +1120,7 @@ describe('WebSocket', function() {
         ws.on('error', function() { /* That's quite alright -- a send was attempted after close */ });
         srv.on('message', function(data, flags) {
           assert.ok(!flags.binary);
-          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/textfile', 'utf8'), data));
+          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile', 'utf8'), data));
         });
         srv.on('close', function(code, data) {
           assert.equal(1000, code);
@@ -1130,7 +1132,7 @@ describe('WebSocket', function() {
 
   describe('#stream', function() {
     it('very long binary data can be streamed', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var buffer = new Buffer(10 * 1024);
         for (var i = 0; i < buffer.length; ++i) buffer[i] = i % 0xff;
@@ -1159,7 +1161,7 @@ describe('WebSocket', function() {
     });
 
     it('before connect should pass error through callback', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {});
         ws.stream(function(error) {
@@ -1172,7 +1174,7 @@ describe('WebSocket', function() {
     });
 
     it('without callback should fail', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var payload = 'HelloWorld';
         ws.on('open', function() {
@@ -1189,7 +1191,7 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent send to be delayed in order', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var payload = 'HelloWorld';
         ws.on('open', function() {
@@ -1229,7 +1231,7 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent stream to be delayed in order', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var payload = 'HelloWorld';
         ws.on('open', function() {
@@ -1275,7 +1277,7 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent ping to be delivered', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var payload = 'HelloWorld';
         ws.on('open', function() {
@@ -1313,7 +1315,7 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent pong to be delivered', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var payload = 'HelloWorld';
         ws.on('open', function() {
@@ -1351,7 +1353,7 @@ describe('WebSocket', function() {
     });
 
     it('will cause intermittent close to be delivered', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var payload = 'HelloWorld';
         var errorGiven = false;
@@ -1391,11 +1393,11 @@ describe('WebSocket', function() {
 
   describe('#close', function() {
     it('will raise error callback, if any, if called during send stream', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var errorGiven = false;
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
           fileStream.bufferSize = 100;
           ws.send(fileStream, function(error) {
@@ -1415,7 +1417,7 @@ describe('WebSocket', function() {
     });
 
     it('without invalid first argument throws exception', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           try {
@@ -1431,7 +1433,7 @@ describe('WebSocket', function() {
     });
 
     it('without reserved error code 1004 throws exception', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           try {
@@ -1447,7 +1449,7 @@ describe('WebSocket', function() {
     });
 
     it('without message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.close(1000);
@@ -1462,7 +1464,7 @@ describe('WebSocket', function() {
     });
 
     it('with message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.close(1000, 'some reason');
@@ -1478,7 +1480,7 @@ describe('WebSocket', function() {
     });
 
     it('with encoded message is successfully transmitted to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('open', function() {
           ws.close(1000, 'some reason', {mask: true});
@@ -1494,7 +1496,7 @@ describe('WebSocket', function() {
     });
 
     it('ends connection to the server', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var connectedOnce = false;
         ws.on('open', function() {
@@ -1535,7 +1537,7 @@ describe('WebSocket', function() {
 
   describe('W3C API emulation', function() {
     it('should not throw errors when getting and setting', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var listener = function () {};
 
@@ -1556,7 +1558,7 @@ describe('WebSocket', function() {
     });
 
     it('should work the same as the EventEmitter api', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         var listener = function() {};
         var message = 0;
@@ -1596,7 +1598,7 @@ describe('WebSocket', function() {
     });
 
     it('should receive text data wrapped in a MessageEvent when using addEventListener', function(done) {
-      server.createServer(++port, function(srv) {
+      ws_common.createServer(++port, function(srv) {
         var ws = new WebSocket('ws://localhost:' + port);
         ws.addEventListener('open', function() {
           ws.send('hi');
@@ -1699,8 +1701,8 @@ describe('WebSocket', function() {
   describe('ssl', function() {
     it('can connect to secure websocket server', function(done) {
       var options = {
-        key: fs.readFileSync('test/fixtures/key.pem'),
-        cert: fs.readFileSync('test/fixtures/certificate.pem')
+        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
       };
       var app = https.createServer(options, function (req, res) {
         res.writeHead(200);
@@ -1720,14 +1722,14 @@ describe('WebSocket', function() {
 
     it('can connect to secure websocket server with client side certificate', function(done) {
       var options = {
-        key: fs.readFileSync('test/fixtures/key.pem'),
-        cert: fs.readFileSync('test/fixtures/certificate.pem'),
-        ca: [fs.readFileSync('test/fixtures/ca1-cert.pem')],
+        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem'),
+        ca: [fs.readFileSync('test/fixtures/websockets/ca1-cert.pem')],
         requestCert: true
       };
       var clientOptions = {
-        key: fs.readFileSync('test/fixtures/agent1-key.pem'),
-        cert: fs.readFileSync('test/fixtures/agent1-cert.pem')
+        key: fs.readFileSync('test/fixtures/websockets/agent1-key.pem'),
+        cert: fs.readFileSync('test/fixtures/websockets/agent1-cert.pem')
       };
       var app = https.createServer(options, function (req, res) {
         res.writeHead(200);
@@ -1755,8 +1757,8 @@ describe('WebSocket', function() {
 
     it('cannot connect to secure websocket server via ws://', function(done) {
       var options = {
-        key: fs.readFileSync('test/fixtures/key.pem'),
-        cert: fs.readFileSync('test/fixtures/certificate.pem')
+        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
       };
       var app = https.createServer(options, function (req, res) {
         res.writeHead(200);
@@ -1776,8 +1778,8 @@ describe('WebSocket', function() {
 
     it('can send and receive text data', function(done) {
       var options = {
-        key: fs.readFileSync('test/fixtures/key.pem'),
-        cert: fs.readFileSync('test/fixtures/certificate.pem')
+        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
       };
       var app = https.createServer(options, function (req, res) {
         res.writeHead(200);
@@ -1803,8 +1805,8 @@ describe('WebSocket', function() {
 
     it('can send and receive very long binary data', function(done) {
       var options = {
-        key: fs.readFileSync('test/fixtures/key.pem'),
-        cert: fs.readFileSync('test/fixtures/certificate.pem')
+        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
       }
       var app = https.createServer(options, function (req, res) {
         res.writeHead(200);
@@ -2057,7 +2059,7 @@ describe('WebSocket', function() {
         var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: true});
         var callbackFired = false;
         ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/textfile');
+          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.bufferSize = 100;
           ws.send(fileStream, {binary: true, compress: true}, function(error) {
             assert.equal(null, error);
@@ -2073,7 +2075,7 @@ describe('WebSocket', function() {
       wss.on('connection', function(ws) {
         ws.on('message', function(data, flags) {
           assert.ok(flags.binary);
-          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/textfile'), data));
+          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile'), data));
           ws.terminate();
         });
       });
