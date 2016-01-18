@@ -16,8 +16,9 @@ if (common.isWindows) {
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
 if (cluster.isMaster) {
+  const largeTries = common.isAix ? 112 : 128; 
   const cpus = os.cpus().length;
-  const tries = cpus > 8 ? 128 : cpus * 16;
+  const tries = cpus > 8 ? largeTries : cpus * 16;
 
   const worker1 = cluster.fork();
   worker1.on('message', common.mustCall(() => {
