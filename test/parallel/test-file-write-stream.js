@@ -15,7 +15,8 @@ var EXPECTED = '012345678910';
 var callbacks = {
   open: -1,
   drain: -2,
-  close: -1
+  close: -1,
+  error: -1
 };
 
 file
@@ -25,6 +26,10 @@ file
     assert.equal('number', typeof fd);
   })
   .on('error', function(err) {
+    // we're expecting write after end error
+    if (err.message === 'write after end') {
+      return callbacks.error++;
+    }
     throw err;
   })
   .on('drain', function() {
@@ -43,10 +48,9 @@ file
     assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
 
     callbacks.close++;
-    assert.throws(function() {
-      console.error('write after end should not be allowed');
-      file.write('should not work anymore');
-    });
+
+    console.error('write after end should not be allowed');
+    file.write('should not work anymore');
 
     fs.unlinkSync(fn);
   });
