@@ -8,8 +8,7 @@ const cluster = require('cluster');
 
 if (cluster.isMaster) {
   cluster.on('exit', (worker, code) => {
-    if (code)
-      common.fail('worker exited with error');
+    assert.strictEqual(code, 0, 'worker exited with error');
   });
 
   return cluster.fork();
