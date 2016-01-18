@@ -370,18 +370,27 @@ span.type {
   width: 234px;
   background: #333;
   position: fixed;
+  left: 0;
+  top: 0;
   height: 100%;
-  overflow-y: scroll;
+  overflow: hidden;
 }
 
-#column2.interior:after {
+#column2 .no-scrollbar {
+  overflow-y: scroll;
+  height: 100%;
+  width: 100%;
+  padding-right: 20px;
+}
+
+#column2 .no-scrollbar:after {
   content: '';
   position: fixed;
   bottom: 0;
   left: 0;
   width: 234px;
   height: 4em;
-  background: linear-gradient(rgba(242,245,240, 0), rgba(51, 51, 51, 1));
+  background: linear-gradient(rgba(51, 51, 51, 0), rgba(51, 51, 51, 1));
   pointer-events: none;
 }
 
