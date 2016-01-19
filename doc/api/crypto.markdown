@@ -722,8 +722,8 @@ The `private_key` argument can be an object or a string. If `private_key` is a
 string, it is treated as a raw key with no passphrase. If `private_key` is an
 object, it is interpreted as a hash containing two properties:
 
-* `key` : A string holding the PEM encoded private key
-* `passphrase` : A string of passphrase for the private key
+* `key` : {String} - PEM encoded private key
+* `passphrase` : {String} - passphrase for the private key
 
 The `output_format` can specify one of `'binary'`, `'hex'` or `'base64'`. If
 `output_format` is provided a string is returned; otherwise a [`Buffer`][] is
@@ -862,16 +862,16 @@ method should not be used.
 
 The optional `details` argument is a hash object with keys:
 
-* `pfx` : A string or [`Buffer`][] holding the PFX or PKCS12 encoded private
+* `pfx` : {String|Buffer} - PFX or PKCS12 encoded private
   key, certificate and CA certificates
-* `key` : A string holding the PEM encoded private key
-* `passphrase` : The string passphrase for the private key or PFX
-* `cert` : A string holding the PEM encoded certificate
-* `ca` : Either a string or array of strings of PEM encoded CA
+* `key` : {String} - PEM encoded private key
+* `passphrase` : {String} - passphrase for the private key or PFX
+* `cert` : {String} - PEM encoded certificate
+* `ca` : {String|Array} - Either a string or array of strings of PEM encoded CA
   certificates to trust.
-* `crl` : Either a string or array of strings of PEM encoded CRLs
+* `crl` : {String|Array} - Either a string or array of strings of PEM encoded CRLs
   (Certificate Revocation List)
-* `ciphers`: A string using the [OpenSSL cipher list format][] describing the
+* `ciphers`: {String} using the [OpenSSL cipher list format][] describing the
   cipher algorithms to use or exclude.
 
 If no 'ca' details are given, Node.js will use Mozilla's default
@@ -1144,8 +1144,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
 If `private_key` is an object, it is interpreted as a hash object with the
 keys:
 
-* `key` : A string holding the PEM encoded private key
-* `passphrase` : An optional string of passphrase for the private key
+* `key` : {String} - PEM encoded private key
+* `passphrase` : {String} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
   * `constants.RSA_NO_PADDING`
   * `constants.RSA_PKCS1_PADDING`
@@ -1162,8 +1162,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 If `private_key` is an object, it is interpreted as a hash object with the
 keys:
 
-* `key` : A string holding the PEM encoded private key
-* `passphrase` : An optional string of passphrase for the private key
+* `key` : {String} - PEM encoded private key
+* `passphrase` : {String} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
   * `constants.RSA_NO_PADDING`
   * `constants.RSA_PKCS1_PADDING`
@@ -1180,8 +1180,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 If `public_key` is an object, it is interpreted as a hash object with the
 keys:
 
-* `key` : A string holding the PEM encoded public key
-* `passphrase` : An optional string of passphrase for the private key
+* `key` : {String} - PEM encoded public key
+* `passphrase` : {String} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
   * `constants.RSA_NO_PADDING`
   * `constants.RSA_PKCS1_PADDING`
@@ -1201,8 +1201,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
 If `public_key` is an object, it is interpreted as a hash object with the
 keys:
 
-* `key` : A string holding the PEM encoded public key
-* `passphrase` : An optional string of passphrase for the private key
+* `key` : {String} - PEM encoded public key
+* `passphrase` : {String} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
   * `constants.RSA_NO_PADDING`
   * `constants.RSA_PKCS1_PADDING`

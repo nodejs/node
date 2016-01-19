@@ -164,7 +164,7 @@ Not all streams will emit the `'close'` event.
 
 #### Event: 'data'
 
-* `chunk` {Buffer | String} The chunk of data.
+* `chunk` {Buffer|String} The chunk of data.
 
 Attaching a `'data'` event listener to a stream that has not been
 explicitly paused will switch the stream into flowing mode. Data will
@@ -254,7 +254,7 @@ end
 
 #### readable.isPaused()
 
-* Return: `Boolean`
+* Return: {Boolean}
 
 This method returns whether or not the `readable` has been **explicitly**
 paused by client code (using [`stream.pause()`][stream-pause] without a
@@ -293,7 +293,7 @@ readable.on('data', (chunk) => {
 
 #### readable.pipe(destination[, options])
 
-* `destination` {[Writable][] Stream} The destination for writing data
+* `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
   * `end` {Boolean} End the writer when the reader ends. Default = `true`
 
@@ -346,7 +346,7 @@ the process exits, regardless of the specified options.
 #### readable.read([size])
 
 * `size` {Number} Optional argument to specify how much data to read.
-* Return {String | Buffer | null}
+* Return {String|Buffer|Null}
 
 The `read()` method pulls some data out of the internal buffer and
 returns it. If there is no data available, then it will return
@@ -427,7 +427,7 @@ readable.on('data', (chunk) => {
 
 #### readable.unpipe([destination])
 
-* `destination` {[Writable][] Stream} Optional specific stream to unpipe
+* `destination` {stream.Writable} Optional specific stream to unpipe
 
 This method will remove the hooks set up for a previous [`stream.pipe()`][]
 call.
@@ -453,7 +453,7 @@ setTimeout(() => {
 
 #### readable.unshift(chunk)
 
-* `chunk` {Buffer | String} Chunk of data to unshift onto the read queue
+* `chunk` {Buffer|String} Chunk of data to unshift onto the read queue
 
 This is useful in certain cases where a stream is being consumed by a
 parser, which needs to "un-consume" some data that it has
@@ -605,7 +605,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 
 #### Event: 'error'
 
-* {Error object}
+* {Error}
 
 Emitted if there was an error when writing or piping data.
 
@@ -627,7 +627,7 @@ writer.on('finish', () => {
 
 #### Event: 'pipe'
 
-* `src` {[Readable][] Stream} source stream that is piping to this writable
+* `src` {stream.Readable} source stream that is piping to this writable
 
 This is emitted whenever the [`stream.pipe()`][] method is called on a readable
 stream, adding this writable to its set of destinations.
@@ -670,7 +670,7 @@ Buffered data will be flushed either at [`stream.uncork()`][] or at
 
 #### writable.end([chunk][, encoding][, callback])
 
-* `chunk` {String | Buffer} Optional data to write
+* `chunk` {String|Buffer} Optional data to write
 * `encoding` {String} The encoding, if `chunk` is a String
 * `callback` {Function} Optional callback for when the stream is finished
 
@@ -700,7 +700,7 @@ Flush all data, buffered since [`stream.cork()`][] call.
 
 #### writable.write(chunk[, encoding][, callback])
 
-* `chunk` {String | Buffer} The data to write
+* `chunk` {String|Buffer} The data to write
 * `encoding` {String} The encoding, if `chunk` is a String
 * `callback` {Function} Callback for when this chunk of data is flushed
 * Returns: {Boolean} `true` if the data was handled completely.
@@ -901,8 +901,9 @@ becomes available. There is no need, for example to "wait" until
 
 #### readable.push(chunk[, encoding])
 
-* `chunk` {Buffer | null | String} Chunk of data to push into the read queue
-* `encoding` {String} Encoding of String chunks. Must be a valid
+
+* `chunk` {Buffer|Null|String} Chunk of data to push into the read queue
+* `encoding` {String} Encoding of String chunks.  Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * return {Boolean} Whether or not more pushes should be performed
 
@@ -1167,7 +1168,7 @@ your own extension classes.
 
 #### transform.\_transform(chunk, encoding, callback)
 
-* `chunk` {Buffer | String} The chunk to be transformed. Will **always**
+* `chunk` {Buffer|String} The chunk to be transformed. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
 * `encoding` {String} If the chunk is a string, then this is the
   encoding type. If chunk is a buffer, then this is the special
@@ -1328,7 +1329,7 @@ initialized.
 
 #### writable.\_write(chunk, encoding, callback)
 
-* `chunk` {Buffer | String} The chunk to be written. Will **always**
+* `chunk` {Buffer|String} The chunk to be written. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
 * `encoding` {String} If the chunk is a string, then this is the
   encoding type. If chunk is a buffer, then this is the special
