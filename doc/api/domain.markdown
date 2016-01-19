@@ -313,7 +313,7 @@ to the domain.
 
 ### domain.add(emitter)
 
-* `emitter` {EventEmitter | Timer} emitter or timer to be added to the domain
+* `emitter` {EventEmitter|Timer} emitter or timer to be added to the domain
 
 Explicitly adds an emitter to the domain.  If any event handlers called by
 the emitter throw an error, or if the emitter emits an `'error'` event, it
@@ -329,7 +329,7 @@ from that one, and bound to this one instead.
 
 ### domain.remove(emitter)
 
-* `emitter` {EventEmitter | Timer} emitter or timer to be removed from the domain
+* `emitter` {EventEmitter|Timer} emitter or timer to be removed from the domain
 
 The opposite of [`domain.add(emitter)`][].  Removes domain handling from the
 specified emitter.
