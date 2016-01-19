@@ -132,7 +132,7 @@ exec('my.bat', (err, stdout, stderr) => {
   * `error` {Error}
   * `stdout` {Buffer}
   * `stderr` {Buffer}
-* Return: ChildProcess object
+* Return: {ChildProcess}
 
 Spawns a shell then executes the `command` within that shell, buffering any
 generated output.
@@ -199,7 +199,7 @@ replace the existing process and uses a shell to execute the command.*
   * `error` {Error}
   * `stdout` {Buffer}
   * `stderr` {Buffer}
-* Return: ChildProcess object
+* Return: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
 except that it does not spawn a shell. Rather, the specified executable `file`
@@ -235,7 +235,7 @@ const child = execFile('node', ['--version'], (error, stdout, stderr) => {
     [`stdio`][] for more details (default is false)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-* Return: ChildProcess object
+* Return: {ChildProcess}
 
 The `child_process.fork()` method is a special case of
 [`child_process.spawn()`][] used specifically to spawn new Node.js processes.
@@ -277,7 +277,7 @@ not clone the current process.*
     [`options.detached`][])
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-* return: {ChildProcess object}
+* return: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
 `command`, with command line arguments in `args`. If omitted, `args` defaults
@@ -626,7 +626,7 @@ disconnecting it is no longer possible to send or receive messages, and the
 
 ### Event:  'error'
 
-* `err` {Error Object} the error.
+* `err` {Error} the error.
 
 The `'error'` event is emitted whenever:
 
@@ -663,7 +663,7 @@ See `waitpid(2)`.
 ### Event: 'message'
 
 * `message` {Object} a parsed JSON object or primitive value.
-* `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
+* `sendHandle` {Handle} a [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
 The `'message'` event is triggered when a child process uses `process.send()`
@@ -727,7 +727,7 @@ See `kill(2)`
 
 ### child.pid
 
-* {Integer}
+* {Number} Integer
 
 Returns the process identifier (PID) of the child process.
 
@@ -744,9 +744,9 @@ grep.stdin.end();
 ### child.send(message[, sendHandle][, callback])
 
 * `message` {Object}
-* `sendHandle` {Handle object}
+* `sendHandle` {Handle}
 * `callback` {Function}
-* Return: Boolean
+* Return: {Boolean}
 
 When an IPC channel has been established between the parent and child (
 i.e. when using [`child_process.fork()`][]), the `child.send()` method can be
@@ -886,7 +886,7 @@ this occurs.
 
 ### child.stderr
 
-* {Stream object}
+* {Stream}
 
 A `Readable Stream` that represents the child process's `stderr`.
 
@@ -898,7 +898,7 @@ the same value.
 
 ### child.stdin
 
-* {Stream object}
+* {Stream}
 
 A `Writable Stream` that represents the child process's `stdin`.
 
@@ -950,7 +950,7 @@ assert.equal(child.stdio[2], child.stderr);
 
 ### child.stdout
 
-* {Stream object}
+* {Stream}
 
 A `Readable Stream` that represents the child process's `stdout`.
 
