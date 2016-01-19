@@ -67,8 +67,10 @@ rules:
   eol-last: 2
   ## no trailing spaces
   no-trailing-spaces: 2
-  # require space after keywords, eg 'for (..)'
+  ## require space after keywords, eg 'for (..)'
   space-after-keywords: 2
+  ## no leading/trailing spaces in parens
+  space-in-parens: [2, "never"]
 
   # ECMAScript 6
   # list: http://eslint.org/docs/rules/#ecmascript-6
