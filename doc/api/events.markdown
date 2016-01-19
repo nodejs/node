@@ -339,7 +339,8 @@ Removes the specified `listener` from the listener array for the specified
 `removeListener` will remove, at most, one instance of a listener from the
 listener array. If any single listener has been added multiple times to the
 listener array for the specified `event`, then `removeListener` must be called
-multiple times to remove each instance.
+multiple times to remove each instance. Listeners removed from an event from
+within the emit cycle of that event will still be called in that emit cycle.  
 
 Because listeners are managed using an internal array, calling this will
 change the position indices of any listener registered *after* the listener
