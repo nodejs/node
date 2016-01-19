@@ -33,7 +33,8 @@ addlicense "c-ares" "deps/cares" \
            "$(sed -e '/^ \*\/$/,$d' -e '/^$/d' -e 's/^[/ ]\* *//' ${rootdir}/deps/cares/src/ares_init.c)"
 addlicense "HTTP Parser" "deps/http_parser" "$(cat deps/http_parser/LICENSE-MIT)"
 addlicense "ICU" "deps/icu" \
-           "$(sed -e '1,/COPYRIGHT AND PERMISSION NOTICE/d' -e '/^<hr/,$d' -e 's/^<\/*p>$//' ${rootdir}/deps/icu/license.html)"
+           "$(sed -e '1,/ICU License - ICU 1\.8\.1 and later/d' -e :a \
+             -e 's/<[^>]*>//g;s/	/ /g;s/ +$//;/</N;//ba' ${rootdir}/deps/icu/license.html)"
 addlicense "libuv" "deps/uv" "$(cat ${rootdir}/deps/uv/LICENSE)"
 addlicense "OpenSSL" "deps/openssl" \
            "$(sed -e '/^ \*\/$/,$d' -e '/^ [^*].*$/d' -e '/\/\*.*$/d' -e '/^$/d' -e 's/^[/ ]\* *//' ${rootdir}/deps/openssl/openssl/LICENSE)"
@@ -53,7 +54,7 @@ addlicense "marked" "tools/doc/node_modules/marked" \
 
 # Testing tools
 addlicense "cpplint.py" "tools/cpplint.py" \
-           "$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' ${rootdir}/tools/cpplint.py | tail +3)"
+           "$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' ${rootdir}/tools/cpplint.py | tail -n +3)"
 addlicense "ESLint" "tools/eslint" "$(cat ${rootdir}/tools/eslint/LICENSE)"
 addlicense "gtest" "deps/gtest" "$(cat ${rootdir}/deps/gtest/LICENSE)"
 addlicense "node-weak" "test/gc/node_modules/weak" \
