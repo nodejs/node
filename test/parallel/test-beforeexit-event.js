@@ -5,7 +5,7 @@ var common = require('../common');
 var revivals = 0;
 var deaths = 0;
 
-process.on('beforeExit', function() { deaths++; } );
+process.on('beforeExit', function() { deaths++; });
 
 process.once('beforeExit', tryImmediate);
 
