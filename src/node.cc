@@ -2407,27 +2407,30 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  Local<String> module = args[0]->ToString(env->isolate());
+  Local<String> module_name = args[0]->ToString(env->isolate());
 
   Local<Object> cache = env->binding_cache_object();
-  Local<Value> exports_v = cache->Get(module);
+  Local<Value> exports_v = cache->Get(module_name);
 
   if (exports_v->IsObject())
     return args.GetReturnValue().Set(exports_v.As<Object>());
 
-  node::Utf8Value module_v(env->isolate(), module);
-  node_module* mod = get_linked_module(*module_v);
+  node::Utf8Value module_name_v(env->isolate(), module_name);
+  node_module* mod = get_linked_module(*module_name_v);
 
   if (mod == nullptr) {
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
              "No such module was linked: %s",
-             *module_v);
+             *module_name_v);
     return env->ThrowError(errmsg);
   }
 
+  Local<Object> module = Object::New(env->isolate());
   Local<Object> exports = Object::New(env->isolate());
+  Local<String> exports_prop = String::NewFromUtf8(env->isolate(), "exports");
+  module->Set(exports_prop, exports);
 
   if (mod->nm_context_register_func != nullptr) {
     mod->nm_context_register_func(exports,
@@ -2440,7 +2443,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Linked module has no declared entry point.");
   }
 
-  cache->Set(module, exports);
+  cache->Set(module_name, module->Get(exports_prop));
 
   args.GetReturnValue().Set(exports);
 }
