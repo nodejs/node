@@ -30,7 +30,7 @@ clearTimeout(id);
 
 setInterval(function() {
   interval_count += 1;
-  var endtime = new Date( );
+  var endtime = new Date();
 
   var diff = endtime - starttime;
   assert.ok(diff > 0);

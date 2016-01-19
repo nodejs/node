@@ -17,7 +17,7 @@ var options = {
 var server = http.createServer(function(req, res) {
   const m = /\/(.*)/.exec(req.url);
   const reqid = parseInt(m[1], 10);
-  if ( reqid % 2 ) {
+  if (reqid % 2) {
     // do not reply the request
   } else {
     res.writeHead(200, {'Content-Type': 'text/plain'});
