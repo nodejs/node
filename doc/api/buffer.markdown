@@ -473,7 +473,7 @@ console.log(buf1.equals(buf3));
 
 ### buf.fill(value[, offset[, end]])
 
-* `value` {String or Number}
+* `value` {String|Number}
 * `offset` {Number} Default: 0
 * `end` {Number} Default: `buffer.length`
 * Return: {Buffer}
@@ -490,7 +490,7 @@ console.log(b.toString());
 
 ### buf.indexOf(value[, byteOffset][, encoding])
 
-* `value` {String, Buffer or Number}
+* `value` {String|Buffer|Number}
 * `byteOffset` {Number} Default: 0
 * `encoding` {String} Default: `'utf8'`
 * Return: {Number}
@@ -527,7 +527,7 @@ utf16Buffer.indexOf('\u03a3', -4, 'ucs2');
 
 ### buf.includes(value[, byteOffset][, encoding])
 
-* `value` {String, Buffer or Number}
+* `value` {String|Buffer|Number}
 * `byteOffset` {Number} Default: 0
 * `encoding` {String} Default: `'utf8'`
 * Return: {Boolean}
