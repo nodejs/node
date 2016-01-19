@@ -19,14 +19,14 @@ event is not emitted until all connections are ended.
 
 ### Event: 'connection'
 
-* {Socket object} The connection object
+* {net.Socket} The connection object
 
 Emitted when a new connection is made. `socket` is an instance of
 `net.Socket`.
 
 ### Event: 'error'
 
-* {Error Object}
+* {Error}
 
 Emitted when an error occurs.  The [`'close'`][] event will be called directly
 following this event.  See example in discussion of `server.listen`.
@@ -275,7 +275,7 @@ See [`connect()`][].
 
 ### Event: 'data'
 
-* {Buffer object}
+* {Buffer}
 
 Emitted when data is received.  The argument `data` will be a `Buffer` or
 `String`.  Encoding of data is set by `socket.setEncoding()`.
@@ -302,7 +302,7 @@ caveat that the user is required to `end()` their side now.
 
 ### Event: 'error'
 
-* {Error object}
+* {Error}
 
 Emitted when an error occurs.  The `'close'` event will be called directly
 following this event.
@@ -312,9 +312,9 @@ following this event.
 Emitted after resolving the hostname but before connecting.
 Not applicable to UNIX sockets.
 
-* `err` {Error | Null} The error object.  See [`dns.lookup()`][].
+* `err` {Error|Null} The error object.  See [`dns.lookup()`][].
 * `address` {String} The IP address.
-* `family` {String | Null} The address type.  See [`dns.lookup()`][].
+* `family` {String|Null} The address type.  See [`dns.lookup()`][].
 
 ### Event: 'timeout'
 
