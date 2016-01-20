@@ -2,7 +2,6 @@
 const assert = require('assert');
 const Receiver = require('../../lib/Receiver');
 const PerMessageDeflate = require('../../lib/PerMessageDeflate');
-require('should');
 const ws_common = require('../common-websockets');
 
 describe('Receiver', function() {
@@ -12,7 +11,7 @@ describe('Receiver', function() {
         var p = Receiver();
       }
       catch (e) {
-        e.should.be.instanceof(TypeError);
+        assert.ok(e instanceof TypeError);
         done();
       }
     });
@@ -29,7 +28,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse close message', function() {
     var p = new Receiver();
@@ -41,7 +40,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotClose.should.be.ok;
+    assert.ok(gotClose);
   });
   it('can parse masked text message', function() {
     var p = new Receiver();
@@ -54,7 +53,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse a masked text message longer than 125 bytes', function() {
     var p = new Receiver();
@@ -69,7 +68,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse a really long masked text message', function() {
     var p = new Receiver();
@@ -84,7 +83,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse a fragmented masked text message of 300 bytes', function() {
     var p = new Receiver();
@@ -103,7 +102,7 @@ describe('Receiver', function() {
 
     p.add(ws_common.getBufferFromHexString(packet1));
     p.add(ws_common.getBufferFromHexString(packet2));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse a ping message', function() {
     var p = new Receiver();
@@ -117,7 +116,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotPing.should.be.ok;
+    assert.ok(gotPing);
   });
   it('can parse a ping with no data', function() {
     var p = new Receiver();
@@ -129,7 +128,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotPing.should.be.ok;
+    assert.ok(gotPing);
   });
   it('can parse a fragmented masked text message of 300 bytes with a ping in the middle', function() {
     var p = new Receiver();
@@ -159,8 +158,8 @@ describe('Receiver', function() {
     p.add(ws_common.getBufferFromHexString(packet1));
     p.add(ws_common.getBufferFromHexString(pingPacket));
     p.add(ws_common.getBufferFromHexString(packet2));
-    gotData.should.be.ok;
-    gotPing.should.be.ok;
+    assert.ok(gotData);
+    assert.ok(gotPing);
   });
   it('can parse a fragmented masked text message of 300 bytes with a ping in the middle, which is delievered over sevaral tcp packets', function() {
     var p = new Receiver();
@@ -194,8 +193,8 @@ describe('Receiver', function() {
     for (var i = 0; i < buffers.length; ++i) {
       p.add(buffers[i]);
     }
-    gotData.should.be.ok;
-    gotPing.should.be.ok;
+    assert.ok(gotData);
+    assert.ok(gotPing);
   });
   it('can parse a 100 byte long masked binary message', function() {
     var p = new Receiver();
@@ -212,7 +211,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse a 256 byte long masked binary message', function() {
     var p = new Receiver();
@@ -229,7 +228,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse a 200kb long masked binary message', function() {
     var p = new Receiver();
@@ -246,7 +245,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse a 200kb long unmasked binary message', function() {
     var p = new Receiver();
@@ -263,7 +262,7 @@ describe('Receiver', function() {
     };
 
     p.add(ws_common.getBufferFromHexString(packet));
-    gotData.should.be.ok;
+    assert.ok(gotData);
   });
   it('can parse compressed message', function(done) {
     var perMessageDeflate = new PerMessageDeflate();

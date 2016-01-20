@@ -19,7 +19,7 @@
   },
   "scripts": {
     "flags": "",
-    "test": "NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_PATH=lib mocha -t 5000 -s 2400 test/*.test.js",
+    "test": "NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_PATH=lib mocha -t 5000 -s 2400 test/parallel/*.js",
     "integration": "NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_PATH=lib mocha -t 5000 -s 6000 test/*.integration.js",
     "bench": "node bench/sender.benchmark.js && node bench/parser.benchmark.js",
     "autobahn": "NODE_PATH=lib node test/autobahn.js",
@@ -31,7 +31,6 @@
     "benchmark": "0.3.x",
     "expect.js": "0.3.x",
     "mocha": "2.3.x",
-    "should": "8.0.x",
     "tinycolor": "0.0.x"
   }
 }

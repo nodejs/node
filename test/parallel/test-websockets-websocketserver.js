@@ -4,7 +4,7 @@ const https = require('https');
 const WebSocket = require('../../');
 const WebSocketServer = WebSocket.Server;
 const fs = require('fs');
-const should = require('should');
+const assert = require('assert');
 
 var port = 8000;
 
@@ -29,7 +29,7 @@ describe('WebSocketServer', function() {
   describe('#ctor', function() {
     it('should return a new instance if called without new', function(done) {
       var ws = WebSocketServer({noServer: true});
-      ws.should.be.an.instanceOf(WebSocketServer);
+      assert.ok(ws instanceof WebSocketServer);
       done();
     });
 
@@ -41,7 +41,7 @@ describe('WebSocketServer', function() {
       catch (e) {
         gotException = true;
       }
-      gotException.should.be.ok;
+      assert.ok(gotException);
     });
 
     it('throws an error if no port or server is specified', function() {
@@ -52,7 +52,7 @@ describe('WebSocketServer', function() {
       catch (e) {
         gotException = true;
       }
-      gotException.should.be.ok;
+      assert.ok(gotException);
     });
 
     it('does not throw an error if no port or server is specified, when the noServer option is true', function() {
@@ -63,7 +63,7 @@ describe('WebSocketServer', function() {
       catch (e) {
         gotException = true;
       }
-      gotException.should.eql(false);
+      assert.equal(gotException, false);
     });
 
     it('emits an error if http server bind fails', function(done) {
@@ -104,10 +104,10 @@ describe('WebSocketServer', function() {
         http.get('http://localhost:' + port, function (res) {
           var body = '';
 
-          res.statusCode.should.equal(426);
+          assert.equal(res.statusCode, 426);
           res.on('data', function (chunk) { body += chunk; });
           res.on('end', function () {
-            body.should.equal(http.STATUS_CODES[426]);
+            assert.equal(body, http.STATUS_CODES[426]);
             wss.close();
             done();
           });
@@ -219,7 +219,7 @@ describe('WebSocketServer', function() {
       var srv = http.createServer();
       var realClose = srv.close;
       srv.close = function() {
-        should.fail('must not close pre-created server');
+        assert.fail('must not close pre-created server');
       }
       srv.listen(++port, function () {
         var wss = new WebSocketServer({server: srv});
@@ -238,12 +238,12 @@ describe('WebSocketServer', function() {
       srv.listen(++port, function () {
         var wss1 = new WebSocketServer({server: srv, path: '/wss1'})
           , wss2 = new WebSocketServer({server: srv, path: '/wss2'});
-        (typeof srv._webSocketPaths).should.eql('object');
-        Object.keys(srv._webSocketPaths).length.should.eql(2);
+        assert.equal((typeof srv._webSocketPaths), 'object');
+        assert.equal(Object.keys(srv._webSocketPaths).length, 2);
         wss1.close();
-        Object.keys(srv._webSocketPaths).length.should.eql(1);
+        assert.equal(Object.keys(srv._webSocketPaths).length, 1);
         wss2.close();
-        (typeof srv._webSocketPaths).should.eql('undefined');
+        assert.equal((typeof srv._webSocketPaths), 'undefined');
         srv.close();
         done();
       });
@@ -253,11 +253,11 @@ describe('WebSocketServer', function() {
   describe('#clients', function() {
     it('returns a list of connected clients', function(done) {
       var wss = new WebSocketServer({port: ++port}, function() {
-        wss.clients.length.should.eql(0);
+        assert.equal(wss.clients.length, 0);
         var ws = new WebSocket('ws://localhost:' + port);
       });
       wss.on('connection', function(client) {
-        wss.clients.length.should.eql(1);
+        assert.equal(wss.clients.length, 1);
         wss.close();
         done();
       });
@@ -266,11 +266,11 @@ describe('WebSocketServer', function() {
     // TODO(eljefedelrodeodeljefe): this is failing due to unknown reason
     // it('can be disabled', function(done) {
     //   var wss = new WebSocketServer({port: ++port, clientTracking: false}, function() {
-    //     wss.clients.length.should.eql(0);
+    //     assert.equal(wss.clients.length, 0);
     //     var ws = new WebSocket('ws://localhost:' + port);
     //   });
     //   wss.on('connection', function(client) {
-    //     wss.clients.length.should.eql(0);
+    //     assert.equal(wss.clients.length, 0);
     //     wss.close();
     //     done();
     //   });
@@ -283,7 +283,7 @@ describe('WebSocketServer', function() {
       });
       wss.on('connection', function(client) {
         client.on('close', function() {
-          wss.clients.length.should.eql(0);
+          assert.equal(wss.clients.length, 0);
           wss.close();
           done();
         });
@@ -298,7 +298,7 @@ describe('WebSocketServer', function() {
       });
       wss.on('connection', function(client) {
         client.on('close', function() {
-          wss.clients.length.should.eql(0);
+          assert.equal(wss.clients.length, 0);
           wss.close();
           done();
         });
@@ -310,7 +310,7 @@ describe('WebSocketServer', function() {
   describe('#options', function() {
     it('exposes options passed to constructor', function(done) {
       var wss = new WebSocketServer({port: ++port}, function() {
-        wss.options.port.should.eql(port);
+        assert.equal(wss.options.port, port);
         wss.close();
         done();
       });
@@ -329,7 +329,7 @@ describe('WebSocketServer', function() {
         });
         var ws = new WebSocket('ws://localhost:' + port);
         ws.on('message', function(message) {
-          message.should.eql('hello');
+          assert.equal(message, 'hello');
           wss.close();
           srv.close();
           done();
@@ -353,7 +353,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(400);
+            assert.equal(res.statusCode, 400);
             wss.close();
             done();
           });
@@ -378,7 +378,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(400);
+            assert.equal(res.statusCode, 400);
             wss.close();
             done();
           });
@@ -404,7 +404,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(400);
+            assert.equal(res.statusCode, 400);
             wss.close();
             done();
           });
@@ -433,7 +433,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(401);
+            assert.equal(res.statusCode, 401);
             process.nextTick(function() {
               wss.close();
               done();
@@ -475,7 +475,7 @@ describe('WebSocketServer', function() {
       it('verifyClient gets client origin', function(done) {
         var verifyClientCalled = false;
         var wss = new WebSocketServer({port: ++port, verifyClient: function(info) {
-          info.origin.should.eql('http://foobarbaz.com');
+          assert.equal(info.origin, 'http://foobarbaz.com');
           verifyClientCalled = true;
           return false;
         }}, function() {
@@ -493,7 +493,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            verifyClientCalled.should.be.ok;
+            assert.ok(verifyClientCalled);
             wss.close();
             done();
           });
@@ -504,7 +504,7 @@ describe('WebSocketServer', function() {
       it('verifyClient gets original request', function(done) {
         var verifyClientCalled = false;
         var wss = new WebSocketServer({port: ++port, verifyClient: function(info) {
-          info.req.headers['sec-websocket-key'].should.eql('dGhlIHNhbXBsZSBub25jZQ==');
+          assert.equal(info.req.headers['sec-websocket-key'], 'dGhlIHNhbXBsZSBub25jZQ==');
           verifyClientCalled = true;
           return false;
         }}, function() {
@@ -522,7 +522,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            verifyClientCalled.should.be.ok;
+            assert.ok(verifyClientCalled);
             wss.close();
             done();
           });
@@ -554,7 +554,7 @@ describe('WebSocketServer', function() {
           app.close();
           ws.terminate();
           wss.close();
-          success.should.be.ok;
+          assert.ok(success);
           done();
         });
       });
@@ -579,7 +579,7 @@ describe('WebSocketServer', function() {
           app.close();
           ws.terminate();
           wss.close();
-          success.should.be.ok;
+          assert.ok(success);
           done();
         });
       });
@@ -604,7 +604,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(401);
+            assert.equal(res.statusCode, 401);
             process.nextTick(function() {
               wss.close();
               done();
@@ -637,7 +637,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(404);
+            assert.equal(res.statusCode, 404);
             process.nextTick(function() {
               wss.close();
               done();
@@ -699,7 +699,7 @@ describe('WebSocketServer', function() {
         });
         wss.on('connection', function(ws) {
           ws.on('message', function(data) {
-            data.should.eql('Hello');
+            assert.equal(data, 'Hello');
             ws.terminate();
             wss.close();
             done();
@@ -712,7 +712,7 @@ describe('WebSocketServer', function() {
         var wss = new WebSocketServer({port: ++port}, function() {
           var ws = new WebSocket('ws://localhost:' + port, ['prot1', 'prot2']);
           ws.on('open', function(client) {
-              ws.protocol.should.eql('prot1');
+              assert.equal(ws.protocol, 'prot1');
               wss.close();
               done();
           });
@@ -724,7 +724,7 @@ describe('WebSocketServer', function() {
             cb(true, ps[ps.length-1]); }}, function() {
           var ws = new WebSocket('ws://localhost:' + port, ['prot1', 'prot2']);
           ws.on('open', function(client) {
-              ws.protocol.should.eql('prot2');
+              assert.equal(ws.protocol, 'prot2');
               wss.close();
               done();
           });
@@ -789,7 +789,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(401);
+            assert.equal(res.statusCode, 401);
             wss.close();
             done();
           });
@@ -819,7 +819,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(501);
+            assert.equal(res.statusCode, 501);
             wss.close();
             done();
           });
@@ -870,7 +870,7 @@ describe('WebSocketServer', function() {
         });
         wss.on('connection', function(client) {
           client.on('message', function(message) {
-            message.should.eql(data);
+            assert.equal(message, data);
             wss.close();
             done();
           });
@@ -897,7 +897,7 @@ describe('WebSocketServer', function() {
         req.write('WjN}|M(6');
         req.end();
         req.on('response', function(res) {
-          res.statusCode.should.eql(401);
+          assert.equal(res.statusCode, 401);
           process.nextTick(function() {
             wss.close();
             done();
@@ -925,7 +925,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(400);
+            assert.equal(res.statusCode, 400);
             wss.close();
             done();
           });
@@ -950,7 +950,7 @@ describe('WebSocketServer', function() {
           var req = http.request(options);
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(400);
+            assert.equal(res.statusCode, 400);
             wss.close();
             done();
           });
@@ -1003,7 +1003,7 @@ describe('WebSocketServer', function() {
           req.write('WjN}|M(6');
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(401);
+            assert.equal(res.statusCode, 401);
             process.nextTick(function() {
               wss.close();
               done();
@@ -1045,7 +1045,7 @@ describe('WebSocketServer', function() {
       it('verifyClient gets client origin', function(done) {
         var verifyClientCalled = false;
         var wss = new WebSocketServer({port: ++port, verifyClient: function(info) {
-          info.origin.should.eql('http://foobarbaz.com');
+          assert.equal(info.origin, 'http://foobarbaz.com');
           verifyClientCalled = true;
           return false;
         }}, function() {
@@ -1064,7 +1064,7 @@ describe('WebSocketServer', function() {
           req.write('WjN}|M(6');
           req.end();
           req.on('response', function(res) {
-            verifyClientCalled.should.be.ok;
+            assert.ok(verifyClientCalled);
             wss.close();
             done();
           });
@@ -1075,7 +1075,7 @@ describe('WebSocketServer', function() {
       it('verifyClient gets original request', function(done) {
         var verifyClientCalled = false;
         var wss = new WebSocketServer({port: ++port, verifyClient: function(info) {
-          info.req.headers['sec-websocket-key1'].should.eql('3e6b263  4 17 80');
+          assert.equal(info.req.headers['sec-websocket-key1'], '3e6b263  4 17 80');
           verifyClientCalled = true;
           return false;
         }}, function() {
@@ -1094,7 +1094,7 @@ describe('WebSocketServer', function() {
           req.write('WjN}|M(6');
           req.end();
           req.on('response', function(res) {
-            verifyClientCalled.should.be.ok;
+            assert.ok(verifyClientCalled);
             wss.close();
             done();
           });
@@ -1121,7 +1121,7 @@ describe('WebSocketServer', function() {
           req.write('WjN}|M(6');
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(401);
+            assert.equal(res.statusCode, 401);
             process.nextTick(function() {
               wss.close();
               done();
@@ -1153,7 +1153,7 @@ describe('WebSocketServer', function() {
           req.write('WjN}|M(6');
           req.end();
           req.on('response', function(res) {
-            res.statusCode.should.eql(404);
+            assert.equal(res.statusCode, 404);
             process.nextTick(function() {
               wss.close();
               done();
@@ -1214,7 +1214,7 @@ describe('WebSocketServer', function() {
         });
         wss.on('connection', function(ws) {
           ws.on('message', function(data) {
-            data.should.eql('Hello');
+            assert.equal(data, 'Hello');
             ws.terminate();
             wss.close();
             done();
@@ -1231,7 +1231,7 @@ describe('WebSocketServer', function() {
         var ws = new WebSocket('ws://localhost:' + port, 'hi');
       });
       wss.on('connection', function(client) {
-        client.protocol.should.eql('hi');
+        assert.equal(client.protocol, 'hi');
         wss.close();
         done();
       });
@@ -1242,7 +1242,7 @@ describe('WebSocketServer', function() {
         var ws = new WebSocket('ws://localhost:' + port, {protocolVersion: 8});
       });
       wss.on('connection', function(client) {
-        client.protocolVersion.should.eql(8);
+        assert.equal(client.protocolVersion, 8);
         wss.close();
         done();
       });
@@ -1253,7 +1253,7 @@ describe('WebSocketServer', function() {
         var ws = new WebSocket('ws://localhost:' + port, {protocolVersion: 8});
       });
       wss.on('connection', function(client) {
-        client.upgradeReq.httpVersion.should.eql('1.1');
+        assert.equal(client.upgradeReq.httpVersion, '1.1');
         wss.close();
         done();
       });
@@ -1301,7 +1301,7 @@ describe('WebSocketServer', function() {
         var req = http.request(options);
         req.end();
         req.on('response', function(res) {
-          res.statusCode.should.eql(400);
+          assert.equal(res.statusCode, 400);
           wss.close();
           done();
         });
@@ -1328,7 +1328,7 @@ describe('WebSocketServer', function() {
         var req = http.request(options);
         req.end();
         req.on('response', function(res) {
-          res.statusCode.should.eql(400);
+          assert.equal(res.statusCode, 400);
           wss.close();
           done();
         });
