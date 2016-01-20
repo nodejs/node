@@ -156,29 +156,24 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       RUNTIME_ASSERT_HANDLIFIED(function->function_bindings()->IsFixedArray(),
                                 JSArray);
 
-      Handle<FixedArray> bindings(function->function_bindings());
+      Handle<BindingsArray> bindings(function->function_bindings());
 
       Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
       Handle<String> target =
           factory->NewStringFromAsciiChecked("[[TargetFunction]]");
       result->set(0, *target);
-      result->set(1, bindings->get(JSFunction::kBoundFunctionIndex));
+      result->set(1, bindings->bound_function());
 
       Handle<String> bound_this =
           factory->NewStringFromAsciiChecked("[[BoundThis]]");
       result->set(2, *bound_this);
-      result->set(3, bindings->get(JSFunction::kBoundThisIndex));
+      result->set(3, bindings->bound_this());
 
-      Handle<FixedArray> arguments = factory->NewFixedArray(
-          bindings->length() - JSFunction::kBoundArgumentsStartIndex);
-      bindings->CopyTo(
-          JSFunction::kBoundArgumentsStartIndex, *arguments, 0,
-          bindings->length() - JSFunction::kBoundArgumentsStartIndex);
       Handle<String> bound_args =
           factory->NewStringFromAsciiChecked("[[BoundArgs]]");
       result->set(4, *bound_args);
       Handle<JSArray> arguments_array =
-          factory->NewJSArrayWithElements(arguments);
+          BindingsArray::CreateBoundArguments(bindings);
       result->set(5, *arguments_array);
       return factory->NewJSArrayWithElements(result);
     }
@@ -456,7 +451,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
     it.frame()->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0; i--) {
       // Omit functions from native and extension scripts.
-      if (frames[i].function()->IsSubjectToDebugging()) n++;
+      if (frames[i].function()->shared()->IsSubjectToDebugging()) n++;
     }
   }
   return Smi::FromInt(n);
@@ -534,7 +529,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
-  RUNTIME_ASSERT(function->IsSubjectToDebugging());
+  RUNTIME_ASSERT(function->shared()->IsSubjectToDebugging());
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
   DCHECK(*scope_info != ScopeInfo::Empty(isolate));
@@ -709,22 +704,19 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
 
   // Add the receiver (same as in function frame).
-  // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
-  // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  DCHECK(!function->IsBuiltin());
+  DCHECK(!function->shared()->IsBuiltin());
   if (!receiver->IsJSObject() && is_sloppy(shared->language_mode())) {
-    // If the receiver is not a JSObject and the function is not a
-    // builtin or strict-mode we have hit an optimization where a
-    // value object is not converted into a wrapped JS objects. To
-    // hide this optimization from the debugger, we wrap the receiver
-    // by creating correct wrapper object based on the calling frame's
-    // native context.
-    it.Advance();
+    // If the receiver is not a JSObject and the function is not a builtin or
+    // strict-mode we have hit an optimization where a value object is not
+    // converted into a wrapped JS objects. To hide this optimization from the
+    // debugger, we wrap the receiver by creating correct wrapper object based
+    // on the function's native context.
+    // See ECMA-262 6.0, 9.2.1.2, 6 b iii.
     if (receiver->IsUndefined()) {
       receiver = handle(function->global_proxy());
     } else {
-      Context* context = Context::cast(it.frame()->context());
+      Context* context = function->context();
       Handle<Context> native_context(Context::cast(context->native_context()));
       if (!Object::ToObject(isolate, receiver, native_context)
                .ToHandle(&receiver)) {
@@ -1070,11 +1062,11 @@ RUNTIME_FUNCTION(Runtime_GetThreadDetails) {
 
 // Sets the disable break state
 // args[0]: disable break state
-RUNTIME_FUNCTION(Runtime_SetDisableBreak) {
+RUNTIME_FUNCTION(Runtime_SetBreakPointsActive) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 0);
-  isolate->debug()->set_disable_break(disable_break);
+  CONVERT_BOOLEAN_ARG_CHECKED(active, 0);
+  isolate->debug()->set_break_points_active(active);
   return isolate->heap()->undefined_value();
 }
 
@@ -1457,7 +1449,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   HandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  return *Object::GetPrototypeSkipHiddenPrototypes(isolate, obj);
+  return *Object::GetPrototype(isolate, obj);
 }
 
 
@@ -1620,33 +1612,56 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
 }
 
 
+bool DebugStepInIsActive(Debug* debug) {
+  return debug->is_active() && debug->IsStepping() &&
+         debug->last_step_action() == StepIn;
+}
+
+
 // Check whether debugger is about to step into the callback that is passed
-// to a built-in function such as Array.forEach.
+// to a built-in function such as Array.forEach. This check is done before
+// %DebugPrepareStepInIfStepping and is not strictly necessary. However, if it
+// returns false, we can skip %DebugPrepareStepInIfStepping, useful in loops.
 RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
+  SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
-  Debug* debug = isolate->debug();
-  if (!debug->is_active() || !debug->IsStepping() ||
-      debug->last_step_action() != StepIn) {
+  if (!DebugStepInIsActive(isolate->debug())) {
     return isolate->heap()->false_value();
   }
-  CONVERT_ARG_CHECKED(Object, callback, 0);
+  CONVERT_ARG_CHECKED(Object, object, 0);
+  RUNTIME_ASSERT(object->IsJSFunction() || object->IsJSGeneratorObject());
   // We do not step into the callback if it's a builtin other than a bound,
   // or not even a function.
-  return isolate->heap()->ToBoolean(
-      callback->IsJSFunction() &&
-      (JSFunction::cast(callback)->IsSubjectToDebugging() ||
-       JSFunction::cast(callback)->shared()->bound()));
+  JSFunction* fun;
+  if (object->IsJSFunction()) {
+    fun = JSFunction::cast(object);
+  } else {
+    fun = JSGeneratorObject::cast(object)->function();
+  }
+  return isolate->heap()->ToBoolean(fun->shared()->IsSubjectToDebugging() ||
+                                    fun->shared()->bound());
+}
+
+
+void FloodDebugSubjectWithOneShot(Debug* debug, Handle<JSFunction> function) {
+  if (function->shared()->IsSubjectToDebugging() ||
+      function->shared()->bound()) {
+    // When leaving the function, step out has been activated, but not performed
+    // if we do not leave the builtin.  To be able to step into the function
+    // again, we need to clear the step out at this point.
+    debug->ClearStepOut();
+    debug->FloodWithOneShotGeneric(function);
+  }
 }
 
 
 // Set one shot breakpoints for the callback function that is passed to a
-// built-in function such as Array.forEach to enable stepping into the callback.
+// built-in function such as Array.forEach to enable stepping into the callback,
+// if we are indeed stepping and the callback is subject to debugging.
 RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   DCHECK(args.length() == 1);
-  RUNTIME_ASSERT(isolate->debug()->is_active());
-
   Debug* debug = isolate->debug();
-  if (!debug->IsStepping()) return isolate->heap()->undefined_value();
+  if (!DebugStepInIsActive(debug)) return isolate->heap()->undefined_value();
 
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
@@ -1658,21 +1673,23 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
     fun = Handle<JSFunction>(
         Handle<JSGeneratorObject>::cast(object)->function(), isolate);
   }
-  // When leaving the function, step out has been activated, but not performed
-  // if we do not leave the builtin.  To be able to step into the function
-  // again, we need to clear the step out at this point.
-  debug->ClearStepOut();
-  debug->FloodWithOneShotGeneric(fun);
+
+  FloodDebugSubjectWithOneShot(debug, fun);
   return isolate->heap()->undefined_value();
 }
 
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 3);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, handler, 2);
   isolate->PushPromise(promise, function);
+  Debug* debug = isolate->debug();
+  if (handler->IsJSFunction() && DebugStepInIsActive(debug)) {
+    FloodDebugSubjectWithOneShot(debug, Handle<JSFunction>::cast(handler));
+  }
   return isolate->heap()->undefined_value();
 }
 

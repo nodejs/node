@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/assembler.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "src/third_party/fdlibm/fdlibm.h"
 
@@ -67,8 +68,8 @@ RUNTIME_FUNCTION(Runtime_RemPiO2) {
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_ARG_CHECKED(JSTypedArray, result, 1);
   RUNTIME_ASSERT(result->byte_length() == Smi::FromInt(2 * sizeof(double)));
-  void* backing_store = JSArrayBuffer::cast(result->buffer())->backing_store();
-  double* y = static_cast<double*>(backing_store);
+  FixedFloat64Array* array = FixedFloat64Array::cast(result->elements());
+  double* y = static_cast<double*>(array->DataPtr());
   return Smi::FromInt(fdlibm::rempio2(x, y));
 }
 
@@ -243,6 +244,21 @@ RUNTIME_FUNCTION(Runtime_IsMinusZero) {
   if (!obj->IsHeapNumber()) return isolate->heap()->false_value();
   HeapNumber* number = HeapNumber::cast(obj);
   return isolate->heap()->ToBoolean(IsMinusZero(number->value()));
+}
+
+
+RUNTIME_FUNCTION(Runtime_InitializeRNG) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  static const int kSize = 4;
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(kSize);
+  uint16_t seeds[kSize];
+  do {
+    isolate->random_number_generator()->NextBytes(seeds,
+                                                  kSize * sizeof(*seeds));
+  } while (!(seeds[0] && seeds[1] && seeds[2] && seeds[3]));
+  for (int i = 0; i < kSize; i++) array->set(i, Smi::FromInt(seeds[i]));
+  return *isolate->factory()->NewJSArrayWithElements(array);
 }
 }  // namespace internal
 }  // namespace v8

@@ -298,10 +298,8 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
              "fun1 = fun;"
              "function f(a) { a(); } f(fun1);");
 
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f")))));
 
   // We shouldn't have deoptimization support. We want to recompile and
   // verify that our feedback vector preserves information.
@@ -309,11 +307,8 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
 
   // Verify that we gathered feedback.
-  int expected_slots = 0;
-  int expected_ic_slots = 1;
-  CHECK_EQ(expected_slots, feedback_vector->Slots());
-  CHECK_EQ(expected_ic_slots, feedback_vector->ICSlots());
-  FeedbackVectorICSlot slot_for_a(0);
+  CHECK(!feedback_vector->is_empty());
+  FeedbackVectorSlot slot_for_a(0);
   Object* object = feedback_vector->Get(slot_for_a);
   CHECK(object->IsWeakCell() &&
         WeakCell::cast(object)->value()->IsJSFunction());
@@ -347,24 +342,19 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
              "}"
              "morphing_call = builder();");
 
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("morphing_call"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Handle<v8::Function>::Cast(
+          CcTest::global()->Get(v8_str("morphing_call")))));
 
   // Not compiled, and so no feedback vector allocated yet.
   CHECK(!f->shared()->is_compiled());
-  CHECK_EQ(0, f->shared()->feedback_vector()->Slots());
-  CHECK_EQ(0, f->shared()->feedback_vector()->ICSlots());
+  CHECK(f->shared()->feedback_vector()->is_empty());
 
   CompileRun("morphing_call();");
 
   // Now a feedback vector is allocated.
   CHECK(f->shared()->is_compiled());
-  int expected_slots = 0;
-  int expected_ic_slots = 2;
-  CHECK_EQ(expected_slots, f->shared()->feedback_vector()->Slots());
-  CHECK_EQ(expected_ic_slots, f->shared()->feedback_vector()->ICSlots());
+  CHECK(!f->shared()->feedback_vector()->is_empty());
 }
 
 
@@ -373,7 +363,6 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
 TEST(OptimizedCodeSharing1) {
   FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
-  FLAG_cache_optimized_code = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   for (int i = 0; i < 3; i++) {
@@ -390,10 +379,12 @@ TEST(OptimizedCodeSharing1) {
         "%DebugPrint(closure0());"
         "var closure1 = MakeClosure();"
         "var closure2 = MakeClosure();");
-    Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
-    Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
+    Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            env->Global()->Get(v8_str("closure1")))));
+    Handle<JSFunction> fun2 = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            env->Global()->Get(v8_str("closure2")))));
     CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     CHECK_EQ(fun1->code(), fun2->code());
@@ -406,7 +397,7 @@ TEST(OptimizedCodeSharing1) {
 TEST(OptimizedCodeSharing2) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
-  FLAG_cache_optimized_code = true;
+  FLAG_native_context_specialization = false;
   FLAG_turbo_cache_shared_code = true;
   const char* flag = "--turbo-filter=*";
   FlagList::SetFlagsFromString(flag, StrLength(flag));
@@ -427,8 +418,9 @@ TEST(OptimizedCodeSharing2) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());");
-    Handle<JSFunction> fun0 = v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure0"))));
+    Handle<JSFunction> fun0 = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            env->Global()->Get(v8_str("closure0")))));
     CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     reference_code = handle(fun0->code());
   }
@@ -444,10 +436,12 @@ TEST(OptimizedCodeSharing2) {
         "%DebugPrint(closure0());"
         "var closure1 = MakeClosure();"
         "var closure2 = MakeClosure();");
-    Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
-    Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
+    Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            env->Global()->Get(v8_str("closure1")))));
+    Handle<JSFunction> fun2 = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            env->Global()->Get(v8_str("closure2")))));
     CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     CHECK_EQ(*reference_code, fun1->code());
@@ -461,7 +455,7 @@ TEST(OptimizedCodeSharing2) {
 TEST(OptimizedCodeSharing3) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
-  FLAG_cache_optimized_code = true;
+  FLAG_native_context_specialization = false;
   FLAG_turbo_cache_shared_code = true;
   const char* flag = "--turbo-filter=*";
   FlagList::SetFlagsFromString(flag, StrLength(flag));
@@ -482,8 +476,9 @@ TEST(OptimizedCodeSharing3) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());");
-    Handle<JSFunction> fun0 = v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure0"))));
+    Handle<JSFunction> fun0 = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            env->Global()->Get(v8_str("closure0")))));
     CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     reference_code = handle(fun0->code());
     // Evict only the context-dependent entry from the optimized code map. This
@@ -502,10 +497,12 @@ TEST(OptimizedCodeSharing3) {
         "%DebugPrint(closure0());"
         "var closure1 = MakeClosure();"
         "var closure2 = MakeClosure();");
-    Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
-    Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
+    Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            env->Global()->Get(v8_str("closure1")))));
+    Handle<JSFunction> fun2 = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            env->Global()->Get(v8_str("closure2")))));
     CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     CHECK_EQ(*reference_code, fun1->code());
@@ -652,10 +649,10 @@ TEST(CompileFunctionInContextScriptOrigin) {
 
 #ifdef ENABLE_DISASSEMBLER
 static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
-                                 const char* property_name) {
+                                        const char* property_name) {
   v8::Local<v8::Function> fun =
       v8::Local<v8::Function>::Cast(obj->Get(v8_str(property_name)));
-  return v8::Utils::OpenHandle(*fun);
+  return Handle<JSFunction>::cast(v8::Utils::OpenHandle(*fun));
 }
 
 

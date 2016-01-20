@@ -79,6 +79,7 @@ struct WhiteSpaceOrLineTerminator {
   }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CHAR_PREDICATES_H_

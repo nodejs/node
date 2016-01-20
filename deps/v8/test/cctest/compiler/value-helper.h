@@ -5,8 +5,6 @@
 #ifndef V8_CCTEST_COMPILER_VALUE_HELPER_H_
 #define V8_CCTEST_COMPILER_VALUE_HELPER_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/common-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-matchers.h"

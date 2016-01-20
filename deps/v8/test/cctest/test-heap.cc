@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <stdlib.h>
 #include <utility>
 
@@ -35,13 +38,14 @@
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/memory-reducer.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap-tester.h"
+#include "test/cctest/test-feedback-vector.h"
 
-using v8::Just;
 
 namespace v8 {
 namespace internal {
@@ -197,7 +201,8 @@ TEST(HeapObjects) {
   CHECK_EQ(10, s->length());
 
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
-  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object());
   CHECK(Just(true) == JSReceiver::HasOwnProperty(global, object_string));
 
   // Check ToString for oddballs
@@ -259,7 +264,7 @@ TEST(SimdObjects) {
 
     // Check special lane values.
     value->set_lane(1, -0.0);
-    CHECK_EQ(-0.0, value->get_lane(1));
+    CHECK_EQ(-0.0f, value->get_lane(1));
     CHECK(std::signbit(value->get_lane(1)));  // Sign bit should be preserved.
     value->set_lane(2, quiet_NaN);
     CHECK(std::isnan(value->get_lane(2)));
@@ -437,7 +442,8 @@ TEST(GarbageCollection) {
   // Check GC.
   heap->CollectGarbage(NEW_SPACE);
 
-  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<String> prop_namex = factory->InternalizeUtf8String("theSlotx");
@@ -1644,11 +1650,12 @@ int CountNativeContexts() {
 
 // Count the number of user functions in the weak list of optimized
 // functions attached to a native context.
-static int CountOptimizedUserFunctions(v8::Handle<v8::Context> context) {
+static int CountOptimizedUserFunctions(v8::Local<v8::Context> context) {
   int count = 0;
   Handle<Context> icontext = v8::Utils::OpenHandle(*context);
   Object* object = icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST);
-  while (object->IsJSFunction() && !JSFunction::cast(object)->IsBuiltin()) {
+  while (object->IsJSFunction() &&
+         !JSFunction::cast(object)->shared()->IsBuiltin()) {
     count++;
     object = JSFunction::cast(object)->next_function_link();
   }
@@ -1671,7 +1678,7 @@ TEST(TestInternalWeakLists) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  v8::Handle<v8::Context> ctx[kNumTestContexts];
+  v8::Local<v8::Context> ctx[kNumTestContexts];
   if (!isolate->use_crankshaft()) return;
 
   CHECK_EQ(0, CountNativeContexts());
@@ -1784,7 +1791,7 @@ static int CountNativeContextsWithGC(Isolate* isolate, int n) {
 // Count the number of user functions in the weak list of optimized
 // functions attached to a native context causing a GC after the
 // specified number of elements.
-static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
+static int CountOptimizedUserFunctionsWithGC(v8::Local<v8::Context> context,
                                              int n) {
   int count = 0;
   Handle<Context> icontext = v8::Utils::OpenHandle(*context);
@@ -1792,7 +1799,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
   Handle<Object> object(icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST),
                         isolate);
   while (object->IsJSFunction() &&
-         !Handle<JSFunction>::cast(object)->IsBuiltin()) {
+         !Handle<JSFunction>::cast(object)->shared()->IsBuiltin()) {
     count++;
     if (count == n) isolate->heap()->CollectAllGarbage();
     object = Handle<Object>(
@@ -1812,7 +1819,7 @@ TEST(TestInternalWeakListsTraverseWithGC) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  v8::Handle<v8::Context> ctx[kNumTestContexts];
+  v8::Local<v8::Context> ctx[kNumTestContexts];
   if (!isolate->use_crankshaft()) return;
 
   CHECK_EQ(0, CountNativeContexts());
@@ -2352,7 +2359,7 @@ static int NumberOfGlobalObjects() {
   int count = 0;
   HeapIterator iterator(CcTest::heap());
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (obj->IsGlobalObject()) count++;
+    if (obj->IsJSGlobalObject()) count++;
   }
   // Subtract two to compensate for the two global objects (not global
   // JSObjects, of which there would only be one) that are part of the code stub
@@ -2384,16 +2391,19 @@ TEST(LeakNativeContextViaMap) {
     CompileRun("var v = {x: 42}");
     v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
     v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
-    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    v8::Local<v8::Value> v =
+        ctx1->Global()->Get(ctx1, v8_str("v")).ToLocalChecked();
     ctx2->Enter();
-    ctx2->Global()->Set(v8_str("o"), v);
+    CHECK(ctx2->Global()->Set(ctx2, v8_str("o"), v).FromJust());
     v8::Local<v8::Value> res = CompileRun(
         "function f() { return o.x; }"
         "for (var i = 0; i < 10; ++i) f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
-    CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
+    CHECK_EQ(42, res->Int32Value(ctx2).FromJust());
+    CHECK(ctx2->Global()
+              ->Set(ctx2, v8_str("o"), v8::Int32::New(isolate, 0))
+              .FromJust());
     ctx2->Exit();
     v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
     ctx1p.Reset();
@@ -2430,16 +2440,19 @@ TEST(LeakNativeContextViaFunction) {
     CompileRun("var v = function() { return 42; }");
     v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
     v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
-    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    v8::Local<v8::Value> v =
+        ctx1->Global()->Get(ctx1, v8_str("v")).ToLocalChecked();
     ctx2->Enter();
-    ctx2->Global()->Set(v8_str("o"), v);
+    CHECK(ctx2->Global()->Set(ctx2, v8_str("o"), v).FromJust());
     v8::Local<v8::Value> res = CompileRun(
         "function f(x) { return x(); }"
         "for (var i = 0; i < 10; ++i) f(o);"
         "%OptimizeFunctionOnNextCall(f);"
         "f(o);");
-    CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
+    CHECK_EQ(42, res->Int32Value(ctx2).FromJust());
+    CHECK(ctx2->Global()
+              ->Set(ctx2, v8_str("o"), v8::Int32::New(isolate, 0))
+              .FromJust());
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -2474,16 +2487,19 @@ TEST(LeakNativeContextViaMapKeyed) {
     CompileRun("var v = [42, 43]");
     v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
     v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
-    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    v8::Local<v8::Value> v =
+        ctx1->Global()->Get(ctx1, v8_str("v")).ToLocalChecked();
     ctx2->Enter();
-    ctx2->Global()->Set(v8_str("o"), v);
+    CHECK(ctx2->Global()->Set(ctx2, v8_str("o"), v).FromJust());
     v8::Local<v8::Value> res = CompileRun(
         "function f() { return o[0]; }"
         "for (var i = 0; i < 10; ++i) f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
-    CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
+    CHECK_EQ(42, res->Int32Value(ctx2).FromJust());
+    CHECK(ctx2->Global()
+              ->Set(ctx2, v8_str("o"), v8::Int32::New(isolate, 0))
+              .FromJust());
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -2518,9 +2534,10 @@ TEST(LeakNativeContextViaMapProto) {
     CompileRun("var v = { y: 42}");
     v8::Local<v8::Context> ctx1 = v8::Local<v8::Context>::New(isolate, ctx1p);
     v8::Local<v8::Context> ctx2 = v8::Local<v8::Context>::New(isolate, ctx2p);
-    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    v8::Local<v8::Value> v =
+        ctx1->Global()->Get(ctx1, v8_str("v")).ToLocalChecked();
     ctx2->Enter();
-    ctx2->Global()->Set(v8_str("o"), v);
+    CHECK(ctx2->Global()->Set(ctx2, v8_str("o"), v).FromJust());
     v8::Local<v8::Value> res = CompileRun(
         "function f() {"
         "  var p = {x: 42};"
@@ -2530,8 +2547,10 @@ TEST(LeakNativeContextViaMapProto) {
         "for (var i = 0; i < 10; ++i) f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
-    CHECK_EQ(42, res->Int32Value());
-    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(isolate, 0));
+    CHECK_EQ(42, res->Int32Value(ctx2).FromJust());
+    CHECK(ctx2->Global()
+              ->Set(ctx2, v8_str("o"), v8::Int32::New(isolate, 0))
+              .FromJust());
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
@@ -2555,6 +2574,7 @@ TEST(InstanceOfStubWriteBarrier) {
   if (!CcTest::i_isolate()->use_crankshaft()) return;
   if (i::FLAG_force_marking_deque_overflows) return;
   v8::HandleScope outer_scope(CcTest::isolate());
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -2572,10 +2592,9 @@ TEST(InstanceOfStubWriteBarrier) {
   marking->Stop();
   CcTest::heap()->StartIncrementalMarking();
 
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  i::Handle<JSFunction> f = i::Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   CHECK(f->IsOptimized());
 
@@ -2590,10 +2609,10 @@ TEST(InstanceOfStubWriteBarrier) {
 
   {
     v8::HandleScope scope(CcTest::isolate());
-    v8::Handle<v8::Object> global = CcTest::global();
-    v8::Handle<v8::Function> g =
-        v8::Handle<v8::Function>::Cast(global->Get(v8_str("g")));
-    g->Call(global, 0, NULL);
+    v8::Local<v8::Object> global = CcTest::global();
+    v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
+        global->Get(ctx, v8_str("g")).ToLocalChecked());
+    g->Call(ctx, global, 0, nullptr).ToLocalChecked();
   }
 
   CcTest::heap()->incremental_marking()->set_should_hurry(true);
@@ -2613,12 +2632,13 @@ TEST(PrototypeTransitionClearing) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   CompileRun("var base = {};");
-  Handle<JSObject> baseObject =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Object>::Cast(
-              CcTest::global()->Get(v8_str("base"))));
+  i::Handle<JSObject> baseObject =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+          CcTest::global()->Get(ctx, v8_str("base")).ToLocalChecked()));
+
   int initialTransitions = NumberOfProtoTransitions(baseObject->map());
 
   CompileRun(
@@ -2677,6 +2697,7 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft()) return;
   v8::HandleScope outer_scope(CcTest::isolate());
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -2690,10 +2711,9 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
   }
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  i::Handle<JSFunction> f = i::Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
   CHECK(f->IsOptimized());
 
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
@@ -2719,6 +2739,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft()) return;
   v8::HandleScope outer_scope(CcTest::isolate());
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -2732,10 +2753,10 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
   }
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  i::Handle<JSFunction> f = i::Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
+
   CHECK(f->IsOptimized());
 
   CcTest::heap()->incremental_marking()->Stop();
@@ -2835,7 +2856,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   SimulateFullSpace(CcTest::heap()->new_space());
   AlwaysAllocateScope always_allocate(CcTest::i_isolate());
   v8::Local<v8::Value> res = CompileRun(
@@ -2849,11 +2870,15 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
       "f(1); f(2); f(3);"
       "%OptimizeFunctionOnNextCall(f);"
       "f(4);");
-  CHECK_EQ(
-      4, res.As<v8::Object>()->GetRealNamedProperty(v8_str("x"))->Int32Value());
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  CHECK_EQ(4, res.As<v8::Object>()
+                  ->GetRealNamedProperty(ctx, v8_str("x"))
+                  .ToLocalChecked()
+                  ->Int32Value(ctx)
+                  .FromJust());
+
+  i::Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(CcTest::heap()->InNewSpace(*o));
 }
@@ -2866,7 +2891,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   // Grow new space unitl maximum capacity reached.
   while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
     CcTest::heap()->new_space()->Grow();
@@ -2891,15 +2916,17 @@ TEST(OptimizedPretenuringAllocationFolding) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  v8::Local<v8::Value> int_array = v8::Object::Cast(*res)->Get(v8_str("0"));
-  Handle<JSObject> int_array_handle =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(int_array));
-  v8::Local<v8::Value> double_array = v8::Object::Cast(*res)->Get(v8_str("1"));
-  Handle<JSObject> double_array_handle =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(double_array));
+  v8::Local<v8::Value> int_array =
+      v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
+  i::Handle<JSObject> int_array_handle =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array));
+  v8::Local<v8::Value> double_array =
+      v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
+  i::Handle<JSObject> double_array_handle =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array));
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  i::Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(*int_array_handle));
   CHECK(CcTest::heap()->InOldSpace(int_array_handle->elements()));
@@ -2940,8 +2967,8 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  i::Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(CcTest::heap()->InOldSpace(o->elements()));
   CHECK(CcTest::heap()->InOldSpace(*o));
@@ -2981,8 +3008,8 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  i::Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(CcTest::heap()->InOldSpace(*o));
   FieldIndex idx1 = FieldIndex::ForPropertyIndex(o->map(), 0);
@@ -3038,8 +3065,8 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  i::Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(o->properties()));
@@ -3078,8 +3105,8 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  i::Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(CcTest::heap()->InOldSpace(o->elements()));
   CHECK(CcTest::heap()->InOldSpace(*o));
@@ -3093,7 +3120,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   // Grow new space unitl maximum capacity reached.
   while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
     CcTest::heap()->new_space()->Grow();
@@ -3117,15 +3144,16 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  v8::Local<v8::Value> int_array = v8::Object::Cast(*res)->Get(v8_str("0"));
-  Handle<JSObject> int_array_handle =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(int_array));
-  v8::Local<v8::Value> double_array = v8::Object::Cast(*res)->Get(v8_str("1"));
-  Handle<JSObject> double_array_handle =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(double_array));
+  v8::Local<v8::Value> int_array =
+      v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
+  i::Handle<JSObject> int_array_handle =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array));
+  v8::Local<v8::Value> double_array =
+      v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
+  i::Handle<JSObject> double_array_handle =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array));
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  Handle<JSObject> o = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(*int_array_handle));
   CHECK(CcTest::heap()->InOldSpace(int_array_handle->elements()));
@@ -3141,7 +3169,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   // Grow new space unitl maximum capacity reached.
   while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
     CcTest::heap()->new_space()->Grow();
@@ -3166,15 +3194,16 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 
   v8::Local<v8::Value> res = CompileRun(source.start());
 
-  v8::Local<v8::Value> int_array_1 = v8::Object::Cast(*res)->Get(v8_str("0"));
+  v8::Local<v8::Value> int_array_1 =
+      v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
   Handle<JSObject> int_array_handle_1 =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(int_array_1));
-  v8::Local<v8::Value> int_array_2 = v8::Object::Cast(*res)->Get(v8_str("1"));
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array_1));
+  v8::Local<v8::Value> int_array_2 =
+      v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
   Handle<JSObject> int_array_handle_2 =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(int_array_2));
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(int_array_2));
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  Handle<JSObject> o = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(*int_array_handle_1));
   CHECK(CcTest::heap()->InOldSpace(int_array_handle_1->elements()));
@@ -3190,7 +3219,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   // Grow new space unitl maximum capacity reached.
   while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
     CcTest::heap()->new_space()->Grow();
@@ -3216,16 +3245,16 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   v8::Local<v8::Value> res = CompileRun(source.start());
 
   v8::Local<v8::Value> double_array_1 =
-      v8::Object::Cast(*res)->Get(v8_str("0"));
-  Handle<JSObject> double_array_handle_1 =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(double_array_1));
+      v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
+  i::Handle<JSObject> double_array_handle_1 =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array_1));
   v8::Local<v8::Value> double_array_2 =
-      v8::Object::Cast(*res)->Get(v8_str("1"));
-  Handle<JSObject> double_array_handle_2 =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(double_array_2));
+      v8::Object::Cast(*res)->Get(ctx, v8_str("1")).ToLocalChecked();
+  i::Handle<JSObject> double_array_handle_2 =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(double_array_2));
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  i::Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
   CHECK(CcTest::heap()->InOldSpace(*o));
   CHECK(CcTest::heap()->InOldSpace(*double_array_handle_1));
   CHECK(CcTest::heap()->InOldSpace(double_array_handle_1->elements()));
@@ -3241,7 +3270,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   v8::Local<v8::Value> res = CompileRun(
       "function f() {"
       "  var numbers = new Array(1, 2, 3);"
@@ -3251,11 +3280,14 @@ TEST(OptimizedAllocationArrayLiterals) {
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
       "f();");
-  CHECK_EQ(static_cast<int>(3.14),
-           v8::Object::Cast(*res)->Get(v8_str("0"))->Int32Value());
+  CHECK_EQ(static_cast<int>(3.14), v8::Object::Cast(*res)
+                                       ->Get(ctx, v8_str("0"))
+                                       .ToLocalChecked()
+                                       ->Int32Value(ctx)
+                                       .FromJust());
 
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+  i::Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
   CHECK(CcTest::heap()->InNewSpace(o->elements()));
 }
@@ -3275,6 +3307,7 @@ TEST(Regress1465) {
   i::FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   static const int transitions_count = 256;
 
   CompileRun("function F() {}");
@@ -3288,10 +3321,8 @@ TEST(Regress1465) {
     CompileRun("var root = new F;");
   }
 
-  Handle<JSObject> root =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Object>::Cast(
-              CcTest::global()->Get(v8_str("root"))));
+  i::Handle<JSObject> root = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+      CcTest::global()->Get(ctx, v8_str("root")).ToLocalChecked()));
 
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(root->map());
@@ -3320,10 +3351,11 @@ static void AddTransitions(int transitions_count) {
 }
 
 
-static Handle<JSObject> GetByName(const char* name) {
-  return v8::Utils::OpenHandle(
-      *v8::Handle<v8::Object>::Cast(
-          CcTest::global()->Get(v8_str(name))));
+static i::Handle<JSObject> GetByName(const char* name) {
+  return v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+      CcTest::global()
+          ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
+          .ToLocalChecked()));
 }
 
 
@@ -3483,10 +3515,10 @@ TEST(Regress2143a) {
   // Explicitly request GC to perform final marking step and sweeping.
   CcTest::heap()->CollectAllGarbage();
 
-  Handle<JSObject> root =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Object>::Cast(
-              CcTest::global()->Get(v8_str("root"))));
+  Handle<JSObject> root = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+      CcTest::global()
+          ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("root"))
+          .ToLocalChecked()));
 
   // The root object should be in a sane state.
   CHECK(root->IsJSObject());
@@ -3526,10 +3558,10 @@ TEST(Regress2143b) {
   // Explicitly request GC to perform final marking step and sweeping.
   CcTest::heap()->CollectAllGarbage();
 
-  Handle<JSObject> root =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Object>::Cast(
-              CcTest::global()->Get(v8_str("root"))));
+  Handle<JSObject> root = v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+      CcTest::global()
+          ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("root"))
+          .ToLocalChecked()));
 
   // The root object should be in a sane state.
   CHECK(root->IsJSObject());
@@ -3590,7 +3622,7 @@ static int forced_gc_counter = 0;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {
-  isolate->GetCallingContext();
+  isolate->GetCurrentContext();
   if (feature == v8::Isolate::kForcedGC) {
     forced_gc_counter++;
   }
@@ -3616,13 +3648,13 @@ TEST(CountForcedGC) {
 TEST(PrintSharedFunctionInfo) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   const char* source = "f = function() { return 987654321; }\n"
                        "g = function() { return 123456789; }\n";
   CompileRun(source);
-  Handle<JSFunction> g =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("g"))));
+  i::Handle<JSFunction> g = i::Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("g")).ToLocalChecked())));
 
   OFStream os(stdout);
   g->shared()->Print(os);
@@ -3636,45 +3668,45 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> fun1, fun2;
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   {
     LocalContext env;
     CompileRun("function fun() {};");
-    fun1 = env->Global()->Get(v8_str("fun"));
+    fun1 = env->Global()->Get(env.local(), v8_str("fun")).ToLocalChecked();
   }
 
   {
     LocalContext env;
     CompileRun("function fun() {};");
-    fun2 = env->Global()->Get(v8_str("fun"));
+    fun2 = env->Global()->Get(env.local(), v8_str("fun")).ToLocalChecked();
   }
 
   // Prepare function f that contains type feedback for closures
   // originating from two different native contexts.
-  CcTest::global()->Set(v8_str("fun1"), fun1);
-  CcTest::global()->Set(v8_str("fun2"), fun2);
+  CHECK(CcTest::global()->Set(ctx, v8_str("fun1"), fun1).FromJust());
+  CHECK(CcTest::global()->Set(ctx, v8_str("fun2"), fun2).FromJust());
   CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
 
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+  FeedbackVectorHelper feedback_helper(feedback_vector);
 
   int expected_slots = 2;
-  CHECK_EQ(expected_slots, feedback_vector->ICSlots());
+  CHECK_EQ(expected_slots, feedback_helper.slot_count());
   int slot1 = 0;
   int slot2 = 1;
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot1))->IsWeakCell());
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot2))->IsWeakCell());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeakCell());
+  CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeakCell());
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot1)))
+  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot1)))
              ->cleared());
-  CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot2)))
+  CHECK(!WeakCell::cast(feedback_vector->Get(feedback_helper.slot(slot2)))
              ->cleared());
 }
 
@@ -3694,11 +3726,12 @@ static Code* FindFirstIC(Code* code, Code::Kind kind) {
 }
 
 
-static void CheckVectorIC(Handle<JSFunction> f, int ic_slot_index,
+static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
   Handle<TypeFeedbackVector> vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector());
-  FeedbackVectorICSlot slot(ic_slot_index);
+  FeedbackVectorHelper helper(vector);
+  FeedbackVectorSlot slot = helper.slot(slot_index);
   if (vector->GetKind(slot) == FeedbackVectorSlotKind::LOAD_IC) {
     LoadICNexus nexus(vector, slot);
     CHECK(nexus.StateFromFeedback() == desired_state);
@@ -3710,10 +3743,10 @@ static void CheckVectorIC(Handle<JSFunction> f, int ic_slot_index,
 }
 
 
-static void CheckVectorICCleared(Handle<JSFunction> f, int ic_slot_index) {
+static void CheckVectorICCleared(Handle<JSFunction> f, int slot_index) {
   Handle<TypeFeedbackVector> vector =
       Handle<TypeFeedbackVector>(f->shared()->feedback_vector());
-  FeedbackVectorICSlot slot(ic_slot_index);
+  FeedbackVectorSlot slot(slot_index);
   LoadICNexus nexus(vector, slot);
   CHECK(IC::IsCleared(&nexus));
 }
@@ -3728,11 +3761,12 @@ TEST(ICInBuiltInIsClearedAppropriately) {
   {
     LocalContext env;
     v8::Local<v8::Value> res = CompileRun("Function.apply");
-    Handle<JSObject> maybe_apply =
-        v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
-    apply = Handle<JSFunction>::cast(maybe_apply);
-    TypeFeedbackVector* vector = apply->shared()->feedback_vector();
-    CHECK(vector->ICSlots() == 1);
+    i::Handle<JSObject> maybe_apply =
+        v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
+    apply = i::Handle<JSFunction>::cast(maybe_apply);
+    i::Handle<TypeFeedbackVector> vector(apply->shared()->feedback_vector());
+    FeedbackVectorHelper feedback_helper(vector);
+    CHECK_EQ(1, feedback_helper.slot_count());
     CheckVectorIC(apply, 0, UNINITIALIZED);
     CompileRun(
         "function b(a1, a2, a3) { return a1 + a2 + a3; }"
@@ -3755,15 +3789,15 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   // Prepare function f that contains a monomorphic IC for object
   // originating from the same native context.
   CompileRun(
       "function fun() { this.x = 1; };"
       "function f(o) { return new o(); } f(fun); f(fun);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
-
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   Handle<TypeFeedbackVector> vector(f->shared()->feedback_vector());
   CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
@@ -3781,21 +3815,23 @@ TEST(IncrementalMarkingClearsMonomorphicConstructor) {
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> fun1;
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   {
     LocalContext env;
     CompileRun("function fun() { this.x = 1; };");
-    fun1 = env->Global()->Get(v8_str("fun"));
+    fun1 = env->Global()->Get(env.local(), v8_str("fun")).ToLocalChecked();
   }
 
   // Prepare function f that contains a monomorphic constructor for object
   // originating from a different native context.
-  CcTest::global()->Set(v8_str("fun1"), fun1);
+  CHECK(CcTest::global()->Set(ctx, v8_str("fun1"), fun1).FromJust());
   CompileRun(
       "function fun() { this.x = 1; };"
       "function f(o) { return new o(); } f(fun1); f(fun1);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
 
   Handle<TypeFeedbackVector> vector(f->shared()->feedback_vector());
@@ -3815,26 +3851,21 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   // Prepare function f that contains a monomorphic IC for object
   // originating from the same native context.
   CompileRun("function fun() { this.x = 1; }; var obj = new fun();"
              "function f(o) { return o.x; } f(obj); f(obj);");
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, MONOMORPHIC);
-  CHECK(ic_before->ic_state() == DEFAULT);
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, MONOMORPHIC);
-  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3843,32 +3874,30 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> obj1;
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   {
     LocalContext env;
     CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
-    obj1 = env->Global()->Get(v8_str("obj"));
+    obj1 = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   }
 
   // Prepare function f that contains a monomorphic IC for object
   // originating from a different native context.
-  CcTest::global()->Set(v8_str("obj1"), obj1);
+  CHECK(CcTest::global()->Set(ctx, v8_str("obj1"), obj1).FromJust());
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, MONOMORPHIC);
-  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorICCleared(f, 0);
-  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3877,38 +3906,36 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> obj1, obj2;
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   {
     LocalContext env;
     CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
-    obj1 = env->Global()->Get(v8_str("obj"));
+    obj1 = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   }
 
   {
     LocalContext env;
     CompileRun("function fun() { this.x = 2; }; var obj = new fun();");
-    obj2 = env->Global()->Get(v8_str("obj"));
+    obj2 = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   }
 
   // Prepare function f that contains a polymorphic IC for objects
   // originating from two different native contexts.
-  CcTest::global()->Set(v8_str("obj1"), obj1);
-  CcTest::global()->Set(v8_str("obj2"), obj2);
+  CHECK(CcTest::global()->Set(ctx, v8_str("obj1"), obj1).FromJust());
+  CHECK(CcTest::global()->Set(ctx, v8_str("obj2"), obj2).FromJust());
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, POLYMORPHIC);
-  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, POLYMORPHIC);
-  CHECK(ic_after->ic_state() == DEFAULT);
 }
 
 
@@ -3917,30 +3944,30 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> obj1, obj2;
+  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 
   {
     LocalContext env;
     CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
-    obj1 = env->Global()->Get(v8_str("obj"));
+    obj1 = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   }
 
   {
     LocalContext env;
     CompileRun("function fun() { this.x = 2; }; var obj = new fun();");
-    obj2 = env->Global()->Get(v8_str("obj"));
+    obj2 = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   }
 
   // Prepare function f that contains a polymorphic IC for objects
   // originating from two different native contexts.
-  CcTest::global()->Set(v8_str("obj1"), obj1);
-  CcTest::global()->Set(v8_str("obj2"), obj2);
+  CHECK(CcTest::global()->Set(ctx, v8_str("obj1"), obj1).FromJust());
+  CHECK(CcTest::global()->Set(ctx, v8_str("obj2"), obj2).FromJust());
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
-  Handle<JSFunction> f = v8::Utils::OpenHandle(
-      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CheckVectorIC(f, 0, POLYMORPHIC);
-  CHECK(ic_before->ic_state() == DEFAULT);
 
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
@@ -3948,7 +3975,6 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   CcTest::heap()->CollectAllGarbage();
 
   CheckVectorICCleared(f, 0);
-  CHECK(ic_before->ic_state() == DEFAULT);
 }
 
 
@@ -3985,10 +4011,14 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
     v8::HandleScope scope(isolate);
-    v8::Handle<v8::String> source_string =
-        v8::String::NewExternal(isolate, resource);
+    v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
+    v8::Local<v8::String> source_string =
+        v8::String::NewExternalOneByte(isolate, resource).ToLocalChecked();
     i_isolate->heap()->CollectAllAvailableGarbage();
-    v8::Script::Compile(source_string)->Run();
+    v8::Script::Compile(ctx, source_string)
+        .ToLocalChecked()
+        ->Run(ctx)
+        .ToLocalChecked();
     CHECK(!resource->IsDisposed());
   }
   // i_isolate->heap()->CollectAllAvailableGarbage();
@@ -4066,6 +4096,7 @@ TEST(Regress159140) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  LocalContext env;
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -4091,17 +4122,15 @@ TEST(Regress159140) {
                "%OptimizeFunctionOnNextCall(f); f(3);"
                "%OptimizeFunctionOnNextCall(h); h(3);");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
     CHECK(f->is_compiled());
     CompileRun("f = null;");
 
-    Handle<JSFunction> g =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("g"))));
+    Handle<JSFunction> g = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()->Get(env.local(), v8_str("g")).ToLocalChecked())));
     CHECK(g->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -4138,6 +4167,7 @@ TEST(Regress165495) {
   // but make sure the optimized code is unreachable.
   {
     HandleScope inner_scope(isolate);
+    LocalContext env;
     CompileRun("function mkClosure() {"
                "  return function(x) { return x + 1; };"
                "}"
@@ -4145,10 +4175,9 @@ TEST(Regress165495) {
                "f(1); f(2);"
                "%OptimizeFunctionOnNextCall(f); f(3);");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -4186,16 +4215,16 @@ TEST(Regress169209) {
   Handle<SharedFunctionInfo> shared1;
   {
     HandleScope inner_scope(isolate);
+    LocalContext env;
     CompileRun("function f() { return 'foobar'; }"
                "function g(x) { if (x) f(); }"
                "f();"
                "g(false);"
                "g(false);");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -4210,13 +4239,14 @@ TEST(Regress169209) {
   Handle<SharedFunctionInfo> shared2;
   {
     HandleScope inner_scope(isolate);
+    LocalContext env;
     CompileRun("function flushMe() { return 0; }"
                "flushMe(1);");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("flushMe"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CcTest::global()
+                                           ->Get(env.local(), v8_str("flushMe"))
+                                           .ToLocalChecked())));
     CHECK(f->is_compiled());
     const int kAgingThreshold = 6;
     for (int i = 0; i < kAgingThreshold; i++) {
@@ -4248,6 +4278,7 @@ TEST(Regress169928) {
   i::FLAG_crankshaft = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  LocalContext env;
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -4273,7 +4304,9 @@ TEST(Regress169928) {
       v8_str("fastliteralcase(mote, 2.5);");
 
   v8::Local<v8::String> array_name = v8_str("mote");
-  CcTest::global()->Set(array_name, v8::Int32::New(CcTest::isolate(), 0));
+  CHECK(CcTest::global()
+            ->Set(env.local(), array_name, v8::Int32::New(CcTest::isolate(), 0))
+            .FromJust());
 
   // First make sure we flip spaces
   CcTest::heap()->CollectGarbage(NEW_SPACE);
@@ -4305,122 +4338,16 @@ TEST(Regress169928) {
       addr_obj, AllocationMemento::kSize + kPointerSize);
 
   // Give the array a name, making sure not to allocate strings.
-  v8::Handle<v8::Object> array_obj = v8::Utils::ToLocal(array);
-  CcTest::global()->Set(array_name, array_obj);
+  v8::Local<v8::Object> array_obj = v8::Utils::ToLocal(array);
+  CHECK(CcTest::global()->Set(env.local(), array_name, array_obj).FromJust());
 
   // This should crash with a protection violation if we are running a build
   // with the bug.
   AlwaysAllocateScope aa_scope(isolate);
-  v8::Script::Compile(mote_code_string)->Run();
-}
-
-
-TEST(Regress168801) {
-  if (i::FLAG_never_compact) return;
-  i::FLAG_always_compact = true;
-  i::FLAG_cache_optimized_code = false;
-  i::FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // Perform one initial GC to enable code flushing.
-  heap->CollectAllGarbage();
-
-  // Ensure the code ends up on an evacuation candidate.
-  SimulateFullSpace(heap->code_space());
-
-  // Prepare an unoptimized function that is eligible for code flushing.
-  Handle<JSFunction> function;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun("function mkClosure() {"
-               "  return function(x) { return x + 1; };"
-               "}"
-               "var f = mkClosure();"
-               "f(1); f(2);");
-
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
-    CHECK(f->is_compiled());
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
-    }
-
-    function = inner_scope.CloseAndEscape(handle(*f, isolate));
-  }
-
-  // Simulate incremental marking so that unoptimized function is enqueued as a
-  // candidate for code flushing. The shared function info however will not be
-  // explicitly enqueued.
-  SimulateIncrementalMarking(heap);
-
-  // Now optimize the function so that it is taken off the candidate list.
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun("%OptimizeFunctionOnNextCall(f); f(3);");
-  }
-
-  // This cycle will bust the heap and subsequent cycles will go ballistic.
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
-}
-
-
-TEST(Regress173458) {
-  if (i::FLAG_never_compact) return;
-  i::FLAG_always_compact = true;
-  i::FLAG_cache_optimized_code = false;
-  i::FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // Perform one initial GC to enable code flushing.
-  heap->CollectAllGarbage();
-
-  // Ensure the code ends up on an evacuation candidate.
-  SimulateFullSpace(heap->code_space());
-
-  // Prepare an unoptimized function that is eligible for code flushing.
-  Handle<JSFunction> function;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun("function mkClosure() {"
-               "  return function(x) { return x + 1; };"
-               "}"
-               "var f = mkClosure();"
-               "f(1); f(2);");
-
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
-    CHECK(f->is_compiled());
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
-    }
-
-    function = inner_scope.CloseAndEscape(handle(*f, isolate));
-  }
-
-  // Simulate incremental marking so that unoptimized function is enqueued as a
-  // candidate for code flushing. The shared function info however will not be
-  // explicitly enqueued.
-  SimulateIncrementalMarking(heap);
-
-  // Now enable the debugger which in turn will disable code flushing.
-  CHECK(isolate->debug()->Load());
-
-  // This cycle will bust the heap and subsequent cycles will go ballistic.
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
+  v8::Script::Compile(env.local(), mote_code_string)
+      .ToLocalChecked()
+      ->Run(env.local())
+      .ToLocalChecked();
 }
 
 
@@ -4431,6 +4358,7 @@ TEST(Regress513507) {
   i::FLAG_gc_global = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  LocalContext env;
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -4441,10 +4369,9 @@ TEST(Regress513507) {
     CompileRun("function f() { return 1 }"
                "f(); %OptimizeFunctionOnNextCall(f); f();");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
     shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
     CompileRun("f = null");
   }
@@ -4456,10 +4383,9 @@ TEST(Regress513507) {
     CompileRun("function g() { return 2 }"
                "g(); %OptimizeFunctionOnNextCall(g); g();");
 
-    Handle<JSFunction> g =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("g"))));
+    Handle<JSFunction> g = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()->Get(env.local(), v8_str("g")).ToLocalChecked())));
     code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
     if (!code->is_optimized_code()) return;
   }
@@ -4486,6 +4412,7 @@ TEST(Regress514122) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
+  LocalContext env;
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
 
@@ -4499,10 +4426,9 @@ TEST(Regress514122) {
     CompileRun("function f() { return 1 }"
                "f(); %OptimizeFunctionOnNextCall(f); f();");
 
-    Handle<JSFunction> f =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("f"))));
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
     shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
     CompileRun("f = null");
   }
@@ -4514,10 +4440,9 @@ TEST(Regress514122) {
     CompileRun("function g() { return 2 }"
                "g(); %OptimizeFunctionOnNextCall(g); g();");
 
-    Handle<JSFunction> g =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("g"))));
+    Handle<JSFunction> g = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()->Get(env.local(), v8_str("g")).ToLocalChecked())));
     code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
     if (!code->is_optimized_code()) return;
   }
@@ -4575,6 +4500,67 @@ TEST(Regress514122) {
 }
 
 
+TEST(Regress513496) {
+  i::FLAG_flush_optimized_code_cache = false;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+
+  // Perfrom one initial GC to enable code flushing.
+  CcTest::heap()->CollectAllGarbage();
+
+  // Prepare an optimized closure with containing an inlined function. Then age
+  // the inlined unoptimized code to trigger code flushing but make sure the
+  // outer optimized code is kept in the optimized code map.
+  Handle<SharedFunctionInfo> shared;
+  {
+    LocalContext context;
+    HandleScope inner_scope(isolate);
+    CompileRun(
+        "function g(x) { return x + 1 }"
+        "function mkClosure() {"
+        "  return function(x) { return g(x); };"
+        "}"
+        "var f = mkClosure();"
+        "f(1); f(2);"
+        "%OptimizeFunctionOnNextCall(f); f(3);");
+
+    Handle<JSFunction> g = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CcTest::global()
+                                           ->Get(context.local(), v8_str("g"))
+                                           .ToLocalChecked())));
+    CHECK(g->shared()->is_compiled());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      g->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    }
+
+    Handle<JSFunction> f = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CcTest::global()
+                                           ->Get(context.local(), v8_str("f"))
+                                           .ToLocalChecked())));
+    CHECK(f->is_compiled());
+    shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
+    CompileRun("f = null");
+  }
+
+  // Lookup the optimized code and keep it alive.
+  CodeAndLiterals result = shared->SearchOptimizedCodeMap(
+      isolate->context()->native_context(), BailoutId::None());
+  Handle<Code> optimized_code(result.code, isolate);
+
+  // Finish a full GC cycle so that the unoptimized code of 'g' is flushed even
+  // though the optimized code for 'f' is reachable via the optimized code map.
+  heap->CollectAllGarbage();
+
+  // Make a new closure that will get code installed from the code map.
+  // Unoptimized code is missing and the deoptimizer will go ballistic.
+  CompileRun("var h = mkClosure(); h('bozo');");
+}
+
+
 TEST(LargeObjectSlotRecording) {
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
@@ -4621,7 +4607,7 @@ TEST(LargeObjectSlotRecording) {
 
 class DummyVisitor : public ObjectVisitor {
  public:
-  void VisitPointers(Object** start, Object** end) { }
+  void VisitPointers(Object** start, Object** end) override {}
 };
 
 
@@ -4742,10 +4728,11 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     CHECK(site->dependent_code()->object_at(index)->IsWeakCell());
     Code* function_bar = Code::cast(
         WeakCell::cast(site->dependent_code()->object_at(index))->value());
-    Handle<JSFunction> bar_handle =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("bar"))));
+    Handle<JSFunction> bar_handle = Handle<JSFunction>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+            CcTest::global()
+                ->Get(context.local(), v8_str("bar"))
+                .ToLocalChecked())));
     CHECK_EQ(bar_handle->code(), function_bar);
   }
 
@@ -4791,10 +4778,10 @@ TEST(CellsInOptimizedCodeAreWeak) {
                "  bar(foo);"
                "  return bar;})();");
 
-    Handle<JSFunction> bar =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("bar"))));
+    Handle<JSFunction> bar = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CcTest::global()
+                                           ->Get(context.local(), v8_str("bar"))
+                                           .ToLocalChecked())));
     code = scope.CloseAndEscape(Handle<Code>(bar->code()));
   }
 
@@ -4832,10 +4819,10 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
                "%OptimizeFunctionOnNextCall(bar);"
                "bar();");
 
-    Handle<JSFunction> bar =
-        v8::Utils::OpenHandle(
-            *v8::Handle<v8::Function>::Cast(
-                CcTest::global()->Get(v8_str("bar"))));
+    Handle<JSFunction> bar = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CcTest::global()
+                                           ->Get(context.local(), v8_str("bar"))
+                                           .ToLocalChecked())));
     code = scope.CloseAndEscape(Handle<Code>(bar->code()));
   }
 
@@ -4899,7 +4886,8 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
 }
 
 
-static Handle<JSFunction> OptimizeDummyFunction(const char* name) {
+static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
+                                                const char* name) {
   EmbeddedVector<char, 256> source;
   SNPrintF(source,
           "function %s() { return 0; }"
@@ -4907,10 +4895,11 @@ static Handle<JSFunction> OptimizeDummyFunction(const char* name) {
           "%%OptimizeFunctionOnNextCall(%s);"
           "%s();", name, name, name, name, name);
   CompileRun(source.start());
-  Handle<JSFunction> fun =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str(name))));
+  i::Handle<JSFunction> fun = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()
+              ->Get(isolate->GetCurrentContext(), v8_str(name))
+              .ToLocalChecked())));
   return fun;
 }
 
@@ -4939,8 +4928,10 @@ TEST(NextCodeLinkIsWeak) {
   int code_chain_length_before, code_chain_length_after;
   {
     HandleScope scope(heap->isolate());
-    Handle<JSFunction> mortal = OptimizeDummyFunction("mortal");
-    Handle<JSFunction> immortal = OptimizeDummyFunction("immortal");
+    Handle<JSFunction> mortal =
+        OptimizeDummyFunction(CcTest::isolate(), "mortal");
+    Handle<JSFunction> immortal =
+        OptimizeDummyFunction(CcTest::isolate(), "immortal");
     CHECK_EQ(immortal->code()->next_code_link(), mortal->code());
     code_chain_length_before = GetCodeChainLength(immortal->code());
     // Keep the immortal code and let the mortal code die.
@@ -5011,14 +5002,17 @@ TEST(WeakFunctionInConstructor) {
   i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
   v8::HandleScope scope(isolate);
   CompileRun(
       "function createObj(obj) {"
       "  return new obj();"
       "}");
-  Handle<JSFunction> createObj =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Function>::Cast(
-                                CcTest::global()->Get(v8_str("createObj"))));
+  i::Handle<JSFunction> createObj = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()
+              ->Get(env.local(), v8_str("createObj"))
+              .ToLocalChecked())));
 
   v8::Persistent<v8::Object> garbage;
   {
@@ -5030,7 +5024,10 @@ TEST(WeakFunctionInConstructor) {
         "   createObj(hat);"
         "   return hat;"
         " })();";
-    garbage.Reset(isolate, CompileRun(source)->ToObject(isolate));
+    garbage.Reset(isolate, CompileRun(env.local(), source)
+                               .ToLocalChecked()
+                               ->ToObject(env.local())
+                               .ToLocalChecked());
   }
   weak_ic_cleared = false;
   garbage.SetWeak(&garbage, &ClearWeakIC, v8::WeakCallbackType::kParameter);
@@ -5065,11 +5062,15 @@ void CheckWeakness(const char* source) {
   i::FLAG_stress_compaction = false;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
   v8::HandleScope scope(isolate);
   v8::Persistent<v8::Object> garbage;
   {
     v8::HandleScope scope(isolate);
-    garbage.Reset(isolate, CompileRun(source)->ToObject(isolate));
+    garbage.Reset(isolate, CompileRun(env.local(), source)
+                               .ToLocalChecked()
+                               ->ToObject(env.local())
+                               .ToLocalChecked());
   }
   weak_ic_cleared = false;
   garbage.SetWeak(&garbage, &ClearWeakIC, v8::WeakCallbackType::kParameter);
@@ -5241,11 +5242,11 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 
 
 void CheckIC(Code* code, Code::Kind kind, SharedFunctionInfo* shared,
-             int ic_slot, InlineCacheState state) {
+             int slot_index, InlineCacheState state) {
   if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
       kind == Code::CALL_IC) {
     TypeFeedbackVector* vector = shared->feedback_vector();
-    FeedbackVectorICSlot slot(ic_slot);
+    FeedbackVectorSlot slot(slot_index);
     if (kind == Code::LOAD_IC) {
       LoadICNexus nexus(vector, slot);
       CHECK_EQ(nexus.StateFromFeedback(), state);
@@ -5412,7 +5413,7 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-
+  LocalContext env;
   CompileRun(
       "function add(a, b) {"
       "  return a + b;"
@@ -5433,13 +5434,13 @@ TEST(AddInstructionChangesNewSpacePromotion) {
       "%OptimizeFunctionOnNextCall(crash);"
       "crash(1);");
 
-  v8::Handle<v8::Object> global = CcTest::global();
-    v8::Handle<v8::Function> g =
-        v8::Handle<v8::Function>::Cast(global->Get(v8_str("crash")));
-  v8::Handle<v8::Value> args1[] = { v8_num(1) };
+  v8::Local<v8::Object> global = CcTest::global();
+  v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
+      global->Get(env.local(), v8_str("crash")).ToLocalChecked());
+  v8::Local<v8::Value> args1[] = {v8_num(1)};
   heap->DisableInlineAllocation();
   heap->set_allocation_timeout(1);
-  g->Call(global, 1, args1);
+  g->Call(env.local(), global, 1, args1).ToLocalChecked();
   heap->CollectAllGarbage();
 }
 
@@ -5454,9 +5455,9 @@ TEST(CEntryStubOOM) {
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  v8::V8::SetFatalErrorHandler(OnFatalErrorExpectOOM);
+  CcTest::isolate()->SetFatalErrorHandler(OnFatalErrorExpectOOM);
 
-  v8::Handle<v8::Value> result = CompileRun(
+  v8::Local<v8::Value> result = CompileRun(
       "%SetFlags('--gc-interval=1');"
       "var a = [];"
       "a.__proto__ = [];"
@@ -5512,9 +5513,11 @@ TEST(Regress357137) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope hscope(isolate);
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
-  global->Set(v8::String::NewFromUtf8(isolate, "interrupt"),
-              v8::FunctionTemplate::New(isolate, RequestInterrupt));
+  v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+  global->Set(
+      v8::String::NewFromUtf8(isolate, "interrupt", v8::NewStringType::kNormal)
+          .ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, RequestInterrupt));
   v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
   DCHECK(!context.IsEmpty());
   v8::Context::Scope cscope(context);
@@ -5525,7 +5528,7 @@ TEST(Regress357137) {
       "eval('function f() {' + locals + 'return function() { return v0; }; }');"
       "interrupt();"  // This triggers a fake stack overflow in f.
       "f()()");
-  CHECK_EQ(42.0, result->ToNumber(isolate)->Value());
+  CHECK_EQ(42.0, result->ToNumber(context).ToLocalChecked()->Value());
 }
 
 
@@ -5562,8 +5565,8 @@ TEST(ArrayShiftSweeping) {
   Heap* heap = isolate->heap();
 
   v8::Local<v8::Value> result = CompileRun(
-      "var array = new Array(40000);"
-      "var tmp = new Array(100000);"
+      "var array = new Array(400);"
+      "var tmp = new Array(1000);"
       "array[0] = 10;"
       "gc();"
       "gc();"
@@ -5571,7 +5574,7 @@ TEST(ArrayShiftSweeping) {
       "array;");
 
   Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   CHECK(heap->InOldSpace(o->elements()));
   CHECK(heap->InOldSpace(*o));
   Page* page = Page::FromAddress(o->elements()->address());
@@ -5584,6 +5587,7 @@ TEST(ArrayShiftSweeping) {
 UNINITIALIZED_TEST(PromotionQueue) {
   i::FLAG_expose_gc = true;
   i::FLAG_max_semi_space_size = 2 * (Page::kPageSize / MB);
+  i::FLAG_min_semi_space_size = i::FLAG_max_semi_space_size;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -5594,12 +5598,11 @@ UNINITIALIZED_TEST(PromotionQueue) {
     v8::Context::New(isolate)->Enter();
     Heap* heap = i_isolate->heap();
     NewSpace* new_space = heap->new_space();
-    DisableInlineAllocationSteps(new_space);
 
     // In this test we will try to overwrite the promotion queue which is at the
     // end of to-space. To actually make that possible, we need at least two
     // semi-space pages and take advantage of fragmentation.
-    // (1) Grow semi-space to two pages.
+    // (1) Use a semi-space consisting of two pages.
     // (2) Create a few small long living objects and call the scavenger to
     // move them to the other semi-space.
     // (3) Create a huge object, i.e., remainder of first semi-space page and
@@ -5615,18 +5618,9 @@ UNINITIALIZED_TEST(PromotionQueue) {
     // are in the second semi-space page. If the right guards are in place, the
     // promotion queue will be evacuated in that case.
 
-    // Grow the semi-space to two pages to make semi-space copy overwrite the
-    // promotion queue, which will be at the end of the second page.
-    intptr_t old_capacity = new_space->TotalCapacity();
 
-    // If we are in a low memory config, we can't grow to two pages and we can't
-    // run this test. This also means the issue we are testing cannot arise, as
-    // there is no fragmentation.
-    if (new_space->IsAtMaximumCapacity()) return;
-
-    new_space->Grow();
     CHECK(new_space->IsAtMaximumCapacity());
-    CHECK(2 * old_capacity == new_space->TotalCapacity());
+    CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
 
     // Call the scavenger two times to get an empty new space
     heap->CollectGarbage(NEW_SPACE);
@@ -5640,28 +5634,21 @@ UNINITIALIZED_TEST(PromotionQueue) {
     for (int i = 0; i < number_handles; i++) {
       handles[i] = i_isolate->factory()->NewFixedArray(1, NOT_TENURED);
     }
+
     heap->CollectGarbage(NEW_SPACE);
+    CHECK(i::FLAG_min_semi_space_size * MB == new_space->TotalCapacity());
 
-    // Create the first huge object which will exactly fit the first semi-space
-    // page.
-    int new_linear_size =
-        static_cast<int>(*heap->new_space()->allocation_limit_address() -
-                         *heap->new_space()->allocation_top_address());
-    int length = new_linear_size / kPointerSize - FixedArray::kHeaderSize;
-    Handle<FixedArray> first =
-        i_isolate->factory()->NewFixedArray(length, NOT_TENURED);
-    CHECK(heap->InNewSpace(*first));
+    // Fill-up the first semi-space page.
+    FillUpOnePage(new_space);
 
-    // Create the second huge object of maximum allocatable second semi-space
-    // page size.
-    new_linear_size =
-        static_cast<int>(*heap->new_space()->allocation_limit_address() -
-                         *heap->new_space()->allocation_top_address());
-    length = Page::kMaxRegularHeapObjectSize / kPointerSize -
-             FixedArray::kHeaderSize;
-    Handle<FixedArray> second =
-        i_isolate->factory()->NewFixedArray(length, NOT_TENURED);
-    CHECK(heap->InNewSpace(*second));
+    // Create a small object to initialize the bump pointer on the second
+    // semi-space page.
+    Handle<FixedArray> small =
+        i_isolate->factory()->NewFixedArray(1, NOT_TENURED);
+    CHECK(heap->InNewSpace(*small));
+
+    // Fill-up the second semi-space page.
+    FillUpOnePage(new_space);
 
     // This scavenge will corrupt memory if the promotion queue is not
     // evacuated.
@@ -5687,19 +5674,11 @@ TEST(Regress388880) {
 
   int desired_offset = Page::kPageSize - map1->instance_size();
 
-  // Allocate fixed array in old pointer space so, that object allocated
+  // Allocate padding objects in old pointer space so, that object allocated
   // afterwards would end at the end of the page.
-  {
-    SimulateFullSpace(heap->old_space());
-    int padding_size = desired_offset - Page::kObjectStartOffset;
-    int padding_array_length =
-        (padding_size - FixedArray::kHeaderSize) / kPointerSize;
-
-    Handle<FixedArray> temp2 =
-        factory->NewFixedArray(padding_array_length, TENURED);
-    Page* page = Page::FromAddress(temp2->address());
-    CHECK_EQ(Page::kObjectStartOffset, page->Offset(temp2->address()));
-  }
+  SimulateFullSpace(heap->old_space());
+  int padding_size = desired_offset - Page::kObjectStartOffset;
+  CreatePadding(heap, padding_size, TENURED);
 
   Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED);
   o->set_properties(*factory->empty_fixed_array());
@@ -5744,7 +5723,7 @@ TEST(Regress3631) {
   }
   // Incrementally mark the backing store.
   Handle<JSObject> obj =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
   while (!Marking::IsBlack(
              Marking::MarkBitFrom(HeapObject::cast(weak_map->table()))) &&
@@ -5770,7 +5749,8 @@ TEST(Regress442710) {
   Factory* factory = isolate->factory();
 
   HandleScope sc(isolate);
-  Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
+  Handle<JSGlobalObject> global(
+      CcTest::i_isolate()->context()->global_object());
   Handle<JSArray> array = factory->NewJSArray(2);
 
   Handle<String> name = factory->InternalizeUtf8String("testArray");
@@ -5803,7 +5783,7 @@ TEST(Regress3877) {
     HandleScope inner_scope(isolate);
     v8::Local<v8::Value> result = CompileRun("cls.prototype");
     Handle<JSObject> proto =
-        v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
+        v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
     weak_prototype = inner_scope.CloseAndEscape(factory->NewWeakCell(proto));
   }
   CHECK(!weak_prototype->cleared());
@@ -5831,7 +5811,7 @@ Handle<WeakCell> AddRetainedMap(Isolate* isolate, Heap* heap) {
     v8::Local<v8::Value> result =
         CompileRun("(function () { return {x : 10}; })();");
     Handle<JSObject> proto =
-        v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
+        v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
     Map::SetPrototype(map, proto);
     heap->AddRetainedMap(map);
     return inner_scope.CloseAndEscape(Map::WeakCellForMap(map));
@@ -6014,9 +5994,12 @@ static void UtilsHasBeenCollected(
 
 
 TEST(BootstrappingExports) {
-  FLAG_expose_natives_as = "natives";
+  // Expose utils object and delete it to observe that it is indeed
+  // being garbage-collected.
+  FLAG_expose_natives_as = "utils";
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
 
   if (Snapshot::HaveASnapshotToStartFrom(CcTest::i_isolate())) return;
 
@@ -6026,10 +6009,13 @@ TEST(BootstrappingExports) {
 
   {
     v8::HandleScope scope(isolate);
-    v8::Handle<v8::Object> natives =
-        CcTest::global()->Get(v8_str("natives"))->ToObject(isolate);
-    utils.Reset(isolate, natives->Get(v8_str("utils"))->ToObject(isolate));
-    natives->Delete(v8_str("utils"));
+    v8::Local<v8::String> name = v8_str("utils");
+    utils.Reset(isolate, CcTest::global()
+                             ->Get(env.local(), name)
+                             .ToLocalChecked()
+                             ->ToObject(env.local())
+                             .ToLocalChecked());
+    CHECK(CcTest::global()->Delete(env.local(), name).FromJust());
   }
 
   utils.SetWeak(&utils, UtilsHasBeenCollected,
@@ -6046,9 +6032,12 @@ TEST(Regress1878) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::Function> constructor =
-      v8::Utils::ToLocal(CcTest::i_isolate()->internal_array_function());
-  CcTest::global()->Set(v8_str("InternalArray"), constructor);
+  v8::Local<v8::Function> constructor = v8::Utils::CallableToLocal(
+      CcTest::i_isolate()->internal_array_function());
+  LocalContext env;
+  CHECK(CcTest::global()
+            ->Set(env.local(), v8_str("InternalArray"), constructor)
+            .FromJust());
 
   v8::TryCatch try_catch(isolate);
 
@@ -6202,9 +6191,11 @@ TEST(MessageObjectLeak) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
-  global->Set(v8::String::NewFromUtf8(isolate, "check"),
-              v8::FunctionTemplate::New(isolate, CheckLeak));
+  v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+  global->Set(
+      v8::String::NewFromUtf8(isolate, "check", v8::NewStringType::kNormal)
+          .ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, CheckLeak));
   v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
   v8::Context::Scope cscope(context);
 
@@ -6255,7 +6246,7 @@ TEST(CanonicalSharedFunctionInfo) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+  v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
   global->Set(isolate, "check", v8::FunctionTemplate::New(
                                     isolate, CheckEqualSharedFunctionInfos));
   global->Set(isolate, "remove",
@@ -6392,18 +6383,7 @@ TEST(SharedFunctionInfoIterator) {
     HeapIterator it(heap);
     for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
       if (!obj->IsSharedFunctionInfo()) continue;
-      // Shared function infos without a script (API functions or C++ builtins)
-      // are not returned by the iterator because they are not created from a
-      // script. They are not interesting for type feedback vector anyways.
-
-      // TODO(mvstanton): There are builtins that use type feedback vectors,
-      // consider adding these to the iterator.
-      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-      if (shared->script()->IsUndefined()) {
-        CHECK(shared->native() || 0 == shared->feedback_vector()->ICSlots());
-      } else {
-        sfi_count++;
-      }
+      sfi_count++;
     }
   }
 
@@ -6447,6 +6427,31 @@ TEST(Regress519319) {
   // are called before sweeping finishes.
   heap->StartIncrementalMarking();
   heap->FinalizeIncrementalMarkingIfComplete("test");
+}
+
+
+HEAP_TEST(TestMemoryReducerSampleJsCalls) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  MemoryReducer* memory_reducer = heap->memory_reducer_;
+  memory_reducer->SampleAndGetJsCallsPerMs(0);
+  isolate->IncrementJsCallsFromApiCounter();
+  isolate->IncrementJsCallsFromApiCounter();
+  isolate->IncrementJsCallsFromApiCounter();
+  double calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(1);
+  CheckDoubleEquals(3, calls_per_ms);
+
+  calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(2);
+  CheckDoubleEquals(0, calls_per_ms);
+
+  isolate->IncrementJsCallsFromApiCounter();
+  isolate->IncrementJsCallsFromApiCounter();
+  isolate->IncrementJsCallsFromApiCounter();
+  isolate->IncrementJsCallsFromApiCounter();
+  calls_per_ms = memory_reducer->SampleAndGetJsCallsPerMs(4);
+  CheckDoubleEquals(2, calls_per_ms);
 }
 
 

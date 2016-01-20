@@ -41,6 +41,7 @@ class V8 : public AllStatic {
   static v8::Platform* platform_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_V8_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --strong-mode --harmony-arrow-functions --harmony-reflect
-// Flags: --harmony-spread-calls --harmony-rest-parameters --allow-natives-syntax
+// Flags: --strong-mode --harmony-reflect
+// Flags: --harmony-rest-parameters --allow-natives-syntax
 
 'use strict';
 
@@ -70,8 +70,7 @@ function generateSpread(n) {
           `f.call(undefined, ${generateSpread(argumentCount)})`,
           `f.apply(undefined, [${generateArguments(argumentCount)}])`,
           `f.bind(undefined)(${generateArguments(argumentCount)})`,
-          `%_CallFunction(${generateArguments(argumentCount, 'undefined')},
-                          f)`,
+          `%_Call(f, ${generateArguments(argumentCount, 'undefined')})`,
           `%Call(f, ${generateArguments(argumentCount, 'undefined')})`,
           `%Apply(f, undefined, [${generateArguments(argumentCount)}], 0,
                   ${argumentCount})`,
@@ -134,7 +133,7 @@ function generateSpread(n) {
             `o.m.call(o, ${generateSpread(argumentCount)})`,
             `o.m.apply(o, [${generateArguments(argumentCount)}])`,
             `o.m.bind(o)(${generateArguments(argumentCount)})`,
-            `%_CallFunction(${generateArguments(argumentCount, 'o')}, o.m)`,
+            `%_Call(o.m, ${generateArguments(argumentCount, 'o')})`,
             `%Call(o.m, ${generateArguments(argumentCount, 'o')})`,
             `%Apply(o.m, o, [${generateArguments(argumentCount)}], 0,
                     ${argumentCount})`,

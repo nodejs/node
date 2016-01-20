@@ -38,6 +38,7 @@ void Logger::CallEventLogger(Isolate* isolate, const char* name, StartEnd se,
     }
   }
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LOG_INL_H_

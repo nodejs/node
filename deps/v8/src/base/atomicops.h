@@ -133,7 +133,8 @@ Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 Atomic64 Release_Load(volatile const Atomic64* ptr);
 #endif  // V8_HOST_ARCH_64_BIT
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 // Include our platform specific implementation.
 #if defined(THREAD_SANITIZER)

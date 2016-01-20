@@ -194,7 +194,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   language_mode_ = outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
-  inner_scope_uses_arguments_ = false;
   scope_nonlinear_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
@@ -325,7 +324,6 @@ bool Scope::Analyze(ParseInfo* info) {
 
 
 void Scope::Initialize() {
-  bool subclass_constructor = IsSubclassConstructor(function_kind_);
   DCHECK(!already_resolved());
 
   // Add this scope as a new inner scope of the outer scope.
@@ -338,6 +336,7 @@ void Scope::Initialize() {
 
   // Declare convenience variables and the receiver.
   if (is_declaration_scope() && has_this_declaration()) {
+    bool subclass_constructor = IsSubclassConstructor(function_kind_);
     Variable* var = variables_.Declare(
         this, ast_value_factory_->this_string(),
         subclass_constructor ? CONST : VAR, Variable::THIS,
@@ -352,10 +351,8 @@ void Scope::Initialize() {
     variables_.Declare(this, ast_value_factory_->arguments_string(), VAR,
                        Variable::ARGUMENTS, kCreatedInitialized);
 
-    if (subclass_constructor || FLAG_harmony_new_target) {
-      variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
-                         Variable::NORMAL, kCreatedInitialized);
-    }
+    variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
+                       Variable::NORMAL, kCreatedInitialized);
 
     if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
         IsAccessorFunction(function_kind_)) {
@@ -377,12 +374,7 @@ Scope* Scope::FinalizeBlockScope() {
   }
 
   // Remove this scope from outer scope.
-  for (int i = 0; i < outer_scope_->inner_scopes_.length(); i++) {
-    if (outer_scope_->inner_scopes_[i] == this) {
-      outer_scope_->inner_scopes_.Remove(i);
-      break;
-    }
-  }
+  outer_scope()->RemoveInnerScope(this);
 
   // Reparent inner scopes.
   for (int i = 0; i < inner_scopes_.length(); i++) {
@@ -394,12 +386,32 @@ Scope* Scope::FinalizeBlockScope() {
     outer_scope()->unresolved_.Add(unresolved_[i], zone());
   }
 
-  // Propagate usage flags to outer scope.
-  if (uses_arguments()) outer_scope_->RecordArgumentsUsage();
-  if (uses_super_property()) outer_scope_->RecordSuperPropertyUsage();
-  if (scope_calls_eval_) outer_scope_->RecordEvalCall();
+  PropagateUsageFlagsToScope(outer_scope_);
 
   return NULL;
+}
+
+
+void Scope::ReplaceOuterScope(Scope* outer) {
+  DCHECK_NOT_NULL(outer);
+  DCHECK_NOT_NULL(outer_scope_);
+  DCHECK(!already_resolved());
+  DCHECK(!outer->already_resolved());
+  DCHECK(!outer_scope_->already_resolved());
+  outer_scope_->RemoveInnerScope(this);
+  outer->AddInnerScope(this);
+  outer_scope_ = outer;
+}
+
+
+void Scope::PropagateUsageFlagsToScope(Scope* other) {
+  DCHECK_NOT_NULL(other);
+  DCHECK(!already_resolved());
+  DCHECK(!other->already_resolved());
+  if (uses_arguments()) other->RecordArgumentsUsage();
+  if (uses_super_property()) other->RecordSuperPropertyUsage();
+  if (calls_eval()) other->RecordEvalCall();
+  if (scope_contains_with_) other->RecordWithStatement();
 }
 
 
@@ -548,15 +560,16 @@ Variable* Scope::DeclareDynamicGlobal(const AstRawString* name) {
 }
 
 
-void Scope::RemoveUnresolved(VariableProxy* var) {
+bool Scope::RemoveUnresolved(VariableProxy* var) {
   // Most likely (always?) any variable we want to remove
   // was just added before, so we search backwards.
   for (int i = unresolved_.length(); i-- > 0;) {
     if (unresolved_[i] == var) {
       unresolved_.Remove(i);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 
@@ -601,10 +614,6 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
     const AstRawString* name = decl->proxy()->raw_name();
 
     // Iterate through all scopes until and including the declaration scope.
-    // If the declaration scope is a (declaration) block scope, also continue
-    // (that is to handle the special inner scope of functions with
-    // destructuring parameters, which may not shadow any variables from
-    // the surrounding function scope).
     Scope* previous = NULL;
     Scope* current = decl->scope();
     // Lexical vs lexical conflicts within the same scope have already been
@@ -620,7 +629,7 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
       }
       previous = current;
       current = current->outer_scope_;
-    } while (!previous->is_declaration_scope() || previous->is_block_scope());
+    } while (!previous->is_declaration_scope());
   }
   return NULL;
 }
@@ -769,12 +778,23 @@ int Scope::ContextChainLength(Scope* scope) {
   int n = 0;
   for (Scope* s = this; s != scope; s = s->outer_scope_) {
     DCHECK(s != NULL);  // scope must be in the scope chain
-    if (s->is_with_scope() || s->num_heap_slots() > 0) n++;
-    // Catch and module scopes always have heap slots.
-    DCHECK(!s->is_catch_scope() || s->num_heap_slots() > 0);
-    DCHECK(!s->is_module_scope() || s->num_heap_slots() > 0);
+    if (s->NeedsContext()) n++;
   }
   return n;
+}
+
+
+int Scope::MaxNestedContextChainLength() {
+  int max_context_chain_length = 0;
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    Scope* scope = inner_scopes_[i];
+    max_context_chain_length = std::max(scope->MaxNestedContextChainLength(),
+                                        max_context_chain_length);
+  }
+  if (NeedsContext()) {
+    max_context_chain_length += 1;
+  }
+  return max_context_chain_length;
 }
 
 
@@ -848,16 +868,18 @@ void Scope::ReportMessage(int start_position, int end_position,
 
 
 #ifdef DEBUG
-static const char* Header(ScopeType scope_type, bool is_declaration_scope) {
+static const char* Header(ScopeType scope_type, FunctionKind function_kind,
+                          bool is_declaration_scope) {
   switch (scope_type) {
     case EVAL_SCOPE: return "eval";
-    case FUNCTION_SCOPE: return "function";
+    // TODO(adamk): Should we print concise method scopes specially?
+    case FUNCTION_SCOPE:
+      return IsArrowFunction(function_kind) ? "arrow" : "function";
     case MODULE_SCOPE: return "module";
     case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
     case BLOCK_SCOPE: return is_declaration_scope ? "varblock" : "block";
     case WITH_SCOPE: return "with";
-    case ARROW_SCOPE: return "arrow";
   }
   UNREACHABLE();
   return NULL;
@@ -939,8 +961,8 @@ void Scope::Print(int n) {
   int n1 = n0 + 2;  // indentation
 
   // Print header.
-  Indent(n0, Header(scope_type_, is_declaration_scope()));
-  if (!scope_name_->IsEmpty()) {
+  Indent(n0, Header(scope_type_, function_kind_, is_declaration_scope()));
+  if (scope_name_ != nullptr && !scope_name_->IsEmpty()) {
     PrintF(" ");
     PrintName(scope_name_);
   }
@@ -983,9 +1005,6 @@ void Scope::Print(int n) {
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
   if (scope_uses_super_property_)
     Indent(n1, "// scope uses 'super' property\n");
-  if (inner_scope_uses_arguments_) {
-    Indent(n1, "// inner scope uses 'arguments'\n");
-  }
   if (outer_scope_calls_sloppy_eval_) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
   }
@@ -1111,7 +1130,8 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     if (var != NULL && proxy->is_assigned()) var->set_maybe_assigned();
     *binding_kind = DYNAMIC_LOOKUP;
     return NULL;
-  } else if (calls_sloppy_eval() && name_can_be_shadowed) {
+  } else if (calls_sloppy_eval() && !is_script_scope() &&
+             name_can_be_shadowed) {
     // A variable binding may have been found in an outer scope, but the current
     // scope makes a sloppy 'eval' call, so the found variable may not be
     // the correct one (the 'eval' may introduce a binding with the same name).
@@ -1331,14 +1351,6 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
     inner->PropagateScopeInfo(calls_sloppy_eval);
     if (inner->scope_calls_eval_ || inner->inner_scope_calls_eval_) {
       inner_scope_calls_eval_ = true;
-    }
-    // If the inner scope is an arrow function, propagate the flags tracking
-    // usage of arguments/super/this, but do not propagate them out from normal
-    // functions.
-    if (!inner->is_function_scope() || inner->is_arrow_scope()) {
-      if (inner->scope_uses_arguments_ || inner->inner_scope_uses_arguments_) {
-        inner_scope_uses_arguments_ = true;
-      }
     }
     if (inner->force_eager_compilation_) {
       force_eager_compilation_ = true;

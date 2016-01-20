@@ -74,5 +74,5 @@ void ContextMeasure::VisitPointers(Object** start, Object** end) {
     MeasureObject(HeapObject::cast(*current));
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

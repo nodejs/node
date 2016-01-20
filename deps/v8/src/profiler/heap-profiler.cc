@@ -5,6 +5,7 @@
 #include "src/profiler/heap-profiler.h"
 
 #include "src/api.h"
+#include "src/debug/debug.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 
@@ -75,6 +76,10 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   }
   ids_->RemoveDeadEntries();
   is_tracking_object_moves_ = true;
+
+  heap()->isolate()->debug()->feature_tracker()->Track(
+      DebugFeatureTracker::kHeapSnapshot);
+
   return result;
 }
 
@@ -86,6 +91,8 @@ void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   if (track_allocations) {
     allocation_tracker_.Reset(new AllocationTracker(ids_.get(), names_.get()));
     heap()->DisableInlineAllocation();
+    heap()->isolate()->debug()->feature_tracker()->Track(
+        DebugFeatureTracker::kAllocationTracking);
   }
 }
 

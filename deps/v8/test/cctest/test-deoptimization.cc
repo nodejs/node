@@ -48,50 +48,60 @@ using ::v8::internal::Object;
 // Size of temp buffer for formatting small strings.
 #define SMALL_STRING_BUFFER_SIZE 80
 
-// Utility class to set --allow-natives-syntax --always-opt and --nouse-inlining
-// when constructed and return to their default state when destroyed.
+// Utility class to set the following runtime flags when constructed and return
+// to their default state when destroyed:
+//   --allow-natives-syntax --always-opt --noturbo-inlining --nouse-inlining
 class AlwaysOptimizeAllowNativesSyntaxNoInlining {
  public:
   AlwaysOptimizeAllowNativesSyntaxNoInlining()
       : always_opt_(i::FLAG_always_opt),
         allow_natives_syntax_(i::FLAG_allow_natives_syntax),
+        turbo_inlining_(i::FLAG_turbo_inlining),
         use_inlining_(i::FLAG_use_inlining) {
     i::FLAG_always_opt = true;
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_turbo_inlining = false;
     i::FLAG_use_inlining = false;
   }
 
   ~AlwaysOptimizeAllowNativesSyntaxNoInlining() {
-    i::FLAG_allow_natives_syntax = allow_natives_syntax_;
     i::FLAG_always_opt = always_opt_;
+    i::FLAG_allow_natives_syntax = allow_natives_syntax_;
+    i::FLAG_turbo_inlining = turbo_inlining_;
     i::FLAG_use_inlining = use_inlining_;
   }
 
  private:
   bool always_opt_;
   bool allow_natives_syntax_;
+  bool turbo_inlining_;
   bool use_inlining_;
 };
 
 
-// Utility class to set --allow-natives-syntax and --nouse-inlining when
-// constructed and return to their default state when destroyed.
+// Utility class to set the following runtime flags when constructed and return
+// to their default state when destroyed:
+//   --allow-natives-syntax --noturbo-inlining --nouse-inlining
 class AllowNativesSyntaxNoInlining {
  public:
   AllowNativesSyntaxNoInlining()
       : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
+        turbo_inlining_(i::FLAG_turbo_inlining),
         use_inlining_(i::FLAG_use_inlining) {
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_turbo_inlining = false;
     i::FLAG_use_inlining = false;
   }
 
   ~AllowNativesSyntaxNoInlining() {
     i::FLAG_allow_natives_syntax = allow_natives_syntax_;
+    i::FLAG_turbo_inlining = turbo_inlining_;
     i::FLAG_use_inlining = use_inlining_;
   }
 
  private:
   bool allow_natives_syntax_;
+  bool turbo_inlining_;
   bool use_inlining_;
 };
 
@@ -107,7 +117,7 @@ static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
                                         const char* property_name) {
   v8::Local<v8::Function> fun =
       v8::Local<v8::Function>::Cast(obj->Get(v8_str(property_name)));
-  return v8::Utils::OpenHandle(*fun);
+  return i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
 }
 
 

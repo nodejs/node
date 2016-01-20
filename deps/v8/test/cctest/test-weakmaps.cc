@@ -188,8 +188,7 @@ TEST(Regress2060a) {
 
   // Start second old-space page so that values land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
-  int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
-  factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
+  SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
   {
@@ -228,8 +227,7 @@ TEST(Regress2060b) {
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
-  int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
-  factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
+  SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];

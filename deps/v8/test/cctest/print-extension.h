@@ -42,6 +42,7 @@ class PrintExtension : public v8::Extension {
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

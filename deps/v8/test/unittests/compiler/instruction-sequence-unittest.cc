@@ -20,6 +20,14 @@ static char register_names_[10 * (RegisterConfiguration::kMaxGeneralRegisters +
                                   RegisterConfiguration::kMaxDoubleRegisters)];
 
 
+namespace {
+static int allocatable_codes[InstructionSequenceTest::kDefaultNRegs] = {
+    0, 1, 2, 3, 4, 5, 6, 7};
+static int allocatable_double_codes[InstructionSequenceTest::kDefaultNRegs] = {
+    0, 1, 2, 3, 4, 5, 6, 7};
+}
+
+
 static void InitializeRegisterNames() {
   char* loc = register_names_;
   for (int i = 0; i < RegisterConfiguration::kMaxGeneralRegisters; ++i) {
@@ -59,8 +67,10 @@ void InstructionSequenceTest::SetNumRegs(int num_general_registers,
 RegisterConfiguration* InstructionSequenceTest::config() {
   if (config_.is_empty()) {
     config_.Reset(new RegisterConfiguration(
-        num_general_registers_, num_double_registers_, num_double_registers_,
-        general_register_names_, double_register_names_));
+        num_general_registers_, num_double_registers_, num_general_registers_,
+        num_double_registers_, num_double_registers_, allocatable_codes,
+        allocatable_double_codes, general_register_names_,
+        double_register_names_));
   }
   return config_.get();
 }

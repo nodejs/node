@@ -1377,12 +1377,12 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "blez    'rs, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() != instr->RsValue()) &&
                  (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bgeuc    'rs, 'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bgeuc   'rs, 'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() == instr->RsValue()) &&
                  (instr->RtValue() != 0)) {
-        Format(instr, "bgezalc  'rs, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bgezalc 'rs, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
-        Format(instr, "blezalc  'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "blezalc 'rt, 'imm16u -> 'imm16p4s2");
       } else {
         UNREACHABLE();
       }
@@ -1419,7 +1419,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "bltzc    'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() != instr->RsValue()) &&
                  (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bltc     'rs, 'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bltc    'rs, 'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
         Format(instr, "bgtzc    'rt, 'imm16u -> 'imm16p4s2");
       } else {
@@ -1435,9 +1435,9 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       break;
     case POP76:
       if (instr->RsValue() == JIALC) {
-        Format(instr, "jialc   'rt, 'imm16x");
+        Format(instr, "jialc   'rt, 'imm16s");
       } else {
-        Format(instr, "bnezc   'rs, 'imm21x -> 'imm21p4s2");
+        Format(instr, "bnezc   'rs, 'imm21s -> 'imm21p4s2");
       }
       break;
     // ------------- Arithmetic instructions.
@@ -1445,25 +1445,33 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       if (!IsMipsArchVariant(kMips32r6)) {
         Format(instr, "addi    'rt, 'rs, 'imm16s");
       } else {
-        // Check if BOVC or BEQC instruction.
-        if (instr->RsValue() >= instr->RtValue()) {
+        int rs_reg = instr->RsValue();
+        int rt_reg = instr->RtValue();
+        // Check if BOVC, BEQZALC or BEQC instruction.
+        if (rs_reg >= rt_reg) {
           Format(instr, "bovc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-        } else if (instr->RsValue() < instr->RtValue()) {
-          Format(instr, "beqc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
-          UNREACHABLE();
+          if (rs_reg == 0) {
+            Format(instr, "beqzalc 'rt, 'imm16s -> 'imm16p4s2");
+          } else {
+            Format(instr, "beqc    'rs, 'rt, 'imm16s -> 'imm16p4s2");
+          }
         }
       }
       break;
     case DADDI:
       if (IsMipsArchVariant(kMips32r6)) {
-        // Check if BNVC or BNEC instruction.
-        if (instr->RsValue() >= instr->RtValue()) {
+        int rs_reg = instr->RsValue();
+        int rt_reg = instr->RtValue();
+        // Check if BNVC, BNEZALC or BNEC instruction.
+        if (rs_reg >= rt_reg) {
           Format(instr, "bnvc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-        } else if (instr->RsValue() < instr->RtValue()) {
-          Format(instr, "bnec  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
-          UNREACHABLE();
+          if (rs_reg == 0) {
+            Format(instr, "bnezalc 'rt, 'imm16s -> 'imm16p4s2");
+          } else {
+            Format(instr, "bnec  'rs, 'rt, 'imm16s -> 'imm16p4s2");
+          }
         }
       }
       break;

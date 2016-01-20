@@ -81,6 +81,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   RegExpMacroAssembler* assembler_;
 };
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_TRACER_H_

@@ -13,11 +13,15 @@ namespace internal {
 
 
 enum ContextLookupFlags {
-  FOLLOW_CONTEXT_CHAIN = 1,
-  FOLLOW_PROTOTYPE_CHAIN = 2,
+  FOLLOW_CONTEXT_CHAIN = 1 << 0,
+  FOLLOW_PROTOTYPE_CHAIN = 1 << 1,
+  STOP_AT_DECLARATION_SCOPE = 1 << 2,
+  SKIP_WITH_CONTEXT = 1 << 3,
 
   DONT_FOLLOW_CHAINS = 0,
-  FOLLOW_CHAINS = FOLLOW_CONTEXT_CHAIN | FOLLOW_PROTOTYPE_CHAIN
+  FOLLOW_CHAINS = FOLLOW_CONTEXT_CHAIN | FOLLOW_PROTOTYPE_CHAIN,
+  LEXICAL_TEST =
+      FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT,
 };
 
 
@@ -78,12 +82,10 @@ enum BindingFlags {
   V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)     \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                 \
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                   \
-  V(NON_NUMBER_TO_NUMBER_INDEX, JSFunction, non_number_to_number)         \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                       \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)               \
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                 \
-  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                   \
-  V(TO_NUMBER_FUN_INDEX, JSFunction, to_number_fun)
+  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)
 
 
 #define NATIVE_CONTEXT_JS_BUILTINS(V)                                 \
@@ -131,7 +133,6 @@ enum BindingFlags {
     no_side_effect_to_string_fun)                                             \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
-  V(OBJECT_DEFINE_OWN_PROPERTY_INDEX, JSFunction, object_define_own_property) \
   V(OBJECT_GET_OWN_PROPERTY_DESCROPTOR_INDEX, JSFunction,                     \
     object_get_own_property_descriptor)                                       \
   V(OBSERVERS_BEGIN_SPLICE_INDEX, JSFunction, observers_begin_perform_splice) \
@@ -185,6 +186,7 @@ enum BindingFlags {
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
+  V(ERRORS_THROWN_INDEX, Smi, errors_thrown)                                   \
   V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_binding_object)              \
   V(EXTRAS_UTILS_OBJECT_INDEX, JSObject, extras_utils_object)                  \
   V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
@@ -395,6 +397,9 @@ class Context: public FixedArray {
     THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
   };
 
+  void IncrementErrorsThrown();
+  int GetErrorsThrown();
+
   // Direct slot access.
   inline JSFunction* closure();
   inline void set_closure(JSFunction* closure);
@@ -418,15 +423,12 @@ class Context: public FixedArray {
   Context* declaration_context();
   bool is_declaration_context();
 
-  inline GlobalObject* global_object();
-  inline void set_global_object(GlobalObject* object);
+  inline JSGlobalObject* global_object();
+  inline void set_global_object(JSGlobalObject* object);
 
   // Returns a JSGlobalProxy object or null.
   JSObject* global_proxy();
   void set_global_proxy(JSObject* global);
-
-  // The builtins object.
-  JSBuiltinsObject* builtins();
 
   // Get the script context by traversing the context chain.
   Context* script_context();
@@ -555,6 +557,7 @@ class Context: public FixedArray {
   STATIC_ASSERT(EMBEDDER_DATA_INDEX == Internals::kContextEmbedderDataIndex);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CONTEXTS_H_

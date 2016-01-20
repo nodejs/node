@@ -405,18 +405,6 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CharFromCode) {
-  HandleScope handlescope(isolate);
-  DCHECK(args.length() == 1);
-  if (args[0]->IsNumber()) {
-    CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
-    code &= 0xffff;
-    return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
-  }
-  return isolate->heap()->empty_string();
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringCompare) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -1185,8 +1173,14 @@ RUNTIME_FUNCTION(Runtime_FlattenString) {
 
 
 RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_CharFromCode(args, isolate);
+  HandleScope handlescope(isolate);
+  DCHECK_EQ(1, args.length());
+  if (args[0]->IsNumber()) {
+    CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
+    code &= 0xffff;
+    return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
+  }
+  return isolate->heap()->empty_string();
 }
 
 
@@ -1198,7 +1192,7 @@ RUNTIME_FUNCTION(Runtime_StringCharAt) {
   if (std::isinf(args.number_at(1))) return isolate->heap()->empty_string();
   Object* code = __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
   if (code->IsNaN()) return isolate->heap()->empty_string();
-  return __RT_impl_Runtime_CharFromCode(Arguments(1, &code), isolate);
+  return __RT_impl_Runtime_StringCharFromCode(Arguments(1, &code), isolate);
 }
 
 

@@ -50,7 +50,6 @@ DAY_IN_SECONDS = 24 * 60 * 60
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 PUSH_MSG_NEW_RE = re.compile(r"^Version \d+\.\d+\.\d+$")
 VERSION_FILE = os.path.join("include", "v8-version.h")
-VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
 
 # V8 base directory.
 V8_BASE = os.path.dirname(
@@ -204,6 +203,30 @@ def Command(cmd, args="", prefix="", pipe=True, cwd=None):
   finally:
     sys.stdout.flush()
     sys.stderr.flush()
+
+
+def SanitizeVersionTag(tag):
+    version_without_prefix = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?$")
+    version_with_prefix = re.compile(r"^tags\/\d+\.\d+\.\d+(?:\.\d+)?$")
+
+    if version_without_prefix.match(tag):
+      return tag
+    elif version_with_prefix.match(tag):
+        return tag[len("tags/"):]
+    else:
+      return None
+
+
+def NormalizeVersionTags(version_tags):
+  normalized_version_tags = []
+
+  # Remove tags/ prefix because of packed refs.
+  for current_tag in version_tags:
+    version_tag = SanitizeVersionTag(current_tag)
+    if version_tag != None:
+      normalized_version_tags.append(version_tag)
+
+  return normalized_version_tags
 
 
 # Wrapper for side effects.
@@ -607,10 +630,7 @@ class Step(GitRecipesMixin):
 
   def GetVersionTag(self, revision):
     tag = self.Git("describe --tags %s" % revision).strip()
-    if VERSION_RE.match(tag):
-      return tag
-    else:
-      return None
+    return SanitizeVersionTag(tag)
 
   def GetRecentReleases(self, max_age):
     # Make sure tags are fetched.
@@ -633,7 +653,11 @@ class Step(GitRecipesMixin):
 
     # Make sure tags are fetched.
     self.Git("fetch origin +refs/tags/*:refs/tags/*")
-    version = sorted(filter(VERSION_RE.match, self.vc.GetTags()),
+
+    all_tags = self.vc.GetTags()
+    only_version_tags = NormalizeVersionTags(all_tags)
+
+    version = sorted(only_version_tags,
                      key=SortingKey, reverse=True)[0]
     self["latest_version"] = version
     return version

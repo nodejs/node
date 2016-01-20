@@ -2,15 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <sstream>
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
-#include "src/v8.h"
+#include <sstream>
 
 #include "src/compiler/operator.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 #define NONE Operator::kNoProperties
 #define FOLD Operator::kFoldable
@@ -281,3 +283,7 @@ TEST(Operator_CountsOrder) {
   CHECK_EQ(55, op.EffectOutputCount());
   CHECK_EQ(66, op.ControlOutputCount());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

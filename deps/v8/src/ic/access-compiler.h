@@ -81,7 +81,7 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   // Ensure that MacroAssembler has a reasonable size.
   STATIC_ASSERT(sizeof(MacroAssembler) < 128 * kPointerSize);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_ACCESS_COMPILER_H_

@@ -41,6 +41,14 @@ class TransitionArray: public FixedArray {
 
   static Map* SearchTransition(Map* map, PropertyKind kind, Name* name,
                                PropertyAttributes attributes);
+  static MaybeHandle<Map> SearchTransition(Handle<Map> map, PropertyKind kind,
+                                           Handle<Name> name,
+                                           PropertyAttributes attributes) {
+    if (Map* transition = SearchTransition(*map, kind, *name, attributes)) {
+      return handle(transition);
+    }
+    return MaybeHandle<Map>();
+  }
 
   static Map* SearchSpecial(Map* map, Symbol* name);
 
@@ -302,6 +310,7 @@ class TransitionArray: public FixedArray {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TRANSITIONS_H_

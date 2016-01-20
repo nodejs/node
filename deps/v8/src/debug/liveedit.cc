@@ -910,7 +910,7 @@ class ReplacingVisitor : public ObjectVisitor {
     : original_(original), substitution_(substitution) {
   }
 
-  virtual void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
       if (*p == original_) {
         *p = substitution_;
@@ -918,14 +918,14 @@ class ReplacingVisitor : public ObjectVisitor {
     }
   }
 
-  virtual void VisitCodeEntry(Address entry) {
+  void VisitCodeEntry(Address entry) override {
     if (Code::GetObjectFromEntryAddress(entry) == original_) {
       Address substitution_entry = substitution_->instruction_start();
       Memory::Address_at(entry) = substitution_entry;
     }
   }
 
-  virtual void VisitCodeTarget(RelocInfo* rinfo) {
+  void VisitCodeTarget(RelocInfo* rinfo) override {
     if (RelocInfo::IsCodeTarget(rinfo->rmode()) &&
         Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
       Address substitution_entry = substitution_->instruction_start();
@@ -933,9 +933,7 @@ class ReplacingVisitor : public ObjectVisitor {
     }
   }
 
-  virtual void VisitDebugTarget(RelocInfo* rinfo) {
-    VisitCodeTarget(rinfo);
-  }
+  void VisitDebugTarget(RelocInfo* rinfo) override { VisitCodeTarget(rinfo); }
 
  private:
   Code* original_;

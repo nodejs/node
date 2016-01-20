@@ -18,8 +18,7 @@ namespace internal {
 const int kNumRegisters = 32;
 
 // FP support.
-const int kNumFPDoubleRegisters = 32;
-const int kNumFPRegisters = kNumFPDoubleRegisters;
+const int kNumDoubleRegisters = 32;
 
 const int kNoRegister = -1;
 
@@ -229,6 +228,7 @@ enum OpcodeExt2 {
   LHAUX = 375 << 1,    // load half-word algebraic w/ update x-form
   XORX = 316 << 1,     // Exclusive OR
   MFSPR = 339 << 1,    // Move from Special-Purpose-Register
+  POPCNTW = 378 << 1,  // Population Count Words
   STHX = 407 << 1,     // store half-word w/ x-form
   ORC = 412 << 1,      // Or with Complement
   STHUX = 439 << 1,    // store half-word w/ update x-form
@@ -238,6 +238,7 @@ enum OpcodeExt2 {
   MTSPR = 467 << 1,    // Move to Special-Purpose-Register
   DIVD = 489 << 1,     // Divide Double Word
   DIVW = 491 << 1,     // Divide Word
+  POPCNTD = 506 << 1,  // Population Count Doubleword
 
   // Below represent bits 10-1  (any value >= 512)
   LFSX = 535 << 1,    // load float-single w/ x-form
@@ -564,35 +565,23 @@ class Instruction {
 // Helper functions for converting between register numbers and names.
 class Registers {
  public:
-  // Return the name of the register.
-  static const char* Name(int reg);
-
   // Lookup the register number for the name provided.
   static int Number(const char* name);
-
-  struct RegisterAlias {
-    int reg;
-    const char* name;
-  };
 
  private:
   static const char* names_[kNumRegisters];
-  static const RegisterAlias aliases_[];
 };
 
 // Helper functions for converting between FP register numbers and names.
-class FPRegisters {
+class DoubleRegisters {
  public:
-  // Return the name of the register.
-  static const char* Name(int reg);
-
   // Lookup the register number for the name provided.
   static int Number(const char* name);
 
  private:
-  static const char* names_[kNumFPRegisters];
+  static const char* names_[kNumDoubleRegisters];
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_CONSTANTS_PPC_H_

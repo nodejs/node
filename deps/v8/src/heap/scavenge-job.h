@@ -74,7 +74,7 @@ class ScavengeJob {
   bool idle_task_rescheduled_;
   int bytes_allocated_since_the_last_task_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_SCAVENGE_JOB_H_

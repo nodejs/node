@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/compiler/gap-resolver.h"
 
 #include "src/base/utils/random-number-generator.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 // The state of our move interpreter is the mapping of operands to values. Note
 // that the actual values don't really matter, all we care about is equality.
@@ -32,12 +36,16 @@ class InterpreterState {
  private:
   struct Key {
     bool is_constant;
-    AllocatedOperand::AllocatedKind kind;
+    bool is_float;
+    LocationOperand::LocationKind kind;
     int index;
 
     bool operator<(const Key& other) const {
       if (this->is_constant != other.is_constant) {
         return this->is_constant;
+      }
+      if (this->is_float != other.is_float) {
+        return this->is_float;
       }
       if (this->kind != other.kind) {
         return this->kind < other.kind;
@@ -70,16 +78,24 @@ class InterpreterState {
 
   static Key KeyFor(const InstructionOperand& op) {
     bool is_constant = op.IsConstant();
-    AllocatedOperand::AllocatedKind kind;
+    bool is_float = false;
+    LocationOperand::LocationKind kind;
     int index;
     if (!is_constant) {
-      index = AllocatedOperand::cast(op).index();
-      kind = AllocatedOperand::cast(op).allocated_kind();
+      if (op.IsRegister()) {
+        index = LocationOperand::cast(op).GetRegister().code();
+      } else if (op.IsDoubleRegister()) {
+        index = LocationOperand::cast(op).GetDoubleRegister().code();
+      } else {
+        index = LocationOperand::cast(op).index();
+      }
+      is_float = IsFloatingPoint(LocationOperand::cast(op).machine_type());
+      kind = LocationOperand::cast(op).location_kind();
     } else {
       index = ConstantOperand::cast(op).virtual_register();
-      kind = AllocatedOperand::REGISTER;
+      kind = LocationOperand::REGISTER;
     }
-    Key key = {is_constant, kind, index};
+    Key key = {is_constant, is_float, kind, index};
     return key;
   }
 
@@ -90,7 +106,9 @@ class InterpreterState {
       return ConstantOperand(key.index);
     }
     return AllocatedOperand(
-        key.kind, InstructionSequence::DefaultRepresentation(), key.index);
+        key.kind,
+        v8::internal::compiler::InstructionSequence::DefaultRepresentation(),
+        key.index);
   }
 
   friend std::ostream& operator<<(std::ostream& os,
@@ -101,7 +119,9 @@ class InterpreterState {
       InstructionOperand source = FromKey(it->first);
       InstructionOperand destination = FromKey(it->second);
       MoveOperands mo(source, destination);
-      PrintableMoveOperands pmo = {RegisterConfiguration::ArchDefault(), &mo};
+      PrintableMoveOperands pmo = {
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
+          &mo};
       os << pmo;
     }
     return os;
@@ -116,15 +136,15 @@ class MoveInterpreter : public GapResolver::Assembler {
  public:
   explicit MoveInterpreter(Zone* zone) : zone_(zone) {}
 
-  virtual void AssembleMove(InstructionOperand* source,
-                            InstructionOperand* destination) override {
+  void AssembleMove(InstructionOperand* source,
+                    InstructionOperand* destination) override {
     ParallelMove* moves = new (zone_) ParallelMove(zone_);
     moves->AddMove(*source, *destination);
     state_.ExecuteInParallel(moves);
   }
 
-  virtual void AssembleSwap(InstructionOperand* source,
-                            InstructionOperand* destination) override {
+  void AssembleSwap(InstructionOperand* source,
+                    InstructionOperand* destination) override {
     ParallelMove* moves = new (zone_) ParallelMove(zone_);
     moves->AddMove(*source, *destination);
     moves->AddMove(*destination, *source);
@@ -182,18 +202,31 @@ class ParallelMoveCreator : public HandleAndZoneScope {
   }
 
   InstructionOperand CreateRandomOperand(bool is_source) {
-    int index = rng_->NextInt(6);
+    int index = rng_->NextInt(7);
     // destination can't be Constant.
-    switch (rng_->NextInt(is_source ? 5 : 4)) {
+    switch (rng_->NextInt(is_source ? 7 : 6)) {
       case 0:
-        return StackSlotOperand(RandomType(), index);
+        return AllocatedOperand(LocationOperand::STACK_SLOT, RandomType(),
+                                index);
       case 1:
-        return DoubleStackSlotOperand(RandomDoubleType(), index);
+        return AllocatedOperand(LocationOperand::STACK_SLOT, RandomDoubleType(),
+                                index);
       case 2:
-        return RegisterOperand(RandomType(), index);
+        return AllocatedOperand(LocationOperand::REGISTER, RandomType(), index);
       case 3:
-        return DoubleRegisterOperand(RandomDoubleType(), index);
+        return AllocatedOperand(LocationOperand::REGISTER, RandomDoubleType(),
+                                index);
       case 4:
+        return ExplicitOperand(
+            LocationOperand::REGISTER, RandomType(),
+            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+                ->GetAllocatableGeneralCode(1));
+      case 5:
+        return ExplicitOperand(
+            LocationOperand::STACK_SLOT, RandomType(),
+            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+                ->GetAllocatableGeneralCode(index));
+      case 6:
         return ConstantOperand(index);
     }
     UNREACHABLE();
@@ -223,3 +256,7 @@ TEST(FuzzResolver) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

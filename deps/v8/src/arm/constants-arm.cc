@@ -51,17 +51,6 @@ const Registers::RegisterAlias Registers::aliases_[] = {
 };
 
 
-const char* Registers::Name(int reg) {
-  const char* result;
-  if ((0 <= reg) && (reg < kNumRegisters)) {
-    result = names_[reg];
-  } else {
-    result = "noreg";
-  }
-  return result;
-}
-
-
 // Support for VFP registers s0 to s31 (d0 to d15) and d16-d31.
 // Note that "sN:sM" is the same as "dN/2" up to d15.
 // These register names are defined in a way to match the native disassembler

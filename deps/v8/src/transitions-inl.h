@@ -173,6 +173,7 @@ void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
   set(kTransitionLengthIndex, Smi::FromInt(number_of_transitions));
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TRANSITIONS_INL_H_

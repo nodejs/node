@@ -227,7 +227,7 @@ class DontMoveStoreBufferEntriesScope {
   StoreBuffer* store_buffer_;
   bool stored_state_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STORE_BUFFER_H_

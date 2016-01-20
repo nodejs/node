@@ -6410,7 +6410,9 @@ bool RegExpEngine::TooMuchRegExpCode(Handle<String> pattern) {
 
 
 Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
-                                   Object* key_pattern, ResultsCacheType type) {
+                                   Object* key_pattern,
+                                   FixedArray** last_match_cache,
+                                   ResultsCacheType type) {
   FixedArray* cache;
   if (!key_string->IsInternalizedString()) return Smi::FromInt(0);
   if (type == STRING_SPLIT_SUBSTRINGS) {
@@ -6426,23 +6428,25 @@ Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
   uint32_t hash = key_string->Hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
-  if (cache->get(index + kStringOffset) == key_string &&
-      cache->get(index + kPatternOffset) == key_pattern) {
-    return cache->get(index + kArrayOffset);
+  if (cache->get(index + kStringOffset) != key_string ||
+      cache->get(index + kPatternOffset) != key_pattern) {
+    index =
+        ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
+    if (cache->get(index + kStringOffset) != key_string ||
+        cache->get(index + kPatternOffset) != key_pattern) {
+      return Smi::FromInt(0);
+    }
   }
-  index =
-      ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
-  if (cache->get(index + kStringOffset) == key_string &&
-      cache->get(index + kPatternOffset) == key_pattern) {
-    return cache->get(index + kArrayOffset);
-  }
-  return Smi::FromInt(0);
+
+  *last_match_cache = FixedArray::cast(cache->get(index + kLastMatchOffset));
+  return cache->get(index + kArrayOffset);
 }
 
 
 void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
                                Handle<Object> key_pattern,
                                Handle<FixedArray> value_array,
+                               Handle<FixedArray> last_match_cache,
                                ResultsCacheType type) {
   Factory* factory = isolate->factory();
   Handle<FixedArray> cache;
@@ -6464,6 +6468,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
     cache->set(index + kStringOffset, *key_string);
     cache->set(index + kPatternOffset, *key_pattern);
     cache->set(index + kArrayOffset, *value_array);
+    cache->set(index + kLastMatchOffset, *last_match_cache);
   } else {
     uint32_t index2 =
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
@@ -6471,13 +6476,16 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
       cache->set(index2 + kStringOffset, *key_string);
       cache->set(index2 + kPatternOffset, *key_pattern);
       cache->set(index2 + kArrayOffset, *value_array);
+      cache->set(index2 + kLastMatchOffset, *last_match_cache);
     } else {
       cache->set(index2 + kStringOffset, Smi::FromInt(0));
       cache->set(index2 + kPatternOffset, Smi::FromInt(0));
       cache->set(index2 + kArrayOffset, Smi::FromInt(0));
+      cache->set(index2 + kLastMatchOffset, Smi::FromInt(0));
       cache->set(index + kStringOffset, *key_string);
       cache->set(index + kPatternOffset, *key_pattern);
       cache->set(index + kArrayOffset, *value_array);
+      cache->set(index + kLastMatchOffset, *last_match_cache);
     }
   }
   // If the array is a reasonably short list of substrings, convert it into a

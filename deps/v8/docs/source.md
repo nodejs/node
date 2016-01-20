@@ -1,4 +1,6 @@
-**Quick links:** [browse](http://code.google.com/p/v8/source/browse) | [browse bleeding edge](http://code.google.com/p/v8/source/browse/branches/bleeding_edge) | [changes](https://chromium.googlesource.com/v8/v8.git).
+# Source
+
+**Quick links:** [browse](https://chromium.googlesource.com/v8/v8/) | [browse bleeding edge](https://chromium.googlesource.com/v8/v8/+/master) | [changes](https://chromium.googlesource.com/v8/v8/+log/master).
 
 ## Command-Line Access
 

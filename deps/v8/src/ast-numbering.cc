@@ -14,18 +14,20 @@ class AstNumberingVisitor final : public AstVisitor {
  public:
   AstNumberingVisitor(Isolate* isolate, Zone* zone)
       : AstVisitor(),
+        isolate_(isolate),
+        zone_(zone),
         next_id_(BailoutId::FirstUsable().ToInt()),
         properties_(zone),
-        ic_slot_cache_(zone),
+        slot_cache_(zone),
         dont_optimize_reason_(kNoReason) {
-    InitializeAstVisitor(isolate, zone);
+    InitializeAstVisitor(isolate);
   }
 
   bool Renumber(FunctionLiteral* node);
 
  private:
 // AST node visitor interface.
-#define DEFINE_VISIT(type) virtual void Visit##type(type* node) override;
+#define DEFINE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
@@ -65,16 +67,18 @@ class AstNumberingVisitor final : public AstVisitor {
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
-    node->AssignFeedbackVectorSlots(isolate(), properties_.get_spec(),
-                                    &ic_slot_cache_);
+    node->AssignFeedbackVectorSlots(isolate_, properties_.get_spec(),
+                                    &slot_cache_);
   }
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
+  Isolate* isolate_;
+  Zone* zone_;
   int next_id_;
   AstProperties properties_;
-  // The slot cache allows us to reuse certain vector IC slots.
-  ICSlotCache ic_slot_cache_;
+  // The slot cache allows us to reuse certain feedback vector slots.
+  FeedbackVectorSlotCache slot_cache_;
   BailoutReason dont_optimize_reason_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -129,6 +133,15 @@ void AstNumberingVisitor::VisitNativeFunctionLiteral(
   IncrementNodeCount();
   DisableOptimization(kNativeFunctionLiteral);
   node->set_base_id(ReserveIdRange(NativeFunctionLiteral::num_ids()));
+}
+
+
+void AstNumberingVisitor::VisitDoExpression(DoExpression* node) {
+  IncrementNodeCount();
+  DisableCrankshaft(kDoExpression);
+  node->set_base_id(ReserveIdRange(DoExpression::num_ids()));
+  Visit(node->block());
+  Visit(node->result());
 }
 
 
@@ -466,11 +479,11 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitObjectLiteralProperty(node->properties()->at(i));
   }
-  node->BuildConstantProperties(isolate());
+  node->BuildConstantProperties(isolate_);
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
   // marked expressions, no store code will be is emitted.
-  node->CalculateEmitStore(zone());
+  node->CalculateEmitStore(zone_);
   ReserveFeedbackSlots(node);
 }
 
@@ -489,6 +502,8 @@ void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
   for (int i = 0; i < node->values()->length(); i++) {
     Visit(node->values()->at(i));
   }
+  node->BuildConstantElements(isolate_);
+  ReserveFeedbackSlots(node);
 }
 
 

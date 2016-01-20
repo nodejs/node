@@ -1310,7 +1310,7 @@ function TestDescriptorGetOrder(handler) {
   TestDescriptorGetOrder2(function(n) { return p[n] }, "vV")
   TestDescriptorGetOrder2(function(n) { return n in p }, "")
   TestDescriptorGetOrder2(function(n) { return o[n] }, "vV")
-  TestDescriptorGetOrder2(function(n) { return n in o }, "eEcCvVwWgs")
+  TestDescriptorGetOrder2(function(n) { return n in o }, "")
 }
 
 function TestDescriptorGetOrder2(f, access) {

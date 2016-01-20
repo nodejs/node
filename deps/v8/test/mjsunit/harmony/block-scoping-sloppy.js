@@ -88,7 +88,6 @@ function f3(one) {
 for (var j = 0; j < 5; ++j) f3(1);
 %OptimizeFunctionOnNextCall(f3);
 f3(1);
-assertTrue(%GetOptimizationStatus(f3) != 2);
 
 
 

@@ -125,7 +125,7 @@ class FutexEmulation : public AllStatic {
   static base::LazyMutex mutex_;
   static base::LazyInstance<FutexWaitList>::type wait_list_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FUTEX_EMULATION_H_

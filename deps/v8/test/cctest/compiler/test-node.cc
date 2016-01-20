@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <functional>
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
+#include <functional>
 
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 #define NONE reinterpret_cast<Node*>(1)
 
@@ -784,3 +786,7 @@ TEST(AppendAndTrim) {
     CHECK_USES(last, NONE);
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

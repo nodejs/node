@@ -14,17 +14,18 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {kRegister_r3_Code};
-const Register kReturnRegister1 = {kRegister_r4_Code};
-const Register kJSFunctionRegister = {kRegister_r4_Code};
-const Register kContextRegister = {kRegister_r30_Code};
-const Register kInterpreterAccumulatorRegister = {kRegister_r3_Code};
-const Register kInterpreterRegisterFileRegister = {kRegister_r14_Code};
-const Register kInterpreterBytecodeOffsetRegister = {kRegister_r15_Code};
-const Register kInterpreterBytecodeArrayRegister = {kRegister_r16_Code};
-const Register kInterpreterDispatchTableRegister = {kRegister_r17_Code};
-const Register kRuntimeCallFunctionRegister = {kRegister_r4_Code};
-const Register kRuntimeCallArgCountRegister = {kRegister_r3_Code};
+const Register kReturnRegister0 = {Register::kCode_r3};
+const Register kReturnRegister1 = {Register::kCode_r4};
+const Register kJSFunctionRegister = {Register::kCode_r4};
+const Register kContextRegister = {Register::kCode_r30};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_r3};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_r14};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r15};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r16};
+const Register kInterpreterDispatchTableRegister = {Register::kCode_r17};
+const Register kJavaScriptCallArgCountRegister = {Register::kCode_r3};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_r4};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_r3};
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -384,6 +385,11 @@ class MacroAssembler : public Assembler {
   // Warning: The value in |int_scrach| will be changed in the process!
   void ConvertIntToFloat(const DoubleRegister dst, const Register src,
                          const Register int_scratch);
+
+#if V8_TARGET_ARCH_PPC64
+  void ConvertInt64ToDouble(Register src, DoubleRegister double_dst);
+  void ConvertInt64ToFloat(Register src, DoubleRegister double_dst);
+#endif
 
   // Converts the double_input to an integer.  Note that, upon return,
   // the contents of double_dst will also hold the fixed point representation.
@@ -1569,7 +1575,7 @@ inline MemOperand GlobalObjectOperand() {
 #else
 #define ACCESS_MASM(masm) masm->
 #endif
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_MACRO_ASSEMBLER_PPC_H_

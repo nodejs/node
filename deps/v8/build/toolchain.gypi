@@ -638,8 +638,8 @@
                       '_MIPS_ARCH_LOONGSON',
                       'FPU_MODE_FP32',
                     ],
-                    'cflags!': ['-mfp64', '-mfp32', '-mfpxx'],
-                    'cflags': ['-mips3', '-Wa,-mips3'],
+                    'cflags!': ['-mfp64', '-mfpxx'],
+                    'cflags': ['-mips3', '-Wa,-mips3', '-mfp32'],
                   }],
                 ],
               }, {

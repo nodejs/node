@@ -44,6 +44,7 @@ class MathExpGenerator : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_CODEGEN_ARM_H_

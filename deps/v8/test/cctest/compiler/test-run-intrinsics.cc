@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
+
 uint32_t flags = CompilationInfo::kInliningEnabled;
 
 
-TEST(CallFunction) {
-  FunctionTester T("(function(a,b) { return %_CallFunction(a, 1, 2, 3, b); })",
-                   flags);
+TEST(Call) {
+  FunctionTester T("(function(a,b) { return %_Call(b, a, 1, 2, 3); })", flags);
   CompileRun("function f(a,b,c) { return a + b + c + this.d; }");
 
   T.CheckCall(T.Val(129), T.NewObject("({d:123})"), T.NewObject("f"));
@@ -320,3 +322,7 @@ TEST(ValueOf) {
   T.CheckCall(T.Val(123), T.Val(123));
   T.CheckCall(T.Val(456), T.NewObject("(new Number(456))"));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

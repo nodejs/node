@@ -11,8 +11,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> object) {
-  return graph()->NewNode(common()->HeapConstant(object));
+Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> value) {
+  // TODO(bmeurer): Flatten cons strings here before we canonicalize them?
+  return graph()->NewNode(common()->HeapConstant(value));
 }
 
 
@@ -26,6 +27,12 @@ Node* JSGraph::CEntryStubConstant(int result_size) {
                   ImmovableHeapConstant(CEntryStub(isolate(), 1).GetCode()));
   }
   return ImmovableHeapConstant(CEntryStub(isolate(), result_size).GetCode());
+}
+
+
+Node* JSGraph::EmptyFixedArrayConstant() {
+  return CACHED(kEmptyFixedArrayConstant,
+                ImmovableHeapConstant(factory()->empty_fixed_array()));
 }
 
 
@@ -78,7 +85,7 @@ Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
   // TODO(titzer): We could also match against the addresses of immortable
   // immovables here, even without access to the heap, thus always
   // canonicalizing references to them.
-  return graph()->NewNode(common()->HeapConstant(value));
+  return ImmovableHeapConstant(value);
 }
 
 

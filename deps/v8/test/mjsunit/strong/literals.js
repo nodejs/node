@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --strong-mode --allow-natives-syntax
-// Flags: --harmony-arrow-functions --harmony-rest-parameters
-// Flags: --harmony-destructuring --harmony-spread-arrays
+// Flags: --harmony-rest-parameters
+// Flags: --harmony-destructuring
 
 'use strict';
 

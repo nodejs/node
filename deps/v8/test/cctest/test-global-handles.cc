@@ -75,7 +75,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
 class TestObjectVisitor : public ObjectVisitor {
  public:
-  virtual void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** o = start; o != end; ++o)
       visited.Add(*o);
   }

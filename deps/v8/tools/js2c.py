@@ -242,7 +242,7 @@ def ExpandInlineMacros(lines):
     lines = ExpandMacroDefinition(lines, pos, name_pattern, macro, non_expander)
 
 
-INLINE_CONSTANT_PATTERN = re.compile(r'define\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+)[;\n]')
+INLINE_CONSTANT_PATTERN = re.compile(r'define\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+);\n')
 
 def ExpandInlineConstants(lines):
   pos = 0
@@ -348,8 +348,8 @@ def BuildFilterChain(macro_filename, message_template_file):
 
   if macro_filename:
     (consts, macros) = ReadMacros(ReadFile(macro_filename))
-    filter_chain.append(lambda l: ExpandConstants(l, consts))
     filter_chain.append(lambda l: ExpandMacros(l, macros))
+    filter_chain.append(lambda l: ExpandConstants(l, consts))
 
   if message_template_file:
     message_templates = ReadMessageTemplates(ReadFile(message_template_file))
@@ -417,7 +417,7 @@ def PrepareSources(source_files, native_type, emit_js):
     message_template_file = message_template_files[0]
 
   filters = None
-  if native_type == "EXTRAS":
+  if native_type in ("EXTRAS", "EXPERIMENTAL_EXTRAS"):
     filters = BuildExtraFilterChain()
   else:
     filters = BuildFilterChain(macro_file, message_template_file)
