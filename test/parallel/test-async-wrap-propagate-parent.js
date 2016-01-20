@@ -4,16 +4,25 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const async_wrap = process.binding('async_wrap');
+const providers = Object.keys(async_wrap.Providers);
+
+const uidSymbol = Symbol('uid');
 
 let cntr = 0;
 let client;
 
-function init(id, type, parent) {
-  if (parent) {
+function init(uid, type, parentUid, parentHandle) {
+  this[uidSymbol] = uid;
+
+  if (parentHandle) {
     cntr++;
     // Cannot assert in init callback or will abort.
     process.nextTick(() => {
-      assert.equal(parent, server._handle, 'server doesn\'t match parent');
+      assert.equal(providers[type], 'TCPWRAP');
+      assert.equal(parentUid, server._handle[uidSymbol],
+                   'server uid doesn\'t match parent uid');
+      assert.equal(parentHandle, server._handle,
+                   'server handle doesn\'t match parent handle');
       assert.equal(this, client._handle, 'client doesn\'t match context');
     });
   }
