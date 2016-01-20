@@ -51,9 +51,9 @@ assert.doesNotThrow(
     }
 );
 
-setTimeout(function() {
+setImmediate(function() {
   fs.writeFileSync(filepathOne, 'world');
-}, 20);
+});
 
 
 process.chdir(testDir);
@@ -74,17 +74,16 @@ assert.doesNotThrow(
     }
 );
 
-setTimeout(function() {
+setImmediate(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
-}, 20);
+});
 
-try { fs.unlinkSync(filepathThree); } catch (e) {}
-try { fs.mkdirSync(testsubdir, 0o700); } catch (e) {}
+fs.mkdirSync(testsubdir, 0o700);
 
 assert.doesNotThrow(
     function() {
       var watcher = fs.watch(testsubdir, function(event, filename) {
-        var renameEv = process.platform === 'sunos' ? 'change' : 'rename';
+        var renameEv = common.isSunOS ? 'change' : 'rename';
         assert.equal(renameEv, event);
         if (expectFilePath) {
           assert.equal('newfile.txt', filename);
@@ -97,10 +96,10 @@ assert.doesNotThrow(
     }
 );
 
-setTimeout(function() {
+setImmediate(function() {
   var fd = fs.openSync(filepathThree, 'w');
   fs.closeSync(fd);
-}, 20);
+});
 
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
 // not block the event loop
