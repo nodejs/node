@@ -84,8 +84,8 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
     Handle<Object> argument(message->argument(), isolate);
     Handle<Object> args[] = {argument};
     MaybeHandle<Object> maybe_stringified = Execution::TryCall(
-        isolate->to_detail_string_fun(), isolate->factory()->undefined_value(),
-        arraysize(args), args);
+        isolate, isolate->to_detail_string_fun(),
+        isolate->factory()->undefined_value(), arraysize(args), args);
     Handle<Object> stringified;
     if (!maybe_stringified.ToHandle(&stringified)) {
       stringified = isolate->factory()->NewStringFromAsciiChecked("exception");
@@ -144,10 +144,13 @@ base::SmartArrayPointer<char> MessageHandler::GetLocalizedMessage(
 
 CallSite::CallSite(Isolate* isolate, Handle<JSObject> call_site_obj)
     : isolate_(isolate) {
+  Handle<Object> maybe_function = JSObject::GetDataProperty(
+      call_site_obj, isolate->factory()->call_site_function_symbol());
+  if (!maybe_function->IsJSFunction()) return;
+
+  fun_ = Handle<JSFunction>::cast(maybe_function);
   receiver_ = JSObject::GetDataProperty(
       call_site_obj, isolate->factory()->call_site_receiver_symbol());
-  fun_ = Handle<JSFunction>::cast(JSObject::GetDataProperty(
-      call_site_obj, isolate->factory()->call_site_function_symbol()));
   pos_ = Handle<Smi>::cast(JSObject::GetDataProperty(
                                call_site_obj,
                                isolate->factory()->call_site_position_symbol()))
@@ -316,7 +319,7 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
     Handle<JSFunction> fun = isolate->no_side_effect_to_string_fun();
 
     MaybeHandle<Object> maybe_result =
-        Execution::TryCall(fun, factory->undefined_value(), 1, &arg);
+        Execution::TryCall(isolate, fun, factory->undefined_value(), 1, &arg);
     Handle<Object> result;
     if (!maybe_result.ToHandle(&result) || !result->IsString()) {
       return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
@@ -400,10 +403,6 @@ MaybeHandle<String> ErrorToStringHelper::Stringify(Isolate* isolate,
   Handle<String> name_string = isolate->factory()->name_string();
   LookupIterator internal_error_lookup(
       error, internal_key, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  LookupIterator message_lookup(
-      error, message_string, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  LookupIterator name_lookup(error, name_string,
-                             LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
 
   // Find out whether an internally created error object is on the prototype
   // chain. If the name property is found on a holder prior to the internally
@@ -412,24 +411,26 @@ MaybeHandle<String> ErrorToStringHelper::Stringify(Isolate* isolate,
   // Similar for the message property. If the message property shadows the
   // internally created error object, use that message property. Otherwise
   // use empty string as message.
-  if (internal_error_lookup.IsFound()) {
-    if (!ShadowsInternalError(isolate, &name_lookup, &internal_error_lookup)) {
-      Handle<JSObject> holder = internal_error_lookup.GetHolder<JSObject>();
-      name = Handle<String>(holder->constructor_name());
-    }
-    if (!ShadowsInternalError(isolate, &message_lookup,
-                              &internal_error_lookup)) {
-      message = isolate->factory()->empty_string();
-    }
-  }
-  if (name.is_null()) {
+  LookupIterator name_lookup(error, name_string,
+                             LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  if (internal_error_lookup.IsFound() &&
+      !ShadowsInternalError(isolate, &name_lookup, &internal_error_lookup)) {
+    Handle<JSObject> holder = internal_error_lookup.GetHolder<JSObject>();
+    name = Handle<String>(holder->constructor_name());
+  } else {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, name,
         GetStringifiedProperty(isolate, &name_lookup,
                                isolate->factory()->Error_string()),
         String);
   }
-  if (message.is_null()) {
+
+  LookupIterator message_lookup(
+      error, message_string, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  if (internal_error_lookup.IsFound() &&
+      !ShadowsInternalError(isolate, &message_lookup, &internal_error_lookup)) {
+    message = isolate->factory()->empty_string();
+  } else {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, message,
         GetStringifiedProperty(isolate, &message_lookup,

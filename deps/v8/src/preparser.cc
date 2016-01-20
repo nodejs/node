@@ -111,8 +111,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   FunctionState top_state(&function_state_, &scope_, top_scope, kNormalFunction,
                           &top_factory);
   scope_->SetLanguageMode(language_mode);
-  Scope* function_scope = NewScope(
-      scope_, IsArrowFunction(kind) ? ARROW_SCOPE : FUNCTION_SCOPE, kind);
+  Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE, kind);
   if (!has_simple_parameters) function_scope->SetHasNonSimpleParameters();
   PreParserFactory function_factory(NULL);
   FunctionState function_state(&function_state_, &scope_, function_scope, kind,
@@ -533,7 +532,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   // ConstBinding ::
   //   BindingPattern '=' AssignmentExpression
   bool require_initializer = false;
-  bool is_strict_const = false;
+  bool lexical = false;
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
@@ -557,12 +556,13 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     if (is_strict(language_mode()) ||
         (allow_harmony_sloppy() && !allow_legacy_const())) {
       DCHECK(var_context != kStatement);
-      is_strict_const = true;
-      require_initializer = var_context != kForStatement;
+      require_initializer = true;
+      lexical = true;
     }
   } else if (peek() == Token::LET && allow_let()) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
+    lexical = true;
   } else {
     *ok = false;
     return Statement::Default();
@@ -577,12 +577,17 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   do {
     // Parse binding pattern.
     if (nvars > 0) Consume(Token::COMMA);
+    int decl_pos = peek_position();
+    PreParserExpression pattern = PreParserExpression::Default();
     {
       ExpressionClassifier pattern_classifier;
       Token::Value next = peek();
-      PreParserExpression pattern =
-          ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+      pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
+      if (lexical) {
+        ValidateLetPattern(&pattern_classifier, CHECK_OK);
+      }
 
       if (!allow_harmony_destructuring() && !pattern.IsIdentifier()) {
         ReportUnexpectedToken(next);
@@ -591,12 +596,15 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       }
     }
 
+    bool is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
+
+    bool is_for_iteration_variable =
+        var_context == kForStatement &&
+        (peek() == Token::IN || PeekContextualKeyword(CStrVector("of")));
+
     Scanner::Location variable_loc = scanner()->location();
     nvars++;
-    if (peek() == Token::ASSIGN || require_initializer ||
-        // require initializers for multiple consts.
-        (is_strict_const && peek() == Token::COMMA)) {
-      Expect(Token::ASSIGN, CHECK_OK);
+    if (Check(Token::ASSIGN)) {
       ExpressionClassifier classifier;
       ParseAssignmentExpression(var_context != kForStatement, &classifier,
                                 CHECK_OK);
@@ -606,6 +614,14 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       if (first_initializer_loc && !first_initializer_loc->IsValid()) {
         *first_initializer_loc = variable_loc;
       }
+    } else if ((require_initializer || is_pattern) &&
+               !is_for_iteration_variable) {
+      PreParserTraits::ReportMessageAt(
+          Scanner::Location(decl_pos, scanner()->location().end_pos),
+          MessageTemplate::kDeclarationMissingInitializer,
+          is_pattern ? "destructuring" : "const");
+      *ok = false;
+      return Statement::Default();
     }
   } while (peek() == Token::COMMA);
 
@@ -909,8 +925,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
                                 &first_initializer_loc, &bindings_loc,
                                 CHECK_OK);
       bool accept_IN = decl_count >= 1;
-      bool accept_OF = true;
-      if (accept_IN && CheckInOrOf(accept_OF, &mode, ok)) {
+      if (accept_IN && CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
         if (decl_count != 1) {
           const char* loop_type =
@@ -945,7 +960,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       int lhs_end_pos = scanner()->location().end_pos;
       is_let_identifier_expression =
           lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
-      if (CheckInOrOf(lhs.IsIdentifier(), &mode, ok)) {
+      if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
         lhs = CheckAndRewriteReferenceExpression(
             lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
@@ -1024,9 +1039,12 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
     Expect(Token::LPAREN, CHECK_OK);
-    ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
+    ExpressionClassifier pattern_classifier;
+    ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+    ValidateBindingPattern(&pattern_classifier, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     {
+      // TODO(adamk): Make this CATCH_SCOPE
       Scope* with_scope = NewScope(scope_, WITH_SCOPE);
       BlockState block_state(&scope_, with_scope);
       ParseBlock(CHECK_OK);
@@ -1234,7 +1252,25 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   return Expression::Default();
 }
 
+
+PreParserExpression PreParser::ParseDoExpression(bool* ok) {
+  // AssignmentExpression ::
+  //     do '{' StatementList '}'
+  Expect(Token::DO, CHECK_OK);
+  Expect(Token::LBRACE, CHECK_OK);
+  Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
+  {
+    BlockState block_state(&scope_, block_scope);
+    while (peek() != Token::RBRACE) {
+      ParseStatementListItem(CHECK_OK);
+    }
+    Expect(Token::RBRACE, CHECK_OK);
+    return PreParserExpression::Default();
+  }
+}
+
 #undef CHECK_OK
 
 
-} }  // v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -5,6 +5,8 @@
 #ifndef V8_LOG_UTILS_H_
 #define V8_LOG_UTILS_H_
 
+#include <stdio.h>
+
 #include <cstdarg>
 
 #include "src/allocation.h"
@@ -136,6 +138,7 @@ class Log {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LOG_UTILS_H_

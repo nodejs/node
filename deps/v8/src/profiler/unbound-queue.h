@@ -42,6 +42,7 @@ class UnboundQueue BASE_EMBEDDED {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_UNBOUND_QUEUE_

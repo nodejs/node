@@ -343,7 +343,6 @@ int ScopeInfo::ContextLength() {
                        scope_type() == WITH_SCOPE ||
                        (scope_type() == BLOCK_SCOPE && CallsSloppyEval() &&
                            is_declaration_scope()) ||
-                       (scope_type() == ARROW_SCOPE && CallsSloppyEval()) ||
                        (scope_type() == FUNCTION_SCOPE && CallsSloppyEval()) ||
                        scope_type() == MODULE_SCOPE;
 

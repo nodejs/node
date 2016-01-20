@@ -89,5 +89,5 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexNumWaitersForTesting) {
 
   return FutexEmulation::NumWaitersForTesting(isolate, array_buffer, addr);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

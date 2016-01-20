@@ -2,17 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
+#include "src/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/typer.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 #ifndef TEST_WITH_STRONG
 #define TEST_WITH_STRONG(Name)                                                 \
@@ -37,6 +43,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         machine(main_zone()),
         simplified(main_zone()),
         common(main_zone()),
+        deps(main_isolate(), main_zone()),
         graph(main_zone()),
         typer(main_isolate(), &graph),
         context_node(NULL) {
@@ -52,6 +59,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   MachineOperatorBuilder machine;
   SimplifiedOperatorBuilder simplified;
   CommonOperatorBuilder common;
+  CompilationDependencies deps;
   Graph graph;
   Typer typer;
   Node* context_node;
@@ -85,10 +93,13 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Node* reduce(Node* node) {
-    JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &machine);
+    JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &simplified,
+                    &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(main_zone(), &graph);
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, main_zone());
+    JSTypedLowering reducer(&graph_reducer, &deps,
+                            JSTypedLowering::kDeoptimizationEnabled, &jsgraph,
+                            main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;
@@ -217,10 +228,6 @@ static Type* kNumberTypes[] = {
     Type::SignedSmall(),   Type::Signed32(),    Type::Unsigned32(),
     Type::Integral32(),    Type::MinusZero(),   Type::NaN(),
     Type::OrderedNumber(), Type::PlainNumber(), Type::Number()};
-
-
-static Type* kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
-                           Type::Number(),    Type::String(), Type::Object()};
 
 
 static Type* I32Type(bool is_signed) {
@@ -380,11 +387,11 @@ class JSBitwiseTypedLoweringTester : public JSTypedLoweringTester {
       : JSTypedLoweringTester(), language_mode_(language_mode) {
     int i = 0;
     set(i++, javascript.BitwiseOr(language_mode_), true);
-    set(i++, machine.Word32Or(), true);
+    set(i++, simplified.NumberBitwiseOr(), true);
     set(i++, javascript.BitwiseXor(language_mode_), true);
-    set(i++, machine.Word32Xor(), true);
+    set(i++, simplified.NumberBitwiseXor(), true);
     set(i++, javascript.BitwiseAnd(language_mode_), true);
-    set(i++, machine.Word32And(), true);
+    set(i++, simplified.NumberBitwiseAnd(), true);
   }
   static const int kNumberOps = 6;
   const Operator* ops[kNumberOps];
@@ -542,8 +549,7 @@ TEST(JSToString1) {
 
   {  // ToString(boolean)
     Node* r = R.ReduceUnop(op, Type::Boolean());
-    // TODO(titzer): could be a branch
-    CHECK_EQ(IrOpcode::kJSToString, r->opcode());
+    CHECK_EQ(IrOpcode::kSelect, r->opcode());
   }
 
   {  // ToString(number)
@@ -571,8 +577,9 @@ TEST(JSToString_replacement) {
 
   for (size_t i = 0; i < arraysize(types); i++) {
     Node* n = R.Parameter(types[i]);
-    Node* c = R.graph.NewNode(R.javascript.ToString(), n, R.context(),
-                              R.start(), R.start());
+    Node* c =
+        R.graph.NewNode(R.javascript.ToString(), n, R.context(),
+                        R.EmptyFrameState(R.context()), R.start(), R.start());
     Node* effect_use = R.UseForEffect(c);
     Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(Type::Any()), n, c);
 
@@ -1261,3 +1268,7 @@ TEST_WITH_STRONG(Int32Comparisons) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

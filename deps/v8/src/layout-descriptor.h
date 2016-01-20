@@ -153,7 +153,7 @@ class LayoutDescriptorHelper {
   int header_size_;
   LayoutDescriptor* layout_descriptor_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LAYOUT_DESCRIPTOR_H_

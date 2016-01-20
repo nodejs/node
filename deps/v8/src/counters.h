@@ -483,16 +483,25 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
   HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,    \
      101)                                                                     \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
+  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
+  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                              \
   /* Garbage collection timers. */                                            \
   HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                        \
+  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                        \
+  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,           \
+     MILLISECOND)                                                             \
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                        \
   HT(gc_context, V8.GCContext, 10000,                                         \
      MILLISECOND) /* GC context cleanup time */                               \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
+  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,       \
+     MILLISECOND)                                                             \
+  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000, \
+     MILLISECOND)                                                             \
   HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,           \
      MILLISECOND)                                                             \
   /* Parsing timers. */                                                       \
@@ -886,6 +895,7 @@ class Counters {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COUNTERS_H_

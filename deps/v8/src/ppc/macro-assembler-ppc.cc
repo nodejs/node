@@ -12,8 +12,10 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
-#include "src/ppc/macro-assembler-ppc.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
+
+#include "src/ppc/macro-assembler-ppc.h"
 
 namespace v8 {
 namespace internal {
@@ -24,7 +26,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
       has_frame_(false) {
   if (isolate() != NULL) {
     code_object_ =
-        Handle<Object>(isolate()->heap()->undefined_value(), isolate());
+        Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
   }
 }
 
@@ -47,7 +49,8 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 
   if (cond != al) b(NegateCondition(cond), &skip, cr);
 
-  DCHECK(rmode == RelocInfo::CODE_TARGET || rmode == RelocInfo::RUNTIME_ENTRY);
+  DCHECK(rmode == RelocInfo::CODE_TARGET || rmode == RelocInfo::RUNTIME_ENTRY ||
+         rmode == RelocInfo::CONSTRUCT_CALL);
 
   mov(ip, Operand(target, rmode));
   mtctr(ip);
@@ -564,7 +567,7 @@ void MacroAssembler::PopFixedFrame(Register marker_reg) {
 
 const RegList MacroAssembler::kSafepointSavedRegisters = Register::kAllocatable;
 const int MacroAssembler::kNumSafepointSavedRegisters =
-    Register::kMaxNumAllocatableRegisters;
+    Register::kNumAllocatable;
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
@@ -623,7 +626,9 @@ MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
 
 MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   // General purpose registers are pushed last on the stack.
-  int doubles_size = DoubleRegister::NumAllocatableRegisters() * kDoubleSize;
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  int doubles_size = config->num_allocatable_double_registers() * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
   return MemOperand(sp, doubles_size + register_offset);
 }
@@ -654,9 +659,24 @@ void MacroAssembler::ConvertIntToFloat(const DoubleRegister dst,
                                        const Register src,
                                        const Register int_scratch) {
   MovIntToDouble(dst, src, int_scratch);
-  fcfid(dst, dst);
-  frsp(dst, dst);
+  fcfids(dst, dst);
 }
+
+
+#if V8_TARGET_ARCH_PPC64
+void MacroAssembler::ConvertInt64ToDouble(Register src,
+                                          DoubleRegister double_dst) {
+  MovInt64ToDouble(double_dst, src);
+  fcfid(double_dst, double_dst);
+}
+
+
+void MacroAssembler::ConvertInt64ToFloat(Register src,
+                                         DoubleRegister double_dst) {
+  MovInt64ToDouble(double_dst, src);
+  fcfids(double_dst, double_dst);
+}
+#endif
 
 
 void MacroAssembler::ConvertDoubleToInt64(const DoubleRegister double_input,
@@ -863,7 +883,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
     MultiPushDoubles(kCallerSavedDoubles);
     // Note that d0 will be accessible at
     //   fp - ExitFrameConstants::kFrameSize -
-    //   kNumVolatileRegisters * kDoubleSize,
+    //   kNumCallerSavedDoubles * kDoubleSize,
     // since the sp slot and code slot were pushed after the fp.
   }
 
@@ -922,7 +942,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   // Optionally restore all double registers.
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
-    const int kNumRegs = DoubleRegister::kNumVolatileRegisters;
+    const int kNumRegs = kNumCallerSavedDoubles;
     const int offset =
         (ExitFrameConstants::kFrameSize + kNumRegs * kDoubleSize);
     addi(r6, fp, Operand(-offset));
@@ -1206,7 +1226,8 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   int offset =
       Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
   LoadP(scratch, FieldMemOperand(scratch, offset));
-  LoadP(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
+  LoadP(scratch,
+        FieldMemOperand(scratch, JSGlobalObject::kNativeContextOffset));
 
   // Check the context is a native context.
   if (emit_debug_code()) {
@@ -2273,7 +2294,7 @@ void MacroAssembler::GetBuiltinFunction(Register target,
   // Load the builtins object into target register.
   LoadP(target,
         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  LoadP(target, FieldMemOperand(target, GlobalObject::kNativeContextOffset));
+  LoadP(target, FieldMemOperand(target, JSGlobalObject::kNativeContextOffset));
   // Load the JavaScript builtin function from the builtins object.
   LoadP(target, ContextOperand(target, native_context_index), r0);
 }
@@ -2408,7 +2429,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 
 void MacroAssembler::LoadGlobalProxy(Register dst) {
   LoadP(dst, GlobalObjectOperand());
-  LoadP(dst, FieldMemOperand(dst, GlobalObject::kGlobalProxyOffset));
+  LoadP(dst, FieldMemOperand(dst, JSGlobalObject::kGlobalProxyOffset));
 }
 
 
@@ -2418,7 +2439,8 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
   // Load the global or builtins object from the current context.
   LoadP(scratch,
         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  LoadP(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
+  LoadP(scratch,
+        FieldMemOperand(scratch, JSGlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
   LoadP(scratch,
@@ -2440,7 +2462,7 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   // Load the native context from the global or builtins object.
   LoadP(function,
-        FieldMemOperand(function, GlobalObject::kNativeContextOffset));
+        FieldMemOperand(function, JSGlobalObject::kNativeContextOffset));
   // Load the function from the native context.
   LoadP(function, MemOperand(function, Context::SlotOffset(index)), r0);
 }
@@ -4250,8 +4272,11 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
   if (reg5.is_valid()) regs |= reg5.bit();
   if (reg6.is_valid()) regs |= reg6.bit();
 
-  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
-    Register candidate = Register::FromAllocationIndex(i);
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
+    int code = config->GetAllocatableGeneralCode(i);
+    Register candidate = Register::from_code(code);
     if (regs & candidate.bit()) continue;
     return candidate;
   }

@@ -18,7 +18,7 @@ When GDB JIT interface is disabled a typical backtrace in GDB will contain frame
 #11 0xf5cc38f4 in ?? ()
 #12 0xf5cbef19 in ?? ()
 #13 0xf5cb09a2 in ?? ()
-#14 0x0809e0a5 in v8::internal::Invoke (construct=false, func=..., receiver=..., argc=0, args=0x0,
+#14 0x0809e0a5 in v8::internal::Invoke (construct=false, func=..., receiver=..., argc=0, args=0x0, 
     has_pending_exception=0xffffd46f) at src/execution.cc:97
 ```
 
@@ -31,7 +31,7 @@ However enabling GDB JIT integration allows GDB to produce more informative stac
 #9  0xf5cc38f4 in test.js () at test.js:13
 #10 0xf5cbef19 in ?? ()
 #11 0xf5cb09a2 in ?? ()
-#12 0x0809e1f9 in v8::internal::Invoke (construct=false, func=..., receiver=..., argc=0, args=0x0,
+#12 0x0809e1f9 in v8::internal::Invoke (construct=false, func=..., receiver=..., argc=0, args=0x0, 
     has_pending_exception=0xffffd44f) at src/execution.cc:97
 ```
 

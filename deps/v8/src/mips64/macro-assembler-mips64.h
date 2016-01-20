@@ -13,17 +13,18 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {kRegister_v0_Code};
-const Register kReturnRegister1 = {kRegister_v1_Code};
-const Register kJSFunctionRegister = {kRegister_a1_Code};
-const Register kContextRegister = {kRegister_s7_Code};
-const Register kInterpreterAccumulatorRegister = {kRegister_v0_Code};
-const Register kInterpreterRegisterFileRegister = {kRegister_a7_Code};
-const Register kInterpreterBytecodeOffsetRegister = {kRegister_t0_Code};
-const Register kInterpreterBytecodeArrayRegister = {kRegister_t1_Code};
-const Register kInterpreterDispatchTableRegister = {kRegister_t2_Code};
-const Register kRuntimeCallFunctionRegister = {kRegister_a1_Code};
-const Register kRuntimeCallArgCountRegister = {kRegister_a0_Code};
+const Register kReturnRegister0 = {Register::kCode_v0};
+const Register kReturnRegister1 = {Register::kCode_v1};
+const Register kJSFunctionRegister = {Register::kCode_a1};
+const Register kContextRegister = {Register::kCpRegister};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_a7};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t0};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_t1};
+const Register kInterpreterDispatchTableRegister = {Register::kCode_t2};
+const Register kJavaScriptCallArgCountRegister = {Register::kCode_a0};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_a1};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_a0};
 
 // Forward declaration.
 class JumpTarget;
@@ -1719,6 +1720,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
                                         Register scratch1, Label* found);
 
+  bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,
@@ -1841,6 +1844,7 @@ class CodePatcher {
 #define ACCESS_MASM(masm) masm->
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MIPS_MACRO_ASSEMBLER_MIPS_H_

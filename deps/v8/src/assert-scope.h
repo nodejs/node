@@ -170,6 +170,7 @@ typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, false>
 // Scope to introduce an exception to DisallowDeoptimization.
 typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, true>
     AllowCompilation;
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ASSERT_SCOPE_H_

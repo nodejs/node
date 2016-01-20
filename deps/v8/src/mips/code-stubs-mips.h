@@ -343,6 +343,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MIPS_CODE_STUBS_MIPS_H_

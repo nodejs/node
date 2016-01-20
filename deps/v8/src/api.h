@@ -168,7 +168,7 @@ class RegisteredExtension {
   V(Symbol, Symbol)                          \
   V(Script, JSFunction)                      \
   V(UnboundScript, SharedFunctionInfo)       \
-  V(Function, JSFunction)                    \
+  V(Function, JSReceiver)                    \
   V(Message, JSMessageObject)                \
   V(Context, Context)                        \
   V(External, Object)                        \
@@ -192,8 +192,6 @@ class Utils {
       v8::internal::Handle<v8::internal::Context> obj);
   static inline Local<Value> ToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<Function> ToLocal(
-      v8::internal::Handle<v8::internal::JSFunction> obj);
   static inline Local<Name> ToLocal(
       v8::internal::Handle<v8::internal::Name> obj);
   static inline Local<String> ToLocal(
@@ -269,6 +267,8 @@ class Utils {
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<NativeWeakMap> NativeWeakMapToLocal(
       v8::internal::Handle<v8::internal::JSWeakMap> obj);
+  static inline Local<Function> CallableToLocal(
+      v8::internal::Handle<v8::internal::JSReceiver> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To) \
   static inline v8::internal::Handle<v8::internal::To> \
@@ -349,7 +349,6 @@ inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
 
 MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
-MAKE_TO_LOCAL(ToLocal, JSFunction, Function)
 MAKE_TO_LOCAL(ToLocal, Name, Name)
 MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
@@ -380,6 +379,7 @@ MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
 MAKE_TO_LOCAL(NativeWeakMapToLocal, JSWeakMap, NativeWeakMap)
+MAKE_TO_LOCAL(CallableToLocal, JSReceiver, Function)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
@@ -642,6 +642,7 @@ class Testing {
   static v8::Testing::StressType stress_type_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_API_H_

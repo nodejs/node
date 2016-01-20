@@ -132,7 +132,7 @@ inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
 inline Atomic64 Release_Load(volatile const Atomic64* ptr) {
   return __sync_add_and_fetch(ptr, 0);
 }
-}
-}  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_ATOMICOPS_INTERNALS_PORTABLE_H_

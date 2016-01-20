@@ -62,8 +62,8 @@ LayoutDescriptor* LayoutDescriptor::SetRawData(int field_index) {
 
 
 LayoutDescriptor* LayoutDescriptor::SetTagged(int field_index, bool tagged) {
-  int layout_word_index;
-  int layout_bit_index;
+  int layout_word_index = 0;
+  int layout_bit_index = 0;
 
   if (!GetIndexes(field_index, &layout_word_index, &layout_bit_index)) {
     CHECK(false);
@@ -250,7 +250,7 @@ bool LayoutDescriptorHelper::IsTagged(int offset_in_bytes) {
 
   return layout_descriptor_->IsTagged(field_index);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_LAYOUT_DESCRIPTOR_INL_H_

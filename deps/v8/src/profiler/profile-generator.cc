@@ -4,7 +4,6 @@
 
 #include "src/profiler/profile-generator.h"
 
-#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
@@ -50,7 +49,6 @@ const char* const CodeEntry::kNoDeoptReason = "";
 
 
 CodeEntry::~CodeEntry() {
-  delete no_frame_ranges_;
   delete line_info_;
 }
 
@@ -611,17 +609,8 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // ebp contains return address of the current function and skips caller's
       // frame. Check for this case and just skip such samples.
       if (pc_entry) {
-        List<OffsetRange>* ranges = pc_entry->no_frame_ranges();
         int pc_offset =
             static_cast<int>(sample.pc - pc_entry->instruction_start());
-        if (ranges) {
-          for (int i = 0; i < ranges->length(); i++) {
-            OffsetRange& range = ranges->at(i);
-            if (range.from <= pc_offset && pc_offset < range.to) {
-              return;
-            }
-          }
-        }
         src_line = pc_entry->GetSourceLine(pc_offset);
         if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
           src_line = pc_entry->line_number();

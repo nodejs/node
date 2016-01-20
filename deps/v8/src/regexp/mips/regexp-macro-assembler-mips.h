@@ -220,6 +220,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
 #endif  // V8_INTERPRETED_REGEXP
 
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_

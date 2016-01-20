@@ -62,6 +62,9 @@ namespace compiler {
   V(PPC_MinDouble)                 \
   V(PPC_AbsDouble)                 \
   V(PPC_Cntlz32)                   \
+  V(PPC_Cntlz64)                   \
+  V(PPC_Popcnt32)                  \
+  V(PPC_Popcnt64)                  \
   V(PPC_Cmp32)                     \
   V(PPC_Cmp64)                     \
   V(PPC_CmpDouble)                 \
@@ -75,6 +78,8 @@ namespace compiler {
   V(PPC_ExtendSignWord32)          \
   V(PPC_Uint32ToUint64)            \
   V(PPC_Int64ToInt32)              \
+  V(PPC_Int64ToFloat32)            \
+  V(PPC_Int64ToDouble)             \
   V(PPC_Int32ToDouble)             \
   V(PPC_Uint32ToDouble)            \
   V(PPC_Float32ToDouble)           \
@@ -103,8 +108,7 @@ namespace compiler {
   V(PPC_StoreWord32)               \
   V(PPC_StoreWord64)               \
   V(PPC_StoreFloat32)              \
-  V(PPC_StoreDouble)               \
-  V(PPC_StoreWriteBarrier)
+  V(PPC_StoreDouble)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.

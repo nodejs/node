@@ -52,7 +52,7 @@ IncrementalStringBuilder::IncrementalStringBuilder(Isolate* isolate)
       part_length_(kInitialPartLength),
       current_index_(0) {
   // Create an accumulator handle starting with the empty string.
-  accumulator_ = Handle<String>(isolate->heap()->empty_string(), isolate);
+  accumulator_ = Handle<String>::New(isolate->heap()->empty_string(), isolate);
   current_part_ =
       factory()->NewRawOneByteString(part_length_).ToHandleChecked();
 }

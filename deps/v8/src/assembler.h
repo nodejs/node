@@ -49,6 +49,7 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class SourcePosition;
 class StatsCounter;
 
 // -----------------------------------------------------------------------------
@@ -98,6 +99,9 @@ class AssemblerBase: public Malloced {
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
   virtual void AbortedCodeGeneration() { }
+
+  // Debugging
+  void Print();
 
   static const int kMinimalBufferSize = 4*KB;
 
@@ -318,6 +322,8 @@ class Label {
 
 
 enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
+
+enum ArgvMode { kArgvOnStack, kArgvInRegister };
 
 // Specifies whether to perform icache flush operations on RelocInfo updates.
 // If FLUSH_ICACHE_IF_NEEDED, the icache will always be flushed if an
@@ -659,11 +665,6 @@ class RelocInfo {
   Mode rmode_;
   intptr_t data_;
   Code* host_;
-  // External-reference pointers are also split across instruction-pairs
-  // on some platforms, but are accessed via indirect pointers. This location
-  // provides a place for that pointer to exist naturally. Its address
-  // is returned by RelocInfo::target_reference_address().
-  Address reconstructed_adr_ptr_;
   friend class RelocIterator;
 };
 
@@ -990,7 +991,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference invoke_function_callback(Isolate* isolate);
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
 
-  static ExternalReference vector_store_virtual_register(Isolate* isolate);
+  static ExternalReference virtual_handler_register(Isolate* isolate);
+  static ExternalReference virtual_slot_register(Isolate* isolate);
+
+  static ExternalReference runtime_function_table_address(Isolate* isolate);
 
   Address address() const { return reinterpret_cast<Address>(address_); }
 
@@ -1276,7 +1280,6 @@ class ConstantPoolBuilder BASE_EMBEDDED {
   PerTypeEntryInfo info_[ConstantPoolEntry::NUMBER_OF_TYPES];
 };
 
-
-} }  // namespace v8::internal
-
+}  // namespace internal
+}  // namespace v8
 #endif  // V8_ASSEMBLER_H_

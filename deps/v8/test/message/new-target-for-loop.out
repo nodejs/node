@@ -1,4 +1,4 @@
-*%(basename)s:7: SyntaxError: Invalid left-hand side in for-loop
+*%(basename)s:5: SyntaxError: Invalid left-hand side in for-loop
 function f() { for (new.target in {}); }
                     ^^^^^^^^^^
 SyntaxError: Invalid left-hand side in for-loop

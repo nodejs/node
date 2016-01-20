@@ -9,8 +9,8 @@
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
+#include "src/type-cache.h"
 #include "src/typing-asm.h"
-#include "src/zone-type-cache.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/expression-type-collector.h"
 #include "test/cctest/expression-type-collector-macros.h"
@@ -55,7 +55,6 @@ std::string Validate(Zone* zone, const char* source,
 
   i::ParseInfo info(zone, script);
   i::Parser parser(&info);
-  parser.set_allow_harmony_arrow_functions(true);
   parser.set_allow_harmony_sloppy(true);
   info.set_global();
   info.set_lazy(false);
@@ -68,13 +67,14 @@ std::string Validate(Zone* zone, const char* source,
       info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
   AsmTyper typer(isolate, zone, *script, root);
   if (typer.Validate()) {
-    ExpressionTypeCollector(isolate, zone, root, types).Run();
+    ExpressionTypeCollector(isolate, root, types).Run();
     return "";
   } else {
     return typer.error_message();
   }
 }
-}
+
+}  // namespace
 
 
 TEST(ValidateMinimum) {
@@ -116,7 +116,7 @@ TEST(ValidateMinimum) {
   Zone* zone = handles.main_zone();
   ZoneVector<ExpressionTypeEntry> types(zone);
   CHECK_EQ("", Validate(zone, test_function, &types));
-  ZoneTypeCache cache;
+  TypeCache cache;
 
   CHECK_TYPES_BEGIN {
     // Module.
@@ -395,7 +395,7 @@ TEST(ValidateMinimum) {
 namespace {
 
 void CheckStdlibShortcuts(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
-                          size_t& index, int& depth, ZoneTypeCache& cache) {
+                          size_t& index, int& depth, TypeCache& cache) {
   // var exp = stdlib.*; (D * 12)
   CHECK_VAR_SHORTCUT(Infinity, Bounds(cache.kFloat64));
   CHECK_VAR_SHORTCUT(NaN, Bounds(cache.kFloat64));
@@ -439,7 +439,8 @@ void CheckStdlibShortcuts(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   CHECK_VAR_NEW_SHORTCUT(f32, Bounds(cache.kFloat32Array));
   CHECK_VAR_NEW_SHORTCUT(f64, Bounds(cache.kFloat64Array));
 }
-}
+
+}  // namespace
 
 
 #define CHECK_FUNC_TYPES_BEGIN(func)                   \
@@ -451,7 +452,7 @@ void CheckStdlibShortcuts(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   Zone* zone = handles.main_zone();                    \
   ZoneVector<ExpressionTypeEntry> types(zone);         \
   CHECK_EQ("", Validate(zone, test_function, &types)); \
-  ZoneTypeCache cache;                                 \
+  TypeCache cache;                                     \
                                                        \
   CHECK_TYPES_BEGIN {                                  \
     /* Module. */                                      \
@@ -504,6 +505,41 @@ TEST(ReturnVoid) {
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
       // return undefined;
       CHECK_EXPR(Literal, Bounds(Type::Undefined()));
+    }
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Call, Bounds(Type::Undefined())) {
+        CHECK_VAR(bar, FUNC_V_TYPE);
+      }
+    }
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(EmptyBody) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE);
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Call, Bounds(Type::Undefined())) {
+        CHECK_VAR(bar, FUNC_V_TYPE);
+      }
+    }
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(DoesNothing) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1.0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
+        CHECK_VAR(x, Bounds(cache.kFloat64));
+        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      }
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
       CHECK_EXPR(Call, Bounds(Type::Undefined())) {
@@ -617,6 +653,148 @@ TEST(Addition2) {
 }
 
 
+TEST(UnsignedCompare) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return ((x>>>0) < (y>>>0))|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(y, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+        CHECK_EXPR(CompareOperation, Bounds(cache.kInt32)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
+            CHECK_VAR(x, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
+            CHECK_VAR(y, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(UnsignedDivide) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return ((x>>>0) / (y>>>0))|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(y, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+        CHECK_EXPR(BinaryOperation, Bounds(Type::None(), Type::Any())) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
+            CHECK_VAR(x, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kUint32)) {
+            CHECK_VAR(y, Bounds(cache.kInt32));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(UnsignedFromFloat64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; return (x>>>0)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill typed bitwise operation\n");
+}
+
+
+TEST(TypeMismatchAddInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; var y = 0; return (x + y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(TypeMismatchSubInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; var y = 0; return (x - y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(TypeMismatchDivInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; var y = 0; return (x / y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(TypeMismatchModInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; var y = 0; return (x % y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(ModFloat32) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = fround(1.0); return (x % x)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed arithmetic operation\n");
+}
+
+
+TEST(TernaryMismatchInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 0.0; return (1 ? x : y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed conditional\n");
+}
+
+
+TEST(FroundFloat32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; return fround(x); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Call, Bounds(cache.kFloat32)) {
+        CHECK_VAR(fround, FUNC_N2F_TYPE);
+        CHECK_VAR(x, Bounds(cache.kInt32));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
 TEST(Addition4) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; var y = 2; return (x+y+x+y)|0; }\n"
@@ -666,6 +844,60 @@ TEST(Division4) {
 }
 
 
+TEST(CompareMismatchInt32Float64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 2.0; return (x < y)|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed comparison operation\n");
+}
+
+
+TEST(CompareMismatchInt32Uint32) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 2; return (x < (y>>>0))|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed comparison operation\n");
+}
+
+
+TEST(CompareMismatchInt32Float32) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; var y = 2; return (x < fround(y))|0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: ill-typed comparison operation\n");
+}
+
+
+TEST(Float64ToInt32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 0.0; x = ~~y; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kFloat64)) {
+        CHECK_VAR(y, Bounds(cache.kFloat64));
+        CHECK_EXPR(Literal, Bounds(cache.kFloat64));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+            CHECK_VAR(y, Bounds(cache.kFloat64));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
 TEST(Load1) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; var y = i8[x>>0]|0; }\n"
@@ -684,6 +916,32 @@ TEST(Load1) {
               CHECK_VAR(x, Bounds(cache.kInt32));
               CHECK_EXPR(Literal, Bounds(cache.kInt32));
             }
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kInt32));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(Load1Constant) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = i8[5]|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(x, Bounds(cache.kInt32));
+        CHECK_EXPR(Literal, Bounds(cache.kInt32));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kInt32)) {
+        CHECK_VAR(y, Bounds(cache.kInt32));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kInt32)) {
+          CHECK_EXPR(Property, Bounds(cache.kInt8)) {
+            CHECK_VAR(i8, Bounds(cache.kInt8Array));
+            CHECK_EXPR(Literal, Bounds(cache.kInt32));
           }
           CHECK_EXPR(Literal, Bounds(cache.kInt32));
         }

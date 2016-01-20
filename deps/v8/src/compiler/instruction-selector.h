@@ -172,15 +172,9 @@ class InstructionSelector final {
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
                             bool call_code_immediate,
                             bool call_address_immediate);
+  bool IsTailCallAddressImmediate();
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
-
-  enum class FrameStateInputKind { kAny, kStackSlot };
-  void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,
-                           FrameStateDescriptor* descriptor,
-                           FrameStateInputKind kind);
-  static InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
-                                            FrameStateInputKind kind);
 
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============
@@ -200,7 +194,8 @@ class InstructionSelector final {
   MACHINE_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
-  void VisitFinish(Node* node);
+  void VisitFinishRegion(Node* node);
+  void VisitGuard(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);
   void VisitOsrValue(Node* node);
@@ -213,8 +208,11 @@ class InstructionSelector final {
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
   void VisitDeoptimize(Node* value);
-  void VisitReturn(Node* value);
+  void VisitReturn(Node* ret);
   void VisitThrow(Node* value);
+
+  void EmitPrepareArguments(NodeVector* arguments,
+                            const CallDescriptor* descriptor, Node* node);
 
   // ===========================================================================
 

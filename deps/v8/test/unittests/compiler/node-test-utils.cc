@@ -261,11 +261,34 @@ class IsControl3Matcher final : public NodeMatcher {
 };
 
 
-class IsFinishMatcher final : public NodeMatcher {
+class IsBeginRegionMatcher final : public NodeMatcher {
  public:
-  IsFinishMatcher(const Matcher<Node*>& value_matcher,
-                  const Matcher<Node*>& effect_matcher)
-      : NodeMatcher(IrOpcode::kFinish),
+  explicit IsBeginRegionMatcher(const Matcher<Node*>& effect_matcher)
+      : NodeMatcher(IrOpcode::kBeginRegion), effect_matcher_(effect_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> effect_matcher_;
+};
+
+
+class IsFinishRegionMatcher final : public NodeMatcher {
+ public:
+  IsFinishRegionMatcher(const Matcher<Node*>& value_matcher,
+                        const Matcher<Node*>& effect_matcher)
+      : NodeMatcher(IrOpcode::kFinishRegion),
         value_matcher_(value_matcher),
         effect_matcher_(effect_matcher) {}
 
@@ -1501,14 +1524,14 @@ Matcher<Node*> IsIfDefault(const Matcher<Node*>& control_matcher) {
 }
 
 
-Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher) {
-  return MakeMatcher(new IsUnopMatcher(IrOpcode::kValueEffect, value_matcher));
+Matcher<Node*> IsBeginRegion(const Matcher<Node*>& effect_matcher) {
+  return MakeMatcher(new IsBeginRegionMatcher(effect_matcher));
 }
 
 
-Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
-                        const Matcher<Node*>& effect_matcher) {
-  return MakeMatcher(new IsFinishMatcher(value_matcher, effect_matcher));
+Matcher<Node*> IsFinishRegion(const Matcher<Node*>& value_matcher,
+                              const Matcher<Node*>& effect_matcher) {
+  return MakeMatcher(new IsFinishRegionMatcher(value_matcher, effect_matcher));
 }
 
 
@@ -1989,14 +2012,17 @@ IS_BINOP_MATCHER(NumberShiftLeft)
 IS_BINOP_MATCHER(NumberShiftRight)
 IS_BINOP_MATCHER(NumberShiftRightLogical)
 IS_BINOP_MATCHER(Word32And)
+IS_BINOP_MATCHER(Word32Or)
 IS_BINOP_MATCHER(Word32Sar)
 IS_BINOP_MATCHER(Word32Shl)
 IS_BINOP_MATCHER(Word32Shr)
 IS_BINOP_MATCHER(Word32Ror)
 IS_BINOP_MATCHER(Word32Equal)
 IS_BINOP_MATCHER(Word64And)
+IS_BINOP_MATCHER(Word64Or)
 IS_BINOP_MATCHER(Word64Sar)
 IS_BINOP_MATCHER(Word64Shl)
+IS_BINOP_MATCHER(Word64Shr)
 IS_BINOP_MATCHER(Word64Equal)
 IS_BINOP_MATCHER(Int32AddWithOverflow)
 IS_BINOP_MATCHER(Int32Add)
@@ -2008,6 +2034,7 @@ IS_BINOP_MATCHER(Uint32LessThan)
 IS_BINOP_MATCHER(Uint32LessThanOrEqual)
 IS_BINOP_MATCHER(Int64Add)
 IS_BINOP_MATCHER(Int64Sub)
+IS_BINOP_MATCHER(Int64Mul)
 IS_BINOP_MATCHER(JSAdd)
 IS_BINOP_MATCHER(Float32Max)
 IS_BINOP_MATCHER(Float32Min)
@@ -2036,6 +2063,7 @@ IS_UNOP_MATCHER(ChangeUint32ToUint64)
 IS_UNOP_MATCHER(TruncateFloat64ToFloat32)
 IS_UNOP_MATCHER(TruncateFloat64ToInt32)
 IS_UNOP_MATCHER(TruncateInt64ToInt32)
+IS_UNOP_MATCHER(RoundInt64ToFloat64)
 IS_UNOP_MATCHER(Float32Abs)
 IS_UNOP_MATCHER(Float64Abs)
 IS_UNOP_MATCHER(Float64Sqrt)

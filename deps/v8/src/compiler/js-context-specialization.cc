@@ -95,6 +95,9 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   // Success. The context load can be replaced with the constant.
   // TODO(titzer): record the specialization for sharing code across multiple
   // contexts that have the same value in the corresponding context slot.
+  if (value->IsConsString()) {
+    value = String::Flatten(Handle<String>::cast(value), TENURED);
+  }
   Node* constant = jsgraph_->Constant(value);
   ReplaceWithValue(node, constant);
   return Replace(constant);

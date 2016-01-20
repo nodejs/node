@@ -116,7 +116,7 @@ void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     MacroAssembler* masm, int index, Register result, Label* miss) {
   const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
   __ mov(result, Operand(esi, offset));
-  __ mov(result, FieldOperand(result, GlobalObject::kNativeContextOffset));
+  __ mov(result, FieldOperand(result, JSGlobalObject::kNativeContextOffset));
   __ mov(result, Operand(result, Context::SlotOffset(index)));
   // Load its initial map. The global functions all have initial maps.
   __ mov(result,
@@ -362,18 +362,16 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
 }
 
 
-void NamedStoreHandlerCompiler::GeneratePushMap(Register map_reg,
-                                                Register scratch) {
-  //       current               after GeneratePushMap
-  // -------------------------------------------------
-  //       ret addr              slot
-  //       vector                vector
-  // sp -> slot                  map
-  //                       sp -> ret addr
-  //
-  __ xchg(map_reg, Operand(esp, 0));
-  __ xchg(map_reg, Operand(esp, 2 * kPointerSize));
-  __ push(map_reg);
+void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
+    Register current_map, Register destination_map) {
+  DCHECK(destination_map.is(StoreTransitionHelper::MapRegister()));
+  DCHECK(current_map.is(StoreTransitionHelper::VectorRegister()));
+  ExternalReference virtual_slot =
+      ExternalReference::virtual_slot_register(isolate());
+  __ mov(destination_map, current_map);
+  __ pop(current_map);
+  __ mov(Operand::StaticVariable(virtual_slot), current_map);
+  __ pop(current_map);  // put vector in place.
 }
 
 

@@ -100,7 +100,7 @@ The request `evaluate` is used to evaluate an expression. The body of the result
                   "additional_context" : [
                        { "name" : <name1>, "handle" : <handle1> },
                        { "name" : <name2>, "handle" : <handle2> },
-                       ...
+                       ... 
                   ]
                 }
 }

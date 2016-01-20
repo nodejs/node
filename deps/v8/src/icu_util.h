@@ -14,6 +14,7 @@ namespace internal {
 // function should be called before ICU is used.
 bool InitializeICU(const char* icu_data_file);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ICU_UTIL_H_

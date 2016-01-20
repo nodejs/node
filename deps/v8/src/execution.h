@@ -47,7 +47,7 @@ class Execution final : public AllStatic {
   // that occurred (if caught exception is true).
   // In the exception case, exception_out holds the caught exceptions, unless
   // it is a termination exception.
-  static MaybeHandle<Object> TryCall(Handle<JSFunction> func,
+  static MaybeHandle<Object> TryCall(Isolate* isolate, Handle<Object> callable,
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
                                      MaybeHandle<Object>* exception_out = NULL);
@@ -247,6 +247,7 @@ class StackGuard final {
   DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXECUTION_H_

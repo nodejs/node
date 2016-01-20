@@ -8147,7 +8147,7 @@ TEST(zero_dest) {
   uint64_t literal_base = 0x0100001000100101UL;
   __ Mov(x0, 0);
   __ Mov(x1, literal_base);
-  for (unsigned i = 2; i < x30.code(); i++) {
+  for (int i = 2; i < x30.code(); i++) {
     __ Add(Register::XRegFromCode(i), Register::XRegFromCode(i-1), x1);
   }
   before.Dump(&masm);

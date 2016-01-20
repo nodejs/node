@@ -218,6 +218,46 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
   X87Register const input_;
 };
 
+
+class OutOfLineRecordWrite final : public OutOfLineCode {
+ public:
+  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand operand,
+                       Register value, Register scratch0, Register scratch1,
+                       RecordWriteMode mode)
+      : OutOfLineCode(gen),
+        object_(object),
+        operand_(operand),
+        value_(value),
+        scratch0_(scratch0),
+        scratch1_(scratch1),
+        mode_(mode) {}
+
+  void Generate() final {
+    if (mode_ > RecordWriteMode::kValueIsPointer) {
+      __ JumpIfSmi(value_, exit());
+    }
+    if (mode_ > RecordWriteMode::kValueIsMap) {
+      __ CheckPageFlag(value_, scratch0_,
+                       MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                       exit());
+    }
+    SaveFPRegsMode const save_fp_mode =
+        frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
+    RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
+                         EMIT_REMEMBERED_SET, save_fp_mode);
+    __ lea(scratch1_, operand_);
+    __ CallStub(&stub);
+  }
+
+ private:
+  Register const object_;
+  Operand const operand_;
+  Register const value_;
+  Register const scratch0_;
+  Register const scratch1_;
+  RecordWriteMode const mode_;
+};
+
 }  // namespace
 
 
@@ -312,7 +352,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
-        __ call(Operand(reg, Code::kHeaderSize - kHeapObjectTag));
+        __ add(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
+        __ call(reg);
       }
       RecordCallPosition(instr);
       bool double_result =
@@ -378,6 +419,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
       break;
     }
+    case kArchLazyBailout: {
+      EnsureSpaceForLazyDeopt();
+      RecordCallPosition(instr);
+      break;
+    }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, i.TempRegister(0));
@@ -409,6 +455,25 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchDeoptimize: {
       int deopt_state_id =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+      int double_register_param_count = 0;
+      int x87_layout = 0;
+      for (size_t i = 0; i < instr->InputCount(); i++) {
+        if (instr->InputAt(i)->IsDoubleRegister()) {
+          double_register_param_count++;
+        }
+      }
+      // Currently we use only one X87 register. If double_register_param_count
+      // is bigger than 1, it means duplicated double register is added to input
+      // of this instruction.
+      if (double_register_param_count > 0) {
+        x87_layout = (0 << 3) | 1;
+      }
+      // The layout of x87 register stack is loaded on the top of FPU register
+      // stack for deoptimization.
+      __ push(Immediate(x87_layout));
+      __ fild_s(MemOperand(esp, 0));
+      __ lea(esp, Operand(esp, kPointerSize));
+
       AssembleDeoptimizerCall(deopt_state_id, Deoptimizer::EAGER);
       break;
     }
@@ -429,6 +494,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (!instr->InputAt(0)->IsDoubleRegister()) {
         __ fstp(0);
       }
+      break;
+    }
+    case kArchStoreWithWriteBarrier: {
+      RecordWriteMode mode =
+          static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
+      Register object = i.InputRegister(0);
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      Register value = i.InputRegister(index);
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+      auto ool = new (zone()) OutOfLineRecordWrite(this, object, operand, value,
+                                                   scratch0, scratch1, mode);
+      __ mov(operand, value);
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+      __ bind(ool->exit());
       break;
     }
     case kX87Add:
@@ -537,6 +620,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kX87Lzcnt:
       __ Lzcnt(i.OutputRegister(), i.InputOperand(0));
+      break;
+    case kX87Popcnt:
+      __ Popcnt(i.OutputRegister(), i.InputOperand(0));
       break;
     case kX87LoadFloat64Constant: {
       InstructionOperand* source = instr->InputAt(0);
@@ -963,10 +1049,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX87Float64Sqrt: {
+      __ X87SetFPUCW(0x027F);
       __ fstp(0);
       __ fld_d(MemOperand(esp, 0));
       __ fsqrt();
       __ lea(esp, Operand(esp, kDoubleSize));
+      __ X87SetFPUCW(0x037F);
       break;
     }
     case kX87Float64Round: {
@@ -1186,24 +1274,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         UNREACHABLE();
       }
       break;
-    case kX87StoreWriteBarrier: {
-      Register object = i.InputRegister(0);
-      Register value = i.InputRegister(2);
-      SaveFPRegsMode mode =
-          frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-      if (HasImmediateInput(instr, 1)) {
-        int index = i.InputInt32(1);
-        Register scratch = i.TempRegister(1);
-        __ mov(Operand(object, index), value);
-        __ RecordWriteContextSlot(object, index, value, scratch, mode);
-      } else {
-        Register index = i.InputRegister(1);
-        __ mov(Operand(object, index, times_1, 0), value);
-        __ lea(index, Operand(object, index, times_1, 0));
-        __ RecordWrite(object, index, value, mode);
-      }
-      break;
-    }
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(movsx_b);
       break;

@@ -8,6 +8,7 @@
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -171,12 +172,13 @@ RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
 }
 
 
+// TODO(bmeurer): Kill this runtime entry. Uses in date.js are wrong anyway.
 RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-  double double_value = DoubleToInteger(number);
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, input, Object::ToNumber(input));
+  double double_value = DoubleToInteger(input->Number());
   // Map both -0 and +0 to +0.
   if (double_value == 0) double_value = 0;
 

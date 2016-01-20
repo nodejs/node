@@ -42,6 +42,7 @@ class MathExpGenerator : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_CODEGEN_IA32_H_

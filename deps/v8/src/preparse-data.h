@@ -206,6 +206,7 @@ class CompleteParserRecorder : public ParserRecorder {
 };
 
 
-} }  // namespace v8::internal.
+}  // namespace internal
+}  // namespace v8.
 
 #endif  // V8_PREPARSE_DATA_H_

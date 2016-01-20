@@ -206,7 +206,7 @@ int DebugFrameHelper::FindIndexedNonNativeFrame(JavaScriptFrameIterator* it,
     it->frame()->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0; i--) {
       // Omit functions from native and extension scripts.
-      if (!frames[i].function()->IsSubjectToDebugging()) continue;
+      if (!frames[i].function()->shared()->IsSubjectToDebugging()) continue;
       if (++count == index) return i;
     }
   }

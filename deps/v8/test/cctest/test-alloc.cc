@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -99,7 +102,7 @@ Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
 
 HEAP_TEST(StressHandles) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
   Handle<Object> o = TestAllocateAfterFailures();
   CHECK(o->IsTrue());
@@ -137,7 +140,7 @@ TEST(StressJS) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
   Handle<JSFunction> function = factory->NewFunction(
       factory->function_string());
@@ -160,12 +163,22 @@ TEST(StressJS) {
   map->AppendDescriptor(&d);
 
   // Add the Foo constructor the global object.
-  env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "Foo"),
-                     v8::Utils::ToLocal(function));
+  CHECK(env->Global()
+            ->Set(env, v8::String::NewFromUtf8(CcTest::isolate(), "Foo",
+                                               v8::NewStringType::kNormal)
+                           .ToLocalChecked(),
+                  v8::Utils::CallableToLocal(function))
+            .FromJust());
   // Call the accessor through JavaScript.
-  v8::Handle<v8::Value> result = v8::Script::Compile(
-      v8::String::NewFromUtf8(CcTest::isolate(), "(new Foo).get"))->Run();
-  CHECK_EQ(true, result->BooleanValue());
+  v8::Local<v8::Value> result =
+      v8::Script::Compile(
+          env, v8::String::NewFromUtf8(CcTest::isolate(), "(new Foo).get",
+                                       v8::NewStringType::kNormal)
+                   .ToLocalChecked())
+          .ToLocalChecked()
+          ->Run(env)
+          .ToLocalChecked();
+  CHECK_EQ(true, result->BooleanValue(env).FromJust());
   env->Exit();
 }
 

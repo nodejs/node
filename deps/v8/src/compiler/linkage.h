@@ -110,9 +110,10 @@ class CallDescriptor final : public ZoneObject {
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
-    kCallCodeObject,      // target is a Code object
-    kCallJSFunction,      // target is a JSFunction object
-    kCallAddress,         // target is a machine pointer
+    kCallCodeObject,  // target is a Code object
+    kCallJSFunction,  // target is a JSFunction object
+    kCallAddress,     // target is a machine pointer
+    kLazyBailout      // the call is no-op, only used for lazy bailout
   };
 
   enum Flag {
@@ -257,7 +258,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 //
 //                  #0          #1     #2     #3     [...]             #n
 // Call[CodeStub]   code,       arg 1, arg 2, arg 3, [...],            context
-// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...],            context
+// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...],      #arg, context
 // Call[Runtime]    CEntryStub, arg 1, arg 2, arg 3, [...], fun, #arg, context
 class Linkage : public ZoneObject {
  public:
@@ -271,9 +272,12 @@ class Linkage : public ZoneObject {
   static CallDescriptor* GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int parameter_count,
                                              CallDescriptor::Flags flags);
+
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties, bool needs_frame_state = true);
+
+  static CallDescriptor* GetLazyBailoutDescriptor(Zone* zone);
 
   static CallDescriptor* GetStubCallDescriptor(
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
@@ -304,12 +308,14 @@ class Linkage : public ZoneObject {
   }
 
   // Get the location where this function should place its return value.
-  LinkageLocation GetReturnLocation() const {
-    return incoming_->GetReturnLocation(0);
+  LinkageLocation GetReturnLocation(size_t index = 0) const {
+    return incoming_->GetReturnLocation(index);
   }
 
   // Get the machine type of this function's return value.
-  MachineType GetReturnType() const { return incoming_->GetReturnType(0); }
+  MachineType GetReturnType(size_t index = 0) const {
+    return incoming_->GetReturnType(index);
+  }
 
   // Get the frame offset for a given spill slot. The location depends on the
   // calling convention and the specific frame layout, and may thus be

@@ -605,23 +605,29 @@ assertEquals(["ts", "li"], log);
 
 // Check that properties of RegExp have the correct permissions.
 var re = /x/g;
-var desc = Object.getOwnPropertyDescriptor(re, "global");
-assertEquals(true, desc.value);
-assertEquals(false, desc.configurable);
+var desc = Object.getOwnPropertyDescriptor(re.__proto__, "global");
+assertInstanceof(desc.get, Function);
+assertEquals(true, desc.configurable);
 assertEquals(false, desc.enumerable);
-assertEquals(false, desc.writable);
+
+desc = Object.getOwnPropertyDescriptor(re.__proto__, "multiline");
+assertInstanceof(desc.get, Function);
+assertEquals(true, desc.configurable);
+assertEquals(false, desc.enumerable);
+
+desc = Object.getOwnPropertyDescriptor(re.__proto__, "ignoreCase");
+assertInstanceof(desc.get, Function);
+assertEquals(true, desc.configurable);
+assertEquals(false, desc.enumerable);
+
+desc = Object.getOwnPropertyDescriptor(re, "global");
+assertEquals(undefined, desc);
 
 desc = Object.getOwnPropertyDescriptor(re, "multiline");
-assertEquals(false, desc.value);
-assertEquals(false, desc.configurable);
-assertEquals(false, desc.enumerable);
-assertEquals(false, desc.writable);
+assertEquals(undefined, desc);
 
 desc = Object.getOwnPropertyDescriptor(re, "ignoreCase");
-assertEquals(false, desc.value);
-assertEquals(false, desc.configurable);
-assertEquals(false, desc.enumerable);
-assertEquals(false, desc.writable);
+assertEquals(undefined, desc);
 
 desc = Object.getOwnPropertyDescriptor(re, "lastIndex");
 assertEquals(0, desc.value);
