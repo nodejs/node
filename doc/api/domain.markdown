@@ -2,304 +2,265 @@
 
     Stability: 0 - Deprecated
 
+The `domain` modules provides a mechanism for grouping and handling multiple IO
+operations as a single group. `EventEmitters` and callback functions are
+associated with a single `Domain` object. If any of those emit an `'error'`
+event, or throw an error, then the `Domain` object is notified, rather than
+losing the context of the error in the `process.on('uncaughtException')`
+handler, or causing the program to exit immediately with an error code.
+
 **This module is pending deprecation**. Once a replacement API has been
 finalized, this module will be fully deprecated. Most end users should
 **not** have cause to use this module. Users who absolutely must have
-the functionality that domains provide may rely on it for the time being
-but should expect to have to migrate to a different solution
-in the future.
+the functionality provided by the `domain` module may rely on it for the
+time being but should expect to migrate to a different solution in the future.
 
-Domains provide a way to handle multiple different IO operations as a
-single group.  If any of the event emitters or callbacks registered to a
-domain emit an `'error'` event, or throw an error, then the domain object
-will be notified, rather than losing the context of the error in the
-`process.on('uncaughtException')` handler, or causing the program to
-exit immediately with an error code.
-
-## Warning: Don't Ignore Errors!
+## Warning: Do not Ignore Errors!
 
 <!-- type=misc -->
 
-Domain error handlers are not a substitute for closing down your
-process when an error occurs.
+Domain error handlers are not a substitute for closing down a process when
+an error occurs.
 
-By the very nature of how [`throw`][] works in JavaScript, there is almost
-never any way to safely "pick up where you left off", without leaking
-references, or creating some other sort of undefined brittle state.
+By the very nature of how [`throw`][] works in JavaScript, when an error is
+thrown, there is almost never a safe way to "pick up where you left off"
+without leaking references, or creating some other sort of undefined brittle
+state.
 
 The safest way to respond to a thrown error is to shut down the
-process.  Of course, in a normal web server, you might have many
+process.  Of course, in a normal web server, an application might have many
 connections open, and it is not reasonable to abruptly shut those down
 because an error was triggered by someone else.
 
-The better approach is to send an error response to the request that
-triggered the error, while letting the others finish in their normal
-time, and stop listening for new requests in that worker.
+The better approach is to handle thrown errors gracefully by sending an error
+response to the request that triggered the error, while letting other requests
+finish in their normal time.
 
-In this way, `domain` usage goes hand-in-hand with the cluster module,
-since the master process can fork a new worker when a worker
-encounters an error.  For Node.js programs that scale to multiple
-machines, the terminating proxy or service registry can take note of
-the failure, and react accordingly.
+The `domain` module can work well with the `cluster` module. For instance,
+a master process can fork a new worker whenever a worker encounters an error.
+Use of the `domain` module allows this kind of response to occur in a more
+controlled manner.
 
-For example, this is not a good idea:
+For instance, in the example `cluster` application below, worker processes
+are intentionally written to randomly throw errors. When these occur, the
+worker process shuts down immediately, leading to an ungraceful exit of the
+master process:
 
-```javascript
-// XXX WARNING!  BAD IDEA!
-
-var d = require('domain').create();
-d.on('error', (er) => {
-  // The error won't crash the process, but what it does is worse!
-  // Though we've prevented abrupt process restarting, we are leaking
-  // resources like crazy if this ever happens.
-  // This is no better than process.on('uncaughtException')!
-  console.log('error, but oh well', er.message);
-});
-d.run(() => {
-  require('http').createServer((req, res) => {
-    handleRequest(req, res);
-  }).listen(PORT);
-});
-```
-
-By using the context of a domain, and the resilience of separating our
-program into multiple worker processes, we can react more
-appropriately, and handle errors with much greater safety.
-
-```javascript
-// Much better!
-
-const cluster = require('cluster');
-const PORT = +process.env.PORT || 1337;
-
-if (cluster.isMaster) {
-  // In real life, you'd probably use more than just 2 workers,
-  // and perhaps not put the master and worker in the same file.
-  //
-  // You can also of course get a bit fancier about logging, and
-  // implement whatever custom logic you need to prevent DoS
-  // attacks and other bad behavior.
-  //
-  // See the options in the cluster documentation.
-  //
-  // The important thing is that the master does very little,
-  // increasing our resilience to unexpected errors.
-
-  cluster.fork();
-  cluster.fork();
-
-  cluster.on('disconnect', (worker) => {
-    console.error('disconnect!');
-    cluster.fork();
-  });
-
-} else {
-  // the worker
-  //
-  // This is where we put our bugs!
-
-  const domain = require('domain');
-
-  // See the cluster documentation for more details about using
-  // worker processes to serve requests.  How it works, caveats, etc.
-
-  const server = require('http').createServer((req, res) => {
-    var d = domain.create();
-    d.on('error', (er) => {
-      console.error('error', er.stack);
-
-      // Note: we're in dangerous territory!
-      // By definition, something unexpected occurred,
-      // which we probably didn't want.
-      // Anything can happen now!  Be very careful!
-
-      try {
-        // make sure we close down within 30 seconds
-        var killtimer = setTimeout(() => {
-          process.exit(1);
-        }, 30000);
-        // But don't keep the process open just for that!
-        killtimer.unref();
-
-        // stop taking new requests.
-        server.close();
-
-        // Let the master know we're dead.  This will trigger a
-        // 'disconnect' in the cluster master, and then it will fork
-        // a new worker.
-        cluster.worker.disconnect();
-
-        // try to send an error to the request that triggered the problem
-        res.statusCode = 500;
-        res.setHeader('content-type', 'text/plain');
-        res.end('Oops, there was a problem!\n');
-      } catch (er2) {
-        // oh well, not much we can do at this point.
-        console.error('Error sending 500!', er2.stack);
+    // An example of what not to do
+    const cluster = require('cluster');
+    
+    if (cluster.isMaster) {
+      cluster.fork();
+      cluster.fork();
+    } else {
+      function randomError() {
+        var r = Math.floor(Math.random() * 11);
+        if (r >= 7) throw new Error();
+        setTimeout(randomError, 1000);
       }
-    });
+      setTimeout(randomError, 1000);
+    }
 
-    // Because req and res were created before this domain existed,
-    // we need to explicitly add them.
-    // See the explanation of implicit vs explicit binding below.
-    d.add(req);
-    d.add(res);
+The `domain` module can be introduced within the worker process to provide
+graceful error handling as in the following modified version. However, since
+the errors are simply being ignored, resources are being leaked and held on
+to.
 
-    // Now run the handler function in the domain.
-    d.run(() => {
-      handleRequest(req, res);
-    });
-  });
-  server.listen(PORT);
-}
+    // Another example of what not to do
+    const cluster = require('cluster');
 
-// This part isn't important.  Just an example routing thing.
-// You'd put your fancy application logic here.
-function handleRequest(req, res) {
-  switch(req.url) {
-    case '/error':
-      // We do some async stuff, and then...
-      setTimeout(() => {
-        // Whoops!
-        flerb.bark();
+    if (cluster.isMaster) {
+      cluster.fork();
+      cluster.fork();
+    } else {
+      const domain = require('domain').create();
+      domain.on('error', (err) => {
+        console.log('There was an error in the worker');
       });
-      break;
-    default:
-      res.end('ok');
-  }
-}
-```
+      domain.run(() => {
+        function randomError() {
+          var r = Math.floor(Math.random() * 11);
+          if (r >= 7) throw new Error();
+          setTimeout(randomError, 1000);
+        }
+        setTimeout(randomError, 1000);
+      });
+    }
+
+The better approach is to handle the error, disconnect the worker explicitly
+from the master process, allow the failing worker process to exit, then have
+the master create a new worker to take it's place:
+
+    const cluster = require('cluster');
+
+    if (cluster.isMaster) {
+      cluster.fork();
+      cluster.fork();
+    
+      // Spawn a new worker when one disconnects   
+      cluster.on('disconnect', (worker) => {
+        console.error(`${worker.id} failed. spawning a replacement.`);
+        cluster.fork();
+      });
+      
+    } else {
+      const domain = require('domain').create();
+      domain.on('error', (err) => {
+        console.log(`There was an error in ${cluster.worker.id}.`);
+        
+        try {
+          // Make sure the worker closes down within 30 seconds.
+          // But don't keep the process open just for that!
+          setTimeout(() => {
+            process.exit(1);
+          }, 30000).unref();
+
+          // Let the master know this worker has failed.  
+          // This will trigger a 'disconnect' in the cluster
+          // master, and then it will fork a new worker.
+          cluster.worker.disconnect();
+        } catch (err2) {
+          // There's nothing further we can do
+          console.error('Error shutting down.', err2.stack);
+        }
+        
+      });
+      domain.run(() => {
+        function randomError() {
+          var r = Math.floor(Math.random() * 11);
+          if (r >= 7) throw new Error();
+          setTimeout(randomError, 1000);
+        }
+        setTimeout(randomError, 1000);
+      });
+    }
 
 ## Additions to Error objects
 
 <!-- type=misc -->
 
-Any time an `Error` object is routed through a domain, a few extra fields
-are added to it.
+Whenever an `Error` object is routed through a `Domain`, a number of
+additional properties are added.
 
-* `error.domain` The domain that first handled the error.
-* `error.domainEmitter` The event emitter that emitted an `'error'` event
+* `error.domain`: The `Domain` that first handled the error.
+* `error.domainEmitter`: The `EventEmitter` that emitted an `'error'` event
   with the error object.
-* `error.domainBound` The callback function which was bound to the
+* `error.domainBound`: The callback function which was bound to the
   domain, and passed an error as its first argument.
-* `error.domainThrown` A boolean indicating whether the error was
+* `error.domainThrown`: A boolean indicating whether the error was
   thrown, emitted, or passed to a bound callback function.
 
 ## Implicit Binding
 
 <!--type=misc-->
 
-If domains are in use, then all **new** EventEmitter objects (including
+When a `Domain` is in use, then all **new** `EventEmitter` objects (including
 Stream objects, requests, responses, etc.) will be implicitly bound to
-the active domain at the time of their creation.
+the active `Domain` at the time of their creation.
 
-Additionally, callbacks passed to lowlevel event loop requests (such as
-to fs.open, or other callback-taking methods) will automatically be
-bound to the active domain.  If they throw, then the domain will catch
-the error.
+Additionally, callbacks passed to low-level event loop requests (such as
+to `fs.open()`, or other callback-taking methods) will automatically be
+bound to the active `Domain`.  If those callbacks throw, then the `Domain`
+will catch the error.
 
-In order to prevent excessive memory usage, Domain objects themselves
-are not implicitly added as children of the active domain.  If they
-were, then it would be too easy to prevent request and response objects
-from being properly garbage collected.
+To prevent excessive memory usage, `Domain` objects themselves are not
+implicitly added as children of the active `Domain`. If they were, it would
+be too easy to prevent request and response objects from being properly
+garbage collected.
 
-If you *want* to nest Domain objects as children of a parent Domain,
-then you must explicitly add them.
+It is possible to nest `Domain` objects as children of a parent `Domain` by
+explicitly adding those children to the parent.
 
 Implicit binding routes thrown errors and `'error'` events to the
-Domain's `'error'` event, but does not register the EventEmitter on the
-Domain, so [`domain.dispose()`][] will not shut down the EventEmitter.
+`Domain` objects `'error'` event, but does not register the `EventEmitter` on
+the `Domain`, so [`domain.dispose()`][] will not shut down the EventEmitter.
 Implicit binding only takes care of thrown errors and `'error'` events.
 
 ## Explicit Binding
 
 <!--type=misc-->
 
-Sometimes, the domain in use is not the one that ought to be used for a
-specific event emitter.  Or, the event emitter could have been created
-in the context of one domain, but ought to instead be bound to some
-other domain.
-
-For example, there could be one domain in use for an HTTP server, but
-perhaps we would like to have a separate domain to use for each request.
-
-That is possible via explicit binding.
+There are times when implicit binding to the current `Domain` is not
+appropriate and a particular `EventEmitter` should be bound to a different
+`Domain` object. Doing so can be accomplished via explicit binding using the
+`domain.add()` method.
 
 For example:
 
-```
-// create a top-level domain for the server
-const domain = require('domain');
-const http = require('http');
-const serverDomain = domain.create();
+    // Create a top-level domain for the server
+    const domain = require('domain');
+    const http = require('http');
+    const serverDomain = domain.create();
 
-serverDomain.run(() => {
-  // server is created in the scope of serverDomain
-  http.createServer((req, res) => {
-    // req and res are also created in the scope of serverDomain
-    // however, we'd prefer to have a separate domain for each request.
-    // create it first thing, and add req and res to it.
-    var reqd = domain.create();
-    reqd.add(req);
-    reqd.add(res);
-    reqd.on('error', (er) => {
-      console.error('Error', er, req.url);
-      try {
-        res.writeHead(500);
-        res.end('Error occurred, sorry.');
-      } catch (er) {
-        console.error('Error sending 500', er, req.url);
-      }
+    serverDomain.run(() => {
+      // Server is implicitly bound to serverDomain
+      http.createServer((req, res) => {
+        // req and res are also implicitly bound to serverDomain
+        // The preference, however, is to have a separate domain
+        // for each request. First, create the new Domain, then
+        // explicitly add req and res to it.
+        var reqd = domain.create();
+        reqd.add(req);
+        reqd.add(res);
+        reqd.on('error', (er) => {
+          console.error('Error', er, req.url);
+          try {
+            res.writeHead(500);
+            res.end('Error occurred, sorry.');
+          } catch (er) {
+            console.error('Error sending 500', er, req.url);
+          }
+        });
+      }).listen(1337);
     });
-  }).listen(1337);
-});
-```
 
 ## domain.create()
 
 * return: {Domain}
 
-Returns a new Domain object.
+Creates and returns a new `Domain` object. Instances of the `Domain` object are
+not to be created using the `new` keyword.
+
+    const domain = require('domain');
+    const myDomain = domain.create();
 
 ## Class: Domain
 
-The Domain class encapsulates the functionality of routing errors and
-uncaught exceptions to the active Domain object.
+The `Domain` class is an [`EventEmitter`][] that encapsulates the functionality
+of routing errors and uncaught exceptions to the active Domain object.
 
-Domain is a child class of [`EventEmitter`][].  To handle the errors that it
-catches, listen to its `'error'` event.
+When the `Domain` class intercepts an error, it will trigger the `'error'`
+event and pass the caught error to the event handler.
 
 ### domain.run(fn[, arg][, ...])
 
 * `fn` {Function}
 
-Run the supplied function in the context of the domain, implicitly
-binding all event emitters, timers, and lowlevel requests that are
-created in that context. Optionally, arguments can be passed to
-the function.
+Run the supplied `fn` function in the context of the domain, implicitly
+binding all event emitters, timers, and low-level requests that are
+created within that context.
 
-This is the most basic way to use a domain.
+When `domain.run()` is called with additional arguments, those are passed
+to the `fn` function as input arguments.
 
-Example:
+For example:
 
-```
-const domain = require('domain');
-const fs = require('fs');
-const d = domain.create();
-d.on('error', (er) => {
-  console.error('Caught error!', er);
-});
-d.run(() => {
-  process.nextTick(() => {
-    setTimeout(() => { // simulating some various async stuff
-      fs.open('non-existent file', 'r', (er, fd) => {
-        if (er) throw er;
-        // proceed...
+    const domain = require('domain');
+    const fs = require('fs');
+    const d = domain.create();
+    d.on('error', (er) => {
+      console.error('Caught error!', er);
+    });
+    d.run(() => {
+      process.nextTick(() => {
+        setTimeout(() => { // simulating some various async stuff
+          fs.open('non-existent file', 'r', (er, fd) => {
+            if (er) throw er;
+            // proceed...
+          });
+        }, 100);
       });
-    }, 100);
-  });
-});
-```
+    });
 
 In this example, the `d.on('error')` handler will be triggered, rather
 than crashing the program.
@@ -308,56 +269,56 @@ than crashing the program.
 
 * {Array}
 
-An array of timers and event emitters that have been explicitly added
-to the domain.
+Returns an array of timers and `EventEmitter` objects that have been explicitly
+bound to the domain.
 
 ### domain.add(emitter)
 
 * `emitter` {EventEmitter | Timer} emitter or timer to be added to the domain
 
-Explicitly adds an emitter to the domain.  If any event handlers called by
-the emitter throw an error, or if the emitter emits an `'error'` event, it
-will be routed to the domain's `'error'` event, just like with implicit
-binding.
+Explicitly binds an `EventEmitter` or timer to the domain.  If any event
+handlers called by the emitter throw an error, or if the `EventEmitter` emits
+an `'error'` event, the error will be routed to the `Domain` objects own
+`'error'` event.
 
-This also works with timers that are returned from [`setInterval()`][] and
-[`setTimeout()`][].  If their callback function throws, it will be caught by
-the domain 'error' handler.
+Timers created and returned by [`setInterval()`][] and [`setTimeout()`][] can
+be added to the `Domain`. If the timer callback function throws, the error will
+be passed to the `Domain` `'error'` handler.
 
-If the Timer or EventEmitter was already bound to a domain, it is removed
-from that one, and bound to this one instead.
+If the timer or `EventEmitter` was already bound to a `Domain`, it will be  
+removed from that one, and bound to this one instead.
 
 ### domain.remove(emitter)
 
 * `emitter` {EventEmitter | Timer} emitter or timer to be removed from the domain
 
-The opposite of [`domain.add(emitter)`][].  Removes domain handling from the
-specified emitter.
+Removes the specified `EventEmitter` or timer from this `Domain`.
 
 ### domain.bind(callback)
 
 * `callback` {Function} The callback function
 * return: {Function} The bound function
 
-The returned function will be a wrapper around the supplied callback
-function.  When the returned function is called, any errors that are
-thrown will be routed to the domain's `'error'` event.
+Wraps the supplied `callback` function in a new function that catches any
+errors thrown by the `callback` and routes those to the `Domain` objects
+`'error'` event.
 
-#### Example
+For example:
 
-    const d = domain.create();
+    const domain = require('domain');
+    const myDomain = domain.create();
 
     function readSomeFile(filename, cb) {
-      fs.readFile(filename, 'utf8', d.bind(function(er, data) {
-        // if this throws, it will also be passed to the domain
-        return cb(er, data ? JSON.parse(data) : null);
-      }));
+    
+      const handler = myDomain.bind((err, data) => {
+        return cb(err, data ? JSON.parse(data) : null);
+      });
+    
+      fs.readFile(filename, 'utf8', handler);
     }
-
-    d.on('error', (er) => {
-      // an error occurred somewhere.
-      // if we throw it now, it will crash the program
-      // with the normal line number and stack message.
+    
+    myDomain.on('error', (err) => {
+      console.error(`An error occurred: ${err.message}`);
     });
 
 ### domain.intercept(callback)
@@ -365,79 +326,79 @@ thrown will be routed to the domain's `'error'` event.
 * `callback` {Function} The callback function
 * return: {Function} The intercepted function
 
-This method is almost identical to [`domain.bind(callback)`][].  However, in
-addition to catching thrown errors, it will also intercept [`Error`][]
-objects sent as the first argument to the function.
+Wraps the supplied `callback` function in a new function that catches any
+errors thrown by the `callback`, as well as any [`Error`][] objects passed
+as the first argument to the `callback`, and routes those to the `Domain`
+objects `'error'` event.
 
-In this way, the common `if (err) return callback(err);` pattern can be replaced
-with a single error handler in a single place.
+Using `domain.intercept()`, the idiomatic `if (err) return callback(err);`
+pattern can be replaced with a single error handler established at the
+`Domain`.
 
-#### Example
+For example
 
-    const d = domain.create();
-
+    const domain = require('domain');
+    const myDomain = domain.create();
+    
     function readSomeFile(filename, cb) {
-      fs.readFile(filename, 'utf8', d.intercept(function(data) {
-        // note, the first argument is never passed to the
-        // callback since it is assumed to be the 'Error' argument
-        // and thus intercepted by the domain.
-
-        // if this throws, it will also be passed to the domain
-        // so the error-handling logic can be moved to the 'error'
-        // event on the domain instead of being repeated throughout
-        // the program.
-        return cb(null, JSON.parse(data));
-      }));
+      
+      const handler = myDomain.intercept((data) => {
+        return cb(data ? JSON.parse(data) : null);
+      });
+    
+      fs.readFile(filename, 'utf8', handler);
     }
-
-    d.on('error', (er) => {
-      // an error occurred somewhere.
-      // if we throw it now, it will crash the program
-      // with the normal line number and stack message.
+    
+    myDomain.on('error', (err) => {
+      console.error(`An error occurred: ${err.message}`);
     });
 
 ### domain.enter()
 
-The `enter` method is plumbing used by the `run`, `bind`, and `intercept`
-methods to set the active domain. It sets `domain.active` and `process.domain`
-to the domain, and implicitly pushes the domain onto the domain stack managed
-by the domain module (see [`domain.exit()`][] for details on the domain stack). The
-call to `enter` delimits the beginning of a chain of asynchronous calls and I/O
-operations bound to a domain.
+The `domain.enter()` method is a utility used by the `domain.run()`,
+`domain.bind()`, and `domain.intercept()` methods to set the active `Domain`.
+When called, `domain.enter()` sets `domain.active` and `process.domain`
+properties to the `Domain`, and implicitly pushes the `Domain` onto the domain
+stack managed internally by the `domain` module (see [`domain.exit()`][] for
+details on the domain stack). The call to `domain.enter()` delimits the
+beginning of a chain of asynchronous calls and I/O operations bound to a domain.
 
-Calling `enter` changes only the active domain, and does not alter the domain
-itself. `enter` and `exit` can be called an arbitrary number of times on a
-single domain.
+Calling `domain.enter()` changes only the active `Domain`, and does not alter
+the state of the `Domain` itself. The `domain.enter()` and `domain.exit()`
+methods can be called an arbitrary number of times on a single `Domain`.
 
-If the domain on which `enter` is called has been disposed, `enter` will return
-without setting the domain.
+If the `Domain` on which `domain.enter()` is called has been disposed,
+the method will return without setting the domain.
 
 ### domain.exit()
 
-The `exit` method exits the current domain, popping it off the domain stack.
-Any time execution is going to switch to the context of a different chain of
-asynchronous calls, it's important to ensure that the current domain is exited.
-The call to `exit` delimits either the end of or an interruption to the chain
-of asynchronous calls and I/O operations bound to a domain.
+The `domain.exit()` method exits the current `Domain`, popping it off the
+domain stack that is internally managed by the `domain` module. Any time
+execution is going to switch to the context of a different chain of
+asynchronous calls, it is important to ensure that the current `Domain` is
+exited. The call to `domain.exit()` delimits either the end of, or an
+interruption to, the chain of asynchronous calls and I/O operations bound to a
+`Domain`.
 
-If there are multiple, nested domains bound to the current execution context,
-`exit` will exit any domains nested within this domain.
+If there are multiple, nested `Domain` objects bound to the current execution
+context, `domain.exit()` will exit any nested `Domain` objets within this
+`Domain`.
 
-Calling `exit` changes only the active domain, and does not alter the domain
-itself. `enter` and `exit` can be called an arbitrary number of times on a
-single domain.
+Calling `domain.exit()` changes only the active `Domain`, and does not alter
+the state of the `Domain` itself. The `domain.enter()` and `domain.exit()`
+methods can be called an arbitrary number of times on a single `Domain`.
 
-If the domain on which `exit` is called has been disposed, `exit` will return
-without exiting the domain.
+If the `Domain` on which `domain.exit()` is called has been disposed,
+the method will return without exiting the `Domain`.
 
 ### domain.dispose()
 
     Stability: 0 - Deprecated.  Please recover from failed IO actions
-    explicitly via error event handlers set on the domain.
+    explicitly via `'error'` event handlers set on the Domain.
 
-Once `dispose` has been called, the domain will no longer be used by callbacks
-bound into the domain via `run`, `bind`, or `intercept`, and a `'dispose'` event
-is emitted.
+Once `domain.dispose()` has been called, the `Domain` will no longer be used
+by callback functions bound into the `Domain` via `domain.run()`,
+`domain.bind()`, or `domain.intercept()`, and a `'dispose'` event is emitted.
 
 [`domain.add(emitter)`]: #domain_domain_add_emitter
 [`domain.bind(callback)`]: #domain_domain_bind_callback
