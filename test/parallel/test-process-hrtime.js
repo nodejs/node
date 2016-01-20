@@ -25,5 +25,5 @@ function validateTuple(tuple) {
   });
 }
 
-const diff = process.hrtime([0, 1e9-1]);
+const diff = process.hrtime([0, 1e9 - 1]);
 assert(diff[1] >= 0);  // https://github.com/nodejs/node/issues/4751
