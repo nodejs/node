@@ -28,8 +28,6 @@
 
 import os
 import shutil
-import subprocess
-import tarfile
 
 from testrunner.local import statusfile
 from testrunner.local import testsuite
@@ -54,7 +52,7 @@ class BenchmarksTestSuite(testsuite.TestSuite):
 
   def __init__(self, name, root):
     super(BenchmarksTestSuite, self).__init__(name, root)
-    self.testroot = root
+    self.testroot = os.path.join(root, "data")
 
   def ListTests(self, context):
     tests = []
@@ -146,56 +144,25 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     with open(filename) as f:
       return f.read()
 
-  def _DownloadIfNecessary(self, url, revision, target_dir):
-    # Maybe we're still up to date?
-    revision_file = "CHECKED_OUT_%s" % target_dir
-    checked_out_revision = None
-    if os.path.exists(revision_file):
-      with open(revision_file) as f:
-        checked_out_revision = f.read()
-    if checked_out_revision == revision:
-      return
-
-    # If we have a local archive file with the test data, extract it.
-    if os.path.exists(target_dir):
-      shutil.rmtree(target_dir)
-    archive_file = "downloaded_%s_%s.tar.gz" % (target_dir, revision)
-    if os.path.exists(archive_file):
-      with tarfile.open(archive_file, "r:gz") as tar:
-        tar.extractall()
-      with open(revision_file, "w") as f:
-        f.write(revision)
-      return
-
-    # No cached copy. Check out via SVN, and pack as .tar.gz for later use.
-    command = "svn co %s -r %s %s" % (url, revision, target_dir)
-    code = subprocess.call(command, shell=True)
-    if code != 0:
-      raise Exception("Error checking out %s benchmark" % target_dir)
-    with tarfile.open(archive_file, "w:gz") as tar:
-      tar.add("%s" % target_dir)
-    with open(revision_file, "w") as f:
-      f.write(revision)
-
   def DownloadData(self):
-    old_cwd = os.getcwd()
-    os.chdir(os.path.abspath(self.root))
+    print "Benchmarks download is deprecated. It's part of DEPS."
 
-    self._DownloadIfNecessary(
-        ("http://svn.webkit.org/repository/webkit/trunk/PerformanceTests/"
-         "SunSpider/tests/sunspider-1.0.2/"),
-        "159499", "sunspider")
+    def rm_dir(directory):
+      directory_name = os.path.join(self.root, directory)
+      if os.path.exists(directory_name):
+        shutil.rmtree(directory_name)
 
-    self._DownloadIfNecessary(
-        ("http://kraken-mirror.googlecode.com/svn/trunk/kraken/tests/"
-         "kraken-1.1/"),
-        "8", "kraken")
-
-    self._DownloadIfNecessary(
-        "http://octane-benchmark.googlecode.com/svn/trunk/",
-        "26", "octane")
-
-    os.chdir(old_cwd)
+    # Clean up old directories and archive files.
+    rm_dir('kraken')
+    rm_dir('octane')
+    rm_dir('sunspider')
+    archive_files = [f for f in os.listdir(self.root)
+                     if f.startswith("downloaded_") or
+                        f.startswith("CHECKED_OUT_")]
+    if len(archive_files) > 0:
+      print "Clobber outdated test archives ..."
+      for f in archive_files:
+        os.remove(os.path.join(self.root, f))
 
   def _VariantGeneratorFactory(self):
     return BenchmarksVariantGenerator

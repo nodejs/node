@@ -38,10 +38,12 @@ Debug::Debug(Isolate* isolate)
       is_suppressed_(false),
       live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
       break_disabled_(false),
+      break_points_active_(true),
       in_debug_event_listener_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
       debug_info_list_(NULL),
+      feature_tracker_(isolate),
       isolate_(isolate) {
   ThreadInit();
 }
@@ -315,6 +317,15 @@ Handle<Object> BreakLocation::BreakPointObjects() const {
 }
 
 
+void DebugFeatureTracker::Track(DebugFeatureTracker::Feature feature) {
+  uint32_t mask = 1 << feature;
+  // Only count one sample per feature and isolate.
+  if (bitfield_ & mask) return;
+  isolate_->counters()->debug_feature_usage()->AddSample(feature);
+  bitfield_ |= mask;
+}
+
+
 // Threading support.
 void Debug::ThreadInit() {
   thread_local_.break_count_ = 0;
@@ -395,6 +406,9 @@ bool Debug::Load() {
 
   debug_context_ = Handle<Context>::cast(
       isolate_->global_handles()->Create(*context));
+
+  feature_tracker()->Track(DebugFeatureTracker::kActive);
+
   return true;
 }
 
@@ -457,7 +471,7 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   // If there is one or more real break points check whether any of these are
   // triggered.
   Handle<Object> break_points_hit(heap->undefined_value(), isolate_);
-  if (break_location.HasBreakPoint()) {
+  if (break_points_active_ && break_location.HasBreakPoint()) {
     Handle<Object> break_point_objects = break_location.BreakPointObjects();
     break_points_hit = CheckBreakPoints(break_point_objects);
   }
@@ -574,7 +588,7 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
       Object::GetProperty(isolate_, holder, name, STRICT).ToHandleChecked());
   Handle<Object> undefined = isolate_->factory()->undefined_value();
-  return Execution::TryCall(fun, undefined, argc, args);
+  return Execution::TryCall(isolate_, fun, undefined, argc, args);
 }
 
 
@@ -624,6 +638,8 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   *source_position = location.statement_position();
   location.SetBreakPoint(break_point_object);
 
+  feature_tracker()->Track(DebugFeatureTracker::kBreakPoint);
+
   // At least one active break point now.
   return debug_info->GetBreakPointCount() > 0;
 }
@@ -664,6 +680,8 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   BreakLocation location = BreakLocation::FromPosition(
       debug_info, ALL_BREAK_LOCATIONS, position, alignment);
   location.SetBreakPoint(break_point_object);
+
+  feature_tracker()->Track(DebugFeatureTracker::kBreakPoint);
 
   position = (alignment == STATEMENT_ALIGNED) ? location.statement_position()
                                               : location.position();
@@ -746,9 +764,8 @@ void Debug::FloodWithOneShot(Handle<JSFunction> function,
 
 
 void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
-  Handle<FixedArray> new_bindings(function->function_bindings());
-  Handle<Object> bindee(new_bindings->get(JSFunction::kBoundFunctionIndex),
-                        isolate_);
+  Handle<BindingsArray> new_bindings(function->function_bindings());
+  Handle<Object> bindee(new_bindings->bound_function(), isolate_);
 
   if (!bindee.is_null() && bindee->IsJSFunction()) {
     Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));
@@ -874,6 +891,8 @@ void Debug::PrepareStep(StepAction step_action,
   JavaScriptFrameIterator frames_it(isolate_, id);
   JavaScriptFrame* frame = frames_it.frame();
 
+  feature_tracker()->Track(DebugFeatureTracker::kStepping);
+
   // First of all ensure there is one-shot break points in the top handler
   // if any.
   FloodHandlerWithOneShot();
@@ -923,7 +942,7 @@ void Debug::PrepareStep(StepAction step_action,
     }
     // Skip native and extension functions on the stack.
     while (!frames_it.done() &&
-           !frames_it.frame()->function()->IsSubjectToDebugging()) {
+           !frames_it.frame()->function()->shared()->IsSubjectToDebugging()) {
       frames_it.Advance();
     }
     // Step out: If there is a JavaScript caller frame, we need to
@@ -1305,8 +1324,16 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   List<Handle<JSFunction> > functions;
   List<Handle<JSGeneratorObject> > suspended_generators;
 
-  if (!shared->optimized_code_map()->IsSmi()) {
-    shared->ClearOptimizedCodeMap();
+  // Flush all optimized code maps. Note that the below heap iteration does not
+  // cover this, because the given function might have been inlined into code
+  // for which no JSFunction exists.
+  {
+    SharedFunctionInfo::Iterator iterator(isolate_);
+    while (SharedFunctionInfo* shared = iterator.Next()) {
+      if (!shared->optimized_code_map()->IsSmi()) {
+        shared->ClearOptimizedCodeMap();
+      }
+    }
   }
 
   // Make sure we abort incremental marking.
@@ -1503,7 +1530,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
   // Make sure IC state is clean. This is so that we correctly flood
   // accessor pairs when stepping in.
   shared->code()->ClearInlineCaches();
-  shared->feedback_vector()->ClearICSlots(*shared);
+  shared->ClearTypeFeedbackInfo();
 
   // Create the debug info object.
   DCHECK(shared->HasDebugCode());
@@ -1596,7 +1623,7 @@ void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
 }
 
 
-bool Debug::IsDebugGlobal(GlobalObject* global) {
+bool Debug::IsDebugGlobal(JSGlobalObject* global) {
   return is_loaded() && global == debug_context()->global_object();
 }
 
@@ -1943,7 +1970,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               event_data,
                               event_listener_data_ };
     Handle<JSReceiver> global(isolate_->global_proxy());
-    Execution::TryCall(Handle<JSFunction>::cast(event_listener_),
+    Execution::TryCall(isolate_, Handle<JSFunction>::cast(event_listener_),
                        global, arraysize(argv), argv);
   }
   in_debug_event_listener_ = previous;
@@ -2089,7 +2116,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     Handle<String> answer;
     MaybeHandle<Object> maybe_exception;
     MaybeHandle<Object> maybe_result =
-        Execution::TryCall(process_debug_request, cmd_processor, 1,
+        Execution::TryCall(isolate_, process_debug_request, cmd_processor, 1,
                            request_args, &maybe_exception);
 
     if (maybe_result.ToHandle(&answer_value)) {
@@ -2208,7 +2235,7 @@ void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
 }
 
 
-MaybeHandle<Object> Debug::Call(Handle<JSFunction> fun, Handle<Object> data) {
+MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return isolate_->factory()->undefined_value();
 
@@ -2244,8 +2271,9 @@ void Debug::HandleDebugBreak() {
     Object* fun = it.frame()->function();
     if (fun && fun->IsJSFunction()) {
       // Don't stop in builtin functions.
-      if (!JSFunction::cast(fun)->IsSubjectToDebugging()) return;
-      GlobalObject* global = JSFunction::cast(fun)->context()->global_object();
+      if (!JSFunction::cast(fun)->shared()->IsSubjectToDebugging()) return;
+      JSGlobalObject* global =
+          JSFunction::cast(fun)->context()->global_object();
       // Don't stop in debugger functions.
       if (IsDebugGlobal(global)) return;
     }
@@ -2419,7 +2447,7 @@ v8::Local<v8::String> MessageImpl::GetJSON() const {
     }
 
     MaybeHandle<Object> maybe_json =
-        Execution::TryCall(Handle<JSFunction>::cast(fun), event_data_, 0, NULL);
+        Execution::TryCall(isolate, fun, event_data_, 0, NULL);
     Handle<Object> json;
     if (!maybe_json.ToHandle(&json) || !json->IsString()) {
       return v8::Local<v8::String>();

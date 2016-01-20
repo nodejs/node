@@ -29,15 +29,9 @@
 import os
 import shutil
 import subprocess
-import tarfile
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
-
-SVN_SERVER = (
-    "svn://svn.chromium.org/chrome/trunk/deps/third_party/mozilla-tests")
-MOZILLA_VERSION = "51236"
-
 
 EXCLUDED = ["CVS", ".svn"]
 
@@ -119,49 +113,19 @@ class MozillaTestSuite(testsuite.TestSuite):
     return "FAILED!" in output.stdout
 
   def DownloadData(self):
-    old_cwd = os.getcwd()
-    os.chdir(os.path.abspath(self.root))
+    print "Mozilla download is deprecated. It's part of DEPS."
 
-    # Maybe we're still up to date?
-    versionfile = "CHECKED_OUT_VERSION"
-    checked_out_version = None
-    if os.path.exists(versionfile):
-      with open(versionfile) as f:
-        checked_out_version = f.read()
-    if checked_out_version == MOZILLA_VERSION:
-      os.chdir(old_cwd)
-      return
+    # Clean up old directories and archive files.
+    directory_old_name = os.path.join(self.root, "data.old")
+    if os.path.exists(directory_old_name):
+      shutil.rmtree(directory_old_name)
 
-    # If we have a local archive file with the test data, extract it.
-    directory_name = "data"
-    directory_name_old = "data.old"
-    if os.path.exists(directory_name):
-      if os.path.exists(directory_name_old):
-        shutil.rmtree(directory_name_old)
-      os.rename(directory_name, directory_name_old)
-    archive_file = "downloaded_%s.tar.gz" % MOZILLA_VERSION
-    if os.path.exists(archive_file):
-      with tarfile.open(archive_file, "r:gz") as tar:
-        tar.extractall()
-      with open(versionfile, "w") as f:
-        f.write(MOZILLA_VERSION)
-      os.chdir(old_cwd)
-      return
-
-    # No cached copy. Check out via SVN, and pack as .tar.gz for later use.
-    command = ("svn co -r %s %s mozilla/js/tests" %
-               (MOZILLA_VERSION, SVN_SERVER))
-    code = subprocess.call(command, shell=True)
-    if code != 0:
-      os.chdir(old_cwd)
-      raise Exception("Error checking out Mozilla test suite!")
-    os.rename(os.path.join("mozilla", "js", "tests"), directory_name)
-    shutil.rmtree("mozilla")
-    with tarfile.open(archive_file, "w:gz") as tar:
-      tar.add("data")
-    with open(versionfile, "w") as f:
-      f.write(MOZILLA_VERSION)
-    os.chdir(old_cwd)
+    archive_files = [f for f in os.listdir(self.root)
+                     if f.startswith("downloaded_")]
+    if len(archive_files) > 0:
+      print "Clobber outdated test archives ..."
+      for f in archive_files:
+        os.remove(os.path.join(self.root, f))
 
 
 def GetSuite(name, root):

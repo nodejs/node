@@ -74,6 +74,7 @@ void ProfilerEventsProcessor::FinishTickSample() {
   ticks_buffer_.FinishEnqueue();
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_CPU_PROFILER_INL_H_

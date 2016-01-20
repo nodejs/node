@@ -65,14 +65,14 @@ JSModule* Context::module() { return JSModule::cast(get(EXTENSION_INDEX)); }
 void Context::set_module(JSModule* module) { set(EXTENSION_INDEX, module); }
 
 
-GlobalObject* Context::global_object() {
+JSGlobalObject* Context::global_object() {
   Object* result = get(GLOBAL_OBJECT_INDEX);
   DCHECK(IsBootstrappingOrGlobalObject(this->GetIsolate(), result));
-  return reinterpret_cast<GlobalObject*>(result);
+  return reinterpret_cast<JSGlobalObject*>(result);
 }
 
 
-void Context::set_global_object(GlobalObject* object) {
+void Context::set_global_object(JSGlobalObject* object) {
   set(GLOBAL_OBJECT_INDEX, object);
 }
 

@@ -255,6 +255,7 @@ class AstValue : public ZoneObject {
   F(dot_module, ".module")                      \
   F(dot_result, ".result")                      \
   F(dot_switch_tag, ".switch_tag")              \
+  F(dot_catch, ".catch")                        \
   F(empty, "")                                  \
   F(eval, "eval")                               \
   F(let, "let")                                 \
@@ -366,7 +367,8 @@ class AstValueFactory {
   OTHER_CONSTANTS(F)
 #undef F
 };
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #undef STRING_CONSTANTS
 #undef OTHER_CONSTANTS

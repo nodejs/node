@@ -845,6 +845,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   return result;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_JSON_PARSER_H_

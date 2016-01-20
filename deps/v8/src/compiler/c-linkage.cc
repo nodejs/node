@@ -15,7 +15,7 @@ namespace compiler {
 
 namespace {
 LinkageLocation regloc(Register reg) {
-  return LinkageLocation::ForRegister(Register::ToAllocationIndex(reg));
+  return LinkageLocation::ForRegister(reg.code());
 }
 
 
@@ -223,6 +223,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       CallDescriptor::kNoFlags,      // flags
       "c-call");
 }
-}
-}
-}
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

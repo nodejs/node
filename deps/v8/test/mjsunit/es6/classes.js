@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sloppy
+// Flags: --harmony-sloppy --allow-natives-syntax
 
 (function TestBasics() {
   var C = class C {}
@@ -623,6 +623,56 @@ function assertAccessorDescriptor(object, name) {
   assertThrows(function () {C(1);}, TypeError);
   assertTrue(new C() instanceof C);
   assertTrue(new C(1) instanceof C);
+})();
+
+
+(function TestConstructorCall(){
+  var realmIndex = Realm.create();
+  var otherTypeError = Realm.eval(realmIndex, "TypeError");
+  var A = Realm.eval(realmIndex, '"use strict"; class A {}');
+  var instance = new A();
+  var constructor = instance.constructor;
+  var otherTypeError = Realm.eval(realmIndex, 'TypeError');
+  if (otherTypeError === TypeError) {
+    throw Error('Should not happen!');
+  }
+
+  // ES6 9.2.1[[Call]] throws a TypeError in the caller context/Realm when the
+  // called function is a classConstructor
+  assertThrows(function() { Realm.eval(realmIndex, "A()") }, otherTypeError);
+  assertThrows(function() { instance.constructor() }, TypeError);
+  assertThrows(function() { A() }, TypeError);
+
+  // ES6 9.3.1 call() first activates the callee context before invoking the
+  // method. The TypeError from the constructor is thus thrown in the other
+  // Realm.
+  assertThrows(function() { Realm.eval(realmIndex, "A.call()") },
+      otherTypeError);
+  assertThrows(function() { constructor.call() }, otherTypeError);
+  assertThrows(function() { A.call() }, otherTypeError);
+})();
+
+
+(function TestConstructorCallOptimized() {
+  class A { };
+
+  function invoke_constructor() { A() }
+  function call_constructor() { A.call() }
+  function apply_constructor() { A.apply() }
+
+  for (var i=0; i<3; i++) {
+    assertThrows(invoke_constructor);
+    assertThrows(call_constructor);
+    assertThrows(apply_constructor);
+  }
+  // Make sure we still check for class constructors when calling optimized
+  // code.
+  %OptimizeFunctionOnNextCall(invoke_constructor);
+  assertThrows(invoke_constructor);
+  %OptimizeFunctionOnNextCall(call_constructor);
+  assertThrows(call_constructor);
+  %OptimizeFunctionOnNextCall(apply_constructor);
+  assertThrows(apply_constructor);
 })();
 
 

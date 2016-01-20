@@ -1067,6 +1067,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Register parameters:
   //    x0: argc (including receiver, untagged)
   //    x1: target
+  // If argv_in_register():
+  //    x11: argv (pointer to first argument)
   //
   // The stack on entry holds the arguments and the receiver, with the receiver
   // at the highest address:
@@ -1098,9 +1100,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // (arg[argc-2]), or just below the receiver in case there are no arguments.
   //  - Adjust for the arg[] array.
   Register temp_argv = x11;
-  __ Add(temp_argv, jssp, Operand(x0, LSL, kPointerSizeLog2));
-  //  - Adjust for the receiver.
-  __ Sub(temp_argv, temp_argv, 1 * kPointerSize);
+  if (!argv_in_register()) {
+    __ Add(temp_argv, jssp, Operand(x0, LSL, kPointerSizeLog2));
+    //  - Adjust for the receiver.
+    __ Sub(temp_argv, temp_argv, 1 * kPointerSize);
+  }
 
   // Enter the exit frame. Reserve three slots to preserve x21-x23 callee-saved
   // registers.
@@ -1204,12 +1208,10 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   __ LeaveExitFrame(save_doubles(), x10, true);
   DCHECK(jssp.Is(__ StackPointer()));
-  // Pop or drop the remaining stack slots and return from the stub.
-  //         jssp[24]:    Arguments array (of size argc), including receiver.
-  //         jssp[16]:    Preserved x23 (used for target).
-  //         jssp[8]:     Preserved x22 (used for argc).
-  //         jssp[0]:     Preserved x21 (used for argv).
-  __ Drop(x11);
+  if (!argv_in_register()) {
+    // Drop the remaining stack slots and return from the stub.
+    __ Drop(x11);
+  }
   __ AssertFPCRState();
   __ Ret();
 
@@ -1804,8 +1806,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   Register sloppy_args_map = x11;
   Register aliased_args_map = x10;
   __ Ldr(global_object, GlobalObjectMemOperand());
-  __ Ldr(global_ctx, FieldMemOperand(global_object,
-                                     GlobalObject::kNativeContextOffset));
+  __ Ldr(global_ctx,
+         FieldMemOperand(global_object, JSGlobalObject::kNativeContextOffset));
 
   __ Ldr(sloppy_args_map,
          ContextMemOperand(global_ctx, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
@@ -2049,8 +2051,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   Register global_ctx = x10;
   Register strict_args_map = x4;
   __ Ldr(global_object, GlobalObjectMemOperand());
-  __ Ldr(global_ctx, FieldMemOperand(global_object,
-                                     GlobalObject::kNativeContextOffset));
+  __ Ldr(global_ctx,
+         FieldMemOperand(global_object, JSGlobalObject::kNativeContextOffset));
   __ Ldr(strict_args_map,
          ContextMemOperand(global_ctx, Context::STRICT_ARGUMENTS_MAP_INDEX));
 
@@ -2745,101 +2747,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
 }
 
 
-static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
-  // Do not transform the receiver for strict mode functions.
-  __ Ldr(x3, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(w4, FieldMemOperand(x3, SharedFunctionInfo::kCompilerHintsOffset));
-  __ Tbnz(w4, SharedFunctionInfo::kStrictModeFunction, cont);
-
-  // Do not transform the receiver for native (Compilerhints already in x3).
-  __ Tbnz(w4, SharedFunctionInfo::kNative, cont);
-}
-
-
-static void EmitSlowCase(MacroAssembler* masm, int argc) {
-  __ Mov(x0, argc);
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
-static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
-  // Wrap the receiver and patch it back onto the stack.
-  { FrameScope frame_scope(masm, StackFrame::INTERNAL);
-    __ Push(x1);
-    __ Mov(x0, x3);
-    ToObjectStub stub(masm->isolate());
-    __ CallStub(&stub);
-    __ Pop(x1);
-  }
-  __ Poke(x0, argc * kPointerSize);
-  __ B(cont);
-}
-
-
-static void CallFunctionNoFeedback(MacroAssembler* masm,
-                                   int argc, bool needs_checks,
-                                   bool call_as_method) {
-  // x1  function    the function to call
-  Register function = x1;
-  Register type = x4;
-  Label slow, wrap, cont;
-
-  // TODO(jbramley): This function has a lot of unnamed registers. Name them,
-  // and tidy things up a bit.
-
-  if (needs_checks) {
-    // Check that the function is really a JavaScript function.
-    __ JumpIfSmi(function, &slow);
-
-    // Goto slow case if we do not have a function.
-    __ JumpIfNotObjectType(function, x10, type, JS_FUNCTION_TYPE, &slow);
-  }
-
-  // Fast-case: Invoke the function now.
-  // x1  function  pushed function
-  ParameterCount actual(argc);
-
-  if (call_as_method) {
-    if (needs_checks) {
-      EmitContinueIfStrictOrNative(masm, &cont);
-    }
-
-    // Compute the receiver in sloppy mode.
-    __ Peek(x3, argc * kPointerSize);
-
-    if (needs_checks) {
-      __ JumpIfSmi(x3, &wrap);
-      __ JumpIfObjectType(x3, x10, type, FIRST_SPEC_OBJECT_TYPE, &wrap, lt);
-    } else {
-      __ B(&wrap);
-    }
-
-    __ Bind(&cont);
-  }
-
-  __ InvokeFunction(function,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper());
-  if (needs_checks) {
-    // Slow-case: Non-function called.
-    __ Bind(&slow);
-    EmitSlowCase(masm, argc);
-  }
-
-  if (call_as_method) {
-    __ Bind(&wrap);
-    EmitWrapCase(masm, argc, &cont);
-  }
-}
-
-
-void CallFunctionStub::Generate(MacroAssembler* masm) {
-  ASM_LOCATION("CallFunctionStub::Generate");
-  CallFunctionNoFeedback(masm, argc(), NeedsChecks(), CallAsMethod());
-}
-
-
 void CallConstructStub::Generate(MacroAssembler* masm) {
   ASM_LOCATION("CallConstructStub::Generate");
   // x0 : number of arguments
@@ -2939,16 +2846,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
   const int generic_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
-  Label extra_checks_or_miss, slow_start;
-  Label slow, wrap, cont;
-  Label have_js_function;
+  Label extra_checks_or_miss, call;
   int argc = arg_count();
   ParameterCount actual(argc);
 
   Register function = x1;
   Register feedback_vector = x2;
   Register index = x3;
-  Register type = x4;
 
   // The checks. First, does x1 match the recorded monomorphic target?
   __ Add(x4, feedback_vector,
@@ -2986,36 +2890,14 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Add(index, index, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
   __ Str(index, FieldMemOperand(feedback_vector, 0));
 
-  __ bind(&have_js_function);
-  if (CallAsMethod()) {
-    EmitContinueIfStrictOrNative(masm, &cont);
-
-    // Compute the receiver in sloppy mode.
-    __ Peek(x3, argc * kPointerSize);
-
-    __ JumpIfSmi(x3, &wrap);
-    __ JumpIfObjectType(x3, x10, type, FIRST_SPEC_OBJECT_TYPE, &wrap, lt);
-
-    __ Bind(&cont);
-  }
-
-  __ InvokeFunction(function,
-                    actual,
-                    JUMP_FUNCTION,
-                    NullCallWrapper());
-
-  __ bind(&slow);
-  EmitSlowCase(masm, argc);
-
-  if (CallAsMethod()) {
-    __ bind(&wrap);
-    EmitWrapCase(masm, argc, &cont);
-  }
+  __ bind(&call);
+  __ Mov(x0, argc);
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 
   __ bind(&extra_checks_or_miss);
   Label uninitialized, miss, not_allocation_site;
 
-  __ JumpIfRoot(x4, Heap::kmegamorphic_symbolRootIndex, &slow_start);
+  __ JumpIfRoot(x4, Heap::kmegamorphic_symbolRootIndex, &call);
 
   __ Ldr(x5, FieldMemOperand(x4, HeapObject::kMapOffset));
   __ JumpIfNotRoot(x5, Heap::kAllocationSiteMapRootIndex, &not_allocation_site);
@@ -3047,7 +2929,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Ldr(x4, FieldMemOperand(feedback_vector, generic_offset));
   __ Adds(x4, x4, Operand(Smi::FromInt(1)));
   __ Str(x4, FieldMemOperand(feedback_vector, generic_offset));
-  __ B(&slow_start);
+  __ B(&call);
 
   __ bind(&uninitialized);
 
@@ -3086,22 +2968,14 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ Pop(function);
   }
 
-  __ B(&have_js_function);
+  __ B(&call);
 
   // We are here because tracing is on or we encountered a MISS case we can't
   // handle here.
   __ bind(&miss);
   GenerateMiss(masm);
 
-  // the slow case
-  __ bind(&slow_start);
-
-  // Check that the function is really a JavaScript function.
-  __ JumpIfSmi(function, &slow);
-
-  // Goto slow case if we do not have a function.
-  __ JumpIfNotObjectType(function, x10, type, JS_FUNCTION_TYPE, &slow);
-  __ B(&have_js_function);
+  __ B(&call);
 }
 
 
@@ -3235,7 +3109,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
   __ Bind(&slow_case_);
   call_helper.BeforeCall(masm);
   __ Push(code_);
-  __ CallRuntime(Runtime::kCharFromCode, 1);
+  __ CallRuntime(Runtime::kStringCharFromCode, 1);
   __ Mov(result_, x0);
   call_helper.AfterCall(masm);
   __ B(&exit_);
@@ -3909,6 +3783,21 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 
   __ Push(x0);  // Push argument.
   __ TailCallRuntime(Runtime::kToNumber, 1, 1);
+}
+
+
+void ToLengthStub::Generate(MacroAssembler* masm) {
+  // The ToLength stub takes one argument in x0.
+  Label not_smi;
+  __ JumpIfNotSmi(x0, &not_smi);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ Tst(x0, x0);
+  __ Csel(x0, x0, Operand(0), ge);
+  __ Ret();
+  __ Bind(&not_smi);
+
+  __ Push(x0);  // Push argument.
+  __ TailCallRuntime(Runtime::kToLength, 1, 1);
 }
 
 

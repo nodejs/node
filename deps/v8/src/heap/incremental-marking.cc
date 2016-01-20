@@ -17,7 +17,6 @@
 namespace v8 {
 namespace internal {
 
-
 IncrementalMarking::StepActions IncrementalMarking::IdleStepActions() {
   return StepActions(IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                      IncrementalMarking::FORCE_MARKING,
@@ -27,6 +26,7 @@ IncrementalMarking::StepActions IncrementalMarking::IdleStepActions() {
 
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
+      observer_(*this, kAllocatedThreshold),
       state_(STOPPED),
       is_compacting_(false),
       steps_count_(0),
@@ -42,19 +42,46 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       no_marking_scope_depth_(0),
       unscanned_bytes_of_large_object_(0),
       was_activated_(false),
-      weak_closure_was_overapproximated_(false),
-      weak_closure_approximation_rounds_(0),
+      finalize_marking_completed_(false),
+      incremental_marking_finalization_rounds_(0),
       request_type_(COMPLETE_MARKING) {}
+
+
+bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object** slot,
+                                         Object* value) {
+  HeapObject* value_heap_obj = HeapObject::cast(value);
+  MarkBit value_bit = Marking::MarkBitFrom(value_heap_obj);
+  if (Marking::IsWhite(value_bit)) {
+    MarkBit obj_bit = Marking::MarkBitFrom(obj);
+    if (Marking::IsBlack(obj_bit)) {
+      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+      if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
+        if (chunk->IsLeftOfProgressBar(slot)) {
+          WhiteToGreyAndPush(value_heap_obj, value_bit);
+          RestartIfNotMarking();
+        } else {
+          return false;
+        }
+      } else {
+        BlackToGreyAndUnshift(obj, obj_bit);
+        RestartIfNotMarking();
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+  if (!is_compacting_) return false;
+  MarkBit obj_bit = Marking::MarkBitFrom(obj);
+  return Marking::IsBlack(obj_bit);
+}
 
 
 void IncrementalMarking::RecordWriteSlow(HeapObject* obj, Object** slot,
                                          Object* value) {
   if (BaseRecordWrite(obj, slot, value) && slot != NULL) {
-    MarkBit obj_bit = Marking::MarkBitFrom(obj);
-    if (Marking::IsBlack(obj_bit)) {
-      // Object is not going to be rescanned we need to record the slot.
-      heap_->mark_compact_collector()->RecordSlot(obj, slot, value);
-    }
+    // Object is not going to be rescanned we need to record the slot.
+    heap_->mark_compact_collector()->RecordSlot(obj, slot, value);
   }
 }
 
@@ -131,6 +158,58 @@ void IncrementalMarking::RecordWriteIntoCodeSlow(HeapObject* obj,
                                                        Code::cast(value));
     }
   }
+}
+
+
+void IncrementalMarking::RecordWrites(HeapObject* obj) {
+  if (IsMarking()) {
+    MarkBit obj_bit = Marking::MarkBitFrom(obj);
+    if (Marking::IsBlack(obj_bit)) {
+      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+      if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
+        chunk->set_progress_bar(0);
+      }
+      BlackToGreyAndUnshift(obj, obj_bit);
+      RestartIfNotMarking();
+    }
+  }
+}
+
+
+void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
+                                               MarkBit mark_bit) {
+  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
+  DCHECK(obj->Size() >= 2 * kPointerSize);
+  DCHECK(IsMarking());
+  Marking::BlackToGrey(mark_bit);
+  int obj_size = obj->Size();
+  MemoryChunk::IncrementLiveBytesFromGC(obj, -obj_size);
+  bytes_scanned_ -= obj_size;
+  int64_t old_bytes_rescanned = bytes_rescanned_;
+  bytes_rescanned_ = old_bytes_rescanned + obj_size;
+  if ((bytes_rescanned_ >> 20) != (old_bytes_rescanned >> 20)) {
+    if (bytes_rescanned_ > 2 * heap_->PromotedSpaceSizeOfObjects()) {
+      // If we have queued twice the heap size for rescanning then we are
+      // going around in circles, scanning the same objects again and again
+      // as the program mutates the heap faster than we can incrementally
+      // trace it.  In this case we switch to non-incremental marking in
+      // order to finish off this marking phase.
+      if (FLAG_trace_incremental_marking) {
+        PrintIsolate(
+            heap()->isolate(),
+            "Hurrying incremental marking because of lack of progress\n");
+      }
+      marking_speed_ = kMaxMarkingSpeed;
+    }
+  }
+
+  heap_->mark_compact_collector()->marking_deque()->Unshift(obj);
+}
+
+
+void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
+  Marking::WhiteToGrey(mark_bit);
+  heap_->mark_compact_collector()->marking_deque()->Push(obj);
 }
 
 
@@ -270,9 +349,9 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
       IncrementalMarking* incremental_marking)
       : heap_(incremental_marking->heap()) {}
 
-  void VisitPointer(Object** p) { MarkObjectByPointer(p); }
+  void VisitPointer(Object** p) override { MarkObjectByPointer(p); }
 
-  void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 
@@ -474,6 +553,8 @@ void IncrementalMarking::Start(const char* reason) {
   DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
   DCHECK(!heap_->isolate()->serializer_enabled());
 
+  HistogramTimerScope incremental_marking_scope(
+      heap_->isolate()->counters()->gc_incremental_marking_start());
   ResetStepCounters();
 
   was_activated_ = true;
@@ -487,7 +568,8 @@ void IncrementalMarking::Start(const char* reason) {
     state_ = SWEEPING;
   }
 
-  heap_->LowerInlineAllocationLimit(kAllocatedThreshold);
+  heap_->new_space()->AddInlineAllocationObserver(&observer_);
+
   incremental_marking_job()->Start(heap_);
 }
 
@@ -541,33 +623,56 @@ void IncrementalMarking::StartMarking() {
 }
 
 
+void IncrementalMarking::MarkRoots() {
+  DCHECK(FLAG_finalize_marking_incrementally);
+  DCHECK(!finalize_marking_completed_);
+  DCHECK(IsMarking());
+
+  IncrementalMarkingRootMarkingVisitor visitor(this);
+  heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
+}
+
+
 void IncrementalMarking::MarkObjectGroups() {
-  DCHECK(FLAG_overapproximate_weak_closure);
-  DCHECK(!weak_closure_was_overapproximated_);
+  DCHECK(FLAG_finalize_marking_incrementally);
+  DCHECK(!finalize_marking_completed_);
+  DCHECK(IsMarking());
+
+  IncrementalMarkingRootMarkingVisitor visitor(this);
+  heap_->mark_compact_collector()->MarkImplicitRefGroups(&MarkObject);
+  heap_->isolate()->global_handles()->IterateObjectGroups(
+      &visitor, &MarkCompactCollector::IsUnmarkedHeapObjectWithHeap);
+  heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
+  heap_->isolate()->global_handles()->RemoveObjectGroups();
+}
+
+
+void IncrementalMarking::FinalizeIncrementally() {
+  DCHECK(FLAG_finalize_marking_incrementally);
+  DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
   int old_marking_deque_top =
       heap_->mark_compact_collector()->marking_deque()->top();
 
-  heap_->mark_compact_collector()->MarkImplicitRefGroups(&MarkObject);
-
-  IncrementalMarkingRootMarkingVisitor visitor(this);
-  heap_->isolate()->global_handles()->IterateObjectGroups(
-      &visitor, &MarkCompactCollector::IsUnmarkedHeapObjectWithHeap);
+  // After finishing incremental marking, we try to discover all unmarked
+  // objects to reduce the marking load in the final pause.
+  // 1) We scan and mark the roots again to find all changes to the root set.
+  // 2) We mark the object groups.
+  MarkRoots();
+  MarkObjectGroups();
 
   int marking_progress =
       abs(old_marking_deque_top -
           heap_->mark_compact_collector()->marking_deque()->top());
 
-  ++weak_closure_approximation_rounds_;
-  if ((weak_closure_approximation_rounds_ >=
-       FLAG_max_object_groups_marking_rounds) ||
-      (marking_progress < FLAG_min_progress_during_object_groups_marking)) {
-    weak_closure_was_overapproximated_ = true;
+  ++incremental_marking_finalization_rounds_;
+  if ((incremental_marking_finalization_rounds_ >=
+       FLAG_max_incremental_marking_finalization_rounds) ||
+      (marking_progress <
+       FLAG_min_progress_during_incremental_marking_finalization)) {
+    finalize_marking_completed_ = true;
   }
-
-  heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
-  heap_->isolate()->global_handles()->RemoveObjectGroups();
 }
 
 
@@ -739,7 +844,8 @@ void IncrementalMarking::Stop() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Stopping.\n");
   }
-  heap_->ResetInlineAllocationLimit();
+
+  heap_->new_space()->RemoveInlineAllocationObserver(&observer_);
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   if (IsMarking()) {
@@ -767,7 +873,8 @@ void IncrementalMarking::Finalize() {
   Hurry();
   state_ = STOPPED;
   is_compacting_ = false;
-  heap_->ResetInlineAllocationLimit();
+
+  heap_->new_space()->RemoveInlineAllocationObserver(&observer_);
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(heap_,
@@ -778,13 +885,15 @@ void IncrementalMarking::Finalize() {
 }
 
 
-void IncrementalMarking::OverApproximateWeakClosure(CompletionAction action) {
-  DCHECK(FLAG_overapproximate_weak_closure);
-  DCHECK(!weak_closure_was_overapproximated_);
+void IncrementalMarking::FinalizeMarking(CompletionAction action) {
+  DCHECK(FLAG_finalize_marking_incrementally);
+  DCHECK(!finalize_marking_completed_);
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] requesting weak closure overapproximation.\n");
+    PrintF(
+        "[IncrementalMarking] requesting finalization of incremental "
+        "marking.\n");
   }
-  request_type_ = OVERAPPROXIMATION;
+  request_type_ = FINALIZATION;
   if (action == GC_VIA_STACK_GUARD) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
@@ -811,8 +920,8 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
 
 void IncrementalMarking::Epilogue() {
   was_activated_ = false;
-  weak_closure_was_overapproximated_ = false;
-  weak_closure_approximation_rounds_ = 0;
+  finalize_marking_completed_ = false;
+  incremental_marking_finalization_rounds_ = 0;
 }
 
 
@@ -990,9 +1099,9 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
       if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
         if (completion == FORCE_COMPLETION ||
             IsIdleMarkingDelayCounterLimitReached()) {
-          if (FLAG_overapproximate_weak_closure &&
-              !weak_closure_was_overapproximated_) {
-            OverApproximateWeakClosure(action);
+          if (FLAG_finalize_marking_incrementally &&
+              !finalize_marking_completed_) {
+            FinalizeMarking(action);
           } else {
             MarkingComplete(action);
           }

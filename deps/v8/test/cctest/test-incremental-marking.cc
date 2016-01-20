@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <stdlib.h>
 
 #ifdef __linux__
@@ -24,6 +27,8 @@ using v8::IdleTask;
 using v8::Task;
 using v8::Isolate;
 
+namespace v8 {
+namespace internal {
 
 class MockPlatform : public v8::Platform {
  public:
@@ -39,11 +44,11 @@ class MockPlatform : public v8::Platform {
     platform_->CallOnBackgroundThread(task, expected_runtime);
   }
 
-  void CallOnForegroundThread(Isolate* isolate, Task* task) override {
+  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     platform_->CallOnForegroundThread(isolate, task);
   }
 
-  void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
                                      double delay_in_seconds) override {
     if (delayed_task_ != nullptr) {
       delete delayed_task_;
@@ -55,12 +60,13 @@ class MockPlatform : public v8::Platform {
     return platform_->MonotonicallyIncreasingTime();
   }
 
-  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {
+  void CallIdleOnForegroundThread(v8::Isolate* isolate,
+                                  IdleTask* task) override {
     CHECK(nullptr == idle_task_);
     idle_task_ = task;
   }
 
-  bool IdleTasksEnabled(Isolate* isolate) override { return true; }
+  bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
   bool PendingIdleTask() { return idle_task_ != nullptr; }
 
@@ -166,3 +172,6 @@ TEST(IncrementalMarkingUsingDelayedTasks) {
   CHECK(marking->IsStopped());
   i::V8::SetPlatformForTesting(old_platform);
 }
+
+}  // namespace internal
+}  // namespace v8

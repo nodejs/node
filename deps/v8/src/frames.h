@@ -99,16 +99,17 @@ class StackHandler BASE_EMBEDDED {
 
 
 #define STACK_FRAME_TYPE_LIST(V)                         \
-  V(ENTRY,                   EntryFrame)                 \
-  V(ENTRY_CONSTRUCT,         EntryConstructFrame)        \
-  V(EXIT,                    ExitFrame)                  \
-  V(JAVA_SCRIPT,             JavaScriptFrame)            \
-  V(OPTIMIZED,               OptimizedFrame)             \
-  V(STUB,                    StubFrame)                  \
+  V(ENTRY, EntryFrame)                                   \
+  V(ENTRY_CONSTRUCT, EntryConstructFrame)                \
+  V(EXIT, ExitFrame)                                     \
+  V(JAVA_SCRIPT, JavaScriptFrame)                        \
+  V(OPTIMIZED, OptimizedFrame)                           \
+  V(INTERPRETED, InterpretedFrame)                       \
+  V(STUB, StubFrame)                                     \
   V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
-  V(INTERNAL,                InternalFrame)              \
-  V(CONSTRUCT,               ConstructFrame)             \
-  V(ARGUMENTS_ADAPTOR,       ArgumentsAdaptorFrame)
+  V(INTERNAL, InternalFrame)                             \
+  V(CONSTRUCT, ConstructFrame)                           \
+  V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
 
 
 class StandardFrameConstants : public AllStatic {
@@ -181,6 +182,7 @@ class InterpreterFrameConstants : public AllStatic {
   static const int kLastParamFromRegisterPointer =
       StandardFrameConstants::kFixedFrameSize + kPointerSize;
   static const int kFunctionFromRegisterPointer = kPointerSize;
+  static const int kContextFromRegisterPointer = 2 * kPointerSize;
 };
 
 
@@ -246,7 +248,8 @@ class StackFrame BASE_EMBEDDED {
 
   bool is_java_script() const {
     Type type = this->type();
-    return (type == JAVA_SCRIPT) || (type == OPTIMIZED);
+    return (type == JAVA_SCRIPT) || (type == OPTIMIZED) ||
+           (type == INTERPRETED);
   }
 
   // Accessors.
@@ -373,18 +376,18 @@ class StackFrame BASE_EMBEDDED {
 // Entry frames are used to enter JavaScript execution from C.
 class EntryFrame: public StackFrame {
  public:
-  virtual Type type() const { return ENTRY; }
+  Type type() const override { return ENTRY; }
 
-  virtual Code* unchecked_code() const;
+  Code* unchecked_code() const override;
 
   // Garbage collection support.
-  virtual void Iterate(ObjectVisitor* v) const;
+  void Iterate(ObjectVisitor* v) const override;
 
   static EntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_entry());
     return static_cast<EntryFrame*>(frame);
   }
-  virtual void SetCallerFp(Address caller_fp);
+  void SetCallerFp(Address caller_fp) override;
 
  protected:
   inline explicit EntryFrame(StackFrameIteratorBase* iterator);
@@ -392,11 +395,11 @@ class EntryFrame: public StackFrame {
   // The caller stack pointer for entry frames is always zero. The
   // real information about the caller frame is available through the
   // link to the top exit frame.
-  virtual Address GetCallerStackPointer() const { return 0; }
+  Address GetCallerStackPointer() const override { return 0; }
 
  private:
-  virtual void ComputeCallerState(State* state) const;
-  virtual Type GetCallerState(State* state) const;
+  void ComputeCallerState(State* state) const override;
+  Type GetCallerState(State* state) const override;
 
   friend class StackFrameIteratorBase;
 };
@@ -404,9 +407,9 @@ class EntryFrame: public StackFrame {
 
 class EntryConstructFrame: public EntryFrame {
  public:
-  virtual Type type() const { return ENTRY_CONSTRUCT; }
+  Type type() const override { return ENTRY_CONSTRUCT; }
 
-  virtual Code* unchecked_code() const;
+  Code* unchecked_code() const override;
 
   static EntryConstructFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_entry_construct());
@@ -424,16 +427,16 @@ class EntryConstructFrame: public EntryFrame {
 // Exit frames are used to exit JavaScript execution and go to C.
 class ExitFrame: public StackFrame {
  public:
-  virtual Type type() const { return EXIT; }
+  Type type() const override { return EXIT; }
 
-  virtual Code* unchecked_code() const;
+  Code* unchecked_code() const override;
 
   Object*& code_slot() const;
 
   // Garbage collection support.
-  virtual void Iterate(ObjectVisitor* v) const;
+  void Iterate(ObjectVisitor* v) const override;
 
-  virtual void SetCallerFp(Address caller_fp);
+  void SetCallerFp(Address caller_fp) override;
 
   static ExitFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_exit());
@@ -450,10 +453,10 @@ class ExitFrame: public StackFrame {
  protected:
   inline explicit ExitFrame(StackFrameIteratorBase* iterator);
 
-  virtual Address GetCallerStackPointer() const;
+  Address GetCallerStackPointer() const override;
 
  private:
-  virtual void ComputeCallerState(State* state) const;
+  void ComputeCallerState(State* state) const override;
 
   friend class StackFrameIteratorBase;
 };
@@ -462,7 +465,7 @@ class ExitFrame: public StackFrame {
 class StandardFrame: public StackFrame {
  public:
   // Testers.
-  virtual bool is_standard() const { return true; }
+  bool is_standard() const override { return true; }
 
   // Accessors.
   inline Object* context() const;
@@ -473,7 +476,7 @@ class StandardFrame: public StackFrame {
   int ComputeExpressionsCount() const;
   static Object* GetExpression(Address fp, int index);
 
-  virtual void SetCallerFp(Address caller_fp);
+  void SetCallerFp(Address caller_fp) override;
 
   static StandardFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_standard());
@@ -483,7 +486,7 @@ class StandardFrame: public StackFrame {
  protected:
   inline explicit StandardFrame(StackFrameIteratorBase* iterator);
 
-  virtual void ComputeCallerState(State* state) const;
+  void ComputeCallerState(State* state) const override;
 
   // Accessors.
   inline Address caller_fp() const;
@@ -547,7 +550,7 @@ class FrameSummary BASE_EMBEDDED {
 
 class JavaScriptFrame: public StandardFrame {
  public:
-  virtual Type type() const { return JAVA_SCRIPT; }
+  Type type() const override { return JAVA_SCRIPT; }
 
   // Accessors.
   inline JSFunction* function() const;
@@ -578,7 +581,7 @@ class JavaScriptFrame: public StandardFrame {
 
   // Determines whether this frame includes inlined activations. To get details
   // about the inlined frames use {GetFunctions} and {Summarize}.
-  bool HasInlinedFrames();
+  bool HasInlinedFrames() const;
 
   // Returns the original constructor function that was used in the constructor
   // call to this frame. Note that this is only valid on constructor frames.
@@ -591,18 +594,17 @@ class JavaScriptFrame: public StandardFrame {
   int GetArgumentsLength() const;
 
   // Garbage collection support.
-  virtual void Iterate(ObjectVisitor* v) const;
+  void Iterate(ObjectVisitor* v) const override;
 
   // Printing support.
-  virtual void Print(StringStream* accumulator,
-                     PrintMode mode,
-                     int index) const;
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
 
   // Determine the code for the frame.
-  virtual Code* unchecked_code() const;
+  Code* unchecked_code() const override;
 
   // Return a list with JSFunctions of this frame.
-  virtual void GetFunctions(List<JSFunction*>* functions);
+  virtual void GetFunctions(List<JSFunction*>* functions) const;
 
   // Build a list with summaries for this frame including all inlined frames.
   virtual void Summarize(List<FrameSummary>* frames);
@@ -632,7 +634,7 @@ class JavaScriptFrame: public StandardFrame {
  protected:
   inline explicit JavaScriptFrame(StackFrameIteratorBase* iterator);
 
-  virtual Address GetCallerStackPointer() const;
+  Address GetCallerStackPointer() const override;
 
   virtual int GetNumberOfIncomingArguments() const;
 
@@ -649,18 +651,18 @@ class JavaScriptFrame: public StandardFrame {
 
 class StubFrame : public StandardFrame {
  public:
-  virtual Type type() const { return STUB; }
+  Type type() const override { return STUB; }
 
   // GC support.
-  virtual void Iterate(ObjectVisitor* v) const;
+  void Iterate(ObjectVisitor* v) const override;
 
   // Determine the code for the frame.
-  virtual Code* unchecked_code() const;
+  Code* unchecked_code() const override;
 
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
 
-  virtual Address GetCallerStackPointer() const;
+  Address GetCallerStackPointer() const override;
 
   virtual int GetNumberOfIncomingArguments() const;
 
@@ -670,24 +672,24 @@ class StubFrame : public StandardFrame {
 
 class OptimizedFrame : public JavaScriptFrame {
  public:
-  virtual Type type() const { return OPTIMIZED; }
+  Type type() const override { return OPTIMIZED; }
 
   // GC support.
-  virtual void Iterate(ObjectVisitor* v) const;
+  void Iterate(ObjectVisitor* v) const override;
 
   // Return a list with JSFunctions of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
-  virtual void GetFunctions(List<JSFunction*>* functions);
+  void GetFunctions(List<JSFunction*>* functions) const override;
 
-  virtual void Summarize(List<FrameSummary>* frames);
+  void Summarize(List<FrameSummary>* frames) override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns the expected number of stack slots at the handler site.
-  virtual int LookupExceptionHandlerInTable(
-      int* stack_slots, HandlerTable::CatchPrediction* prediction);
+  int LookupExceptionHandlerInTable(
+      int* stack_slots, HandlerTable::CatchPrediction* prediction) override;
 
-  DeoptimizationInputData* GetDeoptimizationData(int* deopt_index);
+  DeoptimizationInputData* GetDeoptimizationData(int* deopt_index) const;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
@@ -701,15 +703,26 @@ class OptimizedFrame : public JavaScriptFrame {
 };
 
 
+class InterpretedFrame : public JavaScriptFrame {
+  Type type() const override { return INTERPRETED; }
+
+ protected:
+  inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+
 // Arguments adaptor frames are automatically inserted below
 // JavaScript frames when the actual number of parameters does not
 // match the formal number of parameters.
 class ArgumentsAdaptorFrame: public JavaScriptFrame {
  public:
-  virtual Type type() const { return ARGUMENTS_ADAPTOR; }
+  Type type() const override { return ARGUMENTS_ADAPTOR; }
 
   // Determine the code for the frame.
-  virtual Code* unchecked_code() const;
+  Code* unchecked_code() const override;
 
   static ArgumentsAdaptorFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_arguments_adaptor());
@@ -717,16 +730,15 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
   }
 
   // Printing support.
-  virtual void Print(StringStream* accumulator,
-                     PrintMode mode,
-                     int index) const;
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
 
  protected:
   inline explicit ArgumentsAdaptorFrame(StackFrameIteratorBase* iterator);
 
-  virtual int GetNumberOfIncomingArguments() const;
+  int GetNumberOfIncomingArguments() const override;
 
-  virtual Address GetCallerStackPointer() const;
+  Address GetCallerStackPointer() const override;
 
  private:
   friend class StackFrameIteratorBase;
@@ -735,13 +747,13 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
 
 class InternalFrame: public StandardFrame {
  public:
-  virtual Type type() const { return INTERNAL; }
+  Type type() const override { return INTERNAL; }
 
   // Garbage collection support.
-  virtual void Iterate(ObjectVisitor* v) const;
+  void Iterate(ObjectVisitor* v) const override;
 
   // Determine the code for the frame.
-  virtual Code* unchecked_code() const;
+  Code* unchecked_code() const override;
 
   static InternalFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_internal());
@@ -751,7 +763,7 @@ class InternalFrame: public StandardFrame {
  protected:
   inline explicit InternalFrame(StackFrameIteratorBase* iterator);
 
-  virtual Address GetCallerStackPointer() const;
+  Address GetCallerStackPointer() const override;
 
  private:
   friend class StackFrameIteratorBase;
@@ -768,13 +780,13 @@ class StubFailureTrampolineFrame: public StandardFrame {
   static const int kCallerStackParameterCountFrameOffset =
       StandardFrameConstants::kMarkerOffset - 2 * kPointerSize;
 
-  virtual Type type() const { return STUB_FAILURE_TRAMPOLINE; }
+  Type type() const override { return STUB_FAILURE_TRAMPOLINE; }
 
   // Get the code associated with this frame.
   // This method could be called during marking phase of GC.
-  virtual Code* unchecked_code() const;
+  Code* unchecked_code() const override;
 
-  virtual void Iterate(ObjectVisitor* v) const;
+  void Iterate(ObjectVisitor* v) const override;
 
   // Architecture-specific register description.
   static Register fp_register();
@@ -785,7 +797,7 @@ class StubFailureTrampolineFrame: public StandardFrame {
   inline explicit StubFailureTrampolineFrame(
       StackFrameIteratorBase* iterator);
 
-  virtual Address GetCallerStackPointer() const;
+  Address GetCallerStackPointer() const override;
 
  private:
   friend class StackFrameIteratorBase;
@@ -796,7 +808,7 @@ class StubFailureTrampolineFrame: public StandardFrame {
 // function invocations through 'new'.
 class ConstructFrame: public InternalFrame {
  public:
-  virtual Type type() const { return CONSTRUCT; }
+  Type type() const override { return CONSTRUCT; }
 
   static ConstructFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_construct());
@@ -949,6 +961,7 @@ class StackFrameLocator BASE_EMBEDDED {
 // zone memory.
 Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FRAMES_H_

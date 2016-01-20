@@ -4,7 +4,8 @@ If you have a patch to the master branch (e.g. an important bug fix) that needs 
 
 For the examples, a branched 2.4 version of V8 will be used. Substitute "2.4" with your version number.
 
-**An associated issue is mandatory if a patch is merged. This helps with keeping track of merges.**
+**An associated issue on Chromium's or V8's issue tracker is mandatory if a patch is merged. This helps with keeping track of merges.
+You can use [a template](https://code.google.com/p/v8/issues/entry?template=Merge%20request) to create an issue.**
 
 # Merge process outlined
 
@@ -60,7 +61,7 @@ Version 2.4.9.10: Issue xxx: The parser doesn't parse.
 ## I get an error during merge that is related to tagging. What should I do?
 When two people are merging at the same time a race-condition can happen in the merge scripts. If this is the case, contact machenbach@chromium.org and hablich@chromium.org.
 ## Is there a TL;DR;?
-  1. Create issue
+  1. [Create issue on issue tracker](https://code.google.com/p/v8/issues/entry?template=Merge%20request)
   1. Add Merge-Request-{Branch} to the issue
   1. Wait until somebody will add Merge-Approved-{Branch}
   1. Merge

@@ -74,6 +74,30 @@ AUTO_PUSH_ARGS = [
 
 
 class ToplevelTest(unittest.TestCase):
+  def testSaniniziteVersionTags(self):
+    self.assertEquals("4.8.230", SanitizeVersionTag("4.8.230"))
+    self.assertEquals("4.8.230", SanitizeVersionTag("tags/4.8.230"))
+    self.assertEquals(None, SanitizeVersionTag("candidate"))
+
+  def testNormalizeVersionTags(self):
+    input = ["4.8.230",
+              "tags/4.8.230",
+              "tags/4.8.224.1",
+              "4.8.224.1",
+              "4.8.223.1",
+              "tags/4.8.223",
+              "tags/4.8.231",
+              "candidates"]
+    expected = ["4.8.230",
+                "4.8.230",
+                "4.8.224.1",
+                "4.8.224.1",
+                "4.8.223.1",
+                "4.8.223",
+                "4.8.231",
+                ]
+    self.assertEquals(expected, NormalizeVersionTags(input))
+
   def testSortBranches(self):
     S = releases.SortBranches
     self.assertEquals(["3.1", "2.25"], S(["2.25", "3.1"])[0:2])
@@ -987,6 +1011,10 @@ https://chromium.googlesource.com/v8/v8/+log/last_rol..roll_hsh
 Please follow these instructions for assigning/CC'ing issues:
 https://code.google.com/p/v8-wiki/wiki/TriagingIssues
 
+Please close rolling in case of a roll revert:
+https://v8-roll.appspot.com/
+This only works with a Google account.
+
 TBR=g_name@chromium.org,reviewer@chromium.org"""
 
   def testChromiumRoll(self):
@@ -1058,8 +1086,8 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
   def testAutoPush(self):
     self.Expect([
       Cmd("git fetch", ""),
-      Cmd("git fetch origin +refs/heads/roll:refs/heads/roll", ""),
-      Cmd("git show-ref -s refs/heads/roll", "abc123\n"),
+      Cmd("git fetch origin +refs/heads/lkgr:refs/heads/lkgr", ""),
+      Cmd("git show-ref -s refs/heads/lkgr", "abc123\n"),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),
       Cmd("git log -1 --format=%H 3.22.4", "release_hash\n"),

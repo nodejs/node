@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --harmony-destructuring
-// Flags: --harmony-arrow-functions --strong-mode --allow-natives-syntax
+// Flags: --strong-mode --allow-natives-syntax
 
 (function() {
   var f = (function() {

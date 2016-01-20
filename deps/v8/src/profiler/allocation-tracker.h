@@ -152,6 +152,7 @@ class AllocationTracker {
   DISALLOW_COPY_AND_ASSIGN(AllocationTracker);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ALLOCATION_TRACKER_H_

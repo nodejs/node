@@ -186,3 +186,21 @@ assertEquals(1.7976931348621744e308, Math.cosh(-710.4758600739439));
 // Overflow.
 assertEquals(Infinity, Math.cosh(710.475860073944));
 assertEquals(Infinity, Math.cosh(-710.475860073944));
+
+// Implementation-specific tests for tanh.
+// Case |x| < 2^-55
+var two_56 = Math.pow(2, -56);
+assertEquals(two_56, Math.tanh(two_56));
+assertEquals(-two_56, Math.tanh(-two_56));
+// Case |x| < 1
+assertEquals(0.6, Math.tanh(Math.LN2));
+assertEquals(-0.6, Math.tanh(-Math.LN2));
+// Case  1 < |x| < 22
+assertEquals(15/17, Math.tanh(2 * Math.LN2));
+assertEquals(-15/17, Math.tanh(-2 * Math.LN2));
+// Case |x| > 22
+assertEquals(1, Math.tanh(100));
+assertEquals(-1, Math.tanh(-100));
+// Test against overflow
+assertEquals(1, Math.tanh(1e300));
+assertEquals(-1, Math.tanh(-1e300));

@@ -62,6 +62,8 @@ class CallSite {
   bool IsEval();
   bool IsConstructor();
 
+  bool IsValid() { return !fun_.is_null(); }
+
  private:
   Isolate* isolate_;
   Handle<Object> receiver_;
@@ -92,8 +94,9 @@ class CallSite {
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
-  T(CannotPreventExtExternalArray,                                             \
-    "Cannot prevent extension of an object with external array elements")      \
+  T(CannotPreventExt, "Cannot prevent extensions")                             \
+  T(CannotFreezeArrayBufferView,                                               \
+    "Cannot freeze array buffer views with elements")                          \
   T(CircularStructure, "Converting circular structure to JSON")                \
   T(ConstAssign, "Assignment to constant variable.")                           \
   T(ConstructorNonCallable,                                                    \
@@ -105,6 +108,7 @@ class CallSite {
   T(DateType, "this is not a Date object.")                                    \
   T(DebuggerFrame, "Debugger: Invalid frame index.")                           \
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
+  T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueGenerator,                                                     \
@@ -113,8 +117,6 @@ class CallSite {
     "Class extends value % is not a function or null")                         \
   T(FirstArgumentNotRegExp,                                                    \
     "First argument to % must not be a regular expression")                    \
-  T(FlagsGetterNonObject,                                                      \
-    "RegExp.prototype.flags getter called on non-object %")                    \
   T(FunctionBind, "Bind must be called on a function")                         \
   T(GeneratorRunning, "Generator is already running")                          \
   T(IllegalInvocation, "Illegal invocation")                                   \
@@ -199,6 +201,8 @@ class CallSite {
   T(ReduceNoInitial, "Reduce of empty array with no initial value")            \
   T(RegExpFlags,                                                               \
     "Cannot supply flags when constructing one RegExp from another")           \
+  T(RegExpNonObject, "% getter called on non-object %")                        \
+  T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
   T(ReinitializeIntl, "Trying to re-initialize % object.")                     \
   T(ResolvedOptionsCalledOnNonObject,                                          \
     "resolvedOptions method called on a non-object or on a object that is "    \
@@ -213,7 +217,9 @@ class CallSite {
   T(StrictPoisonPill,                                                          \
     "'caller', 'callee', and 'arguments' properties may not be accessed on "   \
     "strict mode functions or the arguments objects for calls to them")        \
-  T(StrictReadOnlyProperty, "Cannot assign to read only property '%' of %")    \
+  T(StrictReadOnlyProperty,                                                    \
+    "Cannot assign to read only property '%' of % '%'")                        \
+  T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
   T(StrongArity,                                                               \
     "In strong mode, calling a function with too few arguments is deprecated") \
   T(StrongDeleteProperty,                                                      \
@@ -232,8 +238,8 @@ class CallSite {
   T(SimdToNumber, "Cannot convert a SIMD value to a number")                   \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
   T(ValueAndAccessor,                                                          \
-    "Invalid property.  A property cannot both have accessors and be "         \
-    "writable or have a value, %")                                             \
+    "Invalid property descriptor. Cannot both specify accessors and a value "  \
+    "or writable attribute, %")                                                \
   T(VarRedeclaration, "Identifier '%' has already been declared")              \
   T(WithExpression, "% has no properties")                                     \
   T(WrongArgs, "%: Arguments list has wrong type")                             \
@@ -250,6 +256,7 @@ class CallSite {
   T(DateRange, "Provided date is not in valid range.")                         \
   T(ExpectedLocation, "Expected Area/Location for time zone, got %")           \
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \
+  T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
   T(InvalidArrayLength, "Invalid array length")                                \
   T(InvalidCodePoint, "Invalid code point %")                                  \
   T(InvalidCountValue, "Invalid count value")                                  \
@@ -267,6 +274,7 @@ class CallSite {
   T(InvalidTypedArrayAlignment, "% of % should be a multiple of %")            \
   T(InvalidTypedArrayLength, "Invalid typed array length")                     \
   T(InvalidTypedArrayOffset, "Start offset is too large:")                     \
+  T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
   T(NormalizationForm, "The normalization form should be one of %.")           \
   T(NumberFormatRange, "% argument must be between 0 and 20")                  \
@@ -319,6 +327,9 @@ class CallSite {
   T(NoCatchOrFinally, "Missing catch or finally after try")                    \
   T(NotIsvar, "builtin %%IS_VAR: not a variable")                              \
   T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
+  T(PushPastSafeLength,                                                        \
+    "Pushing % elements on an array-like of length % "                         \
+    "is disallowed, as the total surpasses 2**53-1")                           \
   T(BadSetterRestParameter,                                                    \
     "Setter function argument must not be a rest parameter")                   \
   T(ParamDupe, "Duplicate parameter name not allowed in this context")         \
@@ -490,6 +501,7 @@ class ErrorToStringHelper {
 
   List<Handle<JSObject> > visited_;
 };
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MESSAGES_H_

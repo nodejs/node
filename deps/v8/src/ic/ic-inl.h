@@ -127,19 +127,6 @@ Code* IC::raw_target() const {
 void IC::UpdateTarget() { target_ = handle(raw_target(), isolate_); }
 
 
-JSFunction* IC::GetRootConstructor(Map* receiver_map, Context* native_context) {
-  DisallowHeapAllocation no_alloc;
-  if (receiver_map->IsPrimitiveMap()) {
-    int constructor_function_index =
-        receiver_map->GetConstructorFunctionIndex();
-    if (constructor_function_index != Map::kNoConstructorFunctionIndex) {
-      return JSFunction::cast(native_context->get(constructor_function_index));
-    }
-  }
-  return nullptr;
-}
-
-
 Handle<Map> IC::GetHandlerCacheHolder(Handle<Map> receiver_map,
                                       bool receiver_is_holder, Isolate* isolate,
                                       CacheHolderFlag* flag) {
@@ -147,9 +134,9 @@ Handle<Map> IC::GetHandlerCacheHolder(Handle<Map> receiver_map,
     *flag = kCacheOnReceiver;
     return receiver_map;
   }
-  Context* native_context = *isolate->native_context();
-  JSFunction* builtin_ctor = GetRootConstructor(*receiver_map, native_context);
-  if (builtin_ctor != NULL) {
+  Handle<JSFunction> builtin_ctor;
+  if (Map::GetConstructorFunction(receiver_map, isolate->native_context())
+          .ToHandle(&builtin_ctor)) {
     *flag = kCacheOnPrototypeReceiverIsPrimitive;
     return handle(HeapObject::cast(builtin_ctor->instance_prototype())->map());
   }
@@ -163,9 +150,9 @@ Handle<Map> IC::GetHandlerCacheHolder(Handle<Map> receiver_map,
 
 Handle<Map> IC::GetICCacheHolder(Handle<Map> map, Isolate* isolate,
                                  CacheHolderFlag* flag) {
-  Context* native_context = *isolate->native_context();
-  JSFunction* builtin_ctor = GetRootConstructor(*map, native_context);
-  if (builtin_ctor != NULL) {
+  Handle<JSFunction> builtin_ctor;
+  if (Map::GetConstructorFunction(map, isolate->native_context())
+          .ToHandle(&builtin_ctor)) {
     *flag = kCacheOnPrototype;
     return handle(builtin_ctor->initial_map());
   }
@@ -193,7 +180,7 @@ bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
   return (host->kind() == Code::OPTIMIZED_FUNCTION &&
           host->marked_for_deoptimization());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_INL_H_

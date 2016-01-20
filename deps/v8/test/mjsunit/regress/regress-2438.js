@@ -35,14 +35,6 @@ function testSideEffects(subject, re) {
   re.lastIndex = side_effect_object;
   re.test(subject);
   assertEquals(2, counter);
-
-  re.lastIndex = side_effect_object;
-  subject.match(re);
-  assertEquals(3, counter);
-
-  re.lastIndex = side_effect_object;
-  subject.replace(re, "");
-  assertEquals(4, counter);
 }
 
 testSideEffects("zzzz", /a/);

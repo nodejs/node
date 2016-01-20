@@ -394,6 +394,8 @@ enum SecondaryField {
   CLZ_R6 = ((2 << 3) + 0),
   CLO_R6 = ((2 << 3) + 1),
   MFLO = ((2 << 3) + 2),
+  DCLZ_R6 = ((2 << 3) + 2),
+  DCLO_R6 = ((2 << 3) + 3),
   DSLLV = ((2 << 3) + 4),
   DSRLV = ((2 << 3) + 6),
   DSRAV = ((2 << 3) + 7),
@@ -462,6 +464,8 @@ enum SecondaryField {
   MUL = ((0 << 3) + 2),
   CLZ = ((4 << 3) + 0),
   CLO = ((4 << 3) + 1),
+  DCLZ = ((4 << 3) + 4),
+  DCLO = ((4 << 3) + 5),
 
   // SPECIAL3 Encoding of Function Field.
   EXT = ((0 << 3) + 0),
@@ -927,6 +931,7 @@ class Instruction {
 
 #define FunctionFieldToBitNumber(function) (1ULL << function)
 
+  // On r6, DCLZ_R6 aliases to existing MFLO.
   static const uint64_t kFunctionFieldRegisterTypeMask =
       FunctionFieldToBitNumber(JR) | FunctionFieldToBitNumber(JALR) |
       FunctionFieldToBitNumber(BREAK) | FunctionFieldToBitNumber(SLL) |
@@ -1171,6 +1176,7 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
       switch (FunctionFieldRaw()) {
         case MUL:
         case CLZ:
+        case DCLZ:
           return kRegisterType;
         default:
           return kUnsupported;
@@ -1252,6 +1258,7 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
 
 #undef OpcodeToBitNumber
 #undef FunctionFieldToBitNumber
-} }   // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif    // #ifndef V8_MIPS_CONSTANTS_H_

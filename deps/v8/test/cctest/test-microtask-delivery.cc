@@ -51,7 +51,7 @@ class HarmonyIsolate {
  private:
   v8::Isolate* isolate_;
 };
-}
+}  // namespace
 
 
 TEST(MicrotaskDeliverySimple) {

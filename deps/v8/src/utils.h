@@ -1043,23 +1043,23 @@ class TypeFeedbackId {
 };
 
 
-template <int dummy_parameter>
-class VectorSlot {
+class FeedbackVectorSlot {
  public:
-  explicit VectorSlot(int id) : id_(id) {}
+  FeedbackVectorSlot() : id_(kInvalidSlot) {}
+  explicit FeedbackVectorSlot(int id) : id_(id) {}
 
   int ToInt() const { return id_; }
 
-  static VectorSlot Invalid() { return VectorSlot(kInvalidSlot); }
+  static FeedbackVectorSlot Invalid() { return FeedbackVectorSlot(); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
-  VectorSlot next() const {
-    DCHECK_NE(kInvalidSlot, id_);
-    return VectorSlot(id_ + 1);
+  bool operator==(FeedbackVectorSlot that) const {
+    return this->id_ == that.id_;
   }
+  bool operator!=(FeedbackVectorSlot that) const { return !(*this == that); }
 
-  bool operator==(VectorSlot that) const { return this->id_ == that.id_; }
-  bool operator!=(VectorSlot that) const { return !(*this == that); }
+  friend size_t hash_value(FeedbackVectorSlot slot) { return slot.ToInt(); }
+  friend std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot);
 
  private:
   static const int kInvalidSlot = -1;
@@ -1068,23 +1068,14 @@ class VectorSlot {
 };
 
 
-template <int dummy_parameter>
-size_t hash_value(VectorSlot<dummy_parameter> slot) {
-  return slot.ToInt();
-}
-
-
-typedef VectorSlot<0> FeedbackVectorSlot;
-typedef VectorSlot<1> FeedbackVectorICSlot;
-
-
 class BailoutId {
  public:
   explicit BailoutId(int id) : id_(id) { }
   int ToInt() const { return id_; }
 
   static BailoutId None() { return BailoutId(kNoneId); }
-  static BailoutId Prologue() { return BailoutId(kPrologueId); }
+  static BailoutId ScriptContext() { return BailoutId(kScriptContextId); }
+  static BailoutId FunctionContext() { return BailoutId(kFunctionContextId); }
   static BailoutId FunctionEntry() { return BailoutId(kFunctionEntryId); }
   static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
@@ -1100,19 +1091,20 @@ class BailoutId {
   static const int kNoneId = -1;
 
   // Using 0 could disguise errors.
-  static const int kPrologueId = 1;
-  static const int kFunctionEntryId = 2;
+  static const int kScriptContextId = 1;
+  static const int kFunctionContextId = 2;
+  static const int kFunctionEntryId = 3;
 
   // This AST id identifies the point after the declarations have been visited.
   // We need it to capture the environment effects of declarations that emit
   // code (function declarations).
-  static const int kDeclarationsId = 3;
+  static const int kDeclarationsId = 4;
 
   // Every FunctionState starts with this id.
-  static const int kFirstUsableId = 4;
+  static const int kFirstUsableId = 5;
 
   // Every compiled stub starts with this id.
-  static const int kStubEntryId = 5;
+  static const int kStubEntryId = 6;
 
   int id_;
 };
@@ -1740,6 +1732,42 @@ static inline void WriteDoubleValue(void* p, double value) {
   *ptr = c.u[0];
   *(ptr + 1) = c.u[1];
 #endif  // V8_TARGET_ARCH_MIPS
+}
+
+
+static inline uint16_t ReadUnalignedUInt16(const void* p) {
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
+  return *reinterpret_cast<const uint16_t*>(p);
+#else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+  // Prevent compiler from using load-half (mips lh) on (possibly)
+  // non-16-bit aligned address.
+  union conversion {
+    uint16_t h;
+    uint8_t b[2];
+  } c;
+  const uint8_t* ptr = reinterpret_cast<const uint8_t*>(p);
+  c.b[0] = *ptr;
+  c.b[1] = *(ptr + 1);
+  return c.h;
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+}
+
+
+static inline void WriteUnalignedUInt16(void* p, uint16_t value) {
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
+  *(reinterpret_cast<uint16_t*>(p)) = value;
+#else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+  // Prevent compiler from using store-half (mips sh) on (possibly)
+  // non-16-bit aligned address.
+  union conversion {
+    uint16_t h;
+    uint8_t b[2];
+  } c;
+  c.h = value;
+  uint8_t* ptr = reinterpret_cast<uint8_t*>(p);
+  *ptr = c.b[0];
+  *(ptr + 1) = c.b[1];
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 }
 
 }  // namespace internal

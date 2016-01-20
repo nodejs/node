@@ -337,8 +337,8 @@ function TestEquality(type, lanes) {
   assertTrue(instance == instance)
   assertFalse(instance === Object(instance))
   assertFalse(Object(instance) === instance)
-  assertFalse(instance == Object(instance))
-  assertFalse(Object(instance) == instance)
+  assertTrue(instance == Object(instance))
+  assertTrue(Object(instance) == instance)
   assertTrue(instance === instance.valueOf())
   assertTrue(instance.valueOf() === instance)
   assertTrue(instance == instance.valueOf())
@@ -406,8 +406,8 @@ function TestEquality(type, lanes) {
 function TestSameValue(type, lanes) {
   var simdFn = SIMD[type];
   var instance = createInstance(type);
-  var sameValue = natives.$sameValue;
-  var sameValueZero = natives.$sameValueZero;
+  var sameValue = Object.is
+  var sameValueZero = natives.ImportNow("SameValueZero");
 
   // SIMD values should not be the same as instances of different types.
   checkTypeMatrix(type, function(other) {

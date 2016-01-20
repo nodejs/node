@@ -71,7 +71,6 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
       bit_field_(IsThisField::encode(var->is_this()) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
-      variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
       raw_name_(var->raw_name()),
       end_position_(end_position) {
   BindTo(var);
@@ -85,7 +84,6 @@ VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
       bit_field_(IsThisField::encode(variable_kind == Variable::THIS) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
-      variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
       raw_name_(name),
       end_position_(end_position) {}
 
@@ -100,14 +98,14 @@ void VariableProxy::BindTo(Variable* var) {
 
 void VariableProxy::AssignFeedbackVectorSlots(Isolate* isolate,
                                               FeedbackVectorSpec* spec,
-                                              ICSlotCache* cache) {
+                                              FeedbackVectorSlotCache* cache) {
   if (UsesVariableFeedbackSlot()) {
     // VariableProxies that point to the same Variable within a function can
     // make their loads from the same IC slot.
     if (var()->IsUnallocated()) {
       ZoneHashMap::Entry* entry = cache->Get(var());
       if (entry != NULL) {
-        variable_feedback_slot_ = FeedbackVectorICSlot(
+        variable_feedback_slot_ = FeedbackVectorSlot(
             static_cast<int>(reinterpret_cast<intptr_t>(entry->value)));
         return;
       }
@@ -121,7 +119,7 @@ void VariableProxy::AssignFeedbackVectorSlots(Isolate* isolate,
 
 
 static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
-                              FeedbackVectorICSlot* out_slot) {
+                              FeedbackVectorSlot* out_slot) {
   if (FLAG_vector_stores) {
     Property* property = expr->AsProperty();
     LhsKind assign_type = Property::GetAssignType(property);
@@ -138,9 +136,9 @@ static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
 }
 
 
-void ForEachStatement::AssignFeedbackVectorSlots(Isolate* isolate,
-                                                 FeedbackVectorSpec* spec,
-                                                 ICSlotCache* cache) {
+void ForEachStatement::AssignFeedbackVectorSlots(
+    Isolate* isolate, FeedbackVectorSpec* spec,
+    FeedbackVectorSlotCache* cache) {
   AssignVectorSlots(each(), spec, &each_slot_);
 }
 
@@ -153,20 +151,19 @@ Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
           StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
       target_(target),
       value_(value),
-      binary_operation_(NULL),
-      slot_(FeedbackVectorICSlot::Invalid()) {}
+      binary_operation_(NULL) {}
 
 
 void Assignment::AssignFeedbackVectorSlots(Isolate* isolate,
                                            FeedbackVectorSpec* spec,
-                                           ICSlotCache* cache) {
+                                           FeedbackVectorSlotCache* cache) {
   AssignVectorSlots(target(), spec, &slot_);
 }
 
 
 void CountOperation::AssignFeedbackVectorSlots(Isolate* isolate,
                                                FeedbackVectorSpec* spec,
-                                               ICSlotCache* cache) {
+                                               FeedbackVectorSlotCache* cache) {
   AssignVectorSlots(expression(), spec, &slot_);
 }
 
@@ -227,7 +224,6 @@ ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
                                              bool is_computed_name)
     : key_(key),
       value_(value),
-      slot_(FeedbackVectorICSlot::Invalid()),
       kind_(kind),
       emit_store_(true),
       is_static_(is_static),
@@ -240,7 +236,6 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
                                              bool is_computed_name)
     : key_(key),
       value_(value),
-      slot_(FeedbackVectorICSlot::Invalid()),
       emit_store_(true),
       is_static_(is_static),
       is_computed_name_(is_computed_name) {
@@ -260,7 +255,7 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
 
 void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                              FeedbackVectorSpec* spec,
-                                             ICSlotCache* cache) {
+                                             FeedbackVectorSlotCache* cache) {
   if (!FLAG_vector_stores) return;
 
   // This logic that computes the number of slots needed for vector store
@@ -273,7 +268,7 @@ void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
     ObjectLiteral::Property* property = properties()->at(i);
     Expression* value = property->value();
     if (FunctionLiteral::NeedsHomeObject(value)) {
-      property->set_slot(spec->AddStoreICSlot());
+      property->SetSlot(spec->AddStoreICSlot());
     }
   }
 }
@@ -298,7 +293,7 @@ bool ObjectLiteral::Property::emit_store() {
 
 void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                               FeedbackVectorSpec* spec,
-                                              ICSlotCache* cache) {
+                                              FeedbackVectorSlotCache* cache) {
   if (!FLAG_vector_stores) return;
 
   // This logic that computes the number of slots needed for vector store
@@ -321,27 +316,27 @@ void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
         // contains computed properties with an uninitialized value.
         if (key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
-            property->set_slot(spec->AddStoreICSlot());
+            property->SetSlot(spec->AddStoreICSlot());
             if (FunctionLiteral::NeedsHomeObject(value)) {
-              spec->AddStoreICSlot();
+              property->SetSlot(spec->AddStoreICSlot(), 1);
             }
           }
           break;
         }
         if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
-          property->set_slot(spec->AddStoreICSlot());
+          property->SetSlot(spec->AddStoreICSlot());
         }
         break;
       case ObjectLiteral::Property::PROTOTYPE:
         break;
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
-          property->set_slot(spec->AddStoreICSlot());
+          property->SetSlot(spec->AddStoreICSlot());
         }
         break;
       case ObjectLiteral::Property::SETTER:
         if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
-          property->set_slot(spec->AddStoreICSlot());
+          property->SetSlot(spec->AddStoreICSlot());
         }
         break;
     }
@@ -353,7 +348,7 @@ void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
     Expression* value = property->value();
     if (property->kind() != ObjectLiteral::Property::PROTOTYPE) {
       if (FunctionLiteral::NeedsHomeObject(value)) {
-        property->set_slot(spec->AddStoreICSlot());
+        property->SetSlot(spec->AddStoreICSlot());
       }
     }
   }
@@ -552,6 +547,27 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 }
 
 
+void ArrayLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
+                                             FeedbackVectorSpec* spec,
+                                             FeedbackVectorSlotCache* cache) {
+  if (!FLAG_vector_stores) return;
+
+  // This logic that computes the number of slots needed for vector store
+  // ics must mirror FullCodeGenerator::VisitArrayLiteral.
+  int array_index = 0;
+  for (; array_index < values()->length(); array_index++) {
+    Expression* subexpr = values()->at(array_index);
+    if (subexpr->IsSpread()) break;
+    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
+
+    // We'll reuse the same literal slot for all of the non-constant
+    // subexpressions that use a keyed store IC.
+    literal_slot_ = spec->AddKeyedStoreICSlot();
+    return;
+  }
+}
+
+
 Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
                                                         Isolate* isolate) {
   if (expression->IsLiteral()) {
@@ -720,12 +736,12 @@ bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
 
 
 void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                     ICSlotCache* cache) {
+                                     FeedbackVectorSlotCache* cache) {
   if (IsUsingCallFeedbackICSlot(isolate)) {
     ic_slot_ = spec->AddCallICSlot();
   }
   if (IsUsingCallFeedbackSlot(isolate)) {
-    slot_ = spec->AddStubSlot();
+    stub_slot_ = spec->AddGeneralSlot();
   }
 }
 
@@ -745,7 +761,16 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
   if (expression()->IsSuperCallReference()) return SUPER_CALL;
 
   Property* property = expression()->AsProperty();
-  return property != NULL ? PROPERTY_CALL : OTHER_CALL;
+  if (property != nullptr) {
+    bool is_super = property->IsSuperAccess();
+    if (property->key()->IsPropertyName()) {
+      return is_super ? NAMED_SUPER_PROPERTY_CALL : NAMED_PROPERTY_CALL;
+    } else {
+      return is_super ? KEYED_SUPER_PROPERTY_CALL : KEYED_PROPERTY_CALL;
+    }
+  }
+
+  return OTHER_CALL;
 }
 
 
@@ -917,8 +942,7 @@ class RegExpUnparser final : public RegExpVisitor {
  public:
   RegExpUnparser(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
   void VisitCharacterRange(CharacterRange that);
-#define MAKE_CASE(Name) \
-  virtual void* Visit##Name(RegExp##Name*, void* data) override;
+#define MAKE_CASE(Name) void* Visit##Name(RegExp##Name*, void* data) override;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:

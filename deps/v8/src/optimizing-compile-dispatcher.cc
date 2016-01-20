@@ -6,7 +6,6 @@
 
 #include "src/base/atomicops.h"
 #include "src/full-codegen/full-codegen.h"
-#include "src/hydrogen.h"
 #include "src/isolate.h"
 #include "src/v8.h"
 

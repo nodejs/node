@@ -35,6 +35,7 @@ struct PreparseDataConstants {
 };
 
 
-} }  // namespace v8::internal.
+}  // namespace internal
+}  // namespace v8.
 
 #endif  // V8_PREPARSE_DATA_FORMAT_H_

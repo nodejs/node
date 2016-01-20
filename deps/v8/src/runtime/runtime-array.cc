@@ -9,6 +9,7 @@
 #include "src/elements.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
+#include "src/key-accumulator.h"
 #include "src/messages.h"
 #include "src/prototype.h"
 
@@ -206,6 +207,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   }
 
   KeyAccumulator accumulator(isolate);
+  // No need to separate protoype levels since we only get numbers/element keys
   for (PrototypeIterator iter(isolate, array,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
@@ -216,16 +218,14 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
       // collecting keys in that case.
       return *isolate->factory()->NewNumberFromUint(length);
     }
+    accumulator.NextPrototype();
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    Handle<FixedArray> current_keys =
-        isolate->factory()->NewFixedArray(current->NumberOfOwnElements(NONE));
-    current->GetOwnElementKeys(*current_keys, NONE);
-    accumulator.AddKeys(current_keys, FixedArray::ALL_KEYS);
+    JSObject::CollectOwnElementKeys(current, &accumulator, NONE);
   }
   // Erase any keys >= length.
   // TODO(adamk): Remove this step when the contract of %GetArrayKeys
   // is changed to let this happen on the JS side.
-  Handle<FixedArray> keys = accumulator.GetKeys();
+  Handle<FixedArray> keys = accumulator.GetKeys(KEEP_NUMBERS);
   for (int i = 0; i < keys->length(); i++) {
     if (NumberToUint32(keys->get(i)) >= length) keys->set_undefined(i);
   }
@@ -253,7 +253,7 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
         can_use_type_feedback = false;
       } else if (value != 0) {
         holey = true;
-        if (value >= JSObject::kInitialMaxFastElementArray) {
+        if (value >= JSArray::kInitialMaxFastElementArray) {
           can_inline_array_constructor = false;
         }
       }
@@ -321,8 +321,9 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
     if (original_constructor->has_instance_prototype()) {
       Handle<Object> prototype =
           handle(original_constructor->instance_prototype(), isolate);
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate, JSObject::SetPrototype(array, prototype, false));
+      MAYBE_RETURN(JSObject::SetPrototype(array, prototype, false,
+                                          Object::THROW_ON_ERROR),
+                   isolate->heap()->exception());
     }
   }
 

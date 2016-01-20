@@ -99,14 +99,6 @@ void CodeFlusher::AddCandidate(JSFunction* function) {
 }
 
 
-void CodeFlusher::AddOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
-  if (GetNextCodeMap(code_map_holder)->IsUndefined()) {
-    SetNextCodeMap(code_map_holder, optimized_code_map_holder_head_);
-    optimized_code_map_holder_head_ = code_map_holder;
-  }
-}
-
-
 JSFunction** CodeFlusher::GetNextCandidateSlot(JSFunction* candidate) {
   return reinterpret_cast<JSFunction**>(
       HeapObject::RawField(candidate, JSFunction::kNextFunctionLinkOffset));
@@ -146,26 +138,6 @@ void CodeFlusher::SetNextCandidate(SharedFunctionInfo* candidate,
 
 void CodeFlusher::ClearNextCandidate(SharedFunctionInfo* candidate) {
   candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
-}
-
-
-SharedFunctionInfo* CodeFlusher::GetNextCodeMap(SharedFunctionInfo* holder) {
-  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-  Object* next_map = code_map->get(SharedFunctionInfo::kNextMapIndex);
-  return reinterpret_cast<SharedFunctionInfo*>(next_map);
-}
-
-
-void CodeFlusher::SetNextCodeMap(SharedFunctionInfo* holder,
-                                 SharedFunctionInfo* next_holder) {
-  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-  code_map->set(SharedFunctionInfo::kNextMapIndex, next_holder);
-}
-
-
-void CodeFlusher::ClearNextCodeMap(SharedFunctionInfo* holder) {
-  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-  code_map->set_undefined(SharedFunctionInfo::kNextMapIndex);
 }
 
 }  // namespace internal

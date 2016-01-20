@@ -46,13 +46,16 @@
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/disassembler.h"
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/ostreams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serialize.h"
@@ -103,6 +106,39 @@
 
 namespace v8 {
 namespace internal {
+
+// -----------------------------------------------------------------------------
+// Common register code.
+
+const char* Register::ToString() {
+  // This is the mapping of allocation indices to registers.
+  DCHECK(reg_code >= 0 && reg_code < kNumRegisters);
+  return RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+      ->GetGeneralRegisterName(reg_code);
+}
+
+
+bool Register::IsAllocatable() const {
+  return ((1 << reg_code) &
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+              ->allocatable_general_codes_mask()) != 0;
+}
+
+
+const char* DoubleRegister::ToString() {
+  // This is the mapping of allocation indices to registers.
+  DCHECK(reg_code >= 0 && reg_code < kMaxNumRegisters);
+  return RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+      ->GetDoubleRegisterName(reg_code);
+}
+
+
+bool DoubleRegister::IsAllocatable() const {
+  return ((1 << reg_code) &
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+              ->allocatable_double_codes_mask()) != 0;
+}
+
 
 // -----------------------------------------------------------------------------
 // Common double constants.
@@ -178,6 +214,12 @@ void AssemblerBase::FlushICacheWithoutIsolate(void* start, size_t size) {
   isolate = nullptr;
 #endif  // USE_SIMULATOR
   FlushICache(isolate, start, size);
+}
+
+
+void AssemblerBase::Print() {
+  OFStream os(stdout);
+  v8::internal::Disassembler::Decode(isolate(), &os, buffer_, pc_, nullptr);
 }
 
 
@@ -1407,9 +1449,21 @@ ExternalReference
 }
 
 
-ExternalReference ExternalReference::vector_store_virtual_register(
+ExternalReference ExternalReference::virtual_handler_register(
     Isolate* isolate) {
-  return ExternalReference(isolate->vector_store_virtual_register_address());
+  return ExternalReference(isolate->virtual_handler_register_address());
+}
+
+
+ExternalReference ExternalReference::virtual_slot_register(Isolate* isolate) {
+  return ExternalReference(isolate->virtual_slot_register_address());
+}
+
+
+ExternalReference ExternalReference::runtime_function_table_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      const_cast<Runtime::Function*>(Runtime::RuntimeFunctionTable(isolate)));
 }
 
 

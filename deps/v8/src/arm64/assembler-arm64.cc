@@ -35,6 +35,7 @@
 #include "src/arm64/frames-arm64.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/register-configuration.h"
 
 namespace v8 {
 namespace internal {
@@ -109,17 +110,17 @@ void CPURegList::RemoveCalleeSaved() {
 }
 
 
-CPURegList CPURegList::GetCalleeSaved(unsigned size) {
+CPURegList CPURegList::GetCalleeSaved(int size) {
   return CPURegList(CPURegister::kRegister, size, 19, 29);
 }
 
 
-CPURegList CPURegList::GetCalleeSavedFP(unsigned size) {
+CPURegList CPURegList::GetCalleeSavedFP(int size) {
   return CPURegList(CPURegister::kFPRegister, size, 8, 15);
 }
 
 
-CPURegList CPURegList::GetCallerSaved(unsigned size) {
+CPURegList CPURegList::GetCallerSaved(int size) {
   // Registers x0-x18 and lr (x30) are caller-saved.
   CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 18);
   list.Combine(lr);
@@ -127,7 +128,7 @@ CPURegList CPURegList::GetCallerSaved(unsigned size) {
 }
 
 
-CPURegList CPURegList::GetCallerSavedFP(unsigned size) {
+CPURegList CPURegList::GetCallerSavedFP(int size) {
   // Registers d0-d7 and d16-d31 are caller-saved.
   CPURegList list = CPURegList(CPURegister::kFPRegister, size, 0, 7);
   list.Combine(CPURegList(CPURegister::kFPRegister, size, 16, 31));
@@ -192,8 +193,11 @@ bool RelocInfo::IsInConstantPool() {
 Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
                                               Register reg3, Register reg4) {
   CPURegList regs(reg1, reg2, reg3, reg4);
-  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
-    Register candidate = Register::FromAllocationIndex(i);
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    Register candidate = Register::from_code(code);
     if (regs.IncludesAliasOf(candidate)) continue;
     return candidate;
   }
@@ -1275,10 +1279,8 @@ void Assembler::rorv(const Register& rd,
 
 
 // Bitfield operations.
-void Assembler::bfm(const Register& rd,
-                     const Register& rn,
-                     unsigned immr,
-                     unsigned imms) {
+void Assembler::bfm(const Register& rd, const Register& rn, int immr,
+                    int imms) {
   DCHECK(rd.SizeInBits() == rn.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | BFM | N |
@@ -1288,10 +1290,8 @@ void Assembler::bfm(const Register& rd,
 }
 
 
-void Assembler::sbfm(const Register& rd,
-                     const Register& rn,
-                     unsigned immr,
-                     unsigned imms) {
+void Assembler::sbfm(const Register& rd, const Register& rn, int immr,
+                     int imms) {
   DCHECK(rd.Is64Bits() || rn.Is32Bits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | SBFM | N |
@@ -1301,10 +1301,8 @@ void Assembler::sbfm(const Register& rd,
 }
 
 
-void Assembler::ubfm(const Register& rd,
-                     const Register& rn,
-                     unsigned immr,
-                     unsigned imms) {
+void Assembler::ubfm(const Register& rd, const Register& rn, int immr,
+                     int imms) {
   DCHECK(rd.SizeInBits() == rn.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | UBFM | N |
@@ -1314,10 +1312,8 @@ void Assembler::ubfm(const Register& rd,
 }
 
 
-void Assembler::extr(const Register& rd,
-                     const Register& rn,
-                     const Register& rm,
-                     unsigned lsb) {
+void Assembler::extr(const Register& rd, const Register& rn, const Register& rm,
+                     int lsb) {
   DCHECK(rd.SizeInBits() == rn.SizeInBits());
   DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);

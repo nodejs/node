@@ -629,6 +629,7 @@ void Operand::set_disp64(int64_t disp) {
   *p = disp;
   len_ += sizeof(disp);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_ASSEMBLER_X64_INL_H_

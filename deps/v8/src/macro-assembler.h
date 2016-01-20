@@ -278,6 +278,7 @@ class AllocationUtils {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MACRO_ASSEMBLER_H_

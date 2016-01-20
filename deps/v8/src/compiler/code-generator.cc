@@ -4,11 +4,11 @@
 
 #include "src/compiler/code-generator.h"
 
+#include "src/address-map.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/frames-inl.h"
-#include "src/snapshot/serialize.h"  // TODO(turbofan): RootIndexMap
 
 namespace v8 {
 namespace internal {
@@ -83,9 +83,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
-  for (auto shared_info : info->inlined_functions()) {
-    if (!shared_info.is_identical_to(info->shared_info())) {
-      DefineDeoptimizationLiteral(shared_info);
+  for (auto& inlined : info->inlined_functions()) {
+    if (!inlined.shared_info.is_identical_to(info->shared_info())) {
+      DefineDeoptimizationLiteral(inlined.shared_info);
     }
   }
   inlined_function_count_ = deoptimization_literals_.size();
@@ -193,7 +193,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   PopulateDeoptimizationData(result);
 
   // Ensure there is space for lazy deoptimization in the relocation info.
-  if (!info->ShouldEnsureSpaceForLazyDeopt()) {
+  if (info->ShouldEnsureSpaceForLazyDeopt()) {
     Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(result);
   }
 
@@ -220,15 +220,14 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
       frame()->GetTotalFrameSlotCount() - frame()->GetSpillSlotCount();
   for (auto& operand : references->reference_operands()) {
     if (operand.IsStackSlot()) {
-      int index = StackSlotOperand::cast(operand).index();
+      int index = LocationOperand::cast(operand).index();
       DCHECK(index >= 0);
       // Safepoint table indices are 0-based from the beginning of the spill
       // slot area, adjust appropriately.
       index -= stackSlotToSpillSlotDelta;
       safepoint.DefinePointerSlot(index, zone());
     } else if (operand.IsRegister() && (kind & Safepoint::kWithRegisters)) {
-      Register reg =
-          Register::FromAllocationIndex(RegisterOperand::cast(operand).index());
+      Register reg = LocationOperand::cast(operand).GetRegister();
       safepoint.DefinePointerRegister(reg, zone());
     }
   }
@@ -590,21 +589,20 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
                                              MachineType type) {
   if (op->IsStackSlot()) {
     if (type == kMachBool || type == kRepBit) {
-      translation->StoreBoolStackSlot(StackSlotOperand::cast(op)->index());
+      translation->StoreBoolStackSlot(LocationOperand::cast(op)->index());
     } else if (type == kMachInt32 || type == kMachInt8 || type == kMachInt16) {
-      translation->StoreInt32StackSlot(StackSlotOperand::cast(op)->index());
+      translation->StoreInt32StackSlot(LocationOperand::cast(op)->index());
     } else if (type == kMachUint32 || type == kMachUint16 ||
                type == kMachUint8) {
-      translation->StoreUint32StackSlot(StackSlotOperand::cast(op)->index());
+      translation->StoreUint32StackSlot(LocationOperand::cast(op)->index());
     } else if ((type & kRepMask) == kRepTagged) {
-      translation->StoreStackSlot(StackSlotOperand::cast(op)->index());
+      translation->StoreStackSlot(LocationOperand::cast(op)->index());
     } else {
       CHECK(false);
     }
   } else if (op->IsDoubleStackSlot()) {
     DCHECK((type & (kRepFloat32 | kRepFloat64)) != 0);
-    translation->StoreDoubleStackSlot(
-        DoubleStackSlotOperand::cast(op)->index());
+    translation->StoreDoubleStackSlot(LocationOperand::cast(op)->index());
   } else if (op->IsRegister()) {
     InstructionOperandConverter converter(this, instr);
     if (type == kMachBool || type == kRepBit) {
@@ -632,6 +630,10 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         DCHECK(type == kMachInt32 || type == kMachUint32 || type == kRepBit);
         constant_object =
             isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+        break;
+      case Constant::kFloat32:
+        DCHECK((type & (kRepFloat32 | kRepTagged)) != 0);
+        constant_object = isolate()->factory()->NewNumber(constant.ToFloat32());
         break;
       case Constant::kFloat64:
         DCHECK((type & (kRepFloat64 | kRepTagged)) != 0);
@@ -662,7 +664,7 @@ void CodeGenerator::MarkLazyDeoptSite() {
 
 
 OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
-    : masm_(gen->masm()), next_(gen->ools_) {
+    : frame_(gen->frame()), masm_(gen->masm()), next_(gen->ools_) {
   gen->ools_ = this;
 }
 

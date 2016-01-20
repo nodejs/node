@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(ArgumentsMapped) {
   FunctionTester T("(function(a) { return arguments; })");
@@ -45,3 +49,7 @@ TEST(ArgumentsRest) {
   Handle<Object> length = JSObject::GetProperty(arguments, l).ToHandleChecked();
   CHECK_EQ(3, length->Number());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

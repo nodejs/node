@@ -85,6 +85,15 @@ class Category:
       if self.histogram:
         self.histogram.add(float(entry[self.key]))
 
+  def min(self):
+    return min(self.values)
+
+  def max(self):
+    return max(self.values)
+
+  def avg(self):
+    return sum(self.values) / len(self.values)
+
   def __str__(self):
     ret = [self.key]
     ret.append("  len: {0}".format(len(self.values)))
@@ -95,6 +104,15 @@ class Category:
       if self.histogram:
         ret.append(str(self.histogram))
     return "\n".join(ret)
+
+  def __repr__(self):
+    return "<Category: {0}>".format(self.key)
+
+
+def make_key_func(cmp_metric):
+  def key_func(a):
+    return getattr(a, cmp_metric)()
+  return key_func
 
 
 def main():
@@ -121,6 +139,10 @@ def main():
                       action='store_false', help='do not print histogram')
   parser.set_defaults(histogram=True)
   parser.set_defaults(histogram_omit_empty=False)
+  parser.add_argument('--rank', metavar='<no|min|max|avg>',
+                      type=str, nargs='?',
+                      default="no",
+                      help="rank keys by metric (default: no)")
   args = parser.parse_args()
 
   histogram = None
@@ -142,6 +164,9 @@ def main():
     obj = split_nvp(line)
     for category in categories:
       category.process_entry(obj)
+
+  if args.rank != "no":
+    categories = sorted(categories, key=make_key_func(args.rank), reverse=True)
 
   for category in categories:
     print(category)

@@ -63,6 +63,7 @@
         'compiler/test-loop-assignment-analysis.cc',
         'compiler/test-loop-analysis.cc',
         'compiler/test-machine-operator-reducer.cc',
+        'compiler/test-multiple-return.cc',
         'compiler/test-node.cc',
         'compiler/test-operator.cc',
         'compiler/test-osr.cc',
@@ -99,7 +100,9 @@
         'test-alloc.cc',
         'test-api.cc',
         'test-api.h',
-        'test-api-accessors.cc',
+        # TODO(epertoso): re-enable the following test after the API change is
+        # checked in.
+        # 'test-api-accessors.cc',
         'test-api-interceptors.cc',
         'test-array-list.cc',
         'test-ast.cc',
@@ -122,8 +125,10 @@
         'test-diy-fp.cc',
         'test-double.cc',
         'test-dtoa.cc',
+        'test-elements-kind.cc',
         'test-fast-dtoa.cc',
         'test-feedback-vector.cc',
+        'test-field-type-tracking.cc',
         'test-fixed-dtoa.cc',
         'test-flags.cc',
         'test-func-name-inference.cc',
@@ -144,7 +149,6 @@
         'test-microtask-delivery.cc',
         'test-mark-compact.cc',
         'test-mementos.cc',
-        'test-migrations.cc',
         'test-object-observe.cc',
         'test-parsing.cc',
         'test-platform.cc',
@@ -277,6 +281,11 @@
             },
           },
         }],
+        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+          # disable fmadd/fmsub so that expected results match generated code in
+          # RunFloat64MulAndFloat64Add1 and friends.
+          'cflags': ['-ffp-contract=off'],
+        }],
         ['OS=="aix"', {
           'ldflags': [ '-Wl,-bbigtoc' ],
         }],
@@ -329,5 +338,24 @@
         }
       ],
     },
+  ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'cctest_run',
+          'type': 'none',
+          'dependencies': [
+            'cctest',
+          ],
+          'includes': [
+            '../../build/isolate.gypi',
+          ],
+          'sources': [
+            'cctest.isolate',
+          ],
+        },
+      ],
+    }],
   ],
 }

@@ -125,7 +125,7 @@ class PropertyICCompiler : public PropertyAccessCompiler {
 };
 
 
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_IC_COMPILER_H_

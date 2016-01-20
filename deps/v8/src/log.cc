@@ -1497,7 +1497,11 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(",%ld", static_cast<int>(timer_.Elapsed().InMicroseconds()));
   if (sample->has_external_callback) {
     msg.Append(",1,");
+#if USES_FUNCTION_DESCRIPTORS
+    msg.AppendAddress(*FUNCTION_ENTRYPOINT_ADDRESS(sample->external_callback));
+#else
     msg.AppendAddress(sample->external_callback);
+#endif
   } else {
     msg.Append(",0,");
     msg.AppendAddress(sample->tos);

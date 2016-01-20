@@ -43,6 +43,8 @@
         'base/sys-info-unittest.cc',
         'base/utils/random-number-generator-unittest.cc',
         'char-predicates-unittest.cc',
+        'compiler/binary-operator-reducer-unittest.cc',
+        'compiler/branch-elimination-unittest.cc',
         'compiler/bytecode-graph-builder-unittest.cc',
         'compiler/change-lowering-unittest.cc',
         'compiler/coalesced-live-ranges-unittest.cc',
@@ -69,7 +71,6 @@
         'compiler/js-intrinsic-lowering-unittest.cc',
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
-        'compiler/js-type-feedback-unittest.cc',
         'compiler/linkage-tail-call-unittest.cc',
         'compiler/liveness-analyzer-unittest.cc',
         'compiler/live-range-unittest.cc',
@@ -178,5 +179,24 @@
         }],
       ],
     },
+  ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'unittests',
+          ],
+          'includes': [
+            '../../build/isolate.gypi',
+          ],
+          'sources': [
+            'unittests.isolate',
+          ],
+        },
+      ],
+    }],
   ],
 }

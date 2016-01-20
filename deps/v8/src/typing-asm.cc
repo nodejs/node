@@ -9,16 +9,10 @@
 #include "src/ast.h"
 #include "src/codegen.h"
 #include "src/scopes.h"
-#include "src/zone-type-cache.h"
+#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
-namespace {
-
-base::LazyInstance<ZoneTypeCache>::type kCache = LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
-
 
 #define FAIL(node, msg)                                        \
   do {                                                         \
@@ -43,7 +37,8 @@ base::LazyInstance<ZoneTypeCache>::type kCache = LAZY_INSTANCE_INITIALIZER;
 
 AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                    FunctionLiteral* root)
-    : script_(script),
+    : zone_(zone),
+      script_(script),
       root_(root),
       valid_(true),
       stdlib_types_(zone),
@@ -57,8 +52,8 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                            ZoneAllocationPolicy(zone)),
       in_function_(false),
       building_function_tables_(false),
-      cache_(kCache.Get()) {
-  InitializeAstVisitor(isolate, zone);
+      cache_(TypeCache::Get()) {
+  InitializeAstVisitor(isolate);
   InitializeStdlib();
 }
 
@@ -435,6 +430,11 @@ void AsmTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 }
 
 
+void AsmTyper::VisitDoExpression(DoExpression* expr) {
+  FAIL(expr, "do-expression encountered");
+}
+
+
 void AsmTyper::VisitConditional(Conditional* expr) {
   RECURSE(VisitWithExpectation(expr->condition(), cache_.kInt32,
                                "condition expected to be integer"));
@@ -446,8 +446,9 @@ void AsmTyper::VisitConditional(Conditional* expr) {
       expr->else_expression(), expected_type_,
       "conditional else branch type mismatch with enclosing expression"));
   Type* else_type = computed_type_;
-  Type* type = Type::Intersect(then_type, else_type, zone());
-  if (!(type->Is(cache_.kInt32) || type->Is(cache_.kFloat64))) {
+  Type* type = Type::Union(then_type, else_type, zone());
+  if (!(type->Is(cache_.kInt32) || type->Is(cache_.kUint32) ||
+        type->Is(cache_.kFloat32) || type->Is(cache_.kFloat64))) {
     FAIL(expr, "ill-typed conditional");
   }
   IntersectResult(expr, type);
@@ -609,24 +610,30 @@ void AsmTyper::VisitHeapAccess(Property* expr) {
     }
     bin->set_bounds(Bounds(cache_.kInt32));
   } else {
-    BinaryOperation* bin = expr->key()->AsBinaryOperation();
-    if (bin == NULL || bin->op() != Token::SAR) {
-      FAIL(expr->key(), "expected >> in heap access");
+    Literal* literal = expr->key()->AsLiteral();
+    if (literal) {
+      RECURSE(VisitWithExpectation(literal, cache_.kInt32,
+                                   "array index expected to be integer"));
+    } else {
+      BinaryOperation* bin = expr->key()->AsBinaryOperation();
+      if (bin == NULL || bin->op() != Token::SAR) {
+        FAIL(expr->key(), "expected >> in heap access");
+      }
+      RECURSE(VisitWithExpectation(bin->left(), cache_.kInt32,
+                                   "array index expected to be integer"));
+      Literal* right = bin->right()->AsLiteral();
+      if (right == NULL || right->raw_value()->ContainsDot()) {
+        FAIL(right, "heap access shift must be integer");
+      }
+      RECURSE(VisitWithExpectation(bin->right(), cache_.kInt32,
+                                   "array shift expected to be integer"));
+      int n = static_cast<int>(right->raw_value()->AsNumber());
+      int expected_shift = ElementShiftSize(type);
+      if (expected_shift < 0 || n != expected_shift) {
+        FAIL(right, "heap access shift must match element size");
+      }
+      bin->set_bounds(Bounds(cache_.kInt32));
     }
-    RECURSE(VisitWithExpectation(bin->left(), cache_.kInt32,
-                                 "array index expected to be integer"));
-    Literal* right = bin->right()->AsLiteral();
-    if (right == NULL || right->raw_value()->ContainsDot()) {
-      FAIL(right, "heap access shift must be integer");
-    }
-    RECURSE(VisitWithExpectation(bin->right(), cache_.kInt32,
-                                 "array shift expected to be integer"));
-    int n = static_cast<int>(right->raw_value()->AsNumber());
-    int expected_shift = ElementShiftSize(type);
-    if (expected_shift < 0 || n != expected_shift) {
-      FAIL(right, "heap access shift must match element size");
-    }
-    bin->set_bounds(Bounds(cache_.kInt32));
   }
   IntersectResult(expr, type);
 }
@@ -794,6 +801,34 @@ void AsmTyper::VisitCountOperation(CountOperation* expr) {
 }
 
 
+void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
+                                           Type* left_expected,
+                                           Type* right_expected,
+                                           Type* result_type, bool conversion) {
+  RECURSE(VisitWithExpectation(expr->left(), left_expected,
+                               "left bit operand expected to be integer"));
+  int left_intish = intish_;
+  Type* left_type = computed_type_;
+  RECURSE(VisitWithExpectation(expr->right(), right_expected,
+                               "right bit operand expected to be integer"));
+  int right_intish = intish_;
+  Type* right_type = computed_type_;
+  if (left_intish > kMaxUncombinedAdditiveSteps) {
+    FAIL(expr, "too many consecutive additive ops");
+  }
+  if (right_intish > kMaxUncombinedAdditiveSteps) {
+    FAIL(expr, "too many consecutive additive ops");
+  }
+  intish_ = 0;
+  if (!conversion) {
+    if (!left_type->Is(right_type) || !right_type->Is(left_type)) {
+      FAIL(expr, "ill typed bitwise operation");
+    }
+  }
+  IntersectResult(expr, result_type);
+}
+
+
 void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA: {
@@ -807,34 +842,28 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::OR:
     case Token::AND:
       FAIL(expr, "logical operator encountered");
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR: {
+    case Token::BIT_OR: {
       // BIT_OR allows Any since it is used as a type coercion.
-      // BIT_XOR allows Number since it is used as a type coercion (encoding ~).
-      Type* expectation =
-          expr->op() == Token::BIT_OR
-              ? Type::Any()
-              : expr->op() == Token::BIT_XOR ? Type::Number() : cache_.kInt32;
-      Type* result =
-          expr->op() == Token::SHR ? Type::Unsigned32() : cache_.kInt32;
-      RECURSE(VisitWithExpectation(expr->left(), expectation,
-                                   "left bit operand expected to be integer"));
-      int left_intish = intish_;
-      RECURSE(VisitWithExpectation(expr->right(), expectation,
-                                   "right bit operand expected to be integer"));
-      int right_intish = intish_;
-      if (left_intish > kMaxUncombinedAdditiveSteps) {
-        FAIL(expr, "too many consecutive additive ops");
-      }
-      if (right_intish > kMaxUncombinedAdditiveSteps) {
-        FAIL(expr, "too many consecutive additive ops");
-      }
-      intish_ = 0;
-      IntersectResult(expr, result);
+      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kIntegral32,
+                                  cache_.kInt32, true);
+      return;
+    }
+    case Token::BIT_XOR: {
+      // BIT_XOR allows Number since it is used as a type coercion (via ~~).
+      VisitIntegerBitwiseOperator(expr, Type::Number(), cache_.kIntegral32,
+                                  cache_.kInt32, true);
+      return;
+    }
+    case Token::SHR: {
+      VisitIntegerBitwiseOperator(expr, cache_.kIntegral32, cache_.kIntegral32,
+                                  cache_.kUint32, false);
+      return;
+    }
+    case Token::SHL:
+    case Token::SAR:
+    case Token::BIT_AND: {
+      VisitIntegerBitwiseOperator(expr, cache_.kIntegral32, cache_.kIntegral32,
+                                  cache_.kInt32, false);
       return;
     }
     case Token::ADD:
@@ -853,7 +882,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Type* right_type = computed_type_;
       int right_intish = intish_;
       Type* type = Type::Union(left_type, right_type, zone());
-      if (type->Is(cache_.kInt32)) {
+      if (type->Is(cache_.kInt32) || type->Is(cache_.kUint32)) {
         if (expr->op() == Token::MUL) {
           if (!expr->left()->IsLiteral() && !expr->right()->IsLiteral()) {
             FAIL(expr, "direct integer multiply forbidden");
@@ -875,7 +904,16 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
           IntersectResult(expr, cache_.kInt32);
           return;
         }
-      } else if (type->Is(Type::Number())) {
+      } else if (expr->op() == Token::MUL &&
+                 left_type->Is(cache_.kIntegral32) &&
+                 right_type->Is(cache_.kFloat64)) {
+        // For unary +, expressed as x * 1.0
+        IntersectResult(expr, cache_.kFloat64);
+        return;
+      } else if (type->Is(cache_.kFloat32) && expr->op() != Token::MOD) {
+        IntersectResult(expr, cache_.kFloat32);
+        return;
+      } else if (type->Is(cache_.kFloat64)) {
         IntersectResult(expr, cache_.kFloat64);
         return;
       } else {
@@ -899,7 +937,8 @@ void AsmTyper::VisitCompareOperation(CompareOperation* expr) {
   Type* right_type = computed_type_;
   Type* type = Type::Union(left_type, right_type, zone());
   expr->set_combined_type(type);
-  if (type->Is(Type::Integral32()) || type->Is(Type::UntaggedFloat64())) {
+  if (type->Is(cache_.kInt32) || type->Is(cache_.kUint32) ||
+      type->Is(cache_.kFloat32) || type->Is(cache_.kFloat64)) {
     IntersectResult(expr, cache_.kInt32);
   } else {
     FAIL(expr, "ill-typed comparison operation");
@@ -1072,5 +1111,5 @@ void AsmTyper::VisitWithExpectation(Expression* expr, Type* expected_type,
   }
   expected_type_ = save;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

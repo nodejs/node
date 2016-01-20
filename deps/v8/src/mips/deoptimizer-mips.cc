@@ -5,6 +5,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
@@ -88,7 +89,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
   input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
   input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
+  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
     input_->SetDoubleRegister(i, 0.0);
   }
 
@@ -139,14 +140,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp.bit() | ra.bit();
 
-  const int kDoubleRegsSize =
-      kDoubleSize * FPURegister::kMaxNumAllocatableRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kMaxNumRegisters;
 
   // Save all FPU registers before messing with them.
   __ Subu(sp, sp, Operand(kDoubleRegsSize));
-  for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
-    FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-    int offset = i * kDoubleSize;
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
+    int offset = code * kDoubleSize;
     __ sdc1(fpu_reg, MemOperand(sp, offset));
   }
 
@@ -215,9 +218,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   int double_regs_offset = FrameDescription::double_registers_offset();
   // Copy FPU registers to
   // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    int dst_offset = code * kDoubleSize + double_regs_offset;
+    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
     __ ldc1(f0, MemOperand(sp, src_offset));
     __ sdc1(f0, MemOperand(a1, dst_offset));
   }
@@ -284,9 +288,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ BranchShort(&outer_push_loop, lt, t0, Operand(a1));
 
   __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
-  for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
-    const FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-    int src_offset = i * kDoubleSize + double_regs_offset;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
     __ ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
