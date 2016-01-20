@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --noturbo-osr --expose-debug-as debug
+// Flags: --noturbo-osr --noturbo-inlining --expose-debug-as debug
 
 var stdlib = this;
 var buffer = new ArrayBuffer(64 * 1024);

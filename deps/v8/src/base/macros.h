@@ -417,7 +417,8 @@ template <>
 inline bool is_fundamental<uint8_t>() {
   return true;
 }
-}
-}  // namespace v8::base
+
+}  // namespace base
+}  // namespace v8
 
 #endif   // V8_BASE_MACROS_H_

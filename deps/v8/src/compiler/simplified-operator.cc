@@ -168,6 +168,9 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(NumberMultiply, Operator::kCommutative, 2)           \
   V(NumberDivide, Operator::kNoProperties, 2)            \
   V(NumberModulus, Operator::kNoProperties, 2)           \
+  V(NumberBitwiseOr, Operator::kCommutative, 2)          \
+  V(NumberBitwiseXor, Operator::kCommutative, 2)         \
+  V(NumberBitwiseAnd, Operator::kCommutative, 2)         \
   V(NumberShiftLeft, Operator::kNoProperties, 2)         \
   V(NumberShiftRight, Operator::kNoProperties, 2)        \
   V(NumberShiftRightLogical, Operator::kNoProperties, 2) \
@@ -182,6 +185,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)   \
   V(ChangeBoolToBit, Operator::kNoProperties, 1)         \
   V(ChangeBitToBool, Operator::kNoProperties, 1)         \
+  V(ObjectIsNumber, Operator::kNoProperties, 1)          \
   V(ObjectIsSmi, Operator::kNoProperties, 1)
 
 #define NO_THROW_OP_LIST(V)                 \

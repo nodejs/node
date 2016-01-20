@@ -693,8 +693,10 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   RUNTIME_ASSERT(pattern_length > 0);
 
   if (limit == 0xffffffffu) {
+    FixedArray* last_match_cache_unused;
     Handle<Object> cached_answer(
         RegExpResultsCache::Lookup(isolate->heap(), *subject, *pattern,
+                                   &last_match_cache_unused,
                                    RegExpResultsCache::STRING_SPLIT_SUBSTRINGS),
         isolate);
     if (*cached_answer != Smi::FromInt(0)) {
@@ -757,6 +759,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   if (limit == 0xffffffffu) {
     if (result->HasFastObjectElements()) {
       RegExpResultsCache::Enter(isolate, subject, pattern, elements,
+                                isolate->factory()->empty_fixed_array(),
                                 RegExpResultsCache::STRING_SPLIT_SUBSTRINGS);
     }
   }
@@ -782,6 +785,22 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
       isolate, result,
       RegExpImpl::Exec(regexp, subject, index, last_match_info));
   return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_RegExpFlags) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  return regexp->flags();
+}
+
+
+RUNTIME_FUNCTION(Runtime_RegExpSource) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  return regexp->source();
 }
 
 
@@ -921,58 +940,24 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, escaped_source,
                                      EscapeRegExpSource(isolate, source));
 
-  Handle<Object> global = factory->ToBoolean(flags.is_global());
-  Handle<Object> ignore_case = factory->ToBoolean(flags.is_ignore_case());
-  Handle<Object> multiline = factory->ToBoolean(flags.is_multiline());
-  Handle<Object> sticky = factory->ToBoolean(flags.is_sticky());
-  Handle<Object> unicode = factory->ToBoolean(flags.is_unicode());
+  regexp->set_source(*escaped_source);
+  regexp->set_flags(Smi::FromInt(flags.value()));
 
   Map* map = regexp->map();
   Object* constructor = map->GetConstructor();
-  if (!FLAG_harmony_regexps && !FLAG_harmony_unicode_regexps &&
-      constructor->IsJSFunction() &&
+  if (constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, *escaped_source);
-    // Both true and false are immovable immortal objects so no need for write
-    // barrier.
-    regexp->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex, *global,
-                                  SKIP_WRITE_BARRIER);
-    regexp->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex, *ignore_case,
-                                  SKIP_WRITE_BARRIER);
-    regexp->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex, *multiline,
-                                  SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(0), SKIP_WRITE_BARRIER);
   } else {
-    // Map has changed, so use generic, but slower, method.  We also end here if
-    // the --harmony-regexp flag is set, because the initial map does not have
-    // space for the 'sticky' flag, since it is from the snapshot, but must work
-    // both with and without --harmony-regexp.  When sticky comes out from under
-    // the flag, we will be able to use the fast initial map.
-    PropertyAttributes final =
-        static_cast<PropertyAttributes>(READ_ONLY | DONT_ENUM | DONT_DELETE);
+    // Map has changed, so use generic, but slower, method.
     PropertyAttributes writable =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    Handle<Object> zero(Smi::FromInt(0), isolate);
-    JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->source_string(),
-                                             escaped_source, final).Check();
-    JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->global_string(),
-                                             global, final).Check();
     JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->ignore_case_string(), ignore_case, final).Check();
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->multiline_string(), multiline, final).Check();
-    if (FLAG_harmony_regexps) {
-      JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->sticky_string(),
-                                               sticky, final).Check();
-    }
-    if (FLAG_harmony_unicode_regexps) {
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          regexp, factory->unicode_string(), unicode, final).Check();
-    }
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->last_index_string(), zero, writable).Check();
+        regexp, factory->last_index_string(),
+        Handle<Smi>(Smi::FromInt(0), isolate), writable)
+        .Check();
   }
 
   Handle<Object> result;
@@ -1017,23 +1002,23 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   static const int kMinLengthToCache = 0x1000;
 
   if (subject_length > kMinLengthToCache) {
-    Handle<Object> cached_answer(
-        RegExpResultsCache::Lookup(isolate->heap(), *subject, regexp->data(),
-                                   RegExpResultsCache::REGEXP_MULTIPLE_INDICES),
-        isolate);
-    if (*cached_answer != Smi::FromInt(0)) {
+    FixedArray* last_match_cache;
+    Object* cached_answer = RegExpResultsCache::Lookup(
+        isolate->heap(), *subject, regexp->data(), &last_match_cache,
+        RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
+    if (cached_answer->IsFixedArray()) {
+      int capture_registers = (capture_count + 1) * 2;
+      int32_t* last_match = NewArray<int32_t>(capture_registers);
+      for (int i = 0; i < capture_registers; i++) {
+        last_match[i] = Smi::cast(last_match_cache->get(i))->value();
+      }
       Handle<FixedArray> cached_fixed_array =
-          Handle<FixedArray>(FixedArray::cast(*cached_answer));
+          Handle<FixedArray>(FixedArray::cast(cached_answer));
       // The cache FixedArray is a COW-array and can therefore be reused.
       JSArray::SetContent(result_array, cached_fixed_array);
-      // The actual length of the result array is stored in the last element of
-      // the backing store (the backing FixedArray may have a larger capacity).
-      Object* cached_fixed_array_last_element =
-          cached_fixed_array->get(cached_fixed_array->length() - 1);
-      Smi* js_array_length = Smi::cast(cached_fixed_array_last_element);
-      result_array->set_length(js_array_length);
       RegExpImpl::SetLastMatchInfo(last_match_array, subject, capture_count,
-                                   NULL);
+                                   last_match);
+      DeleteArray(last_match);
       return *result_array;
     }
   }
@@ -1121,19 +1106,24 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
     }
 
     RegExpImpl::SetLastMatchInfo(last_match_array, subject, capture_count,
-                                 NULL);
+                                 global_cache.LastSuccessfulMatch());
 
     if (subject_length > kMinLengthToCache) {
-      // Store the length of the result array into the last element of the
-      // backing FixedArray.
-      builder.EnsureCapacity(1);
-      Handle<FixedArray> fixed_array = builder.array();
-      fixed_array->set(fixed_array->length() - 1,
-                       Smi::FromInt(builder.length()));
+      // Store the last successful match into the array for caching.
+      // TODO(yangguo): do not expose last match to JS and simplify caching.
+      int capture_registers = (capture_count + 1) * 2;
+      Handle<FixedArray> last_match_cache =
+          isolate->factory()->NewFixedArray(capture_registers);
+      int32_t* last_match = global_cache.LastSuccessfulMatch();
+      for (int i = 0; i < capture_registers; i++) {
+        last_match_cache->set(i, Smi::FromInt(last_match[i]));
+      }
+      Handle<FixedArray> result_fixed_array = builder.array();
+      result_fixed_array->Shrink(builder.length());
       // Cache the result and turn the FixedArray into a COW array.
-      RegExpResultsCache::Enter(isolate, subject,
-                                handle(regexp->data(), isolate), fixed_array,
-                                RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
+      RegExpResultsCache::Enter(
+          isolate, subject, handle(regexp->data(), isolate), result_fixed_array,
+          last_match_cache, RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
     }
     return *builder.ToJSArray(result_array);
   } else {
@@ -1149,8 +1139,8 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
   HandleScope handles(isolate);
   DCHECK(args.length() == 4);
 
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, result_array, 3);
   RUNTIME_ASSERT(last_match_info->HasFastObjectElements());

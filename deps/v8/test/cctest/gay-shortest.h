@@ -41,6 +41,7 @@ struct PrecomputedShortest {
 
 Vector<const PrecomputedShortest> PrecomputedShortestRepresentations();
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // GAY_SHORTEST_H_

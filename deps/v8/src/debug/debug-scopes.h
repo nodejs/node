@@ -30,7 +30,8 @@ class ScopeIterator {
 
   static const int kScopeDetailsTypeIndex = 0;
   static const int kScopeDetailsObjectIndex = 1;
-  static const int kScopeDetailsSize = 2;
+  static const int kScopeDetailsNameIndex = 2;
+  static const int kScopeDetailsSize = 3;
 
   ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
                 bool ignore_nested_scopes = false);

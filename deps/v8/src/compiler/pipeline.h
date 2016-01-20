@@ -11,6 +11,9 @@
 
 namespace v8 {
 namespace internal {
+
+class RegisterConfiguration;
+
 namespace compiler {
 
 class CallDescriptor;
@@ -18,7 +21,6 @@ class Graph;
 class InstructionSequence;
 class Linkage;
 class PipelineData;
-class RegisterConfiguration;
 class Schedule;
 
 class Pipeline {

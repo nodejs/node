@@ -194,7 +194,7 @@ class OS {
   static void Sleep(TimeDelta interval);
 
   // Abort the current process.
-  static void Abort();
+  V8_NORETURN static void Abort();
 
   // Debug break.
   static void DebugBreak();
@@ -479,6 +479,7 @@ class Thread {
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_PLATFORM_H_

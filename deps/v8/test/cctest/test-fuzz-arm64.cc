@@ -59,7 +59,7 @@ TEST(FUZZ_disasm) {
   seed48(seed);
 
   Decoder<DispatchingDecoderVisitor> decoder;
-  Disassembler disasm;
+  DisassemblingDecoder disasm;
   Instruction buffer[kInstructionSize];
 
   decoder.AppendVisitor(&disasm);

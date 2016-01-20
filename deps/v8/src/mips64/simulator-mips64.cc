@@ -2481,7 +2481,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
         } else if (fabs(fs) < fabs(ft)) {
           result = fs;
         } else {
-          result = (fs > ft ? fs : ft);
+          result = (fs < ft ? fs : ft);
         }
         set_fpu_register_float(fd_reg(), result);
       }
@@ -2690,7 +2690,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
         } else if (fabs(fs) < fabs(ft)) {
           result = fs;
         } else {
-          result = (fs > ft ? fs : ft);
+          result = (fs < ft ? fs : ft);
         }
         set_fpu_register_double(fd_reg(), result);
       }
@@ -3364,8 +3364,17 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       }
       SetResult(rd_reg(), alu_out);
       break;
-    case MFLO:
-      SetResult(rd_reg(), get_register(LO));
+    case MFLO:  // MFLO == DCLZ on R6.
+      if (kArchVariant != kMips64r6) {
+        DCHECK(sa() == 0);
+        alu_out = get_register(LO);
+      } else {
+        // MIPS spec: If no bits were set in GPR rs(), the result written to
+        // GPR rd() is 64.
+        DCHECK(sa() == 1);
+        alu_out = base::bits::CountLeadingZeros64(static_cast<int64_t>(rs_u()));
+      }
+      SetResult(rd_reg(), alu_out);
       break;
     // Instructions using HI and LO registers.
     case MULT: {  // MULT == D_MUL_MUH.
@@ -3393,8 +3402,22 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case MULTU:
       u64hilo = static_cast<uint64_t>(rs_u() & 0xffffffff) *
                 static_cast<uint64_t>(rt_u() & 0xffffffff);
-      set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
-      set_register(HI, static_cast<int32_t>(u64hilo >> 32));
+      if (kArchVariant != kMips64r6) {
+        set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
+        set_register(HI, static_cast<int32_t>(u64hilo >> 32));
+      } else {
+        switch (sa()) {
+          case MUL_OP:
+            set_register(rd_reg(), static_cast<int32_t>(u64hilo & 0xffffffff));
+            break;
+          case MUH_OP:
+            set_register(rd_reg(), static_cast<int32_t>(u64hilo >> 32));
+            break;
+          default:
+            UNIMPLEMENTED_MIPS();
+            break;
+        }
+      }
       break;
     case DMULT:  // DMULT == D_MUL_MUH.
       if (kArchVariant != kMips64r6) {
@@ -3462,17 +3485,61 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       break;
     }
     case DIVU:
-      if (rt_u() != 0) {
-        uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
-        uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
-        set_register(LO, rs_u_32 / rt_u_32);
-        set_register(HI, rs_u_32 % rt_u_32);
+      switch (kArchVariant) {
+        case kMips64r6: {
+          uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
+          uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
+          switch (get_instr()->SaValue()) {
+            case DIV_OP:
+              if (rt_u_32 != 0) {
+                set_register(rd_reg(), rs_u_32 / rt_u_32);
+              }
+              break;
+            case MOD_OP:
+              if (rt_u() != 0) {
+                set_register(rd_reg(), rs_u_32 % rt_u_32);
+              }
+              break;
+            default:
+              UNIMPLEMENTED_MIPS();
+              break;
+          }
+        } break;
+        default: {
+          if (rt_u() != 0) {
+            uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
+            uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
+            set_register(LO, rs_u_32 / rt_u_32);
+            set_register(HI, rs_u_32 % rt_u_32);
+          }
+        }
       }
       break;
     case DDIVU:
-      if (rt_u() != 0) {
-        set_register(LO, rs_u() / rt_u());
-        set_register(HI, rs_u() % rt_u());
+      switch (kArchVariant) {
+        case kMips64r6: {
+          switch (get_instr()->SaValue()) {
+            case DIV_OP:
+              if (rt_u() != 0) {
+                set_register(rd_reg(), rs_u() / rt_u());
+              }
+              break;
+            case MOD_OP:
+              if (rt_u() != 0) {
+                set_register(rd_reg(), rs_u() % rt_u());
+              }
+              break;
+            default:
+              UNIMPLEMENTED_MIPS();
+              break;
+          }
+        } break;
+        default: {
+          if (rt_u() != 0) {
+            set_register(LO, rs_u() / rt_u());
+            set_register(HI, rs_u() % rt_u());
+          }
+        }
       }
       break;
     case ADD:
@@ -3607,7 +3674,13 @@ void Simulator::DecodeTypeRegisterSPECIAL2() {
       // MIPS32 spec: If no bits were set in GPR rs(), the result written to
       // GPR rd is 32.
       alu_out = base::bits::CountLeadingZeros32(static_cast<uint32_t>(rs_u()));
-      set_register(rd_reg(), alu_out);
+      SetResult(rd_reg(), alu_out);
+      break;
+    case DCLZ:
+      // MIPS64 spec: If no bits were set in GPR rs(), the result written to
+      // GPR rd is 64.
+      alu_out = base::bits::CountLeadingZeros64(static_cast<uint64_t>(rs_u()));
+      SetResult(rd_reg(), alu_out);
       break;
     default:
       alu_out = 0x12345678;

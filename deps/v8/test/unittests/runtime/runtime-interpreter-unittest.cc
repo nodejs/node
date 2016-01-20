@@ -167,6 +167,6 @@ TEST_F(RuntimeInterpreterTest, ToBoolean) {
 }
 
 
-}  // Namespace interpreter
+}  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

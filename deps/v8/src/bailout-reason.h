@@ -29,7 +29,6 @@ namespace internal {
     "Assignment to parameter, function uses arguments object")                 \
   V(kAssignmentToParameterInArgumentsObject,                                   \
     "Assignment to parameter in arguments object")                             \
-  V(kAttemptToUseUndefinedCache, "Attempt to use undefined cache")             \
   V(kBadValueContextForArgumentsObjectValue,                                   \
     "Bad value context for arguments object value")                            \
   V(kBadValueContextForArgumentsValue,                                         \
@@ -58,6 +57,7 @@ namespace internal {
   V(kDestinationOfCopyNotAligned, "Destination of copy not aligned")           \
   V(kDontDeleteCellsCannotContainTheHole,                                      \
     "DontDelete cells can't contain the hole")                                 \
+  V(kDoExpression, "Do expression encountered")                                \
   V(kDoPushArgumentNotImplementedForDoubleType,                                \
     "DoPushArgument not implemented for double type")                          \
   V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")            \
@@ -105,14 +105,6 @@ namespace internal {
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                   \
     "Input GPR is expected to have upper32 cleared")                           \
   V(kInputStringTooLong, "Input string too long")                              \
-  V(kInstanceofStubUnexpectedCallSiteCacheCheck,                               \
-    "InstanceofStub unexpected call site cache (check)")                       \
-  V(kInstanceofStubUnexpectedCallSiteCacheCmp1,                                \
-    "InstanceofStub unexpected call site cache (cmp 1)")                       \
-  V(kInstanceofStubUnexpectedCallSiteCacheCmp2,                                \
-    "InstanceofStub unexpected call site cache (cmp 2)")                       \
-  V(kInstanceofStubUnexpectedCallSiteCacheMov,                                 \
-    "InstanceofStub unexpected call site cache (mov)")                         \
   V(kInteger32ToSmiFieldWritingToNonSmiLocation,                               \
     "Integer32ToSmiField writing to non-smi location")                         \
   V(kInvalidCaptureReferenced, "Invalid capture referenced")                   \
@@ -183,7 +175,8 @@ namespace internal {
   V(kRegisterWasClobbered, "Register was clobbered")                           \
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
-  V(kScriptContext, "Allocation of script context")                            \
+  V(kSloppyFunctionExpectsJSReceiverReceiver,                                  \
+    "Sloppy function expects JSReceiver as receiver.")                         \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kSpread, "Spread in array literal")                                        \
@@ -192,20 +185,6 @@ namespace internal {
   V(kSuperReference, "Super reference")                                        \
   V(kTheCurrentStackPointerIsBelowCsp,                                         \
     "The current stack pointer is below csp")                                  \
-  V(kTheInstructionShouldBeALis, "The instruction should be a lis")            \
-  V(kTheInstructionShouldBeALui, "The instruction should be a lui")            \
-  V(kTheInstructionShouldBeAnOri, "The instruction should be an ori")          \
-  V(kTheInstructionShouldBeAnOris, "The instruction should be an oris")        \
-  V(kTheInstructionShouldBeALi, "The instruction should be a li")              \
-  V(kTheInstructionShouldBeASldi, "The instruction should be a sldi")          \
-  V(kTheInstructionToPatchShouldBeAnLdrLiteral,                                \
-    "The instruction to patch should be a ldr literal")                        \
-  V(kTheInstructionToPatchShouldBeALis,                                        \
-    "The instruction to patch should be a lis")                                \
-  V(kTheInstructionToPatchShouldBeALui,                                        \
-    "The instruction to patch should be a lui")                                \
-  V(kTheInstructionToPatchShouldBeAnOri,                                       \
-    "The instruction to patch should be an ori")                               \
   V(kTheSourceAndDestinationAreTheSame,                                        \
     "The source and destination are the same")                                 \
   V(kTheStackWasCorruptedByMacroAssemblerCall,                                 \
@@ -220,7 +199,6 @@ namespace internal {
     "ToOperand Unsupported double immediate")                                  \
   V(kTryCatchStatement, "TryCatchStatement")                                   \
   V(kTryFinallyStatement, "TryFinallyStatement")                               \
-  V(kUnableToEncodeValueAsSmi, "Unable to encode value as smi")                \
   V(kUnalignedAllocationInNewSpace, "Unaligned allocation in new space")       \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
   V(kUnexpectedAllocationTop, "Unexpected allocation top")                     \
@@ -254,15 +232,11 @@ namespace internal {
     "Unexpected number of pre-allocated property fields")                      \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                              \
   V(kUnexpectedSmi, "Unexpected smi value")                                    \
-  V(kUnexpectedStringFunction, "Unexpected String function")                   \
+  V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedStringType, "Unexpected string type")                           \
-  V(kUnexpectedStringWrapperInstanceSize,                                      \
-    "Unexpected string wrapper instance size")                                 \
   V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                            \
     "Unexpected type for RegExp data, FixedArray expected")                    \
   V(kUnexpectedValue, "Unexpected value")                                      \
-  V(kUnexpectedUnusedPropertiesOfStringWrapper,                                \
-    "Unexpected unused properties of string wrapper")                          \
   V(kUnsupportedConstCompoundAssignment,                                       \
     "Unsupported const compound assignment")                                   \
   V(kUnsupportedCountOperationWithConst,                                       \
@@ -275,6 +249,7 @@ namespace internal {
   V(kUnsupportedPhiUseOfArguments, "Unsupported phi use of arguments")         \
   V(kUnsupportedPhiUseOfConstVariable,                                         \
     "Unsupported phi use of const variable")                                   \
+  V(kUnexpectedReturnFromThrow, "Unexpectedly returned from a throw")          \
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \
   V(kVariableResolvedToWithContext, "Variable resolved to with context")       \
   V(kWeShouldNotHaveAnEmptyLexicalContext,                                     \

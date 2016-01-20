@@ -72,15 +72,19 @@ class NodeProperties final {
     return IrOpcode::IsPhiOpcode(node->opcode());
   }
 
+  // Determines whether exceptions thrown by the given node are handled locally
+  // within the graph (i.e. an IfException projection is present).
   static bool IsExceptionalCall(Node* node);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.
 
+  static void ReplaceValueInput(Node* node, Node* value, int index);
   static void ReplaceContextInput(Node* node, Node* context);
   static void ReplaceControlInput(Node* node, Node* control);
   static void ReplaceEffectInput(Node* node, Node* effect, int index = 0);
   static void ReplaceFrameStateInput(Node* node, int index, Node* frame_state);
+  static void RemoveFrameStateInput(Node* node, int index);
   static void RemoveNonValueInputs(Node* node);
 
   // Merge the control node {node} into the end of the graph, introducing a
@@ -118,6 +122,7 @@ class NodeProperties final {
     DCHECK(IsTyped(node));
     return node->type();
   }
+  static Type* GetTypeOrAny(Node* node);
   static void SetType(Node* node, Type* type) {
     DCHECK_NOT_NULL(type);
     node->set_type(type);

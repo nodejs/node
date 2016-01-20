@@ -13,22 +13,48 @@ namespace internal {
 
 class Processor: public AstVisitor {
  public:
-  Processor(Isolate* isolate, Variable* result,
+  Processor(Isolate* isolate, Scope* scope, Variable* result,
             AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
+        replacement_(nullptr),
         is_set_(false),
-        in_try_(false),
+        zone_(ast_value_factory->zone()),
+        scope_(scope),
         factory_(ast_value_factory) {
-    InitializeAstVisitor(isolate, ast_value_factory->zone());
+    InitializeAstVisitor(isolate);
   }
 
-  virtual ~Processor() { }
+  Processor(Parser* parser, Scope* scope, Variable* result,
+            AstValueFactory* ast_value_factory)
+      : result_(result),
+        result_assigned_(false),
+        replacement_(nullptr),
+        is_set_(false),
+        scope_(scope),
+        factory_(ast_value_factory) {
+    InitializeAstVisitor(parser->stack_limit());
+  }
+
+  ~Processor() override {}
 
   void Process(ZoneList<Statement*>* statements);
   bool result_assigned() const { return result_assigned_; }
 
+  Zone* zone() { return zone_; }
+  Scope* scope() { return scope_; }
   AstNodeFactory* factory() { return &factory_; }
+
+  // Returns ".result = value"
+  Expression* SetResult(Expression* value) {
+    result_assigned_ = true;
+    VariableProxy* result_proxy = factory()->NewVariableProxy(result_);
+    return factory()->NewAssignment(Token::ASSIGN, result_proxy, value,
+                                    RelocInfo::kNoPosition);
+  }
+
+  // Inserts '.result = undefined' in front of the given statement.
+  Statement* AssignUndefinedBefore(Statement* s);
 
  private:
   Variable* result_;
@@ -39,24 +65,22 @@ class Processor: public AstVisitor {
   // there was ever an assignment to result_.
   bool result_assigned_;
 
+  // When visiting a node, we "return" a replacement for that node in
+  // [replacement_].  In many cases this will just be the original node.
+  Statement* replacement_;
+
   // To avoid storing to .result all the time, we eliminate some of
   // the stores by keeping track of whether or not we're sure .result
   // will be overwritten anyway. This is a bit more tricky than what I
-  // was hoping for
+  // was hoping for.
   bool is_set_;
-  bool in_try_;
 
+  Zone* zone_;
+  Scope* scope_;
   AstNodeFactory factory_;
 
-  Expression* SetResult(Expression* value) {
-    result_assigned_ = true;
-    VariableProxy* result_proxy = factory()->NewVariableProxy(result_);
-    return factory()->NewAssignment(
-        Token::ASSIGN, result_proxy, value, RelocInfo::kNoPosition);
-  }
-
   // Node visitors.
-#define DEF_VISIT(type) virtual void Visit##type(type* node) override;
+#define DEF_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
@@ -66,9 +90,24 @@ class Processor: public AstVisitor {
 };
 
 
+Statement* Processor::AssignUndefinedBefore(Statement* s) {
+  Expression* result_proxy = factory()->NewVariableProxy(result_);
+  Expression* undef = factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
+  Expression* assignment = factory()->NewAssignment(
+      Token::ASSIGN, result_proxy, undef, RelocInfo::kNoPosition);
+  Block* b = factory()->NewBlock(NULL, 2, false, RelocInfo::kNoPosition);
+  b->statements()->Add(
+      factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
+      zone());
+  b->statements()->Add(s, zone());
+  return b;
+}
+
+
 void Processor::Process(ZoneList<Statement*>* statements) {
   for (int i = statements->length() - 1; i >= 0; --i) {
     Visit(statements->at(i));
+    statements->Set(i, replacement_);
   }
 }
 
@@ -83,34 +122,52 @@ void Processor::VisitBlock(Block* node) {
   // returns 'undefined'. To obtain the same behavior with v8, we need
   // to prevent rewriting in that case.
   if (!node->ignore_completion_value()) Process(node->statements());
+  replacement_ = node;
 }
 
 
 void Processor::VisitExpressionStatement(ExpressionStatement* node) {
   // Rewrite : <x>; -> .result = <x>;
-  if (!is_set_ && !node->expression()->IsThrow()) {
+  if (!is_set_) {
     node->set_expression(SetResult(node->expression()));
-    if (!in_try_) is_set_ = true;
+    is_set_ = true;
   }
+  replacement_ = node;
 }
 
 
 void Processor::VisitIfStatement(IfStatement* node) {
-  // Rewrite both then and else parts (reversed).
-  bool save = is_set_;
-  Visit(node->else_statement());
-  bool set_after_then = is_set_;
-  is_set_ = save;
+  // Rewrite both branches.
+  bool set_after = is_set_;
   Visit(node->then_statement());
-  is_set_ = is_set_ && set_after_then;
+  node->set_then_statement(replacement_);
+  bool set_in_then = is_set_;
+  is_set_ = set_after;
+  Visit(node->else_statement());
+  node->set_else_statement(replacement_);
+  is_set_ = is_set_ && set_in_then;
+  replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
 void Processor::VisitIterationStatement(IterationStatement* node) {
   // Rewrite the body.
-  bool set_after_loop = is_set_;
+  bool set_after = is_set_;
+  is_set_ = false;  // We are in a loop, so we can't rely on [set_after].
   Visit(node->body());
-  is_set_ = is_set_ && set_after_loop;
+  node->set_body(replacement_);
+  is_set_ = is_set_ && set_after;
+  replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
@@ -140,76 +197,138 @@ void Processor::VisitForOfStatement(ForOfStatement* node) {
 
 
 void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
-  // Rewrite both try and catch blocks (reversed order).
-  bool set_after_catch = is_set_;
-  Visit(node->catch_block());
-  is_set_ = is_set_ && set_after_catch;
-  bool save = in_try_;
-  in_try_ = true;
+  // Rewrite both try and catch block.
+  bool set_after = is_set_;
   Visit(node->try_block());
-  in_try_ = save;
+  node->set_try_block(static_cast<Block*>(replacement_));
+  bool set_in_try = is_set_;
+  is_set_ = set_after;
+  Visit(node->catch_block());
+  node->set_catch_block(static_cast<Block*>(replacement_));
+  is_set_ = is_set_ && set_in_try;
+  replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
 void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  // Rewrite both try and finally block (reversed order).
+  // Rewrite both try and finally block (in reverse order).
+  bool set_after = is_set_;
+  is_set_ = true;  // Don't normally need to assign in finally block.
   Visit(node->finally_block());
-  bool save = in_try_;
-  in_try_ = true;
+  node->set_finally_block(replacement_->AsBlock());
+  {  // Save .result value at the beginning of the finally block and restore it
+     // at the end again: ".backup = .result; ...; .result = .backup"
+     // This is necessary because the finally block does not normally contribute
+     // to the completion value.
+    Variable* backup = scope()->NewTemporary(
+        factory()->ast_value_factory()->dot_result_string());
+    Expression* backup_proxy = factory()->NewVariableProxy(backup);
+    Expression* result_proxy = factory()->NewVariableProxy(result_);
+    Expression* save = factory()->NewAssignment(
+        Token::ASSIGN, backup_proxy, result_proxy, RelocInfo::kNoPosition);
+    Expression* restore = factory()->NewAssignment(
+        Token::ASSIGN, result_proxy, backup_proxy, RelocInfo::kNoPosition);
+    node->finally_block()->statements()->InsertAt(
+        0, factory()->NewExpressionStatement(save, RelocInfo::kNoPosition),
+        zone());
+    node->finally_block()->statements()->Add(
+        factory()->NewExpressionStatement(restore, RelocInfo::kNoPosition),
+        zone());
+  }
+  is_set_ = set_after;
   Visit(node->try_block());
-  in_try_ = save;
+  node->set_try_block(replacement_->AsBlock());
+  replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
 void Processor::VisitSwitchStatement(SwitchStatement* node) {
-  // Rewrite statements in all case clauses in reversed order.
+  // Rewrite statements in all case clauses (in reverse order).
   ZoneList<CaseClause*>* clauses = node->cases();
-  bool set_after_switch = is_set_;
+  bool set_after = is_set_;
   for (int i = clauses->length() - 1; i >= 0; --i) {
     CaseClause* clause = clauses->at(i);
     Process(clause->statements());
   }
-  is_set_ = is_set_ && set_after_switch;
+  is_set_ = is_set_ && set_after;
+  replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
 void Processor::VisitContinueStatement(ContinueStatement* node) {
   is_set_ = false;
+  replacement_ = node;
 }
 
 
 void Processor::VisitBreakStatement(BreakStatement* node) {
   is_set_ = false;
+  replacement_ = node;
 }
 
 
 void Processor::VisitWithStatement(WithStatement* node) {
-  bool set_after_body = is_set_;
   Visit(node->statement());
-  is_set_ = is_set_ && set_after_body;
+  node->set_statement(replacement_);
+  replacement_ = node;
+
+  if (FLAG_harmony_completion && !is_set_) {
+    is_set_ = true;
+    replacement_ = AssignUndefinedBefore(node);
+  }
 }
 
 
 void Processor::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* node) {
   Visit(node->statement());
+  node->set_statement(replacement_);
+  replacement_ = node;
 }
 
 
-// Do nothing:
-void Processor::VisitVariableDeclaration(VariableDeclaration* node) {}
-void Processor::VisitFunctionDeclaration(FunctionDeclaration* node) {}
-void Processor::VisitImportDeclaration(ImportDeclaration* node) {}
-void Processor::VisitExportDeclaration(ExportDeclaration* node) {}
-void Processor::VisitEmptyStatement(EmptyStatement* node) {}
-void Processor::VisitReturnStatement(ReturnStatement* node) {}
-void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}
+void Processor::VisitEmptyStatement(EmptyStatement* node) {
+  replacement_ = node;
+}
 
 
-// Expressions are never visited yet.
+void Processor::VisitReturnStatement(ReturnStatement* node) {
+  is_set_ = true;
+  replacement_ = node;
+}
+
+
+void Processor::VisitDebuggerStatement(DebuggerStatement* node) {
+  replacement_ = node;
+}
+
+
+// Expressions are never visited.
 #define DEF_VISIT(type)                                         \
   void Processor::Visit##type(type* expr) { UNREACHABLE(); }
 EXPRESSION_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+
+// Declarations are never visited.
+#define DEF_VISIT(type) \
+  void Processor::Visit##type(type* expr) { UNREACHABLE(); }
+DECLARATION_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
 
@@ -228,7 +347,8 @@ bool Rewriter::Rewrite(ParseInfo* info) {
         scope->NewTemporary(info->ast_value_factory()->dot_result_string());
     // The name string must be internalized at this point.
     DCHECK(!result->name().is_null());
-    Processor processor(info->isolate(), result, info->ast_value_factory());
+    Processor processor(info->isolate(), scope, result,
+                        info->ast_value_factory());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 
@@ -249,6 +369,32 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     }
   }
 
+  return true;
+}
+
+
+bool Rewriter::Rewrite(Parser* parser, DoExpression* expr,
+                       AstValueFactory* factory) {
+  Block* block = expr->block();
+  Scope* scope = block->scope();
+  ZoneList<Statement*>* body = block->statements();
+  VariableProxy* result = expr->result();
+  Variable* result_var = result->var();
+
+  if (!body->is_empty()) {
+    Processor processor(parser, scope, result_var, factory);
+    processor.Process(body);
+    if (processor.HasStackOverflow()) return false;
+
+    if (!processor.result_assigned()) {
+      AstNodeFactory* node_factory = processor.factory();
+      Expression* undef =
+          node_factory->NewUndefinedLiteral(RelocInfo::kNoPosition);
+      Statement* completion = node_factory->NewExpressionStatement(
+          processor.SetResult(undef), expr->position());
+      body->Add(completion, factory->zone());
+    }
+  }
   return true;
 }
 

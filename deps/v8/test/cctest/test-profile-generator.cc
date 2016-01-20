@@ -27,6 +27,9 @@
 //
 // Tests of profiles generator and utilities.
 
+// TODO(mythria): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
@@ -493,6 +496,7 @@ static const ProfileNode* PickChild(const ProfileNode* parent,
 TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
+  i::FLAG_turbo_inlining = false;
   i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
@@ -568,6 +572,7 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
 TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
+  i::FLAG_turbo_inlining = false;
   i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
@@ -577,15 +582,16 @@ TEST(ProfileNodeScriptId) {
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
   i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
   CHECK_EQ(0, iprofiler->GetProfilesCount());
-  v8::Handle<v8::Script> script_a = v8::Script::Compile(v8::String::NewFromUtf8(
-      env->GetIsolate(), "function a() { startProfiling(); }\n"));
-  script_a->Run();
-  v8::Handle<v8::Script> script_b =
-      v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
-                                                  "function b() { a(); }\n"
-                                                  "b();\n"
-                                                  "stopProfiling();\n"));
-  script_b->Run();
+  v8::Local<v8::Script> script_a =
+      v8_compile(v8_str("function a() { startProfiling(); }\n"));
+  script_a->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
+      .ToLocalChecked();
+  v8::Local<v8::Script> script_b =
+      v8_compile(v8_str("function b() { a(); }\n"
+                        "b();\n"
+                        "stopProfiling();\n"));
+  script_b->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
+      .ToLocalChecked();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
@@ -632,9 +638,13 @@ static const char* line_number_test_source_profile_time_functions =
 int GetFunctionLineNumber(LocalContext* env, const char* name) {
   CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CodeMap* code_map = profiler->generator()->code_map();
-  i::Handle<i::JSFunction> func = v8::Utils::OpenHandle(
-      *v8::Local<v8::Function>::Cast(
-          (*(*env))->Global()->Get(v8_str(name))));
+  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          (*(*env))
+              ->Global()
+              ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                    v8_str(name))
+              .ToLocalChecked())));
   CodeEntry* func_entry = code_map->FindEntry(func->code()->address());
   if (!func_entry)
     FATAL(name);
@@ -679,20 +689,19 @@ TEST(BailoutReason) {
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
   i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
   CHECK_EQ(0, iprofiler->GetProfilesCount());
-  v8::Handle<v8::Script> script =
-      v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
-                                                  "function Debugger() {\n"
-                                                  "  debugger;\n"
-                                                  "  startProfiling();\n"
-                                                  "}\n"
-                                                  "function TryFinally() {\n"
-                                                  "  try {\n"
-                                                  "    Debugger();\n"
-                                                  "  } finally { };\n"
-                                                  "}\n"
-                                                  "TryFinally();\n"
-                                                  "stopProfiling();"));
-  script->Run();
+  v8::Local<v8::Script> script =
+      v8_compile(v8_str("function Debugger() {\n"
+                        "  debugger;\n"
+                        "  startProfiling();\n"
+                        "}\n"
+                        "function TryFinally() {\n"
+                        "  try {\n"
+                        "    Debugger();\n"
+                        "  } finally { };\n"
+                        "}\n"
+                        "TryFinally();\n"
+                        "stopProfiling();"));
+  script->Run(v8::Isolate::GetCurrent()->GetCurrentContext()).ToLocalChecked();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   CHECK(profile);

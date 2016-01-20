@@ -8,7 +8,7 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
-#include "src/strings-storage.h"
+#include "src/profiler/strings-storage.h"
 
 namespace v8 {
 namespace internal {
@@ -616,6 +616,7 @@ class HeapSnapshotJSONSerializer {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_

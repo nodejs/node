@@ -648,6 +648,7 @@ Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
   Float64Matcher m(node->InputAt(0));
   if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
   if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
+  if (m.IsRoundInt64ToFloat64()) return Replace(m.node()->InputAt(0));
   if (m.IsPhi()) {
     Node* const phi = m.node();
     DCHECK_EQ(kRepFloat64, RepresentationOf(OpParameter<MachineType>(phi)));

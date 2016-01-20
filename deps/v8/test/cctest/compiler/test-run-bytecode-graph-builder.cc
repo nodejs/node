@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <utility>
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
-#include "src/v8.h"
+#include <utility>
 
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
@@ -87,9 +88,12 @@ class BytecodeGraphTester {
 
   Handle<JSFunction> GetFunction() {
     CompileRun(script_);
-    Local<Function> api_function =
-        Local<Function>::Cast(CcTest::global()->Get(v8_str(kFunctionName)));
-    Handle<JSFunction> function = v8::Utils::OpenHandle(*api_function);
+    Local<Function> api_function = Local<Function>::Cast(
+        CcTest::global()
+            ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(kFunctionName))
+            .ToLocalChecked());
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     CHECK(function->shared()->HasBytecodeArray());
 
     ParseInfo parse_info(zone_, function);
@@ -108,13 +112,6 @@ class BytecodeGraphTester {
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphTester);
 };
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
-
-
-using namespace v8::internal;
-using namespace v8::internal::compiler;
 
 template <int N>
 struct ExpectedSnippet {
@@ -256,3 +253,7 @@ TEST(BytecodeGraphBuilderTwoParameterTests) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

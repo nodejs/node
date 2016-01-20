@@ -62,10 +62,10 @@ test(function() {
   Array.prototype.shift.call(null);
 }, "Array.prototype.shift called on null or undefined", TypeError);
 
-// kCannotPreventExtExternalArray
+// kCannotFreezeArrayBufferView
 test(function() {
-  Object.preventExtensions(new Uint16Array(1));
-}, "Cannot prevent extension of an object with external array elements", TypeError);
+  Object.freeze(new Uint16Array(1));
+}, "Cannot freeze array buffer views with elements", TypeError);
 
 // kConstAssign
 test(function() {
@@ -136,9 +136,9 @@ test(function() {
 
 // kIncompatibleMethodReceiver
 test(function() {
-  RegExp.prototype.compile.call(RegExp.prototype);
-}, "Method RegExp.prototype.compile called on incompatible receiver " +
-   "[object RegExp]", TypeError);
+  Set.prototype.add.call([]);
+}, "Method Set.prototype.add called on incompatible receiver [object Array]",
+TypeError);
 
 // kInstanceofFunctionExpected
 test(function() {
@@ -301,7 +301,7 @@ test(function() {
 test(function() {
   "use strict";
   (1).a = 1;
-}, "Cannot assign to read only property 'a' of 1", TypeError);
+}, "Cannot create property 'a' on number '1'", TypeError);
 
 // kStrongImplicitCast
 test(function() {
@@ -332,8 +332,8 @@ test(function() {
 // kValueAndAccessor
 test(function() {
   Object.defineProperty({}, "x", { get: function(){}, value: 1});
-}, "Invalid property.  A property cannot both have accessors and be " +
-   "writable or have a value, #<Object>", TypeError);
+}, "Invalid property descriptor. Cannot both specify accessors " +
+   "and a value or writable attribute, #<Object>", TypeError);
 
 // kWithExpression
 test(function() {

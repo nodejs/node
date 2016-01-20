@@ -78,6 +78,7 @@ int32_t* RegExpImpl::GlobalCache::LastSuccessfulMatch() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_JSREGEXP_INL_H_

@@ -43,8 +43,9 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         const Matcher<const CallDescriptor*>& descriptor_matcher,
         A... args);
 
-    Matcher<Node*> IsBytecodeOperand(int operand);
-    Matcher<Node*> IsBytecodeOperandSignExtended(int operand);
+    Matcher<Node*> IsBytecodeOperand(int offset);
+    Matcher<Node*> IsBytecodeOperandSignExtended(int offset);
+    Matcher<Node*> IsBytecodeOperandShort(int offset);
 
     using InterpreterAssembler::call_descriptor;
     using InterpreterAssembler::graph;

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
@@ -14,8 +17,9 @@
 #include "src/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 
 TEST(RunOptimizedMathFloorStub) {
@@ -35,7 +39,7 @@ TEST(RunOptimizedMathFloorStub) {
   CommonOperatorBuilder common(zone);
   JSOperatorBuilder javascript(zone);
   MachineOperatorBuilder machine(zone);
-  JSGraph js(isolate, &graph, &common, &javascript, &machine);
+  JSGraph js(isolate, &graph, &common, &javascript, nullptr, &machine);
 
   // FunctionTester (ab)uses a 2-argument function
   Node* start = graph.NewNode(common.Start(4));
@@ -140,3 +144,7 @@ TEST(RunStringAddTFStub) {
   Handle<Object> result = ft.Call(leftArg, rightArg).ToHandleChecked();
   CHECK(String::Equals(ft.Val("linksrechts"), Handle<String>::cast(result)));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

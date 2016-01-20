@@ -78,6 +78,7 @@ Address ExternalCallbackScope::scope_address() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VM_STATE_INL_H_

@@ -44,6 +44,7 @@ struct PrecomputedPrecision {
 // Gay's dtoa in mode "precision".
 Vector<const PrecomputedPrecision> PrecomputedPrecisionRepresentations();
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // GAY_PRECISION_H_

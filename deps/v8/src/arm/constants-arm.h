@@ -702,6 +702,7 @@ class VFPRegisters {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_CONSTANTS_ARM_H_

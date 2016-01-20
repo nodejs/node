@@ -18,7 +18,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 function f(x) {
-  if (x > 0) %_CallFunction(null, x-1, f);
+  if (x > 0) %_Call(f, null, x-1);
 }
 
 debugger;

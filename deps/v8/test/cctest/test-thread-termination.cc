@@ -507,7 +507,7 @@ void InnerTryCallTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global->Get(CcTest::isolate()->GetCurrentContext(), v8_str("loop"))
           .ToLocalChecked());
   i::MaybeHandle<i::Object> result =
-      i::Execution::TryCall(v8::Utils::OpenHandle((*loop)),
+      i::Execution::TryCall(CcTest::i_isolate(), v8::Utils::OpenHandle((*loop)),
                             v8::Utils::OpenHandle((*global)), 0, NULL, NULL);
   CHECK(result.is_null());
   // TryCall ignores terminate execution, but rerequests the interrupt.

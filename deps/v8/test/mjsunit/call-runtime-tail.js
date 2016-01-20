@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --nostress-opt --turbo
+// Flags: --nonative-context-specialization
 
 var p0 = new Object();
 var p1 = new Object();
@@ -15,7 +16,7 @@ tailee1 = function() {
   if (count1-- == 0) {
     return this;
   }
-  return %_CallFunction(this, tailee1);
+  return %_Call(tailee1, this);
 };
 
 %OptimizeFunctionOnNextCall(tailee1);
@@ -32,7 +33,7 @@ tailee2 = function(px) {
   if ((count2 | 0) === 0) {
     return this;
   }
-  return %_CallFunction(this, px, tailee2);
+  return %_Call(tailee2, this, px);
 };
 
 %OptimizeFunctionOnNextCall(tailee2);
@@ -46,7 +47,7 @@ tailee3 = function(px) {
   if (count3-- == 0) {
     return this;
   }
-  return %_CallFunction(px, this, tailee3);
+  return %_Call(tailee3, px, this);
 };
 
 %OptimizeFunctionOnNextCall(tailee3);
@@ -60,7 +61,7 @@ tailee4 = function(px) {
   if (count4-- == 0) {
     return this;
   }
-  return %_CallFunction(this, px, undefined, tailee4);
+  return %_Call(tailee4, this, px, undefined);
 };
 
 %OptimizeFunctionOnNextCall(tailee4);
@@ -74,7 +75,7 @@ tailee5 = function(px) {
   if (count5-- == 0) {
     return this;
   }
-  return %_CallFunction(this, tailee5);
+  return %_Call(tailee5, this);
 };
 
 %OptimizeFunctionOnNextCall(tailee5);

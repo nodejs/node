@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/codegen.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
@@ -13,8 +16,9 @@
 #include "src/compiler/osr.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 // TODO(titzer): move this method to a common testing place.
 
@@ -48,7 +52,7 @@ class OsrDeconstructorTester : public HandleAndZoneScope {
       : isolate(main_isolate()),
         common(main_zone()),
         graph(main_zone()),
-        jsgraph(main_isolate(), &graph, &common, NULL, NULL),
+        jsgraph(main_isolate(), &graph, &common, nullptr, nullptr, nullptr),
         start(graph.NewNode(common.Start(1))),
         p0(graph.NewNode(common.Parameter(0), start)),
         end(graph.NewNode(common.End(1), start)),
@@ -563,3 +567,7 @@ TEST(Deconstruct_osr_nested3) {
   // depends on the copy of the outer loop0.
   CheckInputs(new_ret, new_loop0_phi, T.graph.start(), new_loop0_exit);
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

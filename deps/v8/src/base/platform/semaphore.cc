@@ -75,6 +75,10 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 
 Semaphore::Semaphore(int count) {
   DCHECK(count >= 0);
+#if V8_LIBC_GLIBC
+  // sem_init in glibc prior to 2.1 does not zero out semaphores.
+  memset(&native_handle_, 0, sizeof(native_handle_));
+#endif
   int result = sem_init(&native_handle_, 0, count);
   DCHECK_EQ(0, result);
   USE(result);
@@ -201,4 +205,5 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 
 #endif  // V8_OS_MACOSX
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

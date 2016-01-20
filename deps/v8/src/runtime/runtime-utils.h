@@ -162,7 +162,7 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
 }
 #endif
 
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_RUNTIME_RUNTIME_UTILS_H_

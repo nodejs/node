@@ -54,8 +54,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 
   static inline void UnregisterCTryCatch() {}
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
@@ -311,6 +311,7 @@ class Simulator {
   bool ExecuteExt2_9bit_part2(Instruction* instr);
   void ExecuteExt2_5bit(Instruction* instr);
   void ExecuteExt2(Instruction* instr);
+  void ExecuteExt3(Instruction* instr);
   void ExecuteExt4(Instruction* instr);
 #if V8_TARGET_ARCH_PPC64
   void ExecuteExt5(Instruction* instr);
@@ -422,8 +423,8 @@ class SimulatorStack : public v8::internal::AllStatic {
     Simulator::current(Isolate::Current())->PopAddress();
   }
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // !defined(USE_SIMULATOR)
 #endif  // V8_PPC_SIMULATOR_PPC_H_

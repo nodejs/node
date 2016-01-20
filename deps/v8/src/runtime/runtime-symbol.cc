@@ -28,7 +28,9 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  return *isolate->factory()->NewPrivateSymbol(name);
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
+  if (name->IsString()) symbol->set_name(*name);
+  return *symbol;
 }
 
 

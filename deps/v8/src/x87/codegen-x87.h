@@ -28,6 +28,7 @@ class StringCharLoadGenerator : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_CODEGEN_X87_H_

@@ -350,6 +350,7 @@ class TemplateHashMap: private TemplateHashMapImpl<AllocationPolicy> {
   }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HASHMAP_H_

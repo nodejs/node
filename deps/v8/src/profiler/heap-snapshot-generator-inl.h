@@ -43,6 +43,7 @@ HeapGraphEdge** HeapEntry::children_arr() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_INL_H_

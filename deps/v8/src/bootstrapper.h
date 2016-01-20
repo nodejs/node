@@ -110,8 +110,8 @@ class Bootstrapper final {
   SourceCodeCache* extensions_cache() { return &extensions_cache_; }
 
   static bool CompileNative(Isolate* isolate, Vector<const char> name,
-                            Handle<JSObject> receiver, Handle<String> source,
-                            int argc, Handle<Object> argv[]);
+                            Handle<String> source, int argc,
+                            Handle<Object> argv[]);
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);
@@ -176,6 +176,7 @@ class NativesExternalStringResource final
   size_t length_;
 };
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BOOTSTRAPPER_H_

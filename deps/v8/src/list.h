@@ -229,7 +229,8 @@ template <typename T>
 int SortedListBSearch(const List<T>& list, T elem);
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 #endif  // V8_LIST_H_

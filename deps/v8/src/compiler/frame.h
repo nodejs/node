@@ -184,8 +184,8 @@ class FrameOffset {
   static const int kFromSp = 1;
   static const int kFromFp = 0;
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_FRAME_H_

@@ -4,7 +4,9 @@
 
 #include "src/handles.h"
 
+#include "src/address-map.h"
 #include "src/base/logging.h"
+#include "src/identity-map.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -55,7 +57,7 @@ Object** HandleScope::Extend(Isolate* isolate) {
   DCHECK(result == current->limit);
   // Make sure there's at least one scope on the stack and that the
   // top of the scope stack isn't a barrier.
-  if (!Utils::ApiCheck(current->level != 0,
+  if (!Utils::ApiCheck(current->level != current->sealed_level,
                        "v8::HandleScope::CreateHandle()",
                        "Cannot create a handle without a HandleScope")) {
     return NULL;
@@ -114,6 +116,48 @@ Address HandleScope::current_next_address(Isolate* isolate) {
 
 Address HandleScope::current_limit_address(Isolate* isolate) {
   return reinterpret_cast<Address>(&isolate->handle_scope_data()->limit);
+}
+
+
+CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate)
+    : isolate_(isolate) {
+  HandleScopeData* handle_scope_data = isolate_->handle_scope_data();
+  prev_canonical_scope_ = handle_scope_data->canonical_scope;
+  handle_scope_data->canonical_scope = this;
+  root_index_map_ = new RootIndexMap(isolate);
+  identity_map_ = new IdentityMap<Object**>(isolate->heap(), &zone_);
+  canonical_level_ = handle_scope_data->level;
+}
+
+
+CanonicalHandleScope::~CanonicalHandleScope() {
+  delete root_index_map_;
+  delete identity_map_;
+  isolate_->handle_scope_data()->canonical_scope = prev_canonical_scope_;
+}
+
+
+Object** CanonicalHandleScope::Lookup(Object* object) {
+  DCHECK_LE(canonical_level_, isolate_->handle_scope_data()->level);
+  if (isolate_->handle_scope_data()->level != canonical_level_) {
+    // We are in an inner handle scope. Do not canonicalize since we will leave
+    // this handle scope while still being in the canonical scope.
+    return HandleScope::CreateHandle(isolate_, object);
+  }
+  if (object->IsHeapObject()) {
+    int index = root_index_map_->Lookup(HeapObject::cast(object));
+    if (index != RootIndexMap::kInvalidRootIndex) {
+      return isolate_->heap()
+          ->root_handle(static_cast<Heap::RootListIndex>(index))
+          .location();
+    }
+  }
+  Object*** entry = identity_map_->Get(object);
+  if (*entry == nullptr) {
+    // Allocate new handle location.
+    *entry = HandleScope::CreateHandle(isolate_, object);
+  }
+  return reinterpret_cast<Object**>(*entry);
 }
 
 
