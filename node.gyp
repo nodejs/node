@@ -78,6 +78,7 @@
       'lib/internal/process/next_tick.js',
       'lib/internal/process/promises.js',
       'lib/internal/process/stdio.js',
+      'lib/internal/process/warning.js',
       'lib/internal/process.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',

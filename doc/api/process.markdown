@@ -186,6 +186,120 @@ this, you can either attach a dummy `.catch(() => { })` handler to
 `resource.loaded`, preventing the `'unhandledRejection'` event from being
 emitted, or you can use the [`'rejectionHandled'`][] event.
 
+## Event: 'warning'
+
+Emitted whenever Node.js emits a process warning.
+
+A process warning is similar to an error in that it describes exceptional
+conditions that are being brought to the user's attention. However, warnings
+are not part of the normal Node.js and JavaScript error handling flow.
+Node.js can emit warnings whenever it detects bad coding practices that could
+lead to sub-optimal application performance, bugs or security vulnerabilities.
+
+The event handler for `'warning'` events is called with a single `warning`
+argument whose value is an `Error` object. There are three key properties that
+describe the warning:
+
+* `name` - The name of the warning (currently `Warning` by default).
+* `message` - A system-provided description of the warning.
+* `stack` - A stack trace to the location in the code where the warning was
+  issued.
+
+```js
+process.on('warning', (warning) => {
+  console.warn(warning.name);    // Print the warning name
+  console.warn(warning.message); // Print the warning message
+  console.warn(warning.stack);   // Print the stack trace
+});
+```
+
+By default, Node.js will print process warnings to `stderr`. The `--no-warnings`
+command-line option can be used to suppress the default console output but the
+`'warning'` event will still be emitted by the `process` object.
+
+The following example illustrates the warning that is printed to `stderr` when
+too many listeners have been added to an event
+
+```
+$ node
+> event.defaultMaxListeners = 1;
+> process.on('foo', () => {});
+> process.on('foo', () => {});
+> (node:38638) Warning: Possible EventEmitter memory leak detected. 2 foo
+... listeners added. Use emitter.setMaxListeners() to increase limit
+```
+
+In contrast, the following example turns off the default warning output and
+adds a custom handler to the `'warning'` event:
+
+```
+$ node --no-warnings
+> var p = process.on('warning', (warning) => console.warn('Do not do that!'));
+> event.defaultMaxListeners = 1;
+> process.on('foo', () => {});
+> process.on('foo', () => {});
+> Do not do that!
+```
+
+The `--trace-warnings` command-line option can be used to have the default
+console output for warnings include the full stack trace of the warning.
+
+### Emitting custom warnings
+
+The [`process.emitWarning()`][process_emit_warning] method can be used to issue
+custom or application specific warnings.
+
+```js
+// Emit a warning using a string...
+process.emitWarning('Something happened!');
+  // Prints: (node 12345) Warning: Something happened!
+
+// Emit a warning using an object...
+process.emitWarning('Something Happened!', 'CustomWarning');
+  // Prints: (node 12345) CustomWarning: Something happened!
+
+// Emit a warning using a custom Error object...
+class CustomWarning extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'CustomWarning';
+    Error.captureStackTrace(this, CustomWarning);
+  }
+}
+const myWarning = new CustomWarning('Something happened!');
+process.emitWarning(myWarning);
+  // Prints: (node 12345) CustomWarning: Something happened!
+```
+
+### Emitting custom deprecation warnings
+
+Custom deprecation warnings can be emitted by setting the `name` of a custom
+warning to `DeprecationWarning`. For instance:
+
+```js
+process.emitWarning('This API is deprecated', 'DeprecationWarning');
+```
+
+Or,
+
+```js
+const err = new Error('This API is deprecated');
+err.name = 'DeprecationWarning';
+process.emitWarning(err);
+```
+
+Launching Node.js using the `--throw-deprecation` command line flag will
+cause custom deprecation warnings to be thrown as exceptions.
+
+Using the `--trace-deprecation` command line flag will cause the custom
+deprecation to be printed to `stderr` along with the stack trace.
+
+Using the `--no-deprecation` command line flag will suppress all reporting
+of the custom deprecation.
+
+The `*-deprecation` command line flags only affect warnings that use the name
+`DeprecationWarning`.
+
 ## Exit Codes
 
 Node.js will normally exit with a `0` status code when no more async
@@ -455,6 +569,92 @@ process.env.TEST = 1;
 delete process.env.TEST;
 console.log(process.env.TEST);
 // => undefined
+```
+
+## process.emitWarning(warning[, name][, ctor])
+
+* `warning` {String | Error} The warning to emit.
+* `name` {String} When `warning` is a String, `name` is the name to use
+  for the warning. Default: `Warning`.
+* `ctor` {Function} When `warning` is a String, `ctor` is an optional
+  function used to limit the generated stack trace. Default
+  `process.emitWarning`
+
+The `process.emitWarning()` method can be used to emit custom or application
+specific process warnings. These can be listened for by adding a handler to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+// Emit a warning using a string...
+process.emitWarning('Something happened!');
+  // Emits: (node: 56338) Warning: Something happened!
+```
+
+```
+// Emit a warning using a string and a name...
+process.emitWarning('Something Happened!', 'CustomWarning');
+  // Emits: (node:56338) CustomWarning: Something Happened!
+```
+
+In each of the previous examples, an `Error` object is generated internally by
+`process.emitWarning()` and passed through to the
+[`process.on('warning')`][process_warning] event.
+
+```
+process.on('warning', (warning) => {
+  console.warn(warning.name);
+  console.warn(warning.message);
+  console.warn(warning.stack);
+});
+```
+
+If `warning` is passed as an `Error` object, it will be passed through to the
+`process.on('warning')` event handler unmodified (and the optional `name`
+and `ctor` arguments will be ignored):
+
+```
+// Emit a warning using an Error object...
+const myWarning = new Error('Warning! Something happened!');
+myWarning.name = 'CustomWarning';
+
+process.emitWarning(myWarning);
+  // Emits: (node:56338) CustomWarning: Warning! Something Happened!
+```
+
+A `TypeError` is thrown if `warning` is anything other than a string or `Error`
+object.
+
+Note that while process warnings use `Error` objects, the process warning
+mechanism is **not** a replacement for normal error handling mechanisms.
+
+The following additional handling is implemented if the warning `name` is
+`DeprecationWarning`:
+
+* If the `--throw-deprecation` command-line flag is used, the deprecation
+  warning is thrown as an exception rather than being emitted as an event.
+* If the `--no-deprecation` command-line flag is used, the deprecation
+  warning is suppressed.
+* If the `--trace-deprecation` command-line flag is used, the deprecation
+  warning is printed to `stderr` along with the full stack trace.
+
+### Avoiding duplicate warnings
+
+As a best practice, warnings should be emitted only once per process. To do
+so, it is recommended to place the `emitWarning()` behind a simple boolean
+flag as illustrated in the example below:
+
+```
+var warned = false;
+function emitMyWarning() {
+  if (!warned) {
+    process.emitWarning('Only warn once!');
+    warned = true;
+  }
+}
+emitMyWarning();
+  // Emits: (node: 56339) Warning: Only warn once!
+emitMyWarning();
+  // Emits nothing
 ```
 
 ## process.execArgv
@@ -1099,3 +1299,5 @@ Will print something like:
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [the tty docs]: tty.html#tty_tty
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[process_warning]: #process_event_warning
+[process_emit_warning]: #process_emitwarning_warning_name_ctor
