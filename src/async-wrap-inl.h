@@ -42,11 +42,14 @@ inline AsyncWrap::AsyncWrap(Environment* env,
   v8::Local<v8::Value> argv[] = {
     v8::Integer::New(env->isolate(), get_uid()),
     v8::Int32::New(env->isolate(), provider),
+    Null(env->isolate()),
     Null(env->isolate())
   };
 
-  if (parent != nullptr)
-    argv[2] = parent->object();
+  if (parent != nullptr) {
+    argv[2] = v8::Integer::New(env->isolate(), parent->get_uid());
+    argv[3] = parent->object();
+  }
 
   v8::MaybeLocal<v8::Value> ret =
       init_fn->Call(env->context(), object, arraysize(argv), argv);
