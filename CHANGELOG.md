@@ -1,5 +1,24 @@
 # Node.js ChangeLog
 
+## 2016-01-21, Version 4.2.6 'Argon' (LTS), @TheAlphaNerd
+
+### Notable changes
+
+* Fix regression in debugger and profiler functionality
+
+### Known issues
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/node/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/node/issues/690)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/node/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
+
+### Commits
+
+* [[`1408f7abb1`](https://github.com/nodejs/node/commit/1408f7abb1)] - **module,src**: do not wrap modules with -1 lineOffset (cjihrig) [#4298](https://github.com/nodejs/node/pull/4298)
+* [[`1f8e1472cc`](https://github.com/nodejs/node/commit/1f8e1472cc)] - **test**: add test for debugging one line files (cjihrig) [#4298](https://github.com/nodejs/node/pull/4298)
+
+
 ## 2016-01-20, Version 4.2.5 'Argon' (LTS), @TheAlphaNerd
 
 Maintenance update.
