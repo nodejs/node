@@ -13,7 +13,7 @@ actually in the global scope but in the module scope - this will be noted.
 
 Used to handle binary data. See the [buffer section][].
 
-## __dirname
+## \_\_dirname
 
 <!-- type=var -->
 
@@ -30,7 +30,7 @@ console.log(__dirname);
 
 `__dirname` isn't actually a global but rather local to each module.
 
-## __filename
+## \_\_filename
 
 <!-- type=var -->
 
