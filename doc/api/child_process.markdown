@@ -391,76 +391,201 @@ controlling terminal.
 
 #### options.stdio
 
-The `options.stdio` option is used to configure the pipes that are established
-between the parent and child process. By default, the child's stdin, stdout,
-and stderr are redirected to corresponding `child.stdin`, `child.stdout`, and
-`child.stderr` streams on the `ChildProcess` object. This is equivalent to
-setting the `options.stdio` equal to `['pipe', 'pipe', 'pipe']`.
+The `options.stdio` property is used by the parent process to configure the
+initial [file descriptors][] of a spawning child process. The new child can then
+start streaming data to and from its resources with minimal to no configuration
+of its own.
 
-For convenience, `options.stdio` may be one of the following strings:
+The `options.stdio` property accepts an `Array` where each index corresponds to
+a file descriptor for the child. Indices 0, 1, and 2 correspond to the child's
+[standard streams][]—stdin, stdout, and stderr respectively. Indices 3
+and up correspond to its non-standard streams.
 
-* `'pipe'` - equivalent to `['pipe', 'pipe', 'pipe']` (the default)
-* `'ignore'` - equivalent to `['ignore', 'ignore', 'ignore']`
-* `'inherit'` - equivalent to `[process.stdin, process.stdout, process.stderr]`
-   or `[0,1,2]`
+The following are the possible values for the `options.stdio` configuration
+`Array`.
 
-Otherwise, the value of `option.stdio` is an array where each index corresponds
-to an fd in the child. The fds 0, 1, and 2 correspond to stdin, stdout,
-and stderr, respectively. Additional fds can be specified to create additional
-pipes between the parent and child. The value is one of the following:
+* `Integer` file descriptor
+* `Stream` object
+* `'ignore'`
+* `'ipc'`
+* `'pipe'`
+* `null`
+* `undefined`
 
-1. `'pipe'` - Create a pipe between the child process and the parent process.
-   The parent end of the pipe is exposed to the parent as a property on the
-   `child_process` object as `ChildProcess.stdio[fd]`. Pipes created for
-   fds 0 - 2 are also available as ChildProcess.stdin, ChildProcess.stdout
-   and ChildProcess.stderr, respectively.
-2. `'ipc'` - Create an IPC channel for passing messages/file descriptors
-   between parent and child. A ChildProcess may have at most *one* IPC stdio
-   file descriptor. Setting this option enables the ChildProcess.send() method.
-   If the child writes JSON messages to this file descriptor, the
-   `ChildProcess.on('message')` event handler will be triggered in the parent.
-   If the child is a Node.js process, the presence of an IPC channel will enable
-   `process.send()`, `process.disconnect()`, `process.on('disconnect')`, and
-   `process.on('message')` within the child.
-3. `'ignore'` - Instructs Node.js to ignore the fd in the child. While Node.js
-   will always open fds 0 - 2 for the processes it spawns, setting the fd to
-   `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
-   child's fd.
-4. `Stream` object - Share a readable or writable stream that refers to a tty,
-   file, socket, or a pipe with the child process. The stream's underlying
-   file descriptor is duplicated in the child process to the fd that
-   corresponds to the index in the `stdio` array. Note that the stream must
-   have an underlying descriptor (file streams do not until the `'open'`
-   event has occurred).
-5. Positive integer - The integer value is interpreted as a file descriptor
-   that is is currently open in the parent process. It is shared with the child
-   process, similar to how `Stream` objects can be shared.
-6. `null`, `undefined` - Use default value. For stdio fds 0, 1 and 2 (in other
-   words, stdin, stdout, and stderr) a pipe is created. For fd 3 and up, the
-   default is `'ignore'`.
+For convenience, the `options.stdio` property also accepts one of the following
+`String` shorthands to represent an `Array` equivalent.
 
-Example:
+| Shorthand   | Equivalent                       |
+|-------------|----------------------------------|
+| `'ignore'`  | `['ignore', 'ignore', 'ignore']` |
+| `'inherit'` | `[0, 1, 2]`                      |
+| `'pipe'`    | `['pipe', 'pipe', 'pipe']`       |
+
+When no value is provided, `options.stdio` defaults to `'pipe'`.
+
+##### `Integer` file descriptor
+
+Shares the parent process's open `Integer` file descriptor with a child process.
+The connection to the parent's file descriptor resource is duplicated and
+attached to a new file descriptor in the child. The new file descriptor
+corresponds to the index in the `options.stdio` configuration `Array`.
+
+The following example spawns a child process that shares the parent's stdin,
+stdout, and stderr `Integer` file descriptors.
 
     const spawn = require('child_process').spawn;
+    const child = spawn('node', ['--interactive'], { stdio: [0, 1, 2] });
 
-    // Child will use parent's stdios
-    spawn('prg', [], { stdio: 'inherit' });
+    child.on('close', function(code) {
+      process.exit(code);
+    });
 
-    // Spawn child sharing only stderr
-    spawn('prg', [], { stdio: ['pipe', 'pipe', process.stderr] });
+##### `Stream` object
 
-    // Open an extra fd=4, to interact with programs presenting a
-    // startd-style interface.
-    spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
+Shares a parent process's `Stream` object with a child process. These `Stream`
+objects must contain an open file descriptor. Therefore, valid objects are
+instances of the following classes.
 
-*It is worth noting that when an IPC channel is established between the
-parent and child processes, and the child is a Node.js process, the child
-is launched with the IPC channel unreferenced (using `unref()`) until the
-child registers an event handler for the `process.on('disconnected')` event.
-This allows the child to exit normally without the process being held open
-by the open IPC channel.*
+* `fs.ReadStream`
+* `fs.WriteStream`
+* `net.Socket`
+* `tty.ReadStream`
+* `tty.WriteStream`
 
-See also: [`child_process.exec()`][] and [`child_process.fork()`][]
+**NOTE:** Until the `'open'` event is emitted, `fs.ReadStream` and
+`fs.WriteStream` objects don't have an open file descriptor.
+
+The connection to the parent's `Stream` resource is duplicated and attached to a
+new file descriptor in the child. The new file descriptor corresponds to the
+index in the `options.stdio` configuration `Array`.
+
+The following example spawns a child process that shares the parent's stdin,
+stdout, and stderr `Stream` objects. The end result is identical to sharing the
+parent's standard stream file descriptors directly. See the `Integer` file
+descriptor example for more details.
+
+    const spawn = require('child_process').spawn;
+    const child = spawn('node', ['--interactive'], { 
+      stdio: [process.stdin, process.stdout, process.stderr]
+    });
+
+    child.on('close', function(code) {
+      process.exit(code);
+    });
+
+##### `'ignore'`
+
+Ignores the file descriptor in a child process. Ignoring indices 0, 1, or 2
+attaches the corresponding file descriptor to `/dev/null` in the child process.
+Ignoring indices 3 and up has no effect on the corresponding file descriptor.
+
+The following example spawns a child process that shares the parent's stdin and
+stdout file descriptors, but ignores it's own stderr stream.
+
+    const spawn = require('child_process').spawn;
+    const child = spawn('node', ['--interactive'], { stdio: [0, 1, 'ignore'] });
+
+    child.on('close', function(code) {
+      process.exit(code);
+    });
+
+##### `'ipc'`
+
+Creates an [inter-process communication][] (IPC) channel for passing messages
+and/or other file descriptors between the parent process and a child process.
+Only *one* IPC channel may be configured per child. Setting this option enables
+the `ChildProcess#send()` function and the `ChildProcess#on('message')`
+event handler within the parent.
+
+If the spawned child is a Node.js process, the presence of an IPC channel
+enables the `process.send()` and `process.disconnect()` functions as well as the
+`process.on('disconnect')` and `process.on('message')` event handlers within the
+child. However, the child's IPC channel is unreferenced until it a
+`process.on('disconnect')` or `process.on('message')` event handler is
+registered. This allows the child to exit normally without being kept alive by a
+referenced IPC channel.
+
+**NOTE:** The [`child_process.fork()`][] function creates an IPC channel using
+this technique.
+
+The following `parent.js` example spawns a child process with an IPC channel and
+sends it a JSON message. If the IPC channel is referenced by the child process,
+you can type `Ctrl-C` to quit.
+
+    const spawn = require('child_process').spawn;
+    const child = spawn('node', ['child.js'], { stdio: [0, 1, 2, 'ipc'] });
+
+    child.on('message', function(msg) {
+      console.log('PARENT: Received message', msg);
+    });
+
+    child.send({ hello: 'from parent' }, function(err) {
+      if (err) {
+        throw err;
+      }
+      console.log('PARENT: Sent message');
+    });
+
+The following is a complimentary `child.js` example that sends a JSON message to
+its parent through the shared IPC channel.
+
+    process.on('message', function(msg) {
+      console.log('CHILD: Received message', msg);
+    });
+
+    process.send({ hello: 'from child' }, function(err) {
+      if (err) {
+        throw err;
+      }
+      console.log('CHILD: Sent message');
+    });
+
+##### `'pipe'`
+
+Shares a child process's file descriptor with its parent process. The parent can
+access the child's file descriptor using the `ChildProcess#stdio` property. File
+descriptors 0, 1, and 2 are special in that they're also available to the parent
+via the `ChildProcess#stdin`, `ChildProcess#stdout`, and `ChildProcess#stderr`
+properties respectively.
+
+The following example spawns a child process that pipes its stdin, stdout, and
+stderr to its parent. In this example, it might be more effective to share the
+parent's standard streams with the child instead. See the `Integer` file
+descriptor example for more details.
+
+    const spawn = require('child_process').spawn;
+    const child = spawn('node', ['--interactive'], { 
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    process.stdin.pipe(child.stdin);
+    child.stdout.pipe(process.stdout);
+    child.stderr.pipe(process.stderr);
+
+    child.on('close', function(code) {
+      process.exit(code);
+    });
+
+##### `null`
+
+Uses a default value for the child's file descriptor.
+
+| File descriptor | Default value |
+|-----------------|---------------|
+| `0` (stdin)     | `'pipe'`      |
+| `1` (stdout)    | `'pipe'`      |
+| `2` (stderr)    | `'pipe'`      |
+| `3` and up      | `'ignore'`    |
+
+The following example spawns a child program that pipes file descriptors 0, 1,
+2, and 4 to it's parent, presenting a startd-style interface.
+
+    const spawn = require('child_process').spawn;
+    const child = spawn('prg', [], { stdio: [null, null, null, null, 'pipe'] });
+
+##### `undefined`
+
+The same as `null`.
 
 ## Synchronous Process Creation
 
@@ -937,4 +1062,7 @@ to the same value.
 [`options.detached`]: #child_process_options_detached
 [`options.stdio`]: #child_process_options_stdio
 [`stdio`]: #child_process_options_stdio
+[file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[inter-process communication]: https://en.wikipedia.org/wiki/Inter-process_communication
+[standard streams]: https://en.wikipedia.org/wiki/Standard_streams
 [synchronous counterparts]: #child_process_synchronous_process_creation
