@@ -111,6 +111,11 @@ assert.equal(
     .indexOf(Buffer('d', 'binary'), 0, 'binary'), 3);
 
 
+// test optional offset with passed encoding
+assert.equal(new Buffer('aaaa0').indexOf('30', 'hex'), 4);
+assert.equal(new Buffer('aaaa00a').indexOf('3030', 'hex'), 4);
+
+
 // test usc2 encoding
 var twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
