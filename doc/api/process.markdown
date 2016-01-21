@@ -29,13 +29,15 @@ implicitly by the event loop draining.
 
 Example of listening for `'exit'`:
 
-    process.on('exit', (code) => {
-      // do *NOT* do this
-      setTimeout(() => {
-        console.log('This will not run');
-      }, 0);
-      console.log('About to exit with code:', code);
-    });
+```js
+process.on('exit', (code) => {
+  // do *NOT* do this
+  setTimeout(() => {
+    console.log('This will not run');
+  }, 0);
+  console.log('About to exit with code:', code);
+});
+```
 
 ## Event: 'message'
 
@@ -71,13 +73,15 @@ event tells you when the list of unhandled rejections shrinks.
 For example using the rejection detection hooks in order to keep a map of all
 the rejected promise reasons at a given time:
 
-    const unhandledRejections = new Map();
-    process.on('unhandledRejection', (reason, p) => {
-      unhandledRejections.set(p, reason);
-    });
-    process.on('rejectionHandled', (p) => {
-      unhandledRejections.delete(p);
-    });
+```js
+const unhandledRejections = new Map();
+process.on('unhandledRejection', (reason, p) => {
+  unhandledRejections.set(p, reason);
+});
+process.on('rejectionHandled', (p) => {
+  unhandledRejections.delete(p);
+});
+```
 
 This map will grow and shrink over time, reflecting rejections that start
 unhandled and then become handled. You could record the errors in some error
@@ -93,17 +97,19 @@ a stack trace and exit) will not occur.
 
 Example of listening for `'uncaughtException'`:
 
-    process.on('uncaughtException', (err) => {
-      console.log(`Caught exception: ${err}`);
-    });
+```js
+process.on('uncaughtException', (err) => {
+  console.log(`Caught exception: ${err}`);
+});
 
-    setTimeout(() => {
-      console.log('This will still run.');
-    }, 500);
+setTimeout(() => {
+  console.log('This will still run.');
+}, 500);
 
-    // Intentionally cause an exception, but don't catch it.
-    nonexistentFunc();
-    console.log('This will not run.');
+// Intentionally cause an exception, but don't catch it.
+nonexistentFunc();
+console.log('This will not run.');
+```
 
 Note that `'uncaughtException'` is a very crude mechanism for exception
 handling.
@@ -138,28 +144,34 @@ instance).
 
 Here is an example that logs every unhandled rejection to the console
 
-    process.on('unhandledRejection', (reason, p) => {
-        console.log("Unhandled Rejection at: Promise ", p, " reason: ", reason);
-        // application specific logging, throwing an error, or other logic here
-    });
+```js
+process.on('unhandledRejection', (reason, p) => {
+    console.log("Unhandled Rejection at: Promise ", p, " reason: ", reason);
+    // application specific logging, throwing an error, or other logic here
+});
+```
 
 For example, here is a rejection that will trigger the `'unhandledRejection'`
 event:
 
-    somePromise.then((res) => {
-      return reportToUser(JSON.parse(res)); // note the typo
-    }); // no `.catch` or `.then`
+```js
+somePromise.then((res) => {
+  return reportToUser(JSON.parse(res)); // note the typo
+}); // no `.catch` or `.then`
+```
 
 Here is an example of a coding pattern that will also trigger
 `'unhandledRejection'`:
 
-    function SomeResource() {
-      // Initially set the loaded status to a rejected promise
-      this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
-    }
+```js
+function SomeResource() {
+  // Initially set the loaded status to a rejected promise
+  this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
+}
 
-    var resource = new SomeResource();
-    // no .catch or .then on resource.loaded for at least a turn
+var resource = new SomeResource();
+// no .catch or .then on resource.loaded for at least a turn
+```
 
 In cases like this, you may not want to track the rejection as a developer
 error like you would for other `'unhandledRejection'` events. To address
@@ -222,12 +234,14 @@ standard POSIX signal names such as `SIGINT`, `SIGHUP`, etc.
 
 Example of listening for `SIGINT`:
 
-    // Start reading from stdin so we don't exit.
-    process.stdin.resume();
+```js
+// Start reading from stdin so we don't exit.
+process.stdin.resume();
 
-    process.on('SIGINT', () => {
-      console.log('Got SIGINT.  Press Control-D to exit.');
-    });
+process.on('SIGINT', () => {
+  console.log('Got SIGINT.  Press Control-D to exit.');
+});
+```
 
 An easy way to send the `SIGINT` signal is with `Control-C` in most terminal
 programs.
@@ -275,7 +289,9 @@ generate a core file.
 
 What processor architecture you're running on: `'arm'`, `'ia32'`, or `'x64'`.
 
-    console.log('This processor architecture is ' + process.arch);
+```js
+console.log('This processor architecture is ' + process.arch);
+```
 
 ## process.argv
 
@@ -283,32 +299,38 @@ An array containing the command line arguments.  The first element will be
 'node', the second element will be the name of the JavaScript file.  The
 next elements will be any additional command line arguments.
 
-    // print process.argv
-    process.argv.forEach((val, index, array) => {
-      console.log(`${index}: ${val}`);
-    });
+```js
+// print process.argv
+process.argv.forEach((val, index, array) => {
+  console.log(`${index}: ${val}`);
+});
+```
 
 This will generate:
 
-    $ node process-2.js one two=three four
-    0: node
-    1: /Users/mjr/work/node/process-2.js
-    2: one
-    3: two=three
-    4: four
+```
+$ node process-2.js one two=three four
+0: node
+1: /Users/mjr/work/node/process-2.js
+2: one
+3: two=three
+4: four
+```
 
 ## process.chdir(directory)
 
 Changes the current working directory of the process or throws an exception if that fails.
 
-    console.log(`Starting directory: ${process.cwd()}`);
-    try {
-      process.chdir('/tmp');
-      console.log(`New directory: ${process.cwd()}`);
-    }
-    catch (err) {
-      console.log(`chdir: ${err}`);
-    }
+```js
+console.log(`Starting directory: ${process.cwd()}`);
+try {
+  process.chdir('/tmp');
+  console.log(`New directory: ${process.cwd()}`);
+}
+catch (err) {
+  console.log(`chdir: ${err}`);
+}
+```
 
 ## process.config
 
@@ -318,26 +340,32 @@ the `config.gypi` file that was produced when running the `./configure` script.
 
 An example of the possible output looks like:
 
-    { target_defaults:
-       { cflags: [],
-         default_configuration: 'Release',
-         defines: [],
-         include_dirs: [],
-         libraries: [] },
-      variables:
-       { host_arch: 'x64',
-         node_install_npm: 'true',
-         node_prefix: '',
-         node_shared_cares: 'false',
-         node_shared_http_parser: 'false',
-         node_shared_libuv: 'false',
-         node_shared_zlib: 'false',
-         node_use_dtrace: 'false',
-         node_use_openssl: 'true',
-         node_shared_openssl: 'false',
-         strict_aliasing: 'true',
-         target_arch: 'x64',
-         v8_use_snapshot: 'true' } }
+```
+{
+  target_defaults:
+   { cflags: [],
+     default_configuration: 'Release',
+     defines: [],
+     include_dirs: [],
+     libraries: [] },
+  variables:
+   {
+     host_arch: 'x64',
+     node_install_npm: 'true',
+     node_prefix: '',
+     node_shared_cares: 'false',
+     node_shared_http_parser: 'false',
+     node_shared_libuv: 'false',
+     node_shared_zlib: 'false',
+     node_use_dtrace: 'false',
+     node_use_openssl: 'true',
+     node_shared_openssl: 'false',
+     strict_aliasing: 'true',
+     target_arch: 'x64',
+     v8_use_snapshot: 'true'
+   }
+}
+```
 
 ## process.connected
 
@@ -349,7 +377,9 @@ If `process.connected` is false, it is no longer possible to send messages.
 
 Returns the current working directory of the process.
 
-    console.log(`Current directory: ${process.cwd()}`);
+```js
+console.log(`Current directory: ${process.cwd()}`);
+```
 
 ## process.disconnect()
 
@@ -367,26 +397,32 @@ An object containing the user environment. See environ(7).
 
 An example of this object looks like:
 
-    { TERM: 'xterm-256color',
-      SHELL: '/usr/local/bin/bash',
-      USER: 'maciej',
-      PATH: '~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin',
-      PWD: '/Users/maciej',
-      EDITOR: 'vim',
-      SHLVL: '1',
-      HOME: '/Users/maciej',
-      LOGNAME: 'maciej',
-      _: '/usr/local/bin/node' }
+```js
+{ TERM: 'xterm-256color',
+  SHELL: '/usr/local/bin/bash',
+  USER: 'maciej',
+  PATH: '~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin',
+  PWD: '/Users/maciej',
+  EDITOR: 'vim',
+  SHLVL: '1',
+  HOME: '/Users/maciej',
+  LOGNAME: 'maciej',
+  _: '/usr/local/bin/node' }
+```
 
 You can write to this object, but changes won't be reflected outside of your
 process. That means that the following won't work:
 
-    $ node -e 'process.env.foo = "bar"' && echo $foo
+```
+$ node -e 'process.env.foo = "bar"' && echo $foo
+```
 
 But this will:
 
-    process.env.foo = 'bar';
-    console.log(process.env.foo);
+```js
+process.env.foo = 'bar';
+console.log(process.env.foo);
+```
 
 ## process.execArgv
 
@@ -399,15 +435,21 @@ environment as the parent.
 
 Example:
 
-    $ node --harmony script.js --version
+```
+$ node --harmony script.js --version
+```
 
 results in process.execArgv:
 
-    ['--harmony']
+```js
+['--harmony']
+```
 
 and process.argv:
 
-    ['/usr/local/bin/node', 'script.js', '--version']
+```js
+['/usr/local/bin/node', 'script.js', '--version']
+```
 
 ## process.execPath
 
@@ -415,7 +457,9 @@ This is the absolute pathname of the executable that started the process.
 
 Example:
 
-    /usr/local/bin/node
+```
+/usr/local/bin/node
+```
 
 
 ## process.exit([code])
@@ -425,7 +469,9 @@ Ends the process with the specified `code`.  If omitted, exit uses the
 
 To exit with a 'failure' code:
 
-    process.exit(1);
+```js
+process.exit(1);
+```
 
 The shell that executed Node.js should see the exit code as 1.
 
@@ -448,9 +494,11 @@ Android)
 Gets the effective group identity of the process. (See getegid(2).)
 This is the numerical group id, not the group name.
 
-    if (process.getegid) {
-      console.log(`Current gid: ${process.getegid()}`);
-    }
+```js
+if (process.getegid) {
+  console.log(`Current gid: ${process.getegid()}`);
+}
+```
 
 
 ## process.geteuid()
@@ -461,9 +509,11 @@ Android)
 Gets the effective user identity of the process. (See geteuid(2).)
 This is the numerical userid, not the username.
 
-    if (process.geteuid) {
-      console.log(`Current uid: ${process.geteuid()}`);
-    }
+```js
+if (process.geteuid) {
+  console.log(`Current uid: ${process.geteuid()}`);
+}
+```
 
 ## process.getgid()
 
@@ -473,9 +523,11 @@ Android)
 Gets the group identity of the process. (See getgid(2).)
 This is the numerical group id, not the group name.
 
-    if (process.getgid) {
-      console.log(`Current gid: ${process.getgid()}`);
-    }
+```js
+if (process.getgid) {
+  console.log(`Current gid: ${process.getgid()}`);
+}
+```
 
 ## process.getgroups()
 
@@ -493,9 +545,11 @@ Android)
 Gets the user identity of the process. (See getuid(2).)
 This is the numerical userid, not the username.
 
-    if (process.getuid) {
-      console.log(`Current uid: ${process.getuid()}`);
-    }
+```js
+if (process.getuid) {
+  console.log(`Current uid: ${process.getuid()}`);
+}
+```
 
 ## process.hrtime()
 
@@ -507,16 +561,18 @@ primary use is for measuring performance between intervals.
 You may pass in the result of a previous call to `process.hrtime()` to get
 a diff reading, useful for benchmarks and measuring intervals:
 
-    var time = process.hrtime();
-    // [ 1800216, 25 ]
+```js
+var time = process.hrtime();
+// [ 1800216, 25 ]
 
-    setTimeout(() => {
-      var diff = process.hrtime(time);
-      // [ 1, 552 ]
+setTimeout(() => {
+  var diff = process.hrtime(time);
+  // [ 1, 552 ]
 
-      console.log('benchmark took %d nanoseconds', diff[0] * 1e9 + diff[1]);
-      // benchmark took 1000000527 nanoseconds
-    }, 1000);
+  console.log('benchmark took %d nanoseconds', diff[0] * 1e9 + diff[1]);
+  // benchmark took 1000000527 nanoseconds
+}, 1000);
+```
 
 
 ## process.initgroups(user, extra_group)
@@ -532,11 +588,13 @@ to be root or have the `CAP_SETGID` capability.
 
 Some care needs to be taken when dropping privileges. Example:
 
-    console.log(process.getgroups());         // [ 0 ]
-    process.initgroups('bnoordhuis', 1000);   // switch user
-    console.log(process.getgroups());         // [ 27, 30, 46, 1000, 0 ]
-    process.setgid(1000);                     // drop root gid
-    console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
+```js
+console.log(process.getgroups());         // [ 0 ]
+process.initgroups('bnoordhuis', 1000);   // switch user
+console.log(process.getgroups());         // [ 27, 30, 46, 1000, 0 ]
+process.setgid(1000);                     // drop root gid
+console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
+```
 
 ## process.kill(pid[, signal])
 
@@ -555,16 +613,18 @@ something other than kill the target process.
 
 Example of sending a signal to yourself:
 
-    process.on('SIGHUP', () => {
-      console.log('Got SIGHUP signal.');
-    });
+```js
+process.on('SIGHUP', () => {
+  console.log('Got SIGHUP signal.');
+});
 
-    setTimeout(() => {
-      console.log('Exiting.');
-      process.exit(0);
-    }, 100);
+setTimeout(() => {
+  console.log('Exiting.');
+  process.exit(0);
+}, 100);
 
-    process.kill(process.pid, 'SIGHUP');
+process.kill(process.pid, 'SIGHUP');
+```
 
 Note: When SIGUSR1 is received by Node.js it starts the debugger, see
 [Signal Events][].
@@ -583,15 +643,19 @@ As with `require.main`, it will be `undefined` if there was no entry script.
 Returns an object describing the memory usage of the Node.js process
 measured in bytes.
 
-    const util = require('util');
+```js
+const util = require('util');
 
-    console.log(util.inspect(process.memoryUsage()));
+console.log(util.inspect(process.memoryUsage()));
+```
 
 This will generate:
 
-    { rss: 4935680,
-      heapTotal: 1826816,
-      heapUsed: 650472 }
+```js
+{ rss: 4935680,
+  heapTotal: 1826816,
+  heapUsed: 650472 }
+```
 
 `heapTotal` and `heapUsed` refer to V8's memory usage.
 
@@ -607,65 +671,75 @@ This is *not* a simple alias to [`setTimeout(fn, 0)`][], it's much more
 efficient.  It runs before any additional I/O events (including
 timers) fire in subsequent ticks of the event loop.
 
-    console.log('start');
-    process.nextTick(() => {
-      console.log('nextTick callback');
-    });
-    console.log('scheduled');
-    // Output:
-    // start
-    // scheduled
-    // nextTick callback
+```js
+console.log('start');
+process.nextTick(() => {
+  console.log('nextTick callback');
+});
+console.log('scheduled');
+// Output:
+// start
+// scheduled
+// nextTick callback
+```
 
 This is important in developing APIs where you want to give the user the
 chance to assign event handlers after an object has been constructed,
 but before any I/O has occurred.
 
-    function MyThing(options) {
-      this.setupOptions(options);
+```js
+function MyThing(options) {
+  this.setupOptions(options);
 
-      process.nextTick(() => {
-        this.startDoingStuff();
-      }.bind(this));
-    }
+  process.nextTick(() => {
+    this.startDoingStuff();
+  }.bind(this));
+}
 
-    var thing = new MyThing();
-    thing.getReadyForStuff();
+var thing = new MyThing();
+thing.getReadyForStuff();
 
-    // thing.startDoingStuff() gets called now, not before.
+// thing.startDoingStuff() gets called now, not before.
+```
 
 It is very important for APIs to be either 100% synchronous or 100%
 asynchronous.  Consider this example:
 
-    // WARNING!  DO NOT USE!  BAD UNSAFE HAZARD!
-    function maybeSync(arg, cb) {
-      if (arg) {
-        cb();
-        return;
-      }
+```js
+// WARNING!  DO NOT USE!  BAD UNSAFE HAZARD!
+function maybeSync(arg, cb) {
+  if (arg) {
+    cb();
+    return;
+  }
 
-      fs.stat('file', cb);
-    }
+  fs.stat('file', cb);
+}
+```
 
 This API is hazardous.  If you do this:
 
-    maybeSync(true, function() {
-      foo();
-    });
-    bar();
+```js
+maybeSync(true, function() {
+  foo();
+});
+bar();
+```
 
 then it's not clear whether `foo()` or `bar()` will be called first.
 
 This approach is much better:
 
-    function definitelyAsync(arg, cb) {
-      if (arg) {
-        process.nextTick(cb);
-        return;
-      }
+```js
+function definitelyAsync(arg, cb) {
+  if (arg) {
+    process.nextTick(cb);
+    return;
+  }
 
-      fs.stat('file', cb);
-    }
+  fs.stat('file', cb);
+}
+```
 
 Note: the nextTick queue is completely drained on each pass of the
 event loop **before** additional I/O is processed.  As a result,
@@ -676,14 +750,18 @@ happening, just like a `while(true);` loop.
 
 The PID of the process.
 
-    console.log(`This process is pid ${process.pid}`);
+```js
+console.log(`This process is pid ${process.pid}`);
+```
 
 ## process.platform
 
 What platform you're running on:
 `'darwin'`, `'freebsd'`, `'linux'`, `'sunos'` or `'win32'`
 
-    console.log(`This platform is ${process.platform}`);
+```js
+console.log(`This platform is ${process.platform}`);
+```
 
 ## process.release
 
@@ -707,10 +785,12 @@ for the source tarball and headers-only tarball.
 
 e.g.
 
-    { name: 'node',
-      sourceUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0.tar.gz',
-      headersUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0-headers.tar.gz',
-      libUrl: 'https://nodejs.org/download/release/v4.0.0/win-x64/node.lib' }
+```js
+{ name: 'node',
+  sourceUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0.tar.gz',
+  headersUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0-headers.tar.gz',
+  libUrl: 'https://nodejs.org/download/release/v4.0.0/win-x64/node.lib' }
+```
 
 In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
@@ -736,16 +816,18 @@ Sets the effective group identity of the process. (See setegid(2).)
 This accepts either a numerical ID or a groupname string. If a groupname
 is specified, this method blocks while resolving it to a numerical ID.
 
-    if (process.getegid && process.setegid) {
-      console.log(`Current gid: ${process.getegid()}`);
-      try {
-        process.setegid(501);
-        console.log(`New gid: ${process.getegid()}`);
-      }
-      catch (err) {
-        console.log(`Failed to set gid: ${err}`);
-      }
-    }
+```js
+if (process.getegid && process.setegid) {
+  console.log(`Current gid: ${process.getegid()}`);
+  try {
+    process.setegid(501);
+    console.log(`New gid: ${process.getegid()}`);
+  }
+  catch (err) {
+    console.log(`Failed to set gid: ${err}`);
+  }
+}
+```
 
 ## process.seteuid(id)
 
@@ -756,16 +838,18 @@ Sets the effective user identity of the process. (See seteuid(2).)
 This accepts either a numerical ID or a username string.  If a username
 is specified, this method blocks while resolving it to a numerical ID.
 
-    if (process.geteuid && process.seteuid) {
-      console.log(`Current uid: ${process.geteuid()}`);
-      try {
-        process.seteuid(501);
-        console.log(`New uid: ${process.geteuid()}`);
-      }
-      catch (err) {
-        console.log(`Failed to set uid: ${err}`);
-      }
-    }
+```js
+if (process.geteuid && process.seteuid) {
+  console.log(`Current uid: ${process.geteuid()}`);
+  try {
+    process.seteuid(501);
+    console.log(`New uid: ${process.geteuid()}`);
+  }
+  catch (err) {
+    console.log(`Failed to set uid: ${err}`);
+  }
+}
+```
 
 ## process.setgid(id)
 
@@ -776,16 +860,18 @@ Sets the group identity of the process. (See setgid(2).)  This accepts either
 a numerical ID or a groupname string. If a groupname is specified, this method
 blocks while resolving it to a numerical ID.
 
-    if (process.getgid && process.setgid) {
-      console.log(`Current gid: ${process.getgid()}`);
-      try {
-        process.setgid(501);
-        console.log(`New gid: ${process.getgid()}`);
-      }
-      catch (err) {
-        console.log(`Failed to set gid: ${err}`);
-      }
-    }
+```js
+if (process.getgid && process.setgid) {
+  console.log(`Current gid: ${process.getgid()}`);
+  try {
+    process.setgid(501);
+    console.log(`New gid: ${process.getgid()}`);
+  }
+  catch (err) {
+    console.log(`Failed to set gid: ${err}`);
+  }
+}
+```
 
 ## process.setgroups(groups)
 
@@ -806,16 +892,18 @@ Sets the user identity of the process. (See setuid(2).)  This accepts either
 a numerical ID or a username string.  If a username is specified, this method
 blocks while resolving it to a numerical ID.
 
-    if (process.getuid && process.setuid) {
-      console.log(`Current uid: ${process.getuid()}`);
-      try {
-        process.setuid(501);
-        console.log(`New uid: ${process.getuid()}`);
-      }
-      catch (err) {
-        console.log(`Failed to set uid: ${err}`);
-      }
-    }
+```js
+if (process.getuid && process.setuid) {
+  console.log(`Current uid: ${process.getuid()}`);
+  try {
+    process.setuid(501);
+    console.log(`New uid: ${process.getuid()}`);
+  }
+  catch (err) {
+    console.log(`Failed to set uid: ${err}`);
+  }
+}
+```
 
 ## process.stderr
 
@@ -833,18 +921,20 @@ A `Readable Stream` for stdin (on fd `0`).
 
 Example of opening standard input and listening for both events:
 
-    process.stdin.setEncoding('utf8');
+```js
+process.stdin.setEncoding('utf8');
 
-    process.stdin.on('readable', () => {
-      var chunk = process.stdin.read();
-      if (chunk !== null) {
-        process.stdout.write(`data: ${chunk}`);
-      }
-    });
+process.stdin.on('readable', () => {
+  var chunk = process.stdin.read();
+  if (chunk !== null) {
+    process.stdout.write(`data: ${chunk}`);
+  }
+});
 
-    process.stdin.on('end', () => {
-      process.stdout.write('end');
-    });
+process.stdin.on('end', () => {
+  process.stdout.write('end');
+});
+```
 
 As a Stream, `process.stdin` can also be used in "old" mode that is compatible
 with scripts written for node.js prior to v0.10.
@@ -863,9 +953,11 @@ A `Writable Stream` to `stdout` (on fd `1`).
 
 For example, a `console.log` equivalent could look like this:
 
-    console.log = function(msg) {
-      process.stdout.write(`${msg}\n`);
-    };
+```js
+console.log = function(msg) {
+  process.stdout.write(`${msg}\n`);
+};
+```
 
 `process.stderr` and `process.stdout` are unlike other streams in Node.js in
 that they cannot be closed (`end()` will throw), they never emit the `'finish'`
@@ -876,15 +968,17 @@ should be a very rare occurrence indeed.)
 To check if Node.js is being run in a TTY context, read the `isTTY` property
 on `process.stderr`, `process.stdout`, or `process.stdin`:
 
-    $ node -p "Boolean(process.stdin.isTTY)"
-    true
-    $ echo "foo" | node -p "Boolean(process.stdin.isTTY)"
-    false
+```
+$ node -p "Boolean(process.stdin.isTTY)"
+true
+$ echo "foo" | node -p "Boolean(process.stdin.isTTY)"
+false
 
-    $ node -p "Boolean(process.stdout.isTTY)"
-    true
-    $ node -p "Boolean(process.stdout.isTTY)" | cat
-    false
+$ node -p "Boolean(process.stdout.isTTY)"
+true
+$ node -p "Boolean(process.stdout.isTTY)" | cat
+false
+```
 
 See [the tty docs][] for more information.
 
@@ -908,11 +1002,13 @@ Sets or reads the process's file mode creation mask. Child processes inherit
 the mask from the parent process. Returns the old mask if `mask` argument is
 given, otherwise returns the current mask.
 
-    const newmask = 0o022;
-    const oldmask = process.umask(newmask);
-    console.log(
-      `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
-    );
+```js
+const newmask = 0o022;
+const oldmask = process.umask(newmask);
+console.log(
+  `Changed umask from ${oldmask.toString(8)} to ${newmask.toString(8)}`
+);
+```
 
 
 ## process.uptime()
@@ -923,25 +1019,31 @@ Number of seconds Node.js has been running.
 
 A compiled-in property that exposes `NODE_VERSION`.
 
-    console.log(`Version: ${process.version}`);
+```js
+console.log(`Version: ${process.version}`);
+```
 
 ## process.versions
 
 A property exposing version strings of Node.js and its dependencies.
 
-    console.log(process.versions);
+```js
+console.log(process.versions);
+```
 
 Will print something like:
 
-    { http_parser: '2.3.0',
-      node: '1.1.1',
-      v8: '4.1.0.14',
-      uv: '1.3.0',
-      zlib: '1.2.8',
-      ares: '1.10.0-DEV',
-      modules: '43',
-      icu: '55.1',
-      openssl: '1.0.1k' }
+```js
+{ http_parser: '2.3.0',
+  node: '1.1.1',
+  v8: '4.1.0.14',
+  uv: '1.3.0',
+  zlib: '1.2.8',
+  ares: '1.10.0-DEV',
+  modules: '43',
+  icu: '55.1',
+  openssl: '1.0.1k' }
+```
 
 [`'message'`]: child_process.html#child_process_event_message
 [`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
