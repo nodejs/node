@@ -972,6 +972,10 @@
     return NativeModule._source[id];
   };
 
+  NativeModule.getSourceCachedData = function(id) {
+    return NativeModule._source[id + '__cached_data'];
+  };
+
   NativeModule.wrap = function(script) {
     return NativeModule.wrapper[0] + script + NativeModule.wrapper[1];
   };
@@ -983,10 +987,12 @@
 
   NativeModule.prototype.compile = function() {
     var source = NativeModule.getSource(this.id);
+    var cachedData = NativeModule.getSourceCachedData(this.id);
     source = NativeModule.wrap(source);
 
     var fn = runInThisContext(source, {
       filename: this.filename,
+      cachedData: cachedData,
       lineOffset: 0
     });
     fn(this.exports, NativeModule.require, this, this.filename);
