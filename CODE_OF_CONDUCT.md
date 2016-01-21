@@ -1,11 +1,14 @@
 ## Code of Conduct
 
 This Code of Conduct is adapted from [Rust's wonderful
-CoC](http://www.rust-lang.org/conduct.html).
+CoC](http://www.rust-lang.org/conduct.html) as well as the
+[Contributor Covenant v1.3.0](http://contributor-covenant.org/version/1/3/0/).
 
 * We are committed to providing a friendly, safe and welcoming
-  environment for all, regardless of gender, sexual orientation,
-  disability, ethnicity, religion, or similar personal characteristic.
+  environment for all, regardless of level of experience, gender
+  identity and expression, sexual orientation, disability,
+  personal appearance, body size, race, ethnicity, age, religion,
+  nationality, or other similar characteristic.
 * Please avoid using overtly sexual nicknames or other nicknames that
   might detract from a friendly, safe and welcoming environment for
   all.
