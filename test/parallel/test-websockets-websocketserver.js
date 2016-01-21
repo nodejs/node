@@ -1,8 +1,8 @@
 'use strict';
 const http = require('http');
 const https = require('https');
-const WebSocket = require('../../');
-const WebSocketServer = WebSocket.Server;
+const WebSocket = require('../../lib/websockets');
+const WebSocketServer = require('../../lib/websockets').Server;
 const fs = require('fs');
 const assert = require('assert');
 

@@ -1,6 +1,5 @@
 'use strict';
 const assert = require('assert');
-const expect = require('expect.js');
 const Receiver = require('../../lib/internal/websockets/Receiver.hixie');
 const ws_common = require('../common-websockets');
 
@@ -85,7 +84,7 @@ describe('Receiver', function() {
     for (var i = 0; i < packets.length; ++i) {
       p.add(ws_common.getBufferFromHexString(packets[i]));
     }
-    expect(gotData).to.equal(true);
+    assert.equal(gotData, true);
     for (var i = 0; i < 2; ++i) {
       assert.equal(messages[i], 'Hello');
     }
