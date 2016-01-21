@@ -238,11 +238,19 @@ Use `tools/release.sh` to promote and sign the build. When run, it will perform 
 
 **d.** Use `scp` to download SHASUMS256.txt to a temporary directory on your computer.
 
+```
+scp dist@direct.nodejs.org:~/nodejs/release/vx.y.z/SHASUMS256.txt /path/to/local/SHASUM256.txt
+```
+
 **e.** Sign the SHASUMS256.txt file using a command similar to: `gpg --default-key YOURKEY --clearsign /path/to/SHASUMS256.txt`. You will be prompted by GPG for your password. The signed file will be named SHASUMS256.txt.asc.
 
 **f.** Output an ASCII armored version of your public GPG key using a command similar to: `gpg --default-key YOURKEY --armor --export --output /path/to/SHASUMS256.txt.gpg`. This does not require your password and is mainly a convenience for users, although not the recommended way to get a copy of your key.
 
 **g.** Upload the SHASUMS256.txt files back to the server into the release directory.
+
+```
+scp /path/to/SHASUMS256.txt* dist@direct.nodejs.org:~/nodejs/release/vx.y.z
+```
 
 If you didn't wait for ARM builds in the previous step before promoting the release, you should re-run `tools/release.sh` after the ARM builds have finished. That will move the ARM artifacts into the correct location. You will be prompted to re-sign SHASUMS256.txt.
 
