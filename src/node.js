@@ -782,7 +782,8 @@
     var signalWraps = {};
 
     function isSignal(event) {
-      return event.slice(0, 3) === 'SIG' &&
+      return typeof event === 'string' &&
+             event.slice(0, 3) === 'SIG' &&
              startup.lazyConstants().hasOwnProperty(event);
     }
 
