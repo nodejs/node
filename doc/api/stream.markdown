@@ -870,14 +870,14 @@ Note: **Implement this method, but do NOT call it directly.**
 
 This method is prefixed with an underscore because it is internal to the
 class that defines it and should only be called by the internal Readable
-class methods. All Readable stream implementations must provide a _read
+class methods. All Readable stream implementations must provide a \_read
 method to fetch data from the underlying resource.
 
-When _read is called, if data is available from the resource, `_read` should
+When \_read is called, if data is available from the resource, `_read` should
 start pushing that data into the read queue by calling `this.push(dataChunk)`.
 `_read` should continue reading from the resource and pushing data until push
 returns false, at which point it should stop reading from the resource. Only
-when _read is called again after it has stopped should it start reading
+when \_read is called again after it has stopped should it start reading
 more data from the resource and pushing that data onto the queue.
 
 Note: once the `_read()` method is called, it will not be called again until
