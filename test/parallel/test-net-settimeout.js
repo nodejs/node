@@ -2,36 +2,28 @@
 // This example sets a timeout then immediately attempts to disable the timeout
 // https://github.com/joyent/node/pull/2245
 
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
-var T = 100;
+const T = 100;
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   c.write('hello');
 });
 server.listen(common.PORT);
 
-var killers = [0];
+const socket = net.createConnection(common.PORT, 'localhost');
 
-var left = killers.length;
-killers.forEach(function(killer) {
-  var socket = net.createConnection(common.PORT, 'localhost');
-
-  var s = socket.setTimeout(T, function() {
-    socket.destroy();
-    if (--left === 0) server.close();
-    assert.ok(killer !== 0);
-    clearTimeout(timeout);
-  });
-  assert.ok(s instanceof net.Socket);
-
-  socket.setTimeout(killer);
-
-  var timeout = setTimeout(function() {
-    socket.destroy();
-    if (--left === 0) server.close();
-    assert.ok(killer === 0);
-  }, T * 2);
+const s = socket.setTimeout(T, function() {
+  common.fail('Socket timeout event is not expected to fire');
 });
+assert.ok(s instanceof net.Socket);
+
+socket.setTimeout(0);
+
+setTimeout(function() {
+  socket.destroy();
+  server.close();
+}, T * 2);
+
