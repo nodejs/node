@@ -827,7 +827,9 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   Local<String> needle = args[1].As<String>();
   const char* haystack = ts_obj_data;
   const size_t haystack_length = ts_obj_length;
-  const size_t needle_length = needle->Utf8Length();
+  // Extended latin-1 characters are 2 bytes in Utf8.
+  const size_t needle_length =
+      enc == BINARY ? needle->Length() : needle->Utf8Length();
 
 
   if (needle_length == 0 || haystack_length == 0) {
