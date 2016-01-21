@@ -109,6 +109,15 @@ assert.equal(
 assert.equal(
     Buffer(b.toString('binary'), 'binary')
     .indexOf(Buffer('d', 'binary'), 0, 'binary'), 3);
+assert.equal(
+    Buffer('aa\u00e8aa', 'binary')
+    .indexOf('\u00e8', 'binary'), 2);
+assert.equal(
+    Buffer('\u00e8', 'binary')
+    .indexOf('\u00e8', 'binary'), 0);
+assert.equal(
+    Buffer('\u00e8', 'binary')
+    .indexOf(Buffer('\u00e8', 'binary'), 'binary'), 0);
 
 
 // test optional offset with passed encoding
