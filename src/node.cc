@@ -114,6 +114,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::MaybeLocal;
 using v8::Message;
 using v8::Number;
 using v8::Object;
@@ -121,6 +122,7 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
+using v8::ScriptCompiler;
 using v8::SealHandleScope;
 using v8::StackFrame;
 using v8::StackTrace;
@@ -1586,9 +1588,8 @@ static void ReportException(Environment* env, const TryCatch& try_catch) {
 
 
 // Executes a str within the current v8 context.
-static Local<Value> ExecuteString(Environment* env,
-                                  Local<String> source,
-                                  Local<String> filename) {
+static Local<Value> ExecuteSource(Environment* env,
+                                  ScriptCompiler::Source* source) {
   EscapableHandleScope scope(env->isolate());
   TryCatch try_catch;
 
@@ -1596,13 +1597,18 @@ static Local<Value> ExecuteString(Environment* env,
   // we will handle exceptions ourself.
   try_catch.SetVerbose(false);
 
-  Local<v8::Script> script = v8::Script::Compile(source, filename);
-  if (script.IsEmpty()) {
+  MaybeLocal<v8::Script> maybe_script = v8::ScriptCompiler::Compile(
+      env->context(),
+      source,
+      source->GetCachedData() == nullptr ? ScriptCompiler::kNoCompileOptions :
+                                           ScriptCompiler::kConsumeCodeCache);
+  delete source;
+  if (maybe_script.IsEmpty()) {
     ReportException(env, try_catch);
     exit(3);
   }
 
-  Local<Value> result = script->Run();
+  Local<Value> result = maybe_script.ToLocalChecked()->Run();
   if (result.IsEmpty()) {
     ReportException(env, try_catch);
     exit(4);
@@ -3157,7 +3163,7 @@ void LoadEnvironment(Environment* env) {
   try_catch.SetVerbose(false);
 
   Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(), "node.js");
-  Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
+  Local<Value> f_value = ExecuteSource(env, MainSource(env, script_name));
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
     exit(10);
