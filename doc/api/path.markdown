@@ -28,7 +28,7 @@ path.basename('/foo/bar/baz/asdf/quux.html', '.html')
 
 The platform-specific path delimiter, `;` or `':'`.
 
-An example on *nix:
+An example on \*nix:
 
 ```js
 console.log(process.env.PATH)
@@ -181,7 +181,7 @@ path.normalize('/foo/bar//baz/asdf/quux/..')
 
 Returns an object from a path string.
 
-An example on *nix:
+An example on \*nix:
 
 ```js
 path.parse('/home/user/dir/file.txt')
@@ -294,7 +294,7 @@ path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
 
 The platform-specific file separator. `'\\'` or `'/'`.
 
-An example on *nix:
+An example on \*nix:
 
 ```js
 'foo/bar/baz'.split(path.sep)
