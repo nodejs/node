@@ -863,7 +863,7 @@ In classes that extend the Readable class, make sure to call the
 Readable constructor so that the buffering settings can be properly
 initialized.
 
-#### readable._read(size)
+#### readable.\_read(size)
 
 * `size` {Number} Number of bytes to read asynchronously
 
@@ -871,14 +871,14 @@ Note: **Implement this method, but do NOT call it directly.**
 
 This method is prefixed with an underscore because it is internal to the
 class that defines it and should only be called by the internal Readable
-class methods. All Readable stream implementations must provide a _read
+class methods. All Readable stream implementations must provide a \_read
 method to fetch data from the underlying resource.
 
-When _read is called, if data is available from the resource, `_read` should
+When \_read is called, if data is available from the resource, `_read` should
 start pushing that data into the read queue by calling `this.push(dataChunk)`.
 `_read` should continue reading from the resource and pushing data until push
 returns false, at which point it should stop reading from the resource. Only
-when _read is called again after it has stopped should it start reading
+when \_read is called again after it has stopped should it start reading
 more data from the resource and pushing that data onto the queue.
 
 Note: once the `_read()` method is called, it will not be called again until
@@ -1127,7 +1127,7 @@ and Readable classes respectively. The `'finish'` event is fired after
 `end` is fired after all data has been output which is after the callback
 in `_flush` has been called.
 
-#### transform._flush(callback)
+#### transform.\_flush(callback)
 
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done flushing any remaining data.
@@ -1154,7 +1154,7 @@ the class that defines it, and should not be called directly by user
 programs.  However, you **are** expected to override this method in
 your own extension classes.
 
-#### transform._transform(chunk, encoding, callback)
+#### transform.\_transform(chunk, encoding, callback)
 
 * `chunk` {Buffer | String} The chunk to be transformed. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
@@ -1309,7 +1309,7 @@ In classes that extend the Writable class, make sure to call the
 constructor so that the buffering settings can be properly
 initialized.
 
-#### writable._write(chunk, encoding, callback)
+#### writable.\_write(chunk, encoding, callback)
 
 * `chunk` {Buffer | String} The chunk to be written. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
@@ -1342,7 +1342,7 @@ the class that defines it, and should not be called directly by user
 programs.  However, you **are** expected to override this method in
 your own extension classes.
 
-#### writable._writev(chunks, callback)
+#### writable.\_writev(chunks, callback)
 
 * `chunks` {Array} The chunks to be written.  Each chunk has following
   format: `{ chunk: ..., encoding: ... }`.
