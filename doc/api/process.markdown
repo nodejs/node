@@ -626,7 +626,7 @@ but before any I/O has occurred.
 
       process.nextTick(() => {
         this.startDoingStuff();
-      }.bind(this));
+      });
     }
 
     var thing = new MyThing();
