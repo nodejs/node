@@ -11,7 +11,7 @@ By executing `node` without any arguments from the command-line you will be
 dropped into the REPL. It has simplistic emacs line-editing.
 
 ```
-mjr:~$ node
+$ node
 Type '.help' for options.
 > a = [ 1, 2, 3];
 [ 1, 2, 3 ]
@@ -101,7 +101,7 @@ repl.start('> ').context.m = msg;
 Things in the `context` object appear as local within the REPL:
 
 ```
-mjr:~$ node repl_test.js
+$ node repl_test.js
 > m
 'message'
 ```

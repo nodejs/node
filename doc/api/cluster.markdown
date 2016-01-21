@@ -36,7 +36,7 @@ if (cluster.isMaster) {
 Running Node.js will now share port 8000 between the workers:
 
 ```
-% NODE_DEBUG=cluster node server.js
+$ NODE_DEBUG=cluster node server.js
 23521,Master Worker 23524 online
 23521,Master Worker 23526 online
 23521,Master Worker 23523 online
