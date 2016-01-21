@@ -26,7 +26,7 @@ Example:
 
 The platform-specific path delimiter, `;` or `':'`.
 
-An example on *nix:
+An example on \*nix:
 
     console.log(process.env.PATH)
     // '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
@@ -161,7 +161,7 @@ Example:
 
 Returns an object from a path string.
 
-An example on *nix:
+An example on \*nix:
 
     path.parse('/home/user/dir/file.txt')
     // returns
@@ -260,7 +260,7 @@ Examples:
 
 The platform-specific file separator. `'\\'` or `'/'`.
 
-An example on *nix:
+An example on \*nix:
 
     'foo/bar/baz'.split(path.sep)
     // returns
