@@ -109,6 +109,7 @@ assert.equal(
 assert.equal(
     Buffer(b.toString('binary'), 'binary')
     .indexOf(Buffer('d', 'binary'), 0, 'binary'), 3);
+
 assert.equal(
     Buffer('aa\u00e8aa', 'binary')
     .indexOf('\u00e8', 'binary'), 2);
@@ -130,6 +131,21 @@ assert.equal(
     new Buffer('\u03a3', 'ucs2'), -6, 'ucs2'));
   assert.equal(-1, twoByteString.indexOf('\u03a3', -2, 'ucs2'));
 }
+
+// test optional offset with passed encoding
+assert.equal(new Buffer('aaaa0').indexOf('30', 'hex'), 4);
+assert.equal(new Buffer('aaaa00a').indexOf('3030', 'hex'), 4);
+
+
+// test usc2 encoding
+var twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
+
+assert.equal(8, twoByteString.indexOf('\u0395', 4, 'ucs2'));
+assert.equal(6, twoByteString.indexOf('\u03a3', -4, 'ucs2'));
+assert.equal(4, twoByteString.indexOf('\u03a3', -6, 'ucs2'));
+assert.equal(4, twoByteString.indexOf(
+  new Buffer('\u03a3', 'ucs2'), -6, 'ucs2'));
+assert.equal(-1, twoByteString.indexOf('\u03a3', -2, 'ucs2'));
 
 var mixedByteStringUcs2 =
     new Buffer('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
