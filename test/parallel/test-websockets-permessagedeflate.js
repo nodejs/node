@@ -1,6 +1,6 @@
 'use strict';
-const PerMessageDeflate = require('../../lib/PerMessageDeflate');
-const Extensions = require('../../lib/Extensions');
+const PerMessageDeflate = require('../../lib/internal/websockets/PerMessageDeflate');
+const Extensions = require('../../lib/internal/websockets/Extensions');
 const assert = require('assert');
 
 describe('PerMessageDeflate', function() {

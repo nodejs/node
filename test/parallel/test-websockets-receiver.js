@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('assert');
-const Receiver = require('../../lib/Receiver');
-const PerMessageDeflate = require('../../lib/PerMessageDeflate');
+const Receiver = require('../../lib/internal/websockets/Receiver');
+const PerMessageDeflate = require('../../lib/internal/websockets/PerMessageDeflate');
 const ws_common = require('../common-websockets');
 
 describe('Receiver', function() {

@@ -3,8 +3,8 @@ const http = require('http');
 const util = require('util');
 const crypto = require('crypto');
 const events = require('events');
-const Sender = require('../lib/Sender');
-const Receiver = require('../lib/Receiver');
+const Sender = require('../lib/internal/websockets/Sender');
+const Receiver = require('../lib/internal/websockets/Receiver');
 
 /**
  * Returns a Buffer from a "ff 00 ff"-type hex string.

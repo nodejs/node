@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('assert');
-const Sender = require('../../lib/Sender.hixie');
+const Sender = require('../../lib/internal/websockets/Sender.hixie');
 
 describe('Sender', function() {
   describe('#ctor', function() {

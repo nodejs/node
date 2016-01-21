@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('assert');
 const expect = require('expect.js');
-const Receiver = require('../../lib/Receiver.hixie');
+const Receiver = require('../../lib/internal/websockets/Receiver.hixie');
 const ws_common = require('../common-websockets');
 
 describe('Receiver', function() {

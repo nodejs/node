@@ -6,11 +6,11 @@
  * MIT Licensed
  */
 
-var WS = module.exports = require('./lib/WebSocket');
+var WebSocket = module.exports = require('./lib/websockets');
 
-WS.Server = require('./lib/WebSocketServer');
-WS.Sender = require('./lib/Sender');
-WS.Receiver = require('./lib/Receiver');
+WebSocket.Server = require('./lib/internal/websockets/WebSocketServer');
+WebSocket.Sender = require('./lib/internal/websockets/Sender');
+WebSocket.Receiver = require('./lib/internal/websockets/Receiver');
 
 /**
  * Create a new WebSocket server.
@@ -20,7 +20,7 @@ WS.Receiver = require('./lib/Receiver');
  * @returns {WS.Server}
  * @api public
  */
-WS.prototype.createServer = function createServer(options, fn) {
+WebSocket.prototype.createServer = function createServer(options, fn) {
   var server = new WS.Server(options);
 
   if (typeof fn === 'function') {
@@ -38,7 +38,7 @@ WS.prototype.createServer = function createServer(options, fn) {
  * @returns {WS}
  * @api public
  */
-WS.prototype.connect = WS.prototype.createConnection = function connect(address, fn) {
+WebSocket.prototype.connect = WebSocket.prototype.createConnection = function connect(address, fn) {
   var client = new WS(address);
 
   if (typeof fn === 'function') {

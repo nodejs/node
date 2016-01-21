@@ -1,5 +1,5 @@
 'use strict';
-const BufferPool = require('../../lib/BufferPool');
+const BufferPool = require('../../lib/internal/websockets/BufferPool');
 const assert = require('assert');
 
 describe('BufferPool', function() {

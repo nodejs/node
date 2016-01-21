@@ -1,5 +1,5 @@
 'use strict';
-const Extensions = require('../../lib/Extensions');
+const Extensions = require('../../lib/internal/websockets/Extensions');
 const assert = require('assert');
 
 describe('Extensions', function() {
