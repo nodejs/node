@@ -20,7 +20,7 @@ To run the server, put the code into a file called `example.js` and execute
 it with the node program
 
 ```
-> node example.js
+$ node example.js
 Server running at http://127.0.0.1:8124/
 ```
 

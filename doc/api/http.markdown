@@ -975,7 +975,8 @@ If you would like to parse the URL into its parts, you can use
 `require('url').parse(request.url)`.  Example:
 
 ```
-node> require('url').parse('/status?name=ryan')
+$ node
+> require('url').parse('/status?name=ryan')
 {
   href: '/status?name=ryan',
   search: '?name=ryan',
@@ -989,7 +990,8 @@ you can use the `require('querystring').parse` function, or pass
 `true` as the second argument to `require('url').parse`.  Example:
 
 ```
-node> require('url').parse('/status?name=ryan', true)
+$ node
+> require('url').parse('/status?name=ryan', true)
 {
   href: '/status?name=ryan',
   search: '?name=ryan',
