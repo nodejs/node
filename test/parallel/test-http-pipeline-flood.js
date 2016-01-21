@@ -12,6 +12,9 @@ const assert = require('assert');
 // Normally when the writable stream emits a 'drain' event, the server then
 // uncorks the readable stream, although we arent testing that part here.
 
+// The issue being tested exists in Node.js 0.10.20 and is resolved in 0.10.21
+// and newer.
+
 switch (process.argv[2]) {
   case undefined:
     return parent();
@@ -24,8 +27,6 @@ switch (process.argv[2]) {
 function parent() {
   const http = require('http');
   const bigResponse = new Buffer(10240).fill('x');
-  var gotTimeout = false;
-  var childClosed = false;
   var requests = 0;
   var connections = 0;
   var backloggedReqs = 0;
@@ -57,20 +58,16 @@ function parent() {
     const spawn = require('child_process').spawn;
     const args = [__filename, 'child'];
     const child = spawn(process.execPath, args, { stdio: 'inherit' });
-    child.on('close', function() {
-      childClosed = true;
+    child.on('close', common.mustCall(function() {
       server.close();
-    });
+    }));
 
-    server.setTimeout(common.platformTimeout(200), function(conn) {
-      gotTimeout = true;
+    server.setTimeout(200, common.mustCall(function() {
       child.kill();
-    });
+    }));
   });
 
   process.on('exit', function() {
-    assert(gotTimeout);
-    assert(childClosed);
     assert.equal(connections, 1);
   });
 }
@@ -85,13 +82,10 @@ function child() {
 
   req = new Array(10241).join(req);
 
-  conn.on('connect', function() {
-    // Terminate child after flooding.
-    setTimeout(function() { conn.destroy(); }, common.platformTimeout(1000));
-    write();
-  });
+  conn.on('connect', write);
 
-  conn.on('drain', write);
+  // `drain` should fire once and only once
+  conn.on('drain', common.mustCall(write));
 
   function write() {
     while (false !== conn.write(req, 'ascii'));
