@@ -54,17 +54,43 @@ class Interpreter {
   void DoBinaryOp(Runtime::FunctionId function_id,
                   compiler::InterpreterAssembler* assembler);
 
+  // Generates code to perform the count operations via |function_id|.
+  void DoCountOp(Runtime::FunctionId function_id,
+                 compiler::InterpreterAssembler* assembler);
+
   // Generates code to perform the comparison operation associated with
   // |compare_op|.
   void DoCompareOp(Token::Value compare_op,
                    compiler::InterpreterAssembler* assembler);
 
-  // Generates code to perform a property load via |ic|.
-  void DoPropertyLoadIC(Callable ic, compiler::InterpreterAssembler* assembler);
+  // Generates code to load a constant from the constant pool.
+  void DoLoadConstant(compiler::InterpreterAssembler* assembler);
 
-  // Generates code to perform a property store via |ic|.
-  void DoPropertyStoreIC(Callable ic,
-                         compiler::InterpreterAssembler* assembler);
+  // Generates code to perform a global load via |ic|.
+  void DoLoadGlobal(Callable ic, compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a global store via |ic|.
+  void DoStoreGlobal(Callable ic, compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a named property load via |ic|.
+  void DoLoadIC(Callable ic, compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a keyed property load via |ic|.
+  void DoKeyedLoadIC(Callable ic, compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a namedproperty store via |ic|.
+  void DoStoreIC(Callable ic, compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a keyed property store via |ic|.
+  void DoKeyedStoreIC(Callable ic, compiler::InterpreterAssembler* assembler);
+
+  // Generates code ro create a literal via |function_id|.
+  void DoCreateLiteral(Runtime::FunctionId function_id,
+                       compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform delete via function_id.
+  void DoDelete(Runtime::FunctionId function_id,
+                compiler::InterpreterAssembler* assembler);
 
   bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
 

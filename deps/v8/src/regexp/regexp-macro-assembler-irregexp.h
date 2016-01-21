@@ -125,6 +125,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
 
 #endif  // V8_INTERPRETED_REGEXP
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_

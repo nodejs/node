@@ -1124,13 +1124,11 @@ TARGET_TEST_F(SchedulerTest, Terminate) {
   Node* loop = graph()->NewNode(common()->Loop(2), start, start);
   loop->ReplaceInput(1, loop);  // self loop, NTL.
 
-  Node* effect = graph()->NewNode(common()->EffectPhi(1), start, loop);
+  Node* effect = graph()->NewNode(common()->EffectPhi(2), start, start, loop);
+  effect->ReplaceInput(1, effect);  // self loop.
 
   Node* terminate = graph()->NewNode(common()->Terminate(), effect, loop);
-  effect->ReplaceInput(1, terminate);
-
   Node* end = graph()->NewNode(common()->End(1), terminate);
-
   graph()->SetEnd(end);
 
   Schedule* schedule = ComputeAndVerifySchedule(6);

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TYPER_H_
 #define V8_COMPILER_TYPER_H_
 
+#include "src/base/flags.h"
 #include "src/compiler/graph.h"
 #include "src/types.h"
 
@@ -12,14 +13,23 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class ZoneTypeCache;
+class CompilationDependencies;
+class TypeCache;
 
 namespace compiler {
 
 
 class Typer {
  public:
-  Typer(Isolate* isolate, Graph* graph,
+  // Flags that control the mode of operation.
+  enum Flag {
+    kNoFlags = 0u,
+    kDeoptimizationEnabled = 1u << 0,
+  };
+  typedef base::Flags<Flag> Flags;
+
+  Typer(Isolate* isolate, Graph* graph, Flags flags = kNoFlags,
+        CompilationDependencies* dependencies = nullptr,
         Type::FunctionType* function_type = nullptr);
   ~Typer();
 
@@ -34,13 +44,17 @@ class Typer {
   Graph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
   Isolate* isolate() const { return isolate_; }
+  Flags flags() const { return flags_; }
+  CompilationDependencies* dependencies() const { return dependencies_; }
   Type::FunctionType* function_type() const { return function_type_; }
 
   Isolate* const isolate_;
   Graph* const graph_;
+  Flags const flags_;
+  CompilationDependencies* const dependencies_;
   Type::FunctionType* function_type_;
   Decorator* decorator_;
-  ZoneTypeCache const& cache_;
+  TypeCache const& cache_;
 
   Type* singleton_false_;
   Type* singleton_true_;
@@ -51,6 +65,8 @@ class Typer {
 
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags)
 
 }  // namespace compiler
 }  // namespace internal

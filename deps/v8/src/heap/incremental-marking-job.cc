@@ -53,7 +53,7 @@ void IncrementalMarkingJob::ScheduleIdleTask(Heap* heap) {
 
 
 void IncrementalMarkingJob::ScheduleDelayedTask(Heap* heap) {
-  if (!delayed_task_pending_) {
+  if (!delayed_task_pending_ && FLAG_memory_reducer) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     delayed_task_pending_ = true;
     made_progress_since_last_delayed_task_ = false;

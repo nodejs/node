@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <limits>
 
 #include "src/compiler/change-lowering.h"
@@ -24,8 +27,9 @@
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 template <typename ReturnType>
 class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
@@ -34,7 +38,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
       : GraphBuilderTester<ReturnType>(p0),
         javascript(this->zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
-                this->machine()),
+                nullptr, this->machine()),
         function(Handle<JSFunction>::null()) {}
 
   JSOperatorBuilder javascript;
@@ -283,3 +287,7 @@ TEST(RunChangeBitToBool) {
     CHECK_EQ(false_obj, result);
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

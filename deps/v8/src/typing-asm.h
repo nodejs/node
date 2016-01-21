@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-class ZoneTypeCache;
+class TypeCache;
 
 class AsmTyper : public AstVisitor {
  public:
@@ -27,6 +27,7 @@ class AsmTyper : public AstVisitor {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  private:
+  Zone* zone_;
   Script* script_;
   FunctionLiteral* root_;
   bool valid_;
@@ -51,7 +52,7 @@ class AsmTyper : public AstVisitor {
   bool in_function_;  // In module function?
   bool building_function_tables_;
 
-  ZoneTypeCache const& cache_;
+  TypeCache const& cache_;
 
   static const int kErrorMessageLimit = 100;
   char error_message_[kErrorMessageLimit];
@@ -83,13 +84,19 @@ class AsmTyper : public AstVisitor {
   void VisitWithExpectation(Expression* expr, Type* expected_type,
                             const char* msg);
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
+  void VisitIntegerBitwiseOperator(BinaryOperation* expr, Type* left_expected,
+                                   Type* right_expected, Type* result_type,
+                                   bool conversion);
+
+  Zone* zone() const { return zone_; }
+
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
   DISALLOW_COPY_AND_ASSIGN(AsmTyper);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPING_ASM_H_

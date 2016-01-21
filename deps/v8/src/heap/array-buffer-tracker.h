@@ -68,6 +68,6 @@ class ArrayBufferTracker {
   std::map<void*, size_t> live_array_buffers_for_scavenge_;
   std::map<void*, size_t> not_yet_discovered_array_buffers_for_scavenge_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 #endif  // V8_HEAP_ARRAY_BUFFER_TRACKER_H_

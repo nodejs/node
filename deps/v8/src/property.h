@@ -107,6 +107,7 @@ class AccessorConstantDescriptor final : public Descriptor {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROPERTY_H_

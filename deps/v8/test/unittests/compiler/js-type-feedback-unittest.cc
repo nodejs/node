@@ -40,7 +40,9 @@ class JSTypeFeedbackTest : public TypedGraphTest {
         isolate()->native_context()->global_object(), isolate());
 
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
+    SimplifiedOperatorBuilder simplified(zone());
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
+                    &machine);
     JSTypeFeedbackTable table(zone());
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
@@ -51,7 +53,8 @@ class JSTypeFeedbackTest : public TypedGraphTest {
 
   Node* EmptyFrameState() {
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), nullptr,
+                    &machine);
     return jsgraph.EmptyFrameState();
   }
 
@@ -78,15 +81,13 @@ class JSTypeFeedbackTest : public TypedGraphTest {
       const char* string, Node* effect, Node* control,
       JSTypeFeedbackSpecializer::DeoptimizationMode mode) {
     VectorSlotPair feedback;
-    Node* global = UndefinedConstant();
     Node* vector = UndefinedConstant();
     Node* context = UndefinedConstant();
 
     Handle<Name> name = isolate()->factory()->InternalizeUtf8String(string);
     const Operator* op = javascript()->LoadGlobal(name, feedback);
-    Node* load =
-        graph()->NewNode(op, context, global, vector, context,
-                         EmptyFrameState(), EmptyFrameState(), effect, control);
+    Node* load = graph()->NewNode(op, vector, context, EmptyFrameState(),
+                                  EmptyFrameState(), effect, control);
     Node* if_success = graph()->NewNode(common()->IfSuccess(), load);
     return graph()->NewNode(common()->Return(), load, load, if_success);
   }

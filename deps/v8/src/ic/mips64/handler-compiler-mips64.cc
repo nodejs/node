@@ -168,7 +168,7 @@ void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
   // Check we're still in the same context.
   const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
   __ ld(result, MemOperand(cp, offset));
-  __ ld(result, FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ ld(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   __ ld(result, MemOperand(result, Context::SlotOffset(index)));
   // Load its initial map. The global functions all have initial maps.
   __ ld(result,
@@ -347,8 +347,8 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
 }
 
 
-void NamedStoreHandlerCompiler::GeneratePushMap(Register map_reg,
-                                                Register scratch) {
+void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
+    Register current_map, Register destination_map) {
   DCHECK(false);  // Not implemented.
 }
 

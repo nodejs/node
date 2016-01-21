@@ -1,3 +1,1499 @@
+2015-11-11: Version 4.8.271
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-11: Version 4.8.270
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-11: Version 4.8.269
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-10: Version 4.8.268
+
+        Make JSFunction::BodyDescriptor the only single place that knows how to
+        iterate JSFunction's body (issue 4531).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-10: Version 4.8.267
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.266
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.265
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.264
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.263
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.262
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.261
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.260
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.259
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-09: Version 4.8.258
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-07: Version 4.8.257
+
+        Update v8_external_startup_data_assets for
+        https://codereview.chromium.org/1422793004/ (Chromium issue 547162).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-07: Version 4.8.256
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-07: Version 4.8.255
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-06: Version 4.8.254
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-06: Version 4.8.253
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-06: Version 4.8.252
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-06: Version 4.8.251
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-06: Version 4.8.250
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-06: Version 4.8.249
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-06: Version 4.8.248
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-06: Version 4.8.247
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.246
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.245
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.244
+
+        Re-ship @@toStringTag (issue 3502).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.243
+
+        Stage --harmony-destructuring and --harmony-default-parameters (issues
+        811, 2160).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.242
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.241
+
+        Re-re-land "[es6] Implement destructuring binding in try/catch" (issue
+        811).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.240
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.239
+
+        Add v8_external_startup_data GN rule (Chromium issue 547162).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.238
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.237
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.236
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.235
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.234
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.233
+
+        Implement flag and source getters on RegExp.prototype (issues 3715,
+        4528).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.232
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-05: Version 4.8.231
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.230
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.229
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.228
+
+        Ship Harmony ToLength (issue 3087).
+
+        Avoid creating indexed elements at index maxUint32 (issue 4516).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.227
+
+        Implement flag and source getters on RegExp.prototype (issues 3715,
+        4528).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.226
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.225
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.224
+
+        [es6] Implement destructuring binding in try/catch (issue 811).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.223
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.222
+
+        Implement flag and source getters on RegExp.prototype (issues 3715,
+        4528).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.221
+
+        Implement flag and source getters on RegExp.prototype (issues 3715,
+        4528).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.220
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.219
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-04: Version 4.8.218
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.217
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.216
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.215
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.214
+
+        [es6] Fix Object built-in subclassing (issue 3886).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.213
+
+        [es6] Fix WeakMap/Set built-ins subclasssing (issues 3101, 3330).
+
+        Reland "[es6] Fix Function and GeneratorFunction built-ins subclassing."
+        (issues 3101, 3330).
+
+        Implement flag and source getters on RegExp.prototype (issues 3715,
+        4528).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.212
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.211
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.210
+
+        For now, don't assume failed-access-check callback to throw (Chromium
+        issue 548194).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-03: Version 4.8.209
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.208
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.207
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.206
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.205
+
+        Mark GetCallingContext as soon-to-be deprecated (Chromium issue 541703).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.204
+
+        Add boolean to tell if V8 zaps allocated memory (Chromium issue 546492).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.203
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.202
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.201
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.200
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.199
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.198
+
+        [es6] Fix Function and GeneratorFunction built-ins subclassing (issues
+        3101, 3330).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.197
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.196
+
+        Reland "[es6] Better support for built-ins subclassing." (issues 3101,
+        3330, 4419).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-11-02: Version 4.8.195
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.194
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.193
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.192
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.191
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.190
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.189
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.188
+
+        [es6] Better support for built-ins subclassing (issues 3101, 3330).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.187
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.186
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-30: Version 4.8.185
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.184
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.183
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.182
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.181
+
+        Reland v8::Private and related APIs.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.180
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.179
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.178
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.177
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-29: Version 4.8.176
+
+        Stage ES2015 ToLength semantics (issues 3087, 4244).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.175
+
+        Avoid calling %AddElement with a number out of array index range (issue
+        4516).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.174
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.173
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.172
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.171
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.170
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.169
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.168
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.167
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.166
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-28: Version 4.8.165
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.164
+
+        Update to ES2015 == semantics for Symbol/SIMD wrappers (issue 3593).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.163
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.162
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.161
+
+        Fix deoptimization at ForInStatement::BodyId() (issue 4381).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.160
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.159
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.158
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.157
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-27: Version 4.8.156
+
+        Check that array length stays a safe integer in Array.prototype.push
+        (issue 3087).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-26: Version 4.8.155
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-26: Version 4.8.154
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-26: Version 4.8.153
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-26: Version 4.8.152
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-26: Version 4.8.151
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-26: Version 4.8.150
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-26: Version 4.8.149
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-26: Version 4.8.148
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-25: Version 4.8.147
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-25: Version 4.8.146
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-24: Version 4.8.145
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-24: Version 4.8.144
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-24: Version 4.8.143
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-24: Version 4.8.142
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-23: Version 4.8.141
+
+        Stage ES2015-style const in sloppy mode (issue 3739).
+
+        Map v8::Function to JSReceiver + IsCallable.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-23: Version 4.8.140
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-22: Version 4.8.139
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-22: Version 4.8.138
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-22: Version 4.8.137
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-22: Version 4.8.136
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-22: Version 4.8.135
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-22: Version 4.8.134
+
+        [es6] stage sticky regexps and RegExp.prototype.flags (issue 4342).
+
+        [Crankshaft] Don't do HMathFloorOfDiv optimization for kUint32 values
+        (issue 4507).
+
+        Fix user options for fractional digits in Intl.NumberFormatter (Chromium
+        issue 544122).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-22: Version 4.8.133
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.132
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.131
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.130
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.129
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.128
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.127
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.126
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.125
+
+        [es6] Handle super properly when rewriting arrow parameter initializers
+        (issue 4395).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.124
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.123
+
+        [es6] Fix scoping for default parameters in arrow functions (issue
+        4395).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.122
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.121
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-21: Version 4.8.120
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.119
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.118
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.117
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.116
+
+        Refactor array construction for map, filter (Chromium issue 544991).
+
+        [es6] Fix scoping for default parameters in arrow functions (issue
+        4395).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.115
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.114
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.113
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.112
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-20: Version 4.8.111
+
+        [es6] stage sticky regexps and RegExp.prototype.flags (issue 4342).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.110
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.109
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.108
+
+        ll_prof: Do not use the deprecated tempfile.mktemp() (issue 1306).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.107
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.106
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.105
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.104
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.103
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.102
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.101
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.100
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.99
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.98
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.97
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-19: Version 4.8.96
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-18: Version 4.8.95
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-18: Version 4.8.94
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-18: Version 4.8.93
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-17: Version 4.8.92
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.91
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.90
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.89
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.88
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.87
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.86
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.85
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.84
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.83
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.82
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.81
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-16: Version 4.8.80
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.79
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.78
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.77
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.76
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.75
+
+        Make RegExp use ToLength on lastIndex when flag is turned on (issue
+        4244).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.74
+
+        Take Symbol-keyed properties into account in Object.freeze and friends
+        (Chromium issue 539875).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.73
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.72
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.71
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.70
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.69
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.68
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.67
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-15: Version 4.8.66
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.65
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.64
+
+        Add methods to extras' InternalPackedArray (issue 4276).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.63
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.62
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.61
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.60
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.59
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.58
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.57
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.56
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-14: Version 4.8.55
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.54
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.53
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.52
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.51
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.50
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.49
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.48
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.47
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.46
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.45
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-13: Version 4.8.44
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.43
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.42
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.41
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.40
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.39
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.38
+
+        Test for var declarations in eval which conflict with let (issue 4454).
+
+        Don't compile functions in a context the caller doesn't have access to
+        (Chromium issue 541703).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.37
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.36
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-12: Version 4.8.35
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-11: Version 4.8.34
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.33
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.32
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.31
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.30
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.29
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.28
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.27
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.26
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-09: Version 4.8.25
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.24
+
+        Stage --harmony_sloppy_function (issue 4285).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.23
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.22
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.21
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.20
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.19
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.18
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.17
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-08: Version 4.8.16
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.15
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.14
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.13
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.10
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.9
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.7
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.5
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.4
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-07: Version 4.8.3
+
+        Destructuring array without initializer throws an exception (issue
+        4462).
+
+        Disable VirtualAlloc randomization on 32-bit Windows hosts (Chromium
+        issue 394591).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-06: Version 4.8.2
+
+        Fix legacy const for-of/in destructuring (issue 4461).
+
+        [es6] Align Promise.resolve with the spec (issues 4161, 4341).
+
+        Prohibit let in lexical bindings (issue 4403).
+
+        Ensure scopes are backed by blocks in the body of for loops (Chromium
+        issues 536750, 536751).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-10-04: Version 4.8.1
+
+        [cross-context] create new function prototypes in the context of the
+        function (issue 4217).
+
+        Fix completion of try..finally (issue 2529).
+
+        Extend Annex B 3.3 sloppy-mode block-scoped hoisting to scripts, eval
+        (issue 4441).
+
+        [V8] Add name of function for function's closure scope (Chromium issue
+        493156).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-05-17: Sentinel
 
         The ChangeLog file is no longer maintained on bleeding_edge. This

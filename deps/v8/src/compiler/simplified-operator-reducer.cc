@@ -15,7 +15,7 @@ namespace internal {
 namespace compiler {
 
 SimplifiedOperatorReducer::SimplifiedOperatorReducer(JSGraph* jsgraph)
-    : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {}
+    : jsgraph_(jsgraph) {}
 
 
 SimplifiedOperatorReducer::~SimplifiedOperatorReducer() {}

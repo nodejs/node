@@ -554,6 +554,7 @@ Operand::Operand(Immediate imm) {
   set_modrm(0, ebp);
   set_dispr(imm.x_, imm.rmode_);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_ASSEMBLER_X87_INL_H_

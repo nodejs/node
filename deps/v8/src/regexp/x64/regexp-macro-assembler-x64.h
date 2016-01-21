@@ -276,6 +276,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
 
 #endif  // V8_INTERPRETED_REGEXP
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_

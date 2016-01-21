@@ -66,7 +66,7 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   Callable callable = CodeFactory::AllocateHeapNumber(isolate());
   Node* target = jsgraph()->HeapConstant(callable.code());
   Node* context = jsgraph()->NoContextConstant();
-  Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
+  Node* effect = graph()->NewNode(common()->BeginRegion(), graph()->start());
   if (!allocate_heap_number_operator_.is_set()) {
     CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
         isolate(), jsgraph()->zone(), callable.descriptor(), 0,
@@ -78,7 +78,7 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   Node* store = graph()->NewNode(
       machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
       heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);
-  return graph()->NewNode(common()->Finish(1), heap_number, store);
+  return graph()->NewNode(common()->FinishRegion(), heap_number, store);
 }
 
 
@@ -151,7 +151,78 @@ Reduction ChangeLowering::ChangeBoolToBit(Node* value) {
 
 
 Reduction ChangeLowering::ChangeFloat64ToTagged(Node* value, Node* control) {
-  return Replace(AllocateHeapNumberWithValue(value, control));
+  Type* const value_type = NodeProperties::GetType(value);
+  Node* const value32 = graph()->NewNode(
+      machine()->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
+  // TODO(bmeurer): This fast case must be disabled until we kill the asm.js
+  // support in the generic JavaScript pipeline, because LoadBuffer is lying
+  // about its result.
+  // if (value_type->Is(Type::Signed32())) {
+  //   return ChangeInt32ToTagged(value32, control);
+  // }
+  Node* check_same = graph()->NewNode(
+      machine()->Float64Equal(), value,
+      graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));
+  Node* branch_same = graph()->NewNode(common()->Branch(), check_same, control);
+
+  Node* if_smi = graph()->NewNode(common()->IfTrue(), branch_same);
+  Node* vsmi;
+  Node* if_box = graph()->NewNode(common()->IfFalse(), branch_same);
+  Node* vbox;
+
+  // We only need to check for -0 if the {value} can potentially contain -0.
+  if (value_type->Maybe(Type::MinusZero())) {
+    Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
+                                        jsgraph()->Int32Constant(0));
+    Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check_zero, if_smi);
+
+    Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
+    Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
+
+    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+    Node* check_negative = graph()->NewNode(
+        machine()->Int32LessThan(),
+        graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
+        jsgraph()->Int32Constant(0));
+    Node* branch_negative = graph()->NewNode(
+        common()->Branch(BranchHint::kFalse), check_negative, if_zero);
+
+    Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
+    Node* if_notnegative =
+        graph()->NewNode(common()->IfFalse(), branch_negative);
+
+    // We need to create a box for negative 0.
+    if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
+    if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
+  }
+
+  // On 64-bit machines we can just wrap the 32-bit integer in a smi, for 32-bit
+  // machines we need to deal with potential overflow and fallback to boxing.
+  if (machine()->Is64() || value_type->Is(Type::SignedSmall())) {
+    vsmi = ChangeInt32ToSmi(value32);
+  } else {
+    Node* smi_tag =
+        graph()->NewNode(machine()->Int32AddWithOverflow(), value32, value32);
+
+    Node* check_ovf = graph()->NewNode(common()->Projection(1), smi_tag);
+    Node* branch_ovf = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                        check_ovf, if_smi);
+
+    Node* if_ovf = graph()->NewNode(common()->IfTrue(), branch_ovf);
+    if_box = graph()->NewNode(common()->Merge(2), if_ovf, if_box);
+
+    if_smi = graph()->NewNode(common()->IfFalse(), branch_ovf);
+    vsmi = graph()->NewNode(common()->Projection(0), smi_tag);
+  }
+
+  // Allocate the box for the {value}.
+  vbox = AllocateHeapNumberWithValue(value, if_box);
+
+  control = graph()->NewNode(common()->Merge(2), if_smi, if_box);
+  value =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vsmi, vbox, control);
+  return Replace(value);
 }
 
 

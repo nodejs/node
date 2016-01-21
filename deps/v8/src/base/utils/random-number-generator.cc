@@ -136,4 +136,5 @@ void RandomNumberGenerator::SetSeed(int64_t seed) {
   seed_ = (seed ^ kMultiplier) & kMask;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

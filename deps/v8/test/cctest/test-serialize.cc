@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(mythria): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <signal.h>
 
 #include <sys/stat.h>
@@ -244,9 +247,11 @@ UNINITIALIZED_DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
     env->Enter();
 
     const char* c_source = "\"1234\".length";
-    v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
-    v8::Local<v8::Script> script = v8::Script::Compile(source);
-    CHECK_EQ(4, script->Run()->Int32Value());
+    v8::Local<v8::Script> script = v8_compile(c_source);
+    v8::Maybe<int32_t> result = script->Run(isolate->GetCurrentContext())
+                                    .ToLocalChecked()
+                                    ->Int32Value(isolate->GetCurrentContext());
+    CHECK_EQ(4, result.FromJust());
   }
   isolate->Dispose();
 }
@@ -265,9 +270,11 @@ UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
     env->Enter();
 
     const char* c_source = "\"1234\".length";
-    v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
-    v8::Local<v8::Script> script = v8::Script::Compile(source);
-    CHECK_EQ(4, script->Run()->Int32Value());
+    v8::Local<v8::Script> script = v8_compile(c_source);
+    v8::Maybe<int32_t> result = script->Run(isolate->GetCurrentContext())
+                                    .ToLocalChecked()
+                                    ->Int32Value(isolate->GetCurrentContext());
+    CHECK_EQ(4, result.FromJust());
   }
   isolate->Dispose();
 }
@@ -305,7 +312,7 @@ UNINITIALIZED_TEST(PartialSerialization) {
     Object* raw_foo;
     {
       v8::HandleScope handle_scope(v8_isolate);
-      v8::Local<v8::String> foo = v8::String::NewFromUtf8(v8_isolate, "foo");
+      v8::Local<v8::String> foo = v8_str("foo");
       DCHECK(!foo.IsEmpty());
       raw_foo = *(v8::Utils::OpenHandle(*foo));
     }
@@ -544,10 +551,10 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
           STATIC_CHAR_VECTOR("function g() { return [,"),
           STATIC_CHAR_VECTOR("1,"),
           STATIC_CHAR_VECTOR("];} a = g(); b = g(); b.push(1);"), 100000);
-      v8::Handle<v8::String> source_str = v8::String::NewFromOneByte(
-          v8_isolate, source.start(), v8::String::kNormalString,
+      v8::MaybeLocal<v8::String> source_str = v8::String::NewFromOneByte(
+          v8_isolate, source.start(), v8::NewStringType::kNormal,
           source.length());
-      CompileRun(source_str);
+      CompileRun(source_str.ToLocalChecked());
       source.Dispose();
     }
     // Make sure all builtin scripts are cached.
@@ -641,19 +648,41 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
       Handle<Object> property = JSReceiver::GetDataProperty(global_object, o);
       CHECK(property.is_identical_to(global_proxy));
 
-      v8::Handle<v8::Context> v8_context = v8::Utils::ToLocal(context);
+      v8::Local<v8::Context> v8_context = v8::Utils::ToLocal(context);
       v8::Context::Scope context_scope(v8_context);
-      double r = CompileRun("r")->ToNumber(v8_isolate)->Value();
+      double r = CompileRun("r")
+                     ->ToNumber(v8_isolate->GetCurrentContext())
+                     .ToLocalChecked()
+                     ->Value();
       CHECK(r >= 1 && r <= 2);
-      int f = CompileRun("f()")->ToNumber(v8_isolate)->Int32Value();
+      int f = CompileRun("f()")
+                  ->ToNumber(v8_isolate->GetCurrentContext())
+                  .ToLocalChecked()
+                  ->Int32Value(v8_isolate->GetCurrentContext())
+                  .FromJust();
       CHECK_EQ(5, f);
-      f = CompileRun("e('f()')")->ToNumber(v8_isolate)->Int32Value();
+      f = CompileRun("e('f()')")
+              ->ToNumber(v8_isolate->GetCurrentContext())
+              .ToLocalChecked()
+              ->Int32Value(v8_isolate->GetCurrentContext())
+              .FromJust();
       CHECK_EQ(5, f);
-      v8::Handle<v8::String> s = CompileRun("s")->ToString(v8_isolate);
-      CHECK(s->Equals(v8_str("12345")));
-      int a = CompileRun("a.length")->ToNumber(v8_isolate)->Int32Value();
+      v8::Local<v8::String> s = CompileRun("s")
+                                    ->ToString(v8_isolate->GetCurrentContext())
+                                    .ToLocalChecked();
+      CHECK(s->Equals(v8_isolate->GetCurrentContext(), v8_str("12345"))
+                .FromJust());
+      int a = CompileRun("a.length")
+                  ->ToNumber(v8_isolate->GetCurrentContext())
+                  .ToLocalChecked()
+                  ->Int32Value(v8_isolate->GetCurrentContext())
+                  .FromJust();
       CHECK_EQ(100001, a);
-      int b = CompileRun("b.length")->ToNumber(v8_isolate)->Int32Value();
+      int b = CompileRun("b.length")
+                  ->ToNumber(v8_isolate->GetCurrentContext())
+                  .ToLocalChecked()
+                  ->Int32Value(v8_isolate->GetCurrentContext())
+                  .FromJust();
       CHECK_EQ(100002, b);
     }
     DeleteArray(snapshot);
@@ -684,7 +713,9 @@ TEST(PerIsolateSnapshotBlobs) {
     v8::Local<v8::Context> context = v8::Context::New(isolate1);
     delete[] data1.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
-    CHECK_EQ(42, CompileRun("f()")->ToInt32(isolate1)->Int32Value());
+    v8::Maybe<int32_t> result =
+        CompileRun("f()")->Int32Value(isolate1->GetCurrentContext());
+    CHECK_EQ(42, result.FromJust());
     CHECK(CompileRun("this.g")->IsUndefined());
   }
   isolate1->Dispose();
@@ -699,8 +730,11 @@ TEST(PerIsolateSnapshotBlobs) {
     v8::Local<v8::Context> context = v8::Context::New(isolate2);
     delete[] data2.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
-    CHECK_EQ(86, CompileRun("f()")->ToInt32(isolate2)->Int32Value());
-    CHECK_EQ(43, CompileRun("g()")->ToInt32(isolate2)->Int32Value());
+    v8::Maybe<int32_t> result =
+        CompileRun("f()")->Int32Value(isolate2->GetCurrentContext());
+    CHECK_EQ(86, result.FromJust());
+    result = CompileRun("g()")->Int32Value(isolate2->GetCurrentContext());
+    CHECK_EQ(43, result.FromJust());
   }
   isolate2->Dispose();
 }
@@ -751,7 +785,9 @@ TEST(PerIsolateSnapshotBlobsOutdatedContextWithOverflow) {
     delete[] data.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     v8::Local<v8::Value> result = CompileRun(source2);
-    CHECK(v8_str("42")->Equals(result));
+    v8::Maybe<bool> compare = v8_str("42")->Equals(
+        v8::Isolate::GetCurrent()->GetCurrentContext(), result);
+    CHECK(compare.FromJust());
   }
   isolate->Dispose();
 }
@@ -768,7 +804,9 @@ TEST(PerIsolateSnapshotBlobsWithLocker) {
     v8::HandleScope h_scope(isolate0);
     v8::Local<v8::Context> context = v8::Context::New(isolate0);
     v8::Context::Scope c_scope(context);
-    CHECK_EQ(1, CompileRun("Math.cos(0)")->ToInt32(isolate0)->Int32Value());
+    v8::Maybe<int32_t> result =
+        CompileRun("Math.cos(0)")->Int32Value(isolate0->GetCurrentContext());
+    CHECK_EQ(1, result.FromJust());
   }
   isolate0->Dispose();
 
@@ -787,7 +825,8 @@ TEST(PerIsolateSnapshotBlobsWithLocker) {
     v8::Local<v8::Context> context = v8::Context::New(isolate1);
     delete[] data1.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
-    CHECK_EQ(42, CompileRun("f()")->ToInt32(isolate1)->Int32Value());
+    v8::Maybe<int32_t> result = CompileRun("f()")->Int32Value(context);
+    CHECK_EQ(42, result.FromJust());
   }
   isolate1->Dispose();
 }
@@ -825,7 +864,9 @@ TEST(SnapshotBlobsStackOverflow) {
         "  a = a[1];"
         "}"
         "sum";
-    CHECK_EQ(9999 * 5000, CompileRun(test)->ToInt32(isolate)->Int32Value());
+    v8::Maybe<int32_t> result =
+        CompileRun(test)->Int32Value(isolate->GetCurrentContext());
+    CHECK_EQ(9999 * 5000, result.FromJust());
   }
   isolate->Dispose();
 }
@@ -1170,18 +1211,27 @@ TEST(SerializeToplevelThreeBigStrings) {
 
   USE(Execution::Call(isolate, copy_fun, global, 0, NULL));
 
-  CHECK_EQ(600000 + 700000, CompileRun("(a + b).length")->Int32Value());
-  CHECK_EQ(500000 + 600000, CompileRun("(b + c).length")->Int32Value());
+  v8::Maybe<int32_t> result =
+      CompileRun("(a + b).length")
+          ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
+  CHECK_EQ(600000 + 700000, result.FromJust());
+  result = CompileRun("(b + c).length")
+               ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
+  CHECK_EQ(500000 + 600000, result.FromJust());
   Heap* heap = isolate->heap();
-  CHECK(heap->InSpace(
-      *v8::Utils::OpenHandle(*CompileRun("a")->ToString(CcTest::isolate())),
-      OLD_SPACE));
-  CHECK(heap->InSpace(
-      *v8::Utils::OpenHandle(*CompileRun("b")->ToString(CcTest::isolate())),
-      OLD_SPACE));
-  CHECK(heap->InSpace(
-      *v8::Utils::OpenHandle(*CompileRun("c")->ToString(CcTest::isolate())),
-      OLD_SPACE));
+  v8::Local<v8::String> result_str =
+      CompileRun("a")
+          ->ToString(CcTest::isolate()->GetCurrentContext())
+          .ToLocalChecked();
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
+  result_str = CompileRun("b")
+                   ->ToString(CcTest::isolate()->GetCurrentContext())
+                   .ToLocalChecked();
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
+  result_str = CompileRun("c")
+                   ->ToString(CcTest::isolate()->GetCurrentContext())
+                   .ToLocalChecked();
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
 
   delete cache;
   source_a.Dispose();
@@ -1276,7 +1326,7 @@ TEST(SerializeToplevelExternalString) {
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
-  CHECK_EQ(15.0f, copy_result->Number());
+  CHECK_EQ(15.0, copy_result->Number());
 
   delete cache;
 }
@@ -1334,7 +1384,7 @@ TEST(SerializeToplevelLargeExternalString) {
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
-  CHECK_EQ(42.0f, copy_result->Number());
+  CHECK_EQ(42.0, copy_result->Number());
 
   delete cache;
   string.Dispose();
@@ -1385,7 +1435,7 @@ TEST(SerializeToplevelExternalScriptName) {
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
-  CHECK_EQ(10.0f, copy_result->Number());
+  CHECK_EQ(10.0, copy_result->Number());
 
   delete cache;
 }
@@ -1416,8 +1466,10 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
     v8::Local<v8::String> source_str = v8_str(source);
     v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin);
-    v8::Local<v8::UnboundScript> script = v8::ScriptCompiler::CompileUnbound(
-        isolate1, &source, v8::ScriptCompiler::kProduceCodeCache);
+    v8::Local<v8::UnboundScript> script =
+        v8::ScriptCompiler::CompileUnboundScript(
+            isolate1, &source, v8::ScriptCompiler::kProduceCodeCache)
+            .ToLocalChecked();
     const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
     CHECK(data);
     // Persist cached data.
@@ -1426,8 +1478,13 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
     cache = new v8::ScriptCompiler::CachedData(
         buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
 
-    v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString(isolate1)->Equals(v8_str("abcdef")));
+    v8::Local<v8::Value> result = script->BindToCurrentContext()
+                                      ->Run(isolate1->GetCurrentContext())
+                                      .ToLocalChecked();
+    v8::Local<v8::String> result_string =
+        result->ToString(isolate1->GetCurrentContext()).ToLocalChecked();
+    CHECK(result_string->Equals(isolate1->GetCurrentContext(), v8_str("abcdef"))
+              .FromJust());
   }
   isolate1->Dispose();
   return cache;
@@ -1458,12 +1515,18 @@ TEST(SerializeToplevelIsolates) {
     v8::Local<v8::UnboundScript> script;
     {
       DisallowCompilation no_compile(reinterpret_cast<Isolate*>(isolate2));
-      script = v8::ScriptCompiler::CompileUnbound(
-          isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache);
+      script = v8::ScriptCompiler::CompileUnboundScript(
+                   isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+                   .ToLocalChecked();
     }
     CHECK(!cache->rejected);
-    v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString(isolate2)->Equals(v8_str("abcdef")));
+    v8::Local<v8::Value> result = script->BindToCurrentContext()
+                                      ->Run(isolate2->GetCurrentContext())
+                                      .ToLocalChecked();
+    CHECK(result->ToString(isolate2->GetCurrentContext())
+              .ToLocalChecked()
+              ->Equals(isolate2->GetCurrentContext(), v8_str("abcdef"))
+              .FromJust());
   }
   DCHECK(toplevel_test_code_event_found);
   isolate2->Dispose();
@@ -1491,8 +1554,9 @@ TEST(SerializeToplevelFlagChange) {
     v8::Local<v8::String> source_str = v8_str(source);
     v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin, cache);
-    v8::ScriptCompiler::CompileUnbound(isolate2, &source,
-                                       v8::ScriptCompiler::kConsumeCodeCache);
+    v8::ScriptCompiler::CompileUnboundScript(
+        isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+        .ToLocalChecked();
     CHECK(cache->rejected);
   }
   isolate2->Dispose();
@@ -1520,8 +1584,9 @@ TEST(SerializeToplevelBitFlip) {
     v8::Local<v8::String> source_str = v8_str(source);
     v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin, cache);
-    v8::ScriptCompiler::CompileUnbound(isolate2, &source,
-                                       v8::ScriptCompiler::kConsumeCodeCache);
+    v8::ScriptCompiler::CompileUnboundScript(
+        isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+        .ToLocalChecked();
     CHECK(cache->rejected);
   }
   isolate2->Dispose();
@@ -1552,8 +1617,10 @@ TEST(SerializeWithHarmonyScoping) {
     v8::Local<v8::String> source_str = v8_str(source3);
     v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin);
-    v8::Local<v8::UnboundScript> script = v8::ScriptCompiler::CompileUnbound(
-        isolate1, &source, v8::ScriptCompiler::kProduceCodeCache);
+    v8::Local<v8::UnboundScript> script =
+        v8::ScriptCompiler::CompileUnboundScript(
+            isolate1, &source, v8::ScriptCompiler::kProduceCodeCache)
+            .ToLocalChecked();
     const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
     CHECK(data);
     // Persist cached data.
@@ -1562,8 +1629,13 @@ TEST(SerializeWithHarmonyScoping) {
     cache = new v8::ScriptCompiler::CachedData(
         buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
 
-    v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString(isolate1)->Equals(v8_str("XY")));
+    v8::Local<v8::Value> result = script->BindToCurrentContext()
+                                      ->Run(isolate1->GetCurrentContext())
+                                      .ToLocalChecked();
+    v8::Local<v8::String> result_str =
+        result->ToString(isolate1->GetCurrentContext()).ToLocalChecked();
+    CHECK(result_str->Equals(isolate1->GetCurrentContext(), v8_str("XY"))
+              .FromJust());
   }
   isolate1->Dispose();
 
@@ -1584,11 +1656,17 @@ TEST(SerializeWithHarmonyScoping) {
     v8::Local<v8::UnboundScript> script;
     {
       DisallowCompilation no_compile(reinterpret_cast<Isolate*>(isolate2));
-      script = v8::ScriptCompiler::CompileUnbound(
-          isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache);
+      script = v8::ScriptCompiler::CompileUnboundScript(
+                   isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+                   .ToLocalChecked();
     }
-    v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
-    CHECK(result->ToString(isolate2)->Equals(v8_str("XY")));
+    v8::Local<v8::Value> result = script->BindToCurrentContext()
+                                      ->Run(isolate2->GetCurrentContext())
+                                      .ToLocalChecked();
+    v8::Local<v8::String> result_str =
+        result->ToString(isolate2->GetCurrentContext()).ToLocalChecked();
+    CHECK(result_str->Equals(isolate2->GetCurrentContext(), v8_str("XY"))
+              .FromJust());
   }
   isolate2->Dispose();
 }
@@ -1637,26 +1715,43 @@ TEST(SerializeInternalReference) {
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     delete[] data.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
-    v8::Handle<v8::Function> foo =
-        v8::Handle<v8::Function>::Cast(CompileRun("foo"));
+    v8::Local<v8::Function> foo =
+        v8::Local<v8::Function>::Cast(CompileRun("foo"));
 
     // There are at least 6 internal references.
     int mask = RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    RelocIterator it(v8::Utils::OpenHandle(*foo)->code(), mask);
+    RelocIterator it(
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*foo))->code(), mask);
     for (int i = 0; i < 6; ++i) {
       CHECK(!it.done());
       it.next();
     }
 
-    CHECK(v8::Utils::OpenHandle(*foo)->code()->is_turbofanned());
-    CHECK_EQ(11, CompileRun("foo(0)")->ToInt32(isolate)->Int32Value());
-    CHECK_EQ(11, CompileRun("foo(1)")->ToInt32(isolate)->Int32Value());
-    CHECK_EQ(12, CompileRun("foo(2)")->ToInt32(isolate)->Int32Value());
-    CHECK_EQ(12, CompileRun("foo(3)")->ToInt32(isolate)->Int32Value());
-    CHECK_EQ(23, CompileRun("foo(4)")->ToInt32(isolate)->Int32Value());
-    CHECK_EQ(23, CompileRun("foo(5)")->ToInt32(isolate)->Int32Value());
-    CHECK_EQ(10, CompileRun("foo(6)")->ToInt32(isolate)->Int32Value());
+    CHECK(Handle<JSFunction>::cast(v8::Utils::OpenHandle(*foo))
+              ->code()
+              ->is_turbofanned());
+    CHECK_EQ(11, CompileRun("foo(0)")
+                     ->Int32Value(isolate->GetCurrentContext())
+                     .FromJust());
+    CHECK_EQ(11, CompileRun("foo(1)")
+                     ->Int32Value(isolate->GetCurrentContext())
+                     .FromJust());
+    CHECK_EQ(12, CompileRun("foo(2)")
+                     ->Int32Value(isolate->GetCurrentContext())
+                     .FromJust());
+    CHECK_EQ(12, CompileRun("foo(3)")
+                     ->Int32Value(isolate->GetCurrentContext())
+                     .FromJust());
+    CHECK_EQ(23, CompileRun("foo(4)")
+                     ->Int32Value(isolate->GetCurrentContext())
+                     .FromJust());
+    CHECK_EQ(23, CompileRun("foo(5)")
+                     ->Int32Value(isolate->GetCurrentContext())
+                     .FromJust());
+    CHECK_EQ(10, CompileRun("foo(6)")
+                     ->Int32Value(isolate->GetCurrentContext())
+                     .FromJust());
   }
   isolate->Dispose();
 }

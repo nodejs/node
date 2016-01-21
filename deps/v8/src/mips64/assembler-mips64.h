@@ -41,11 +41,32 @@
 #include <set>
 
 #include "src/assembler.h"
-#include "src/compiler.h"
 #include "src/mips64/constants-mips64.h"
 
 namespace v8 {
 namespace internal {
+
+// clang-format off
+#define GENERAL_REGISTERS(V)                              \
+  V(zero_reg)  V(at)  V(v0)  V(v1)  V(a0)  V(a1)  V(a2)  V(a3)  \
+  V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  V(t1)  V(t2)  V(t3)  \
+  V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  V(t8)  V(t9) \
+  V(k0)  V(k1)  V(gp)  V(sp)  V(fp)  V(ra)
+
+#define ALLOCATABLE_GENERAL_REGISTERS(V) \
+  V(v0)  V(v1)  V(a0)  V(a1)  V(a2)  V(a3) \
+  V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  V(t1)  V(t2) V(s7)
+
+#define DOUBLE_REGISTERS(V)                               \
+  V(f0)  V(f1)  V(f2)  V(f3)  V(f4)  V(f5)  V(f6)  V(f7)  \
+  V(f8)  V(f9)  V(f10) V(f11) V(f12) V(f13) V(f14) V(f15) \
+  V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
+  V(f24) V(f25) V(f26) V(f27) V(f28) V(f29) V(f30) V(f31)
+
+#define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
+  V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
+  V(f16) V(f18) V(f20) V(f22) V(f24) V(f26)
+// clang-format on
 
 // CPU Registers.
 //
@@ -72,11 +93,7 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Implementation of Register and FPURegister.
 
-// Core register.
 struct Register {
-  static const int kNumRegisters = v8::internal::kNumRegisters;
-  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t2 and cp.
-  static const int kSizeInBytes = 8;
   static const int kCpRegister = 23;  // cp (s7) is the 23rd register.
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
@@ -89,117 +106,47 @@ struct Register {
 #error Unknown endianness
 #endif
 
-  inline static int NumAllocatableRegisters();
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    GENERAL_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
 
-  static int ToAllocationIndex(Register reg) {
-    DCHECK((reg.code() - 2) < (kMaxNumAllocatableRegisters - 1) ||
-           reg.is(from_code(kCpRegister)));
-    return reg.is(from_code(kCpRegister)) ?
-           kMaxNumAllocatableRegisters - 1 :  // Return last index for 'cp'.
-           reg.code() - 2;  // zero_reg and 'at' are skipped.
-  }
-
-  static Register FromAllocationIndex(int index) {
-    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-    return index == kMaxNumAllocatableRegisters - 1 ?
-           from_code(kCpRegister) :  // Last index is always the 'cp' register.
-           from_code(index + 2);  // zero_reg and 'at' are skipped.
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-    const char* const names[] = {
-      "v0",
-      "v1",
-      "a0",
-      "a1",
-      "a2",
-      "a3",
-      "a4",
-      "a5",
-      "a6",
-      "a7",
-      "t0",
-      "t1",
-      "t2",
-      "s7",
-    };
-    return names[index];
-  }
+  static const int kNumRegisters = Code::kAfterLast;
 
   static Register from_code(int code) {
+    DCHECK(code >= 0);
+    DCHECK(code < kNumRegisters);
     Register r = { code };
     return r;
   }
 
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
-  bool is(Register reg) const { return code_ == reg.code_; }
+  const char* ToString();
+  bool IsAllocatable() const;
+  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
+  bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
     DCHECK(is_valid());
-    return code_;
+    return reg_code;
   }
   int bit() const {
     DCHECK(is_valid());
-    return 1 << code_;
+    return 1 << reg_code;
   }
 
   // Unfortunately we can't make this private in a struct.
-  int code_;
+  int reg_code;
 };
 
-#define REGISTER(N, C) \
-  const int kRegister_ ## N ## _Code = C; \
-  const Register N = { C }
-
-REGISTER(no_reg, -1);
-// Always zero.
-REGISTER(zero_reg, 0);
-// at: Reserved for synthetic instructions.
-REGISTER(at, 1);
-// v0, v1: Used when returning multiple values from subroutines.
-REGISTER(v0, 2);
-REGISTER(v1, 3);
-// a0 - a4: Used to pass non-FP parameters.
-REGISTER(a0, 4);
-REGISTER(a1, 5);
-REGISTER(a2, 6);
-REGISTER(a3, 7);
-// a4 - a7 t0 - t3: Can be used without reservation, act as temporary registers
-// and are allowed to be destroyed by subroutines.
-REGISTER(a4, 8);
-REGISTER(a5, 9);
-REGISTER(a6, 10);
-REGISTER(a7, 11);
-REGISTER(t0, 12);
-REGISTER(t1, 13);
-REGISTER(t2, 14);
-REGISTER(t3, 15);
-// s0 - s7: Subroutine register variables. Subroutines that write to these
-// registers must restore their values before exiting so that the caller can
-// expect the values to be preserved.
-REGISTER(s0, 16);
-REGISTER(s1, 17);
-REGISTER(s2, 18);
-REGISTER(s3, 19);
-REGISTER(s4, 20);
-REGISTER(s5, 21);
-REGISTER(s6, 22);
-REGISTER(s7, 23);
-REGISTER(t8, 24);
-REGISTER(t9, 25);
-// k0, k1: Reserved for system calls and interrupt handlers.
-REGISTER(k0, 26);
-REGISTER(k1, 27);
-// gp: Reserved.
-REGISTER(gp, 28);
-// sp: Stack pointer.
-REGISTER(sp, 29);
-// fp: Frame pointer.
-REGISTER(fp, 30);
-// ra: Return address pointer.
-REGISTER(ra, 31);
-
-#undef REGISTER
+// s7: context register
+// s3: lithium scratch
+// s4: lithium scratch2
+#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
+GENERAL_REGISTERS(DECLARE_REGISTER)
+#undef DECLARE_REGISTER
+const Register no_reg = {Register::kCode_no_reg};
 
 
 int ToNumber(Register reg);
@@ -207,76 +154,71 @@ int ToNumber(Register reg);
 Register ToRegister(int num);
 
 // Coprocessor register.
-struct FPURegister {
-  static const int kMaxNumRegisters = v8::internal::kNumFPURegisters;
+struct DoubleRegister {
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    DOUBLE_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
+
+  static const int kMaxNumRegisters = Code::kAfterLast;
+
+  inline static int NumRegisters();
 
   // TODO(plind): Warning, inconsistent numbering here. kNumFPURegisters refers
   // to number of 32-bit FPU regs, but kNumAllocatableRegisters refers to
   // number of Double regs (64-bit regs, or FPU-reg-pairs).
 
-  // A few double registers are reserved: one as a scratch register and one to
-  // hold 0.0.
-  //  f28: 0.0
-  //  f30: scratch register.
-  static const int kNumReservedRegisters = 2;
-  static const int kMaxNumAllocatableRegisters = kMaxNumRegisters / 2 -
-      kNumReservedRegisters;
-
-  inline static int NumRegisters();
-  inline static int NumAllocatableRegisters();
-
-  // TODO(turbofan): Proper support for float32.
-  inline static int NumAllocatableAliasedRegisters();
-
-  inline static int ToAllocationIndex(FPURegister reg);
-  static const char* AllocationIndexToString(int index);
-
-  static FPURegister FromAllocationIndex(int index) {
-    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-    return from_code(index * 2);
-  }
-
-  static FPURegister from_code(int code) {
-    FPURegister r = { code };
-    return r;
-  }
-
-  bool is_valid() const { return 0 <= code_ && code_ < kMaxNumRegisters ; }
-  bool is(FPURegister creg) const { return code_ == creg.code_; }
-  FPURegister low() const {
+  const char* ToString();
+  bool IsAllocatable() const;
+  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
+  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
+  DoubleRegister low() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage suspect for FR=1.
     // Find low reg of a Double-reg pair, which is the reg itself.
-    DCHECK(code_ % 2 == 0);  // Specified Double reg must be even.
-    FPURegister reg;
-    reg.code_ = code_;
+    DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
+    DoubleRegister reg;
+    reg.reg_code = reg_code;
     DCHECK(reg.is_valid());
     return reg;
   }
-  FPURegister high() const {
+  DoubleRegister high() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage illegal in FR=1.
     // Find high reg of a Doubel-reg pair, which is reg + 1.
-    DCHECK(code_ % 2 == 0);  // Specified Double reg must be even.
-    FPURegister reg;
-    reg.code_ = code_ + 1;
+    DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
+    DoubleRegister reg;
+    reg.reg_code = reg_code + 1;
     DCHECK(reg.is_valid());
     return reg;
   }
 
   int code() const {
     DCHECK(is_valid());
-    return code_;
+    return reg_code;
   }
   int bit() const {
     DCHECK(is_valid());
-    return 1 << code_;
+    return 1 << reg_code;
+  }
+
+  static DoubleRegister from_code(int code) {
+    DoubleRegister r = {code};
+    return r;
   }
   void setcode(int f) {
-    code_ = f;
+    reg_code = f;
     DCHECK(is_valid());
   }
   // Unfortunately we can't make this private in a struct.
-  int code_;
+  int reg_code;
 };
+
+// A few double registers are reserved: one as a scratch register and one to
+// hold 0.0.
+//  f28: 0.0
+//  f30: scratch register.
 
 // V8 now supports the O32 ABI, and the FPU Registers are organized as 32
 // 32-bit registers, f0 through f31. When used as 'double' they are used
@@ -287,43 +229,43 @@ struct FPURegister {
 // but it is not in common use. Someday we will want to support this in v8.)
 
 // For O32 ABI, Floats and Doubles refer to same set of 32 32-bit registers.
-typedef FPURegister DoubleRegister;
-typedef FPURegister FloatRegister;
+typedef DoubleRegister FPURegister;
+typedef DoubleRegister FloatRegister;
 
-const FPURegister no_freg = { -1 };
+const DoubleRegister no_freg = {-1};
 
-const FPURegister f0 = { 0 };  // Return value in hard float mode.
-const FPURegister f1 = { 1 };
-const FPURegister f2 = { 2 };
-const FPURegister f3 = { 3 };
-const FPURegister f4 = { 4 };
-const FPURegister f5 = { 5 };
-const FPURegister f6 = { 6 };
-const FPURegister f7 = { 7 };
-const FPURegister f8 = { 8 };
-const FPURegister f9 = { 9 };
-const FPURegister f10 = { 10 };
-const FPURegister f11 = { 11 };
-const FPURegister f12 = { 12 };  // Arg 0 in hard float mode.
-const FPURegister f13 = { 13 };
-const FPURegister f14 = { 14 };  // Arg 1 in hard float mode.
-const FPURegister f15 = { 15 };
-const FPURegister f16 = { 16 };
-const FPURegister f17 = { 17 };
-const FPURegister f18 = { 18 };
-const FPURegister f19 = { 19 };
-const FPURegister f20 = { 20 };
-const FPURegister f21 = { 21 };
-const FPURegister f22 = { 22 };
-const FPURegister f23 = { 23 };
-const FPURegister f24 = { 24 };
-const FPURegister f25 = { 25 };
-const FPURegister f26 = { 26 };
-const FPURegister f27 = { 27 };
-const FPURegister f28 = { 28 };
-const FPURegister f29 = { 29 };
-const FPURegister f30 = { 30 };
-const FPURegister f31 = { 31 };
+const DoubleRegister f0 = {0};  // Return value in hard float mode.
+const DoubleRegister f1 = {1};
+const DoubleRegister f2 = {2};
+const DoubleRegister f3 = {3};
+const DoubleRegister f4 = {4};
+const DoubleRegister f5 = {5};
+const DoubleRegister f6 = {6};
+const DoubleRegister f7 = {7};
+const DoubleRegister f8 = {8};
+const DoubleRegister f9 = {9};
+const DoubleRegister f10 = {10};
+const DoubleRegister f11 = {11};
+const DoubleRegister f12 = {12};  // Arg 0 in hard float mode.
+const DoubleRegister f13 = {13};
+const DoubleRegister f14 = {14};  // Arg 1 in hard float mode.
+const DoubleRegister f15 = {15};
+const DoubleRegister f16 = {16};
+const DoubleRegister f17 = {17};
+const DoubleRegister f18 = {18};
+const DoubleRegister f19 = {19};
+const DoubleRegister f20 = {20};
+const DoubleRegister f21 = {21};
+const DoubleRegister f22 = {22};
+const DoubleRegister f23 = {23};
+const DoubleRegister f24 = {24};
+const DoubleRegister f25 = {25};
+const DoubleRegister f26 = {26};
+const DoubleRegister f27 = {27};
+const DoubleRegister f28 = {28};
+const DoubleRegister f29 = {29};
+const DoubleRegister f30 = {30};
+const DoubleRegister f31 = {31};
 
 // Register aliases.
 // cp is assumed to be a callee saved register.
@@ -343,22 +285,22 @@ const FPURegister f31 = { 31 };
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
 struct FPUControlRegister {
-  bool is_valid() const { return code_ == kFCSRRegister; }
-  bool is(FPUControlRegister creg) const { return code_ == creg.code_; }
+  bool is_valid() const { return reg_code == kFCSRRegister; }
+  bool is(FPUControlRegister creg) const { return reg_code == creg.reg_code; }
   int code() const {
     DCHECK(is_valid());
-    return code_;
+    return reg_code;
   }
   int bit() const {
     DCHECK(is_valid());
-    return 1 << code_;
+    return 1 << reg_code;
   }
   void setcode(int f) {
-    code_ = f;
+    reg_code = f;
     DCHECK(is_valid());
   }
   // Unfortunately we can't make this private in a struct.
-  int code_;
+  int reg_code;
 };
 
 const FPUControlRegister no_fpucreg = { kInvalidFPUControlRegister };
@@ -912,14 +854,15 @@ class Assembler : public AssemblerBase {
 
   void movz_s(FPURegister fd, FPURegister fs, Register rt);
   void movz_d(FPURegister fd, FPURegister fs, Register rt);
-  void movt_s(FPURegister fd, FPURegister fs, uint16_t cc);
-  void movt_d(FPURegister fd, FPURegister fs, uint16_t cc);
-  void movf_s(FPURegister fd, FPURegister fs, uint16_t cc);
-  void movf_d(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movt_s(FPURegister fd, FPURegister fs, uint16_t cc = 0);
+  void movt_d(FPURegister fd, FPURegister fs, uint16_t cc = 0);
+  void movf_s(FPURegister fd, FPURegister fs, uint16_t cc = 0);
+  void movf_d(FPURegister fd, FPURegister fs, uint16_t cc = 0);
   void movn_s(FPURegister fd, FPURegister fs, Register rt);
   void movn_d(FPURegister fd, FPURegister fs, Register rt);
   // Bit twiddling.
   void clz(Register rd, Register rs);
+  void dclz(Register rd, Register rs);
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void dext_(Register rt, Register rs, uint16_t pos, uint16_t size);
@@ -1507,6 +1450,7 @@ class EnsureSpace BASE_EMBEDDED {
   }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_ASSEMBLER_MIPS_H_

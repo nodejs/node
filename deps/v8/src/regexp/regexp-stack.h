@@ -124,6 +124,7 @@ class RegExpStack {
   DISALLOW_COPY_AND_ASSIGN(RegExpStack);
 };
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_REGEXP_STACK_H_

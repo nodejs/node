@@ -251,7 +251,10 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
   void GenerateRestoreName(Label* label, Handle<Name> name);
-  void GeneratePushMap(Register map_reg, Register scratch);
+
+  // Pop the vector and slot into appropriate registers, moving the map in
+  // the process. (This is an accomodation for register pressure on ia32).
+  void RearrangeVectorAndSlot(Register current_map, Register destination_map);
 
  private:
   void GenerateRestoreName(Handle<Name> name);
@@ -297,7 +300,7 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 
   static void GenerateStoreSlow(MacroAssembler* masm);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_HANDLER_COMPILER_H_

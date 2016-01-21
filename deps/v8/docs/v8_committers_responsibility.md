@@ -1,3 +1,5 @@
+# V8 committer's responsibility
+
 ## Basic commit guidelines
 
 When you're committing to the V8 repositories, ensure that you follow those guidelines:
@@ -25,13 +27,9 @@ At the same time, we want to encourage many people to participate in the review 
 
 So, here are some guidelines to help clarify the process:
   1. When a patch author requests more than one reviewer, they should make clear in the review request email what they expect the responsibility of each reviewer to be.  For example, you could write this in the email:
-```
-
-  a. larry: bitmap changes
-  b. sergey: process hacks
-  c. everybody else: FYI
-
-```
+      * larry: bitmap changes
+      * sergey: process hacks
+      * everybody else: FYI
   1. In this case, you might be on the review list because you've asked to be in the loop for multiprocess changes, but you wouldn't be the primary reviewer and the author and other reviewers wouldn't be expecting you to review all the diffs in detail.
   1. If you get a review that includes many other people, and the author didn't do (1), please ask them what part you're responsible for if you don't want to review the whole thing in detail.
   1. The author should wait for approval from everybody on the reviewer list before checking in.

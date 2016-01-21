@@ -44,6 +44,7 @@ namespace internal {
 #define kInterpreterBytecodeOffsetRegister x19
 #define kInterpreterBytecodeArrayRegister x20
 #define kInterpreterDispatchTableRegister x21
+#define kJavaScriptCallArgCountRegister x0
 #define kRuntimeCallFunctionRegister x1
 #define kRuntimeCallArgCountRegister x0
 
@@ -1461,6 +1462,9 @@ class MacroAssembler : public Assembler {
   // register.
   void LoadElementsKindFromMap(Register result, Register map);
 
+  // Load the value from the root list and push it onto the stack.
+  void PushRoot(Heap::RootListIndex index);
+
   // Compare the object in a register to a value from the root list.
   void CompareRoot(const Register& obj, Heap::RootListIndex index);
 
@@ -2278,7 +2282,8 @@ class InlineSmiCheckInfo {
   class DeltaBits : public BitField<uint32_t, 5, 32-5> {};
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #ifdef GENERATED_CODE_COVERAGE
 #error "Unsupported option"

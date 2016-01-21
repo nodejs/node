@@ -165,7 +165,7 @@ class StubCache {
 
   DISALLOW_COPY_AND_ASSIGN(StubCache);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STUB_CACHE_H_

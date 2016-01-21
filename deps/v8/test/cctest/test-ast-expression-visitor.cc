@@ -31,7 +31,6 @@ static void CollectTypes(HandleAndZoneScope* handles, const char* source,
 
   i::ParseInfo info(handles->main_zone(), script);
   i::Parser parser(&info);
-  parser.set_allow_harmony_arrow_functions(true);
   parser.set_allow_harmony_sloppy(true);
   info.set_global();
   info.set_lazy(false);
@@ -41,11 +40,12 @@ static void CollectTypes(HandleAndZoneScope* handles, const char* source,
   CHECK(i::Compiler::ParseAndAnalyze(&info));
 
   ExpressionTypeCollector(
-      isolate, handles->main_zone(),
+      isolate,
       info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun(), dst)
       .Run();
 }
-}
+
+}  // namespace
 
 
 TEST(VisitExpressions) {

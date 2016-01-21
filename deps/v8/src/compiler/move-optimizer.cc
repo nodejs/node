@@ -14,10 +14,17 @@ typedef std::pair<InstructionOperand, InstructionOperand> MoveKey;
 
 struct MoveKeyCompare {
   bool operator()(const MoveKey& a, const MoveKey& b) const {
-    if (a.first.EqualsModuloType(b.first)) {
-      return a.second.CompareModuloType(b.second);
+    if (a.first.EqualsCanonicalized(b.first)) {
+      return a.second.CompareCanonicalized(b.second);
     }
-    return a.first.CompareModuloType(b.first);
+    return a.first.CompareCanonicalized(b.first);
+  }
+};
+
+struct OperandCompare {
+  bool operator()(const InstructionOperand& a,
+                  const InstructionOperand& b) const {
+    return a.CompareCanonicalized(b);
   }
 };
 
@@ -25,7 +32,37 @@ typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
 typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
 
 
-bool GapsCanMoveOver(Instruction* instr) { return instr->IsNop(); }
+bool GapsCanMoveOver(Instruction* instr, Zone* zone) {
+  if (instr->IsNop()) return true;
+  if (instr->ClobbersTemps() || instr->ClobbersRegisters() ||
+      instr->ClobbersDoubleRegisters()) {
+    return false;
+  }
+  if (instr->arch_opcode() != ArchOpcode::kArchNop) return false;
+
+  ZoneSet<InstructionOperand, OperandCompare> operands(zone);
+  for (size_t i = 0; i < instr->InputCount(); ++i) {
+    operands.insert(*instr->InputAt(i));
+  }
+  for (size_t i = 0; i < instr->OutputCount(); ++i) {
+    operands.insert(*instr->OutputAt(i));
+  }
+  for (size_t i = 0; i < instr->TempCount(); ++i) {
+    operands.insert(*instr->TempAt(i));
+  }
+  for (int i = Instruction::GapPosition::FIRST_GAP_POSITION;
+       i <= Instruction::GapPosition::LAST_GAP_POSITION; ++i) {
+    ParallelMove* moves = instr->parallel_moves()[i];
+    if (moves == nullptr) continue;
+    for (MoveOperands* move : *moves) {
+      if (operands.count(move->source()) > 0 ||
+          operands.count(move->destination()) > 0) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 
 int FindFirstNonEmptySlot(Instruction* instr) {
@@ -135,7 +172,7 @@ void MoveOptimizer::CompressBlock(InstructionBlock* block) {
       std::swap(prev_instr->parallel_moves()[0], instr->parallel_moves()[0]);
     }
     prev_instr = instr->parallel_moves()[0] == nullptr ? nullptr : instr;
-    if (GapsCanMoveOver(instr)) continue;
+    if (GapsCanMoveOver(instr, local_zone())) continue;
     if (prev_instr != nullptr) {
       to_finalize_.push_back(prev_instr);
       prev_instr = nullptr;
@@ -198,7 +235,8 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   for (int i = block->first_instruction_index();
        i <= block->last_instruction_index(); ++i) {
     instr = code()->instructions()[i];
-    if (!GapsCanMoveOver(instr) || !instr->AreMovesRedundant()) break;
+    if (!GapsCanMoveOver(instr, local_zone()) || !instr->AreMovesRedundant())
+      break;
   }
   DCHECK(instr != nullptr);
   bool gap_initialized = true;
@@ -245,12 +283,12 @@ bool IsSlot(const InstructionOperand& op) {
 
 
 bool LoadCompare(const MoveOperands* a, const MoveOperands* b) {
-  if (!a->source().EqualsModuloType(b->source())) {
-    return a->source().CompareModuloType(b->source());
+  if (!a->source().EqualsCanonicalized(b->source())) {
+    return a->source().CompareCanonicalized(b->source());
   }
   if (IsSlot(a->destination()) && !IsSlot(b->destination())) return false;
   if (!IsSlot(a->destination()) && IsSlot(b->destination())) return true;
-  return a->destination().CompareModuloType(b->destination());
+  return a->destination().CompareCanonicalized(b->destination());
 }
 
 }  // namespace
@@ -276,7 +314,7 @@ void MoveOptimizer::FinalizeMoves(Instruction* instr) {
   for (auto load : loads) {
     // New group.
     if (group_begin == nullptr ||
-        !load->source().EqualsModuloType(group_begin->source())) {
+        !load->source().EqualsCanonicalized(group_begin->source())) {
       group_begin = load;
       continue;
     }

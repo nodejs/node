@@ -40,13 +40,13 @@ assertTrue(!!"..foobar".match(plain));
 var sticky = /foo.bar/y;
 
 assertTrue(!!"foo*bar".match(sticky));
-assertEquals(0, sticky.lastIndex);
+assertEquals(7, sticky.lastIndex);
 assertFalse(!!"..foo*bar".match(sticky));
 
 var stickyplain = /foobar/y;
 
 assertTrue(!!"foobar".match(stickyplain));
-assertEquals(0, stickyplain.lastIndex);
+assertEquals(6, stickyplain.lastIndex);
 assertFalse(!!"..foobar".match(stickyplain));
 
 var global = /foo.bar/g;

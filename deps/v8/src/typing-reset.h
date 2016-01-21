@@ -15,12 +15,12 @@ namespace internal {
 
 class TypingReseter : public AstExpressionVisitor {
  public:
-  TypingReseter(Isolate* isolate, Zone* zone, FunctionLiteral* root);
+  TypingReseter(Isolate* isolate, FunctionLiteral* root);
 
  protected:
   void VisitExpression(Expression* expression) override;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPING_RESET_H_

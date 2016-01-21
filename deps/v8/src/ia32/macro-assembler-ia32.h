@@ -14,20 +14,20 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {kRegister_eax_Code};
-const Register kReturnRegister1 = {kRegister_edx_Code};
-const Register kJSFunctionRegister = {kRegister_edi_Code};
-const Register kContextRegister = {kRegister_esi_Code};
-const Register kInterpreterAccumulatorRegister = {kRegister_eax_Code};
-const Register kInterpreterRegisterFileRegister = {kRegister_edx_Code};
-const Register kInterpreterBytecodeOffsetRegister = {kRegister_ecx_Code};
-const Register kInterpreterBytecodeArrayRegister = {kRegister_edi_Code};
-const Register kInterpreterDispatchTableRegister = {kRegister_ebx_Code};
-const Register kRuntimeCallFunctionRegister = {kRegister_ebx_Code};
-const Register kRuntimeCallArgCountRegister = {kRegister_eax_Code};
+const Register kReturnRegister0 = {Register::kCode_eax};
+const Register kReturnRegister1 = {Register::kCode_edx};
+const Register kJSFunctionRegister = {Register::kCode_edi};
+const Register kContextRegister = {Register::kCode_esi};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_eax};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_edx};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_ecx};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_edi};
+const Register kJavaScriptCallArgCountRegister = {Register::kCode_eax};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_ebx};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_eax};
 
 // Spill slots used by interpreter dispatch calling convention.
-const int kInterpreterContextSpillSlot = -1;
+const int kInterpreterDispatchTableSpillSlot = -1;
 
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
@@ -278,8 +278,8 @@ class MacroAssembler: public Assembler {
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
-  // argument in register esi.
-  void LeaveExitFrame(bool save_doubles);
+  // argument in register esi (if pop_arguments == true).
+  void LeaveExitFrame(bool save_doubles, bool pop_arguments = true);
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).
@@ -854,6 +854,12 @@ class MacroAssembler: public Assembler {
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
   void Lzcnt(Register dst, const Operand& src);
 
+  void Tzcnt(Register dst, Register src) { Tzcnt(dst, Operand(src)); }
+  void Tzcnt(Register dst, const Operand& src);
+
+  void Popcnt(Register dst, Register src) { Popcnt(dst, Operand(src)); }
+  void Popcnt(Register dst, const Operand& src);
+
   // Emit call to the code we are currently generating.
   void CallSelf() {
     Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
@@ -1129,6 +1135,7 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 #endif
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_MACRO_ASSEMBLER_IA32_H_

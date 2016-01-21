@@ -33,6 +33,12 @@
 
   ##############################################################################
 
+  # TODO(danno): These tests fail because the incoming descriptor for JavaScript
+  # calls has nothing to do with the interface descriptors of some code stubs,
+  # and they cannot be used interchangably.
+  'test-run-stubs/RunOptimizedMathFloorStub': [SKIP],
+  'test-run-stubs/RunStringAddTFStub': [SKIP],
+
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
@@ -115,10 +121,25 @@
   # optimized and hence scripts don't "return" the correct value. Fix this.
   'test-compiler/CompileFunctionInContext*': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Crankshaft messes with debugger, investigate and fix!
-  'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],  # in no-snap mode.
-  'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
-  'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
+  # TurboFan doesn't support allocation sites currently.
+  'test-heap/CellsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_VARIANTS],
+  'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringDoubleArrayProperties': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringMixedInObjectProperties': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringNestedObjectLiterals': [PASS, NO_VARIANTS],
+  'test-heap/OptimizedPretenuringObjectArrayLiterals': [PASS, NO_VARIANTS],
+
+  # TurboFan cpu profiler result is different.
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_VARIANTS],
+  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [PASS, NO_VARIANTS],
+  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [PASS, NO_VARIANTS],
+  'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_VARIANTS],
+  'test-cpu-profiler/TickLines': [PASS, NO_VARIANTS],
 
   ############################################################################
   # Slow tests.
@@ -126,6 +147,7 @@
   'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
+  'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
 
   # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
@@ -198,6 +220,10 @@
 
 ##############################################################################
 ['no_snap == True', {
+  # Slow tests.
+  'test-api/ExternalWrap': [PASS, SLOW],
+  'test-api/FastReturnValues*': [PASS, SLOW],
+  'test-decls/CrossScriptReferences_Simple2': [PASS, SLOW],
 }],  # 'no_snap == True'
 
 ##############################################################################
@@ -291,7 +317,15 @@
 
 ##############################################################################
 ['arch == x87', {
-  'test-run-machops/RunFloat64InsertLowWord32': [SKIP]
+  'test-run-machops/RunFloat64InsertLowWord32': [SKIP],
+  'test-run-native-calls/MixedParams_0': [SKIP],
+  'test-run-native-calls/MixedParams_1': [SKIP],
+  'test-run-native-calls/MixedParams_2': [SKIP],
+  'test-run-native-calls/MixedParams_3': [SKIP],
+  'test-run-machops/RunFloat64MulAndFloat64Add1': [SKIP],
+  'test-run-machops/RunFloat64MulAndFloat64Add2': [SKIP],
+  'test-run-machops/RunFloat64MulAndFloat64Sub1': [SKIP],
+  'test-run-machops/RunFloat64MulAndFloat64Sub2': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
@@ -415,6 +449,14 @@
   'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
 
 }],  # 'system == aix and arch == ppc64'
+
+##############################################################################
+['system == aix or (arch == ppc64 and byteorder == big)', {
+
+  # Test currently broken for platforms with function desciptors
+  'test-run-machops/RunComputedCodeObject' : [SKIP],
+
+}],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {

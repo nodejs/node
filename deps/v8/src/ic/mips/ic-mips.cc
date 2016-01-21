@@ -25,7 +25,6 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, Register type,
   // Register usage:
   //   type: holds the receiver instance type on entry.
   __ Branch(global_object, eq, type, Operand(JS_GLOBAL_OBJECT_TYPE));
-  __ Branch(global_object, eq, type, Operand(JS_BUILTINS_OBJECT_TYPE));
   __ Branch(global_object, eq, type, Operand(JS_GLOBAL_PROXY_TYPE));
 }
 
@@ -436,7 +435,7 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
   Handle<TypeFeedbackVector> dummy_vector =
       TypeFeedbackVector::DummyVector(masm->isolate());
   int slot_index = dummy_vector->GetIndex(
-      FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
+      FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ li(slot, Operand(Smi::FromInt(slot_index)));
 
@@ -685,7 +684,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
     Handle<TypeFeedbackVector> dummy_vector =
         TypeFeedbackVector::DummyVector(masm->isolate());
     int slot_index = dummy_vector->GetIndex(
-        FeedbackVectorICSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
+        FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
     __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
     __ li(slot, Operand(Smi::FromInt(slot_index)));
   }
@@ -880,8 +879,6 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   Address patch_address =
       andi_instruction_address - delta * Instruction::kInstrSize;
   Instr instr_at_patch = Assembler::instr_at(patch_address);
-  Instr branch_instr =
-      Assembler::instr_at(patch_address + Instruction::kInstrSize);
   // This is patching a conditional "jump if not smi/jump if smi" site.
   // Enabling by changing from
   //   andi at, rx, 0
@@ -901,13 +898,44 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     DCHECK(Assembler::IsAndImmediate(instr_at_patch));
     patcher.masm()->andi(at, reg, 0);
   }
+  Instr branch_instr =
+      Assembler::instr_at(patch_address + Instruction::kInstrSize);
   DCHECK(Assembler::IsBranch(branch_instr));
-  if (Assembler::IsBeq(branch_instr)) {
-    patcher.ChangeBranchCondition(ne);
-  } else {
-    DCHECK(Assembler::IsBne(branch_instr));
-    patcher.ChangeBranchCondition(eq);
+
+  uint32_t opcode = Assembler::GetOpcodeField(branch_instr);
+  // Currently only the 'eq' and 'ne' cond values are supported and the simple
+  // branch instructions and their r6 variants (with opcode being the branch
+  // type). There are some special cases (see Assembler::IsBranch()) so
+  // extending this would be tricky.
+  DCHECK(opcode == BEQ ||    // BEQ
+         opcode == BNE ||    // BNE
+         opcode == POP10 ||  // BEQC
+         opcode == POP30 ||  // BNEC
+         opcode == POP66 ||  // BEQZC
+         opcode == POP76);   // BNEZC
+  switch (opcode) {
+    case BEQ:
+      opcode = BNE;  // change BEQ to BNE.
+      break;
+    case POP10:
+      opcode = POP30;  // change BEQC to BNEC.
+      break;
+    case POP66:
+      opcode = POP76;  // change BEQZC to BNEZC.
+      break;
+    case BNE:
+      opcode = BEQ;  // change BNE to BEQ.
+      break;
+    case POP30:
+      opcode = POP10;  // change BNEC to BEQC.
+      break;
+    case POP76:
+      opcode = POP66;  // change BNEZC to BEQZC.
+      break;
+    default:
+      UNIMPLEMENTED();
   }
+  patcher.ChangeBranchCondition(branch_instr, opcode);
 }
 }  // namespace internal
 }  // namespace v8

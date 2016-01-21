@@ -12,6 +12,7 @@ BOTS = {
   '--arm32': 'v8_arm32_perf_try',
   '--linux32': 'v8_linux32_perf_try',
   '--linux64': 'v8_linux64_perf_try',
+  '--linux64_atom': 'v8_linux64_atom_perf_try',
   '--linux64_haswell': 'v8_linux64_haswell_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--nexus7': 'v8_nexus7_perf_try',

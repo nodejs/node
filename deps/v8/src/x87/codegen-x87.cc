@@ -41,8 +41,27 @@ UnaryMathFunction CreateExpFunction() {
 
 
 UnaryMathFunction CreateSqrtFunction() {
-  // No SSE2 support
-  return &std::sqrt;
+  size_t actual_size;
+  // Allocate buffer in executable space.
+  byte* buffer =
+      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == NULL) return &std::sqrt;
+
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  // Load double input into registers.
+  __ fld_d(MemOperand(esp, 4));
+  __ X87SetFPUCW(0x027F);
+  __ fsqrt();
+  __ X87SetFPUCW(0x037F);
+  __ Ret();
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
+
+  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
+  base::OS::ProtectCode(buffer, actual_size);
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
 

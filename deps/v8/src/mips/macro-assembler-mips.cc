@@ -13,6 +13,7 @@
 #include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/mips/macro-assembler-mips.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -24,8 +25,8 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
       has_frame_(false),
       has_double_zero_reg_set_(false) {
   if (isolate() != NULL) {
-    code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
-                                  isolate());
+    code_object_ =
+        Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
   }
 }
 
@@ -146,7 +147,7 @@ MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
 MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   UNIMPLEMENTED_MIPS();
   // General purpose registers are pushed last on the stack.
-  int doubles_size = FPURegister::NumAllocatableRegisters() * kDoubleSize;
+  int doubles_size = DoubleRegister::kMaxNumRegisters * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
   return MemOperand(sp, doubles_size + register_offset);
 }
@@ -435,7 +436,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   int offset =
       Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
   lw(scratch, FieldMemOperand(scratch, offset));
-  lw(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
+  lw(scratch, FieldMemOperand(scratch, JSGlobalObject::kNativeContextOffset));
 
   // Check the context is a native context.
   if (emit_debug_code()) {
@@ -1440,7 +1441,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
           c(UN, D, cmp1, cmp2);
           bc1f(&skip);
           nop();
-          Jr(nan, bd);
+          BranchLong(nan, bd);
           bind(&skip);
         } else {
           c(UN, D, cmp1, cmp2);
@@ -1458,7 +1459,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
           cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(&skip, kDoubleCompareReg);
           nop();
-          Jr(nan, bd);
+          BranchLong(nan, bd);
           bind(&skip);
         } else {
           cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
@@ -1477,7 +1478,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
         Label skip;
         Condition neg_cond = NegateFpuCondition(cond);
         BranchShortF(sizeField, &skip, neg_cond, cmp1, cmp2, bd);
-        Jr(target, bd);
+        BranchLong(target, bd);
         bind(&skip);
       } else {
         BranchShortF(sizeField, target, cond, cmp1, cmp2, bd);
@@ -1937,28 +1938,30 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst,
     (cond != cc_always && (!rs.is(zero_reg) || !rt.rm().is(zero_reg))))
 
 
-void MacroAssembler::Branch(int16_t offset, BranchDelaySlot bdslot) {
+void MacroAssembler::Branch(int32_t offset, BranchDelaySlot bdslot) {
+  DCHECK(IsMipsArchVariant(kMips32r6) ? is_int26(offset) : is_int16(offset));
   BranchShort(offset, bdslot);
 }
 
 
-void MacroAssembler::Branch(int16_t offset, Condition cond, Register rs,
-                            const Operand& rt,
-                            BranchDelaySlot bdslot) {
-  BranchShort(offset, cond, rs, rt, bdslot);
+void MacroAssembler::Branch(int32_t offset, Condition cond, Register rs,
+                            const Operand& rt, BranchDelaySlot bdslot) {
+  bool is_near = BranchShortCheck(offset, nullptr, cond, rs, rt, bdslot);
+  DCHECK(is_near);
+  USE(is_near);
 }
 
 
 void MacroAssembler::Branch(Label* L, BranchDelaySlot bdslot) {
   if (L->is_bound()) {
-    if (is_near(L)) {
+    if (is_near_branch(L)) {
       BranchShort(L, bdslot);
     } else {
-      Jr(L, bdslot);
+      BranchLong(L, bdslot);
     }
   } else {
     if (is_trampoline_emitted()) {
-      Jr(L, bdslot);
+      BranchLong(L, bdslot);
     } else {
       BranchShort(L, bdslot);
     }
@@ -1970,17 +1973,15 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
                             const Operand& rt,
                             BranchDelaySlot bdslot) {
   if (L->is_bound()) {
-    if (is_near(L)) {
-      BranchShort(L, cond, rs, rt, bdslot);
-    } else {
+    if (!BranchShortCheck(0, L, cond, rs, rt, bdslot)) {
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);
         BranchShort(&skip, neg_cond, rs, rt);
-        Jr(L, bdslot);
+        BranchLong(L, bdslot);
         bind(&skip);
       } else {
-        Jr(L, bdslot);
+        BranchLong(L, bdslot);
       }
     }
   } else {
@@ -1989,10 +1990,10 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
         Label skip;
         Condition neg_cond = NegateCondition(cond);
         BranchShort(&skip, neg_cond, rs, rt);
-        Jr(L, bdslot);
+        BranchLong(L, bdslot);
         bind(&skip);
       } else {
-        Jr(L, bdslot);
+        BranchLong(L, bdslot);
       }
     } else {
       BranchShort(L, cond, rs, rt, bdslot);
@@ -2011,7 +2012,10 @@ void MacroAssembler::Branch(Label* L,
 }
 
 
-void MacroAssembler::BranchShort(int16_t offset, BranchDelaySlot bdslot) {
+void MacroAssembler::BranchShortHelper(int16_t offset, Label* L,
+                                       BranchDelaySlot bdslot) {
+  DCHECK(L == nullptr || offset == 0);
+  offset = GetOffset(offset, L, OffsetSize::kOffset16);
   b(offset);
 
   // Emit a nop in the branch delay slot if required.
@@ -2020,549 +2024,543 @@ void MacroAssembler::BranchShort(int16_t offset, BranchDelaySlot bdslot) {
 }
 
 
-void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
-                                 const Operand& rt,
-                                 BranchDelaySlot bdslot) {
-  BRANCH_ARGS_CHECK(cond, rs, rt);
-  DCHECK(!rs.is(zero_reg));
-  Register r2 = no_reg;
-  Register scratch = at;
+void MacroAssembler::BranchShortHelperR6(int32_t offset, Label* L) {
+  DCHECK(L == nullptr || offset == 0);
+  offset = GetOffset(offset, L, OffsetSize::kOffset26);
+  bc(offset);
+}
 
-  if (rt.is_reg()) {
-    // NOTE: 'at' can be clobbered by Branch but it is legal to use it as rs or
-    // rt.
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    r2 = rt.rm_;
-    switch (cond) {
-      case cc_always:
-        b(offset);
-        break;
-      case eq:
-        beq(rs, r2, offset);
-        break;
-      case ne:
-        bne(rs, r2, offset);
-        break;
-      // Signed comparison.
-      case greater:
-        if (r2.is(zero_reg)) {
-          bgtz(rs, offset);
-        } else {
-          slt(scratch, r2, rs);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case greater_equal:
-        if (r2.is(zero_reg)) {
-          bgez(rs, offset);
-        } else {
-          slt(scratch, rs, r2);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      case less:
-        if (r2.is(zero_reg)) {
-          bltz(rs, offset);
-        } else {
-          slt(scratch, rs, r2);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case less_equal:
-        if (r2.is(zero_reg)) {
-          blez(rs, offset);
-        } else {
-          slt(scratch, r2, rs);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      // Unsigned comparison.
-      case Ugreater:
-        if (r2.is(zero_reg)) {
-          bne(rs, zero_reg, offset);
-        } else {
-          sltu(scratch, r2, rs);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case Ugreater_equal:
-        if (r2.is(zero_reg)) {
-          b(offset);
-        } else {
-          sltu(scratch, rs, r2);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      case Uless:
-        if (r2.is(zero_reg)) {
-          // No code needs to be emitted.
-          return;
-        } else {
-          sltu(scratch, rs, r2);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case Uless_equal:
-        if (r2.is(zero_reg)) {
-          beq(rs, zero_reg, offset);
-        } else {
-          sltu(scratch, r2, rs);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      default:
-        UNREACHABLE();
-    }
+
+void MacroAssembler::BranchShort(int32_t offset, BranchDelaySlot bdslot) {
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
+    DCHECK(is_int26(offset));
+    BranchShortHelperR6(offset, nullptr);
   } else {
-    // Be careful to always use shifted_branch_offset only just before the
-    // branch instruction, as the location will be remember for patching the
-    // target.
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    switch (cond) {
-      case cc_always:
-        b(offset);
-        break;
-      case eq:
-        if (rt.imm32_ == 0) {
-          beq(rs, zero_reg, offset);
-        } else {
-          // We don't want any other register but scratch clobbered.
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          beq(rs, r2, offset);
-        }
-        break;
-      case ne:
-        if (rt.imm32_ == 0) {
-          bne(rs, zero_reg, offset);
-        } else {
-          // We don't want any other register but scratch clobbered.
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          bne(rs, r2, offset);
-        }
-        break;
-      // Signed comparison.
-      case greater:
-        if (rt.imm32_ == 0) {
-          bgtz(rs, offset);
-        } else {
-          r2 = scratch;
-          li(r2, rt);
-          slt(scratch, r2, rs);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case greater_equal:
-        if (rt.imm32_ == 0) {
-          bgez(rs, offset);
-        } else if (is_int16(rt.imm32_)) {
-          slti(scratch, rs, rt.imm32_);
-          beq(scratch, zero_reg, offset);
-        } else {
-          r2 = scratch;
-          li(r2, rt);
-          slt(scratch, rs, r2);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      case less:
-        if (rt.imm32_ == 0) {
-          bltz(rs, offset);
-        } else if (is_int16(rt.imm32_)) {
-          slti(scratch, rs, rt.imm32_);
-          bne(scratch, zero_reg, offset);
-        } else {
-          r2 = scratch;
-          li(r2, rt);
-          slt(scratch, rs, r2);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case less_equal:
-        if (rt.imm32_ == 0) {
-          blez(rs, offset);
-        } else {
-          r2 = scratch;
-          li(r2, rt);
-          slt(scratch, r2, rs);
-          beq(scratch, zero_reg, offset);
-       }
-       break;
-      // Unsigned comparison.
-      case Ugreater:
-        if (rt.imm32_ == 0) {
-          bne(rs, zero_reg, offset);
-        } else {
-          r2 = scratch;
-          li(r2, rt);
-          sltu(scratch, r2, rs);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case Ugreater_equal:
-        if (rt.imm32_ == 0) {
-          b(offset);
-        } else if (is_int16(rt.imm32_)) {
-          sltiu(scratch, rs, rt.imm32_);
-          beq(scratch, zero_reg, offset);
-        } else {
-          r2 = scratch;
-          li(r2, rt);
-          sltu(scratch, rs, r2);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      case Uless:
-        if (rt.imm32_ == 0) {
-          // No code needs to be emitted.
-          return;
-        } else if (is_int16(rt.imm32_)) {
-          sltiu(scratch, rs, rt.imm32_);
-          bne(scratch, zero_reg, offset);
-        } else {
-          r2 = scratch;
-          li(r2, rt);
-          sltu(scratch, rs, r2);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case Uless_equal:
-        if (rt.imm32_ == 0) {
-          beq(rs, zero_reg, offset);
-        } else {
-          r2 = scratch;
-          li(r2, rt);
-          sltu(scratch, r2, rs);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      default:
-        UNREACHABLE();
-    }
+    DCHECK(is_int16(offset));
+    BranchShortHelper(offset, nullptr, bdslot);
   }
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
 }
 
 
 void MacroAssembler::BranchShort(Label* L, BranchDelaySlot bdslot) {
-  // We use branch_offset as an argument for the branch instructions to be sure
-  // it is called just before generating the branch instruction, as needed.
-
-  b(shifted_branch_offset(L, false));
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
+    BranchShortHelperR6(0, L);
+  } else {
+    BranchShortHelper(0, L, bdslot);
+  }
 }
 
 
-void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
-                                 const Operand& rt,
-                                 BranchDelaySlot bdslot) {
-  BRANCH_ARGS_CHECK(cond, rs, rt);
-
-  int32_t offset = 0;
-  Register r2 = no_reg;
-  Register scratch = at;
+static inline bool IsZero(const Operand& rt) {
   if (rt.is_reg()) {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
+    return rt.rm().is(zero_reg);
+  } else {
+    return rt.immediate() == 0;
+  }
+}
+
+
+int32_t MacroAssembler::GetOffset(int32_t offset, Label* L, OffsetSize bits) {
+  if (L) {
+    offset = branch_offset_helper(L, bits) >> 2;
+  } else {
+    DCHECK(is_intn(offset, bits));
+  }
+  return offset;
+}
+
+
+Register MacroAssembler::GetRtAsRegisterHelper(const Operand& rt,
+                                               Register scratch) {
+  Register r2 = no_reg;
+  if (rt.is_reg()) {
     r2 = rt.rm_;
-    // Be careful to always use shifted_branch_offset only just before the
-    // branch instruction, as the location will be remember for patching the
-    // target.
+  } else {
+    r2 = scratch;
+    li(r2, rt);
+  }
+
+  return r2;
+}
+
+
+bool MacroAssembler::BranchShortHelperR6(int32_t offset, Label* L,
+                                         Condition cond, Register rs,
+                                         const Operand& rt) {
+  DCHECK(L == nullptr || offset == 0);
+  Register scratch = rs.is(at) ? t8 : at;
+  OffsetSize bits = OffsetSize::kOffset16;
+
+  // Be careful to always use shifted_branch_offset only just before the
+  // branch instruction, as the location will be remember for patching the
+  // target.
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     switch (cond) {
       case cc_always:
-        offset = shifted_branch_offset(L, false);
-        b(offset);
+        bits = OffsetSize::kOffset26;
+        if (!is_near(L, bits)) return false;
+        offset = GetOffset(offset, L, bits);
+        bc(offset);
         break;
       case eq:
-        offset = shifted_branch_offset(L, false);
-        beq(rs, r2, offset);
+        if (rs.code() == rt.rm_.reg_code) {
+          // Pre R6 beq is used here to make the code patchable. Otherwise bc
+          // should be used which has no condition field so is not patchable.
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          beq(rs, scratch, offset);
+          nop();
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          beqzc(rs, offset);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          beqc(rs, scratch, offset);
+        }
         break;
       case ne:
-        offset = shifted_branch_offset(L, false);
-        bne(rs, r2, offset);
+        if (rs.code() == rt.rm_.reg_code) {
+          // Pre R6 bne is used here to make the code patchable. Otherwise we
+          // should not generate any instruction.
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bne(rs, scratch, offset);
+          nop();
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bnezc(rs, offset);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bnec(rs, scratch, offset);
+        }
         break;
+
       // Signed comparison.
       case greater:
-        if (r2.is(zero_reg)) {
-          offset = shifted_branch_offset(L, false);
-          bgtz(rs, offset);
+        // rs > rt
+        if (rs.code() == rt.rm_.reg_code) {
+          break;  // No code needs to be emitted.
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bltzc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bgtzc(rs, offset);
         } else {
-          slt(scratch, r2, rs);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bltc(scratch, rs, offset);
         }
         break;
       case greater_equal:
-        if (r2.is(zero_reg)) {
-          offset = shifted_branch_offset(L, false);
-          bgez(rs, offset);
+        // rs >= rt
+        if (rs.code() == rt.rm_.reg_code) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          blezc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bgezc(rs, offset);
         } else {
-          slt(scratch, rs, r2);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bgec(rs, scratch, offset);
         }
         break;
       case less:
-        if (r2.is(zero_reg)) {
-          offset = shifted_branch_offset(L, false);
-          bltz(rs, offset);
+        // rs < rt
+        if (rs.code() == rt.rm_.reg_code) {
+          break;  // No code needs to be emitted.
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bgtzc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bltzc(rs, offset);
         } else {
-          slt(scratch, rs, r2);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bltc(rs, scratch, offset);
         }
         break;
       case less_equal:
-        if (r2.is(zero_reg)) {
-          offset = shifted_branch_offset(L, false);
-          blez(rs, offset);
+        // rs <= rt
+        if (rs.code() == rt.rm_.reg_code) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bgezc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          blezc(rs, offset);
         } else {
-          slt(scratch, r2, rs);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bgec(scratch, rs, offset);
         }
         break;
+
       // Unsigned comparison.
       case Ugreater:
-        if (r2.is(zero_reg)) {
-          offset = shifted_branch_offset(L, false);
-          bne(rs, zero_reg, offset);
+        // rs > rt
+        if (rs.code() == rt.rm_.reg_code) {
+          break;  // No code needs to be emitted.
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bnezc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bnezc(rs, offset);
         } else {
-          sltu(scratch, r2, rs);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bltuc(scratch, rs, offset);
         }
         break;
       case Ugreater_equal:
-        if (r2.is(zero_reg)) {
-          offset = shifted_branch_offset(L, false);
-          b(offset);
+        // rs >= rt
+        if (rs.code() == rt.rm_.reg_code) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          beqzc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
         } else {
-          sltu(scratch, rs, r2);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bgeuc(rs, scratch, offset);
         }
         break;
       case Uless:
-        if (r2.is(zero_reg)) {
-          // No code needs to be emitted.
-          return;
+        // rs < rt
+        if (rs.code() == rt.rm_.reg_code) {
+          break;  // No code needs to be emitted.
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bnezc(scratch, offset);
+        } else if (IsZero(rt)) {
+          break;  // No code needs to be emitted.
         } else {
-          sltu(scratch, rs, r2);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bltuc(rs, scratch, offset);
         }
         break;
       case Uless_equal:
-        if (r2.is(zero_reg)) {
-          offset = shifted_branch_offset(L, false);
-          beq(rs, zero_reg, offset);
+        // rs <= rt
+        if (rs.code() == rt.rm_.reg_code) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          beqzc(rs, offset);
         } else {
-          sltu(scratch, r2, rs);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      default:
-        UNREACHABLE();
-    }
-  } else {
-    // Be careful to always use shifted_branch_offset only just before the
-    // branch instruction, as the location will be remember for patching the
-    // target.
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    switch (cond) {
-      case cc_always:
-        offset = shifted_branch_offset(L, false);
-        b(offset);
-        break;
-      case eq:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          beq(rs, zero_reg, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          offset = shifted_branch_offset(L, false);
-          beq(rs, r2, offset);
-        }
-        break;
-      case ne:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          bne(rs, zero_reg, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          offset = shifted_branch_offset(L, false);
-          bne(rs, r2, offset);
-        }
-        break;
-      // Signed comparison.
-      case greater:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          bgtz(rs, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          slt(scratch, r2, rs);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case greater_equal:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          bgez(rs, offset);
-        } else if (is_int16(rt.imm32_)) {
-          slti(scratch, rs, rt.imm32_);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          slt(scratch, rs, r2);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      case less:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          bltz(rs, offset);
-        } else if (is_int16(rt.imm32_)) {
-          slti(scratch, rs, rt.imm32_);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          slt(scratch, rs, r2);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case less_equal:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          blez(rs, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          slt(scratch, r2, rs);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-      // Unsigned comparison.
-      case Ugreater:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          bne(rs, zero_reg, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          sltu(scratch, r2, rs);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case Ugreater_equal:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          b(offset);
-        } else if (is_int16(rt.imm32_)) {
-          sltiu(scratch, rs, rt.imm32_);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          sltu(scratch, rs, r2);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
-        }
-        break;
-     case Uless:
-        if (rt.imm32_ == 0) {
-          // No code needs to be emitted.
-          return;
-        } else if (is_int16(rt.imm32_)) {
-          sltiu(scratch, rs, rt.imm32_);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          sltu(scratch, rs, r2);
-          offset = shifted_branch_offset(L, false);
-          bne(scratch, zero_reg, offset);
-        }
-        break;
-      case Uless_equal:
-        if (rt.imm32_ == 0) {
-          offset = shifted_branch_offset(L, false);
-          beq(rs, zero_reg, offset);
-        } else {
-          DCHECK(!scratch.is(rs));
-          r2 = scratch;
-          li(r2, rt);
-          sltu(scratch, r2, rs);
-          offset = shifted_branch_offset(L, false);
-          beq(scratch, zero_reg, offset);
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bgeuc(scratch, rs, offset);
         }
         break;
       default:
         UNREACHABLE();
     }
   }
-  // Check that offset could actually hold on an int16_t.
-  DCHECK(is_int16(offset));
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
+  CheckTrampolinePoolQuick(1);
+  return true;
 }
 
 
-void MacroAssembler::BranchAndLink(int16_t offset, BranchDelaySlot bdslot) {
+bool MacroAssembler::BranchShortHelper(int16_t offset, Label* L, Condition cond,
+                                       Register rs, const Operand& rt,
+                                       BranchDelaySlot bdslot) {
+  DCHECK(L == nullptr || offset == 0);
+  if (!is_near(L, OffsetSize::kOffset16)) return false;
+
+  Register scratch = at;
+  int32_t offset32;
+
+  // Be careful to always use shifted_branch_offset only just before the
+  // branch instruction, as the location will be remember for patching the
+  // target.
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    switch (cond) {
+      case cc_always:
+        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+        b(offset32);
+        break;
+      case eq:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(rs, zero_reg, offset32);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(rs, scratch, offset32);
+        }
+        break;
+      case ne:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(rs, zero_reg, offset32);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(rs, scratch, offset32);
+        }
+        break;
+
+      // Signed comparison.
+      case greater:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bgtz(rs, offset32);
+        } else {
+          Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(scratch, zero_reg, offset32);
+        }
+        break;
+      case greater_equal:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bgez(rs, offset32);
+        } else {
+          Slt(scratch, rs, rt);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(scratch, zero_reg, offset32);
+        }
+        break;
+      case less:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bltz(rs, offset32);
+        } else {
+          Slt(scratch, rs, rt);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(scratch, zero_reg, offset32);
+        }
+        break;
+      case less_equal:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          blez(rs, offset32);
+        } else {
+          Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(scratch, zero_reg, offset32);
+        }
+        break;
+
+      // Unsigned comparison.
+      case Ugreater:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(rs, zero_reg, offset32);
+        } else {
+          Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(scratch, zero_reg, offset32);
+        }
+        break;
+      case Ugreater_equal:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          b(offset32);
+        } else {
+          Sltu(scratch, rs, rt);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(scratch, zero_reg, offset32);
+        }
+        break;
+      case Uless:
+        if (IsZero(rt)) {
+          return true;  // No code needs to be emitted.
+        } else {
+          Sltu(scratch, rs, rt);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(scratch, zero_reg, offset32);
+        }
+        break;
+      case Uless_equal:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(rs, zero_reg, offset32);
+        } else {
+          Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(scratch, zero_reg, offset32);
+        }
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  // Emit a nop in the branch delay slot if required.
+  if (bdslot == PROTECT)
+    nop();
+
+  return true;
+}
+
+
+bool MacroAssembler::BranchShortCheck(int32_t offset, Label* L, Condition cond,
+                                      Register rs, const Operand& rt,
+                                      BranchDelaySlot bdslot) {
+  BRANCH_ARGS_CHECK(cond, rs, rt);
+
+  if (!L) {
+    if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
+      DCHECK(is_int26(offset));
+      return BranchShortHelperR6(offset, nullptr, cond, rs, rt);
+    } else {
+      DCHECK(is_int16(offset));
+      return BranchShortHelper(offset, nullptr, cond, rs, rt, bdslot);
+    }
+  } else {
+    DCHECK(offset == 0);
+    if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
+      return BranchShortHelperR6(0, L, cond, rs, rt);
+    } else {
+      return BranchShortHelper(0, L, cond, rs, rt, bdslot);
+    }
+  }
+  return false;
+}
+
+
+void MacroAssembler::BranchShort(int32_t offset, Condition cond, Register rs,
+                                 const Operand& rt, BranchDelaySlot bdslot) {
+  BranchShortCheck(offset, nullptr, cond, rs, rt, bdslot);
+}
+
+
+void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
+                                 const Operand& rt, BranchDelaySlot bdslot) {
+  BranchShortCheck(0, L, cond, rs, rt, bdslot);
+}
+
+
+void MacroAssembler::BranchAndLink(int32_t offset, BranchDelaySlot bdslot) {
   BranchAndLinkShort(offset, bdslot);
 }
 
 
-void MacroAssembler::BranchAndLink(int16_t offset, Condition cond, Register rs,
-                                   const Operand& rt,
-                                   BranchDelaySlot bdslot) {
-  BranchAndLinkShort(offset, cond, rs, rt, bdslot);
+void MacroAssembler::BranchAndLink(int32_t offset, Condition cond, Register rs,
+                                   const Operand& rt, BranchDelaySlot bdslot) {
+  bool is_near = BranchAndLinkShortCheck(offset, nullptr, cond, rs, rt, bdslot);
+  DCHECK(is_near);
+  USE(is_near);
 }
 
 
 void MacroAssembler::BranchAndLink(Label* L, BranchDelaySlot bdslot) {
   if (L->is_bound()) {
-    if (is_near(L)) {
+    if (is_near_branch(L)) {
       BranchAndLinkShort(L, bdslot);
     } else {
-      Jalr(L, bdslot);
+      BranchAndLinkLong(L, bdslot);
     }
   } else {
     if (is_trampoline_emitted()) {
-      Jalr(L, bdslot);
+      BranchAndLinkLong(L, bdslot);
     } else {
       BranchAndLinkShort(L, bdslot);
     }
@@ -2574,13 +2572,11 @@ void MacroAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
                                    const Operand& rt,
                                    BranchDelaySlot bdslot) {
   if (L->is_bound()) {
-    if (is_near(L)) {
-      BranchAndLinkShort(L, cond, rs, rt, bdslot);
-    } else {
+    if (!BranchAndLinkShortCheck(0, L, cond, rs, rt, bdslot)) {
       Label skip;
       Condition neg_cond = NegateCondition(cond);
       BranchShort(&skip, neg_cond, rs, rt);
-      Jalr(L, bdslot);
+      BranchAndLinkLong(L, bdslot);
       bind(&skip);
     }
   } else {
@@ -2588,20 +2584,19 @@ void MacroAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
       Label skip;
       Condition neg_cond = NegateCondition(cond);
       BranchShort(&skip, neg_cond, rs, rt);
-      Jalr(L, bdslot);
+      BranchAndLinkLong(L, bdslot);
       bind(&skip);
     } else {
-      BranchAndLinkShort(L, cond, rs, rt, bdslot);
+      BranchAndLinkShortCheck(0, L, cond, rs, rt, bdslot);
     }
   }
 }
 
 
-// We need to use a bgezal or bltzal, but they can't be used directly with the
-// slt instructions. We could use sub or add instead but we would miss overflow
-// cases, so we keep slt and add an intermediate third instruction.
-void MacroAssembler::BranchAndLinkShort(int16_t offset,
-                                        BranchDelaySlot bdslot) {
+void MacroAssembler::BranchAndLinkShortHelper(int16_t offset, Label* L,
+                                              BranchDelaySlot bdslot) {
+  DCHECK(L == nullptr || offset == 0);
+  offset = GetOffset(offset, L, OffsetSize::kOffset16);
   bal(offset);
 
   // Emit a nop in the branch delay slot if required.
@@ -2610,371 +2605,306 @@ void MacroAssembler::BranchAndLinkShort(int16_t offset,
 }
 
 
-void MacroAssembler::BranchAndLinkShort(int16_t offset, Condition cond,
-                                        Register rs, const Operand& rt,
+void MacroAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L) {
+  DCHECK(L == nullptr || offset == 0);
+  offset = GetOffset(offset, L, OffsetSize::kOffset26);
+  balc(offset);
+}
+
+
+void MacroAssembler::BranchAndLinkShort(int32_t offset,
                                         BranchDelaySlot bdslot) {
-  BRANCH_ARGS_CHECK(cond, rs, rt);
-  Register r2 = no_reg;
-  Register scratch = at;
-
-  if (rt.is_reg()) {
-    r2 = rt.rm_;
-  } else if (cond != cc_always) {
-    r2 = scratch;
-    li(r2, rt);
-  }
-
-  if (!IsMipsArchVariant(kMips32r6)) {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    switch (cond) {
-      case cc_always:
-        bal(offset);
-        break;
-      case eq:
-        bne(rs, r2, 2);
-        nop();
-        bal(offset);
-        break;
-      case ne:
-        beq(rs, r2, 2);
-        nop();
-        bal(offset);
-        break;
-
-      // Signed comparison.
-      case greater:
-        slt(scratch, r2, rs);
-        addiu(scratch, scratch, -1);
-        bgezal(scratch, offset);
-        break;
-      case greater_equal:
-        slt(scratch, rs, r2);
-        addiu(scratch, scratch, -1);
-        bltzal(scratch, offset);
-        break;
-      case less:
-        slt(scratch, rs, r2);
-        addiu(scratch, scratch, -1);
-        bgezal(scratch, offset);
-        break;
-      case less_equal:
-        slt(scratch, r2, rs);
-        addiu(scratch, scratch, -1);
-        bltzal(scratch, offset);
-        break;
-
-      // Unsigned comparison.
-      case Ugreater:
-        sltu(scratch, r2, rs);
-        addiu(scratch, scratch, -1);
-        bgezal(scratch, offset);
-        break;
-      case Ugreater_equal:
-        sltu(scratch, rs, r2);
-        addiu(scratch, scratch, -1);
-        bltzal(scratch, offset);
-        break;
-      case Uless:
-        sltu(scratch, rs, r2);
-        addiu(scratch, scratch, -1);
-        bgezal(scratch, offset);
-        break;
-      case Uless_equal:
-        sltu(scratch, r2, rs);
-        addiu(scratch, scratch, -1);
-        bltzal(scratch, offset);
-        break;
-
-      default:
-        UNREACHABLE();
-    }
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
+    DCHECK(is_int26(offset));
+    BranchAndLinkShortHelperR6(offset, nullptr);
   } else {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    switch (cond) {
-      case cc_always:
-        bal(offset);
-        break;
-      case eq:
-        bne(rs, r2, 2);
-        nop();
-        bal(offset);
-        break;
-      case ne:
-        beq(rs, r2, 2);
-        nop();
-        bal(offset);
-        break;
-
-      // Signed comparison.
-      case greater:
-        // rs > rt
-        slt(scratch, r2, rs);
-        beq(scratch, zero_reg, 2);
-        nop();
-        bal(offset);
-        break;
-      case greater_equal:
-        // rs >= rt
-        slt(scratch, rs, r2);
-        bne(scratch, zero_reg, 2);
-        nop();
-        bal(offset);
-        break;
-      case less:
-        // rs < r2
-        slt(scratch, rs, r2);
-        bne(scratch, zero_reg, 2);
-        nop();
-        bal(offset);
-        break;
-      case less_equal:
-        // rs <= r2
-        slt(scratch, r2, rs);
-        bne(scratch, zero_reg, 2);
-        nop();
-        bal(offset);
-        break;
-
-
-      // Unsigned comparison.
-      case Ugreater:
-        // rs > rt
-        sltu(scratch, r2, rs);
-        beq(scratch, zero_reg, 2);
-        nop();
-        bal(offset);
-        break;
-      case Ugreater_equal:
-        // rs >= rt
-        sltu(scratch, rs, r2);
-        bne(scratch, zero_reg, 2);
-        nop();
-        bal(offset);
-        break;
-      case Uless:
-        // rs < r2
-        sltu(scratch, rs, r2);
-        bne(scratch, zero_reg, 2);
-        nop();
-        bal(offset);
-        break;
-      case Uless_equal:
-        // rs <= r2
-        sltu(scratch, r2, rs);
-        bne(scratch, zero_reg, 2);
-        nop();
-        bal(offset);
-        break;
-      default:
-        UNREACHABLE();
-    }
+    DCHECK(is_int16(offset));
+    BranchAndLinkShortHelper(offset, nullptr, bdslot);
   }
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
 }
 
 
 void MacroAssembler::BranchAndLinkShort(Label* L, BranchDelaySlot bdslot) {
-  bal(shifted_branch_offset(L, false));
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
+    BranchAndLinkShortHelperR6(0, L);
+  } else {
+    BranchAndLinkShortHelper(0, L, bdslot);
+  }
 }
 
 
-void MacroAssembler::BranchAndLinkShort(Label* L, Condition cond, Register rs,
-                                        const Operand& rt,
-                                        BranchDelaySlot bdslot) {
-  BRANCH_ARGS_CHECK(cond, rs, rt);
+bool MacroAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
+                                                Condition cond, Register rs,
+                                                const Operand& rt) {
+  DCHECK(L == nullptr || offset == 0);
+  Register scratch = rs.is(at) ? t8 : at;
+  OffsetSize bits = OffsetSize::kOffset16;
 
-  int32_t offset = 0;
-  Register r2 = no_reg;
-  Register scratch = at;
-  if (rt.is_reg()) {
-    r2 = rt.rm_;
-  } else if (cond != cc_always) {
-    r2 = scratch;
-    li(r2, rt);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  DCHECK((cond == cc_always && is_int26(offset)) || is_int16(offset));
+  switch (cond) {
+    case cc_always:
+      bits = OffsetSize::kOffset26;
+      if (!is_near(L, bits)) return false;
+      offset = GetOffset(offset, L, bits);
+      balc(offset);
+      break;
+    case eq:
+      if (!is_near(L, bits)) return false;
+      Subu(scratch, rs, rt);
+      offset = GetOffset(offset, L, bits);
+      beqzalc(scratch, offset);
+      break;
+    case ne:
+      if (!is_near(L, bits)) return false;
+      Subu(scratch, rs, rt);
+      offset = GetOffset(offset, L, bits);
+      bnezalc(scratch, offset);
+      break;
+
+    // Signed comparison.
+    case greater:
+      // rs > rt
+      if (rs.code() == rt.rm_.reg_code) {
+        break;  // No code needs to be emitted.
+      } else if (rs.is(zero_reg)) {
+        if (!is_near(L, bits)) return false;
+        scratch = GetRtAsRegisterHelper(rt, scratch);
+        offset = GetOffset(offset, L, bits);
+        bltzalc(scratch, offset);
+      } else if (IsZero(rt)) {
+        if (!is_near(L, bits)) return false;
+        offset = GetOffset(offset, L, bits);
+        bgtzalc(rs, offset);
+      } else {
+        if (!is_near(L, bits)) return false;
+        Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+        offset = GetOffset(offset, L, bits);
+        bnezalc(scratch, offset);
+      }
+      break;
+    case greater_equal:
+      // rs >= rt
+      if (rs.code() == rt.rm_.reg_code) {
+        bits = OffsetSize::kOffset26;
+        if (!is_near(L, bits)) return false;
+        offset = GetOffset(offset, L, bits);
+        balc(offset);
+      } else if (rs.is(zero_reg)) {
+        if (!is_near(L, bits)) return false;
+        scratch = GetRtAsRegisterHelper(rt, scratch);
+        offset = GetOffset(offset, L, bits);
+        blezalc(scratch, offset);
+      } else if (IsZero(rt)) {
+        if (!is_near(L, bits)) return false;
+        offset = GetOffset(offset, L, bits);
+        bgezalc(rs, offset);
+      } else {
+        if (!is_near(L, bits)) return false;
+        Slt(scratch, rs, rt);
+        offset = GetOffset(offset, L, bits);
+        beqzalc(scratch, offset);
+      }
+      break;
+    case less:
+      // rs < rt
+      if (rs.code() == rt.rm_.reg_code) {
+        break;  // No code needs to be emitted.
+      } else if (rs.is(zero_reg)) {
+        if (!is_near(L, bits)) return false;
+        scratch = GetRtAsRegisterHelper(rt, scratch);
+        offset = GetOffset(offset, L, bits);
+        bgtzalc(scratch, offset);
+      } else if (IsZero(rt)) {
+        if (!is_near(L, bits)) return false;
+        offset = GetOffset(offset, L, bits);
+        bltzalc(rs, offset);
+      } else {
+        if (!is_near(L, bits)) return false;
+        Slt(scratch, rs, rt);
+        offset = GetOffset(offset, L, bits);
+        bnezalc(scratch, offset);
+      }
+      break;
+    case less_equal:
+      // rs <= r2
+      if (rs.code() == rt.rm_.reg_code) {
+        bits = OffsetSize::kOffset26;
+        if (!is_near(L, bits)) return false;
+        offset = GetOffset(offset, L, bits);
+        balc(offset);
+      } else if (rs.is(zero_reg)) {
+        if (!is_near(L, bits)) return false;
+        scratch = GetRtAsRegisterHelper(rt, scratch);
+        offset = GetOffset(offset, L, bits);
+        bgezalc(scratch, offset);
+      } else if (IsZero(rt)) {
+        if (!is_near(L, bits)) return false;
+        offset = GetOffset(offset, L, bits);
+        blezalc(rs, offset);
+      } else {
+        if (!is_near(L, bits)) return false;
+        Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+        offset = GetOffset(offset, L, bits);
+        beqzalc(scratch, offset);
+      }
+      break;
+
+
+    // Unsigned comparison.
+    case Ugreater:
+      // rs > r2
+      if (!is_near(L, bits)) return false;
+      Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+      offset = GetOffset(offset, L, bits);
+      bnezalc(scratch, offset);
+      break;
+    case Ugreater_equal:
+      // rs >= r2
+      if (!is_near(L, bits)) return false;
+      Sltu(scratch, rs, rt);
+      offset = GetOffset(offset, L, bits);
+      beqzalc(scratch, offset);
+      break;
+    case Uless:
+      // rs < r2
+      if (!is_near(L, bits)) return false;
+      Sltu(scratch, rs, rt);
+      offset = GetOffset(offset, L, bits);
+      bnezalc(scratch, offset);
+      break;
+    case Uless_equal:
+      // rs <= r2
+      if (!is_near(L, bits)) return false;
+      Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+      offset = GetOffset(offset, L, bits);
+      beqzalc(scratch, offset);
+      break;
+    default:
+      UNREACHABLE();
   }
-
-  if (!IsMipsArchVariant(kMips32r6)) {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    switch (cond) {
-      case cc_always:
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case eq:
-        bne(rs, r2, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case ne:
-        beq(rs, r2, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-
-      // Signed comparison.
-      case greater:
-        slt(scratch, r2, rs);
-        addiu(scratch, scratch, -1);
-        offset = shifted_branch_offset(L, false);
-        bgezal(scratch, offset);
-        break;
-      case greater_equal:
-        slt(scratch, rs, r2);
-        addiu(scratch, scratch, -1);
-        offset = shifted_branch_offset(L, false);
-        bltzal(scratch, offset);
-        break;
-      case less:
-        slt(scratch, rs, r2);
-        addiu(scratch, scratch, -1);
-        offset = shifted_branch_offset(L, false);
-        bgezal(scratch, offset);
-        break;
-      case less_equal:
-        slt(scratch, r2, rs);
-        addiu(scratch, scratch, -1);
-        offset = shifted_branch_offset(L, false);
-        bltzal(scratch, offset);
-        break;
-
-      // Unsigned comparison.
-      case Ugreater:
-        sltu(scratch, r2, rs);
-        addiu(scratch, scratch, -1);
-        offset = shifted_branch_offset(L, false);
-        bgezal(scratch, offset);
-        break;
-      case Ugreater_equal:
-        sltu(scratch, rs, r2);
-        addiu(scratch, scratch, -1);
-        offset = shifted_branch_offset(L, false);
-        bltzal(scratch, offset);
-        break;
-      case Uless:
-        sltu(scratch, rs, r2);
-        addiu(scratch, scratch, -1);
-        offset = shifted_branch_offset(L, false);
-        bgezal(scratch, offset);
-        break;
-      case Uless_equal:
-        sltu(scratch, r2, rs);
-        addiu(scratch, scratch, -1);
-        offset = shifted_branch_offset(L, false);
-        bltzal(scratch, offset);
-        break;
-
-      default:
-        UNREACHABLE();
-    }
-  } else {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    switch (cond) {
-      case cc_always:
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case eq:
-        bne(rs, r2, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case ne:
-        beq(rs, r2, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-
-      // Signed comparison.
-      case greater:
-        // rs > rt
-        slt(scratch, r2, rs);
-        beq(scratch, zero_reg, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case greater_equal:
-        // rs >= rt
-        slt(scratch, rs, r2);
-        bne(scratch, zero_reg, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case less:
-        // rs < r2
-        slt(scratch, rs, r2);
-        bne(scratch, zero_reg, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case less_equal:
-        // rs <= r2
-        slt(scratch, r2, rs);
-        bne(scratch, zero_reg, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
+  return true;
+}
 
 
-      // Unsigned comparison.
-      case Ugreater:
-        // rs > rt
-        sltu(scratch, r2, rs);
-        beq(scratch, zero_reg, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case Ugreater_equal:
-        // rs >= rt
-        sltu(scratch, rs, r2);
-        bne(scratch, zero_reg, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case Uless:
-        // rs < r2
-        sltu(scratch, rs, r2);
-        bne(scratch, zero_reg, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
-      case Uless_equal:
-        // rs <= r2
-        sltu(scratch, r2, rs);
-        bne(scratch, zero_reg, 2);
-        nop();
-        offset = shifted_branch_offset(L, false);
-        bal(offset);
-        break;
+// Pre r6 we need to use a bgezal or bltzal, but they can't be used directly
+// with the slt instructions. We could use sub or add instead but we would miss
+// overflow cases, so we keep slt and add an intermediate third instruction.
+bool MacroAssembler::BranchAndLinkShortHelper(int16_t offset, Label* L,
+                                              Condition cond, Register rs,
+                                              const Operand& rt,
+                                              BranchDelaySlot bdslot) {
+  DCHECK(L == nullptr || offset == 0);
+  if (!is_near(L, OffsetSize::kOffset16)) return false;
 
-      default:
-        UNREACHABLE();
-    }
+  Register scratch = t8;
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+
+  switch (cond) {
+    case cc_always:
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bal(offset);
+      break;
+    case eq:
+      bne(rs, GetRtAsRegisterHelper(rt, scratch), 2);
+      nop();
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bal(offset);
+      break;
+    case ne:
+      beq(rs, GetRtAsRegisterHelper(rt, scratch), 2);
+      nop();
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bal(offset);
+      break;
+
+    // Signed comparison.
+    case greater:
+      Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+      addiu(scratch, scratch, -1);
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bgezal(scratch, offset);
+      break;
+    case greater_equal:
+      Slt(scratch, rs, rt);
+      addiu(scratch, scratch, -1);
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bltzal(scratch, offset);
+      break;
+    case less:
+      Slt(scratch, rs, rt);
+      addiu(scratch, scratch, -1);
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bgezal(scratch, offset);
+      break;
+    case less_equal:
+      Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+      addiu(scratch, scratch, -1);
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bltzal(scratch, offset);
+      break;
+
+    // Unsigned comparison.
+    case Ugreater:
+      Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+      addiu(scratch, scratch, -1);
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bgezal(scratch, offset);
+      break;
+    case Ugreater_equal:
+      Sltu(scratch, rs, rt);
+      addiu(scratch, scratch, -1);
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bltzal(scratch, offset);
+      break;
+    case Uless:
+      Sltu(scratch, rs, rt);
+      addiu(scratch, scratch, -1);
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bgezal(scratch, offset);
+      break;
+    case Uless_equal:
+      Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+      addiu(scratch, scratch, -1);
+      offset = GetOffset(offset, L, OffsetSize::kOffset16);
+      bltzal(scratch, offset);
+      break;
+
+    default:
+      UNREACHABLE();
   }
-
-  // Check that offset could actually hold on an int16_t.
-  DCHECK(is_int16(offset));
 
   // Emit a nop in the branch delay slot if required.
   if (bdslot == PROTECT)
     nop();
+
+  return true;
+}
+
+
+bool MacroAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
+                                             Condition cond, Register rs,
+                                             const Operand& rt,
+                                             BranchDelaySlot bdslot) {
+  BRANCH_ARGS_CHECK(cond, rs, rt);
+
+  if (!L) {
+    if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
+      DCHECK(is_int26(offset));
+      return BranchAndLinkShortHelperR6(offset, nullptr, cond, rs, rt);
+    } else {
+      DCHECK(is_int16(offset));
+      return BranchAndLinkShortHelper(offset, nullptr, cond, rs, rt, bdslot);
+    }
+  } else {
+    DCHECK(offset == 0);
+    if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
+      return BranchAndLinkShortHelperR6(0, L, cond, rs, rt);
+    } else {
+      return BranchAndLinkShortHelper(0, L, cond, rs, rt, bdslot);
+    }
+  }
+  return false;
 }
 
 
@@ -3064,6 +2994,10 @@ void MacroAssembler::Call(Register target,
                           Register rs,
                           const Operand& rt,
                           BranchDelaySlot bd) {
+#ifdef DEBUG
+  int size = IsPrevInstrCompactBranch() ? kInstrSize : 0;
+#endif
+
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Label start;
   bind(&start);
@@ -3078,8 +3012,10 @@ void MacroAssembler::Call(Register target,
   if (bd == PROTECT)
     nop();
 
-  DCHECK_EQ(CallSize(target, cond, rs, rt, bd),
-            SizeOfCodeGeneratedSince(&start));
+#ifdef DEBUG
+  CHECK_EQ(size + CallSize(target, cond, rs, rt, bd),
+           SizeOfCodeGeneratedSince(&start));
+#endif
 }
 
 
@@ -3157,43 +3093,51 @@ void MacroAssembler::Ret(Condition cond,
 }
 
 
-void MacroAssembler::Jr(Label* L, BranchDelaySlot bdslot) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
+void MacroAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT &&
+      (!L->is_bound() || is_near_r6(L))) {
+    BranchShortHelperR6(0, L);
+  } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    uint32_t imm32;
+    imm32 = jump_address(L);
+    {
+      BlockGrowBufferScope block_buf_growth(this);
+      // Buffer growth (and relocation) must be blocked for internal references
+      // until associated instructions are emitted and available to be patched.
+      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+      lui(at, (imm32 & kHiMask) >> kLuiShift);
+      ori(at, at, (imm32 & kImm16Mask));
+    }
+    jr(at);
 
-  uint32_t imm32;
-  imm32 = jump_address(L);
-  { BlockGrowBufferScope block_buf_growth(this);
-    // Buffer growth (and relocation) must be blocked for internal references
-    // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    lui(at, (imm32 & kHiMask) >> kLuiShift);
-    ori(at, at, (imm32 & kImm16Mask));
+    // Emit a nop in the branch delay slot if required.
+    if (bdslot == PROTECT) nop();
   }
-  jr(at);
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
 }
 
 
-void MacroAssembler::Jalr(Label* L, BranchDelaySlot bdslot) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
+void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT &&
+      (!L->is_bound() || is_near_r6(L))) {
+    BranchAndLinkShortHelperR6(0, L);
+  } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    uint32_t imm32;
+    imm32 = jump_address(L);
+    {
+      BlockGrowBufferScope block_buf_growth(this);
+      // Buffer growth (and relocation) must be blocked for internal references
+      // until associated instructions are emitted and available to be patched.
+      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+      lui(at, (imm32 & kHiMask) >> kLuiShift);
+      ori(at, at, (imm32 & kImm16Mask));
+    }
+    jalr(at);
 
-  uint32_t imm32;
-  imm32 = jump_address(L);
-  { BlockGrowBufferScope block_buf_growth(this);
-    // Buffer growth (and relocation) must be blocked for internal references
-    // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    lui(at, (imm32 & kHiMask) >> kLuiShift);
-    ori(at, at, (imm32 & kImm16Mask));
+    // Emit a nop in the branch delay slot if required.
+    if (bdslot == PROTECT) nop();
   }
-  jalr(at);
-
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
 }
 
 
@@ -3681,7 +3625,7 @@ void MacroAssembler::CopyFields(Register dst,
   // Find a temp register in temps list.
   for (int i = 0; i < kNumRegisters; i++) {
     if ((temps & (1 << i)) != 0) {
-      tmp.code_ = i;
+      tmp.reg_code = i;
       break;
     }
   }
@@ -4580,7 +4524,7 @@ void MacroAssembler::GetBuiltinFunction(Register target,
                                         int native_context_index) {
   // Load the builtins object into target register.
   lw(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  lw(target, FieldMemOperand(target, GlobalObject::kNativeContextOffset));
+  lw(target, FieldMemOperand(target, JSGlobalObject::kNativeContextOffset));
   // Load the JavaScript builtin function from the builtins object.
   lw(target, ContextOperand(target, native_context_index));
 }
@@ -4730,7 +4674,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 
 void MacroAssembler::LoadGlobalProxy(Register dst) {
   lw(dst, GlobalObjectOperand());
-  lw(dst, FieldMemOperand(dst, GlobalObject::kGlobalProxyOffset));
+  lw(dst, FieldMemOperand(dst, JSGlobalObject::kGlobalProxyOffset));
 }
 
 
@@ -4743,7 +4687,7 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
   // Load the global or builtins object from the current context.
   lw(scratch,
      MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  lw(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
+  lw(scratch, FieldMemOperand(scratch, JSGlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
   lw(scratch,
@@ -4766,8 +4710,7 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   lw(function,
      MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   // Load the native context from the global or builtins object.
-  lw(function, FieldMemOperand(function,
-                               GlobalObject::kNativeContextOffset));
+  lw(function, FieldMemOperand(function, JSGlobalObject::kNativeContextOffset));
   // Load the function from the native context.
   lw(function, MemOperand(function, Context::SlotOffset(index)));
 }
@@ -5778,8 +5721,11 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   if (reg5.is_valid()) regs |= reg5.bit();
   if (reg6.is_valid()) regs |= reg6.bit();
 
-  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
-    Register candidate = Register::FromAllocationIndex(i);
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
+    int code = config->GetAllocatableGeneralCode(i);
+    Register candidate = Register::from_code(code);
     if (regs & candidate.bit()) continue;
     return candidate;
   }
@@ -5884,25 +5830,10 @@ void CodePatcher::Emit(Address addr) {
 }
 
 
-void CodePatcher::ChangeBranchCondition(Condition cond) {
-  Instr instr = Assembler::instr_at(masm_.pc_);
-  DCHECK(Assembler::IsBranch(instr));
-  uint32_t opcode = Assembler::GetOpcodeField(instr);
-  // Currently only the 'eq' and 'ne' cond values are supported and the simple
-  // branch instructions (with opcode being the branch type).
-  // There are some special cases (see Assembler::IsBranch()) so extending this
-  // would be tricky.
-  DCHECK(opcode == BEQ ||
-         opcode == BNE ||
-        opcode == BLEZ ||
-        opcode == BGTZ ||
-        opcode == BEQL ||
-        opcode == BNEL ||
-       opcode == BLEZL ||
-       opcode == BGTZL);
-  opcode = (cond == eq) ? BEQ : BNE;
-  instr = (instr & ~kOpcodeMask) | opcode;
-  masm_.emit(instr);
+void CodePatcher::ChangeBranchCondition(Instr current_instr,
+                                        uint32_t new_opcode) {
+  current_instr = (current_instr & ~kOpcodeMask) | new_opcode;
+  masm_.emit(current_instr);
 }
 
 

@@ -23,7 +23,7 @@ struct ExpressionTypeEntry {
 
 class ExpressionTypeCollector : public AstExpressionVisitor {
  public:
-  ExpressionTypeCollector(Isolate* isolate, Zone* zone, FunctionLiteral* root,
+  ExpressionTypeCollector(Isolate* isolate, FunctionLiteral* root,
                           ZoneVector<ExpressionTypeEntry>* dst);
   void Run();
 
@@ -33,7 +33,7 @@ class ExpressionTypeCollector : public AstExpressionVisitor {
  private:
   ZoneVector<ExpressionTypeEntry>* result_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXPRESSION_TYPE_COLLECTOR_H_

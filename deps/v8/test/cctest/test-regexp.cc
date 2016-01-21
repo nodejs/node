@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(mythria): Remove this define after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <cstdlib>
 #include <sstream>
 
@@ -715,7 +718,7 @@ class ContextInitializer {
   }
  private:
   v8::HandleScope scope_;
-  v8::Handle<v8::Context> env_;
+  v8::Local<v8::Context> env_;
 };
 
 

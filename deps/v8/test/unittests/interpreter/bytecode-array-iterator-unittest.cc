@@ -25,6 +25,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   BytecodeArrayBuilder builder(isolate(), zone());
   builder.set_parameter_count(3);
   builder.set_locals_count(2);
+  builder.set_context_count(0);
 
   Factory* factory = isolate()->factory();
   Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
@@ -35,6 +36,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Register reg_0(0);
   Register reg_1(1);
   Register reg_2 = Register::FromParameterIndex(2, builder.parameter_count());
+  int name_index = 21;
   int feedback_slot = 97;
 
   builder.LoadLiteral(heap_num_0)
@@ -43,8 +45,9 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadLiteral(smi_0)
       .LoadLiteral(smi_1)
       .LoadAccumulatorWithRegister(reg_0)
-      .LoadNamedProperty(reg_1, feedback_slot, LanguageMode::SLOPPY)
+      .LoadNamedProperty(reg_1, name_index, feedback_slot, LanguageMode::SLOPPY)
       .StoreAccumulatorInRegister(reg_2)
+      .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
       .Return();
 
   // Test iterator sees the expected output from the builder.
@@ -64,7 +67,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaSmi8);
-  CHECK_EQ(Smi::FromInt(iterator.GetSmi8Operand(0)), smi_0);
+  CHECK_EQ(Smi::FromInt(iterator.GetImmediateOperand(0)), smi_0);
   CHECK(!iterator.done());
   iterator.Advance();
 
@@ -78,14 +81,23 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK(!iterator.done());
   iterator.Advance();
 
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLoadIC);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLoadICSloppy);
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_1.index());
-  CHECK_EQ(iterator.GetIndexOperand(1), feedback_slot);
+  CHECK_EQ(iterator.GetIndexOperand(1), name_index);
+  CHECK_EQ(iterator.GetIndexOperand(2), feedback_slot);
   CHECK(!iterator.done());
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kStar);
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_2.index());
+  CHECK(!iterator.done());
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kCallRuntime);
+  CHECK_EQ(static_cast<Runtime::FunctionId>(iterator.GetIndexOperand(0)),
+           Runtime::kLoadIC_Miss);
+  CHECK_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
+  CHECK_EQ(iterator.GetCountOperand(2), 1);
   CHECK(!iterator.done());
   iterator.Advance();
 

@@ -563,10 +563,9 @@ function TestTypedArraysWithIllegalIndices() {
   assertEquals(255, a[s2]);
   assertEquals(0, a[-0]);
 
-  /* Chromium bug: 424619
-   * a[-Infinity] = 50;
-   * assertEquals(undefined, a[-Infinity]);
-   */
+  a[-Infinity] = 50;
+  assertEquals(undefined, a[-Infinity]);
+
   a[1.5] = 10;
   assertEquals(undefined, a[1.5]);
   var nan = Math.sqrt(-1);

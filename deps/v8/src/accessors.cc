@@ -198,18 +198,6 @@ void Accessors::ArrayLengthGetter(
 }
 
 
-// Tries to non-observably convert |value| to a valid array length.
-// Returns false if it fails.
-static bool FastAsArrayLength(Isolate* isolate, Handle<Object> value,
-                              uint32_t* length) {
-  if (value->ToArrayLength(length)) return true;
-  // We don't support AsArrayLength, so use AsArrayIndex for now. This just
-  // misses out on kMaxUInt32.
-  if (value->IsString()) return String::cast(*value)->AsArrayIndex(length);
-  return false;
-}
-
-
 void Accessors::ArrayLengthSetter(
     v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
@@ -222,26 +210,9 @@ void Accessors::ArrayLengthSetter(
   Handle<Object> length_obj = Utils::OpenHandle(*val);
 
   uint32_t length = 0;
-  if (!FastAsArrayLength(isolate, length_obj, &length)) {
-    Handle<Object> uint32_v;
-    if (!Object::ToUint32(isolate, length_obj).ToHandle(&uint32_v)) {
-      isolate->OptionalRescheduleException(false);
-      return;
-    }
-
-    Handle<Object> number_v;
-    if (!Object::ToNumber(length_obj).ToHandle(&number_v)) {
-      isolate->OptionalRescheduleException(false);
-      return;
-    }
-
-    if (uint32_v->Number() != number_v->Number()) {
-      Handle<Object> exception = isolate->factory()->NewRangeError(
-          MessageTemplate::kInvalidArrayLength);
-      return isolate->ScheduleThrow(*exception);
-    }
-
-    CHECK(uint32_v->ToArrayLength(&length));
+  if (!JSArray::AnythingToArrayLength(isolate, length_obj, &length)) {
+    isolate->OptionalRescheduleException(false);
+    return;
   }
 
   if (JSArray::ObservableSetLength(array, length).is_null()) {
@@ -258,7 +229,6 @@ Handle<AccessorInfo> Accessors::ArrayLengthInfo(
                       &ArrayLengthSetter,
                       attributes);
 }
-
 
 
 //
@@ -1074,7 +1044,12 @@ void Accessors::FunctionNameGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  Handle<Object> result(function->shared()->name(), isolate);
+  Handle<Object> result;
+  if (function->shared()->name_should_print_as_anonymous()) {
+    result = isolate->factory()->anonymous_string();
+  } else {
+    result = handle(function->shared()->name(), isolate);
+  }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -1200,20 +1175,7 @@ Handle<Object> GetFunctionArguments(Isolate* isolate,
       return ArgumentsForInlinedFunction(frame, function, function_index);
     }
 
-    if (!frame->is_optimized()) {
-      // If there is an arguments variable in the stack, we return that.
-      Handle<ScopeInfo> scope_info(function->shared()->scope_info());
-      int index = scope_info->StackSlotIndex(
-          isolate->heap()->arguments_string());
-      if (index >= 0) {
-        Handle<Object> arguments(frame->GetExpression(index), isolate);
-        if (!arguments->IsArgumentsMarker()) return arguments;
-      }
-    }
-
-    // If there is no arguments variable in the stack or we have an
-    // optimized frame, we find the frame that holds the actual arguments
-    // passed to the function.
+    // Find the frame that holds the actual arguments passed to the function.
     it.AdvanceToArgumentsFrame();
     frame = it.frame();
 
@@ -1359,7 +1321,7 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
   // If caller is a built-in function and caller's caller is also built-in,
   // use that instead.
   JSFunction* potential_caller = caller;
-  while (potential_caller != NULL && potential_caller->IsBuiltin()) {
+  while (potential_caller != NULL && potential_caller->shared()->IsBuiltin()) {
     caller = potential_caller;
     potential_caller = it.next();
   }

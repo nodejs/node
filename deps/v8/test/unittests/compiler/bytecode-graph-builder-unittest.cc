@@ -51,8 +51,8 @@ Graph* BytecodeGraphBuilderTest::GetCompletedGraph() {
   CommonOperatorBuilder* common = new (zone()) CommonOperatorBuilder(zone());
   JSOperatorBuilder* javascript = new (zone()) JSOperatorBuilder(zone());
   Graph* graph = new (zone()) Graph(zone());
-  JSGraph* jsgraph =
-      new (zone()) JSGraph(isolate(), graph, common, javascript, machine);
+  JSGraph* jsgraph = new (zone())
+      JSGraph(isolate(), graph, common, javascript, nullptr, machine);
 
   Handle<String> name = factory()->NewStringFromStaticChars("test");
   Handle<String> script = factory()->NewStringFromStaticChars("test() {}");
@@ -98,6 +98,7 @@ Matcher<Node*> BytecodeGraphBuilderTest::IsTrueConstant() {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnUndefined) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadUndefined().Return();
 
@@ -113,6 +114,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnUndefined) {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnNull) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadNull().Return();
 
@@ -126,6 +128,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnNull) {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnTheHole) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadTheHole().Return();
 
@@ -141,6 +144,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnTheHole) {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnTrue) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadTrue().Return();
 
@@ -156,6 +160,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnTrue) {
 
 TEST_F(BytecodeGraphBuilderTest, ReturnFalse) {
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadFalse().Return();
 
@@ -172,6 +177,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnFalse) {
 TEST_F(BytecodeGraphBuilderTest, ReturnInt8) {
   static const int kValue = 3;
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadLiteral(Smi::FromInt(kValue)).Return();
 
@@ -188,6 +194,7 @@ TEST_F(BytecodeGraphBuilderTest, ReturnInt8) {
 TEST_F(BytecodeGraphBuilderTest, ReturnDouble) {
   const double kValue = 0.123456789;
   array_builder()->set_locals_count(0);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()->LoadLiteral(factory()->NewHeapNumber(kValue));
   array_builder()->Return();
@@ -204,10 +211,12 @@ TEST_F(BytecodeGraphBuilderTest, ReturnDouble) {
 
 TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithParameters) {
   array_builder()->set_locals_count(1);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(3);
   array_builder()
       ->LoadAccumulatorWithRegister(array_builder()->Parameter(1))
-      .BinaryOperation(Token::Value::ADD, array_builder()->Parameter(2))
+      .BinaryOperation(Token::Value::ADD, array_builder()->Parameter(2),
+                       Strength::WEAK)
       .StoreAccumulatorInRegister(interpreter::Register(0))
       .Return();
 
@@ -226,12 +235,14 @@ TEST_F(BytecodeGraphBuilderTest, SimpleExpressionWithRegister) {
   static const int kLeft = -655371;
   static const int kRight = +2000000;
   array_builder()->set_locals_count(1);
+  array_builder()->set_context_count(0);
   array_builder()->set_parameter_count(1);
   array_builder()
       ->LoadLiteral(Smi::FromInt(kLeft))
       .StoreAccumulatorInRegister(interpreter::Register(0))
       .LoadLiteral(Smi::FromInt(kRight))
-      .BinaryOperation(Token::Value::ADD, interpreter::Register(0))
+      .BinaryOperation(Token::Value::ADD, interpreter::Register(0),
+                       Strength::WEAK)
       .Return();
 
   Graph* graph = GetCompletedGraph();

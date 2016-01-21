@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "src/frames-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static void IsOptimized(const v8::FunctionCallbackInfo<v8::Value>& args) {
   JavaScriptFrameIterator it(CcTest::i_isolate());
@@ -22,7 +24,10 @@ static void InstallIsOptimizedHelper(v8::Isolate* isolate) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::FunctionTemplate> t =
       v8::FunctionTemplate::New(isolate, IsOptimized);
-  context->Global()->Set(v8_str("IsOptimized"), t->GetFunction());
+  CHECK(context->Global()
+            ->Set(context, v8_str("IsOptimized"),
+                  t->GetFunction(context).ToLocalChecked())
+            .FromJust());
 }
 
 
@@ -113,3 +118,7 @@ TEST(DeoptTrivial) {
 
   T.CheckCall(T.Val(1));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

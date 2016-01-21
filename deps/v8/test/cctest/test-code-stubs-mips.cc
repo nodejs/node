@@ -34,6 +34,7 @@
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips/constants-mips.h"
+#include "src/register-configuration.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
@@ -79,11 +80,13 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 2;
-  for (; reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
+  for (; reg_num < Register::kNumRegisters; ++reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
-      __ push(reg);
-      source_reg_offset += kPointerSize;
+    if (reg.IsAllocatable()) {
+      if (!reg.is(destination_reg)) {
+        __ push(reg);
+        source_reg_offset += kPointerSize;
+      }
     }
   }
 
@@ -108,10 +111,12 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 2; --reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
-      __ lw(at, MemOperand(sp, 0));
-      __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
-      __ Addu(sp, sp, Operand(kPointerSize));
+    if (reg.IsAllocatable()) {
+      if (!reg.is(destination_reg)) {
+        __ lw(at, MemOperand(sp, 0));
+        __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
+        __ Addu(sp, sp, Operand(kPointerSize));
+      }
     }
   }
 

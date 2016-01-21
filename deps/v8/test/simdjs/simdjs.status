@@ -19,6 +19,10 @@
 
   # TODO(bbudge): Drop this when simd implementation is faster.
   'benchmarks/memcpy': SKIP,
+
+  # Slow tests.
+  'benchmarks/kernel-template': [PASS, SLOW],
+  'benchmarks/memset': [PASS, SLOW],
 }],
 
 ######################################################################

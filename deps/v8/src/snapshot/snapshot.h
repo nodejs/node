@@ -89,6 +89,7 @@ class Snapshot : public AllStatic {
 void SetSnapshotFromFile(StartupData* snapshot_blob);
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SNAPSHOT_SNAPSHOT_H_

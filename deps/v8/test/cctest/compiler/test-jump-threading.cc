@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/jump-threading.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -59,14 +60,16 @@ class TestCode : public HandleAndZoneScope {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
     int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    AddGapMove(index, RegisterOperand(kRepWord32, 13),
-               RegisterOperand(kRepWord32, 13));
+    AddGapMove(index,
+               AllocatedOperand(LocationOperand::REGISTER, kRepWord32, 13),
+               AllocatedOperand(LocationOperand::REGISTER, kRepWord32, 13));
   }
   void NonRedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
     int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    AddGapMove(index, ConstantOperand(11), RegisterOperand(kRepWord32, 11));
+    AddGapMove(index, ConstantOperand(11),
+               AllocatedOperand(LocationOperand::REGISTER, kRepWord32, 11));
   }
   void Other() {
     Start();

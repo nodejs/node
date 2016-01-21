@@ -97,6 +97,7 @@ inline void CallOnce(OnceType* once,
   }
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_ONCE_H_

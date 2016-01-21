@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -16,9 +16,11 @@
 #include "src/compiler/scheduler.h"
 #include "src/compiler/source-position.h"
 #include "src/compiler/verifier.h"
+#include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static Operator dummy_operator1(IrOpcode::kParameter, Operator::kNoWrite,
                                 "dummy", 1, 0, 0, 1, 0, 0);
@@ -127,3 +129,7 @@ TEST(NodeNetworkOfDummiesReachableFromEnd) {
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

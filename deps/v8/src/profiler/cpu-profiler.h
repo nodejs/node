@@ -270,7 +270,8 @@ class CpuProfiler : public CodeEventListener {
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 #endif  // V8_PROFILER_CPU_PROFILER_H_

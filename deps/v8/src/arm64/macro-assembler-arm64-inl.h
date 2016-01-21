@@ -1683,6 +1683,7 @@ void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
   movn(xzr, (marker_name[1] << 8) | marker_name[0]);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_MACRO_ASSEMBLER_ARM64_INL_H_

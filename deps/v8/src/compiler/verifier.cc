@@ -413,10 +413,13 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_LT(1, effect_count);
       break;
     }
-    case IrOpcode::kValueEffect:
+    case IrOpcode::kGuard:
+      // TODO(bmeurer): what are the constraints on these?
+      break;
+    case IrOpcode::kBeginRegion:
       // TODO(rossberg): what are the constraints on these?
       break;
-    case IrOpcode::kFinish: {
+    case IrOpcode::kFinishRegion: {
       // TODO(rossberg): what are the constraints on these?
       // Type must be subsumed by input type.
       if (typing == TYPED) {
@@ -541,8 +544,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
 
     case IrOpcode::kJSLoadContext:
-    case IrOpcode::kJSLoadDynamicGlobal:
-    case IrOpcode::kJSLoadDynamicContext:
+    case IrOpcode::kJSLoadDynamic:
       // Type can be anything.
       CheckUpperIs(node, Type::Any());
       break;
@@ -566,6 +568,7 @@ void Verifier::Visitor::Check(Node* node) {
     }
 
     case IrOpcode::kJSCallConstruct:
+    case IrOpcode::kJSConvertReceiver:
       // Type is Receiver.
       CheckUpperIs(node, Type::Receiver());
       break;
@@ -598,6 +601,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::UnsignedSmall());
       break;
     }
+
+    case IrOpcode::kJSLoadMessage:
+    case IrOpcode::kJSStoreMessage:
+      break;
 
     case IrOpcode::kJSStackCheck:
       // Type is empty.
@@ -634,6 +641,14 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::Number());
       // TODO(rossberg): activate once we retype after opcode changes.
       // CheckUpperIs(node, Type::Number());
+      break;
+    case IrOpcode::kNumberBitwiseOr:
+    case IrOpcode::kNumberBitwiseXor:
+    case IrOpcode::kNumberBitwiseAnd:
+      // (Signed32, Signed32) -> Signed32
+      CheckValueInputIs(node, 0, Type::Signed32());
+      CheckValueInputIs(node, 1, Type::Signed32());
+      CheckUpperIs(node, Type::Signed32());
       break;
     case IrOpcode::kNumberShiftLeft:
     case IrOpcode::kNumberShiftRight:
@@ -677,6 +692,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Boolean());
       break;
     }
+    case IrOpcode::kObjectIsNumber:
     case IrOpcode::kObjectIsSmi:
       CheckValueInputIs(node, 0, Type::Any());
       CheckUpperIs(node, Type::Boolean());
@@ -803,6 +819,8 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kWord32Ror:
     case IrOpcode::kWord32Equal:
     case IrOpcode::kWord32Clz:
+    case IrOpcode::kWord32Ctz:
+    case IrOpcode::kWord32Popcnt:
     case IrOpcode::kWord64And:
     case IrOpcode::kWord64Or:
     case IrOpcode::kWord64Xor:
@@ -810,6 +828,9 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kWord64Shr:
     case IrOpcode::kWord64Sar:
     case IrOpcode::kWord64Ror:
+    case IrOpcode::kWord64Clz:
+    case IrOpcode::kWord64Popcnt:
+    case IrOpcode::kWord64Ctz:
     case IrOpcode::kWord64Equal:
     case IrOpcode::kInt32Add:
     case IrOpcode::kInt32AddWithOverflow:
@@ -864,6 +885,8 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64LessThan:
     case IrOpcode::kFloat64LessThanOrEqual:
     case IrOpcode::kTruncateInt64ToInt32:
+    case IrOpcode::kRoundInt64ToFloat32:
+    case IrOpcode::kRoundInt64ToFloat64:
     case IrOpcode::kTruncateFloat64ToFloat32:
     case IrOpcode::kTruncateFloat64ToInt32:
     case IrOpcode::kBitcastFloat32ToInt32:

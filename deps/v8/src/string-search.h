@@ -563,6 +563,7 @@ int SearchString(Isolate* isolate,
   return search.Search(subject, start_index);
 }
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STRING_SEARCH_H_

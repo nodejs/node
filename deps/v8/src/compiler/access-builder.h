@@ -22,6 +22,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to HeapObject::map() field.
   static FieldAccess ForMap();
 
+  // Provides access to HeapNumber::value() field.
+  static FieldAccess ForHeapNumberValue();
+
   // Provides access to JSObject::properties() field.
   static FieldAccess ForJSObjectProperties();
 
@@ -41,7 +44,7 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
 
   // Provides access to FixedArray::length() field.
-  static FieldAccess ForFixedArrayLength(Zone* zone);
+  static FieldAccess ForFixedArrayLength();
 
   // Provides access to DescriptorArray::enum_cache() field.
   static FieldAccess ForDescriptorArrayEnumCache();
@@ -58,17 +61,34 @@ class AccessBuilder final : public AllStatic {
   // Provides access to Map::instance_type() field.
   static FieldAccess ForMapInstanceType();
 
+  // Provides access to Map::prototype() field.
+  static FieldAccess ForMapPrototype();
+
   // Provides access to String::length() field.
-  static FieldAccess ForStringLength(Zone* zone);
+  static FieldAccess ForStringLength();
+
+  // Provides access to JSGlobalObject::global_proxy() field.
+  static FieldAccess ForJSGlobalObjectGlobalProxy();
+
+  // Provides access to JSGlobalObject::native_context() field.
+  static FieldAccess ForJSGlobalObjectNativeContext();
 
   // Provides access to JSValue::value() field.
   static FieldAccess ForValue();
 
-  // Provides access Context slots.
+  // Provides access to arguments object fields.
+  static FieldAccess ForArgumentsLength();
+  static FieldAccess ForArgumentsCallee();
+
+  // Provides access to FixedArray slots.
+  static FieldAccess ForFixedArraySlot(size_t index);
+
+  // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
 
   // Provides access to PropertyCell::value() field.
   static FieldAccess ForPropertyCellValue();
+  static FieldAccess ForPropertyCellValue(Type* type);
 
   // Provides access to SharedFunctionInfo::feedback_vector() field.
   static FieldAccess ForSharedFunctionInfoTypeFeedbackVector();

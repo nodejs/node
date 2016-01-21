@@ -32,7 +32,9 @@ class JSIntrinsicLoweringTest : public GraphTest {
   Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
                                    MachineOperatorBuilder::kNoFlags) {
     MachineOperatorBuilder machine(zone(), kMachPtr, flags);
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
+    SimplifiedOperatorBuilder simplified(zone());
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
+                    &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
     JSIntrinsicLowering reducer(&graph_reducer, &jsgraph,
@@ -42,7 +44,8 @@ class JSIntrinsicLoweringTest : public GraphTest {
 
   Node* EmptyFrameState() {
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), nullptr,
+                    &machine);
     return jsgraph.EmptyFrameState();
   }
 
@@ -299,30 +302,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineJSValueGetValue) {
 
 
 // -----------------------------------------------------------------------------
-// %_Likely
-
-TEST_F(JSIntrinsicLoweringTest, Likely) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Node* const likely =
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineLikely, 1),
-                       input, context, effect, control);
-  Node* const to_boolean =
-      graph()->NewNode(javascript()->ToBoolean(), likely, context, effect);
-  Diamond d(graph(), common(), to_boolean);
-  graph()->SetEnd(graph()->NewNode(common()->End(1), d.merge));
-
-  ASSERT_EQ(BranchHint::kNone, BranchHintOf(d.branch->op()));
-  Reduction const r = Reduce(likely);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), input);
-  ASSERT_EQ(BranchHint::kTrue, BranchHintOf(d.branch->op()));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_MathFloor
 
 
@@ -370,9 +349,8 @@ TEST_F(JSIntrinsicLoweringTest, InlineStringGetLength) {
       javascript()->CallRuntime(Runtime::kInlineStringGetLength, 1), input,
       context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsLoadField(AccessBuilder::ForStringLength(zone()), input, effect,
-                          control));
+  EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
+                                           input, effect, control));
 }
 
 
@@ -390,30 +368,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineMathClz32) {
                        input, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsWord32Clz(input));
-}
-
-
-// -----------------------------------------------------------------------------
-// %_Unlikely
-
-TEST_F(JSIntrinsicLoweringTest, Unlikely) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Node* const unlikely =
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineUnlikely, 1),
-                       input, context, effect, control);
-  Node* const to_boolean =
-      graph()->NewNode(javascript()->ToBoolean(), unlikely, context, effect);
-  Diamond d(graph(), common(), to_boolean);
-  graph()->SetEnd(graph()->NewNode(common()->End(1), d.merge));
-
-  ASSERT_EQ(BranchHint::kNone, BranchHintOf(d.branch->op()));
-  Reduction const r = Reduce(unlikely);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), input);
-  ASSERT_EQ(BranchHint::kFalse, BranchHintOf(d.branch->op()));
 }
 
 

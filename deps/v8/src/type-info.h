@@ -26,11 +26,11 @@ class TypeFeedbackOracle: public ZoneObject {
                      Handle<Context> native_context);
 
   InlineCacheState LoadInlineCacheState(TypeFeedbackId id);
-  InlineCacheState LoadInlineCacheState(FeedbackVectorICSlot slot);
+  InlineCacheState LoadInlineCacheState(FeedbackVectorSlot slot);
   bool StoreIsUninitialized(TypeFeedbackId id);
-  bool StoreIsUninitialized(FeedbackVectorICSlot slot);
-  bool CallIsUninitialized(FeedbackVectorICSlot slot);
-  bool CallIsMonomorphic(FeedbackVectorICSlot slot);
+  bool StoreIsUninitialized(FeedbackVectorSlot slot);
+  bool CallIsUninitialized(FeedbackVectorSlot slot);
+  bool CallIsMonomorphic(FeedbackVectorSlot slot);
   bool KeyedArrayCallIsHoley(TypeFeedbackId id);
   bool CallNewIsMonomorphic(FeedbackVectorSlot slot);
 
@@ -43,33 +43,33 @@ class TypeFeedbackOracle: public ZoneObject {
   void GetStoreModeAndKeyType(TypeFeedbackId id,
                               KeyedAccessStoreMode* store_mode,
                               IcCheckType* key_type);
-  void GetStoreModeAndKeyType(FeedbackVectorICSlot slot,
+  void GetStoreModeAndKeyType(FeedbackVectorSlot slot,
                               KeyedAccessStoreMode* store_mode,
                               IcCheckType* key_type);
 
-  void PropertyReceiverTypes(FeedbackVectorICSlot slot, Handle<Name> name,
+  void PropertyReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
                              SmallMapList* receiver_types);
-  void KeyedPropertyReceiverTypes(FeedbackVectorICSlot slot,
+  void KeyedPropertyReceiverTypes(FeedbackVectorSlot slot,
                                   SmallMapList* receiver_types, bool* is_string,
                                   IcCheckType* key_type);
   void AssignmentReceiverTypes(TypeFeedbackId id, Handle<Name> name,
                                SmallMapList* receiver_types);
-  void AssignmentReceiverTypes(FeedbackVectorICSlot slot, Handle<Name> name,
+  void AssignmentReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
                                SmallMapList* receiver_types);
   void KeyedAssignmentReceiverTypes(TypeFeedbackId id,
                                     SmallMapList* receiver_types,
                                     KeyedAccessStoreMode* store_mode,
                                     IcCheckType* key_type);
-  void KeyedAssignmentReceiverTypes(FeedbackVectorICSlot slot,
+  void KeyedAssignmentReceiverTypes(FeedbackVectorSlot slot,
                                     SmallMapList* receiver_types,
                                     KeyedAccessStoreMode* store_mode,
                                     IcCheckType* key_type);
   void CountReceiverTypes(TypeFeedbackId id,
                           SmallMapList* receiver_types);
-  void CountReceiverTypes(FeedbackVectorICSlot slot,
+  void CountReceiverTypes(FeedbackVectorSlot slot,
                           SmallMapList* receiver_types);
 
-  void CollectReceiverTypes(FeedbackVectorICSlot slot, SmallMapList* types);
+  void CollectReceiverTypes(FeedbackVectorSlot slot, SmallMapList* types);
   void CollectReceiverTypes(TypeFeedbackId id,
                             SmallMapList* types);
   template <class T>
@@ -82,8 +82,8 @@ class TypeFeedbackOracle: public ZoneObject {
                native_context;
   }
 
-  Handle<JSFunction> GetCallTarget(FeedbackVectorICSlot slot);
-  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorICSlot slot);
+  Handle<JSFunction> GetCallTarget(FeedbackVectorSlot slot);
+  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorSlot slot);
   Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
   Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
 
@@ -114,7 +114,7 @@ class TypeFeedbackOracle: public ZoneObject {
   Isolate* isolate() const { return isolate_; }
 
  private:
-  void CollectReceiverTypes(FeedbackVectorICSlot slot, Handle<Name> name,
+  void CollectReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
                             Code::Flags flags, SmallMapList* types);
   void CollectReceiverTypes(TypeFeedbackId id, Handle<Name> name,
                             Code::Flags flags, SmallMapList* types);
@@ -143,7 +143,6 @@ class TypeFeedbackOracle: public ZoneObject {
   // Returns an element from the type feedback vector. Returns undefined
   // if there is no information.
   Handle<Object> GetInfo(FeedbackVectorSlot slot);
-  Handle<Object> GetInfo(FeedbackVectorICSlot slot);
 
  private:
   Handle<Context> native_context_;
@@ -155,6 +154,7 @@ class TypeFeedbackOracle: public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPE_INFO_H_
