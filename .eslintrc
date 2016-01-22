@@ -86,6 +86,12 @@ rules:
   # list: http://eslint.org/docs/rules/#ecmascript-6
   ## Suggest using 'const' wherever possible
   prefer-const: 2
+  ## Enforce parens around arrow function arguments
+  arrow-parens: [2, "always"]
+  ## Require a space on each side of arrow operator
+  arrow-spacing: [2, {"before": true, "after": true}]
+  ## Prevent using => in a condition where <= is intended
+  no-arrow-condition: 2
 
   # Strict Mode
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
