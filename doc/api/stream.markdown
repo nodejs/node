@@ -710,7 +710,9 @@ Flush all data, buffered since [`stream.cork()`][] call.
 * Returns: {Boolean} `true` if the data was handled completely.
 
 This method writes some data to the underlying system, and calls the
-supplied callback once the data has been fully handled.
+supplied callback once the data has been fully handled.  If an error
+occurs, the callback may or may not be called with the error as its
+first argument.  To detect write errors, listen for the `'error'` event.
 
 The return value indicates if you should continue writing right now.
 If the data had to be buffered internally, then it will return
