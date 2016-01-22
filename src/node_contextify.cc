@@ -509,7 +509,7 @@ class ContextifyScript : public BaseObject {
     Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
     Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
     bool display_errors = GetDisplayErrorsArg(args, 1);
-    Local<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
+    MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
     bool produce_cached_data = GetProduceCachedData(env, args, 1);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
@@ -518,7 +518,8 @@ class ContextifyScript : public BaseObject {
 
     ScriptCompiler::CachedData* cached_data = nullptr;
     if (!cached_data_buf.IsEmpty()) {
-      ArrayBuffer::Contents contents = cached_data_buf->Buffer()->GetContents();
+      ArrayBuffer::Contents contents =
+          cached_data_buf.ToLocalChecked()->Buffer()->GetContents();
       cached_data = new ScriptCompiler::CachedData(
           reinterpret_cast<uint8_t*>(contents.Data()), contents.ByteLength());
     }
@@ -711,23 +712,23 @@ class ContextifyScript : public BaseObject {
   }
 
 
-  static Local<Uint8Array> GetCachedData(
+  static MaybeLocal<Uint8Array> GetCachedData(
       Environment* env,
       const FunctionCallbackInfo<Value>& args,
       const int i) {
     if (!args[i]->IsObject()) {
-      return Local<Uint8Array>();
+      return MaybeLocal<Uint8Array>();
     }
     Local<Value> value = args[i].As<Object>()->Get(env->cached_data_string());
     if (value->IsUndefined()) {
-      return Local<Uint8Array>();
+      return MaybeLocal<Uint8Array>();
     }
 
     if (!value->IsUint8Array()) {
       Environment::ThrowTypeError(
           args.GetIsolate(),
           "options.cachedData must be a Buffer instance");
-      return Local<Uint8Array>();
+      return MaybeLocal<Uint8Array>();
     }
 
     return value.As<Uint8Array>();
