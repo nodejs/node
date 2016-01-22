@@ -102,14 +102,18 @@ Example: Using `Cipher` objects as streams:
 const crypto = require('crypto');
 const cipher = crypto.createCipher('aes192', 'a password');
 
+var encrypted = '';
 cipher.on('readable', () => {
   var data = cipher.read();
   if (data)
-    console.log(data.toString('hex'));
-    // Prints: b919f20fc5ac2f9c1d2cce94cb1d9c2d
+    encrypted += data.toString('hex');
+});
+cipher.on('end', () => {
+  console.log(encrypted);
+  // Prints: ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504
 });
 
-cipher.write('clear text data');
+cipher.write('some clear text data');
 cipher.end();
 ```
 
@@ -132,9 +136,10 @@ Example: Using the `cipher.update()` and `cipher.final()` methods:
 const crypto = require('crypto');
 const cipher = crypto.createCipher('aes192', 'a password');
 
-cipher.update('clear text data');
-console.log(cipher.final('hex'));
-  // Prints: b919f20fc5ac2f9c1d2cce94cb1d9c2d
+var encrypted = cipher.update('some clear text data', 'utf8', 'hex');
+encrypted += cipher.final('hex');
+console.log(encrypted);
+  // Prints: ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504
 ```
 
 ### cipher.final([output_encoding])
@@ -212,14 +217,19 @@ Example: Using `Decipher` objects as streams:
 const crypto = require('crypto');
 const decipher = crypto.createDecipher('aes192', 'a password');
 
+var decrypted = '';
 decipher.on('readable', () => {
   var data = decipher.read();
   if (data)
-    console.log(data.toString());
-    // Prints: clear text data
+  decrypted += data.toString('utf8');
+});
+decipher.on('end', () => {
+  console.log(decrypted);
+  // Prints: some clear text data
 });
 
-decipher.write('b919f20fc5ac2f9c1d2cce94cb1d9c2d', 'hex');
+var encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
+decipher.write(encrypted, 'hex');
 decipher.end();
 ```
 
@@ -242,9 +252,11 @@ Example: Using the `decipher.update()` and `decipher.final()` methods:
 const crypto = require('crypto');
 const decipher = crypto.createDecipher('aes192', 'a password');
 
-decipher.update('b919f20fc5ac2f9c1d2cce94cb1d9c2d', 'hex');
-console.log(decipher.final('utf8'));
-  // Prints: clear text data
+var encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
+var decrypted = decipher.update(encrypted, 'hex', 'utf8');
+decrypted += decipher.final('utf8');
+console.log(decrypted);
+  // Prints: some clear text data
 ```
 
 ### decipher.final([output_encoding])
