@@ -161,7 +161,7 @@ Object.defineProperty(exports, 'hasCrypto', {
 
 Object.defineProperty(exports, 'hasFipsCrypto', {
   get: function() {
-    return process.config.variables.openssl_fips ? true : false;
+    return exports.hasCrypto && require('crypto').fips;
   }
 });
 

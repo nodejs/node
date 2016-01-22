@@ -3126,8 +3126,10 @@ void CipherBase::Init(const char* cipher_type,
   HandleScope scope(env()->isolate());
 
 #ifdef NODE_FIPS_MODE
-  return env()->ThrowError(
-    "crypto.createCipher() is not supported in FIPS mode.");
+  if (FIPS_mode()) {
+    return env()->ThrowError(
+        "crypto.createCipher() is not supported in FIPS mode.");
+  }
 #endif  // NODE_FIPS_MODE
 
   CHECK_EQ(cipher_, nullptr);
@@ -3858,7 +3860,7 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
 
 #ifdef NODE_FIPS_MODE
   /* Validate DSA2 parameters from FIPS 186-4 */
-  if (EVP_PKEY_DSA == pkey->type) {
+  if (FIPS_mode() && EVP_PKEY_DSA == pkey->type) {
     size_t L = BN_num_bits(pkey->pkey.dsa->p);
     size_t N = BN_num_bits(pkey->pkey.dsa->q);
     bool result = false;
@@ -5665,14 +5667,21 @@ void InitCryptoOnce() {
   SSL_library_init();
   OpenSSL_add_all_algorithms();
   SSL_load_error_strings();
+  OPENSSL_config(NULL);
 
   crypto_lock_init();
   CRYPTO_set_locking_callback(crypto_lock_cb);
   CRYPTO_THREADID_set_callback(crypto_threadid_cb);
 
 #ifdef NODE_FIPS_MODE
-  if (!FIPS_mode_set(1)) {
-    int err = ERR_get_error();
+  /* Override FIPS settings in cnf file, if needed. */
+  unsigned long err = 0;
+  if (enable_fips_crypto || force_fips_crypto) {
+    if (0 == FIPS_mode() && !FIPS_mode_set(1)) {
+      err = ERR_get_error();
+    }
+  }
+  if (0 != err) {
     fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
     UNREACHABLE();
   }
@@ -5739,6 +5748,29 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
+void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+  if (FIPS_mode()) {
+    args.GetReturnValue().Set(1);
+  } else {
+    args.GetReturnValue().Set(0);
+  }
+}
+
+void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+#ifdef NODE_FIPS_MODE
+  bool mode = args[0]->BooleanValue();
+  if (force_fips_crypto) {
+    return env->ThrowError(
+        "Cannot set FIPS mode, it was forced with --force-fips at startup.");
+  } else if (!FIPS_mode_set(mode)) {
+    unsigned long err = ERR_get_error();
+    return ThrowCryptoError(env, err);
+  }
+#else
+  return env->ThrowError("Cannot set FIPS mode in a non-FIPS build.");
+#endif /* NODE_FIPS_MODE */
+}
 
 // FIXME(bnoordhuis) Handle global init correctly.
 void InitCrypto(Local<Object> target,
@@ -5763,6 +5795,8 @@ void InitCrypto(Local<Object> target,
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
+  env->SetMethod(target, "getFipsCrypto", GetFipsCrypto);
+  env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
   env->SetMethod(target, "PBKDF2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
