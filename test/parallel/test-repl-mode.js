@@ -28,8 +28,7 @@ function testSloppyMode() {
   cli.input.emit('data', `
     let y = 3
   `.trim() + '\n');
-  assert.ok(/SyntaxError: Block-scoped/.test(
-      cli.output.accumulator.join('')));
+  assert.equal(cli.output.accumulator.join(''), 'undefined\n> ');
 }
 
 function testStrictMode() {

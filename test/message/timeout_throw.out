@@ -2,6 +2,6 @@
   undefined_reference_error_maker;
   ^
 ReferenceError: undefined_reference_error_maker is not defined
-    at null._onTimeout (*test*message*timeout_throw.js:*:*)
+    at ._onTimeout (*test*message*timeout_throw.js:*:*)
     at tryOnTimeout (timers.js:*:*)
     at Timer.listOnTimeout (timers.js:*:*)
