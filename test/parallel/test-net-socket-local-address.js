@@ -13,7 +13,7 @@ var conns = 0;
 var clientLocalPorts = [];
 var serverRemotePorts = [];
 const client = new net.Socket();
-const server = net.createServer(socket => {
+const server = net.createServer((socket) => {
   serverRemotePorts.push(socket.remotePort);
   socket.end();
 });

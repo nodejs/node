@@ -76,6 +76,8 @@ rules:
   # list: http://eslint.org/docs/rules/#ecmascript-6
   ## Suggest using 'const' wherever possible
   prefer-const: 2
+  ## always require paren in arrow functions, even in the single-argument case
+  arrow-parens: [2, "always"]
 
   # Strict Mode
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
