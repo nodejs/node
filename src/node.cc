@@ -161,6 +161,12 @@ static const char* icu_data_dir = nullptr;
 // used by C++ modules as well
 bool no_deprecation = false;
 
+#if HAVE_OPENSSL && NODE_FIPS_MODE
+// used by crypto module
+bool disable_fips_crypto = false;
+bool enable_fips_crypto = false;
+#endif
+
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 static bool debugger_running;
@@ -3282,7 +3288,11 @@ static void PrintHelp() {
          "  --v8-options          print v8 command line options\n"
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
-#endif
+#if NODE_FIPS_MODE
+         "  --disable-fips        force use of crypto without FIPS compliance"
+         "  --enable-fips         force use of crypto with FIPS compliance"
+#endif  /* NODE_FIPS_MODE */
+#endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
          "                        (overrides NODE_ICU_DATA)\n"
@@ -3424,7 +3434,13 @@ static void ParseArgs(int* argc,
 #if HAVE_OPENSSL
     } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
       default_cipher_list = arg + 18;
-#endif
+#if NODE_FIPS_MODE
+    } else if (strcmp(arg, "--disable-fips") == 0) {
+    disable_fips_crypto = true;
+    } else if (strcmp(arg, "--enable-fips") == 0) {
+    enable_fips_crypto = true;
+#endif /* NODE_FIPS_MODE */
+#endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;

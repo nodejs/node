@@ -93,7 +93,7 @@ for (var i in TEST_CASES) {
 
   (function() {
     if (!test.password) return;
-    if (common.hasFipsCrypto) {
+    if (crypto.hasFipsCrypto()) {
       assert.throws(function()
                     { crypto.createCipher(test.algo, test.password); },
                     /not supported in FIPS mode/);
@@ -114,7 +114,7 @@ for (var i in TEST_CASES) {
 
   (function() {
     if (!test.password) return;
-    if (common.hasFipsCrypto) {
+    if (crypto.hasFipsCrypto()) {
       assert.throws(function()
                     { crypto.createDecipher(test.algo, test.password); },
                     /not supported in FIPS mode/);

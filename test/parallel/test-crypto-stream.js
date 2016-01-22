@@ -26,7 +26,7 @@ Stream2buffer.prototype._write = function(data, encodeing, done) {
   return done(null);
 };
 
-if (!common.hasFipsCrypto) {
+if (!crypto.hasFipsCrypto()) {
   // Create an md5 hash of "Hallo world"
   var hasher1 = crypto.createHash('md5');
   hasher1.pipe(new Stream2buffer(common.mustCall(function end(err, hash) {

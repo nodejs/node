@@ -6,11 +6,13 @@ if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-if (common.hasFipsCrypto) {
+
+var crypto = require('crypto');
+
+if (crypto.hasFipsCrypto()) {
   console.log('1..0 # Skipped: not supported in FIPS mode');
   return;
 }
-var crypto = require('crypto');
 
 function testCipher1(key) {
   // Test encryption and decryption

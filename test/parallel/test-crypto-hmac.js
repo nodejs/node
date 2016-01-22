@@ -62,7 +62,7 @@ var wikipedia = [
 for (let i = 0, l = wikipedia.length; i < l; i++) {
   for (const hash in wikipedia[i]['hmac']) {
     // FIPS does not support MD5.
-    if (common.hasFipsCrypto && hash == 'md5')
+    if (crypto.hasFipsCrypto() && hash == 'md5')
       continue;
     const result = crypto.createHmac(hash, wikipedia[i]['key'])
                          .update(wikipedia[i]['data'])
@@ -349,7 +349,7 @@ var rfc2202_sha1 = [
   }
 ];
 
-if (!common.hasFipsCrypto) {
+if (!crypto.hasFipsCrypto()) {
   for (let i = 0, l = rfc2202_md5.length; i < l; i++) {
     assert.equal(rfc2202_md5[i]['hmac'],
                  crypto.createHmac('md5', rfc2202_md5[i]['key'])
