@@ -106,7 +106,7 @@ for (const showHidden of [true, false]) {
   Uint16Array,
   Uint32Array,
   Uint8Array,
-  Uint8ClampedArray ].forEach(constructor => {
+  Uint8ClampedArray ].forEach((constructor) => {
     const length = 2;
     const byteLength = length * constructor.BYTES_PER_ELEMENT;
     const array = new constructor(new ArrayBuffer(byteLength), 0, length);
@@ -133,7 +133,7 @@ for (const showHidden of [true, false]) {
   Uint16Array,
   Uint32Array,
   Uint8Array,
-  Uint8ClampedArray ].forEach(constructor => {
+  Uint8ClampedArray ].forEach((constructor) => {
     const length = 2;
     const byteLength = length * constructor.BYTES_PER_ELEMENT;
     const array = vm.runInNewContext('new constructor(new ArrayBuffer(' +
