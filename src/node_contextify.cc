@@ -745,11 +745,7 @@ class ContextifyScript : public BaseObject {
     Local<Value> value =
         args[i].As<Object>()->Get(env->produce_cached_data_string());
 
-    if (!value->IsBoolean()) {
-      return false;
-    }
-
-    return value->BooleanValue();
+    return value->IsTrue();
   }
 
 
