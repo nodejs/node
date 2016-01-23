@@ -379,7 +379,8 @@ span.type {
 #column2 .no-scrollbar {
   overflow-y: scroll;
   height: 100%;
-  width: 250px;
+  width: 100%;
+  padding-right: 20px;
 }
 
 #column2 .no-scrollbar:after {
