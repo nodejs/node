@@ -537,6 +537,8 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	test/addons/*/*.h \
 	tools/icu/*.cc \
 	tools/icu/*.h \
+	tools/*.cc \
+	tools/*.h \
 	))
 
 cpplint:

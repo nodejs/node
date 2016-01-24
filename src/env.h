@@ -61,6 +61,8 @@ namespace node {
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
+  V(cached_data_string, "cachedData")                                         \
+  V(cached_data_rejected_string, "cachedDataRejected")                        \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(oncertcb_string, "oncertcb")                                              \
@@ -175,6 +177,7 @@ namespace node {
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(processed_string, "processed")                                            \
+  V(produce_cached_data_string, "produceCachedData")                          \
   V(prototype_string, "prototype")                                            \
   V(raw_string, "raw")                                                        \
   V(rdev_string, "rdev")                                                      \

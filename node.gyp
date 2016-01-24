@@ -502,6 +502,13 @@
     {
       'target_name': 'node_js2c',
       'type': 'none',
+      'conditions': [
+        [ 'target_arch == host_arch', {
+          'dependencies': [
+            'js2c-cache#target',
+          ],
+        }],
+      ],
       'toolsets': ['host'],
       'actions': [
         {
@@ -522,7 +529,10 @@
             }],
             [ 'node_use_perfctr=="false"', {
               'inputs': [ 'src/perfctr_macros.py' ]
-            }]
+            }],
+            [ 'target_arch == host_arch', {
+              'inputs': [ '<(PRODUCT_DIR)/js2c-cache' ],
+            }],
           ],
           'action': [
             '<(python)',
@@ -533,6 +543,21 @@
         },
       ],
     }, # end node_js2c
+    {
+      'target_name': 'js2c-cache',
+      'type': 'executable',
+      'dependencies': [
+        'deps/v8/tools/gyp/v8.gyp:v8',
+        'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
+      ],
+      'include_dirs': [
+        'tools',
+        'deps/v8/include',
+      ],
+      'sources': [
+        'tools/js2c-cache.cc',
+      ],
+    }, # end js2c-cache
     {
       'target_name': 'node_dtrace_header',
       'type': 'none',
@@ -694,7 +719,7 @@
       'sources': [
         'test/cctest/util.cc',
       ],
-    }
+    },
   ], # end targets
 
   'conditions': [

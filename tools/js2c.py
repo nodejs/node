@@ -34,6 +34,7 @@
 import os
 from os.path import dirname
 import re
+import subprocess
 import sys
 import string
 
@@ -97,6 +98,17 @@ def ReadLines(filename):
     if len(line) > 0:
       result.append(line)
   return result
+
+
+def GetCodeCache(js2c_cache, filename, lines):
+  if not filename.endswith('.js'):
+    return '0'
+  p = subprocess.Popen(
+      [ js2c_cache, filename ],
+      stdin = subprocess.PIPE,
+      stdout = subprocess.PIPE)
+  stdout, stderr = p.communicate(lines)
+  return stdout
 
 
 def LoadConfigFrom(name):
@@ -222,13 +234,15 @@ struct _native {
   const char* name;
   const char* source;
   size_t source_len;
+  const unsigned char* cache;
+  size_t cache_len;
 };
 
 static const struct _native natives[] = {
 
 %(native_lines)s\
 
-  { NULL, NULL, 0 } /* sentinel */
+  { NULL, NULL, 0, NULL, 0 } /* sentinel */
 
 };
 
@@ -238,11 +252,16 @@ static const struct _native natives[] = {
 
 
 NATIVE_DECLARATION = """\
-  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native)-1 },
+  {
+    "%(id)s",
+    %(escaped_id)s_native, sizeof(%(escaped_id)s_native)-1,
+    %(escaped_id)s_native_cache, sizeof(%(escaped_id)s_native_cache),
+  },
 """
 
 SOURCE_DECLARATION = """\
   const char %(escaped_id)s_native[] = { %(data)s };
+  const unsigned char %(escaped_id)s_native_cache[] = { %(code_cache)s };
 """
 
 
@@ -260,7 +279,7 @@ GET_DELAY_SCRIPT_NAME_CASE = """\
     if (index == %(i)i) return Vector<const char>("%(name)s", %(length)i);
 """
 
-def JS2C(source, target):
+def JS2C(source, target, js2c_cache):
   ids = []
   delay_ids = []
   modules = []
@@ -301,6 +320,10 @@ def JS2C(source, target):
     else:
       id = s
 
+    code_cache = '0'
+    if js2c_cache != False:
+      code_cache = GetCodeCache(js2c_cache, id, lines)
+
     if '.' in id:
       id = id.split('.', 1)[0]
 
@@ -314,12 +337,14 @@ def JS2C(source, target):
     source_lines.append(SOURCE_DECLARATION % {
       'id': id,
       'escaped_id': escaped_id,
-      'data': data
+      'data': data,
+      'code_cache': code_cache
     })
     source_lines_empty.append(SOURCE_DECLARATION % {
       'id': id,
       'escaped_id': escaped_id,
-      'data': 0
+      'data': 0,
+      'code_cache': 0
     })
     native_lines.append(NATIVE_DECLARATION % {
       'id': id,
@@ -388,9 +413,19 @@ def JS2C(source, target):
     output.close()
 
 def main():
-  natives = sys.argv[1]
-  source_files = sys.argv[2:]
-  JS2C(source_files, [natives])
+  args = sys.argv
+  js2c_cache = False
+
+  rest = []
+  for arg in args:
+    if not arg.endswith('js2c-cache'):
+      rest.append(arg)
+    else:
+      js2c_cache = arg
+
+  natives = rest[1]
+  source_files = rest[2:]
+  JS2C(source_files, [natives], js2c_cache)
 
 if __name__ == "__main__":
   main()
