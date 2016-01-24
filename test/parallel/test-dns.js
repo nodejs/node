@@ -145,3 +145,19 @@ assert.doesNotThrow(function() {
     hints: dns.ADDRCONFIG | dns.V4MAPPED
   }, noop);
 });
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0');
+}, /invalid arguments/);
+
+assert.throws(function() {
+  dns.lookupService('fasdfdsaf', 0, noop);
+}, /host needs to be a valid IP address/);
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', '0', noop);
+}, /port argument must be a number, got "0"/);
+
+assert.doesNotThrow(function() {
+  dns.lookupService('0.0.0.0', 0, noop);
+});
