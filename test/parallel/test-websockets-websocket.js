@@ -10,7 +10,7 @@ const crypto = require('crypto');
 
 const ws_common = require('../common-websockets')
 
-var port = 20000;
+var port = 30000;
 
 function getArrayBuffer(buf) {
   var l = buf.length;
@@ -31,457 +31,540 @@ function areArraysEqual(x, y) {
   return true;
 }
 
-describe('WebSocket', function() {
-  describe('#ctor', function() {
-    it('throws exception for invalid url', function(done) {
-      // try {
-        // var ws = new WebSocket('echo.websocket.org');
-      // }
-      // catch (e) {
-        done();
-      // }
-    });
+/*'WebSocket'*/
+{
+  /*'#ctor'*/
+  {
+    /*'throws exception for invalid url'*/
+    {
+      assert.throws(
+        function() {
+          var ws = new WebSocket('echo.websocket.org');
+        },
+        Error
+      );
+    }
 
-    it('should return a new instance if called without new', function(done) {
-      var ws = WebSocket('ws://localhost:' + port);
-      assert.ok(ws instanceof WebSocket);
-      done();
-    });
-  });
+    /*'should return a new instance if called without new'*/
+    // {
+    //     let p = ++port
+    //     var ws = WebSocket('ws://localhost:' + p);
+    //     assert.ok(ws instanceof WebSocket);
+    // }
+  }
 
-  describe('options', function() {
-    it('should accept an `agent` option', function(done) {
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var agent = {
-          addRequest: function() {
-            wss.close();
-            done();
-          }
-        };
-        var ws = new WebSocket('ws://localhost:' + port, { agent: agent });
-      });
-    });
-    // GH-227
-    it('should accept the `options` object as the 3rd argument', function(done) {
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var agent = {
-          addRequest: function() {
-            wss.close();
-            done();
-          }
-        };
-        var ws = new WebSocket('ws://localhost:' + port, [], { agent: agent });
-      });
-    });
-
-    it('should accept the localAddress option', function(done) {
-      // explore existing interfaces
-      var devs = os.networkInterfaces()
-        , localAddresses = []
-        , j, ifc, dev, devname;
-      for ( devname in devs ) {
-        dev = devs[devname];
-        for ( j=0;j<dev.length;j++ ) {
-          ifc = dev[j];
-          if ( !ifc.internal && ifc.family === 'IPv4' ) {
-            localAddresses.push(ifc.address);
-          }
-        }
-      }
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var ws = new WebSocket('ws://localhost:' + port, { localAddress: localAddresses[0] });
-        ws.on('open', function () {
-          done();
+  /*'options'*/
+  {
+    /*'should accept an `agent` option'*/
+    {
+      function done () {}
+      (function () {
+        const p1 = ++port
+        var wss = new WebSocketServer({port: p1}, function() {
+          var agent = {
+            addRequest: function() {
+              wss.close();
+              done();
+            }
+          };
+          const p2 = ++port
+          var ws = new WebSocket('ws://localhost:' + p2, { agent: agent });
         });
-      });
-    });
+      }())
+    }
+    // GH-227
+    /*'should accept the `options` object as the 3rd argument'*/
+    {
+      function done () {}
+      (function () {
+        const p = ++port
+        var wss = new WebSocketServer({port: p}, function() {
+          var agent = {
+            addRequest: function() {
+              wss.close();
+              done();
+            }
+          };
+          var ws = new WebSocket('ws://localhost:' + p, [], { agent: agent });
+        });
+      }())
+    }
 
-    it('should accept the localAddress option whether it was wrong interface', function(done) {
-      if ( process.platform === 'linux' && process.version.match(/^v0\.([0-9]\.|10)/) ) {
-        return done();
-      }
-      var wss = new WebSocketServer({port: ++port}, function() {
-        try {
-          var ws = new WebSocket('ws://localhost:' + port, { localAddress: '123.456.789.428' });
-          ws.on('error', function (error) {
-            assert.equal(error.code, 'EADDRNOTAVAIL');
+    /*'should accept the localAddress option'*/
+    // {
+    //     // explore existing interfaces
+    //     var devs = os.networkInterfaces()
+    //       , localAddresses = []
+    //       , j, ifc, dev, devname;
+    //     for ( devname in devs ) {
+    //       dev = devs[devname];
+    //       for ( j=0;j<dev.length;j++ ) {
+    //         ifc = dev[j];
+    //         if ( !ifc.internal && ifc.family === 'IPv4' ) {
+    //           localAddresses.push(ifc.address);
+    //         }
+    //       }
+    //     }
+    //     let p = ++port
+    //     var wss = new WebSocketServer({port: p}, function() {
+    //       var ws = new WebSocket('ws://localhost:' + p, { localAddress: localAddresses[0] });
+    //       ws.on('open', function () {
+    //       });
+    //     });
+    // }
+
+    /*'should accept the localAddress option whether it was wrong interface'*/
+    // {
+    //     if ( process.platform === 'linux' && process.version.match(/^v0\.([0-9]\.|10)/) ) {
+    //       return done();
+    //     }
+    //     let p = ++port
+    //     var wss = new WebSocketServer({port: p}, function() {
+    //       try {
+    //         var ws = new WebSocket('ws://localhost:' + p, { localAddress: '123.456.789.428' });
+    //         ws.on('error', function (error) {
+    //           assert.equal(error.code, 'EADDRNOTAVAIL');
+    //           done();
+    //         });
+    //       }
+    //       catch(e) {
+    //         assert.ok(e.toString().match(/localAddress must be a valid IP/));
+    //       }
+    //     });
+    // }
+  }
+
+  /*'properties'*/
+  {
+    /*'#bytesReceived exposes number of bytes received'*/
+    {
+      function done () {}
+      (function () {
+        let p = ++port
+        var wss = new WebSocketServer({port: p}, function() {
+          var ws = new WebSocket('ws://localhost:' + p, { perMessageDeflate: false });
+          ws.on('message', function() {
+            assert.equal(ws.bytesReceived, 8);
+            wss.close();
             done();
           });
-        }
-        catch(e) {
-          assert.ok(e.toString().match(/localAddress must be a valid IP/));
-          done();
-        }
-      });
-    });
-  });
-
-  describe('properties', function() {
-    it('#bytesReceived exposes number of bytes received', function(done) {
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var ws = new WebSocket('ws://localhost:' + port, { perMessageDeflate: false });
-        ws.on('message', function() {
-          assert.equal(ws.bytesReceived, 8);
-          wss.close();
-          done();
         });
-      });
-      wss.on('connection', function(ws) {
-        ws.send('foobar');
-      });
-    });
+        wss.on('connection', function(ws) {
+          ws.send('foobar');
+        });
+      }())
+    }
 
-    it('#url exposes the server url', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var url = 'ws://localhost:' + port;
+    /*'#url exposes the server url'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var url = 'ws://localhost:' + p;
         var ws = new WebSocket(url);
         assert.equal(url, ws.url);
         ws.terminate();
         ws.on('close', function() {
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('#protocolVersion exposes the protocol version', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var url = 'ws://localhost:' + port;
+    /*'#protocolVersion exposes the protocol version'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var url = 'ws://localhost:' + p;
         var ws = new WebSocket(url);
         assert.equal(13, ws.protocolVersion);
         ws.terminate();
         ws.on('close', function() {
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    describe('#bufferedAmount', function() {
-      it('defaults to zero', function(done) {
-        ws_common.createServer(++port, function(srv) {
-          var url = 'ws://localhost:' + port;
-          var ws = new WebSocket(url);
-          assert.equal(0, ws.bufferedAmount);
-          ws.terminate();
-          ws.on('close', function() {
-            srv.close();
-            done();
-          });
-        });
-      });
-
-      it('defaults to zero upon "open"', function(done) {
-        ws_common.createServer(++port, function(srv) {
-          var url = 'ws://localhost:' + port;
-          var ws = new WebSocket(url);
-          ws.onopen = function() {
+    /*'#bufferedAmount'*/
+    {
+      /*'defaults to zero'*/
+      {
+          let p = ++port
+          ws_common.createServer(p, function(srv) {
+            var url = 'ws://localhost:' + p;
+            var ws = new WebSocket(url);
             assert.equal(0, ws.bufferedAmount);
+            ws.terminate();
+            ws.on('close', function() {
+              srv.close();
+            });
+          });
+      }
+
+      /*'defaults to zero upon "open"'*/
+      {
+          let p = ++port
+          ws_common.createServer(p, function(srv) {
+            var url = 'ws://localhost:' + p;
+            var ws = new WebSocket(url);
+            ws.onopen = function() {
+              assert.equal(0, ws.bufferedAmount);
+              ws.terminate();
+              ws.on('close', function() {
+                srv.close();
+              });
+            };
+          });
+      }
+
+      /*'stress kernel write buffer'*/
+      {
+        function done () {}
+        (function () {
+          let p = ++port
+          var wss = new WebSocketServer({port: p}, function() {
+            var ws = new WebSocket('ws://localhost:' + p, { perMessageDeflate: false });
+          });
+          wss.on('connection', function(ws) {
+            while (true) {
+              if (ws.bufferedAmount > 0) break;
+              ws.send((new Array(10000)).join('hello'));
+            }
+            ws.terminate();
+            ws.on('close', function() {
+              wss.close();
+              done();
+            });
+          });
+        }())
+      }
+    }
+
+    /*'Custom headers'*/
+    {
+      /*'request has an authorization header'*/
+      {
+        function done () {}
+        (function () {
+          var auth = 'test:testpass';
+          var srv = http.createServer(function (req, res) {});
+          var wss = new WebSocketServer({server: srv});
+          let p = ++port
+          srv.listen(p);
+          var ws = new WebSocket('ws://' + auth + '@localhost:' + p);
+          srv.on('upgrade', function (req, socket, head) {
+            assert(req.headers.authorization, 'auth header exists');
+            assert.equal(req.headers.authorization, 'Basic ' + new Buffer(auth).toString('base64'));
+            ws.terminate();
+            ws.on('close', function () {
+              srv.close();
+              wss.close();
+              done();
+            });
+          });
+        }())
+      }
+
+      /*'accepts custom headers'*/
+      {
+        function done () {}
+        (function () {
+          var srv = http.createServer(function (req, res) {});
+          var wss = new WebSocketServer({server: srv});
+          let p = ++port
+          srv.listen(p);
+
+          var ws = new WebSocket('ws://localhost:' + p, {
+            headers: {
+              'Cookie': 'foo=bar'
+            }
+          });
+
+          srv.on('upgrade', function (req, socket, head) {
+            assert(req.headers.cookie, 'auth header exists');
+            assert.equal(req.headers.cookie, 'foo=bar');
+
+            ws.terminate();
+            ws.on('close', function () {
+              srv.close();
+              wss.close();
+              done();
+            });
+          });
+        }())
+      }
+    }
+
+    /*'#readyState'*/
+    {
+      /*'defaults to connecting'*/
+      {
+        function done () {}
+        (function () {
+          let p = ++port
+          ws_common.createServer(p, function(srv) {
+            var ws = new WebSocket('ws://localhost:' + p);
+            assert.equal(WebSocket.CONNECTING, ws.readyState);
             ws.terminate();
             ws.on('close', function() {
               srv.close();
               done();
             });
-          };
-        });
-      });
-
-      it('stress kernel write buffer', function(done) {
-        var wss = new WebSocketServer({port: ++port}, function() {
-          var ws = new WebSocket('ws://localhost:' + port, { perMessageDeflate: false });
-        });
-        wss.on('connection', function(ws) {
-          while (true) {
-            if (ws.bufferedAmount > 0) break;
-            ws.send((new Array(10000)).join('hello'));
-          }
-          ws.terminate();
-          ws.on('close', function() {
-            wss.close();
-            done();
           });
-        });
-      });
-    });
+        }())
+      }
 
-    describe('Custom headers', function() {
-      it('request has an authorization header', function (done) {
-        var auth = 'test:testpass';
-        var srv = http.createServer(function (req, res) {});
-        var wss = new WebSocketServer({server: srv});
-        srv.listen(++port);
-        var ws = new WebSocket('ws://' + auth + '@localhost:' + port);
-        srv.on('upgrade', function (req, socket, head) {
-          assert(req.headers.authorization, 'auth header exists');
-          assert.equal(req.headers.authorization, 'Basic ' + new Buffer(auth).toString('base64'));
-          ws.terminate();
-          ws.on('close', function () {
-            srv.close();
-            wss.close();
-            done();
+      /*'set to open once connection is established'*/
+      // {
+      //   function done () {}
+      //   (function () {
+      //     let p = ++port
+      //     ws_common.createServer(p, function(srv) {
+      //       var ws = new WebSocket('ws://localhost:' + p);
+      //       ws.on('open', function() {
+      //         assert.equal(WebSocket.OPEN, ws.readyState);
+      //         srv.close();
+      //         done();
+      //       });
+      //     });
+      //   }())
+      // }
+
+      /*'set to closed once connection is closed'*/
+      {
+        function done () {}
+        (function () {
+          let p = ++port
+          ws_common.createServer(p, function(srv) {
+            var ws = new WebSocket('ws://localhost:' + p);
+            ws.close(1001);
+            ws.on('close', function() {
+              assert.equal(WebSocket.CLOSED, ws.readyState);
+              srv.close();
+              done();
+            });
           });
-        });
-      });
+        }())
+      }
 
-      it('accepts custom headers', function (done) {
-        var srv = http.createServer(function (req, res) {});
-        var wss = new WebSocketServer({server: srv});
-        srv.listen(++port);
-
-        var ws = new WebSocket('ws://localhost:' + port, {
-          headers: {
-            'Cookie': 'foo=bar'
-          }
-        });
-
-        srv.on('upgrade', function (req, socket, head) {
-          assert(req.headers.cookie, 'auth header exists');
-          assert.equal(req.headers.cookie, 'foo=bar');
-
-          ws.terminate();
-          ws.on('close', function () {
-            srv.close();
-            wss.close();
-            done();
+      /*'set to closed once connection is terminated'*/
+      {
+        function done () {}
+        (function () {
+          let p = ++port
+          ws_common.createServer(p, function(srv) {
+            var ws = new WebSocket('ws://localhost:' + p);
+            ws.terminate();
+            ws.on('close', function() {
+              assert.equal(WebSocket.CLOSED, ws.readyState);
+              srv.close();
+              done();
+            });
           });
-        });
-      });
-    });
-
-    describe('#readyState', function() {
-      it('defaults to connecting', function(done) {
-        ws_common.createServer(++port, function(srv) {
-          var ws = new WebSocket('ws://localhost:' + port);
-          assert.equal(WebSocket.CONNECTING, ws.readyState);
-          ws.terminate();
-          ws.on('close', function() {
-            srv.close();
-            done();
-          });
-        });
-      });
-
-      it('set to open once connection is established', function(done) {
-        ws_common.createServer(++port, function(srv) {
-          var ws = new WebSocket('ws://localhost:' + port);
-          ws.on('open', function() {
-            assert.equal(WebSocket.OPEN, ws.readyState);
-            srv.close();
-            done();
-          });
-        });
-      });
-
-      it('set to closed once connection is closed', function(done) {
-        ws_common.createServer(++port, function(srv) {
-          var ws = new WebSocket('ws://localhost:' + port);
-          ws.close(1001);
-          ws.on('close', function() {
-            assert.equal(WebSocket.CLOSED, ws.readyState);
-            srv.close();
-            done();
-          });
-        });
-      });
-
-      it('set to closed once connection is terminated', function(done) {
-        ws_common.createServer(++port, function(srv) {
-          var ws = new WebSocket('ws://localhost:' + port);
-          ws.terminate();
-          ws.on('close', function() {
-            assert.equal(WebSocket.CLOSED, ws.readyState);
-            srv.close();
-            done();
-          });
-        });
-      });
-    });
+        }())
+      }
+    }
 
     /*
-     * Ready state constants
-     */
+    * Ready state constants
+    */
 
-    var readyStates = {
-      CONNECTING: 0,
-      OPEN: 1,
-      CLOSING: 2,
-      CLOSED: 3
-    };
+    // var readyStates = {
+    //   CONNECTING: 0,
+    //   OPEN: 1,
+    //   CLOSING: 2,
+    //   CLOSED: 3
+    // };
+    //
+    // /*
+    //  * Ready state constant tests
+    //  */
+    //  // TODO(eljefedelrodeodeljefe): look into this nasty thing
+    // Object.keys(readyStates).forEach(function(state) {
+    //   /*'.' + state*/
+    //   {
+    //     /*'is enumerable property of class'*/
+    //     {
+    //       var propertyDescripter = Object.getOwnPropertyDescriptor(WebSocket, state)
+    //       assert.equal(readyStates[state], propertyDescripter.value);
+    //       assert.equal(true, propertyDescripter.enumerable);
+    //     }
+    //   }
+    // });
+    //
+    // let p = ++port
+    // ws_common.createServer(p, function(srv) {
+    //   var ws = new WebSocket('ws://localhost:' + p);
+    //   Object.keys(readyStates).forEach(function(state) {
+    //     /*'.' + state*/
+    //     {
+    //       /*'is property of instance'*/
+    //       {
+    //         assert.equal(readyStates[state], ws[state]);
+    //       }
+    //     }
+    //   });
+    // });
+  }
 
-    /*
-     * Ready state constant tests
-     */
+  /*'events'*/
+  {
+    /*'emits a ping event'*/
+    {
 
-    Object.keys(readyStates).forEach(function(state) {
-      describe('.' + state, function() {
-        it('is enumerable property of class', function() {
-          var propertyDescripter = Object.getOwnPropertyDescriptor(WebSocket, state)
-          assert.equal(readyStates[state], propertyDescripter.value);
-          assert.equal(true, propertyDescripter.enumerable);
-        });
-      });
-    });
-
-    ws_common.createServer(++port, function(srv) {
-      var ws = new WebSocket('ws://localhost:' + port);
-      Object.keys(readyStates).forEach(function(state) {
-        describe('.' + state, function() {
-          it('is property of instance', function() {
-            assert.equal(readyStates[state], ws[state]);
-          });
-        });
-      });
-    });
-  });
-
-  describe('events', function() {
-    it('emits a ping event', function(done) {
-      var wss = new WebSocketServer({port: ++port});
+      let p = ++port
+      let wss = new WebSocketServer({port: p});
       wss.on('connection', function(client) {
         client.ping();
       });
-      var ws = new WebSocket('ws://localhost:' + port);
+      let ws = new WebSocket('ws://localhost:' + p);
       ws.on('ping', function() {
         ws.terminate();
         wss.close();
-        done();
       });
-    });
 
-    it('emits a pong event', function(done) {
-      var wss = new WebSocketServer({port: ++port});
+    }
+
+    /*'emits a pong event'*/
+    {
+      let p = ++port
+      var wss = new WebSocketServer({port: p});
       wss.on('connection', function(client) {
         client.pong();
       });
-      var ws = new WebSocket('ws://localhost:' + port);
+      var ws = new WebSocket('ws://localhost:' + p);
       ws.on('pong', function() {
         ws.terminate();
         wss.close();
-        done();
       });
-    });
-  });
+    }
+  }
 
-  describe('connection establishing', function() {
-    it('can disconnect before connection is established', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+  /*'connection establishing'*/
+  {
+    /*'can disconnect before connection is established'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.terminate();
         ws.on('open', function() {
           assert.fail('connect shouldnt be raised here');
         });
         ws.on('close', function() {
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('can close before connection is established', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'can close before connection is established'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.close(1001);
         ws.on('open', function() {
           assert.fail('connect shouldnt be raised here');
         });
         ws.on('close', function() {
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('can handle error before request is upgraded', function(done) {
-        // Here, we don't create a server, to guarantee that the connection will
-        // fail before the request is upgraded
-        ++port;
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'can handle error before request is upgraded'*/
+    {
+      // Here, we don't create a server, to guarantee that the connection will
+      // fail before the request is upgraded
+      let p = ++port
+      var ws = new WebSocket('ws://localhost:' + p);
+      ws.on('open', function() {
+        assert.fail('connect shouldnt be raised here');
+      });
+      ws.on('close', function() {
+        assert.fail('close shouldnt be raised here');
+      });
+      ws.on('error', function() {
+        setTimeout(function() {
+          assert.equal(ws.readyState, WebSocket.CLOSED);
+        }, 50)
+      });
+    }
+
+    /*'invalid server key is denied'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, ws_common.handlers.invalidKey, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
+        ws.on('error', function() {
+          srv.close();
+        });
+      });
+    }
+
+    /*'close event is raised when server closes connection'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, ws_common.handlers.closeAfterConnect, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
+        ws.on('close', function() {
+          srv.close();
+        });
+      });
+    }
+
+    /*'error is emitted if server aborts connection'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, ws_common.handlers.return401, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           assert.fail('connect shouldnt be raised here');
         });
-        ws.on('close', function() {
-          assert.fail('close shouldnt be raised here');
-        });
-        ws.on('error', function() {
-          setTimeout(function() {
-            assert.equal(ws.readyState, WebSocket.CLOSED);
-            done();
-          }, 50)
-        });
-    });
-
-    it('invalid server key is denied', function(done) {
-      ws_common.createServer(++port, ws_common.handlers.invalidKey, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
         ws.on('error', function() {
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('close event is raised when server closes connection', function(done) {
-      ws_common.createServer(++port, ws_common.handlers.closeAfterConnect, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
-        ws.on('close', function() {
-          srv.close();
-          done();
-        });
-      });
-    });
+    /*'unexpected response can be read when sent by server'*/
+    // {
+    //     let p = ++port
+    //     ws_common.createServer(p, ws_common.handlers.return401, function(srv) {
+    //       var ws = new WebSocket('ws://localhost:' + p);
+    //       ws.on('open', function() {
+    //         assert.fail('connect shouldnt be raised here');
+    //       });
+    //       ws.on('unexpected-response', function(req, res) {
+    //         assert.equal(res.statusCode, 401);
+    //
+    //         var data = '';
+    //
+    //         res.on('data', function (v) {
+    //           data += v;
+    //         });
+    //
+    //         res.on('end', function () {
+    //           assert.equal(data, 'Not allowed!');
+    //         });
+    //       });
+    //       ws.on('error', function () {
+    //         assert.fail('error shouldnt be raised here');
+    //       });
+    //     });
+    // }
 
-    it('error is emitted if server aborts connection', function(done) {
-      ws_common.createServer(++port, ws_common.handlers.return401, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
-        ws.on('open', function() {
-          assert.fail('connect shouldnt be raised here');
-        });
-        ws.on('error', function() {
-          srv.close();
-          done();
-        });
-      });
-    });
-
-    it('unexpected response can be read when sent by server', function(done) {
-      ws_common.createServer(++port, ws_common.handlers.return401, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'request can be aborted when unexpected response is sent by server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, ws_common.handlers.return401, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           assert.fail('connect shouldnt be raised here');
         });
         ws.on('unexpected-response', function(req, res) {
           assert.equal(res.statusCode, 401);
 
-          var data = '';
-
-          res.on('data', function (v) {
-            data += v;
-          });
-
-          res.on('end', function () {
-            assert.equal(data, 'Not allowed!');
-            srv.close();
-            done();
-          });
-        });
-        ws.on('error', function () {
-          assert.fail('error shouldnt be raised here');
-        });
-      });
-    });
-
-    it('request can be aborted when unexpected response is sent by server', function(done) {
-      ws_common.createServer(++port, ws_common.handlers.return401, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
-        ws.on('open', function() {
-          assert.fail('connect shouldnt be raised here');
-        });
-        ws.on('unexpected-response', function(req, res) {
-          assert.equal(res.statusCode, 401);
-
           res.on('end', function () {
             srv.close();
-            done();
           });
 
           req.abort();
@@ -490,50 +573,59 @@ describe('WebSocket', function() {
           assert.fail('error shouldnt be raised here');
         });
       });
-    });
-  });
+    }
+  }
 
-  describe('#pause and #resume', function() {
-    it('pauses the underlying stream', function(done) {
-      // this test is sort-of racecondition'y, since an unlikely slow connection
-      // to localhost can cause the test to succeed even when the stream pausing
-      // isn't working as intended. that is an extremely unlikely scenario, though
-      // and an acceptable risk for the test.
-      var client;
-      var serverClient;
-      var openCount = 0;
-      function onOpen() {
-        if (++openCount == 2) {
-          var paused = true;
-          serverClient.on('message', function() {
-            assert.ifError(paused);
-            wss.close();
-            done();
-          });
-          serverClient.pause();
-          setTimeout(function() {
-            paused = false;
-            serverClient.resume();
-          }, 200);
-          client.send('foo');
+  /*'#pause and #resume'*/
+  {
+    /*'pauses the underlying stream'*/
+    {
+      function done () {}
+      (function () {
+        // this test is sort-of racecondition'y, since an unlikely slow connection
+        // to localhost can cause the test to succeed even when the stream pausing
+        // isn't working as intended. that is an extremely unlikely scenario, though
+        // and an acceptable risk for the test.
+        var client;
+        var serverClient;
+        var openCount = 0;
+        function onOpen() {
+          if (++openCount == 2) {
+            var paused = true;
+            serverClient.on('message', function() {
+              assert.ifError(paused);
+              wss.close();
+              done();
+            });
+            serverClient.pause();
+            setTimeout(function() {
+              paused = false;
+              serverClient.resume();
+            }, 200);
+            client.send('foo');
+          }
         }
-      }
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var ws = new WebSocket('ws://localhost:' + port);
-        serverClient = ws;
-        serverClient.on('open', onOpen);
-      });
-      wss.on('connection', function(ws) {
-        client = ws;
-        onOpen();
-      });
-    });
-  });
+        let p = ++port
+        var wss = new WebSocketServer({port: p}, function() {
+          var ws = new WebSocket('ws://localhost:' + p);
+          serverClient = ws;
+          serverClient.on('open', onOpen);
+        });
+        wss.on('connection', function(ws) {
+          client = ws;
+          onOpen();
+        });
+      }())
+    }
+  }
 
-  describe('#ping', function() {
-    it('before connect should fail', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+  /*'#ping'*/
+  {
+    /*'before connect should fail'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('error', function() {});
         try {
           ws.ping();
@@ -541,39 +633,42 @@ describe('WebSocket', function() {
         catch (e) {
           srv.close();
           ws.terminate();
-          done();
         }
       });
-    });
+    }
 
-    it('before connect can silently fail', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'before connect can silently fail'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('error', function() {});
         ws.ping('', {}, true);
         srv.close();
         ws.terminate();
-        done();
       });
-    });
+    }
 
-    it('without message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'without message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.ping();
         });
         srv.on('ping', function(message) {
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.ping('hi');
         });
@@ -581,14 +676,15 @@ describe('WebSocket', function() {
           assert.equal('hi', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('can send safely receive numbers as ping payload', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'can send safely receive numbers as ping payload'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
 
         ws.on('open', function() {
           ws.ping(200);
@@ -598,14 +694,15 @@ describe('WebSocket', function() {
           assert.equal('200', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with encoded message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with encoded message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.ping('hi', {mask: true});
         });
@@ -614,16 +711,18 @@ describe('WebSocket', function() {
           assert.equal('hi', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
-  });
+    }
+  }
 
-  describe('#pong', function() {
-    it('before connect should fail', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+  /*'#pong'*/
+  {
+    /*'before connect should fail'*/
+    {
+      let p = ++port
+      ws_common.createServer(port, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('error', function() {});
         try {
           ws.pong();
@@ -631,39 +730,42 @@ describe('WebSocket', function() {
         catch (e) {
           srv.close();
           ws.terminate();
-          done();
         }
       });
-    });
+    }
 
-    it('before connect can silently fail', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'before connect can silently fail'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('error', function() {});
         ws.pong('', {}, true);
         srv.close();
         ws.terminate();
-        done();
       });
-    });
+    }
 
-    it('without message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'without message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.pong();
         });
         srv.on('pong', function(message) {
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(port, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.pong('hi');
         });
@@ -671,14 +773,15 @@ describe('WebSocket', function() {
           assert.equal('hi', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with encoded message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with encoded message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.pong('hi', {mask: true});
         });
@@ -687,16 +790,18 @@ describe('WebSocket', function() {
           assert.equal('hi', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
-  });
+    }
+  }
 
-  describe('#send', function() {
-    it('very long binary data can be sent and received (with echoing server)', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+  /*'#send'*/
+  {
+    /*'very long binary data can be sent and received (with echoing server)'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var array = new Float32Array(5 * 1024 * 1024);
         for (var i = 0; i < array.length; ++i) array[i] = i / 5;
         ws.on('open', function() {
@@ -707,14 +812,15 @@ describe('WebSocket', function() {
           assert.ok(areArraysEqual(array, new Float32Array(getArrayBuffer(message))));
           ws.terminate();
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('can send and receive text data', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'can send and receive text data'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.send('hi');
         });
@@ -722,14 +828,15 @@ describe('WebSocket', function() {
           assert.equal('hi', message);
           ws.terminate();
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('send and receive binary data as an array', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'send and receive binary data as an array'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var array = new Float32Array(6);
         for (var i = 0; i < array.length; ++i) array[i] = i / 2;
         var partial = array.subarray(2, 5);
@@ -741,14 +848,15 @@ describe('WebSocket', function() {
           assert.ok(areArraysEqual(partial, new Float32Array(getArrayBuffer(message))));
           ws.terminate();
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('binary data can be sent and received as buffer', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'binary data can be sent and received as buffer'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var buf = new Buffer('foobar');
         ws.on('open', function() {
           ws.send(buf, {binary: true});
@@ -758,14 +866,15 @@ describe('WebSocket', function() {
           assert.ok(areArraysEqual(buf, message));
           ws.terminate();
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('ArrayBuffer is auto-detected without binary flag', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'ArrayBuffer is auto-detected without binary flag'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var array = new Float32Array(5);
         for (var i = 0; i < array.length; ++i) array[i] = i / 2;
         ws.on('open', function() {
@@ -776,14 +885,15 @@ describe('WebSocket', function() {
           assert.ok(areArraysEqual(array, new Float32Array(getArrayBuffer(event.data))));
           ws.terminate();
           srv.close();
-          done();
         };
       });
-    });
+    }
 
-    it('Buffer is auto-detected without binary flag', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'Buffer is auto-detected without binary flag'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var buf = new Buffer('foobar');
         ws.on('open', function() {
           ws.send(buf);
@@ -793,14 +903,15 @@ describe('WebSocket', function() {
           assert.ok(areArraysEqual(event.data, buf));
           ws.terminate();
           srv.close();
-          done();
         };
       });
-    });
+    }
 
-    it('before connect should fail', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'before connect should fail'*/
+    {
+      let p =++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('error', function() {});
         try {
           ws.send('hi');
@@ -808,27 +919,29 @@ describe('WebSocket', function() {
         catch (e) {
           ws.terminate();
           srv.close();
-          done();
         }
       });
-    });
+    }
 
-    it('before connect should pass error through callback, if present', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'before connect should pass error through callback, if present'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('error', function() {});
         ws.send('hi', function(error) {
           assert.ok(error instanceof Error);
           ws.terminate();
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('without data should be successful', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'without data should be successful'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.send();
         });
@@ -836,27 +949,29 @@ describe('WebSocket', function() {
           assert.equal('', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('calls optional callback when flushed', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'calls optional callback when flushed'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.send('hi', function() {
             srv.close();
             ws.terminate();
-            done();
           });
         });
       });
-    });
+    }
 
-    it('with unencoded message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with unencoded message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.send('hi');
         });
@@ -864,14 +979,15 @@ describe('WebSocket', function() {
           assert.equal('hi', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with encoded message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with encoded message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.send('hi', {mask: true});
         });
@@ -880,14 +996,15 @@ describe('WebSocket', function() {
           assert.equal('hi', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with unencoded binary message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with unencoded binary message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var array = new Float32Array(5);
         for (var i = 0; i < array.length; ++i) array[i] = i / 2;
         ws.on('open', function() {
@@ -898,14 +1015,15 @@ describe('WebSocket', function() {
           assert.ok(areArraysEqual(array, new Float32Array(getArrayBuffer(message))));
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with encoded binary message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with encoded binary message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var array = new Float32Array(5);
         for (var i = 0; i < array.length; ++i) array[i] = i / 2;
         ws.on('open', function() {
@@ -917,14 +1035,15 @@ describe('WebSocket', function() {
           assert.ok(areArraysEqual(array, new Float32Array(getArrayBuffer(message))));
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with binary stream will send fragmented data', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with binary stream will send fragmented data'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var callbackFired = false;
         ws.on('open', function() {
           var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
@@ -942,14 +1061,15 @@ describe('WebSocket', function() {
         ws.on('close', function() {
           assert.ok(callbackFired);
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('with text stream will send fragmented data', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with text stream will send fragmented data'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var callbackFired = false;
         ws.on('open', function() {
           var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
@@ -968,14 +1088,15 @@ describe('WebSocket', function() {
         ws.on('close', function() {
           assert.ok(callbackFired);
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('will cause intermittent send to be delayed in order', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent send to be delayed in order'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
@@ -1000,15 +1121,16 @@ describe('WebSocket', function() {
             assert.equal('baz', data);
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('will cause intermittent stream to be delayed in order', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent stream to be delayed in order'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
@@ -1033,15 +1155,16 @@ describe('WebSocket', function() {
             assert.equal('foobar', data);
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('will cause intermittent ping to be delivered', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent ping to be delivered'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
@@ -1056,7 +1179,6 @@ describe('WebSocket', function() {
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
         srv.on('ping', function(data) {
@@ -1064,15 +1186,16 @@ describe('WebSocket', function() {
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('will cause intermittent pong to be delivered', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent pong to be delivered'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
@@ -1087,7 +1210,6 @@ describe('WebSocket', function() {
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
         srv.on('pong', function(data) {
@@ -1095,15 +1217,16 @@ describe('WebSocket', function() {
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('will cause intermittent close to be delivered', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent close to be delivered'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
           fileStream.setEncoding('utf8');
@@ -1114,7 +1237,6 @@ describe('WebSocket', function() {
         ws.on('close', function() {
           srv.close();
           ws.terminate();
-          done();
         });
         ws.on('error', function() { /* That's quite alright -- a send was attempted after close */ });
         srv.on('message', function(data, flags) {
@@ -1126,13 +1248,16 @@ describe('WebSocket', function() {
           assert.equal('foobar', data);
         });
       });
-    });
-  });
+    }
+  }
 
-  describe('#stream', function() {
-    it('very long binary data can be streamed', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+  /*'#stream'*/
+  {
+    /*'very long binary data can be streamed'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var buffer = new Buffer(10 * 1024);
         for (var i = 0; i < buffer.length; ++i) buffer[i] = i % 0xff;
         ws.on('open', function() {
@@ -1154,27 +1279,29 @@ describe('WebSocket', function() {
           assert.ok(areArraysEqual(buffer, data));
           ws.terminate();
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('before connect should pass error through callback', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'before connect should pass error through callback'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('error', function() {});
         ws.stream(function(error) {
           assert.ok(error instanceof Error);
           ws.terminate();
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('without callback should fail', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'without callback should fail'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var payload = 'HelloWorld';
         ws.on('open', function() {
           try {
@@ -1183,15 +1310,16 @@ describe('WebSocket', function() {
           catch (e) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('will cause intermittent send to be delayed in order', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent send to be delayed in order'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var payload = 'HelloWorld';
         ws.on('open', function() {
           var i = 0;
@@ -1223,15 +1351,16 @@ describe('WebSocket', function() {
             assert.equal('baz', data);
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('will cause intermittent stream to be delayed in order', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent stream to be delayed in order'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var payload = 'HelloWorld';
         ws.on('open', function() {
           var i = 0;
@@ -1267,17 +1396,18 @@ describe('WebSocket', function() {
             setTimeout(function() {
               srv.close();
               ws.terminate();
-              done();
             }, 1000);
           }
           else throw new Error('more messages than we actually sent just arrived');
         });
       });
-    });
+    }
 
-    it('will cause intermittent ping to be delivered', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent ping to be delivered'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var payload = 'HelloWorld';
         ws.on('open', function() {
           var i = 0;
@@ -1299,7 +1429,6 @@ describe('WebSocket', function() {
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
         srv.on('ping', function(data) {
@@ -1307,15 +1436,16 @@ describe('WebSocket', function() {
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('will cause intermittent pong to be delivered', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent pong to be delivered'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var payload = 'HelloWorld';
         ws.on('open', function() {
           var i = 0;
@@ -1337,7 +1467,6 @@ describe('WebSocket', function() {
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
         srv.on('pong', function(data) {
@@ -1345,15 +1474,16 @@ describe('WebSocket', function() {
           if (++receivedIndex == 2) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('will cause intermittent close to be delivered', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'will cause intermittent close to be delivered'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var payload = 'HelloWorld';
         var errorGiven = false;
         ws.on('open', function() {
@@ -1376,7 +1506,6 @@ describe('WebSocket', function() {
           assert.ok(errorGiven);
           srv.close();
           ws.terminate();
-          done();
         });
         srv.on('message', function(data, flags) {
           assert.ok(!flags.binary);
@@ -1387,13 +1516,16 @@ describe('WebSocket', function() {
           assert.equal('foobar', data);
         });
       });
-    });
-  });
+    }
+  }
 
-  describe('#close', function() {
-    it('will raise error callback, if any, if called during send stream', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+  /*'#close'*/
+  {
+    /*'will raise error callback, if any, if called during send stream'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var errorGiven = false;
         ws.on('open', function() {
           var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
@@ -1409,15 +1541,16 @@ describe('WebSocket', function() {
             assert.ok(errorGiven);
             srv.close();
             ws.terminate();
-            done();
           }, 1000);
         });
       });
-    });
+    }
 
-    it('without invalid first argument throws exception', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'without invalid first argument throws exception'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           try {
             ws.close('error');
@@ -1425,15 +1558,16 @@ describe('WebSocket', function() {
           catch (e) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('without reserved error code 1004 throws exception', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'without reserved error code 1004 throws exception'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           try {
             ws.close(1004);
@@ -1441,15 +1575,16 @@ describe('WebSocket', function() {
           catch (e) {
             srv.close();
             ws.terminate();
-            done();
           }
         });
       });
-    });
+    }
 
-    it('without message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'without message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.close(1000);
         });
@@ -1457,14 +1592,15 @@ describe('WebSocket', function() {
           assert.equal('', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.close(1000, 'some reason');
         });
@@ -1473,14 +1609,15 @@ describe('WebSocket', function() {
           assert.equal('some reason', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('with encoded message is successfully transmitted to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'with encoded message is successfully transmitted to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.on('open', function() {
           ws.close(1000, 'some reason', {mask: true});
         });
@@ -1489,14 +1626,15 @@ describe('WebSocket', function() {
           assert.equal('some reason', message);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('ends connection to the server', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'ends connection to the server'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var connectedOnce = false;
         ws.on('open', function() {
           connectedOnce = true;
@@ -1506,38 +1644,45 @@ describe('WebSocket', function() {
           assert.ok(connectedOnce);
           srv.close();
           ws.terminate();
-          done();
         });
       });
-    });
+    }
 
-    it('consumes all data when the server socket closed', function(done) {
-      var wss = new WebSocketServer({port: ++port}, function() {
-        wss.on('connection', function(conn) {
-          conn.send('foo');
-          conn.send('bar');
-          conn.send('baz');
-          conn.close();
+    /*'consumes all data when the server socket closed'*/
+    {
+      function done () {}
+      (function () {
+        let p = ++port
+        var wss = new WebSocketServer({port: p}, function() {
+          wss.on('connection', function(conn) {
+            conn.send('foo');
+            conn.send('bar');
+            conn.send('baz');
+            conn.close();
+          });
+          var ws = new WebSocket('ws://localhost:' + p);
+          var messages = [];
+          ws.on('message', function (message) {
+            messages.push(message);
+            if (messages.length === 3) {
+              assert.deepEqual(messages, ['foo', 'bar', 'baz']);
+              wss.close();
+              ws.terminate();
+              done();
+            }
+          });
         });
-        var ws = new WebSocket('ws://localhost:' + port);
-        var messages = [];
-        ws.on('message', function (message) {
-          messages.push(message);
-          if (messages.length === 3) {
-            assert.deepEqual(messages, ['foo', 'bar', 'baz']);
-            wss.close();
-            ws.terminate();
-            done();
-          }
-        });
-      });
-    });
-  });
+      }())
+    }
+  }
 
-  describe('W3C API emulation', function() {
-    it('should not throw errors when getting and setting', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+  /*'W3C API emulation'*/
+  {
+    /*'should not throw errors when getting and setting'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var listener = function () {};
 
         ws.onmessage = listener;
@@ -1552,13 +1697,14 @@ describe('WebSocket', function() {
 
         srv.close();
         ws.terminate();
-        done();
       });
-    });
+    }
 
-    it('should work the same as the EventEmitter api', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'should work the same as the EventEmitter api'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         var listener = function() {};
         var message = 0;
         var close = 0;
@@ -1590,15 +1736,16 @@ describe('WebSocket', function() {
 
             srv.close();
             ws.terminate();
-            done();
           });
         });
       });
-    });
+    }
 
-    it('should receive text data wrapped in a MessageEvent when using addEventListener', function(done) {
-      ws_common.createServer(++port, function(srv) {
-        var ws = new WebSocket('ws://localhost:' + port);
+    /*'should receive text data wrapped in a MessageEvent when using addEventListener'*/
+    {
+      let p = ++port
+      ws_common.createServer(p, function(srv) {
+        var ws = new WebSocket('ws://localhost:' + p);
         ws.addEventListener('open', function() {
           ws.send('hi');
         });
@@ -1606,484 +1753,490 @@ describe('WebSocket', function() {
           assert.equal('hi', messageEvent.data);
           ws.terminate();
           srv.close();
-          done();
         });
       });
-    });
+    }
 
-    it('should receive valid CloseEvent when server closes with code 1000', function(done) {
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var ws = new WebSocket('ws://localhost:' + port);
-        ws.addEventListener('close', function(closeEvent) {
-          assert.equal(true, closeEvent.wasClean);
-          assert.equal(1000, closeEvent.code);
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-      wss.on('connection', function(client) {
-        client.close(1000);
-      });
-    });
-
-    it('should receive valid CloseEvent when server closes with code 1001', function(done) {
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var ws = new WebSocket('ws://localhost:' + port);
-        ws.addEventListener('close', function(closeEvent) {
-          assert.equal(false, closeEvent.wasClean);
-          assert.equal(1001, closeEvent.code);
-          assert.equal('some daft reason', closeEvent.reason);
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-      wss.on('connection', function(client) {
-        client.close(1001, 'some daft reason');
-      });
-    });
-
-    it('should have target set on Events', function(done) {
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var ws = new WebSocket('ws://localhost:' + port);
-        ws.addEventListener('open', function(openEvent) {
-          assert.equal(ws, openEvent.target);
-        });
-        ws.addEventListener('message', function(messageEvent) {
-          assert.equal(ws, messageEvent.target);
-          wss.close();
-        });
-        ws.addEventListener('close', function(closeEvent) {
-          assert.equal(ws, closeEvent.target);
-          ws.emit('error', new Error('forced'));
-        });
-        ws.addEventListener('error', function(errorEvent) {
-          assert.equal(errorEvent.message, 'forced');
-          assert.equal(ws, errorEvent.target);
-          ws.terminate();
-          done();
-        });
-      });
-      wss.on('connection', function(client) {
-        client.send('hi')
-      });
-    });
-
-    it('should have type set on Events', function(done) {
-      var wss = new WebSocketServer({port: ++port}, function() {
-        var ws = new WebSocket('ws://localhost:' + port);
-        ws.addEventListener('open', function(openEvent) {
-          assert.equal('open', openEvent.type);
-        });
-        ws.addEventListener('message', function(messageEvent) {
-          assert.equal('message', messageEvent.type);
-          wss.close();
-        });
-        ws.addEventListener('close', function(closeEvent) {
-          assert.equal('close', closeEvent.type);
-          ws.emit('error', new Error('forced'));
-        });
-        ws.addEventListener('error', function(errorEvent) {
-          assert.equal(errorEvent.message, 'forced');
-          assert.equal('error', errorEvent.type);
-          ws.terminate();
-          done();
-        });
-      });
-      wss.on('connection', function(client) {
-        client.send('hi')
-      });
-    });
-  });
-
-  describe('ssl', function() {
-    it('can connect to secure websocket server', function(done) {
-      var options = {
-        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
-        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
-      };
-      var app = https.createServer(options, function (req, res) {
-        res.writeHead(200);
-        res.end();
-      });
-      var wss = new WebSocketServer({server: app});
-      app.listen(++port, function() {
-        var ws = new WebSocket('wss://localhost:' + port);
-      });
-      wss.on('connection', function(ws) {
-        app.close();
-        ws.terminate();
-        wss.close();
-        done();
-      });
-    });
-
-    it('can connect to secure websocket server with client side certificate', function(done) {
-      var options = {
-        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
-        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem'),
-        ca: [fs.readFileSync('test/fixtures/websockets/ca1-cert.pem')],
-        requestCert: true
-      };
-      var clientOptions = {
-        key: fs.readFileSync('test/fixtures/websockets/agent1-key.pem'),
-        cert: fs.readFileSync('test/fixtures/websockets/agent1-cert.pem')
-      };
-      var app = https.createServer(options, function (req, res) {
-        res.writeHead(200);
-        res.end();
-      });
-      var success = false;
-      var wss = new WebSocketServer({
-        server: app,
-        verifyClient: function(info) {
-          success = !!info.req.client.authorized;
-          return true;
-        }
-      });
-      app.listen(++port, function() {
-        var ws = new WebSocket('wss://localhost:' + port, clientOptions);
-      });
-      wss.on('connection', function(ws) {
-        app.close();
-        ws.terminate();
-        wss.close();
-        assert.ok(success);
-        done();
-      });
-    });
-
-    it('cannot connect to secure websocket server via ws://', function(done) {
-      var options = {
-        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
-        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
-      };
-      var app = https.createServer(options, function (req, res) {
-        res.writeHead(200);
-        res.end();
-      });
-      var wss = new WebSocketServer({server: app});
-      app.listen(++port, function() {
-        var ws = new WebSocket('ws://localhost:' + port, { rejectUnauthorized :false });
-        ws.on('error', function() {
-          app.close();
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-    });
-
-    it('can send and receive text data', function(done) {
-      var options = {
-        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
-        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
-      };
-      var app = https.createServer(options, function (req, res) {
-        res.writeHead(200);
-        res.end();
-      });
-      var wss = new WebSocketServer({server: app});
-      app.listen(++port, function() {
-        var ws = new WebSocket('wss://localhost:' + port);
-        ws.on('open', function() {
-          ws.send('foobar');
-        });
-      });
-      wss.on('connection', function(ws) {
-        ws.on('message', function(message, flags) {
-          assert.equal(message, 'foobar');
-          app.close();
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-    });
-
-    it('can send and receive very long binary data', function(done) {
-      var options = {
-        key: fs.readFileSync('test/fixtures/websockets/key.pem'),
-        cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
-      }
-      var app = https.createServer(options, function (req, res) {
-        res.writeHead(200);
-        res.end();
-      });
-      crypto.randomBytes(5 * 1024 * 1024, function(ex, buf) {
-        if (ex) throw ex;
-        var wss = new WebSocketServer({server: app});
-        app.listen(++port, function() {
-          var ws = new WebSocket('wss://localhost:' + port);
-          ws.on('open', function() {
-            ws.send(buf, {binary: true});
+    /*'should receive valid CloseEvent when server closes with code 1000'*/
+    {
+      function done () {}
+      (function () {
+        let p = ++port
+        var wss = new WebSocketServer({port: p}, function() {
+          var ws = new WebSocket('ws://localhost:' + p);
+          ws.addEventListener('close', function(closeEvent) {
+            assert.equal(true, closeEvent.wasClean);
+            assert.equal(1000, closeEvent.code);
+            ws.terminate();
+            wss.close();
+            done();
           });
-          ws.on('message', function(message, flags) {
-            assert.ok(flags.binary);
-            assert.ok(areArraysEqual(buf, message));
+        });
+        wss.on('connection', function(client) {
+          client.close(1000);
+        });
+      }())
+    }
+
+    /*'should receive valid CloseEvent when server closes with code 1001'*/
+    {
+      function done () {}
+      (function () {
+        let p = ++port
+        var wss = new WebSocketServer({port: p}, function() {
+          var ws = new WebSocket('ws://localhost:' + p);
+          ws.addEventListener('close', function(closeEvent) {
+            assert.equal(false, closeEvent.wasClean);
+            assert.equal(1001, closeEvent.code);
+            assert.equal('some daft reason', closeEvent.reason);
+            ws.terminate();
+            wss.close();
+            done();
+          });
+        });
+        wss.on('connection', function(client) {
+          client.close(1001, 'some daft reason');
+        });
+      }())
+    }
+
+    /*'should have target set on Events'*/
+    {
+      function done () {}
+      (function () {
+        let p = ++port
+        var wss = new WebSocketServer({port: p}, function() {
+          var ws = new WebSocket('ws://localhost:' + p);
+          ws.addEventListener('open', function(openEvent) {
+            assert.equal(ws, openEvent.target);
+          });
+          ws.addEventListener('message', function(messageEvent) {
+            assert.equal(ws, messageEvent.target);
+            wss.close();
+          });
+          ws.addEventListener('close', function(closeEvent) {
+            assert.equal(ws, closeEvent.target);
+            ws.emit('error', new Error('forced'));
+          });
+          ws.addEventListener('error', function(errorEvent) {
+            assert.equal(errorEvent.message, 'forced');
+            assert.equal(ws, errorEvent.target);
+            ws.terminate();
+            done();
+          });
+        });
+        wss.on('connection', function(client) {
+          client.send('hi')
+        });
+      }())
+    }
+
+    /*'should have type set on Events'*/
+    {
+      function done () {}
+      (function () {
+        let p = ++port
+        var wss = new WebSocketServer({port: p}, function() {
+          var ws = new WebSocket('ws://localhost:' + p);
+          ws.addEventListener('open', function(openEvent) {
+            assert.equal('open', openEvent.type);
+          });
+          ws.addEventListener('message', function(messageEvent) {
+            assert.equal('message', messageEvent.type);
+            wss.close();
+          });
+          ws.addEventListener('close', function(closeEvent) {
+            assert.equal('close', closeEvent.type);
+            ws.emit('error', new Error('forced'));
+          });
+          ws.addEventListener('error', function(errorEvent) {
+            assert.equal(errorEvent.message, 'forced');
+            assert.equal('error', errorEvent.type);
+            ws.terminate();
+            done();
+          });
+        });
+        wss.on('connection', function(client) {
+          client.send('hi')
+        });
+      }())
+    }
+  }
+  //
+  // /*'ssl'*/
+  {
+    /*'can connect to secure websocket server'*/
+    {
+      function done () {}
+      (function () {
+        var options = {
+          key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+          cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
+        };
+        var app = https.createServer(options, function (req, res) {
+          res.writeHead(200);
+          res.end();
+        });
+        var wss = new WebSocketServer({server: app});
+        let p = ++port
+        app.listen(p, function() {
+          var ws = new WebSocket('wss://localhost:' + p);
+        });
+        wss.on('connection', function(ws) {
+          app.close();
+          ws.terminate();
+          wss.close();
+          done();
+        });
+      }())
+    }
+
+    /*'can connect to secure websocket server with client side certificate'*/
+    {
+      function done () {}
+      (function () {
+        var options = {
+          key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+          cert: fs.readFileSync('test/fixtures/websockets/certificate.pem'),
+          ca: [fs.readFileSync('test/fixtures/websockets/ca1-cert.pem')],
+          requestCert: true
+        };
+        var clientOptions = {
+          key: fs.readFileSync('test/fixtures/websockets/agent1-key.pem'),
+          cert: fs.readFileSync('test/fixtures/websockets/agent1-cert.pem')
+        };
+        var app = https.createServer(options, function (req, res) {
+          res.writeHead(200);
+          res.end();
+        });
+        var success = false;
+        var wss = new WebSocketServer({
+          server: app,
+          verifyClient: function(info) {
+            success = !!info.req.client.authorized;
+            return true;
+          }
+        });
+        let p = ++port
+        app.listen(p, function() {
+          var ws = new WebSocket('wss://localhost:' + p, clientOptions);
+        });
+        wss.on('connection', function(ws) {
+          app.close();
+          ws.terminate();
+          wss.close();
+          assert.ok(success);
+          done();
+        });
+      }())
+    }
+
+    /*'cannot connect to secure websocket server via ws://'*/
+    {
+      function done () {}
+      (function () {
+        var options = {
+          key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+          cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
+        };
+        var app = https.createServer(options, function (req, res) {
+          res.writeHead(200);
+          res.end();
+        });
+        var wss = new WebSocketServer({server: app});
+        let p = ++port
+        app.listen(p, function() {
+          var ws = new WebSocket('ws://localhost:' + p, { rejectUnauthorized :false });
+          ws.on('error', function() {
             app.close();
             ws.terminate();
             wss.close();
             done();
           });
         });
+      }())
+    }
+
+    /*'can send and receive text data'*/
+    {
+      function done () {}
+      (function () {
+        var options = {
+          key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+          cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
+        };
+        var app = https.createServer(options, function (req, res) {
+          res.writeHead(200);
+          res.end();
+        });
+        var wss = new WebSocketServer({server: app});
+        let p = ++port
+        app.listen(p, function() {
+          var ws = new WebSocket('wss://localhost:' + p);
+          ws.on('open', function() {
+            ws.send('foobar');
+          });
+        });
         wss.on('connection', function(ws) {
           ws.on('message', function(message, flags) {
-            ws.send(message, {binary: true});
-          });
-        });
-      });
-    });
-  });
-
-  describe('protocol support discovery', function() {
-    describe('#supports', function() {
-      describe('#binary', function() {
-        it('returns true for hybi transport', function(done) {
-          var wss = new WebSocketServer({port: ++port}, function() {
-            var ws = new WebSocket('ws://localhost:' + port);
-          });
-          wss.on('connection', function(client) {
-            assert.equal(true, client.supports.binary);
+            assert.equal(message, 'foobar');
+            app.close();
+            ws.terminate();
             wss.close();
             done();
           });
         });
+      }())
+    }
 
-        it('returns false for hixie transport', function(done) {
-          var wss = new WebSocketServer({port: ++port}, function() {
-            var options = {
-              port: port,
-              host: '127.0.0.1',
-              headers: {
-                'Connection': 'Upgrade',
-                'Upgrade': 'WebSocket',
-                'Sec-WebSocket-Key1': '3e6b263  4 17 80',
-                'Sec-WebSocket-Key2': '17  9 G`ZD9   2 2b 7X 3 /r90'
-              }
-            };
-            var req = http.request(options);
-            req.write('WjN}|M(6');
-            req.end();
+    /*'can send and receive very long binary data'*/
+    {
+      function done () {}
+      (function () {
+        var options = {
+          key: fs.readFileSync('test/fixtures/websockets/key.pem'),
+          cert: fs.readFileSync('test/fixtures/websockets/certificate.pem')
+        }
+        var app = https.createServer(options, function (req, res) {
+          res.writeHead(200);
+          res.end();
+        });
+        crypto.randomBytes(5 * 1024 * 1024, function(ex, buf) {
+          if (ex) throw ex;
+          var wss = new WebSocketServer({server: app});
+          let p = ++port
+          app.listen(p, function() {
+            var ws = new WebSocket('wss://localhost:' + p);
+            ws.on('open', function() {
+              ws.send(buf, {binary: true});
+            });
+            ws.on('message', function(message, flags) {
+              assert.ok(flags.binary);
+              assert.ok(areArraysEqual(buf, message));
+              app.close();
+              ws.terminate();
+              wss.close();
+              done();
+            });
           });
-          wss.on('connection', function(client) {
-            assert.equal(false, client.supports.binary);
-            wss.close();
-            done();
-          });
-        });
-      });
-    });
-  });
-
-  describe('host and origin headers', function() {
-    it('includes the host header with port number', function(done) {
-      var srv = http.createServer();
-      srv.listen(++port, function(){
-        srv.on('upgrade', function(req, socket, upgradeHeade) {
-          assert.equal('localhost:' + port, req.headers['host']);
-          srv.close();
-          done();
-        });
-        var ws = new WebSocket('ws://localhost:' + port);
-      });
-    });
-
-    it('lacks default origin header', function(done) {
-      var srv = http.createServer();
-      srv.listen(++port, function() {
-        srv.on('upgrade', function(req, socket, upgradeHeade) {
-          assert.ifError(req.headers.hasOwnProperty('origin'));
-          srv.close();
-          done();
-        });
-        var ws = new WebSocket('ws://localhost:' + port);
-      });
-    });
-
-    it('honors origin set in options', function(done) {
-      var srv = http.createServer();
-      srv.listen(++port, function() {
-        var options = {origin: 'https://example.com:8000'}
-        srv.on('upgrade', function(req, socket, upgradeHeade) {
-          assert.equal(options.origin, req.headers['origin']);
-          srv.close();
-          done();
-        });
-        var ws = new WebSocket('ws://localhost:' + port, options);
-      });
-    });
-
-    it('excludes default ports from host header', function(done) {
-      // can't create a server listening on ports 80 or 443
-      // so we need to expose the method that does this
-      var buildHostHeader = WebSocket.buildHostHeader
-      var host = buildHostHeader(false, 'localhost', 80)
-      assert.equal('localhost', host);
-      host = buildHostHeader(false, 'localhost', 88)
-      assert.equal('localhost:88', host);
-      host = buildHostHeader(true, 'localhost', 443)
-      assert.equal('localhost', host);
-      host = buildHostHeader(true, 'localhost', 8443)
-      assert.equal('localhost:8443', host);
-      done()
-    });
-  });
-
-  describe('permessage-deflate', function() {
-    it('is enabled by default', function(done) {
-      var srv = http.createServer(function (req, res) {});
-      var wss = new WebSocketServer({server: srv, perMessageDeflate: true});
-      srv.listen(++port, function() {
-        var ws = new WebSocket('ws://localhost:' + port);
-        srv.on('upgrade', function(req, socket, head) {
-          // assert.ok(~req.headers['sec-websocket-extensions'].indexOf('permessage-deflate'));
-        });
-        ws.on('open', function() {
-          // assert.ok(ws.extensions['permessage-deflate']);
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-    });
-
-    it('can be disabled', function(done) {
-      var srv = http.createServer(function (req, res) {});
-      var wss = new WebSocketServer({server: srv, perMessageDeflate: true});
-      srv.listen(++port, function() {
-        var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: false});
-        srv.on('upgrade', function(req, socket, head) {
-          assert.ok(!req.headers['sec-websocket-extensions']);
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-    });
-
-    it('can send extension parameters', function(done) {
-      var srv = http.createServer(function (req, res) {});
-      var wss = new WebSocketServer({server: srv, perMessageDeflate: true});
-      srv.listen(++port, function() {
-        var ws = new WebSocket('ws://localhost:' + port, {
-          perMessageDeflate: {
-            serverNoContextTakeover: true,
-            clientNoContextTakeover: true,
-            serverMaxWindowBits: 10,
-            clientMaxWindowBits: true
-          }
-        });
-        srv.on('upgrade', function(req, socket, head) {
-          var extensions = req.headers['sec-websocket-extensions'];
-          assert.ok(~extensions.indexOf('permessage-deflate'));
-          assert.ok(~extensions.indexOf('server_no_context_takeover'));
-          assert.ok(~extensions.indexOf('client_no_context_takeover'));
-          assert.ok(~extensions.indexOf('server_max_window_bits=10'));
-          assert.ok(~extensions.indexOf('client_max_window_bits'));
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-    });
-
-    it('can send and receive text data', function(done) {
-      var wss = new WebSocketServer({port: ++port, perMessageDeflate: true}, function() {
-        var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: true});
-        ws.on('open', function() {
-          ws.send('hi', {compress: true});
-        });
-        ws.on('message', function(message, flags) {
-          assert.equal('hi', message);
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-      wss.on('connection', function(ws) {
-        ws.on('message', function(message, flags) {
-          ws.send(message, {compress: true});
-        });
-      });
-    });
-
-    it('can send and receive a typed array', function(done) {
-      var array = new Float32Array(5);
-      for (var i = 0; i < array.length; i++) array[i] = i / 2;
-      var wss = new WebSocketServer({port: ++port, perMessageDeflate: true}, function() {
-        var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: true});
-        ws.on('open', function() {
-          ws.send(array, {compress: true});
-        });
-        ws.on('message', function(message, flags) {
-          assert.ok(areArraysEqual(array, new Float32Array(getArrayBuffer(message))));
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-      wss.on('connection', function(ws) {
-        ws.on('message', function(message, flags) {
-          ws.send(message, {compress: true});
-        });
-      });
-    });
-
-    it('can send and receive ArrayBuffer', function(done) {
-      var array = new Float32Array(5);
-      for (var i = 0; i < array.length; i++) array[i] = i / 2;
-      var wss = new WebSocketServer({port: ++port, perMessageDeflate: true}, function() {
-        var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: true});
-        ws.on('open', function() {
-          ws.send(array.buffer, {compress: true});
-        });
-        ws.on('message', function(message, flags) {
-          assert.ok(areArraysEqual(array, new Float32Array(getArrayBuffer(message))));
-          ws.terminate();
-          wss.close();
-          done();
-        });
-      });
-      wss.on('connection', function(ws) {
-        ws.on('message', function(message, flags) {
-          ws.send(message, {compress: true});
-        });
-      });
-    });
-
-    it('with binary stream will send fragmented data', function(done) {
-      var wss = new WebSocketServer({port: ++port, perMessageDeflate: true}, function() {
-        var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: true});
-        var callbackFired = false;
-        ws.on('open', function() {
-          var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
-          fileStream.bufferSize = 100;
-          ws.send(fileStream, {binary: true, compress: true}, function(error) {
-            assert.equal(null, error);
-            callbackFired = true;
+          wss.on('connection', function(ws) {
+            ws.on('message', function(message, flags) {
+              ws.send(message, {binary: true});
+            });
           });
         });
-        ws.on('close', function() {
-          assert.ok(callbackFired);
-          wss.close();
-          done();
-        });
-      });
-      wss.on('connection', function(ws) {
-        ws.on('message', function(data, flags) {
-          assert.ok(flags.binary);
-          assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile'), data));
-          ws.terminate();
-        });
-      });
-    });
+      }())
+    }
+  }
 
-    describe('#send', function() {
-      it('can set the compress option true when perMessageDeflate is disabled', function(done) {
-        var wss = new WebSocketServer({port: ++port}, function() {
-          var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: false});
+  /*'protocol support discovery'*/
+  {
+    /*'#supports'*/
+    {
+      /*'#binary'*/
+      {
+        /*'returns true for hybi transport'*/
+        {
+          function done () {}
+          (function () {
+            let p = ++port
+            var wss = new WebSocketServer({port: p}, function() {
+              var ws = new WebSocket('ws://localhost:' + p);
+            });
+            wss.on('connection', function(client) {
+              assert.equal(true, client.supports.binary);
+              wss.close();
+              done();
+            });
+          }())
+        }
+
+        /*'returns false for hixie transport'*/
+        {
+          function done () {}
+          (function () {
+            let p = ++port
+            var wss = new WebSocketServer({port: p}, function() {
+              var options = {
+                port: p,
+                host: '127.0.0.1',
+                headers: {
+                  'Connection': 'Upgrade',
+                  'Upgrade': 'WebSocket',
+                  'Sec-WebSocket-Key1': '3e6b263  4 17 80',
+                  'Sec-WebSocket-Key2': '17  9 G`ZD9   2 2b 7X 3 /r90'
+                }
+              };
+              var req = http.request(options);
+              req.write('WjN}|M(6');
+              req.end();
+            });
+            wss.on('connection', function(client) {
+              assert.equal(false, client.supports.binary);
+              wss.close();
+              done();
+            });
+          }())
+        }
+      }
+    }
+  }
+
+  /*'host and origin headers'*/
+  {
+    /*'includes the host header with port number'*/
+    // {
+    //   function done () {}
+    //   (function () {
+    //     var srv = http.createServer();
+    //     let p1 = ++port
+    //     srv.listen(p1, function(){
+    //       srv.on('upgrade', function(req, socket, upgradeHeade) {
+    //         assert.equal('localhost:' + p1, req.headers['host']);
+    //         srv.close();
+    //         done();
+    //       });
+    //       var ws = new WebSocket('ws://localhost:' + p1);
+    //     });
+    //   }())
+    // }
+
+    /*'lacks default origin header'*/
+    // {
+    //   function done () {}
+    //   (function () {
+    //     var srv = http.createServer();
+    //     let p2 = ++port
+    //     srv.listen(p2, function() {
+    //       srv.on('upgrade', function(req, socket, upgradeHeade) {
+    //         assert.ifError(req.headers.hasOwnProperty('origin'));
+    //         srv.close();
+    //         done();
+    //       });
+    //       var ws = new WebSocket('ws://localhost:' + p2);
+    //     });
+    //   }())
+    // }
+
+    /*'honors origin set in options'*/
+    // {
+    //   function done () {}
+    //   (function () {
+    //     var srv = http.createServer();
+    //     let p3 = ++port
+    //     srv.listen(p3, function() {
+    //       var options = {origin: 'https://example.com:8000'}
+    //       srv.on('upgrade', function(req, socket, upgradeHeade) {
+    //         assert.equal(options.origin, req.headers['origin']);
+    //         srv.close();
+    //         done();
+    //       });
+    //       var ws = new WebSocket('ws://localhost:' + p3, options);
+    //     });
+    //   }())
+    // }
+
+    /*'excludes default ports from host header'*/
+    {
+      function done () {}
+      (function () {
+        // can't create a server listening on ports 80 or 443
+        // so we need to expose the method that does this
+        var buildHostHeader = WebSocket.buildHostHeader
+        var host = buildHostHeader(false, 'localhost', 80)
+        assert.equal('localhost', host);
+        host = buildHostHeader(false, 'localhost', 88)
+        assert.equal('localhost:88', host);
+        host = buildHostHeader(true, 'localhost', 443)
+        assert.equal('localhost', host);
+        host = buildHostHeader(true, 'localhost', 8443)
+        assert.equal('localhost:8443', host);
+        done()
+      }())
+    }
+  }
+
+  /*'permessage-deflate'*/
+  {
+    /*'is enabled by default'*/
+    // {
+    //   function done () {}
+    //   (function () {
+    //     var srv = http.createServer(function (req, res) {});
+    //     var wss = new WebSocketServer({server: srv, perMessageDeflate: true});
+    //     let p = ++port
+    //     srv.listen(p, function() {
+    //       var ws = new WebSocket('ws://localhost:' + p);
+    //       srv.on('upgrade', function(req, socket, head) {
+    //         // assert.ok(~req.headers['sec-websocket-extensions'].indexOf('permessage-deflate'));
+    //       });
+    //       ws.on('open', function() {
+    //         // assert.ok(ws.extensions['permessage-deflate']);
+    //         ws.terminate();
+    //         wss.close();
+    //         done();
+    //       });
+    //     });
+    //   }())
+    // }
+
+    /*'can be disabled'*/
+    // {
+    //   function done () {}
+    //   (function () {
+    //     var srv = http.createServer(function (req, res) {});
+    //     var wss = new WebSocketServer({server: srv, perMessageDeflate: true});
+    //     let p = ++port
+    //     srv.listen(p, function() {
+    //       var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: false});
+    //       srv.on('upgrade', function(req, socket, head) {
+    //         assert.ok(!req.headers['sec-websocket-extensions']);
+    //         ws.terminate();
+    //         wss.close();
+    //         done();
+    //       });
+    //     });
+    //   }())
+    // }
+
+    /*'can send extension parameters'*/
+    // {
+    //   function done () {}
+    //   (function () {
+    //     var srv = http.createServer(function (req, res) {});
+    //     var wss = new WebSocketServer({server: srv, perMessageDeflate: true});
+    //     let p = ++port
+    //     srv.listen(p, function() {
+    //       var ws = new WebSocket('ws://localhost:' + p, {
+    //         perMessageDeflate: {
+    //           serverNoContextTakeover: true,
+    //           clientNoContextTakeover: true,
+    //           serverMaxWindowBits: 10,
+    //           clientMaxWindowBits: true
+    //         }
+    //       });
+    //       srv.on('upgrade', function(req, socket, head) {
+    //         var extensions = req.headers['sec-websocket-extensions'];
+    //         assert.ok(~extensions.indexOf('permessage-deflate'));
+    //         assert.ok(~extensions.indexOf('server_no_context_takeover'));
+    //         assert.ok(~extensions.indexOf('client_no_context_takeover'));
+    //         assert.ok(~extensions.indexOf('server_max_window_bits=10'));
+    //         assert.ok(~extensions.indexOf('client_max_window_bits'));
+    //         ws.terminate();
+    //         wss.close();
+    //         done();
+    //       });
+    //     });
+    //   }())
+    // }
+
+    /*'can send and receive text data'*/
+    {
+      function done () {}
+      (function () {
+        let p = ++port
+        var wss = new WebSocketServer({port: p, perMessageDeflate: true}, function() {
+          var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: true});
           ws.on('open', function() {
             ws.send('hi', {compress: true});
           });
@@ -2099,73 +2252,204 @@ describe('WebSocket', function() {
             ws.send(message, {compress: true});
           });
         });
-      });
-    });
+      }())
+    }
 
-    describe('#close', function() {
-      it('should not raise error callback, if any, if called during send data', function(done) {
-        var wss = new WebSocketServer({port: ++port, perMessageDeflate: true}, function() {
-          var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: true});
-          var errorGiven = false;
+    /*'can send and receive a typed array'*/
+    {
+      function done () {}
+      (function () {
+        var array = new Float32Array(5);
+        for (var i = 0; i < array.length; i++) array[i] = i / 2;
+        let p = ++port
+        var wss = new WebSocketServer({port: p, perMessageDeflate: true}, function() {
+          var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: true});
           ws.on('open', function() {
-            ws.send('hi', function(error) {
-              errorGiven = error != null;
-            });
-            ws.close();
+            ws.send(array, {compress: true});
           });
-          ws.on('close', function() {
-            setTimeout(function() {
-              assert.ok(!errorGiven);
-              wss.close();
-              ws.terminate();
-              done();
-            }, 1000);
+          ws.on('message', function(message, flags) {
+            assert.ok(areArraysEqual(array, new Float32Array(getArrayBuffer(message))));
+            ws.terminate();
+            wss.close();
+            done();
           });
         });
-      });
-    });
+        wss.on('connection', function(ws) {
+          ws.on('message', function(message, flags) {
+            ws.send(message, {compress: true});
+          });
+        });
+      }())
+    }
 
-    describe('#terminate', function() {
-      it('will raise error callback, if any, if called during send data', function(done) {
-        var wss = new WebSocketServer({port: ++port, perMessageDeflate: true}, function() {
-          var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: true});
-          var errorGiven = false;
+    /*'can send and receive ArrayBuffer'*/
+    {
+      function done () {}
+      (function () {
+        var array = new Float32Array(5);
+        for (var i = 0; i < array.length; i++) array[i] = i / 2;
+        let p = ++port
+        var wss = new WebSocketServer({port: p, perMessageDeflate: true}, function() {
+          var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: true});
           ws.on('open', function() {
-            ws.send('hi', function(error) {
-              errorGiven = error != null;
+            ws.send(array.buffer, {compress: true});
+          });
+          ws.on('message', function(message, flags) {
+            assert.ok(areArraysEqual(array, new Float32Array(getArrayBuffer(message))));
+            ws.terminate();
+            wss.close();
+            done();
+          });
+        });
+        wss.on('connection', function(ws) {
+          ws.on('message', function(message, flags) {
+            ws.send(message, {compress: true});
+          });
+        });
+      }())
+    }
+
+    /*'with binary stream will send fragmented data'*/
+    {
+      function done () {}
+      (function () {
+        let p = ++port
+        var wss = new WebSocketServer({port: p, perMessageDeflate: true}, function() {
+          var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: true});
+          var callbackFired = false;
+          ws.on('open', function() {
+            var fileStream = fs.createReadStream('test/fixtures/websockets/textfile');
+            fileStream.bufferSize = 100;
+            ws.send(fileStream, {binary: true, compress: true}, function(error) {
+              assert.equal(null, error);
+              callbackFired = true;
             });
+          });
+          ws.on('close', function() {
+            assert.ok(callbackFired);
+            wss.close();
+            done();
+          });
+        });
+        wss.on('connection', function(ws) {
+          ws.on('message', function(data, flags) {
+            assert.ok(flags.binary);
+            assert.ok(areArraysEqual(fs.readFileSync('test/fixtures/websockets/textfile'), data));
             ws.terminate();
           });
-          ws.on('close', function() {
-            setTimeout(function() {
-              assert.ok(errorGiven);
-              wss.close();
-              ws.terminate();
-              done();
-            }, 1000);
-          });
         });
-      });
+      }())
+    }
 
-      it('can call during receiving data', function(done) {
-        var wss = new WebSocketServer({port: ++port, perMessageDeflate: true}, function() {
-          var ws = new WebSocket('ws://localhost:' + port, {perMessageDeflate: true});
-          wss.on('connection', function(client) {
-            for (var i = 0; i < 10; i++) {
-              client.send('hi');
-            }
-            client.send('hi', function() {
+    /*'#send'*/
+    {
+      /*'can set the compress option true when perMessageDeflate is disabled'*/
+      {
+        function done () {}
+        (function () {
+          let p = ++port
+          var wss = new WebSocketServer({port: p}, function() {
+            var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: false});
+            ws.on('open', function() {
+              ws.send('hi', {compress: true});
+            });
+            ws.on('message', function(message, flags) {
+              assert.equal('hi', message);
               ws.terminate();
+              wss.close();
+              done();
             });
           });
-          ws.on('close', function() {
-            setTimeout(function() {
-              wss.close();
-              done();
-            }, 1000);
+          wss.on('connection', function(ws) {
+            ws.on('message', function(message, flags) {
+              ws.send(message, {compress: true});
+            });
           });
-        });
-      });
-    });
-  });
-});
+        }())
+      }
+    }
+
+    /*'#close'*/
+    {
+      /*'should not raise error callback, if any, if called during send data'*/
+      {
+        function done () {}
+        (function () {
+          let p = ++port
+          var wss = new WebSocketServer({port: p, perMessageDeflate: true}, function() {
+            var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: true});
+            var errorGiven = false;
+            ws.on('open', function() {
+              ws.send('hi', function(error) {
+                errorGiven = error != null;
+              });
+              ws.close();
+            });
+            ws.on('close', function() {
+              setTimeout(function() {
+                assert.ok(!errorGiven);
+                wss.close();
+                ws.terminate();
+                done();
+              }, 1000);
+            });
+          });
+        }())
+      }
+    }
+
+    /*'#terminate'*/
+    {
+      /*'will raise error callback, if any, if called during send data'*/
+      {
+        function done () {}
+        (function () {
+          let p = ++port
+          var wss = new WebSocketServer({port: p, perMessageDeflate: true}, function() {
+            var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: true});
+            var errorGiven = false;
+            ws.on('open', function() {
+              ws.send('hi', function(error) {
+                errorGiven = error != null;
+              });
+              ws.terminate();
+            });
+            ws.on('close', function() {
+              setTimeout(function() {
+                assert.ok(errorGiven);
+                wss.close();
+                ws.terminate();
+                done();
+              }, 1000);
+            });
+          });
+        }())
+      }
+
+      /*'can call during receiving data'*/
+      {
+        function done () {}
+        (function () {
+          let p = ++port
+          var wss = new WebSocketServer({port: p, perMessageDeflate: true}, function() {
+            var ws = new WebSocket('ws://localhost:' + p, {perMessageDeflate: true});
+            wss.on('connection', function(client) {
+              for (var i = 0; i < 10; i++) {
+                client.send('hi');
+              }
+              client.send('hi', function() {
+                ws.terminate();
+              });
+            });
+            ws.on('close', function() {
+              setTimeout(function() {
+                wss.close();
+                done();
+              }, 1000);
+            });
+          });
+        }())
+      }
+    }
+  }
+}

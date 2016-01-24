@@ -3,21 +3,21 @@ const assert = require('assert');
 const Receiver = require('../../lib/internal/websockets/Receiver.hixie');
 const ws_common = require('../common-websockets');
 
-describe('Receiver', function() {
-  describe('#ctor', function() {
-    it('throws TypeError when called without new', function(done) {
-      // try {
-      //   var p = Receiver();
-      // }
-      // catch (e) {
-      //   assert.ok(e instanceof TypeError);
-      //   done();
-      // }
-      done()
-    });
-  });
+/*'Receiver'*/
+{
+  /*'#ctor'*/
+  {
+    /*'throws TypeError when called without new'*/
+    try {
+      var p = Receiver();
+    }
+    catch (e) {
+      assert.ok(e instanceof TypeError);
+    }
+  }
 
-  it('can parse text message', function() {
+  /*'can parse text message'*/
+  {
     var p = new Receiver();
     var packet = '00 48 65 6c 6c 6f ff';
 
@@ -29,9 +29,10 @@ describe('Receiver', function() {
 
     p.add(ws_common.getBufferFromHexString(packet));
     assert.equal(gotData, true);
-  });
+  }
 
-  it('can parse multiple text messages', function() {
+  /*'can parse multiple text messages'*/
+  {
     var p = new Receiver();
     var packet = '00 48 65 6c 6c 6f ff 00 48 65 6c 6c 6f ff';
 
@@ -47,9 +48,10 @@ describe('Receiver', function() {
     for (var i = 0; i < 2; ++i) {
       assert.equal(messages[i], 'Hello');
     }
-  });
+  }
 
-  it('can parse empty message', function() {
+  /*'can parse empty message'*/
+  {
     var p = new Receiver();
     var packet = '00 ff';
 
@@ -61,9 +63,10 @@ describe('Receiver', function() {
 
     p.add(ws_common.getBufferFromHexString(packet));
     assert.deepEqual(gotData, true);
-  });
+  }
 
-  it('can parse text messages delivered over multiple frames', function() {
+  /*'can parse text messages delivered over multiple frames'*/
+  {
     var p = new Receiver();
     var packets = [
       '00 48',
@@ -88,9 +91,10 @@ describe('Receiver', function() {
     for (var i = 0; i < 2; ++i) {
       assert.equal(messages[i], 'Hello');
     }
-  });
+  }
 
-  it('emits an error if a payload doesnt start with 0x00', function() {
+  /*'emits an error if a payload doesnt start with 0x00'*/
+  {
     var p = new Receiver();
     var packets = [
       '00 6c ff',
@@ -119,9 +123,10 @@ describe('Receiver', function() {
     assert.equal(messages[0], 'l');
     assert.equal(messages[1], 'l');
     assert.equal(messages.length, 2);
-  });
+  }
 
-  it('can parse close messages', function() {
+  /*'can parse close messages'*/
+  {
     var p = new Receiver();
     var packets = [
       'ff 00'
@@ -141,9 +146,10 @@ describe('Receiver', function() {
     }
     assert.equal(gotClose, true);
     assert.equal(gotError, false);
-  });
+  }
 
-  it('can parse binary messages delivered over multiple frames', function() {
+  /*'can parse binary messages delivered over multiple frames'*/
+  {
     var p = new Receiver();
     var packets = [
       '80 05 48',
@@ -167,5 +173,5 @@ describe('Receiver', function() {
     for (var i = 0; i < 2; ++i) {
       assert.equal(messages[i], 'Hello');
     }
-  });
-});
+  }
+}
