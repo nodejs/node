@@ -62,7 +62,7 @@ function parent() {
       server.close();
     }));
 
-    server.setTimeout(common.platformTimeout(10), common.mustCall(function() {
+    server.setTimeout(10, common.mustCall(function() {
       child.kill();
     }));
   });
@@ -82,13 +82,10 @@ function child() {
 
   req = new Array(10241).join(req);
 
-  conn.on('connect', function() {
-    // Terminate child after flooding.    
-    setTimeout(function() { conn.destroy(); }, 500);   
-    write();    
-  });
+  conn.on('connect', write);
 
-  conn.on('drain', write);
+  // `drain` should fire once and only once
+  conn.on('drain', common.mustCall(write));
 
   function write() {
     while (false !== conn.write(req, 'ascii'));
