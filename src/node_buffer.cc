@@ -585,7 +585,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   }
 
   node::Utf8Value str(args.GetIsolate(), args[1]);
-  size_t str_length = str.length();
+  const size_t str_length = str.length();
   size_t in_there = str_length;
   char* ptr = ts_obj_data + start + str_length;
 
@@ -605,7 +605,6 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
 
   if (in_there < length) {
     memcpy(ptr, ts_obj_data + start, length - in_there);
-    in_there = length;
   }
 }
 
@@ -978,7 +977,7 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(-1);
   }
 
-  size_t result = haystack_length;
+  size_t result;
 
   if (enc == UCS2) {
     if (haystack_length < 2 || needle_length < 2) {
