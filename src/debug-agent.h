@@ -109,7 +109,6 @@ class Agent {
     kRunning
   };
 
-  // TODO(indutny): Verify that there are no races
   State state_;
 
   int port_;
