@@ -139,7 +139,7 @@ matching error type in the assertion:
 
 ```js
 assert.doesNotThrow(
-  function() {
+  () => {
     throw new TypeError('Wrong value');
   },
   SyntaxError
@@ -151,7 +151,7 @@ However, the following will result in an `AssertionError` with the message
 
 ```js
 assert.doesNotThrow(
-  function() {
+  () => {
     throw new TypeError('Wrong value');
   },
   TypeError
@@ -164,7 +164,7 @@ message:
 
 ```js
 assert.doesNotThrow(
-  function() {
+  () => {
     throw new TypeError('Wrong value');
   },
   TypeError,
@@ -359,7 +359,7 @@ Validate instanceof using constructor:
 
 ```js
 assert.throws(
-  function() {
+  () => {
     throw new Error('Wrong value');
   },
   Error
@@ -370,7 +370,7 @@ Validate error message using [`RegExp`][]:
 
 ```js
 assert.throws(
-  function() {
+  () => {
     throw new Error('Wrong value');
   },
   /value/
@@ -381,7 +381,7 @@ Custom error validation:
 
 ```js
 assert.throws(
-  function() {
+  () => {
     throw new Error('Wrong value');
   },
   function(err) {
