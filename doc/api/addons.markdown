@@ -44,7 +44,9 @@ be used as a starting-point for your own Addon.
 This "Hello world" example is a simple Addon, written in C++, that is the
 equivalent of the following JavaScript code:
 
-    module.exports.hello = function() { return 'world'; };
+```js
+module.exports.hello = () => 'world';
+```
 
 First, create the file `hello.cc`:
 
@@ -368,7 +370,7 @@ To test it, run the following JavaScript:
 // test.js
 const addon = require('./build/Release/addon');
 
-addon(function(msg){
+addon((msg) => {
   console.log(msg); // 'hello world'
 });
 ```
