@@ -37,7 +37,7 @@ function MyEmitter() {
 util.inherits(MyEmitter, EventEmitter);
 
 const myEmitter = new MyEmitter();
-myEmitter.on('event', function() {
+myEmitter.on('event', () => {
   console.log('an event occurred!');
 });
 myEmitter.emit('event');
@@ -54,7 +54,7 @@ const EventEmitter = require('events');
 class MyEmitter extends EventEmitter {}
 
 const myEmitter = new MyEmitter();
-myEmitter.on('event', function() {
+myEmitter.on('event', () => {
   console.log('an event occurred!');
 });
 myEmitter.emit('event');
@@ -364,7 +364,7 @@ Removes the specified `listener` from the listener array for the specified
 `event`.
 
 ```js
-var callback = function(stream) {
+var callback = (stream) => {
   console.log('someone connected!');
 };
 server.on('connection', callback);

@@ -29,16 +29,20 @@ the convenience methods.
 
 ```js
 const input = '.................................';
-zlib.deflate(input, function(err, buffer) {
+zlib.deflate(input, (err, buffer) => {
   if (!err) {
     console.log(buffer.toString('base64'));
+  } else {
+    // handle error
   }
 });
 
 const buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
-zlib.unzip(buffer, function(err, buffer) {
+zlib.unzip(buffer, (err, buffer) => {
   if (!err) {
     console.log(buffer.toString());
+  } else {
+    // handle error
   }
 });
 ```
