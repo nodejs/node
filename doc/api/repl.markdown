@@ -15,7 +15,7 @@ $ node
 Type '.help' for options.
 > a = [ 1, 2, 3];
 [ 1, 2, 3 ]
-> a.forEach(function (v){
+> a.forEach((v) => {
 ...   console.log(v);
 ...   });
 1
@@ -139,7 +139,7 @@ For example, if you have defined an `inspect()` function on an object, like this
 ```
 > var obj = {foo: 'this will not show up in the inspect() output'};
 undefined
-> obj.inspect = function() {
+> obj.inspect = () => {
 ...   return {bar: 'baz'};
 ... };
 [Function]

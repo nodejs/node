@@ -20,13 +20,10 @@ The contents of `circle.js`:
 ```js
 const PI = Math.PI;
 
-exports.area = function (r) {
-  return PI * r * r;
-};
+exports.area = (r) => PI * r * r;
 
-exports.circumference = function (r) {
-  return 2 * PI * r;
-};
+exports.circumference = (r) => 2 * PI * r;
+
 ```
 
 The module `circle.js` has exported the functions `area()` and
@@ -53,11 +50,9 @@ The `square` module is defined in `square.js`:
 
 ```js
 // assigning to exports will not modify module, must use module.exports
-module.exports = function(width) {
+module.exports = (width) => {
   return {
-    area: function() {
-      return width * width;
-    }
+    area: () => width * width
   };
 }
 ```
@@ -498,12 +493,12 @@ To illustrate the behavior, imagine this hypothetical implementation of
 ```js
 function require(...) {
   // ...
-  function (module, exports) {
+  ((module, exports) => {
     // Your module code here
     exports = some_func;        // re-assigns exports, exports is no longer
                                 // a shortcut, and nothing is exported.
     module.exports = some_func; // makes your module export 0
-  } (module, module.exports);
+  })(module, module.exports);
   return module;
 }
 ```

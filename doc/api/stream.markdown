@@ -925,18 +925,17 @@ function SourceWrapper(options) {
   Readable.call(this, options);
 
   this._source = getLowlevelSourceObject();
-  var self = this;
 
   // Every time there's data, we push it into the internal buffer.
-  this._source.ondata = function(chunk) {
+  this._source.ondata = (chunk) => {
     // if push() returns false, then we need to stop reading from source
-    if (!self.push(chunk))
-      self._source.readStop();
+    if (!this.push(chunk))
+      this._source.readStop();
   };
 
   // When the source ends, we push the EOF-signaling `null` chunk
-  this._source.onend = function() {
-    self.push(null);
+  this._source.onend = () => {
+    this.push(null);
   };
 }
 

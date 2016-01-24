@@ -239,7 +239,7 @@ argument will be populated. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```js
-fs.access('/etc/passwd', fs.R_OK | fs.W_OK, function (err) {
+fs.access('/etc/passwd', fs.R_OK | fs.W_OK, (err) => {
   console.log(err ? 'no access!' : 'can read/write');
 });
 ```
