@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('assert');
-const Sender = require('../../lib/internal/websockets/Sender.hixie');
+const Sender = require('../../lib/internal/websockets/SenderHixie');
 
 /*'Sender'*/
 {
