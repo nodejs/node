@@ -51,7 +51,8 @@ var server = net.createServer((socket) => {
 });
 
 // grab a random port.
-server.listen(() => {
+server.listen((err) => {
+  if (err) throw err;
   address = server.address();
   console.log('opened server on %j', address);
 });
@@ -528,7 +529,8 @@ Here is an example of a client of the previously described echo server:
 
 ```js
 const net = require('net');
-const client = net.connect({port: 8124}, () => { //'connect' listener
+const client = net.connect({port: 8124}, () => { 
+  // 'connect' listener
   console.log('connected to server!');
   client.write('world!\r\n');
 });
@@ -581,8 +583,8 @@ Here is an example of a client of the previously described echo server:
 
 ```js
 const net = require('net');
-const client = net.connect({port: 8124},
-    () => { //'connect' listener
+const client = net.connect({port: 8124}, () => { 
+  //'connect' listener
   console.log('connected to server!');
   client.write('world!\r\n');
 });
@@ -649,7 +651,8 @@ on port 8124:
 
 ```js
 const net = require('net');
-const server = net.createServer((c) => { //'connection' listener
+const server = net.createServer((c) => { 
+  // 'connection' listener
   console.log('client connected');
   c.on('end', () => {
     console.log('client disconnected');
@@ -657,7 +660,9 @@ const server = net.createServer((c) => { //'connection' listener
   c.write('hello\r\n');
   c.pipe(c);
 });
-server.listen(8124, () => { //'listening' listener
+server.listen(8124, (err) => { 
+  // 'listening' listener
+  if (err) throw err;
   console.log('server bound');
 });
 ```
@@ -672,7 +677,10 @@ To listen on the socket `/tmp/echo.sock` the third line from the last would
 just be changed to
 
 ```js
-server.listen('/tmp/echo.sock', () => { /* 'listening' listener*/ })
+server.listen('/tmp/echo.sock', (err) => { 
+  // 'listening' listener
+  if (err) throw err;
+});
 ```
 
 Use `nc` to connect to a UNIX domain socket server:
