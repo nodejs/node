@@ -265,7 +265,7 @@ const rl = readline.createInterface({
   input: fs.createReadStream('sample.txt')
 });
 
-rl.on('line', function (line) {
+rl.on('line', (line) => {
   console.log('Line from file:', line);
 });
 ```
