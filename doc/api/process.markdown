@@ -179,7 +179,7 @@ var resource = new SomeResource();
 
 In cases like this, you may not want to track the rejection as a developer
 error like you would for other `'unhandledRejection'` events. To address
-this, you can either attach a dummy `.catch(function() { })` handler to
+this, you can either attach a dummy `.catch(() => { })` handler to
 `resource.loaded`, preventing the `'unhandledRejection'` event from being
 emitted, or you can use the [`'rejectionHandled'`][] event.
 
@@ -750,7 +750,7 @@ function maybeSync(arg, cb) {
 This API is hazardous.  If you do this:
 
 ```js
-maybeSync(true, function() {
+maybeSync(true, () => {
   foo();
 });
 bar();
@@ -986,7 +986,7 @@ A `Writable Stream` to `stdout` (on fd `1`).
 For example, a `console.log` equivalent could look like this:
 
 ```js
-console.log = function(msg) {
+console.log = (msg) => {
   process.stdout.write(`${msg}\n`);
 };
 ```

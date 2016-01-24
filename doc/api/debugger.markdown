@@ -15,7 +15,7 @@ debug; a prompt will be displayed indicating successful launch of the debugger:
 connecting... ok
 break in /home/indutny/Code/git/indutny/myscript.js:1
   1 x = 5;
-  2 setTimeout(function () {
+  2 setTimeout(() => {
   3   debugger;
 debug>
 ```
@@ -31,7 +31,7 @@ For example, suppose `myscript.js` is written as:
 ```js
 // myscript.js
 x = 5;
-setTimeout(function () {
+setTimeout(() => {
   debugger;
   console.log('world');
 }, 1000);
@@ -46,19 +46,19 @@ Once the debugger is run, a breakpoint will occur at line 4:
 connecting... ok
 break in /home/indutny/Code/git/indutny/myscript.js:1
   1 x = 5;
-  2 setTimeout(function () {
+  2 setTimeout(() => {
   3   debugger;
 debug> cont
 < hello
 break in /home/indutny/Code/git/indutny/myscript.js:3
   1 x = 5;
-  2 setTimeout(function () {
+  2 setTimeout(() => {
   3   debugger;
   4   console.log('world');
   5 }, 1000);
 debug> next
 break in /home/indutny/Code/git/indutny/myscript.js:4
-  2 setTimeout(function () {
+  2 setTimeout(() => {
   3   debugger;
   4   console.log('world');
   5 }, 1000);
@@ -136,7 +136,7 @@ Warning: script 'mod.js' was not loaded yet.
 debug> c
 break in test/fixtures/break-in-module/mod.js:23
  21
- 22 exports.hello = function() {
+ 22 exports.hello = () => {
  23   return 'hello from module';
  24 };
  25
