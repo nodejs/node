@@ -62,7 +62,7 @@ function parent() {
       server.close();
     }));
 
-    server.setTimeout(10, common.mustCall(function() {
+    server.setTimeout(200, common.mustCall(function() {
       child.kill();
     }));
   });
