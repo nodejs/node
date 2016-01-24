@@ -285,7 +285,6 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
     }
 
     // Waiting for client, do not send anything just yet
-    // TODO(indutny): move this to js-land
     if (a->wait_) {
       a->messages_.PushFront(msg);  // Push message back into the ready queue.
       break;
