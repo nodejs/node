@@ -86,9 +86,9 @@ test(test1, 58);
 test(test2, 65);
 test(test3, 72);
 
-eval(test1.toString() + "//@ sourceUrl=foo");
-eval(test2.toString() + "//@ sourceUrl=foo");
-eval(test3.toString() + "//@ sourceUrl=foo");
+eval(test1.toString() + "//# sourceUrl=foo");
+eval(test2.toString() + "//# sourceUrl=foo");
+eval(test3.toString() + "//# sourceUrl=foo");
 
 test(test1, 2);
 test(test2, 3);

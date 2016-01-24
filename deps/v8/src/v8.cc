@@ -79,13 +79,6 @@ void V8::InitializeOncePerProcessImpl() {
 
   Sampler::SetUp();
   CpuFeatures::Probe(false);
-  init_memcopy_functions();
-  // The custom exp implementation needs 16KB of lookup data; initialize it
-  // on demand.
-  init_fast_sqrt_function();
-#ifdef _WIN64
-  init_modulo_function();
-#endif
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();

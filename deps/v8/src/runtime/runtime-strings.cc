@@ -1245,12 +1245,5 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   return __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
 }
 
-
-RUNTIME_FUNCTION(Runtime_StringGetLength) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  return Smi::FromInt(s->length());
-}
 }  // namespace internal
 }  // namespace v8

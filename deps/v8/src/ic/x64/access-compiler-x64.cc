@@ -31,8 +31,6 @@ Register* PropertyAccessCompiler::store_calling_convention() {
   // receiver, name, scratch1, scratch2, scratch3.
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
-  DCHECK(FLAG_vector_stores ||
-         rbx.is(StoreTransitionDescriptor::MapRegister()));
   static Register registers[] = {receiver, name, rbx, rdi, r8};
   return registers;
 }

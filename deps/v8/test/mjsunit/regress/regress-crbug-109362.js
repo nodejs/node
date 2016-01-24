@@ -15,20 +15,20 @@ function test(expectation, f) {
 
 /*
 (function() {
-1 + reference_error //@ sourceURL=evaltest
+1 + reference_error //# sourceURL=evaltest
 })
 */
 test("2:5", new Function(
-    '1 + reference_error //@ sourceURL=evaltest'));
+    '1 + reference_error //# sourceURL=evaltest'));
 /*
 (function(x
 /\**\/) {
 
- 1 + reference_error //@ sourceURL=evaltest
+ 1 + reference_error //# sourceURL=evaltest
 })
 */
 test("4:6", new Function(
-    'x', '\n 1 + reference_error //@ sourceURL=evaltest'));
+    'x', '\n 1 + reference_error //# sourceURL=evaltest'));
 /*
 (function(x
 
@@ -36,24 +36,24 @@ test("4:6", new Function(
 ,y
 /\**\/) {
 
- 1 + reference_error //@ sourceURL=evaltest
+ 1 + reference_error //# sourceURL=evaltest
 })
 */
 test("7:6", new Function(
-    'x\n\n', "z//\n", "y", '\n 1 + reference_error //@ sourceURL=evaltest'));
+    'x\n\n', "z//\n", "y", '\n 1 + reference_error //# sourceURL=evaltest'));
 /*
 (function(x/\*,z//
 ,y*\/
 /\**\/) {
-1 + reference_error //@ sourceURL=evaltest
+1 + reference_error //# sourceURL=evaltest
 })
 */
 test("4:5", new Function(
-    'x/*', "z//\n", "y*/", '1 + reference_error //@ sourceURL=evaltest'));
+    'x/*', "z//\n", "y*/", '1 + reference_error //# sourceURL=evaltest'));
 /*
 (function () {
- 1 + reference_error //@ sourceURL=evaltest5
+ 1 + reference_error //# sourceURL=evaltest5
 })
 */
 test("2:6", eval(
-    '(function () {\n 1 + reference_error //@ sourceURL=evaltest\n})'));
+    '(function () {\n 1 + reference_error //# sourceURL=evaltest\n})'));

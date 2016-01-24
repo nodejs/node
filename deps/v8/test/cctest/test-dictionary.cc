@@ -35,6 +35,7 @@
 #include "src/global-handles.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::internal;
 
@@ -226,5 +227,19 @@ TEST(ObjectHashTableCausesGC) {
   TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
 }
 #endif
+
+TEST(SetRequiresCopyOnCapacityChange) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<NameDictionary> dict = NameDictionary::New(isolate, 0, TENURED);
+  dict->SetRequiresCopyOnCapacityChange();
+  Handle<Name> key = isolate->factory()->InternalizeString(
+      v8::Utils::OpenHandle(*v8_str("key")));
+  Handle<Object> value = handle(Smi::FromInt(0), isolate);
+  Handle<NameDictionary> new_dict =
+      NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
+  CHECK_NE(*dict, *new_dict);
+}
 
 }  // namespace

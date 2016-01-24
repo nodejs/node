@@ -27,9 +27,6 @@
 //
 // Tests of profiles generator and utilities.
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
@@ -51,7 +48,8 @@ using i::Vector;
 
 
 TEST(ProfileNodeFindOrAddChild) {
-  ProfileTree tree;
+  CcTest::InitializeVM();
+  ProfileTree tree(CcTest::i_isolate());
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
   ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
@@ -75,8 +73,9 @@ TEST(ProfileNodeFindOrAddChild) {
 
 
 TEST(ProfileNodeFindOrAddChildForSameFunction) {
+  CcTest::InitializeVM();
   const char* aaa = "aaa";
-  ProfileTree tree;
+  ProfileTree tree(CcTest::i_isolate());
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, aaa);
   ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
@@ -122,10 +121,11 @@ class ProfileTreeTestHelper {
 
 
 TEST(ProfileTreeAddPathFromEnd) {
+  CcTest::InitializeVM();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
-  ProfileTree tree;
+  ProfileTree tree(CcTest::i_isolate());
   ProfileTreeTestHelper helper(&tree);
   CHECK(!helper.Walk(&entry1));
   CHECK(!helper.Walk(&entry2));
@@ -181,7 +181,8 @@ TEST(ProfileTreeAddPathFromEnd) {
 
 
 TEST(ProfileTreeCalculateTotalTicks) {
-  ProfileTree empty_tree;
+  CcTest::InitializeVM();
+  ProfileTree empty_tree(CcTest::i_isolate());
   CHECK_EQ(0u, empty_tree.root()->self_ticks());
   empty_tree.root()->IncrementSelfTicks();
   CHECK_EQ(1u, empty_tree.root()->self_ticks());
@@ -191,7 +192,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   Vector<CodeEntry*> e1_path_vec(
       e1_path, sizeof(e1_path) / sizeof(e1_path[0]));
 
-  ProfileTree single_child_tree;
+  ProfileTree single_child_tree(CcTest::i_isolate());
   single_child_tree.AddPathFromEnd(e1_path_vec);
   single_child_tree.root()->IncrementSelfTicks();
   CHECK_EQ(1u, single_child_tree.root()->self_ticks());
@@ -206,7 +207,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   Vector<CodeEntry*> e2_e1_path_vec(e2_e1_path,
                                     sizeof(e2_e1_path) / sizeof(e2_e1_path[0]));
 
-  ProfileTree flat_tree;
+  ProfileTree flat_tree(CcTest::i_isolate());
   ProfileTreeTestHelper flat_helper(&flat_tree);
   flat_tree.AddPathFromEnd(e1_path_vec);
   flat_tree.AddPathFromEnd(e1_path_vec);
@@ -233,7 +234,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   Vector<CodeEntry*> e3_path_vec(
       e3_path, sizeof(e3_path) / sizeof(e3_path[0]));
 
-  ProfileTree wide_tree;
+  ProfileTree wide_tree(CcTest::i_isolate());
   ProfileTreeTestHelper wide_helper(&wide_tree);
   wide_tree.AddPathFromEnd(e1_path_vec);
   wide_tree.AddPathFromEnd(e1_path_vec);

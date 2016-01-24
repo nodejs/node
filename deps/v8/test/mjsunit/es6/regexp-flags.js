@@ -50,7 +50,11 @@ assertEquals(4, get_count);
 
 
 function testName(name) {
-  assertThrows(() => RegExp.prototype[name], TypeError);
+  if (name === "sticky") {
+    assertEquals(undefined, RegExp.prototype[name]);
+  } else {
+    assertThrows(() => RegExp.prototype[name], TypeError);
+  }
   assertEquals(
       "get " + name,
       Object.getOwnPropertyDescriptor(RegExp.prototype, name).get.name);

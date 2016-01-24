@@ -186,12 +186,6 @@ void ObjectStatsVisitor::Visit<ObjectStatsVisitor::kVisitMap>(Map* map,
     heap->object_stats_->RecordFixedArraySubTypeStats(DESCRIPTOR_ARRAY_SUB_TYPE,
                                                       fixed_array_size);
   }
-  if (TransitionArray::IsFullTransitionArray(map_obj->raw_transitions())) {
-    int fixed_array_size =
-        TransitionArray::cast(map_obj->raw_transitions())->Size();
-    heap->object_stats_->RecordFixedArraySubTypeStats(TRANSITION_ARRAY_SUB_TYPE,
-                                                      fixed_array_size);
-  }
   if (map_obj->has_code_cache()) {
     CodeCache* cache = CodeCache::cast(map_obj->code_cache());
     heap->object_stats_->RecordFixedArraySubTypeStats(

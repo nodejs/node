@@ -39,32 +39,6 @@ define NEW_TWO_BYTE_STRING = false;
 define GETTER = 0;
 define SETTER = 1;
 
-# For date.js.
-define HoursPerDay      = 24;
-define MinutesPerHour   = 60;
-define SecondsPerMinute = 60;
-define msPerSecond      = 1000;
-define msPerMinute      = 60000;
-define msPerHour        = 3600000;
-define msPerDay         = 86400000;
-define msPerMonth       = 2592000000;
-
-# Note: kDayZeroInJulianDay = ToJulianDay(1970, 0, 1).
-define kInvalidDate        = 'Invalid Date';
-define kDayZeroInJulianDay = 2440588;
-define kMonthMask          = 0x1e0;
-define kDayMask            = 0x01f;
-define kYearShift          = 9;
-define kMonthShift         = 5;
-
-# Limits for parts of the date, so that we support all the dates that
-# ECMA 262 - 15.9.1.1 requires us to, but at the same time be sure that
-# the date (days since 1970) is in SMI range.
-define kMinYear  = -1000000;
-define kMaxYear  = 1000000;
-define kMinMonth = -10000000;
-define kMaxMonth = 10000000;
-
 # Safe maximum number of arguments to push to stack, when multiplied by
 # pointer size. Used by Function.prototype.apply(), Reflect.apply() and
 # Reflect.construct().
@@ -88,58 +62,48 @@ define STRING_TO_REGEXP_CACHE_ID = 0;
 # Note: We have special support for typeof(foo) === 'bar' in the compiler.
 #       It will *not* generate a runtime typeof call for the most important
 #       values of 'bar'.
+macro IS_ARRAY(arg)             = (%_IsArray(arg));
+macro IS_ARRAYBUFFER(arg)       = (%_ClassOf(arg) === 'ArrayBuffer');
+macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
+macro IS_BOOLEAN_WRAPPER(arg)   = (%_ClassOf(arg) === 'Boolean');
+macro IS_DATAVIEW(arg)          = (%_ClassOf(arg) === 'DataView');
+macro IS_DATE(arg)              = (%_IsDate(arg));
+macro IS_ERROR(arg)             = (%_ClassOf(arg) === 'Error');
+macro IS_FUNCTION(arg)          = (%_IsFunction(arg));
+macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
+macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
+macro IS_MAP(arg)               = (%_ClassOf(arg) === 'Map');
+macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
 macro IS_NULL(arg)              = (arg === null);
 macro IS_NULL_OR_UNDEFINED(arg) = (arg == null);
-macro IS_UNDEFINED(arg)         = (arg === (void 0));
 macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
-macro IS_STRING(arg)            = (typeof(arg) === 'string');
-macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
-macro IS_SYMBOL(arg)            = (typeof(arg) === 'symbol');
+macro IS_NUMBER_WRAPPER(arg)    = (%_ClassOf(arg) === 'Number');
 macro IS_OBJECT(arg)            = (typeof(arg) === 'object');
-macro IS_ARRAY(arg)             = (%_IsArray(arg));
-macro IS_DATE(arg)              = (%_IsDate(arg));
-macro IS_FUNCTION(arg)          = (%_IsFunction(arg));
+macro IS_PROXY(arg)             = (%_IsJSProxy(arg));
 macro IS_REGEXP(arg)            = (%_IsRegExp(arg));
-macro IS_SIMD_VALUE(arg)        = (%_IsSimdValue(arg));
+macro IS_SCRIPT(arg)            = (%_ClassOf(arg) === 'Script');
 macro IS_SET(arg)               = (%_ClassOf(arg) === 'Set');
-macro IS_MAP(arg)               = (%_ClassOf(arg) === 'Map');
+macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
+macro IS_SHAREDARRAYBUFFER(arg) = (%_ClassOf(arg) === 'SharedArrayBuffer');
+macro IS_SIMD_VALUE(arg)        = (%_IsSimdValue(arg));
+macro IS_STRING(arg)            = (typeof(arg) === 'string');
+macro IS_STRING_WRAPPER(arg)    = (%_ClassOf(arg) === 'String');
+macro IS_STRONG(arg)            = (%IsStrong(arg));
+macro IS_SYMBOL(arg)            = (typeof(arg) === 'symbol');
+macro IS_SYMBOL_WRAPPER(arg)    = (%_ClassOf(arg) === 'Symbol');
+macro IS_UNDEFINED(arg)         = (arg === (void 0));
 macro IS_WEAKMAP(arg)           = (%_ClassOf(arg) === 'WeakMap');
 macro IS_WEAKSET(arg)           = (%_ClassOf(arg) === 'WeakSet');
-macro IS_NUMBER_WRAPPER(arg)    = (%_ClassOf(arg) === 'Number');
-macro IS_STRING_WRAPPER(arg)    = (%_ClassOf(arg) === 'String');
-macro IS_SYMBOL_WRAPPER(arg)    = (%_ClassOf(arg) === 'Symbol');
-macro IS_BOOLEAN_WRAPPER(arg)   = (%_ClassOf(arg) === 'Boolean');
-macro IS_ERROR(arg)             = (%_ClassOf(arg) === 'Error');
-macro IS_SCRIPT(arg)            = (%_ClassOf(arg) === 'Script');
-macro IS_ARGUMENTS(arg)         = (%_ClassOf(arg) === 'Arguments');
-macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
-macro IS_ARRAYBUFFER(arg)       = (%_ClassOf(arg) === 'ArrayBuffer');
-macro IS_DATAVIEW(arg)          = (%_ClassOf(arg) === 'DataView');
-macro IS_SHAREDARRAYBUFFER(arg) = (%_ClassOf(arg) === 'SharedArrayBuffer');
-macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
-macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
-macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
-macro IS_STRONG(arg)            = (%IsStrong(arg));
 
-# Macro for ECMAScript 5 queries of the type:
-# "Type(O) is object."
-# This is the same as being either a function or an object in V8 terminology
-# (including proxies).
-# In addition, an undetectable object is also included by this.
-macro IS_SPEC_OBJECT(arg)   = (%_IsSpecObject(arg));
+# Macro for ES queries of the type: "Type(O) is Object."
+macro IS_RECEIVER(arg) = (%_IsJSReceiver(arg));
 
-# Macro for ECMAScript 5 queries of the type:
-# "IsCallable(O)"
+# Macro for ES queries of the type: "IsCallable(O)"
 macro IS_CALLABLE(arg) = (typeof(arg) === 'function');
 
 # Macro for ES6 CheckObjectCoercible
 # Will throw a TypeError of the form "[functionName] called on null or undefined".
 macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw MakeTypeError(kCalledOnNullOrUndefined, functionName);
-
-# Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
-define kBoundFunctionIndex = 0;
-define kBoundThisIndex = 1;
-define kBoundArgumentsStartIndex = 2;
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
@@ -193,44 +157,6 @@ macro REGEXP_SOURCE(regexp) = (%_RegExpSource(regexp));
 # REGEXP_NUMBER_OF_CAPTURES
 macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
 
-# Limit according to ECMA 262 15.9.1.1
-define MAX_TIME_MS = 8640000000000000;
-# Limit which is MAX_TIME_MS + msPerMonth.
-define MAX_TIME_BEFORE_UTC = 8640002592000000;
-
-# Gets the value of a Date object. If arg is not a Date object
-# a type error is thrown.
-macro CHECK_DATE(arg) = if (!%_IsDate(arg)) %_ThrowNotDateError();
-macro LOCAL_DATE_VALUE(arg) = (%_DateField(arg, 0) + %_DateField(arg, 21));
-macro UTC_DATE_VALUE(arg)    = (%_DateField(arg, 0));
-
-macro LOCAL_YEAR(arg)        = (%_DateField(arg, 1));
-macro LOCAL_MONTH(arg)       = (%_DateField(arg, 2));
-macro LOCAL_DAY(arg)         = (%_DateField(arg, 3));
-macro LOCAL_WEEKDAY(arg)     = (%_DateField(arg, 4));
-macro LOCAL_HOUR(arg)        = (%_DateField(arg, 5));
-macro LOCAL_MIN(arg)         = (%_DateField(arg, 6));
-macro LOCAL_SEC(arg)         = (%_DateField(arg, 7));
-macro LOCAL_MS(arg)          = (%_DateField(arg, 8));
-macro LOCAL_DAYS(arg)        = (%_DateField(arg, 9));
-macro LOCAL_TIME_IN_DAY(arg) = (%_DateField(arg, 10));
-
-macro UTC_YEAR(arg)        = (%_DateField(arg, 11));
-macro UTC_MONTH(arg)       = (%_DateField(arg, 12));
-macro UTC_DAY(arg)         = (%_DateField(arg, 13));
-macro UTC_WEEKDAY(arg)     = (%_DateField(arg, 14));
-macro UTC_HOUR(arg)        = (%_DateField(arg, 15));
-macro UTC_MIN(arg)         = (%_DateField(arg, 16));
-macro UTC_SEC(arg)         = (%_DateField(arg, 17));
-macro UTC_MS(arg)          = (%_DateField(arg, 18));
-macro UTC_DAYS(arg)        = (%_DateField(arg, 19));
-macro UTC_TIME_IN_DAY(arg) = (%_DateField(arg, 20));
-
-macro TIMEZONE_OFFSET(arg)   = (%_DateField(arg, 21));
-
-macro SET_UTC_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 1));
-macro SET_LOCAL_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 0));
-
 # Last input and last subject of regexp matches.
 define LAST_SUBJECT_INDEX = 1;
 macro LAST_SUBJECT(array) = ((array)[1]);
@@ -274,11 +200,11 @@ define COMPILATION_TYPE_JSON = 2;
 # Matches Messages::kNoLineNumberInfo from v8.h
 define kNoLineNumberInfo = 0;
 
-# Matches PropertyAttributes from property-details.h
-define PROPERTY_ATTRIBUTES_NONE = 0;
-define PROPERTY_ATTRIBUTES_STRING = 8;
-define PROPERTY_ATTRIBUTES_SYMBOLIC = 16;
-define PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32;
+# Must match PropertyFilter in property-details.h
+define PROPERTY_FILTER_NONE = 0;
+define PROPERTY_FILTER_ONLY_ENUMERABLE = 2;
+define PROPERTY_FILTER_SKIP_STRINGS = 8;
+define PROPERTY_FILTER_SKIP_SYMBOLS = 16;
 
 # Use for keys, values and entries iterators.
 define ITERATOR_KIND_KEYS = 1;
@@ -314,9 +240,30 @@ define NOT_FOUND = -1;
 
 # Check whether debug is active.
 define DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
-macro DEBUG_IS_STEPPING(function) = (%_DebugIsActive() != 0 && %DebugCallbackSupportsStepping(function));
 macro DEBUG_PREPARE_STEP_IN_IF_STEPPING(function) = if (%_DebugIsActive() != 0) %DebugPrepareStepInIfStepping(function);
 
 # SharedFlag equivalents
 define kNotShared = false;
 define kShared = true;
+
+# UseCounters from include/v8.h
+define kUseAsm = 0;
+define kBreakIterator = 1;
+define kLegacyConst = 2;
+define kMarkDequeOverflow = 3;
+define kStoreBufferOverflow = 4;
+define kSlotsBufferOverflow = 5;
+define kObjectObserve = 6;
+define kForcedGC = 7;
+define kSloppyMode = 8;
+define kStrictMode = 9;
+define kStrongMode = 10;
+define kRegExpPrototypeStickyGetter = 11;
+define kRegExpPrototypeToString = 12;
+define kRegExpPrototypeUnicodeGetter = 13;
+define kIntlV8Parse = 14;
+define kIntlPattern = 15;
+define kIntlResolved = 16;
+define kPromiseChain = 17;
+define kPromiseAccept = 18;
+define kPromiseDefer = 19;

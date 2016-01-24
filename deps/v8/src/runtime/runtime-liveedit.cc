@@ -200,22 +200,34 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchFunctionPositions) {
 RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 1);
-  RUNTIME_ASSERT(shared_array->length()->IsSmi());
-  RUNTIME_ASSERT(shared_array->HasFastElements())
-  int array_length = Smi::cast(shared_array->length())->value();
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, old_shared_array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, new_shared_array, 1);
+  CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 2);
+  USE(new_shared_array);
+  RUNTIME_ASSERT(old_shared_array->length()->IsSmi());
+  RUNTIME_ASSERT(new_shared_array->length() == old_shared_array->length());
+  RUNTIME_ASSERT(old_shared_array->HasFastElements())
+  RUNTIME_ASSERT(new_shared_array->HasFastElements())
+  int array_length = Smi::cast(old_shared_array->length())->value();
   for (int i = 0; i < array_length; i++) {
-    Handle<Object> element;
+    Handle<Object> old_element;
+    Handle<Object> new_element;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, element, Object::GetElement(isolate, shared_array, i));
+        isolate, old_element, Object::GetElement(isolate, old_shared_array, i));
     RUNTIME_ASSERT(
-        element->IsJSValue() &&
-        Handle<JSValue>::cast(element)->value()->IsSharedFunctionInfo());
+        old_element->IsJSValue() &&
+        Handle<JSValue>::cast(old_element)->value()->IsSharedFunctionInfo());
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, new_element, Object::GetElement(isolate, new_shared_array, i));
+    RUNTIME_ASSERT(
+        new_element->IsUndefined() ||
+        (new_element->IsJSValue() &&
+         Handle<JSValue>::cast(new_element)->value()->IsSharedFunctionInfo()));
   }
 
-  return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
+  return *LiveEdit::CheckAndDropActivations(old_shared_array, new_shared_array,
+                                            do_drop);
 }
 
 

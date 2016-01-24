@@ -128,6 +128,9 @@ class InstructionOperandConverter {
   }
 
   Frame* frame() const { return gen_->frame(); }
+  FrameAccessState* frame_access_state() const {
+    return gen_->frame_access_state();
+  }
   Isolate* isolate() const { return gen_->isolate(); }
   Linkage* linkage() const { return gen_->linkage(); }
 

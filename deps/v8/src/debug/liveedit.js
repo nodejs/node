@@ -142,14 +142,17 @@
     HarvestTodo(root_old_node);
 
     // Collect shared infos for functions whose code need to be patched.
-    var replaced_function_infos = new GlobalArray();
+    var replaced_function_old_infos = new GlobalArray();
+    var replaced_function_new_infos = new GlobalArray();
     for (var i = 0; i < replace_code_list.length; i++) {
-      var live_shared_function_infos =
-          replace_code_list[i].live_shared_function_infos;
+      var old_infos = replace_code_list[i].live_shared_function_infos;
+      var new_info =
+          replace_code_list[i].corresponding_node.info.shared_function_info;
 
-      if (live_shared_function_infos) {
-        for (var j = 0; j < live_shared_function_infos.length; j++) {
-          replaced_function_infos.push(live_shared_function_infos[j]);
+      if (old_infos) {
+        for (var j = 0; j < old_infos.length; j++) {
+          replaced_function_old_infos.push(old_infos[j]);
+          replaced_function_new_infos.push(new_info);
         }
       }
     }
@@ -159,7 +162,9 @@
 
     // Check that function being patched is not currently on stack or drop them.
     var dropped_functions_number =
-        CheckStackActivations(replaced_function_infos, change_log);
+        CheckStackActivations(replaced_function_old_infos,
+                              replaced_function_new_infos,
+                              change_log);
 
     // Our current implementation requires client to manually issue "step in"
     // command for correct stack state if the stack was modified.
@@ -910,21 +915,24 @@
   // For array of wrapped shared function infos checks that none of them
   // have activations on stack (of any thread). Throws a Failure exception
   // if this proves to be false.
-  function CheckStackActivations(shared_wrapper_list, change_log) {
-    var shared_list = new GlobalArray();
-    for (var i = 0; i < shared_wrapper_list.length; i++) {
-      shared_list[i] = shared_wrapper_list[i].info;
+  function CheckStackActivations(old_shared_wrapper_list,
+                                 new_shared_list,
+                                 change_log) {
+    var old_shared_list = new GlobalArray();
+    for (var i = 0; i < old_shared_wrapper_list.length; i++) {
+      old_shared_list[i] = old_shared_wrapper_list[i].info;
     }
-    var result = %LiveEditCheckAndDropActivations(shared_list, true);
-    if (result[shared_list.length]) {
+    var result = %LiveEditCheckAndDropActivations(
+                     old_shared_list, new_shared_list, true);
+    if (result[old_shared_wrapper_list.length]) {
       // Extra array element may contain error message.
-      throw new Failure(result[shared_list.length]);
+      throw new Failure(result[old_shared_wrapper_list.length]);
     }
 
     var problems = new GlobalArray();
     var dropped = new GlobalArray();
-    for (var i = 0; i < shared_list.length; i++) {
-      var shared = shared_wrapper_list[i];
+    for (var i = 0; i < old_shared_list.length; i++) {
+      var shared = old_shared_wrapper_list[i];
       if (result[i] == FunctionPatchabilityStatus.REPLACED_ON_ACTIVE_STACK) {
         dropped.push({ name: shared.function_name } );
       } else if (result[i] != FunctionPatchabilityStatus.AVAILABLE_FOR_PATCH) {
@@ -957,7 +965,8 @@
       BLOCKED_UNDER_NATIVE_CODE: 4,
       REPLACED_ON_ACTIVE_STACK: 5,
       BLOCKED_UNDER_GENERATOR: 6,
-      BLOCKED_ACTIVE_GENERATOR: 7
+      BLOCKED_ACTIVE_GENERATOR: 7,
+      BLOCKED_NO_NEW_TARGET_ON_RESTART: 8
   };
 
   FunctionPatchabilityStatus.SymbolName = function(code) {

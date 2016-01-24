@@ -37,10 +37,10 @@ var bp1, bp2;
 
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
-    if (state == 0) {
-      exec_state.prepareStep(Debug.StepAction.StepIn, 1000);
-      state = 1;
-    } else if (state == 1) {
+    if (step_count > 0) {
+      exec_state.prepareStep(Debug.StepAction.StepIn);
+      step_count--;
+    } else {
       result = exec_state.frame().evaluate("i").value();
       // Clear the break point on line 2 if set.
       if (bp2) {
@@ -65,19 +65,8 @@ function f() {
 bp1 = Debug.setBreakPoint(f, 1);
 
 // Check that performing 1000 steps will make i 499.
-state = 0;
+var step_count = 1000;
 result = -1;
 f();
 assertEquals(332, result);
-
-// Check that performing 1000 steps with a break point on the statement in the
-// for loop (line 2) will only make i 0 as a real break point breaks even when
-// multiple steps have been requested.
-state = 0;
-result = -1;
-bp2 = Debug.setBreakPoint(f, 3);
-f();
-assertEquals(0, result);
-
-// Get rid of the debug event listener.
 Debug.setListener(null);

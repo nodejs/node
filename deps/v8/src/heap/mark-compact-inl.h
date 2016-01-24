@@ -140,6 +140,55 @@ void CodeFlusher::ClearNextCandidate(SharedFunctionInfo* candidate) {
   candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
 }
 
+
+template <LiveObjectIterationMode T>
+HeapObject* LiveObjectIterator<T>::Next() {
+  while (!it_.Done()) {
+    HeapObject* object = nullptr;
+    while (current_cell_ != 0) {
+      uint32_t trailing_zeros = base::bits::CountTrailingZeros32(current_cell_);
+      Address addr = cell_base_ + trailing_zeros * kPointerSize;
+
+      // Clear the first bit of the found object..
+      current_cell_ &= ~(1u << trailing_zeros);
+
+      uint32_t second_bit_index = 0;
+      if (trailing_zeros < Bitmap::kBitIndexMask) {
+        second_bit_index = 1u << (trailing_zeros + 1);
+      } else {
+        second_bit_index = 0x1;
+        // The overlapping case; there has to exist a cell after the current
+        // cell.
+        DCHECK(!it_.Done());
+        it_.Advance();
+        cell_base_ = it_.CurrentCellBase();
+        current_cell_ = *it_.CurrentCell();
+      }
+      if (T == kBlackObjects && (current_cell_ & second_bit_index)) {
+        object = HeapObject::FromAddress(addr);
+      } else if (T == kGreyObjects && !(current_cell_ & second_bit_index)) {
+        object = HeapObject::FromAddress(addr);
+      } else if (T == kAllLiveObjects) {
+        object = HeapObject::FromAddress(addr);
+      }
+      // Clear the second bit of the found object.
+      current_cell_ &= ~second_bit_index;
+
+      // We found a live object.
+      if (object != nullptr) break;
+    }
+    if (current_cell_ == 0) {
+      if (!it_.Done()) {
+        it_.Advance();
+        cell_base_ = it_.CurrentCellBase();
+        current_cell_ = *it_.CurrentCell();
+      }
+    }
+    if (object != nullptr) return object;
+  }
+  return nullptr;
+}
+
 }  // namespace internal
 }  // namespace v8
 

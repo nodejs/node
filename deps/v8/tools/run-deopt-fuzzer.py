@@ -316,6 +316,7 @@ def Main():
     suite = testsuite.TestSuite.LoadTestSuite(
         os.path.join(workspace, "test", root))
     if suite:
+      suite.SetupWorkingDirectory()
       suites.append(suite)
 
   if options.download_data:
@@ -380,7 +381,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         0,  # Don't rerun failing tests.
                         0,  # No use of a rerun-failing-tests maximum.
                         False,  # No predictable mode.
-                        False)  # No no_harness mode.
+                        False,  # No no_harness mode.
+                        False)   # Don't use perf data.
 
   # Find available test suites and read test cases from them.
   variables = {
@@ -388,6 +390,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "asan": options.asan,
     "deopt_fuzzer": True,
     "gc_stress": False,
+    "gcov_coverage": False,
     "ignition": False,
     "isolates": options.isolates,
     "mode": mode,

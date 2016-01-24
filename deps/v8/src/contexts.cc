@@ -4,10 +4,10 @@
 
 #include "src/contexts.h"
 
+#include "src/ast/scopeinfo.h"
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
-#include "src/scopeinfo.h"
 
 namespace v8 {
 namespace internal {
@@ -82,8 +82,8 @@ Context* Context::declaration_context() {
 
 JSObject* Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext());
-  Object* object = extension();
-  if (object == nullptr) return nullptr;
+  HeapObject* object = extension();
+  if (object->IsTheHole()) return nullptr;
   if (IsBlockContext()) {
     if (!object->IsSloppyBlockWithEvalContextExtension()) return nullptr;
     object = SloppyBlockWithEvalContextExtension::cast(object)->extension();
@@ -103,7 +103,7 @@ JSReceiver* Context::extension_receiver() {
 
 ScopeInfo* Context::scope_info() {
   DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext());
-  Object* object = extension();
+  HeapObject* object = extension();
   if (object->IsSloppyBlockWithEvalContextExtension()) {
     DCHECK(IsBlockContext());
     object = SloppyBlockWithEvalContextExtension::cast(object)->scope_info();
@@ -118,23 +118,17 @@ String* Context::catch_name() {
 }
 
 
+JSGlobalObject* Context::global_object() {
+  return JSGlobalObject::cast(native_context()->extension());
+}
+
+
 Context* Context::script_context() {
   Context* current = this;
   while (!current->IsScriptContext()) {
     current = current->previous();
   }
   return current;
-}
-
-
-Context* Context::native_context() {
-  // Fast case: the receiver context is already a native context.
-  if (IsNativeContext()) return this;
-  // The global object has a direct pointer to the native context. If the
-  // following DCHECK fails, the native context is probably being accessed
-  // indirectly during bootstrapping. This is unsupported.
-  DCHECK(global_object()->IsJSGlobalObject());
-  return global_object()->native_context();
 }
 
 
@@ -152,30 +146,24 @@ void Context::set_global_proxy(JSObject* object) {
  * Lookups a property in an object environment, taking the unscopables into
  * account. This is used For HasBinding spec algorithms for ObjectEnvironment.
  */
-static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
+static Maybe<bool> UnscopableLookup(LookupIterator* it) {
   Isolate* isolate = it->isolate();
 
-  Maybe<PropertyAttributes> attrs = JSReceiver::GetPropertyAttributes(it);
-  DCHECK(attrs.IsJust() || isolate->has_pending_exception());
-  if (!attrs.IsJust() || attrs.FromJust() == ABSENT) return attrs;
+  Maybe<bool> found = JSReceiver::HasProperty(it);
+  if (!found.IsJust() || !found.FromJust()) return found;
 
-  Handle<Symbol> unscopables_symbol = isolate->factory()->unscopables_symbol();
-  Handle<Object> receiver = it->GetReceiver();
   Handle<Object> unscopables;
-  MaybeHandle<Object> maybe_unscopables =
-      Object::GetProperty(receiver, unscopables_symbol);
-  if (!maybe_unscopables.ToHandle(&unscopables)) {
-    return Nothing<PropertyAttributes>();
-  }
-  if (!unscopables->IsSpecObject()) return attrs;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, unscopables,
+      Object::GetProperty(it->GetReceiver(),
+                          isolate->factory()->unscopables_symbol()),
+      Nothing<bool>());
+  if (!unscopables->IsJSReceiver()) return Just(true);
   Handle<Object> blacklist;
-  MaybeHandle<Object> maybe_blacklist =
-      Object::GetProperty(unscopables, it->name());
-  if (!maybe_blacklist.ToHandle(&blacklist)) {
-    DCHECK(isolate->has_pending_exception());
-    return Nothing<PropertyAttributes>();
-  }
-  return blacklist->BooleanValue() ? Just(ABSENT) : attrs;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, blacklist,
+                                   Object::GetProperty(unscopables, it->name()),
+                                   Nothing<bool>());
+  return Just(!blacklist->BooleanValue());
 }
 
 static void GetAttributesAndBindingFlags(VariableMode mode,
@@ -295,7 +283,15 @@ Handle<Object> Context::Lookup(Handle<String> name,
           maybe = Just(ABSENT);
         } else {
           LookupIterator it(object, name);
-          maybe = UnscopableLookup(&it);
+          Maybe<bool> found = UnscopableLookup(&it);
+          if (found.IsNothing()) {
+            maybe = Nothing<PropertyAttributes>();
+          } else {
+            // Luckily, consumers of |maybe| only care whether the property
+            // was absent or not, so we can return a dummy |NONE| value
+            // for its attributes when it was present.
+            maybe = Just(found.FromJust() ? NONE : ABSENT);
+          }
         }
       } else {
         maybe = JSReceiver::GetPropertyAttributes(object, name);
@@ -557,6 +553,15 @@ bool Context::IsJSBuiltin(Handle<Context> native_context,
 
 
 #ifdef DEBUG
+
+bool Context::IsBootstrappingOrNativeContext(Isolate* isolate, Object* object) {
+  // During bootstrapping we allow all objects to pass as global
+  // objects. This is necessary to fix circular dependencies.
+  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
+         isolate->bootstrapper()->IsActive() || object->IsNativeContext();
+}
+
+
 bool Context::IsBootstrappingOrValidParentContext(
     Object* object, Context* child) {
   // During bootstrapping we allow all objects to pass as
@@ -568,13 +573,6 @@ bool Context::IsBootstrappingOrValidParentContext(
          context->IsModuleContext() || !child->IsModuleContext();
 }
 
-
-bool Context::IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object) {
-  // During bootstrapping we allow all objects to pass as global
-  // objects. This is necessary to fix circular dependencies.
-  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
-         isolate->bootstrapper()->IsActive() || object->IsJSGlobalObject();
-}
 #endif
 
 

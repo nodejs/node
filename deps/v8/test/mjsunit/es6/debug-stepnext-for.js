@@ -72,7 +72,7 @@ function listener(event, exec_state, event_data, data) {
     var match = line.match(/\/\/ Break (\w)$/);
     assertEquals(2, match.length);
     log.push(match[1] + col);
-    exec_state.prepareStep(Debug.StepAction.StepNext, 1);
+    exec_state.prepareStep(Debug.StepAction.StepNext);
     break_count++;
   } catch (e) {
     exception = e;
@@ -86,6 +86,9 @@ Debug.setListener(null);         // Break z
 print("log:\n"+ JSON.stringify(log));
 // The let declaration differs from var in that the loop variable
 // is declared in every iteration.
+// TODO(verwaest): For-of has hacky position numbers for Symbol.iterator and
+// .next. Restore to proper positions once the CallPrinter can disambiguate
+// based on other values.
 var expected = [
   // Entry
   "a2","b2",
@@ -99,12 +102,12 @@ var expected = [
   "f12","f7","F4","f7","F4","f7","F4","f7",
   // For-in-let: get enumerable, next, body, next,  ...
   "g16","g11","G4","g11","G4","g11","G4","g11",
-  // For-of-var: next(), body, next(), body, ...
-  "h16","H4","h16","H4","h16","H4","h16",
-  // For-of: next(), body, next(), body, ...
-  "i12","I4","i12","I4","i12","I4","i12",
-  // For-of-let: next(), body, next(), ...
-  "j16","J4","j16","J4","j16","J4","j16",
+  // For-of-var: [Symbol.iterator](), next(), body, next(), body, ...
+  "h16","h14","h15","H4","h15","H4","h15","H4","h15",
+  // For-of: [Symbol.iterator](), next(), body, next(), body, ...
+  "i12","i10","i11","I4","i11","I4","i11","I4","i11",
+  // For-of-let: [Symbol.iterator](), next(), body, next(), ...
+  "j16","j14","j15","J4","j15","J4","j15","J4","j15",
   // For-var: var decl, condition, body, next, condition, body, ...
   "k7","k20","K4","k26","k20","K4","k26","k20","K4","k26","k20",
   // For: init, condition, body, next, condition, body, ...

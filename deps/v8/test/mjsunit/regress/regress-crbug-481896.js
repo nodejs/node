@@ -29,7 +29,7 @@ function install() {
   eval("this.dynamic = function dynamic() { \n" +
        "  print(\"> dynamic\");  // Break\n" +
        "}\n" +
-       "//@ sourceURL=dynamicScript");
+       "//# sourceURL=dynamicScript");
 }
 
 install();
@@ -53,4 +53,4 @@ Debug.setListener(null);
 assertNull(exception);
 assertEquals(2, break_count);
 
-//@ sourceURL=staticScript
+//# sourceURL=staticScript

@@ -12,4 +12,4 @@ function getter() {
 
 a.__proto__ = Error("");
 a.__defineGetter__('message', getter);
-a.message;
+assertThrows(()=>a.message, RangeError);

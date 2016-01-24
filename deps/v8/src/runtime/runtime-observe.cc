@@ -56,7 +56,7 @@ RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
 RUNTIME_FUNCTION(Runtime_DeliverObservationChangeRecords) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, argument, 1);
   v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
   // We should send a message on uncaught exception thrown during
@@ -65,16 +65,8 @@ RUNTIME_FUNCTION(Runtime_DeliverObservationChangeRecords) {
   catcher.SetVerbose(true);
   Handle<Object> argv[] = {argument};
 
-  // Allow stepping into the observer callback.
-  Debug* debug = isolate->debug();
-  if (debug->is_active() && debug->IsStepping() &&
-      debug->last_step_action() == StepIn) {
-    // Previous StepIn may have activated a StepOut if it was at the frame exit.
-    // In this case to be able to step into the callback again, we need to clear
-    // the step out first.
-    debug->ClearStepOut();
-    debug->FloodWithOneShot(callback);
-  }
+  // If we are in step-in mode, flood the handler.
+  isolate->debug()->EnableStepIn();
 
   USE(Execution::Call(isolate, callback, isolate->factory()->undefined_value(),
                       arraysize(argv), argv));
@@ -104,11 +96,18 @@ static bool ContextsHaveSameOrigin(Handle<Context> context1,
 RUNTIME_FUNCTION(Runtime_ObserverObjectAndRecordHaveSameOrigin) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, observer, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, observer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, record, 2);
 
-  Handle<Context> observer_context(observer->context()->native_context());
+  while (observer->IsJSBoundFunction()) {
+    observer = handle(
+        Handle<JSBoundFunction>::cast(observer)->bound_target_function());
+  }
+  if (!observer->IsJSFunction()) return isolate->heap()->false_value();
+
+  Handle<Context> observer_context(
+      Handle<JSFunction>::cast(observer)->context()->native_context());
   Handle<Context> object_context(object->GetCreationContext());
   Handle<Context> record_context(record->GetCreationContext());
 

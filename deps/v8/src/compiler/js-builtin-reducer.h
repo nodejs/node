@@ -14,7 +14,6 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 class JSGraph;
-class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
@@ -38,7 +37,6 @@ class JSBuiltinReducer final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
   SimplifiedOperatorBuilder* simplified() const;
-  JSOperatorBuilder* javascript() const;
 
   JSGraph* jsgraph_;
 };

@@ -29,11 +29,11 @@ class A { };
 class B extends A { };
 
 shouldBeTrue('new A instanceof A');
-shouldThrow('A()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
+shouldThrow('A()', '"TypeError: Class constructor A cannot be invoked without \'new\'"');
 shouldBeTrue('A.prototype.constructor instanceof Function');
 shouldBe('A.prototype.constructor.name', '"A"');
 shouldBeTrue('new B instanceof A; new B instanceof A');
-shouldThrow('B()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
+shouldThrow('B()', '"TypeError: Class constructor B cannot be invoked without \'new\'"');
 shouldBe('B.prototype.constructor.name', '"B"');
 shouldBeTrue('A !== B');
 shouldBeTrue('A.prototype.constructor !== B.prototype.constructor');

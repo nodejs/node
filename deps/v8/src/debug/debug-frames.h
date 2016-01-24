@@ -21,7 +21,6 @@ class FrameInspector {
   ~FrameInspector();
 
   int GetParametersCount();
-  int expression_count();
   Object* GetFunction();
   Object* GetParameter(int index);
   Object* GetExpression(int index);

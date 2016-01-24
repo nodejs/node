@@ -163,7 +163,6 @@
 //
 //  V8_HAS_CXX11_ALIGNAS        - alignas specifier supported
 //  V8_HAS_CXX11_ALIGNOF        - alignof(type) operator supported
-//  V8_HAS_CXX11_STATIC_ASSERT  - static_assert() supported
 //
 // Compiler-specific feature detection
 //
@@ -230,7 +229,6 @@
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 
 # define V8_HAS_CXX11_ALIGNAS (__has_feature(cxx_alignas))
-# define V8_HAS_CXX11_STATIC_ASSERT (__has_feature(cxx_static_assert))
 
 #elif defined(__GNUC__)
 
@@ -277,7 +275,6 @@
 # if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 #  define V8_HAS_CXX11_ALIGNAS (V8_GNUC_PREREQ(4, 8, 0))
 #  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 8, 0))
-#  define V8_HAS_CXX11_STATIC_ASSERT (V8_GNUC_PREREQ(4, 3, 0))
 # endif
 #endif
 

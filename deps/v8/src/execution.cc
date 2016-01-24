@@ -6,7 +6,6 @@
 
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
-#include "src/deoptimizer.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/vm-state-inl.h"
@@ -95,7 +94,8 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
     if (FLAG_profile_deserialization && target->IsJSFunction()) {
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(target));
     }
-    value = CALL_GENERATED_CODE(stub_entry, orig_func, func, recv, argc, argv);
+    value = CALL_GENERATED_CODE(isolate, stub_entry, orig_func, func, recv,
+                                argc, argv);
   }
 
 #ifdef VERIFY_HEAP
@@ -109,10 +109,6 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
   DCHECK(has_exception == isolate->has_pending_exception());
   if (has_exception) {
     isolate->ReportPendingMessages();
-    // Reset stepping state when script exits with uncaught exception.
-    if (isolate->debug()->is_active()) {
-      isolate->debug()->ClearStepping();
-    }
     return MaybeHandle<Object>();
   } else {
     isolate->clear_pending_message();
@@ -424,50 +420,16 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 // --- C a l l s   t o   n a t i v e s ---
 
-#define RETURN_NATIVE_CALL(name, args)                                         \
-  do {                                                                         \
-    Handle<Object> argv[] = args;                                              \
-    return Call(isolate, isolate->name##_fun(),                                \
-                isolate->factory()->undefined_value(), arraysize(argv), argv); \
-  } while (false)
 
-
-MaybeHandle<Object> Execution::ToDetailString(
-    Isolate* isolate, Handle<Object> obj) {
-  RETURN_NATIVE_CALL(to_detail_string, { obj });
-}
-
-
-MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
-  Handle<Object> time_obj = isolate->factory()->NewNumber(time);
-  RETURN_NATIVE_CALL(create_date, { time_obj });
-}
-
-
-#undef RETURN_NATIVE_CALL
-
-
-MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
+MaybeHandle<JSReceiver> Execution::ToObject(Isolate* isolate,
+                                            Handle<Object> obj) {
   Handle<JSReceiver> receiver;
   if (JSReceiver::ToObject(isolate, obj).ToHandle(&receiver)) {
     return receiver;
   }
-  THROW_NEW_ERROR(
-      isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject), Object);
-}
-
-
-MaybeHandle<JSRegExp> Execution::NewJSRegExp(Handle<String> pattern,
-                                             Handle<String> flags) {
-  Isolate* isolate = pattern->GetIsolate();
-  Handle<JSFunction> function = Handle<JSFunction>(
-      isolate->native_context()->regexp_function());
-  Handle<Object> re_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, re_obj,
-      RegExpImpl::CreateRegExpLiteral(function, pattern, flags),
-      JSRegExp);
-  return Handle<JSRegExp>::cast(re_obj);
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kUndefinedOrNullToObject),
+                  JSReceiver);
 }
 
 
@@ -497,6 +459,11 @@ void StackGuard::HandleGCInterrupt() {
 
 
 Object* StackGuard::HandleInterrupts() {
+  if (FLAG_verify_predictable) {
+    // Advance synthetic time by making a time request.
+    isolate_->heap()->MonotonicallyIncreasingTimeInMs();
+  }
+
   if (CheckAndClearInterrupt(GC_REQUEST)) {
     isolate_->heap()->HandleGCRequest();
   }

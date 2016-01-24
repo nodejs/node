@@ -5,7 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/regexp/bytecodes-irregexp.h"
 
 namespace v8 {

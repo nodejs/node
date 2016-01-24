@@ -9,7 +9,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/base/smart-pointers.h"
 #include "src/compiler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {

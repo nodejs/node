@@ -61,8 +61,6 @@ class LiveEdit : AllStatic {
   enum FrameDropMode {
     // No frame has been dropped.
     FRAMES_UNTOUCHED,
-    // The top JS frame had been calling IC stub. IC stub mustn't be called now.
-    FRAME_DROPPED_IN_IC_CALL,
     // The top JS frame had been calling debug break slot stub. Patch the
     // address this stub jumps to in the end.
     FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
@@ -117,7 +115,8 @@ class LiveEdit : AllStatic {
   // has restart the lowest found frames and drops all other frames above
   // if possible and if do_drop is true.
   static Handle<JSArray> CheckAndDropActivations(
-      Handle<JSArray> shared_info_array, bool do_drop);
+      Handle<JSArray> old_shared_array, Handle<JSArray> new_shared_array,
+      bool do_drop);
 
   // Restarts the call frame and completely drops all frames above it.
   // Return error message or NULL.
@@ -131,7 +130,8 @@ class LiveEdit : AllStatic {
     FUNCTION_BLOCKED_UNDER_NATIVE_CODE = 4,
     FUNCTION_REPLACED_ON_ACTIVE_STACK = 5,
     FUNCTION_BLOCKED_UNDER_GENERATOR = 6,
-    FUNCTION_BLOCKED_ACTIVE_GENERATOR = 7
+    FUNCTION_BLOCKED_ACTIVE_GENERATOR = 7,
+    FUNCTION_BLOCKED_NO_NEW_TARGET_ON_RESTART = 8
   };
 
   // Compares 2 strings line-by-line, then token-wise and returns diff in form
@@ -172,7 +172,8 @@ class LiveEdit : AllStatic {
    */
   // A size of frame base including fp. Padding words starts right above
   // the base.
-  static const int kFrameDropperFrameSize = 4;
+  static const int kFrameDropperFrameSize =
+      4 + StandardFrameConstants::kCPSlotCount;
   // A number of words that should be reserved on stack for the LiveEdit use.
   // Stored on stack in form of Smi.
   static const int kFramePaddingInitialSize = 1;
