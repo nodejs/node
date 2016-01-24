@@ -12,6 +12,9 @@ const assert = require('assert');
 // Normally when the writable stream emits a 'drain' event, the server then
 // uncorks the readable stream, although we arent testing that part here.
 
+// The issue being tested exists in Node.js 0.10.20 and is resolved in 0.10.21
+// and newer.
+
 switch (process.argv[2]) {
   case undefined:
     return parent();
@@ -59,7 +62,7 @@ function parent() {
       server.close();
     }));
 
-    server.setTimeout(common.platformTimeout(200), common.mustCall(function() {
+    server.setTimeout(common.platformTimeout(10), common.mustCall(function() {
       child.kill();
     }));
   });
@@ -79,7 +82,11 @@ function child() {
 
   req = new Array(10241).join(req);
 
-  conn.on('connect', write);
+  conn.on('connect', function() {
+    // Terminate child after flooding.    
+    setTimeout(function() { conn.destroy(); }, 500);   
+    write();    
+  });
 
   conn.on('drain', write);
 
