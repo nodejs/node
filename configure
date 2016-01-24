@@ -1102,7 +1102,7 @@ def configure_intl(o):
   return  # end of configure_intl
 
 output = {
-  'variables': { 'python': sys.executable },
+  'variables': {},
   'include_dirs': [],
   'libraries': [],
   'defines': [],
