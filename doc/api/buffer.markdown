@@ -1008,7 +1008,7 @@ When undefined, `offset` defaults to `0`, and `encoding` defaults to `'utf8'`.
 The `length` parameter is the number of bytes to write, when undefined `length`
 defaults to `buffer.length - offset`. If the Buffer did not contain enough
 space to fit the entire string, only a partial amount of the string will be
-written however, the will not write only partially encoded characters. The
+written however, it will not write only partially encoded characters. The
 return value indicates the number of octets written.
 
 ```js
