@@ -235,7 +235,7 @@ decipher.end();
 
 Example: Using `Decipher` and piped streams:
 
-```
+```js
 const crypto = require('crypto');
 const fs = require('fs');
 const decipher = crypto.createDecipher('aes192', 'a password');
