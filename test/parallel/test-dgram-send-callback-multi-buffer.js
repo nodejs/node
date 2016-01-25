@@ -16,12 +16,8 @@ const onMessage = common.mustCall(function(err, bytes) {
   client.close();
 });
 
-const buf1 = new Buffer(256);
-
-const buf2 = new Buffer(256);
-
-buf1.fill('x');
-buf2.fill('y');
+const buf1 = Buffer.alloc(256, 'x');
+const buf2 = Buffer.alloc(256, 'y');
 
 client.on('listening', function() {
   client.send([buf1, buf2], common.PORT, common.localhostIPv4, onMessage);

@@ -86,7 +86,7 @@ assert.equal(bob.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
  * The values below (modp2/modp2buf) are for a 1024 bits long prime from
  * RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
 var modp2 = crypto.createDiffieHellmanGroup('modp2');
-var modp2buf = new Buffer([
+var modp2buf = Buffer.from([
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc9, 0x0f,
   0xda, 0xa2, 0x21, 0x68, 0xc2, 0x34, 0xc4, 0xc6, 0x62, 0x8b,
   0x80, 0xdc, 0x1c, 0xd1, 0x29, 0x02, 0x4e, 0x08, 0x8a, 0x67,
@@ -101,7 +101,7 @@ var modp2buf = new Buffer([
   0x1f, 0xe6, 0x49, 0x28, 0x66, 0x51, 0xec, 0xe6, 0x53, 0x81,
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 ]);
-var exmodp2 = crypto.createDiffieHellman(modp2buf, new Buffer([2]));
+var exmodp2 = crypto.createDiffieHellman(modp2buf, Buffer.from([2]));
 modp2.generateKeys();
 exmodp2.generateKeys();
 var modp2Secret = modp2.computeSecret(exmodp2.getPublicKey()).toString('hex');

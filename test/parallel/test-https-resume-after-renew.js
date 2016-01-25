@@ -14,17 +14,14 @@ var server = https.createServer(options, function(req, res) {
   res.end('hello');
 });
 
-var aes = new Buffer(16);
-aes.fill('S');
-var hmac = new Buffer(16);
-hmac.fill('H');
+var aes = Buffer.alloc(16, 'S');
+var hmac = Buffer.alloc(16, 'H');
 
 server._sharedCreds.context.enableTicketKeyCallback();
 server._sharedCreds.context.onticketkeycallback = function(name, iv, enc) {
   if (enc) {
-    var newName = new Buffer(16);
+    var newName = Buffer.alloc(16, 'A');
     var newIV = crypto.randomBytes(16);
-    newName.fill('A');
   } else {
     // Renew
     return [ 2, hmac, aes ];

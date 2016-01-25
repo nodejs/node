@@ -9,7 +9,7 @@ var bench = common.createBenchmark(main, {
   n: [25e4]
 });
 
-var UTF_ALPHA = 'Blåbærsyltetøy';
+var UTF_ALPHA = 'BlÃ¥bÃ¦rsyltetÃ¸y';
 var ASC_ALPHA = 'Blueberry jam';
 
 function main(conf) {
@@ -35,18 +35,18 @@ function main(conf) {
 
   for (i = 0; i < inLen; ++i) {
     if (i > 0 && (i % chunkLen) === 0 && !isBase64) {
-      chunks.push(new Buffer(str, encoding));
+      chunks.push(Buffer.from(str, encoding));
       str = '';
     }
     str += alpha[i % alpha.length];
   }
   if (str.length > 0 && !isBase64)
-    chunks.push(new Buffer(str, encoding));
+    chunks.push(Buffer.from(str, encoding));
   if (isBase64) {
-    str = new Buffer(str, 'utf8').toString('base64');
+    str = Buffer.from(str, 'utf8').toString('base64');
     while (str.length > 0) {
       var len = Math.min(chunkLen, str.length);
-      chunks.push(new Buffer(str.substring(0, len), 'utf8'));
+      chunks.push(Buffer.from(str.substring(0, len), 'utf8'));
       str = str.substring(len);
     }
   }

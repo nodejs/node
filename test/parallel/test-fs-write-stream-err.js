@@ -44,9 +44,9 @@ stream.on('error', common.mustCall(function(err_) {
 }));
 
 
-stream.write(new Buffer(256), function() {
+stream.write(Buffer.allocUnsafe(256), function() {
   console.error('first cb');
-  stream.write(new Buffer(256), common.mustCall(function(err_) {
+  stream.write(Buffer.allocUnsafe(256), common.mustCall(function(err_) {
     console.error('second cb');
     assert.equal(err_, err);
   }));

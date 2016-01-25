@@ -14,7 +14,7 @@ var util = require('util');
 
 var clientConnected = 0;
 var serverConnected = 0;
-var request = new Buffer(new Array(1024 * 256).join('ABCD')); // 1mb
+var request = Buffer.from(new Array(1024 * 256).join('ABCD')); // 1mb
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),

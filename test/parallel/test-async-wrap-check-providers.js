@@ -81,7 +81,7 @@ net.createServer(function(c) {
 });
 
 dgram.createSocket('udp4').bind(common.PORT, function() {
-  this.send(new Buffer(2), 0, 2, common.PORT, '::', () => {
+  this.send(Buffer.allocUnsafe(2), 0, 2, common.PORT, '::', () => {
     this.close();
   });
 });

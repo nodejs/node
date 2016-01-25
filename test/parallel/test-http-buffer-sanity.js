@@ -6,7 +6,7 @@ var http = require('http');
 var bufferSize = 5 * 1024 * 1024;
 var measuredSize = 0;
 
-var buffer = Buffer(bufferSize);
+var buffer = Buffer.allocUnsafe(bufferSize);
 for (var i = 0; i < buffer.length; i++) {
   buffer[i] = i % 256;
 }

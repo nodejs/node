@@ -25,7 +25,7 @@ function main(conf) {
   len = +conf.len;
   num = +conf.num;
   type = conf.type;
-  chunk = new Buffer(len);
+  chunk = Buffer.allocUnsafe(len);
   server();
 }
 

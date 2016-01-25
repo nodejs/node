@@ -28,7 +28,7 @@ function main(conf) {
       strings.push(data);
     } else if (encoding === 'base64') {
       // Base64 strings will be much longer than their UTF8 counterparts
-      strings.push(new Buffer(data, 'utf8').toString('base64'));
+      strings.push(Buffer.from(data, 'utf8').toString('base64'));
     }
   }
 

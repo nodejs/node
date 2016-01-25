@@ -91,7 +91,7 @@ var srv = net.createServer(function(s) {
   var str = JSON.stringify(DATA) + '\n';
 
   DATA.ord = DATA.ord + 1;
-  var buf = new buffer.Buffer(str.length);
+  var buf = buffer.Buffer.allocUnsafe(str.length);
   buf.write(JSON.stringify(DATA) + '\n', 'utf8');
 
   s.write(str, 'utf8', pipeFDs[1]);

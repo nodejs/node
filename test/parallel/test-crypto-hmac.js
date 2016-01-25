@@ -77,8 +77,8 @@ for (let i = 0, l = wikipedia.length; i < l; i++) {
 // Test HMAC-SHA-* (rfc 4231 Test Cases)
 var rfc4231 = [
   {
-    key: new Buffer('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
-    data: new Buffer('4869205468657265', 'hex'), // 'Hi There'
+    key: Buffer.from('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
+    data: Buffer.from('4869205468657265', 'hex'), // 'Hi There'
     hmac: {
       sha224: '896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22',
       sha256:
@@ -94,8 +94,8 @@ var rfc4231 = [
     }
   },
   {
-    key: new Buffer('4a656665', 'hex'), // 'Jefe'
-    data: new Buffer('7768617420646f2079612077616e7420666f72206e6f74686' +
+    key: Buffer.from('4a656665', 'hex'), // 'Jefe'
+    data: Buffer.from('7768617420646f2079612077616e7420666f72206e6f74686' +
                      '96e673f', 'hex'), // 'what do ya want for nothing?'
     hmac: {
       sha224: 'a30e01098bc6dbbf45690f3a7e9e6d0f8bbea2a39e6148008fd05e44',
@@ -112,8 +112,8 @@ var rfc4231 = [
     }
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
-    data: new Buffer('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
+    data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
                      'ddddddddddddddddddddddddddddddddddddddddddddddddddd',
                      'hex'),
     hmac: {
@@ -131,9 +131,9 @@ var rfc4231 = [
     }
   },
   {
-    key: new Buffer('0102030405060708090a0b0c0d0e0f10111213141516171819',
+    key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
                     'hex'),
-    data: new Buffer('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
+    data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
                      'hex'),
     hmac: {
@@ -152,9 +152,9 @@ var rfc4231 = [
   },
 
   {
-    key: new Buffer('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
+    key: Buffer.from('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
     // 'Test With Truncation'
-    data: new Buffer('546573742057697468205472756e636174696f6e', 'hex'),
+    data: Buffer.from('546573742057697468205472756e636174696f6e', 'hex'),
     hmac: {
       sha224: '0e2aea68a90c8d37c988bcdb9fca6fa8',
       sha256: 'a3b6167473100ee06e0c796c2955552b',
@@ -164,14 +164,14 @@ var rfc4231 = [
     truncate: true
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaa', 'hex'),
     // 'Test Using Larger Than Block-Size Key - Hash Key First'
-    data: new Buffer('54657374205573696e67204c6172676572205468616e20426' +
+    data: Buffer.from('54657374205573696e67204c6172676572205468616e20426' +
                      'c6f636b2d53697a65204b6579202d2048617368204b657920' +
                      '4669727374', 'hex'),
     hmac: {
@@ -189,7 +189,7 @@ var rfc4231 = [
     }
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
@@ -198,7 +198,7 @@ var rfc4231 = [
     // 'This is a test using a larger than block-size key and a larger ' +
     // 'than block-size data. The key needs to be hashed before being ' +
     // 'used by the HMAC algorithm.'
-    data: new Buffer('5468697320697320612074657374207573696e672061206c6' +
+    data: Buffer.from('5468697320697320612074657374207573696e672061206c6' +
                      '172676572207468616e20626c6f636b2d73697a65206b6579' +
                      '20616e642061206c6172676572207468616e20626c6f636b2' +
                      'd73697a6520646174612e20546865206b6579206e65656473' +
@@ -243,7 +243,7 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
 // Test HMAC-MD5/SHA1 (rfc 2202 Test Cases)
 var rfc2202_md5 = [
   {
-    key: new Buffer('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
+    key: Buffer.from('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: 'Hi There',
     hmac: '9294727a3638bb1c13f48ef8158bfc9d'
   },
@@ -253,28 +253,28 @@ var rfc2202_md5 = [
     hmac: '750c783e6ab0b503eaa86e310a5db738'
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
-    data: new Buffer('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
+    data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
                      'ddddddddddddddddddddddddddddddddddddddddddddddddddd',
                      'hex'),
     hmac: '56be34521d144c88dbb8c733f0e8b3f6'
   },
   {
-    key: new Buffer('0102030405060708090a0b0c0d0e0f10111213141516171819',
+    key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
                     'hex'),
-    data: new Buffer('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
+    data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
                      'hex'),
     hmac: '697eaf0aca3a3aea3a75164746ffaa79'
   },
   {
-    key: new Buffer('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
+    key: Buffer.from('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
     data: 'Test With Truncation',
     hmac: '56461ef2342edc00f9bab995690efd4c'
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaa',
@@ -283,7 +283,7 @@ var rfc2202_md5 = [
     hmac: '6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd'
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaa',
@@ -296,7 +296,7 @@ var rfc2202_md5 = [
 ];
 var rfc2202_sha1 = [
   {
-    key: new Buffer('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
+    key: Buffer.from('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: 'Hi There',
     hmac: 'b617318655057264e28bc0b6fb378c8ef146be00'
   },
@@ -306,29 +306,29 @@ var rfc2202_sha1 = [
     hmac: 'effcdf6ae5eb2fa2d27416d5f184df9c259a7c79'
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
-    data: new Buffer('ddddddddddddddddddddddddddddddddddddddddddddd' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
+    data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddd' +
                      'ddddddddddddddddddddddddddddddddddddddddddddd' +
                      'dddddddddd',
                      'hex'),
     hmac: '125d7342b9ac11cd91a39af48aa17b4f63f175d3'
   },
   {
-    key: new Buffer('0102030405060708090a0b0c0d0e0f10111213141516171819',
+    key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
                     'hex'),
-    data: new Buffer('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
+    data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
                      'hex'),
     hmac: '4c9007f4026250c6bc8414f9bf50c86c2d7235da'
   },
   {
-    key: new Buffer('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
+    key: Buffer.from('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
     data: 'Test With Truncation',
     hmac: '4c1a03424b55e07fe7f27be1d58bb9324a9a5a04'
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaa',
@@ -337,7 +337,7 @@ var rfc2202_sha1 = [
     hmac: 'aa4ae5e15272d00e95705637ce8a3b55ed402112'
   },
   {
-    key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
+    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaa',

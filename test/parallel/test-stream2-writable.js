@@ -154,7 +154,7 @@ test('write bufferize', function(t) {
 
   chunks.forEach(function(chunk, i) {
     var enc = encodings[ i % encodings.length ];
-    chunk = new Buffer(chunk);
+    chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
   t.end();
@@ -168,7 +168,7 @@ test('write no bufferize', function(t) {
 
   tw._write = function(chunk, encoding, cb) {
     assert(typeof chunk === 'string');
-    chunk = new Buffer(chunk, encoding);
+    chunk = Buffer.from(chunk, encoding);
     return TestWriter.prototype._write.call(this, chunk, encoding, cb);
   };
 
@@ -191,7 +191,7 @@ test('write no bufferize', function(t) {
 
   chunks.forEach(function(chunk, i) {
     var enc = encodings[ i % encodings.length ];
-    chunk = new Buffer(chunk);
+    chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
   t.end();
@@ -235,7 +235,7 @@ test('end callback', function(t) {
 
 test('end callback with chunk', function(t) {
   var tw = new TestWriter();
-  tw.end(new Buffer('hello world'), function() {
+  tw.end(Buffer.from('hello world'), function() {
     t.end();
   });
 });
@@ -249,7 +249,7 @@ test('end callback with chunk and encoding', function(t) {
 
 test('end callback after .write() call', function(t) {
   var tw = new TestWriter();
-  tw.write(new Buffer('hello world'));
+  tw.write(Buffer.from('hello world'));
   tw.end(function() {
     t.end();
   });
@@ -258,7 +258,7 @@ test('end callback after .write() call', function(t) {
 test('end callback called after write callback', function(t) {
   var tw = new TestWriter();
   var writeCalledback = false;
-  tw.write(new Buffer('hello world'),  function() {
+  tw.write(Buffer.from('hello world'),  function() {
     writeCalledback = true;
   });
   tw.end(function() {
@@ -274,7 +274,7 @@ test('encoding should be ignored for buffers', function(t) {
     t.equal(chunk.toString('hex'), hex);
     t.end();
   };
-  var buf = new Buffer(hex, 'hex');
+  var buf = Buffer.from(hex, 'hex');
   tw.write(buf, 'binary');
 });
 
@@ -335,7 +335,7 @@ test('dont end while writing', function(t) {
     assert(wrote);
     t.end();
   });
-  w.write(Buffer(0));
+  w.write(Buffer.alloc(0));
   w.end();
 });
 
@@ -352,7 +352,7 @@ test('finish does not come before write cb', function(t) {
     assert(writeCb);
     t.end();
   });
-  w.write(Buffer(0));
+  w.write(Buffer.alloc(0));
   w.end();
 });
 
@@ -366,7 +366,7 @@ test('finish does not come before sync _write cb', function(t) {
     assert(writeCb);
     t.end();
   });
-  w.write(Buffer(0), function(er) {
+  w.write(Buffer.alloc(0), function(er) {
     writeCb = true;
   });
   w.end();
@@ -380,6 +380,6 @@ test('finish is emitted if last chunk is empty', function(t) {
   w.on('finish', function() {
     t.end();
   });
-  w.write(Buffer(1));
-  w.end(Buffer(0));
+  w.write(Buffer.allocUnsafe(1));
+  w.end(Buffer.alloc(0));
 });

@@ -27,11 +27,11 @@ function main(conf) {
   }
 
   if (encoding === 'ucs2') {
-    aliceBuffer = new Buffer(aliceBuffer.toString(), encoding);
+    aliceBuffer = Buffer.from(aliceBuffer.toString(), encoding);
   }
 
   if (conf.type === 'buffer') {
-    search = new Buffer(new Buffer(search).toString(), encoding);
+    search = Buffer.from(Buffer.from(search).toString(), encoding);
   }
 
   bench.start();

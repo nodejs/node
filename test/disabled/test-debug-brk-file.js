@@ -56,7 +56,7 @@ function debug_client_connect() {
     }
     if (msg.headers && Buffer.byteLength(tmpBuf) >= msg.contentLength) {
       try {
-        var b = Buffer(tmpBuf);
+        var b = Buffer.from(tmpBuf);
         var body = b.toString('utf8', 0, msg.contentLength);
         tmpBuf = b.toString('utf8', msg.contentLength, b.length);
 

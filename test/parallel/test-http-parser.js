@@ -73,7 +73,7 @@ function expectBody(expected) {
 // Simple request test.
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'GET /hello HTTP/1.1' + CRLF +
       CRLF);
 
@@ -111,7 +111,7 @@ function expectBody(expected) {
 // Simple response test.
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'HTTP/1.1 200 OK' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Content-Length: 4' + CRLF +
@@ -144,7 +144,7 @@ function expectBody(expected) {
 // Response with no headers.
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'HTTP/1.0 200 Connection established' + CRLF +
       CRLF);
 
@@ -169,7 +169,7 @@ function expectBody(expected) {
 // Trailing headers.
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'POST /it HTTP/1.1' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
       CRLF +
@@ -215,7 +215,7 @@ function expectBody(expected) {
 // Test header ordering.
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'GET / HTTP/1.0' + CRLF +
       'X-Filler: 1337' + CRLF +
       'X-Filler:   42' + CRLF +
@@ -247,7 +247,7 @@ function expectBody(expected) {
   var lots_of_headers = 'X-Filler: 42' + CRLF;
   lots_of_headers = lots_of_headers.repeat(256);
 
-  var request = Buffer(
+  var request = Buffer.from(
       'GET /foo/bar/baz?quux=42#1337 HTTP/1.0' + CRLF +
       lots_of_headers +
       CRLF);
@@ -279,7 +279,7 @@ function expectBody(expected) {
 // Test request body
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'POST /it HTTP/1.1' + CRLF +
       'Content-Type: application/x-www-form-urlencoded' + CRLF +
       'Content-Length: 15' + CRLF +
@@ -311,7 +311,7 @@ function expectBody(expected) {
 // Test chunked request body
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -352,7 +352,7 @@ function expectBody(expected) {
 // Test chunked request body spread over multiple buffers (packets)
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -385,7 +385,7 @@ function expectBody(expected) {
   parser[kOnBody] = mustCall(onBody, body_parts.length);
   parser.execute(request, 0, request.length);
 
-  request = Buffer(
+  request = Buffer.from(
       '9' + CRLF +
       '123456789' + CRLF +
       'C' + CRLF +
@@ -402,7 +402,7 @@ function expectBody(expected) {
 // Stress test.
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'POST /helpme HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -462,7 +462,7 @@ function expectBody(expected) {
 // Byte by byte test.
 //
 (function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -515,7 +515,7 @@ function expectBody(expected) {
 // Test parser reinit sequence.
 //
 (function() {
-  var req1 = Buffer(
+  var req1 = Buffer.from(
       'PUT /this HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -524,7 +524,7 @@ function expectBody(expected) {
       'ping' + CRLF +
       '0' + CRLF);
 
-  var req2 = Buffer(
+  var req2 = Buffer.from(
       'POST /that HTTP/1.0' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Content-Length: 4' + CRLF +
@@ -568,7 +568,7 @@ function expectBody(expected) {
 // Test parser 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  var request = Buffer(
+  var request = Buffer.from(
       'GET /hello HTTP/1.1' + CRLF +
       CRLF);
 
