@@ -364,7 +364,7 @@ adding the function as a property of `exports`.
 
 To test it, run the following JavaScript:
 
-```cpp
+```js
 // test.js
 const addon = require('./build/Release/addon');
 
