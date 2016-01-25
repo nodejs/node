@@ -5,8 +5,8 @@ const assert = require('assert');
 const os = require('os');
 const SIZE = 28;
 
-const buf1 = Buffer(SIZE);
-const buf2 = Buffer(SIZE);
+const buf1 = Buffer.allocUnsafe(SIZE);
+const buf2 = Buffer.allocUnsafe(SIZE);
 
 
 // Default encoding
@@ -49,7 +49,7 @@ testBufs('\u0222aa', 8, 1, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 4, -1, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 4, 1, 'utf8');
 testBufs('a\u0234b\u0235c\u0236', 12, 1, 'utf8');
-assert.equal(Buffer(1).fill(0).fill('\u0222')[0], 0xc8);
+assert.equal(Buffer.allocUnsafe(1).fill(0).fill('\u0222')[0], 0xc8);
 
 
 // BINARY
@@ -91,7 +91,7 @@ testBufs('\u0222aa', 8, 1, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 4, -1, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 4, 1, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 12, 1, 'ucs2');
-assert.equal(Buffer(1).fill('\u0222', 'ucs2')[0],
+assert.equal(Buffer.allocUnsafe(1).fill('\u0222', 'ucs2')[0],
              os.endianness() === 'LE' ? 0x22 : 0x02);
 
 
@@ -140,13 +140,13 @@ testBufs('Yci0Ysi1Y8i2', 12, 1, 'ucs2');
 
 
 // Buffer
-const buf2Fill = Buffer(1).fill(2);
+const buf2Fill = Buffer.allocUnsafe(1).fill(2);
 assert.deepEqual(genBuffer(4, [buf2Fill]), [2, 2, 2, 2]);
 assert.deepEqual(genBuffer(4, [buf2Fill, 1]), [0, 2, 2, 2]);
 assert.deepEqual(genBuffer(4, [buf2Fill, 1, 3]), [0, 2, 2, 0]);
 assert.deepEqual(genBuffer(4, [buf2Fill, 1, 1]), [0, 0, 0, 0]);
 assert.deepEqual(genBuffer(4, [buf2Fill, 1, -1]), [0, 0, 0, 0]);
-const hexBufFill = Buffer(2).fill(0).fill('0102', 'hex');
+const hexBufFill = Buffer.allocUnsafe(2).fill(0).fill('0102', 'hex');
 assert.deepEqual(genBuffer(4, [hexBufFill]), [1, 2, 1, 2]);
 assert.deepEqual(genBuffer(4, [hexBufFill, 1]), [0, 1, 2, 1]);
 assert.deepEqual(genBuffer(4, [hexBufFill, 1, 3]), [0, 1, 2, 0]);
@@ -166,7 +166,7 @@ assert.throws(() => buf1.fill('a', 0, 0, 'foo'));
 
 
 function genBuffer(size, args) {
-  const b = Buffer(size);
+  const b = Buffer.allocUnsafe(size);
   return b.fill(0).fill.apply(b, args);
 }
 

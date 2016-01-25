@@ -67,10 +67,10 @@ function testCipher2(key) {
 }
 
 testCipher1('MySecretKey123');
-testCipher1(new Buffer('MySecretKey123'));
+testCipher1(Buffer.from('MySecretKey123'));
 
 testCipher2('0123456789abcdef');
-testCipher2(new Buffer('0123456789abcdef'));
+testCipher2(Buffer.from('0123456789abcdef'));
 
 // Base64 padding regression test, see #4837.
 (function() {

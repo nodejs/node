@@ -68,7 +68,7 @@ function test(testOptions, cb) {
     // Just to check that async really works there
     setTimeout(function() {
       callback(null,
-               testOptions.response ? new Buffer(testOptions.response) : null);
+               testOptions.response ? Buffer.from(testOptions.response) : null);
     }, 100);
   });
   server.listen(common.PORT, function() {

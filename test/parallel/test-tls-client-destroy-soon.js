@@ -19,11 +19,9 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var big = new Buffer(2 * 1024 * 1024);
+var big = Buffer.alloc(2 * 1024 * 1024, 'Y');
 var connections = 0;
 var bytesRead = 0;
-
-big.fill('Y');
 
 // create server
 var server = tls.createServer(options, function(socket) {

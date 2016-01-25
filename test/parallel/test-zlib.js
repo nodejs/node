@@ -73,7 +73,7 @@ BufferStream.prototype.write = function(c) {
 BufferStream.prototype.end = function(c) {
   if (c) this.write(c);
   // flatten
-  var buf = new Buffer(this.length);
+  var buf = Buffer.allocUnsafe(this.length);
   var i = 0;
   this.chunks.forEach(function(c) {
     c.copy(buf, i);

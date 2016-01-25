@@ -30,8 +30,8 @@ if (process.argv[2] === 'server') {
   serverProcess.stdout.once('data', function() {
     var client = net.createConnection(common.PORT, '127.0.0.1');
     client.on('connect', function() {
-      const alot = new Buffer(1024);
-      const alittle = new Buffer(1);
+      const alot = Buffer.allocUnsafe(1024);
+      const alittle = Buffer.allocUnsafe(1);
 
       for (var i = 0; i < 100; i++) {
         client.write(alot);

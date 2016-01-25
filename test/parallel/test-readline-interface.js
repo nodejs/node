@@ -230,7 +230,7 @@ function isWarned(emitter) {
   });
 
   // sending a multi-byte utf8 char over multiple writes
-  var buf = Buffer('☮', 'utf8');
+  var buf = Buffer.from('☮', 'utf8');
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
   callCount = 0;
@@ -239,7 +239,7 @@ function isWarned(emitter) {
     assert.equal(line, buf.toString('utf8'));
   });
   [].forEach.call(buf, function(i) {
-    fi.emit('data', Buffer([i]));
+    fi.emit('data', Buffer.from([i]));
   });
   assert.equal(callCount, 0);
   fi.emit('data', '\n');

@@ -3,7 +3,7 @@ require('../common');
 var assert = require('assert');
 var stream = require('stream');
 
-var chunk = new Buffer('hallo');
+var chunk = Buffer.from('hallo');
 
 var util = require('util');
 

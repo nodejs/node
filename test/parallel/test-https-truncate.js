@@ -16,7 +16,7 @@ var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
 var PORT = common.PORT;
 
 // number of bytes discovered empirically to trigger the bug
-var data = new Buffer(1024 * 32 + 1);
+var data = Buffer.allocUnsafe(1024 * 32 + 1);
 
 httpsTest();
 

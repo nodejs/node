@@ -7,10 +7,10 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var iter = (conf.millions >>> 0) * 1e6;
-  var size = (conf.size >>> 0);
-  var b0 = new Buffer(size).fill('a');
-  var b1 = new Buffer(size).fill('a');
+  const iter = (conf.millions >>> 0) * 1e6;
+  const size = (conf.size >>> 0);
+  const b0 = Buffer.alloc(size, 'a');
+  const b1 = Buffer.alloc(size, 'a');
 
   b1[size - 1] = 'b'.charCodeAt(0);
 

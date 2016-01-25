@@ -19,8 +19,7 @@ function main(conf) {
   var chunk;
   switch (conf.type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       encoding = 'utf8';

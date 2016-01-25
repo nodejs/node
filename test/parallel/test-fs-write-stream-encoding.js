@@ -23,7 +23,7 @@ const dummyWriteStream = fs.createWriteStream(dummyPath, {
 exampleReadStream.pipe(dummyWriteStream).on('finish', function() {
   const assertWriteStream = new stream.Writable({
     write: function(chunk, enc, next) {
-      const expected = new Buffer('xyz\n');
+      const expected = Buffer.from('xyz\n');
       assert(chunk.equals(expected));
     }
   });

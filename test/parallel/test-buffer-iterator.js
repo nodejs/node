@@ -2,7 +2,7 @@
 require('../common');
 var assert = require('assert');
 
-var buffer = new Buffer([1, 2, 3, 4, 5]);
+var buffer = Buffer.from([1, 2, 3, 4, 5]);
 var arr;
 var b;
 
