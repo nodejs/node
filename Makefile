@@ -195,7 +195,7 @@ guideassets = $(subst api_assets,guides/assets,$(addprefix out/,$(wildcard doc/a
 $(guidedoc_dirs):
 	mkdir -p $@
 
-out/doc/guides/assets/%: doc/guides_assets/% out/doc/guides/assets/
+out/doc/guides/assets/%: doc/api_assets/% out/doc/guides/assets/
 	cp $< $@
 
 out/doc/guides/%.html: doc/guides/%.md $(NODE_EXE)
