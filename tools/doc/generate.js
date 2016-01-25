@@ -54,6 +54,14 @@ function next(er, input) {
       });
       break;
 
+    // TODO: Merge guide and api html generators
+    case 'html-guides':
+      require('./guides.js')(input, inputFile, template, function(er, html) {
+        if (er) throw er;
+        console.log(html);
+      });
+      break;
+
     default:
       throw new Error('Invalid format: ' + format);
   }

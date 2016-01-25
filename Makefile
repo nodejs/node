@@ -184,6 +184,23 @@ test-timers:
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
+guidedoc_sources = $(wildcard doc/guides/*.md)
+guidedocs = $(addprefix out/,$(guidedoc_sources:.md=.html))
+
+guidedoc_dirs = out/doc out/doc/guides/ out/doc/guides/assets
+
+# TODO(qard): Lifted api assets for now, may want to separate those.
+guideassets = $(subst api_assets,guides/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
+
+$(guidedoc_dirs):
+	mkdir -p $@
+
+out/doc/guides/assets/%: doc/guides_assets/% out/doc/guides/assets/
+	cp $< $@
+
+out/doc/guides/%.html: doc/guides/%.md $(NODE_EXE)
+	$(NODE) tools/doc/generate.js --format=html-guides --template=doc/guide-template.html $< > $@
+
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
 		$(addprefix out/,$(apidoc_sources:.markdown=.json))
@@ -192,7 +209,9 @@ apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-doc: $(apidoc_dirs) $(apiassets) $(apidocs) tools/doc/ $(NODE_EXE)
+guidedocs: $(guidedoc_dirs) $(guideassets) $(guidedocs) tools/doc/ $(NODE_EXE)
+
+doc: $(apidoc_dirs) $(apiassets) $(apidocs) $(guidedoc_dirs) $(guideassets) $(guidedocs) tools/doc/ $(NODE_EXE)
 
 $(apidoc_dirs):
 	mkdir -p $@
