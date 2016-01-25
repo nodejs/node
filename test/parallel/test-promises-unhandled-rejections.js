@@ -385,7 +385,7 @@ asyncTest('Catching the Promise.all() of a collection that includes a' +
           'rejected promise prevents unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
-  Promise.all([Promise.reject(e)]).then(common.fail, function() {});
+  Promise.all([Promise.reject(e)]).then(common.fail, function() {});
 });
 
 asyncTest(
@@ -401,7 +401,7 @@ asyncTest(
     });
     p = Promise.all([p]);
     process.nextTick(function() {
-      p.then(common.fail, function() {});
+      p.then(common.fail, function() {});
     });
   }
 );
@@ -455,7 +455,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise' +
     Promise.resolve().then(function() {
       process.nextTick(function() {
         Promise.resolve().then(function() {
-          a.catch(function() {});
+          a.catch(function() {});
         });
       });
     });
@@ -474,7 +474,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise' +
       Promise.resolve().then(function() {
         process.nextTick(function() {
           Promise.resolve().then(function() {
-            a.catch(function() {});
+            a.catch(function() {});
           });
         });
       });
@@ -494,7 +494,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise ' +
       Promise.resolve().then(function() {
         process.nextTick(function() {
           Promise.resolve().then(function() {
-            a.catch(function() {});
+            a.catch(function() {});
           });
         });
       });
@@ -514,7 +514,7 @@ asyncTest('Waiting for some combination of promise microtasks + ' +
     process.nextTick(function() {
       Promise.resolve().then(function() {
         process.nextTick(function() {
-          a.catch(function() {});
+          a.catch(function() {});
         });
       });
     });
@@ -535,7 +535,7 @@ asyncTest(
         process.nextTick(function() {
           Promise.resolve().then(function() {
             process.nextTick(function() {
-              a.catch(function() {});
+              a.catch(function() {});
             });
           });
         });
@@ -556,7 +556,7 @@ asyncTest('Waiting for some combination of promise microtasks +' +
       process.nextTick(function() {
         Promise.resolve().then(function() {
           process.nextTick(function() {
-            a.catch(function() {});
+            a.catch(function() {});
           });
         });
       });
