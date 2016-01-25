@@ -72,7 +72,7 @@ function run_test_1() {
     throw err;
   });
 
-  buffer = new Buffer(fileDataInitial);
+  buffer = Buffer.from(fileDataInitial);
   file.write(buffer);
   cb_occurred += 'write ';
 
@@ -83,7 +83,7 @@ function run_test_1() {
 function run_test_2() {
   var file, buffer, options;
 
-  buffer = new Buffer('123456');
+  buffer = Buffer.from('123456');
 
   options = { start: 10,
               flags: 'r+' };

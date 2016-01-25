@@ -33,7 +33,7 @@ fs.writeFile(filename, s, function(e) {
 
 // test that writeFile accepts buffers
 var filename2 = join(common.tmpDir, 'test2.txt');
-var buf = new Buffer(s, 'utf8');
+var buf = Buffer.from(s, 'utf8');
 
 fs.writeFile(filename2, buf, function(e) {
   if (e) throw e;

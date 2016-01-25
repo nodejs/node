@@ -3,9 +3,9 @@ require('../common');
 var assert = require('assert');
 
 var zero = [];
-var one  = [ new Buffer('asdf') ];
+var one  = [ Buffer.from('asdf') ];
 var long = [];
-for (var i = 0; i < 10; i++) long.push(new Buffer('asdf'));
+for (var i = 0; i < 10; i++) long.push(Buffer.from('asdf'));
 
 var flatZero = Buffer.concat(zero);
 var flatOne = Buffer.concat(one);
@@ -22,10 +22,10 @@ assert(flatLongLen.toString() === (new Array(10 + 1).join('asdf')));
 
 assertWrongList();
 assertWrongList(null);
-assertWrongList(new Buffer('hello'));
+assertWrongList(Buffer.from('hello'));
 assertWrongList([42]);
 assertWrongList(['hello', 'world']);
-assertWrongList(['hello', new Buffer('world')]);
+assertWrongList(['hello', Buffer.from('world')]);
 
 function assertWrongList(value) {
   assert.throws(function() {

@@ -39,10 +39,10 @@ process.nextTick(run);
 
 
 test('buffers', function(t) {
-  var list = [ new Buffer('foog'),
-               new Buffer('bark'),
-               new Buffer('bazy'),
-               new Buffer('kuel') ];
+  var list = [ Buffer.from('foog'),
+               Buffer.from('bark'),
+               Buffer.from('bazy'),
+               Buffer.from('kuel') ];
 
   // read more than the first element.
   var ret = fromList(6, { buffer: list, length: 16 });

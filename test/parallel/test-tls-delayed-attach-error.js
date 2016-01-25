@@ -10,8 +10,7 @@ var tls = require('tls');
 var fs = require('fs');
 var net = require('net');
 
-var bonkers = new Buffer(1024);
-bonkers.fill(42);
+var bonkers = Buffer.alloc(1024, 42);
 
 var receivedError = false;
 var options = {

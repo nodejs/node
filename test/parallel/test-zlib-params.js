@@ -12,7 +12,7 @@ const deflater = zlib.createDeflate(opts);
 
 const chunk1 = file.slice(0, chunkSize);
 const chunk2 = file.slice(chunkSize);
-const blkhdr = new Buffer([0x00, 0x48, 0x82, 0xb7, 0x7d]);
+const blkhdr = Buffer.from([0x00, 0x48, 0x82, 0xb7, 0x7d]);
 const expected = Buffer.concat([blkhdr, chunk2]);
 let actual;
 

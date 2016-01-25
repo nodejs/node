@@ -42,8 +42,7 @@ function onconnection(conn) {
 }
 
 server.listen(PORT, function() {
-  var chunk = new Buffer(1024);
-  chunk.fill('x');
+  var chunk = Buffer.alloc(1024, 'x');
   var opt = { port: PORT, rejectUnauthorized: false };
   var conn = tls.connect(opt, function() {
     conn.on('drain', ondrain);

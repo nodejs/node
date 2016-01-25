@@ -9,7 +9,7 @@ const encoding = 'base64';
 const example = path.join(common.fixturesDir, 'x.txt');
 const assertStream = new stream.Writable({
   write: function(chunk, enc, next) {
-    const expected = new Buffer('xyz');
+    const expected = Buffer.from('xyz');
     assert(chunk.equals(expected));
   }
 });

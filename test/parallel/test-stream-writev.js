@@ -82,7 +82,7 @@ function test(decode, uncork, multi, next) {
   if (multi)
     w.cork();
 
-  w.write(new Buffer('!'), 'buffer', cnt('!'));
+  w.write(Buffer.from('!'), 'buffer', cnt('!'));
   w.write('\nand then...', 'binary', cnt('and then'));
 
   if (multi)

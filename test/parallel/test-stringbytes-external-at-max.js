@@ -17,9 +17,9 @@ if (!common.enoughTestMem) {
 assert(typeof gc === 'function', 'Run this test with --expose-gc');
 
 try {
-  var buf = new Buffer(kStringMaxLength);
+  var buf = Buffer.allocUnsafe(kStringMaxLength);
   // Try to allocate memory first then force gc so future allocations succeed.
-  new Buffer(2 * kStringMaxLength);
+  Buffer.allocUnsafe(2 * kStringMaxLength);
   gc();
 } catch (e) {
   // If the exception is not due to memory confinement then rethrow it.

@@ -96,4 +96,4 @@ if (process.env.BOUND === 'y') {
   source.unref();
 }
 
-source.send(Buffer('abc'), 0, 3, common.PORT, '127.0.0.1');
+source.send(Buffer.from('abc'), 0, 3, common.PORT, '127.0.0.1');

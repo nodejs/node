@@ -17,7 +17,7 @@ var options = {
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var buf = new Buffer(1024 * 1024);
+var buf = Buffer.allocUnsafe(1024 * 1024);
 
 var server = https.createServer(options, function(req, res) {
   res.writeHead(200);

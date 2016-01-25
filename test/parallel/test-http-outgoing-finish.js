@@ -21,8 +21,7 @@ http.createServer(function(req, res) {
   });
 });
 
-var buf = new Buffer(1024 * 16);
-buf.fill('x');
+var buf = Buffer.alloc(1024 * 16, 'x');
 function write(out) {
   var name = out.constructor.name;
   var finishEvent = false;

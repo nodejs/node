@@ -48,8 +48,7 @@ function main(conf) {
       encoding = 'utf8';
       break;
     case 'buf':
-      message = new Buffer(conf.len);
-      message.fill('b');
+      message = Buffer.alloc(conf.len, 'b');
       break;
     default:
       throw new Error('unknown message type: ' + conf.type);

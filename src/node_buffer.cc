@@ -48,7 +48,14 @@
   CHECK_NOT_OOB(end <= end_max);                                            \
   size_t length = end - start;
 
+#define BUFFER_MALLOC(length)                                               \
+  zero_fill_all_buffers ? calloc(length, 1) : malloc(length)
+
 namespace node {
+
+// if true, all Buffer and SlowBuffer instances will automatically zero-fill
+bool zero_fill_all_buffers = false;
+
 namespace Buffer {
 
 using v8::ArrayBuffer;
@@ -73,7 +80,6 @@ using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
 using v8::WeakCallbackInfo;
-
 
 class CallbackInfo {
  public:
@@ -210,7 +216,7 @@ MaybeLocal<Object> New(Isolate* isolate,
   // nullptr for zero-sized allocation requests.  Normalize by always using
   // a nullptr.
   if (length > 0) {
-    data = static_cast<char*>(malloc(length));
+    data = static_cast<char*>(BUFFER_MALLOC(length));
 
     if (data == nullptr)
       return Local<Object>();
@@ -256,7 +262,7 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
   void* data;
   if (length > 0) {
-    data = malloc(length);
+    data = BUFFER_MALLOC(length);
     if (data == nullptr)
       return Local<Object>();
   } else {
@@ -419,7 +425,20 @@ void CreateFromArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsArrayBuffer())
     return env->ThrowTypeError("argument is not an ArrayBuffer");
   Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, ab->ByteLength());
+
+  size_t ab_length = ab->ByteLength();
+  size_t offset;
+  size_t max_length;
+
+  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], ab_length - offset, &max_length));
+
+  if (offset >= ab_length)
+    return env->ThrowRangeError("'offset' is out of bounds");
+  if (max_length > ab_length - offset)
+    return env->ThrowRangeError("'length' is out of bounds");
+
+  Local<Uint8Array> ui = Uint8Array::New(ab, offset, max_length);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
   if (!mb.FromMaybe(false))

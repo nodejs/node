@@ -71,7 +71,7 @@ function sendClient() {
 
 
 function sendBADTLSRecord() {
-  var BAD_RECORD = new Buffer([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+  var BAD_RECORD = Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
   var socket = net.connect(common.PORT);
   var client = tls.connect({
     socket: socket,

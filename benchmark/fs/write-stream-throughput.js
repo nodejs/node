@@ -21,8 +21,7 @@ function main(conf) {
   var chunk;
   switch (type) {
     case 'buf':
-      chunk = new Buffer(size);
-      chunk.fill('b');
+      chunk = Buffer.alloc(size, 'b');
       break;
     case 'asc':
       chunk = new Array(size + 1).join('a');

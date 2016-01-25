@@ -77,8 +77,7 @@ function client() {
   var chunk;
   switch (type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       chunk = new Array(len / 2 + 1).join('ü');

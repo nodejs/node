@@ -45,8 +45,7 @@ function runTest(dur, size, type) {
       chunk = new Array(size + 1).join('a');
       break;
     case 'buffer':
-      chunk = new Buffer(size);
-      chunk.fill('a');
+      chunk = Buffer.alloc(size, 'a');
       break;
   }
 

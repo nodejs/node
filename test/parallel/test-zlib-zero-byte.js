@@ -4,7 +4,7 @@ var assert = require('assert');
 
 var zlib = require('zlib');
 var gz = zlib.Gzip();
-var emptyBuffer = new Buffer(0);
+var emptyBuffer = Buffer.alloc(0);
 var received = 0;
 gz.on('data', function(c) {
   received += c.length;
