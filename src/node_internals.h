@@ -125,6 +125,8 @@ inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
 # define NO_RETURN
 #endif
 
+bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
+
 void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Value> er,
                          v8::Local<v8::Message> message);

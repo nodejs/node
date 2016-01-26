@@ -541,7 +541,7 @@ class ContextifyScript : public BaseObject {
 
     if (v8_script.IsEmpty()) {
       if (display_errors) {
-        AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
+        DecorateErrorStack(env, try_catch);
       }
       try_catch.ReThrow();
       return;
@@ -638,6 +638,30 @@ class ContextifyScript : public BaseObject {
         return;
       }
     }
+  }
+
+  static void DecorateErrorStack(Environment* env, const TryCatch& try_catch) {
+    Local<Value> exception = try_catch.Exception();
+
+    if (!exception->IsObject())
+      return;
+
+    Local<Object> err_obj = exception.As<Object>();
+
+    if (IsExceptionDecorated(env, err_obj))
+      return;
+
+    AppendExceptionLine(env, exception, try_catch.Message());
+    Local<Value> stack = err_obj->Get(env->stack_string());
+    Local<Value> arrow = err_obj->GetHiddenValue(env->arrow_message_string());
+
+    if (!(stack->IsString() && arrow->IsString()))
+      return;
+
+    Local<String> decorated_stack = String::Concat(arrow.As<String>(),
+                                                   stack.As<String>());
+    err_obj->Set(env->stack_string(), decorated_stack);
+    err_obj->SetHiddenValue(env->decorated_string(), True(env->isolate()));
   }
 
   static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
@@ -816,7 +840,7 @@ class ContextifyScript : public BaseObject {
     if (result.IsEmpty()) {
       // Error occurred during execution of the script.
       if (display_errors) {
-        AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
+        DecorateErrorStack(env, try_catch);
       }
       try_catch.ReThrow();
       return false;

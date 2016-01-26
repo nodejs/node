@@ -605,7 +605,7 @@
              'global.require = require;\n' +
              'return require("vm").runInThisContext(' +
              JSON.stringify(body) + ', { filename: ' +
-             JSON.stringify(name) + ' });\n';
+             JSON.stringify(name) + ', displayErrors: true });\n';
     // Defer evaluation for a tick.  This is a workaround for deferred
     // events not firing when evaluating scripts from the command line,
     // see https://github.com/nodejs/node/issues/1600.
@@ -988,7 +988,8 @@
 
     var fn = runInThisContext(source, {
       filename: this.filename,
-      lineOffset: 0
+      lineOffset: 0,
+      displayErrors: true
     });
     fn(this.exports, NativeModule.require, this, this.filename);
 
