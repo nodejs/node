@@ -12,14 +12,9 @@ The API for the `assert` module is [Locked][]. This means that there will be no
 additions or changes to any of the methods implemented and exposed by
 the module.
 
-## assert(value[, message]), assert.ok(value[, message])
+## assert(value[, message])
 
-Tests if `value` is truthy. It is equivalent to
-`assert.equal(!!value, true, message)`.
-
-If `value` is not truthy, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is `undefined`, a default error message is assigned.
+An alias of [`assert.ok()`][] .
 
 ```js
 const assert = require('assert');
@@ -31,15 +26,6 @@ assert(false);
 assert(0);
   // throws "AssertionError: 0 == true"
 assert(false, 'it\'s false');
-  // throws "AssertionError: it's false"
-
-assert.ok(true);  // OK
-assert.ok(1);     // OK
-assert.ok(false);
-  // throws "AssertionError: false == true"
-assert.ok(0);
-  // throws "AssertionError: 0 == true"
-assert.ok(false, 'it\'s false');
   // throws "AssertionError: it's false"
 ```
 
@@ -329,6 +315,28 @@ If the values are strictly equal, an `AssertionError` is thrown with a
 `message` property set equal to the value of the `message` parameter. If the
 `message` parameter is undefined, a default error message is assigned.
 
+## assert.ok(value[, message])
+
+Tests if `value` is truthy. It is equivalent to
+`assert.equal(!!value, true, message)`.
+
+If `value` is not truthy, an `AssertionError` is thrown with a `message`
+property set equal to the value of the `message` parameter. If the `message`
+parameter is `undefined`, a default error message is assigned.
+
+```js
+const assert = require('assert');
+
+assert.ok(true);  // OK
+assert.ok(1);     // OK
+assert.ok(false);
+  // throws "AssertionError: false == true"
+assert.ok(0);
+  // throws "AssertionError: 0 == true"
+assert.ok(false, 'it\'s false');
+  // throws "AssertionError: it's false"
+```
+
 ## assert.strictEqual(actual, expected[, message])
 
 Tests strict equality as determined by the strict equality operator ( `===` ).
@@ -396,6 +404,7 @@ assert.throws(
 [Locked]: documentation.html#documentation_stability_index
 [`assert.deepEqual`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual`]: #assert_assert_deepstrictequal_actual_expected_message
+[`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
 [`Error`]: errors.html#errors_class_error
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
