@@ -570,42 +570,91 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   size_t start = args[2]->Uint32Value();
   size_t end = args[3]->Uint32Value();
-  size_t length = end - start;
-  CHECK(length + start <= ts_obj_length);
+  size_t fill_length = end - start;
+  Local<String> str_obj;
+  size_t str_length;
+  enum encoding enc;
+  CHECK(fill_length + start <= ts_obj_length);
 
-  if (args[1]->IsNumber()) {
+  // First check if Buffer has been passed.
+  if (Buffer::HasInstance(args[1])) {
+    SPREAD_ARG(args[1], fill_obj);
+    str_length = fill_obj_length;
+    memcpy(ts_obj_data + start, fill_obj_data, MIN(str_length, fill_length));
+    goto start_fill;
+  }
+
+  // Then coerce everything that's not a string.
+  if (!args[1]->IsString()) {
     int value = args[1]->Uint32Value() & 255;
-    memset(ts_obj_data + start, value, length);
+    memset(ts_obj_data + start, value, fill_length);
     return;
   }
 
-  node::Utf8Value str(args.GetIsolate(), args[1]);
-  size_t str_length = str.length();
-  size_t in_there = str_length;
-  char* ptr = ts_obj_data + start + str_length;
+  str_obj = args[1]->ToString(env->isolate());
+  enc = ParseEncoding(env->isolate(), args[4], UTF8);
+  str_length =
+      enc == UTF8 ? str_obj->Utf8Length() :
+      enc == UCS2 ? str_obj->Length() * sizeof(uint16_t) : str_obj->Length();
+
+  if (enc == HEX && str_length  % 2 != 0)
+    return env->ThrowTypeError("Invalid hex string");
 
   if (str_length == 0)
     return;
 
-  memcpy(ts_obj_data + start, *str, MIN(str_length, length));
+  // Can't use StringBytes::Write() in all cases. For example if attempting
+  // to write a two byte character into a one byte Buffer.
+  if (enc == UTF8) {
+    node::Utf8Value str(env->isolate(), args[1]);
+    memcpy(ts_obj_data + start, *str, MIN(str_length, fill_length));
 
-  if (str_length >= length)
+  } else if (enc == UCS2) {
+    node::TwoByteValue str(env->isolate(), args[1]);
+    memcpy(ts_obj_data + start, *str, MIN(str_length, fill_length));
+
+  } else {
+    // Write initial String to Buffer, then use that memory to copy remainder
+    // of string. Correct the string length for cases like HEX where less than
+    // the total string length is written.
+    str_length = StringBytes::Write(env->isolate(),
+                                    ts_obj_data + start,
+                                    fill_length,
+                                    str_obj,
+                                    enc,
+                                    nullptr);
+    // This check is also needed in case Write() returns that no bytes could
+    // be written.
+    // TODO(trevnorris): Should this throw? Because of the string length was
+    // greater than 0 but couldn't be written then the string was invalid.
+    if (str_length == 0)
+      return;
+  }
+
+ start_fill:
+
+  if (str_length >= fill_length)
     return;
 
-  while (in_there < length - in_there) {
+
+  size_t in_there = str_length;
+  char* ptr = ts_obj_data + start + str_length;
+
+  while (in_there < fill_length - in_there) {
     memcpy(ptr, ts_obj_data + start, in_there);
     ptr += in_there;
     in_there *= 2;
   }
 
-  if (in_there < length) {
-    memcpy(ptr, ts_obj_data + start, length - in_there);
-    in_there = length;
+  if (in_there < fill_length) {
+    memcpy(ptr, ts_obj_data + start, fill_length - in_there);
   }
 }
 
