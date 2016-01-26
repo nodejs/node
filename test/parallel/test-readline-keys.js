@@ -3,7 +3,6 @@ require('../common');
 var PassThrough = require('stream').PassThrough;
 var assert = require('assert');
 var inherits = require('util').inherits;
-var extend = require('util')._extend;
 var Interface = require('readline').Interface;
 
 
@@ -33,7 +32,7 @@ function addTest(sequences, expectedKeys) {
   }
 
   expectedKeys = expectedKeys.map(function(k) {
-    return k ? extend({ ctrl: false, meta: false, shift: false }, k) : k;
+    return k ? Object.assign({ ctrl: false, meta: false, shift: false }, k) : k;
   });
 
   keys = [];

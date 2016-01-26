@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var http = require('http');
-var util = require('util');
 var fork = require('child_process').fork;
 
 if (process.env.NODE_TEST_FORK) {
@@ -25,7 +24,7 @@ else {
   });
   server.listen(common.PORT, function() {
     fork(__filename, {
-      env: util._extend(process.env, {NODE_TEST_FORK: '1'})
+      env: Object.assign(process.env, {NODE_TEST_FORK: '1'})
     });
   });
 }
