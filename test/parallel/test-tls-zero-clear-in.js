@@ -22,7 +22,7 @@ var server = tls.createServer({
 }, function(c) {
   // Nop
   setTimeout(function() {
-    c.destroy();
+    c.end();
     server.close();
   }, 20);
 }).listen(common.PORT, function() {
