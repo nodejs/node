@@ -176,7 +176,8 @@ class ContextifyContext {
   Local<Value> CreateDataWrapper(Environment* env) {
     EscapableHandleScope scope(env->isolate());
     Local<Object> wrapper =
-        env->script_data_constructor_function()->NewInstance();
+        env->script_data_constructor_function()
+            ->NewInstance(env->context()).FromMaybe(Local<Object>());
     if (wrapper.IsEmpty())
       return scope.Escape(Local<Value>::New(env->isolate(), Local<Value>()));
 

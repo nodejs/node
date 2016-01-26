@@ -2989,7 +2989,8 @@ void SetupProcessObject(Environment* env,
                                                 EnvDeleter,
                                                 EnvEnumerator,
                                                 env->as_external());
-  Local<Object> process_env = process_env_template->NewInstance();
+  Local<Object> process_env =
+      process_env_template->NewInstance(env->context()).ToLocalChecked();
   process->Set(env->env_string(), process_env);
 
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
@@ -4142,7 +4143,8 @@ Environment* CreateEnvironment(Isolate* isolate,
   Local<FunctionTemplate> process_template = FunctionTemplate::New(isolate);
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
 
-  Local<Object> process_object = process_template->GetFunction()->NewInstance();
+  Local<Object> process_object =
+      process_template->GetFunction()->NewInstance(context).ToLocalChecked();
   env->set_process_object(process_object);
 
   SetupProcessObject(env, argc, argv, exec_argc, exec_argv);

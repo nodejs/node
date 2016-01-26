@@ -422,7 +422,8 @@ Local<Object> UDPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
   EscapableHandleScope scope(env->isolate());
   Local<Value> ptr = External::New(env->isolate(), parent);
-  return scope.Escape(env->udp_constructor_function()->NewInstance(1, &ptr));
+  return scope.Escape(env->udp_constructor_function()
+      ->NewInstance(env->context(), 1, &ptr).ToLocalChecked());
 }
 
 
