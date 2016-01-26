@@ -29,6 +29,6 @@ assert.strictEqual(flist1.free('test4'), false);
 assert.strictEqual(flist1.free('test5'), false);
 
 // At this point 'alloc' should just return the stored values
-assert.strictEqual(flist1.alloc(), 'test1');
-assert.strictEqual(flist1.alloc(), 'test2');
 assert.strictEqual(flist1.alloc(), 'test3');
+assert.strictEqual(flist1.alloc(), 'test2');
+assert.strictEqual(flist1.alloc(), 'test1');
