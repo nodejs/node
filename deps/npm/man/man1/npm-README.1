@@ -1,4 +1,4 @@
-.TH "NPM" "1" "November 2015" "" ""
+.TH "NPM" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm\fR \- a JavaScript package manager
 .P
@@ -14,6 +14,17 @@ Much more info available via \fBnpm help\fP once it's installed\.
 .P
 To install an old \fBand unsupported\fR version of npm that works on node 0\.3
 and prior, clone the git repo and dig through the old tags and branches\.
+.P
+\fBnpm is configured to use npm, Inc\.'s public package registry at
+https://registry\.npmjs\.org by default\.\fR
+.P
+You can configure npm to use any compatible registry you
+like, and even run your own registry\. Check out the doc on
+registries \fIhttps://docs\.npmjs\.com/misc/registry\fR\|\.
+.P
+Use of someone else's registry may be governed by terms of use\. The
+terms of use for the default public registry are available at
+https://www\.npmjs\.com\|\.
 .SH Super Easy Install
 .P
 npm is bundled with node \fIhttp://nodejs\.org/download/\fR\|\.
@@ -187,45 +198,6 @@ You can use the \fBnpm help\fP command to read any of them\.
 .P
 If you're a developer, and you want to use npm to publish your program,
 you should read this \fIhttps://docs\.npmjs\.com/misc/developers\fR
-.SH Legal Stuff
-.P
-"npm" and "The npm Registry" are owned by npm, Inc\.
-All rights reserved\.  See the included LICENSE file for more details\.
-.P
-"Node\.js" and "node" are trademarks owned by Joyent, Inc\.
-.P
-Modules published on the npm registry are not officially endorsed by
-npm, Inc\. or the Node\.js project\.
-.P
-Data published to the npm registry is not part of npm itself, and is
-the sole property of the publisher\.  While every effort is made to
-ensure accountability, there is absolutely no guarantee, warranty, or
-assertion expressed or implied as to the quality, fitness for a
-specific purpose, or lack of malice in any given npm package\.
-.P
-If you have a complaint about a package in the public npm registry,
-and cannot resolve it with the package
-owner \fIhttps://docs\.npmjs\.com/misc/disputes\fR, please email
-support@npmjs\.com and explain the situation\.
-.P
-Any data published to The npm Registry (including user account
-information) may be removed or modified at the sole discretion of the
-npm server administrators\.
-.SS In plainer english
-.P
-npm is the property of npm, Inc\.
-.P
-If you publish something, it's yours, and you are solely accountable
-for it\.
-.P
-If other people publish something, it's theirs\.
-.P
-Users can publish Bad Stuff\.  It will be removed promptly if reported\.
-But there is no vetting process for published modules, and you use
-them at your own risk\.  Please inspect the source\.
-.P
-If you publish Bad Stuff, we may delete it from the registry, or even
-ban your account in extreme cases\.  So don't do that\.
 .SH BUGS
 .P
 When you find issues, please report them:
