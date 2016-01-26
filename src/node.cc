@@ -1604,7 +1604,7 @@ static Local<Value> ExecuteString(Environment* env,
                                   Local<String> source,
                                   Local<String> filename) {
   EscapableHandleScope scope(env->isolate());
-  TryCatch try_catch;
+  TryCatch try_catch(env->isolate());
 
   // try_catch must be nonverbose to disable FatalException() handler,
   // we will handle exceptions ourself.
@@ -2327,7 +2327,7 @@ void FatalException(Isolate* isolate,
     exit(6);
   }
 
-  TryCatch fatal_try_catch;
+  TryCatch fatal_try_catch(isolate);
 
   // Do not call FatalException when _fatalException handler throws
   fatal_try_catch.SetVerbose(false);
@@ -3176,7 +3176,7 @@ void LoadEnvironment(Environment* env) {
   // The node.js file returns a function 'f'
   atexit(AtExit);
 
-  TryCatch try_catch;
+  TryCatch try_catch(env->isolate());
 
   // Disable verbose mode to stop FatalException() handler from trying
   // to handle the exception. Errors this early in the start-up phase
