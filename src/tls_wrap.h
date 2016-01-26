@@ -89,7 +89,7 @@ class TLSWrap : public AsyncWrap,
   bool ClearIn();
   void ClearOut();
   void MakePending();
-  bool InvokeQueued(int status);
+  bool InvokeQueued(int status, const char* error_str = nullptr);
 
   inline void Cycle() {
     // Prevent recursion
