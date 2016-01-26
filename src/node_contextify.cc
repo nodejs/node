@@ -283,7 +283,7 @@ class ContextifyContext {
             env->context(),
             env->contextify_private_symbol()).FromJust());
 
-    TryCatch try_catch;
+    TryCatch try_catch(env->isolate());
     ContextifyContext* context = new ContextifyContext(env, sandbox);
 
     if (try_catch.HasCaught()) {
@@ -493,7 +493,7 @@ class ContextifyScript : public BaseObject {
     ContextifyScript* contextify_script =
         new ContextifyScript(env, args.This());
 
-    TryCatch try_catch;
+    TryCatch try_catch(env->isolate());
     Local<String> code = args[0]->ToString(env->isolate());
     Local<String> filename = GetFilenameArg(args, 1);
     Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
@@ -569,7 +569,7 @@ class ContextifyScript : public BaseObject {
   // args: [options]
   static void RunInThisContext(const FunctionCallbackInfo<Value>& args) {
     // Assemble arguments
-    TryCatch try_catch;
+    TryCatch try_catch(args.GetIsolate());
     uint64_t timeout = GetTimeoutArg(args, 0);
     bool display_errors = GetDisplayErrorsArg(args, 0);
     if (try_catch.HasCaught()) {
@@ -597,7 +597,7 @@ class ContextifyScript : public BaseObject {
 
     Local<Object> sandbox = args[0].As<Object>();
     {
-      TryCatch try_catch;
+      TryCatch try_catch(env->isolate());
       timeout = GetTimeoutArg(args, 1);
       display_errors = GetDisplayErrorsArg(args, 1);
       if (try_catch.HasCaught()) {
@@ -618,7 +618,7 @@ class ContextifyScript : public BaseObject {
       return;
 
     {
-      TryCatch try_catch;
+      TryCatch try_catch(env->isolate());
       // Do the eval within the context
       Context::Scope context_scope(contextify_context->context());
       if (EvalMachine(contextify_context->env(),
