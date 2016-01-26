@@ -36,7 +36,8 @@ TLSWrap::TLSWrap(Environment* env,
                  StreamBase* stream,
                  SecureContext* sc)
     : AsyncWrap(env,
-                env->tls_wrap_constructor_function()->NewInstance(),
+                env->tls_wrap_constructor_function()
+                    ->NewInstance(env->context()).ToLocalChecked(),
                 AsyncWrap::PROVIDER_TLSWRAP),
       SSLWrap<TLSWrap>(env, sc, kind),
       StreamBase(env),
@@ -289,7 +290,8 @@ void TLSWrap::EncOut() {
   CHECK(write_size_ != 0 && count != 0);
 
   Local<Object> req_wrap_obj =
-      env()->write_wrap_constructor_function()->NewInstance();
+      env()->write_wrap_constructor_function()
+          ->NewInstance(env()->context()).ToLocalChecked();
   WriteWrap* write_req = WriteWrap::New(env(),
                                         req_wrap_obj,
                                         this,

@@ -57,8 +57,8 @@ Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
   Local<Value> ptr = External::New(env->isolate(), parent);
-  Local<Object> instance = constructor->NewInstance(1, &ptr);
-  CHECK_EQ(instance.IsEmpty(), false);
+  Local<Object> instance =
+      constructor->NewInstance(env->context(), 1, &ptr).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
