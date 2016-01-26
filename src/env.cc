@@ -83,7 +83,7 @@ bool Environment::KickNextTick() {
   info->set_in_tick(true);
 
   // process nextTicks after call
-  TryCatch try_catch;
+  TryCatch try_catch(isolate());
   try_catch.SetVerbose(true);
   tick_callback_function()->Call(process_object(), 0, nullptr);
 
