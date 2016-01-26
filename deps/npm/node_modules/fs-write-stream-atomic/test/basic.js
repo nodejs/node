@@ -19,31 +19,33 @@ test('basic', function (t) {
   }
 
   var verifierCalled = 0
-  function verifier (ev) { return function () {
-    if (ev === 'close')
-      t.equal(this.__emittedFinish, true)
-    else {
-      this.__emittedFinish = true
-      t.equal(ev, 'finish')
+  function verifier (ev) {
+    return function () {
+      if (ev === 'close') {
+        t.equal(this.__emittedFinish, true)
+      } else {
+        this.__emittedFinish = true
+        t.equal(ev, 'finish')
+      }
+
+      // make sure that one of the atomic streams won.
+      var res = fs.readFileSync(target, 'utf8')
+      var lines = res.trim().split(/\n/)
+      lines.forEach(function (line) {
+        var first = lines[0].match(/\d+$/)[0]
+        var cur = line.match(/\d+$/)[0]
+        t.equal(cur, first)
+      })
+
+      var resExpr = /^first write \d+\nsecond write \d+\nthird write \d+\nfinal write \d+\n$/
+      t.similar(res, resExpr)
+
+      // should be called once for each close, and each finish
+      if (++verifierCalled === n * 2) {
+        t.end()
+      }
     }
-
-    // make sure that one of the atomic streams won.
-    var res = fs.readFileSync(target, 'utf8')
-    var lines = res.trim().split(/\n/)
-    lines.forEach(function (line) {
-      var first = lines[0].match(/\d+$/)[0]
-      var cur = line.match(/\d+$/)[0]
-      t.equal(cur, first)
-    })
-
-    var resExpr = /^first write \d+\nsecond write \d+\nthird write \d+\nfinal write \d+\n$/
-    t.similar(res, resExpr)
-
-    // should be called once for each close, and each finish
-    if (++verifierCalled === n * 2) {
-      t.end()
-    }
-  }}
+  }
 
   // now write something to each stream.
   streams.forEach(function (stream, i) {
