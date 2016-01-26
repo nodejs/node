@@ -205,6 +205,33 @@ class Utf8Value {
     char str_st_[1024];
 };
 
+class TwoByteValue {
+  public:
+    explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+    ~TwoByteValue() {
+      if (str_ != str_st_)
+        free(str_);
+    }
+
+    uint16_t* operator*() {
+      return str_;
+    };
+
+    const uint16_t* operator*() const {
+      return str_;
+    };
+
+    size_t length() const {
+      return length_;
+    };
+
+  private:
+    size_t length_;
+    uint16_t* str_;
+    uint16_t str_st_[1024];
+};
+
 }  // namespace node
 
 #endif  // SRC_UTIL_H_
