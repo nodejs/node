@@ -278,7 +278,7 @@ internals.serverError = function (message, data, statusCode, ctor) {
     if (data instanceof Error) {
         error = exports.wrap(data, statusCode, message);
     } else {
-        error = internals.create(statusCode || 500, message, ctor);
+        error = internals.create(statusCode || 500, message, undefined, ctor);
         error.data = data;
     }
 

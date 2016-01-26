@@ -629,3 +629,26 @@ describe('badImplementation()', function () {
         done();
     });
 });
+
+describe('stack trace', function () {
+
+    it('should omit lib', function (done) {
+
+        ['badRequest', 'unauthorized', 'forbidden', 'notFound', 'methodNotAllowed',
+            'notAcceptable', 'proxyAuthRequired', 'clientTimeout', 'conflict',
+            'resourceGone', 'lengthRequired', 'preconditionFailed', 'entityTooLarge',
+            'uriTooLong', 'unsupportedMediaType', 'rangeNotSatisfiable', 'expectationFailed',
+            'badData', 'preconditionRequired', 'tooManyRequests',
+
+            // 500s
+            'internal', 'notImplemented', 'badGateway', 'serverTimeout', 'gatewayTimeout',
+            'badImplementation'
+        ].forEach(function (name) {
+
+            var err = Boom[name]();
+            expect(err.stack).to.not.match(/\/lib\/index\.js/);
+        });
+
+        done();
+    });
+});

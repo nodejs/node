@@ -69,5 +69,4 @@ begin with a number or the letter `v`.
 * npm-registry(7)
 * npm-config(1)
 * npm-config(7)
-* npm-tag(3)
 * npmrc(5)

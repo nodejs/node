@@ -28,7 +28,12 @@ from gyp.common import OrderedSet
 
 
 # A list of types that are treated as linkable.
-linkable_types = ['executable', 'shared_library', 'loadable_module']
+linkable_types = [
+  'executable',
+  'shared_library',
+  'loadable_module',
+  'mac_kernel_extension',
+]
 
 # A list of sections that contain links to other targets.
 dependency_sections = ['dependencies', 'export_dependent_settings']
@@ -57,7 +62,7 @@ def IsPathSection(section):
   # If section ends in one of the '=+?!' characters, it's applied to a section
   # without the trailing characters.  '/' is notably absent from this list,
   # because there's no way for a regular expression to be treated as a path.
-  while section[-1:] in '=+?!':
+  while section and section[-1:] in '=+?!':
     section = section[:-1]
 
   if section in path_sections:
@@ -893,11 +898,15 @@ def ExpandVariables(input, phase, variables, build_file):
         else:
           # Fix up command with platform specific workarounds.
           contents = FixupPlatformCommand(contents)
-          p = subprocess.Popen(contents, shell=use_shell,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE,
-                               stdin=subprocess.PIPE,
-                               cwd=build_file_dir)
+          try:
+            p = subprocess.Popen(contents, shell=use_shell,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,
+                                 stdin=subprocess.PIPE,
+                                 cwd=build_file_dir)
+          except Exception, e:
+            raise GypError("%s while executing command '%s' in %s" %
+                           (e, contents, build_file))
 
           p_stdout, p_stderr = p.communicate('')
 
@@ -905,8 +914,8 @@ def ExpandVariables(input, phase, variables, build_file):
             sys.stderr.write(p_stderr)
             # Simulate check_call behavior, since check_call only exists
             # in python 2.5 and later.
-            raise GypError("Call to '%s' returned exit status %d." %
-                           (contents, p.returncode))
+            raise GypError("Call to '%s' returned exit status %d while in %s." %
+                           (contents, p.returncode, build_file))
           replacement = p_stdout.rstrip()
 
         cached_command_results[cache_key] = replacement
@@ -1662,8 +1671,8 @@ class DependencyGraphNode(object):
       if dependency.ref is None:
         continue
       if dependency.ref not in dependencies:
-        dependencies.add(dependency.ref)
         dependency.DeepDependencies(dependencies)
+        dependencies.add(dependency.ref)
 
     return dependencies
 
@@ -1720,11 +1729,12 @@ class DependencyGraphNode(object):
       dependencies.add(self.ref)
       return dependencies
 
-    # Executables and loadable modules are already fully and finally linked.
-    # Nothing else can be a link dependency of them, there can only be
-    # dependencies in the sense that a dependent target might run an
-    # executable or load the loadable_module.
-    if not initial and target_type in ('executable', 'loadable_module'):
+    # Executables, mac kernel extensions and loadable modules are already fully
+    # and finally linked. Nothing else can be a link dependency of them, there
+    # can only be dependencies in the sense that a dependent target might run
+    # an executable or load the loadable_module.
+    if not initial and target_type in ('executable', 'loadable_module',
+                                       'mac_kernel_extension'):
       return dependencies
 
     # Shared libraries are already fully linked.  They should only be included
@@ -2475,7 +2485,7 @@ def ValidateTargetType(target, target_dict):
   """
   VALID_TARGET_TYPES = ('executable', 'loadable_module',
                         'static_library', 'shared_library',
-                        'none')
+                        'mac_kernel_extension', 'none')
   target_type = target_dict.get('type', None)
   if target_type not in VALID_TARGET_TYPES:
     raise GypError("Target %s has an invalid target type '%s'.  "
@@ -2486,6 +2496,35 @@ def ValidateTargetType(target, target_dict):
     raise GypError('Target %s has type %s but standalone_static_library flag is'
                    ' only valid for static_library type.' % (target,
                                                              target_type))
+
+
+def ValidateSourcesInTarget(target, target_dict, build_file,
+                            duplicate_basename_check):
+  if not duplicate_basename_check:
+    return
+  if target_dict.get('type', None) != 'static_library':
+    return
+  sources = target_dict.get('sources', [])
+  basenames = {}
+  for source in sources:
+    name, ext = os.path.splitext(source)
+    is_compiled_file = ext in [
+        '.c', '.cc', '.cpp', '.cxx', '.m', '.mm', '.s', '.S']
+    if not is_compiled_file:
+      continue
+    basename = os.path.basename(name)  # Don't include extension.
+    basenames.setdefault(basename, []).append(source)
+
+  error = ''
+  for basename, files in basenames.iteritems():
+    if len(files) > 1:
+      error += '  %s: %s\n' % (basename, ' '.join(files))
+
+  if error:
+    print('static library %s has several files with the same basename:\n' %
+          target + error + 'libtool on Mac cannot handle that. Use '
+          '--no-duplicate-basename-check to disable this validation.')
+    raise GypError('Duplicate basenames in sources section, see list above')
 
 
 def ValidateRulesInTarget(target, target_dict, extra_sources_for_rules):
@@ -2708,7 +2747,7 @@ def SetGeneratorGlobals(generator_input_info):
 
 
 def Load(build_files, variables, includes, depth, generator_input_info, check,
-         circular_check, parallel, root_targets):
+         circular_check, duplicate_basename_check, parallel, root_targets):
   SetGeneratorGlobals(generator_input_info)
   # A generator can have other lists (in addition to sources) be processed
   # for rules.
@@ -2840,6 +2879,8 @@ def Load(build_files, variables, includes, depth, generator_input_info, check,
     target_dict = targets[target]
     build_file = gyp.common.BuildFile(target)
     ValidateTargetType(target, target_dict)
+    ValidateSourcesInTarget(target, target_dict, build_file,
+                            duplicate_basename_check)
     ValidateRulesInTarget(target, target_dict, extra_sources_for_rules)
     ValidateRunAsInTarget(target, target_dict, build_file)
     ValidateActionsInTarget(target, target_dict, build_file)
