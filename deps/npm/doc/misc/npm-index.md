@@ -413,10 +413,6 @@ Developer Guide
 
 Handling Module Name Disputes
 
-### npm-faq(7)
-
-Frequently Asked Questions
-
 ### npm-index(7)
 
 Index of all npm documentation

@@ -52,5 +52,33 @@ test('balanced', function(t) {
     body: 'in<b>nest</b>',
     post: 'post'
   });
+  t.deepEqual(balanced('{{', '}}', 'pre{{{in}}}post'), {
+    start: 3,
+    end: 9,
+    pre: 'pre',
+    body: '{in}',
+    post: 'post'
+  });
+  t.deepEqual(balanced('{{{', '}}', 'pre{{{in}}}post'), {
+    start: 3,
+    end: 8,
+    pre: 'pre',
+    body: 'in',
+    post: '}post'
+  });
+  t.deepEqual(balanced('{', '}', 'pre{{first}in{second}post'), {
+    start: 4,
+    end: 10,
+    pre: 'pre{',
+    body: 'first',
+    post: 'in{second}post'
+  });
+  t.deepEqual(balanced('<?', '?>', 'pre<?>post'), {
+    start: 3,
+    end: 4,
+    pre: 'pre',
+    body: '',
+    post: 'post'
+  });
   t.end();
 });

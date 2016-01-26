@@ -550,6 +550,7 @@ Readable.prototype.pipe = function(dest, pipeOpts) {
   var ondrain = pipeOnDrain(src);
   dest.on('drain', ondrain);
 
+  var cleanedUp = false;
   function cleanup() {
     debug('cleanup');
     // cleanup event handlers once the pipe is broken
@@ -561,6 +562,8 @@ Readable.prototype.pipe = function(dest, pipeOpts) {
     src.removeListener('end', onend);
     src.removeListener('end', cleanup);
     src.removeListener('data', ondata);
+
+    cleanedUp = true;
 
     // if the reader is waiting for a drain event from this
     // specific writer, then it would cause it to never start
@@ -577,9 +580,16 @@ Readable.prototype.pipe = function(dest, pipeOpts) {
     debug('ondata');
     var ret = dest.write(chunk);
     if (false === ret) {
-      debug('false write response, pause',
-            src._readableState.awaitDrain);
-      src._readableState.awaitDrain++;
+      // If the user unpiped during `dest.write()`, it is possible
+      // to get stuck in a permanently paused state if that write
+      // also returned false.
+      if (state.pipesCount === 1 &&
+          state.pipes[0] === dest &&
+          src.listenerCount('data') === 1 &&
+          !cleanedUp) {
+        debug('false write response, pause', src._readableState.awaitDrain);
+        src._readableState.awaitDrain++;
+      }
       src.pause();
     }
   }
@@ -879,6 +889,8 @@ function fromList(n, state) {
     // read it all, truncate the array.
     if (stringMode)
       ret = list.join('');
+    else if (list.length === 1)
+      ret = list[0];
     else
       ret = Buffer.concat(list, length);
     list.length = 0;

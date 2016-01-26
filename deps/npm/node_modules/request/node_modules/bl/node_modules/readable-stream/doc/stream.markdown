@@ -4,7 +4,7 @@
 
 A stream is an abstract interface implemented by various objects in
 Node.js.  For example a [request to an HTTP
-server](https://iojs.org/dist/v4.1.2/doc/api/http.html#http_http_incomingmessage) is a stream, as is
+server](https://iojs.org/dist/v5.0.0/doc/api/http.html#http_http_incomingmessage) is a stream, as is
 [stdout][]. Streams are readable, writable, or both. All streams are
 instances of [EventEmitter][]
 
@@ -136,9 +136,9 @@ destinations drain and ask for more data.
 
 Examples of readable streams include:
 
-* [http responses, on the client](https://iojs.org/dist/v4.1.2/doc/api/http.html#http_http_incomingmessage)
-* [http requests, on the server](https://iojs.org/dist/v4.1.2/doc/api/http.html#http_http_incomingmessage)
-* [fs read streams](https://iojs.org/dist/v4.1.2/doc/api/fs.html#fs_class_fs_readstream)
+* [http responses, on the client](https://iojs.org/dist/v5.0.0/doc/api/http.html#http_http_incomingmessage)
+* [http requests, on the server](https://iojs.org/dist/v5.0.0/doc/api/http.html#http_http_incomingmessage)
+* [fs read streams](https://iojs.org/dist/v5.0.0/doc/api/fs.html#fs_class_fs_readstream)
 * [zlib streams][]
 * [crypto streams][]
 * [tcp sockets][]
@@ -538,13 +538,13 @@ that you are writing data *to*.
 
 Examples of writable streams include:
 
-* [http requests, on the client](https://iojs.org/dist/v4.1.2/doc/api/http.html#http_class_http_clientrequest)
-* [http responses, on the server](https://iojs.org/dist/v4.1.2/doc/api/http.html#http_class_http_serverresponse)
-* [fs write streams](https://iojs.org/dist/v4.1.2/doc/api/fs.html#fs_class_fs_writestream)
+* [http requests, on the client](https://iojs.org/dist/v5.0.0/doc/api/http.html#http_class_http_clientrequest)
+* [http responses, on the server](https://iojs.org/dist/v5.0.0/doc/api/http.html#http_class_http_serverresponse)
+* [fs write streams](https://iojs.org/dist/v5.0.0/doc/api/fs.html#fs_class_fs_writestream)
 * [zlib streams][]
 * [crypto streams][]
 * [tcp sockets][]
-* [child process stdin](https://iojs.org/dist/v4.1.2/doc/api/child_process.html#child_process_child_stdin)
+* [child process stdin](https://iojs.org/dist/v5.0.0/doc/api/child_process.html#child_process_child_stdin)
 * [process.stdout][], [process.stderr][]
 
 #### writable.write(chunk[, encoding][, callback])
@@ -1650,24 +1650,24 @@ JSONParseStream.prototype._flush = function(cb) {
 ```
 
 
-[EventEmitter]: https://iojs.org/dist/v4.1.2/doc/api/events.html#events_class_events_eventemitter
+[EventEmitter]: https://iojs.org/dist/v5.0.0/doc/api/events.html#events_class_events_eventemitter
 [Object mode]: #stream_object_mode
 [`stream.push(chunk)`]: #stream_readable_push_chunk_encoding
 [`stream.push(null)`]: #stream_readable_push_chunk_encoding
 [`stream.push()`]: #stream_readable_push_chunk_encoding
 [`unpipe()`]: #stream_readable_unpipe_destination
 [unpiped]: #stream_readable_unpipe_destination
-[tcp sockets]: https://iojs.org/dist/v4.1.2/doc/api/net.html#net_class_net_socket
+[tcp sockets]: https://iojs.org/dist/v5.0.0/doc/api/net.html#net_class_net_socket
 [zlib streams]: zlib.html
 [zlib]: zlib.html
 [crypto streams]: crypto.html
 [crypto]: crypto.html
-[tls.CryptoStream]: https://iojs.org/dist/v4.1.2/doc/api/tls.html#tls_class_cryptostream
-[process.stdin]: https://iojs.org/dist/v4.1.2/doc/api/process.html#process_process_stdin
-[stdout]: https://iojs.org/dist/v4.1.2/doc/api/process.html#process_process_stdout
-[process.stdout]: https://iojs.org/dist/v4.1.2/doc/api/process.html#process_process_stdout
-[process.stderr]: https://iojs.org/dist/v4.1.2/doc/api/process.html#process_process_stderr
-[child process stdout and stderr]: https://iojs.org/dist/v4.1.2/doc/api/child_process.html#child_process_child_stdout
+[tls.CryptoStream]: https://iojs.org/dist/v5.0.0/doc/api/tls.html#tls_class_cryptostream
+[process.stdin]: https://iojs.org/dist/v5.0.0/doc/api/process.html#process_process_stdin
+[stdout]: https://iojs.org/dist/v5.0.0/doc/api/process.html#process_process_stdout
+[process.stdout]: https://iojs.org/dist/v5.0.0/doc/api/process.html#process_process_stdout
+[process.stderr]: https://iojs.org/dist/v5.0.0/doc/api/process.html#process_process_stderr
+[child process stdout and stderr]: https://iojs.org/dist/v5.0.0/doc/api/child_process.html#child_process_child_stdout
 [API for Stream Consumers]: #stream_api_for_stream_consumers
 [API for Stream Implementors]: #stream_api_for_stream_implementors
 [Readable]: #stream_class_stream_readable
@@ -1686,7 +1686,7 @@ JSONParseStream.prototype._flush = function(cb) {
 [`_write(chunk, encoding, callback)`]: #stream_writable_write_chunk_encoding_callback_1
 [`_write()`]: #stream_writable_write_chunk_encoding_callback_1
 [_write]: #stream_writable_write_chunk_encoding_callback_1
-[`util.inherits`]: https://iojs.org/dist/v4.1.2/doc/api/util.html#util_util_inherits_constructor_superconstructor
+[`util.inherits`]: https://iojs.org/dist/v5.0.0/doc/api/util.html#util_util_inherits_constructor_superconstructor
 [`end()`]: #stream_writable_end_chunk_encoding_callback
 [`'data'` event]: #stream_event_data
 [`resume()`]: #stream_readable_resume

@@ -1,4 +1,4 @@
-.TH "SEMVER" "7" "November 2015" "" ""
+.TH "SEMVER" "7" "January 2016" "" ""
 .SH "NAME"
 \fBsemver\fR \- The semantic versioner for npm
 .SH Usage
@@ -119,7 +119,7 @@ will append the value of the string as a prerelease identifier:
 .P
 .RS 2
 .nf
-> semver\.inc('1\.2\.3', 'pre', 'beta')
+> semver\.inc('1\.2\.3', 'prerelease', 'beta')
 \|'1\.2\.4\-beta\.0'
 .fi
 .RE
@@ -283,6 +283,31 @@ zero\.
 .IP \(bu 2
 \fB^0\.x\fP := \fB>=0\.0\.0 <1\.0\.0\fP
 
+.RE
+.SS Range Grammar
+.P
+Putting all this together, here is a Backus\-Naur grammar for ranges,
+for the benefit of parser authors:
+.P
+.RS 2
+.nf
+range\-set  ::= range ( logical\-or range ) *
+logical\-or ::= ( ' ' ) * '||' ( ' ' ) *
+range      ::= hyphen | simple ( ' ' simple ) * | ''
+hyphen     ::= partial ' \- ' partial
+simple     ::= primitive | partial | tilde | caret
+primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' | ) partial
+partial    ::= xr ( '\.' xr ( '\.' xr qualifier ? )? )?
+xr         ::= 'x' | 'X' | '*' | nr
+nr         ::= '0' | ['1'\-'9']['0'\-'9']+
+tilde      ::= '~' partial
+caret      ::= '^' partial
+qualifier  ::= ( '\-' pre )? ( '+' build )?
+pre        ::= parts
+build      ::= parts
+parts      ::= part ( '\.' part ) *
+part       ::= nr | [\-0\-9A\-Za\-z]+
+.fi
 .RE
 .SH Functions
 .P
