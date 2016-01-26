@@ -248,7 +248,7 @@ function processList(section) {
       // copy the data up to the section.
       var value = values[0] || {};
       delete value.name;
-      section.typeof = value.type;
+      section.typeof = value.type || section.typeof;
       delete value.type;
       Object.keys(value).forEach(function(k) {
         section[k] = value[k];
