@@ -14,6 +14,17 @@ Much more info available via `npm help` once it's installed.
 To install an old **and unsupported** version of npm that works on node 0.3
 and prior, clone the git repo and dig through the old tags and branches.
 
+**npm is configured to use npm, Inc.'s public package registry at
+<https://registry.npmjs.org> by default.**
+
+You can configure npm to use any compatible registry you
+like, and even run your own registry. Check out the [doc on
+registries](https://docs.npmjs.com/misc/registry).
+
+Use of someone else's registry may be governed by terms of use. The
+terms of use for the default public registry are available at
+<https://www.npmjs.com>.
+
 ## Super Easy Install
 
 npm is bundled with [node](http://nodejs.org/download/).
@@ -182,47 +193,6 @@ You can use the `npm help` command to read any of them.
 
 If you're a developer, and you want to use npm to publish your program,
 you should [read this](https://docs.npmjs.com/misc/developers)
-
-## Legal Stuff
-
-"npm" and "The npm Registry" are owned by npm, Inc.
-All rights reserved.  See the included LICENSE file for more details.
-
-"Node.js" and "node" are trademarks owned by Joyent, Inc.
-
-Modules published on the npm registry are not officially endorsed by
-npm, Inc. or the Node.js project.
-
-Data published to the npm registry is not part of npm itself, and is
-the sole property of the publisher.  While every effort is made to
-ensure accountability, there is absolutely no guarantee, warranty, or
-assertion expressed or implied as to the quality, fitness for a
-specific purpose, or lack of malice in any given npm package.
-
-If you have a complaint about a package in the public npm registry,
-and cannot [resolve it with the package
-owner](https://docs.npmjs.com/misc/disputes), please email
-<support@npmjs.com> and explain the situation.
-
-Any data published to The npm Registry (including user account
-information) may be removed or modified at the sole discretion of the
-npm server administrators.
-
-### In plainer english
-
-npm is the property of npm, Inc.
-
-If you publish something, it's yours, and you are solely accountable
-for it.
-
-If other people publish something, it's theirs.
-
-Users can publish Bad Stuff.  It will be removed promptly if reported.
-But there is no vetting process for published modules, and you use
-them at your own risk.  Please inspect the source.
-
-If you publish Bad Stuff, we may delete it from the registry, or even
-ban your account in extreme cases.  So don't do that.
 
 ## BUGS
 

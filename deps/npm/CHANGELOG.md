@@ -1,3 +1,184 @@
+### v2.14.15 (2015-12-10):
+
+Did you know that Bob Ross reached the rank of master sergeant in the US Air
+Force before becoming perhaps the most soothing painter of all time?
+
+#### TWO HAPPY LITTLE BUG FIXES
+
+* [`f482664`](https://github.com/npm/npm/commit/f4826645dc6b5c0f05c5f9187efb28c1a293554f)
+  [#10505](https://github.com/npm/npm/issues/10505) `npm ls --json --depth=0`
+  now respects the depth parameter, when it is zero and when it is not zero.
+  ([@MarkReeder](https://github.com/MarkReeder))
+* [`529fa1f`](https://github.com/npm/npm/commit/529fa1ff2c6432a773af99a1c5209c0865f7a19c)
+  [#9099](https://github.com/npm/npm/issues/9099) I had always thought you
+  could run `npm version` from subdirectories in your project, which is great,
+  because now you can. I guess I was just ahead of my time.
+  ([@ekmartin](https://github.com/ekmartin))
+
+#### NOW PAINT IN SOME NICE DOCS CHANGES
+
+* [`1fc7f2b`](https://github.com/npm/npm/commit/1fc7f2b523ea760e08adb9b861b28e3ba450e565)
+  [#10546](https://github.com/npm/npm/issues/10546) Goodbye, FAQ! You were
+  cheeky and fun until you weren't! Don't worry: npm still loves everyone,
+  especially you! ([@ashleygwilliams](https://github.com/ashleygwilliams))
+* [`7fe6950`](https://github.com/npm/npm/commit/7fe6950b44d241bb4d90857a44d89d750af1e2b3)
+  [#10570](https://github.com/npm/npm/issues/10570) Update documentation URLs
+  to be HTTPS everywhere sensible. No HTTP shall be spared!
+  ([@rsp](https://github.com/rsp))
+* [`96ebb90`](https://github.com/npm/npm/commit/96ebb902439e4f6f37f8beffb589769146fecf24)
+  [#10650](https://github.com/npm/npm/issues/10650) Correctly note that there
+  are two lifecycle scripts run by an install phase in an example, instead of
+  three. ([@eymengunay](https://github.com/eymengunay))
+* [`5196893`](https://github.com/npm/npm/commit/5196893a7496f68a514b83641ff6b72f14d664dd)
+  [#10687](https://github.com/npm/npm/issues/10687) `npm outdated`'s output can
+  be a little puzzling sometimes. I've attempted to make it clearer, with some
+  examples, of what's going on with "wanted" and "latest" in more cases.
+  ([@othiym23](https://github.com/othiym23))
+* [`8e6712d`](https://github.com/npm/npm/commit/8e6712d4ee128858cab36c77723e35bddbb977ba)
+  [#10700](https://github.com/npm/npm/issues/10700) Hey, do you remember when
+  `search.npmjs.org` was a thing? I think I do? The last time I used it was in
+  like 2012, and it's gone now, so remove it from the docs.
+  ([@gagern](https://github.com/gagern))
+* [`27d2612`](https://github.com/npm/npm/commit/27d2612b3f5aa88b12c943d04e162ce4c3a350ae)
+  `semver@5.1.0`: Include BNF for SemVer expression grammar (which is also now
+  included in `npm help semver`). ([@isaacs](https://github.com/isaacs))
+
+#### LAND YOUR DEPENDENCY UPGRADES IN PAIRS SO EVERYONE HAS A FRIEND
+
+* [`fc6c3c5`](https://github.com/npm/npm/commit/fc6c3c53a31e9e11c2616fcd378202e5b80bf286)
+  `request@2.67.0` ([@simov](https://github.com/simov))
+* [`07013fd`](https://github.com/npm/npm/commit/07013fd0fd55a2eb31fb9334631ee5d0dd5c41bb)
+  [isaacs/rimraf#89](https://github.com/isaacs/rimraf/pull/89) `rimraf@2.4.4`
+  ([@zerok](https://github.com/zerok))
+* [`bc149be`](https://github.com/npm/npm/commit/bc149bef871f0f00639509898cece531af3aa8b3)
+  [isaacs/once#7](https://github.com/isaacs/once/pull/7) `once@1.3.3`
+  ([@floatdrop](https://github.com/floatdrop))
+* [`ac598d3`](https://github.com/npm/npm/commit/ac598d36e1ad207bc0d8a7eadfd84b26146aec1f)
+  `lru-cache@3.2.0` ([@isaacs](https://github.com/isaacs))
+* [`1b915ce`](https://github.com/npm/npm/commit/1b915ce1e0787ccb6d8aa235d002d66565f2175d)
+  `npm-registry-client@7.0.9` ([@othiym23](https://github.com/othiym23))
+* [`df7dd78`](https://github.com/npm/npm/commit/df7dd78b8fe3cc58202996fa6c994fc55419bfa5)
+  `tap@2.3.1` ([@isaacs](https://github.com/isaacs))
+
+### v2.14.14 (2015-12-03):
+
+#### FIX URL IN LICENSE
+
+The license incorrectly identified the registry URL as `registry.npmjs.com` and
+this has been corrected to `registry.npmjs.org`.
+
+* [`6051a69`](https://github.com/npm/npm/commit/6051a69b1adc80f5f200077067e831643f655bd4)
+  [#10685](https://github.com/npm/npm/pull/10685)
+  Fix npm public registry URL in notices.
+  ([@kemitchell](https://github.com/kemitchell))
+
+#### NO MORE MD5
+
+We updated modules that had been using MD5 for non-security purposes.  While
+this is perfectly safe, if you compile Node in FIPS-compliance mode it will
+explode if you try to use MD5. We've replaced MD5 with Murmur, which conveys
+our intent better and is faster to boot.
+
+* [`30b5994`](https://github.com/npm/npm/commit/30b599496a9762482e1cef945a378e3a534fd366)
+  [#10629](https://github.com/npm/npm/issues/10629)
+  `write-file-atomic@1.1.4`
+  ([@othiym23](https://github.com/othiym23))
+* [`68c63ff`](https://github.com/npm/npm/commit/68c63ff1279d3d5ea7b2c970ab5562a8e0536f27)
+  [#10629](https://github.com/npm/npm/issues/10629)
+  `fs-write-stream-atomic@1.0.5`
+  ([@othiym23](https://github.com/othiym23))
+
+#### DEPENDENCY UPDATES
+
+* [`e48e5a9`](https://github.com/npm/npm/commit/e48e5a90b4dcf76124b7e9ea3b295c1383e7f0c8)
+  [nodejs/node-gyp#831](https://github.com/nodejs/node-gyp/pull/831)
+  `node-gyp@3.2.1`: Improved \*BSD support.
+  ([@bnoordhuis](https://github.com/bnoordhuis))
+
+### v2.14.13 (2015-11-25):
+
+#### THE npm CLI !== THE npm REGISTRY !== npm, INC.
+
+npm-the-CLI is licensed under the terms of the [Artistic License
+2.0](https://github.com/npm/npm/blob/8d79c1a39dae908f27eaa37ff6b23515d505ef29/LICENSE),
+which is a liberal open-source license that allows you to take this code and do
+pretty much whatever you like with it (that is, of course, not legal language,
+and if you're doing anything with npm that leaves you in doubt about your legal
+rights, please seek the review of qualified counsel, which is to say, not
+members of the CLI team, none of whom have passed the bar, to my knowledge). At
+the same time the primary registry the CLI uses when looking up and downloading
+packages is a commercial service run by npm, Inc., and it has its own [Terms of
+Use](https://www.npmjs.com/policies/terms).
+
+Aside from clarifying the terms of use (and trying to make sure they're more
+widely known), the only recent changes to npm's licenses have been making the
+split between the CLI and registry clearer. You are still free to do whatever
+you like with the CLI's source, and you are free to view, download, and publish
+packages to and from `registry.npmjs.org`, but now the existing terms under
+which you can do so are more clearly documented. Aside from the two commits
+below, see also [the release notes for
+`npm@2.14.11`](https://github.com/npm/npm/releases/tag/v2.14.11), which is where
+the split between the CLI's code and the terms of use for the registry was
+first made more clear.
+
+* [`1f3e936`](https://github.com/npm/npm/commit/1f3e936aab6840667948ef281e0c3621df365131)
+  [#10532](https://github.com/npm/npm/issues/10532) Clarify that
+  `registry.npmjs.org` is the default, but that you're free to use the npm CLI
+  with whatever registry you wish. ([@kemitchell](https://github.com/kemitchell))
+* [`6733539`](https://github.com/npm/npm/commit/6733539eeb9b32a5f2d1a6aa797987e2252fa760)
+  [#10532](https://github.com/npm/npm/issues/10532) Having semi-duplicate
+  release information in `README.md` was confusing and potentially inaccurate,
+  so remove it. ([@kemitchell](https://github.com/kemitchell))
+
+#### EASE UP ON WINDOWS BASH USERS
+
+It turns out that a fair number of us use bash on Windows (through MINGW or
+bundled with Git, plz – Cygwin is still a bridge too far, for both npm and
+Node.js). [@jakub-g](https://github.com/jakub-g) did us all a favor and relaxed
+the check for npm completion to support MINGW bash. Thanks, Jakub!
+
+* [`460cc09`](https://github.com/npm/npm/commit/460cc0950fd6a005c4e5c4f85af807814209b2bb)
+  [#10156](https://github.com/npm/npm/issues/10156) completion: enable on
+  Windows in git bash ([@jakub-g](https://github.com/jakub-g))
+
+#### MAKE NODE-GYP A LITTLE BLUER
+
+* [`333e118`](https://github.com/npm/npm/commit/333e1181082842c21edc62f0ce515928424dff1f)
+  `node-gyp@3.2.0`: Support AIX, use `which` to find Python, updated to a newer
+  version of `gyp`, and more! ([@bnoordhuis](https://github.com/bnoordhuis))
+
+#### WE LIKE SPDX AND ALL BUT IT'S NOT ACTUALLY A DIRECT DEP, SORRY
+
+* [`1f4b4bb`](https://github.com/npm/npm/commit/1f4b4bbdf8758281beecb7eaf75d05a6c4a77c15)
+  Removed `spdx` as a direct npm dependency, since we don't actually need it at
+  that level, and updated subdeps for `validate-npm-package-license`
+  ([@othiym23](https://github.com/othiym23))
+
+#### A BOUNTEOUS THANKSGIVING CORNUCOPIA OF DOC TWEAKS
+
+These are great! Keep them coming! Sorry for letting them pile up so deep,
+everybody. Also, a belated Thanksgiving to our Canadian friends, and a happy
+Thanksgiving to all our friends in the USA.
+
+* [`6101f44`](https://github.com/npm/npm/commit/6101f44737645d9379c3396fae81bbc4d94e1f7e)
+  [#10250](https://github.com/npm/npm/issues/10250) Correct order of `org:team`
+  in `npm team` documentation. ([@louislarry](https://github.com/louislarry))
+* [`e8769f9`](https://github.com/npm/npm/commit/e8769f9807b91582c15ef130733e2e72b6c7bda4)
+  [#10371](https://github.com/npm/npm/issues/10371) Remove broken / duplicate
+  link to tag. ([@WickyNilliams](https://github.com/WickyNilliams))
+* [`1ae2dbe`](https://github.com/npm/npm/commit/1ae2dbe759feb80d8634569221ec6ee2c6d1d1ff)
+  [#10419](https://github.com/npm/npm/issues/10419) Remove references to
+  nonexistent `npm-rm(1)` documentation. ([@KenanY](https://github.com/KenanY))
+* [`777a271`](https://github.com/npm/npm/commit/777a271830a42d4ee62540a89f764a6e7d62de19)
+  [#10474](https://github.com/npm/npm/issues/10474) Clarify that install finds
+  dependencies in `package.json`. ([@sleekweasel](https://github.com/sleekweasel))
+* [`dcf4b5c`](https://github.com/npm/npm/commit/dcf4b5cbece1b0ef55ab7665d9acacc0b6b7cd6e)
+  [#10497](https://github.com/npm/npm/issues/10497) Clarify what a package is
+  slightly. ([@aredridel](https://github.com/aredridel))
+* [`447b3d6`](https://github.com/npm/npm/commit/447b3d669b2b6c483b8203754ac0a002c67bf015)
+  [#10539](https://github.com/npm/npm/issues/10539) Remove an extra, spuriously
+  capitalized letter. ([@alexlukin-softgrad](https://github.com/alexlukin-softgrad))
+
 ### v2.14.12 (2015-11-19):
 
 #### TEEN ORCS AT THE GATES
