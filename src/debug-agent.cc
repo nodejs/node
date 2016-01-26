@@ -216,7 +216,8 @@ void Agent::InitAdaptor(Environment* env) {
   NODE_SET_PROTOTYPE_METHOD(t, "notifyWait", NotifyWait);
   NODE_SET_PROTOTYPE_METHOD(t, "sendCommand", SendCommand);
 
-  Local<Object> api = t->GetFunction()->NewInstance();
+  Local<Object> api =
+      t->GetFunction()->NewInstance(env->context()).ToLocalChecked();
   api->SetAlignedPointerInInternalField(0, this);
 
   api->Set(String::NewFromUtf8(isolate, "port"), Integer::New(isolate, port_));
