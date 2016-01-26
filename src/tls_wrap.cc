@@ -92,7 +92,7 @@ void TLSWrap::MakePending() {
 }
 
 
-bool TLSWrap::InvokeQueued(int status) {
+bool TLSWrap::InvokeQueued(int status, const char* error_str) {
   if (pending_write_items_.IsEmpty())
     return false;
 
@@ -100,7 +100,7 @@ bool TLSWrap::InvokeQueued(int status) {
   WriteItemList queue;
   pending_write_items_.MoveBack(&queue);
   while (WriteItem* wi = queue.PopFront()) {
-    wi->w_->Done(status);
+    wi->w_->Done(status, error_str);
     delete wi;
   }
 
@@ -484,11 +484,12 @@ bool TLSWrap::ClearIn() {
 
   // Error or partial write
   int err;
-  Local<Value> arg = GetSSLError(written, &err, &error_);
+  const char* error_str = nullptr;
+  Local<Value> arg = GetSSLError(written, &err, &error_str);
   if (!arg.IsEmpty()) {
     MakePending();
-    if (!InvokeQueued(UV_EPROTO))
-      ClearError();
+    InvokeQueued(UV_EPROTO, error_str);
+    delete[] error_str;
     clear_in_->Reset();
   }
 
@@ -589,8 +590,15 @@ int TLSWrap::DoWrite(WriteWrap* w,
     return 0;
   }
 
-  if (ssl_ == nullptr)
+  if (ssl_ == nullptr) {
+    ClearError();
+
+    static char msg[] = "Write after DestroySSL";
+    char* tmp = new char[sizeof(msg)];
+    memcpy(tmp, msg, sizeof(msg));
+    error_ = tmp;
     return UV_EPROTO;
+  }
 
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -775,7 +783,7 @@ void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   wrap->MakePending();
 
   // And destroy
-  wrap->InvokeQueued(UV_ECANCELED);
+  wrap->InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
 
   // Destroy the SSL structure and friends
   wrap->SSLWrap<TLSWrap>::DestroySSL();
