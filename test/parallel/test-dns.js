@@ -154,10 +154,26 @@ assert.throws(function() {
   dns.lookupService('fasdfdsaf', 0, noop);
 }, /"host" argument needs to be a valid IP address/);
 
-assert.throws(function() {
+assert.doesNotThrow(function() {
   dns.lookupService('0.0.0.0', '0', noop);
-}, /"port" argument must be a number, got "0"/);
+});
 
 assert.doesNotThrow(function() {
   dns.lookupService('0.0.0.0', 0, noop);
 });
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', null, noop);
+}, /"port" should be >= 0 and < 65536, got "null"/);
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', undefined, noop);
+}, /"port" should be >= 0 and < 65536, got "undefined"/);
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', 65538, noop);
+}, /"port" should be >= 0 and < 65536, got "65538"/);
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', 'test', noop);
+}, /"port" should be >= 0 and < 65536, got "test"/);
