@@ -1492,6 +1492,7 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
         'icns':        'image.icns',
         'java':        'sourcecode.java',
         'js':          'sourcecode.javascript',
+        'kext':        'wrapper.kext',
         'm':           'sourcecode.c.objc',
         'mm':          'sourcecode.cpp.objcpp',
         'nib':         'wrapper.nib',
@@ -1951,6 +1952,7 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
   # path_tree_to_subfolder maps names of Xcode variables to the associated
   # dstSubfolderSpec property value used in a PBXCopyFilesBuildPhase object.
   path_tree_to_subfolder = {
+    'BUILT_FRAMEWORKS_DIR': 10,  # Frameworks Directory
     'BUILT_PRODUCTS_DIR': 16,  # Products Directory
     # Other types that can be chosen via the Xcode UI.
     # TODO(mark): Map Xcode variable names to these.
@@ -1958,7 +1960,6 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
     # : 6,  # Executables: 6
     # : 7,  # Resources
     # : 15,  # Java Resources
-    # : 10,  # Frameworks
     # : 11,  # Shared Frameworks
     # : 12,  # Shared Support
     # : 13,  # PlugIns
@@ -2262,6 +2263,8 @@ class PBXNativeTarget(XCTarget):
                                                  '', '.xctest'],
     'com.googlecode.gyp.xcode.bundle':          ['compiled.mach-o.dylib',
                                                  '', '.so'],
+    'com.apple.product-type.kernel-extension':  ['wrapper.kext',
+                                                 '', '.kext'],
   }
 
   def __init__(self, properties=None, id=None, parent=None,
