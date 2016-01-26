@@ -74,6 +74,7 @@
       'lib/internal/cluster.js',
       'lib/internal/freelist.js',
       'lib/internal/linkedlist.js',
+      'lib/internal/net.js',
       'lib/internal/module.js',
       'lib/internal/repl.js',
       'lib/internal/socket_list.js',
