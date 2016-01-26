@@ -200,12 +200,12 @@ describe('Server', function () {
                 }
             };
 
-            Hawk.server.authenticate(req, credentialsFunc, options, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(req, credentialsFunc, options, function (err, credentials1, artifacts1) {
 
                 expect(err).to.not.exist();
-                expect(credentials.user).to.equal('steve');
+                expect(credentials1.user).to.equal('steve');
 
-                Hawk.server.authenticate(req, credentialsFunc, options, function (err, credentials, artifacts) {
+                Hawk.server.authenticate(req, credentialsFunc, options, function (err, credentials2, artifacts2) {
 
                     expect(err).to.exist();
                     expect(err.output.payload.message).to.equal('Invalid nonce');
@@ -232,7 +232,7 @@ describe('Server', function () {
                 authorization: 'Hawk id="456", ts="1353788437", nonce="k3j4h2", mac="LXfmTnRzrLd9TD7yfH+4se46Bx6AHyhpM94hLCiNia4=", ext="hello"'
             };
 
-            var credentialsFunc = function (id, callback) {
+            var credentialsFuncion = function (id, callback) {
 
                 var credentials = {
                     '123': {
@@ -266,15 +266,15 @@ describe('Server', function () {
                 }
             };
 
-            Hawk.server.authenticate(reqSteve, credentialsFunc, options, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(reqSteve, credentialsFuncion, options, function (err, credentials1, artifacts1) {
 
                 expect(err).to.not.exist();
-                expect(credentials.user).to.equal('steve');
+                expect(credentials1.user).to.equal('steve');
 
-                Hawk.server.authenticate(reqBob, credentialsFunc, options, function (err, credentials, artifacts) {
+                Hawk.server.authenticate(reqBob, credentialsFuncion, options, function (err, credentials2, artifacts2) {
 
                     expect(err).to.not.exist();
-                    expect(credentials.user).to.equal('bob');
+                    expect(credentials2.user).to.equal('bob');
                     done();
                 });
             });
@@ -579,12 +579,12 @@ describe('Server', function () {
                 authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="/qwS4UjfVWMcUyW6EEgUH4jlr7T/wuKe3dKijvTvSos=", ext="hello"'
             };
 
-            var credentialsFunc = function (id, callback) {
+            var credentialsFuncion = function (id, callback) {
 
                 return callback(new Error('Unknown user'));
             };
 
-            Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(req, credentialsFuncion, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
 
                 expect(err).to.exist();
                 expect(err.message).to.equal('Unknown user');
@@ -602,12 +602,12 @@ describe('Server', function () {
                 authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="/qwS4UjfVWMcUyW6EEgUH4jlr7T/wuKe3dKijvTvSos=", ext="hello"'
             };
 
-            var credentialsFunc = function (id, callback) {
+            var credentialsFuncion = function (id, callback) {
 
                 return callback(new Error('Unknown user'), { some: 'value' });
             };
 
-            Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(req, credentialsFuncion, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
 
                 expect(err).to.exist();
                 expect(err.message).to.equal('Unknown user');
@@ -626,12 +626,12 @@ describe('Server', function () {
                 authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="/qwS4UjfVWMcUyW6EEgUH4jlr7T/wuKe3dKijvTvSos=", ext="hello"'
             };
 
-            var credentialsFunc = function (id, callback) {
+            var credentialsFuncion = function (id, callback) {
 
                 return callback(null, null);
             };
 
-            Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(req, credentialsFuncion, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
 
                 expect(err).to.exist();
                 expect(err.output.payload.message).to.equal('Unknown credentials');
@@ -649,7 +649,7 @@ describe('Server', function () {
                 authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="/qwS4UjfVWMcUyW6EEgUH4jlr7T/wuKe3dKijvTvSos=", ext="hello"'
             };
 
-            var credentialsFunc = function (id, callback) {
+            var credentialsFuncion = function (id, callback) {
 
                 var credentials = {
                     key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
@@ -659,7 +659,7 @@ describe('Server', function () {
                 return callback(null, credentials);
             };
 
-            Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(req, credentialsFuncion, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
 
                 expect(err).to.exist();
                 expect(err.message).to.equal('Invalid credentials');
@@ -678,7 +678,7 @@ describe('Server', function () {
                 authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="/qwS4UjfVWMcUyW6EEgUH4jlr7T/wuKe3dKijvTvSos=", ext="hello"'
             };
 
-            var credentialsFunc = function (id, callback) {
+            var credentialsFuncion = function (id, callback) {
 
                 var credentials = {
                     id: '23434d3q4d5345d',
@@ -688,7 +688,7 @@ describe('Server', function () {
                 return callback(null, credentials);
             };
 
-            Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(req, credentialsFuncion, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
 
                 expect(err).to.exist();
                 expect(err.message).to.equal('Invalid credentials');
@@ -707,7 +707,7 @@ describe('Server', function () {
                 authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="/qwS4UjfVWMcUyW6EEgUH4jlr7T/wuKe3dKijvTvSos=", ext="hello"'
             };
 
-            var credentialsFunc = function (id, callback) {
+            var credentialsFuncion = function (id, callback) {
 
                 var credentials = {
                     key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
@@ -718,7 +718,7 @@ describe('Server', function () {
                 return callback(null, credentials);
             };
 
-            Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(req, credentialsFuncion, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
 
                 expect(err).to.exist();
                 expect(err.message).to.equal('Unknown algorithm');
@@ -737,7 +737,7 @@ describe('Server', function () {
                 authorization: 'Hawk id="123", ts="1353788437", nonce="k3j4h2", mac="/qwS4UjfVWMcU4jlr7T/wuKe3dKijvTvSos=", ext="hello"'
             };
 
-            var credentialsFunc = function (id, callback) {
+            var credentialsFuncion = function (id, callback) {
 
                 var credentials = {
                     key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
@@ -748,7 +748,7 @@ describe('Server', function () {
                 return callback(null, credentials);
             };
 
-            Hawk.server.authenticate(req, credentialsFunc, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
+            Hawk.server.authenticate(req, credentialsFuncion, { localtimeOffsetMsec: 1353788437000 - Hawk.utils.now() }, function (err, credentials, artifacts) {
 
                 expect(err).to.exist();
                 expect(err.output.payload.message).to.equal('Bad mac');
@@ -974,12 +974,12 @@ describe('Server', function () {
 
         it('errors on invalid authorization (ts)', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 delete auth.ts;
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Invalid authorization');
@@ -990,12 +990,12 @@ describe('Server', function () {
 
         it('errors on invalid authorization (nonce)', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 delete auth.nonce;
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Invalid authorization');
@@ -1006,12 +1006,12 @@ describe('Server', function () {
 
         it('errors on invalid authorization (hash)', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 delete auth.hash;
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Invalid authorization');
@@ -1022,18 +1022,18 @@ describe('Server', function () {
 
         it('errors with credentials', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
 
                 Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, function (id, callback) {
 
                     callback(new Error('something'), { some: 'value' });
-                }, {}, function (err, credentials) {
+                }, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('something');
-                    expect(credentials.some).to.equal('value');
+                    expect(credentials2.some).to.equal('value');
                     done();
                 });
             });
@@ -1041,15 +1041,15 @@ describe('Server', function () {
 
         it('errors on nonce collision', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {
                     nonceFunc: function (key, nonce, ts, nonceCallback) {
 
                         nonceCallback(true);
                     }
-                }, function (err, credentials) {
+                }, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Invalid nonce');
@@ -1058,29 +1058,17 @@ describe('Server', function () {
             });
         });
 
-        var credentialsFunc = function (id, callback) {
-
-            var credentials = {
-                id: id,
-                key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
-                algorithm: (id === '1' ? 'sha1' : 'sha256'),
-                user: 'steve'
-            };
-
-            return callback(null, credentials);
-        };
-
         it('should generate an authorization then successfully parse it', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials2) {
 
                     expect(err).to.not.exist();
-                    expect(credentials.user).to.equal('steve');
+                    expect(credentials2.user).to.equal('steve');
                     done();
                 });
             });
@@ -1088,12 +1076,12 @@ describe('Server', function () {
 
         it('should fail authorization on mismatching host', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
-                Hawk.server.authenticateMessage('example1.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example1.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Bad mac');
@@ -1104,12 +1092,12 @@ describe('Server', function () {
 
         it('should fail authorization on stale timestamp', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, { localtimeOffsetMsec: 100000 }, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, { localtimeOffsetMsec: 100000 }, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Stale timestamp');
@@ -1120,12 +1108,12 @@ describe('Server', function () {
 
         it('overrides timestampSkewSec', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials, localtimeOffsetMsec: 100000 });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1, localtimeOffsetMsec: 100000 });
                 expect(auth).to.exist();
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, { timestampSkewSec: 500 }, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, { timestampSkewSec: 500 }, function (err, credentials2) {
 
                     expect(err).to.not.exist();
                     done();
@@ -1135,13 +1123,13 @@ describe('Server', function () {
 
         it('should fail authorization on invalid authorization', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
                 delete auth.id;
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Invalid authorization');
@@ -1152,12 +1140,12 @@ describe('Server', function () {
 
         it('should fail authorization on bad hash', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message1', auth, credentialsFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message1', auth, credentialsFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Bad message hash');
@@ -1168,9 +1156,9 @@ describe('Server', function () {
 
         it('should fail authorization on nonce error', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
                 Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, credentialsFunc, {
@@ -1178,7 +1166,7 @@ describe('Server', function () {
 
                         callback(new Error('kaboom'));
                     }
-                }, function (err, credentials) {
+                }, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Invalid nonce');
@@ -1189,9 +1177,9 @@ describe('Server', function () {
 
         it('should fail authorization on credentials error', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
                 var errFunc = function (id, callback) {
@@ -1199,7 +1187,7 @@ describe('Server', function () {
                     callback(new Error('kablooey'));
                 };
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, errFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, errFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('kablooey');
@@ -1210,9 +1198,9 @@ describe('Server', function () {
 
         it('should fail authorization on missing credentials', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
                 var errFunc = function (id, callback) {
@@ -1220,7 +1208,7 @@ describe('Server', function () {
                     callback();
                 };
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, errFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, errFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Unknown credentials');
@@ -1231,9 +1219,9 @@ describe('Server', function () {
 
         it('should fail authorization on invalid credentials', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
                 var errFunc = function (id, callback) {
@@ -1241,7 +1229,7 @@ describe('Server', function () {
                     callback(null, {});
                 };
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, errFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, errFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Invalid credentials');
@@ -1252,9 +1240,9 @@ describe('Server', function () {
 
         it('should fail authorization on invalid credentials algorithm', function (done) {
 
-            credentialsFunc('123456', function (err, credentials) {
+            credentialsFunc('123456', function (err, credentials1) {
 
-                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials });
+                var auth = Hawk.client.message('example.com', 8080, 'some message', { credentials: credentials1 });
                 expect(auth).to.exist();
 
                 var errFunc = function (id, callback) {
@@ -1262,7 +1250,7 @@ describe('Server', function () {
                     callback(null, { key: '123', algorithm: '456' });
                 };
 
-                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, errFunc, {}, function (err, credentials) {
+                Hawk.server.authenticateMessage('example.com', 8080, 'some message', auth, errFunc, {}, function (err, credentials2) {
 
                     expect(err).to.exist();
                     expect(err.message).to.equal('Unknown algorithm');

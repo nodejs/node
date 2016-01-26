@@ -296,7 +296,7 @@ class TestSequenceFunctions(unittest.TestCase):
             'BuildingInIDE': 'true',
             'CallingConvention': 'Cdecl',
             'CompileAs': 'CompileAsC',
-            'CompileAsManaged': 'Pure',
+            'CompileAsManaged': 'true',
             'CreateHotpatchableImage': 'true',
             'DebugInformationFormat': 'ProgramDatabase',
             'DisableLanguageExtensions': 'true',

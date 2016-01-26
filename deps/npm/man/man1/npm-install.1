@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "November 2015" "" ""
+.TH "NPM\-INSTALL" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -25,7 +25,7 @@ by that\. See npm help shrinkwrap\.
 A \fBpackage\fP is:
 .RS 0
 .IP \(bu 2
-a) a folder containing a program described by a package\.json file
+a) a folder containing a program described by a npm help 5 \fBpackage\.json\fP file
 .IP \(bu 2
 b) a gzipped tarball containing (a)
 .IP \(bu 2
@@ -52,7 +52,8 @@ after packing it up into a tarball (b)\.
   In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
   it installs the current package context (ie, the current working
   directory) as a global package\.
-  By default, \fBnpm install\fP will install all modules listed as dependencies\.
+  By default, \fBnpm install\fP will install all modules listed as dependencies
+  in npm help 5 \fBpackage\.json\fP\|\.
   With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment variable
   is set to \fBproduction\fP), npm will not install modules listed in
   \fBdevDependencies\fP\|\.
@@ -402,9 +403,11 @@ npm help 7 registry
 .IP \(bu 2
 npm help tag
 .IP \(bu 2
-npm help rm
+npm help uninstall
 .IP \(bu 2
 npm help shrinkwrap
+.IP \(bu 2
+npm help 5 package\.json
 
 .RE
 
