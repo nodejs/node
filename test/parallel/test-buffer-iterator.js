@@ -50,7 +50,7 @@ assert.deepEqual(arr, [0, 1, 2, 3, 4]);
 
 arr = [];
 
-for (var b of buffer.entries())
+for (b of buffer.entries())
   arr.push(b);
 
 assert.deepEqual(arr, [
