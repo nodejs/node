@@ -155,7 +155,7 @@ is expensive.
 
 ## Class: CryptoStream
 
-    Stability: 0 - Deprecated: Use [tls.TLSSocket][] instead.
+    Stability: 0 - Deprecated: Use [`tls.TLSSocket()`][] instead.
 
 This is an encrypted stream.
 
@@ -958,7 +958,7 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [crypto.getCurves()]: crypto.html#crypto_crypto_getcurves
 [tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
 [tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
-[tls.TLSSocket]: #tls_class_tls_tlssocket
+[`tls.TLSSocket()`]: #tls_class_tls_tlssocket
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [net.Server.address()]: net.html#net_server_address
