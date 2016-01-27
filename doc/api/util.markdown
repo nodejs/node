@@ -567,6 +567,16 @@ Deprecated predecessor of `console.log`.
 
 Deprecated predecessor of `console.log`.
 
+## util._extend(obj)
+
+    Stability: 0 - Deprecated: Use Object.assign() instead.
+
+`_extend` was never intended to be used outside of internal NodeJS modules. The
+community found and used it anyway.
+
+It is deprecated and should not be used in new code. JavaScript comes with very
+similar built-in functionality through `Object.assign`.
+
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
