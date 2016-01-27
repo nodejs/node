@@ -20,6 +20,8 @@ resized.
 The `Buffer` class is a global within Node.js, making it unlikely that one
 would need to ever use `require('buffer')`.
 
+Modern JavaScript:
+
 ```js
 const buf1 = new Buffer(10);
   // creates a buffer of length 10
@@ -34,6 +36,22 @@ const buf4 = new Buffer('tést', 'utf8');
   // creates a buffer containing UTF8 bytes [74, c3, a9, 73, 74]
 ```
 
+ES5:
+
+```js
+var buf1 = new Buffer(10);
+  // creates a buffer of length 10
+
+var buf2 = new Buffer([1,2,3]);
+  // creates a buffer containing [01, 02, 03]
+
+var buf3 = new Buffer('test');
+  // creates a buffer containing ASCII bytes [74, 65, 73, 74]
+
+var buf4 = new Buffer('tést', 'utf8');
+  // creates a buffer containing UTF8 bytes [74, c3, a9, 73, 74]
+```
+
 ## Buffers and Character Encodings
 
 Buffers are commonly used to represent sequences of encoded characters
@@ -41,8 +59,20 @@ such as UTF8, UCS2, Base64 or even Hex-encoded data. It is possible to
 convert back and forth between Buffers and ordinary JavaScript string objects
 by using an explicit encoding method.
 
+Modern JavaScript:
+
 ```js
 const buf = new Buffer('hello world', 'ascii');
+console.log(buf.toString('hex'));
+  // prints: 68656c6c6f20776f726c64
+console.log(buf.toString('base64'));
+  // prints: aGVsbG8gd29ybGQ=
+```
+
+ES5:
+
+```js
+var buf = new Buffer('hello world', 'ascii');
 console.log(buf.toString('hex'));
   // prints: 68656c6c6f20776f726c64
 console.log(buf.toString('base64'));
