@@ -472,9 +472,9 @@ Generates private and public EC Diffie-Hellman key values, and returns
 the public key in the specified `format` and `encoding`. This key should be
 transferred to the other party.
 
-The `format` arguments specifies point encoding and can be `'compressed'`,
-`'uncompressed'`, or `'hybrid'`. If `format` is not specified, the point will
-be returned in `'uncompressed'` format.
+The `format` argument specifies point encoding and can be `'compressed'` or
+`'uncompressed'`. If `format` is not specified, the point will be returned in
+`'uncompressed'` format.
 
 The `encoding` argument can be `'latin1'`, `'hex'`, or `'base64'`. If
 `encoding` is provided a string is returned; otherwise a [`Buffer`][]
@@ -491,9 +491,9 @@ a string is returned; otherwise a [`Buffer`][] is returned.
 Returns the EC Diffie-Hellman public key in the specified `encoding` and
 `format`.
 
-The `format` argument specifies point encoding and can be `'compressed'`,
-`'uncompressed'`, or `'hybrid'`. If `format` is not specified the point will be
-returned in `'uncompressed'` format.
+The `format` argument specifies point encoding and can be `'compressed'` or
+`'uncompressed'`. If `format` is not specified the point will be returned in
+`'uncompressed'` format.
 
 The `encoding` argument can be `'latin1'`, `'hex'`, or `'base64'`. If
 `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
