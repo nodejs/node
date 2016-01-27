@@ -1,0 +1,18 @@
+.es-switcher > p.active, .es-switcher > p:hover {
+    background-color: #f2f5f0;
+    border-color: #f2f5f0;
+}
+.es-switcher > p {
+    display: inline-block;
+    margin: 0px;
+    cursor: pointer;
+    padding: 0em 21px;
+    border-style: solid;
+    border-color: rgb(255, 255, 255);
+    border-width: 3px;
+    background-color: rgb(238, 238, 238);
+}
+.es-switcher > pre {
+    border-top-left-radius: 0px !important;
+    margin: 0px;
+}
