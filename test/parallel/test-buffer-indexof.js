@@ -110,16 +110,17 @@ assert.equal(
     Buffer(b.toString('binary'), 'binary')
     .indexOf(Buffer('d', 'binary'), 0, 'binary'), 3);
 
+{
+  // test usc2 encoding
+  const twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
-// test usc2 encoding
-var twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
-
-assert.equal(8, twoByteString.indexOf('\u0395', 4, 'ucs2'));
-assert.equal(6, twoByteString.indexOf('\u03a3', -4, 'ucs2'));
-assert.equal(4, twoByteString.indexOf('\u03a3', -6, 'ucs2'));
-assert.equal(4, twoByteString.indexOf(
-  new Buffer('\u03a3', 'ucs2'), -6, 'ucs2'));
-assert.equal(-1, twoByteString.indexOf('\u03a3', -2, 'ucs2'));
+  assert.equal(8, twoByteString.indexOf('\u0395', 4, 'ucs2'));
+  assert.equal(6, twoByteString.indexOf('\u03a3', -4, 'ucs2'));
+  assert.equal(4, twoByteString.indexOf('\u03a3', -6, 'ucs2'));
+  assert.equal(4, twoByteString.indexOf(
+    new Buffer('\u03a3', 'ucs2'), -6, 'ucs2'));
+  assert.equal(-1, twoByteString.indexOf('\u03a3', -2, 'ucs2'));
+}
 
 var mixedByteStringUcs2 =
     new Buffer('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
@@ -134,25 +135,27 @@ assert.equal(
 assert.equal(
     -1, mixedByteStringUcs2.indexOf(new Buffer('\u0396', 'ucs2'), 0, 'ucs2'));
 
-var twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
+{
+  const twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
-// Test single char pattern
-assert.equal(0, twoByteString.indexOf('\u039a', 0, 'ucs2'));
-assert.equal(2, twoByteString.indexOf('\u0391', 0, 'ucs2'), 'Alpha');
-assert.equal(4, twoByteString.indexOf('\u03a3', 0, 'ucs2'), 'First Sigma');
-assert.equal(6, twoByteString.indexOf('\u03a3', 6, 'ucs2'), 'Second Sigma');
-assert.equal(8, twoByteString.indexOf('\u0395', 0, 'ucs2'), 'Epsilon');
-assert.equal(-1, twoByteString.indexOf('\u0392', 0, 'ucs2'), 'Not beta');
+  // Test single char pattern
+  assert.equal(0, twoByteString.indexOf('\u039a', 0, 'ucs2'));
+  assert.equal(2, twoByteString.indexOf('\u0391', 0, 'ucs2'), 'Alpha');
+  assert.equal(4, twoByteString.indexOf('\u03a3', 0, 'ucs2'), 'First Sigma');
+  assert.equal(6, twoByteString.indexOf('\u03a3', 6, 'ucs2'), 'Second Sigma');
+  assert.equal(8, twoByteString.indexOf('\u0395', 0, 'ucs2'), 'Epsilon');
+  assert.equal(-1, twoByteString.indexOf('\u0392', 0, 'ucs2'), 'Not beta');
 
-// Test multi-char pattern
-assert.equal(
-    0, twoByteString.indexOf('\u039a\u0391', 0, 'ucs2'), 'Lambda Alpha');
-assert.equal(
-    2, twoByteString.indexOf('\u0391\u03a3', 0, 'ucs2'), 'Alpha Sigma');
-assert.equal(
-    4, twoByteString.indexOf('\u03a3\u03a3', 0, 'ucs2'), 'Sigma Sigma');
-assert.equal(
-    6, twoByteString.indexOf('\u03a3\u0395', 0, 'ucs2'), 'Sigma Epsilon');
+  // Test multi-char pattern
+  assert.equal(
+      0, twoByteString.indexOf('\u039a\u0391', 0, 'ucs2'), 'Lambda Alpha');
+  assert.equal(
+      2, twoByteString.indexOf('\u0391\u03a3', 0, 'ucs2'), 'Alpha Sigma');
+  assert.equal(
+      4, twoByteString.indexOf('\u03a3\u03a3', 0, 'ucs2'), 'Sigma Sigma');
+  assert.equal(
+      6, twoByteString.indexOf('\u03a3\u0395', 0, 'ucs2'), 'Sigma Epsilon');
+}
 
 var mixedByteStringUtf8 = new Buffer('\u039a\u0391abc\u03a3\u03a3\u0395');
 assert.equal(5, mixedByteStringUtf8.indexOf('bc'));
@@ -165,7 +168,7 @@ assert.equal(-1, mixedByteStringUtf8.indexOf('\u0396'));
 // Test complex string indexOf algorithms. Only trigger for long strings.
 // Long string that isn't a simple repeat of a shorter string.
 var longString = 'A';
-for (var i = 66; i < 76; i++) {  // from 'B' to 'K'
+for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
   longString =  longString + String.fromCharCode(i) + longString;
 }
 
@@ -173,8 +176,8 @@ var longBufferString = new Buffer(longString);
 
 // pattern of 15 chars, repeated every 16 chars in long
 var pattern = 'ABACABADABACABA';
-for (var i = 0; i < longBufferString.length - pattern.length; i += 7) {
-  var index = longBufferString.indexOf(pattern, i);
+for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
+  const index = longBufferString.indexOf(pattern, i);
   assert.equal((i + 15) & ~0xf, index, 'Long ABACABA...-string at index ' + i);
 }
 assert.equal(510, longBufferString.indexOf('AJABACA'), 'Long AJABACA, First J');
@@ -195,7 +198,7 @@ assert.equal(3, asciiString.indexOf('leb', 0));
 
 // Search in string containing many non-ASCII chars.
 var allCodePoints = [];
-for (var i = 0; i < 65536; i++) allCodePoints[i] = i;
+for (let i = 0; i < 65536; i++) allCodePoints[i] = i;
 var allCharsString = String.fromCharCode.apply(String, allCodePoints);
 var allCharsBufferUtf8 = new Buffer(allCharsString);
 var allCharsBufferUcs2 = new Buffer(allCharsString, 'ucs2');
@@ -205,50 +208,54 @@ var allCharsBufferUcs2 = new Buffer(allCharsString, 'ucs2');
 assert.equal(-1, allCharsBufferUtf8.indexOf('notfound'));
 assert.equal(-1, allCharsBufferUcs2.indexOf('notfound'));
 
-// Find substrings in Utf8.
-var lengths = [1, 3, 15];  // Single char, simple and complex.
-var indices = [0x5, 0x60, 0x400, 0x680, 0x7ee, 0xFF02, 0x16610, 0x2f77b];
-for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
-  for (var i = 0; i < indices.length; i++) {
-    var index = indices[i];
-    var length = lengths[lengthIndex];
+{
+  // Find substrings in Utf8.
+  const lengths = [1, 3, 15];  // Single char, simple and complex.
+  const indices = [0x5, 0x60, 0x400, 0x680, 0x7ee, 0xFF02, 0x16610, 0x2f77b];
+  for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
+    for (let i = 0; i < indices.length; i++) {
+      const index = indices[i];
+      let length = lengths[lengthIndex];
 
-    if (index + length > 0x7F) {
-      length = 2 * length;
+      if (index + length > 0x7F) {
+        length = 2 * length;
+      }
+
+      if (index + length > 0x7FF) {
+        length = 3 * length;
+      }
+
+      if (index + length > 0xFFFF) {
+        length = 4 * length;
+      }
+
+      var patternBufferUtf8 = allCharsBufferUtf8.slice(index, index + length);
+      assert.equal(index, allCharsBufferUtf8.indexOf(patternBufferUtf8));
+
+      var patternStringUtf8 = patternBufferUtf8.toString();
+      assert.equal(index, allCharsBufferUtf8.indexOf(patternStringUtf8));
     }
-
-    if (index + length > 0x7FF) {
-      length = 3 * length;
-    }
-
-    if (index + length > 0xFFFF) {
-      length = 4 * length;
-    }
-
-    var patternBufferUtf8 = allCharsBufferUtf8.slice(index, index + length);
-    assert.equal(index, allCharsBufferUtf8.indexOf(patternBufferUtf8));
-
-    var patternStringUtf8 = patternBufferUtf8.toString();
-    assert.equal(index, allCharsBufferUtf8.indexOf(patternStringUtf8));
   }
 }
 
-// Find substrings in Usc2.
-var lengths = [2, 4, 16];  // Single char, simple and complex.
-var indices = [0x5, 0x65, 0x105, 0x205, 0x285, 0x2005, 0x2085, 0xfff0];
-for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
-  for (var i = 0; i < indices.length; i++) {
-    var index = indices[i] * 2;
-    var length = lengths[lengthIndex];
+{
+  // Find substrings in Usc2.
+  const lengths = [2, 4, 16];  // Single char, simple and complex.
+  const indices = [0x5, 0x65, 0x105, 0x205, 0x285, 0x2005, 0x2085, 0xfff0];
+  for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
+    for (let i = 0; i < indices.length; i++) {
+      const index = indices[i] * 2;
+      const length = lengths[lengthIndex];
 
-    var patternBufferUcs2 =
-        allCharsBufferUcs2.slice(index, index + length);
-    assert.equal(
-        index, allCharsBufferUcs2.indexOf(patternBufferUcs2, 0, 'ucs2'));
+      var patternBufferUcs2 =
+          allCharsBufferUcs2.slice(index, index + length);
+      assert.equal(
+          index, allCharsBufferUcs2.indexOf(patternBufferUcs2, 0, 'ucs2'));
 
-    var patternStringUcs2 = patternBufferUcs2.toString('ucs2');
-    assert.equal(
-        index, allCharsBufferUcs2.indexOf(patternStringUcs2, 0, 'ucs2'));
+      var patternStringUcs2 = patternBufferUcs2.toString('ucs2');
+      assert.equal(
+          index, allCharsBufferUcs2.indexOf(patternStringUcs2, 0, 'ucs2'));
+    }
   }
 }
 
