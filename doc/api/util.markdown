@@ -544,9 +544,20 @@ Deprecated predecessor of `console.log`.
 
 ## util.puts([...])
 
-    Stability: 0 - Deprecated: Use console.log() instead.
+    Stability: 0 - Deprecated: Use `console.log()` instead.
 
 Deprecated predecessor of `console.log`.
+
+
+## util._extend(obj)
+
+    Stability: 0 - Deprecated: Use Object.assign() instead.
+
+`_extend` was never intended to be used outside of internal NodeJS modules. The
+community found and used it.
+
+It is deprecated and should not be used in new code. JavaScript comes with very
+similar built in functionality through `Object.assign`. 
 
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
