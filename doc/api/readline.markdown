@@ -69,7 +69,7 @@ nothing is displayed.
 Example usage:
 
 ```js
-interface.question('What is your favorite food?', (answer) => {
+rl.question('What is your favorite food?', (answer) => {
   console.log(`Oh, so your favorite food is ${answer}`);
 });
 ```
