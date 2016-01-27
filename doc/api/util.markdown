@@ -14,7 +14,7 @@ are unnecessary for Node.js's internal functionality.
 
 ## util.debug(string)
 
-    Stability: 0 - Deprecated: use console.error() instead.
+    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
 Deprecated predecessor of `console.error`.
 
@@ -83,7 +83,7 @@ when the deprecated API is used.  Configurable at run-time through the
 
 ## util.error([...])
 
-    Stability: 0 - Deprecated: Use console.error() instead.
+    Stability: 0 - Deprecated: Use [`console.error()`][] instead.
 
 Deprecated predecessor of `console.error`.
 
@@ -286,9 +286,7 @@ util.isBoolean(false)
 
 ## util.isBuffer(object)
 
-    Stability: 0 - Deprecated
-
-Use `Buffer.isBuffer()` instead.
+    Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
 Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
 
@@ -538,13 +536,13 @@ Output with timestamp on `stdout`.
 
 ## util.print([...])
 
-    Stability: 0 - Deprecated: Use `console.log` instead.
+    Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
 ## util.puts([...])
 
-    Stability: 0 - Deprecated: Use console.log() instead.
+    Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
 
@@ -553,3 +551,6 @@ Deprecated predecessor of `console.log`.
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [here]: #util_customizing_util_inspect_colors
 [`Error`]: errors.html#errors_class_error
+[`console.log()`]: console.html#console_console_log_data
+[`console.error()`]: console.html#console_console_error_data
+[`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj

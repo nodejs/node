@@ -863,7 +863,7 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 
 ### crypto.createCredentials(details)
 
-    Stability: 0 - Deprecated: Use [`tls.createSecureContext`][] instead.
+    Stability: 0 - Deprecated: Use [`tls.createSecureContext()`][] instead.
 
 The `crypto.createCredentials()` method is a deprecated alias for creating
 and returning a `tls.SecureContext` object. The `crypto.createCredentials()`
@@ -1346,7 +1346,7 @@ See the reference for other recommendations and details.
 [`diffieHellman.setPublicKey()`]: #crypto_diffiehellman_setpublickey_public_key_encoding
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
 [`getCurves()`]: #crypto_crypto_getcurves
-[`tls.createSecureContext`]: tls.html#tls_tls_createsecurecontext_details
+[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_details
 [`Buffer`]: buffer.html
 [buffers]: buffer.html
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms

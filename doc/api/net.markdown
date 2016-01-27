@@ -71,7 +71,7 @@ was not open when it was closed.
 
 ### server.connections
 
-    Stability: 0 - Deprecated: Use [`server.getConnections`][] instead.
+    Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
 
 The number of concurrent connections on the server.
 
@@ -722,7 +722,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`net.Socket`]: #net_class_net_socket
 [`pause()`]: #net_socket_pause
 [`resume()`]: #net_socket_resume
-[`server.getConnections`]: #net_server_getconnections_callback
+[`server.getConnections()`]: #net_server_getconnections_callback
 [`server.listen(port, \[host\], \[backlog\], \[callback\])`]: #net_server_listen_port_hostname_backlog_callback
 [`socket.connect(options\[, connectListener\])`]: #net_socket_connect_options_connectlistener
 [`socket.connect`]: #net_socket_connect_options_connectlistener
