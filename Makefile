@@ -23,7 +23,7 @@ endif
 
 ifdef DISABLE_V8_I18N
   V8_TEST_NO_I18N := --noi18n
-  V8_BUILD_NO_I18N := i18nsupport=off
+  V8_BUILD_OPTIONS += i18nsupport=off
 endif
 
 BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
@@ -108,21 +108,20 @@ cctest: all
 
 v8:
 	tools/make-v8.sh v8
-	#cd deps/v8
 ifneq (,$(filter $(DESTCPU),x86))
-	+make -C deps/v8 $(V8_BUILD_NO_I18N);
+	+$(MAKE) -C deps/v8 $(V8_BUILD_OPTIONS)
 else
 ifneq (,$(filter $(ARCH),x86))
-	+make -C deps/v8 $(V8_BUILD_NO_I18N);
+	+$(MAKE) -C deps/v8 $(V8_BUILD_OPTIONS)
 else
 ifeq ($(ARCH)$(DESTCPU),)
-	+make -C deps/v8 $(V8_BUILD_NO_I18N);
+	+$(MAKE) -C deps/v8 $(V8_BUILD_OPTIONS)
 else
-	+make -C deps/v8 $(ARCH) $(V8_BUILD_NO_I18N);
+	+$(MAKE) -C deps/v8 $(ARCH) $(V8_BUILD_OPTIONS)
 endif
-	+make -C deps/v8 $(ARCH) $(V8_BUILD_NO_I18N);
+	+$(MAKE) -C deps/v8 $(ARCH) $(V8_BUILD_OPTIONS)
 endif
-	+make -C deps/v8 $(ARCH) $(V8_BUILD_NO_I18N);
+	+$(MAKE) -C deps/v8 $(ARCH) $(V8_BUILD_OPTIONS)
 endif
 
 test: | cctest  # Depends on 'all'.
@@ -602,4 +601,5 @@ lint: jslint cpplint
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
-	bench-http bench-fs bench-tls cctest run-ci
+	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
+	test-v8-benchmarks test-v8-all
