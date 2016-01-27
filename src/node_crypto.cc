@@ -156,7 +156,11 @@ template int SSLWrap<TLSWrap>::SelectNextProtoCallback(
     unsigned int inlen,
     void* arg);
 #endif
+
+#ifdef NODE__HAVE_TLSEXT_STATUS_CB
 template int SSLWrap<TLSWrap>::TLSExtStatusCallback(SSL* s, void* arg);
+#endif
+
 template void SSLWrap<TLSWrap>::DestroySSL();
 template int SSLWrap<TLSWrap>::SSLCertCallback(SSL* s, void* arg);
 template void SSLWrap<TLSWrap>::WaitForCertCb(CertCb cb, void* arg);
@@ -2263,7 +2267,12 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
     info->Set(env->tls_ticket_string(),
               Boolean::New(env->isolate(), sess->tlsext_ticklen != 0));
   }
-  bool ocsp = s->tlsext_status_type == TLSEXT_STATUSTYPE_ocsp;
+
+  bool ocsp = false;
+#ifdef NODE__HAVE_TLSEXT_STATUS_CB
+  ocsp = s->tlsext_status_type == TLSEXT_STATUSTYPE_ocsp;
+#endif
+
   info->Set(env->ocsp_request_string(), Boolean::New(env->isolate(), ocsp));
 
   Local<Value> argv[] = { info };
