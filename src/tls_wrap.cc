@@ -591,6 +591,8 @@ int TLSWrap::DoWrite(WriteWrap* w,
   }
 
   if (ssl_ == nullptr) {
+    ClearError();
+
     static char msg[] = "Write after DestroySSL";
     char* tmp = new char[sizeof(msg)];
     memcpy(tmp, msg, sizeof(msg));
