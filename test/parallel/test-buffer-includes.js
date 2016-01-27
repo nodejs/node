@@ -161,7 +161,7 @@ assert(!mixedByteStringUtf8.includes('\u0396'));
 // Test complex string includes algorithms. Only trigger for long strings.
 // Long string that isn't a simple repeat of a shorter string.
 var longString = 'A';
-for (var i = 66; i < 76; i++) {  // from 'B' to 'K'
+for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
   longString =  longString + String.fromCharCode(i) + longString;
 }
 
@@ -169,7 +169,7 @@ const longBufferString = new Buffer(longString);
 
 // pattern of 15 chars, repeated every 16 chars in long
 var pattern = 'ABACABADABACABA';
-for (var i = 0; i < longBufferString.length - pattern.length; i += 7) {
+for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   const includes = longBufferString.includes(pattern, i);
   assert(includes, 'Long ABACABA...-string at index ' + i);
 }
@@ -188,7 +188,7 @@ assert(asciiString.includes('leb', 0));
 
 // Search in string containing many non-ASCII chars.
 const allCodePoints = [];
-for (var i = 0; i < 65536; i++) allCodePoints[i] = i;
+for (let i = 0; i < 65536; i++) allCodePoints[i] = i;
 const allCharsString = String.fromCharCode.apply(String, allCodePoints);
 const allCharsBufferUtf8 = new Buffer(allCharsString);
 const allCharsBufferUcs2 = new Buffer(allCharsString, 'ucs2');
@@ -201,10 +201,10 @@ assert(!allCharsBufferUcs2.includes('notfound'));
 // Find substrings in Utf8.
 var lengths = [1, 3, 15];  // Single char, simple and complex.
 var indices = [0x5, 0x60, 0x400, 0x680, 0x7ee, 0xFF02, 0x16610, 0x2f77b];
-for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
-  for (var i = 0; i < indices.length; i++) {
+for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
+  for (let i = 0; i < indices.length; i++) {
     const index = indices[i];
-    var length = lengths[lengthIndex];
+    let length = lengths[lengthIndex];
 
     if (index + length > 0x7F) {
       length = 2 * length;
@@ -229,10 +229,10 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
 // Find substrings in Usc2.
 lengths = [2, 4, 16];  // Single char, simple and complex.
 indices = [0x5, 0x65, 0x105, 0x205, 0x285, 0x2005, 0x2085, 0xfff0];
-for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
-  for (var i = 0; i < indices.length; i++) {
+for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
+  for (let i = 0; i < indices.length; i++) {
     const index = indices[i] * 2;
-    var length = lengths[lengthIndex];
+    const length = lengths[lengthIndex];
 
     const patternBufferUcs2 =
         allCharsBufferUcs2.slice(index, index + length);
