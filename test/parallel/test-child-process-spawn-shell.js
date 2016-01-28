@@ -26,7 +26,7 @@ let echoOutput = '';
 
 assert.strictEqual(echo.spawnargs[echo.spawnargs.length - 1].replace(/"/g, ''),
                    'echo foo');
-echo.stdout.on('data', data => {
+echo.stdout.on('data', (data) => {
   echoOutput += data;
 });
 echo.on('close', common.mustCall((code, signal) => {
@@ -41,7 +41,7 @@ const command = cp.spawn(cmd, {
 });
 let commandOutput = '';
 
-command.stdout.on('data', data => {
+command.stdout.on('data', (data) => {
   commandOutput += data;
 });
 command.on('close', common.mustCall((code, signal) => {
@@ -56,7 +56,7 @@ const env = cp.spawn(`"${process.execPath}" -pe process.env.BAZ`, {
 });
 let envOutput = '';
 
-env.stdout.on('data', data => {
+env.stdout.on('data', (data) => {
   envOutput += data;
 });
 env.on('close', common.mustCall((code, signal) => {
