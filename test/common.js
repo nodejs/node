@@ -503,7 +503,7 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
 // A stream to push an array into a REPL
 function ArrayStream() {
   this.run = function(data) {
-    data.forEach(line => {
+    data.forEach((line) => {
       this.emit('data', line + '\n');
     });
   };
