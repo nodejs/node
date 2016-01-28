@@ -20,7 +20,7 @@ keyList.splice(0, 1);
 
 
 function init(id) {
-  keyList = keyList.filter(e => e != pkeys[id]);
+  keyList = keyList.filter((e) => e != pkeys[id]);
 }
 
 function noop() { }
