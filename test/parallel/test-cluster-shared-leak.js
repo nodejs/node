@@ -17,8 +17,8 @@ if (cluster.isMaster) {
     worker2 = cluster.fork();
     worker2.on('online', function() {
       conn = net.connect(common.PORT, common.mustCall(function() {
-        worker1.send('die');
-        worker2.send('die');
+        worker1.disconnect();
+        worker2.disconnect();
       }));
       conn.on('error', function(e) {
         // ECONNRESET is OK
@@ -39,17 +39,10 @@ if (cluster.isMaster) {
   return;
 }
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   c.end('bye');
 });
 
 server.listen(common.PORT, function() {
   process.send('listening');
-});
-
-process.on('message', function(msg) {
-  if (msg !== 'die') return;
-  server.close(function() {
-    setImmediate(() => process.disconnect());
-  });
 });
