@@ -67,7 +67,7 @@
         }, {
           # "else if" was supported in https://codereview.chromium.org/601353002
           'conditions': [
-            ['target_arch=="arm"', {
+            ['target_arch=="arm" and OS=="linux"', {
               'defines': ['<@(openssl_defines_asm)'],
               'sources': ['<@(openssl_sources_arm_void_gas)'],
             }, 'target_arch=="ia32" and OS=="mac"', {
