@@ -424,6 +424,31 @@ process.env.foo = 'bar';
 console.log(process.env.foo);
 ```
 
+Assigning a property on `process.env` will implicitly convert the value
+to a string.
+
+Example:
+
+```js
+process.env.test = null;
+console.log(process.env.test);
+// => 'null'
+process.env.test = undefined;
+console.log(process.env.test);
+// => 'undefined'
+```
+
+Use `delete` to delete a property from `process.env`.
+
+Example:
+
+```js
+process.env.TEST = 1;
+delete process.env.TEST;
+console.log(process.env.TEST);
+// => undefined
+```
+
 ## process.execArgv
 
 This is the set of Node.js-specific command line options from the
