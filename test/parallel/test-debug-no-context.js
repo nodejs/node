@@ -17,7 +17,7 @@ proc.on('exit', common.mustCall((exitCode, signalCode) => {
 }));
 let stdout = '';
 proc.stdout.setEncoding('utf8');
-proc.stdout.on('data', data => stdout += data);
+proc.stdout.on('data', (data) => stdout += data);
 process.on('exit', () => {
   assert(stdout.includes('Promise { 42 }'));
   assert(stdout.includes('Promise { 1337 }'));
