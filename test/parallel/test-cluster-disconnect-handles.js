@@ -31,7 +31,7 @@ if (cluster.isMaster) {
   // scanner but is ignored by atoi(3).  Heinous hack.
   cluster.setupMaster({ execArgv: [`--debug=${common.PORT}.`] });
   const worker = cluster.fork();
-  worker.on('message', common.mustCall(message => {
+  worker.on('message', common.mustCall((message) => {
     assert.strictEqual(Array.isArray(message), true);
     assert.strictEqual(message[0], 'listening');
     let continueRecv = false;
@@ -40,9 +40,9 @@ if (cluster.isMaster) {
     const debugClient = net.connect({ host, port: common.PORT });
     const protocol = new Protocol();
     debugClient.setEncoding('utf8');
-    debugClient.on('data', data => protocol.execute(data));
+    debugClient.on('data', (data) => protocol.execute(data));
     debugClient.once('connect', common.mustCall(() => {
-      protocol.onResponse = common.mustCall(res => {
+      protocol.onResponse = common.mustCall((res) => {
         protocol.onResponse = (res) => {
           // It can happen that the first continue was sent before the break
           // event was received. If that's the case, send also a continue from
@@ -85,7 +85,7 @@ if (cluster.isMaster) {
     throw ex;
   });
 } else {
-  const server = net.createServer(socket => socket.pipe(socket));
+  const server = net.createServer((socket) => socket.pipe(socket));
   const cb = () => {
     process.send(['listening', server.address()]);
     debugger;

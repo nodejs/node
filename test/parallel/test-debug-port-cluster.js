@@ -15,7 +15,7 @@ const child = spawn(process.execPath, args);
 child.stderr.setEncoding('utf8');
 
 let stderr = '';
-child.stderr.on('data', data => {
+child.stderr.on('data', (data) => {
   stderr += data;
   if (child.killed !== true && stderr.includes('all workers are running'))
     child.kill();
