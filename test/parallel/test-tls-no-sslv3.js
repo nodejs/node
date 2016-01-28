@@ -40,7 +40,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
   client.stdout.pipe(process.stdout);
   client.stderr.pipe(process.stderr);
   client.stderr.setEncoding('utf8');
-  client.stderr.on('data', data => stderr += data);
+  client.stderr.on('data', (data) => stderr += data);
 
   client.once('exit', common.mustCall(function(exitCode) {
     assert.equal(exitCode, 1);
@@ -48,7 +48,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
   }));
 });
 
-server.on('clientError', err => errors.push(err));
+server.on('clientError', (err) => errors.push(err));
 
 process.on('exit', function() {
   if (/unknown option -ssl3/.test(stderr)) {
