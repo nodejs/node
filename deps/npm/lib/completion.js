@@ -45,8 +45,8 @@ completion.completion = function (opts, cb) {
 }
 
 function completion (args, cb) {
-  if (process.platform === 'win32') {
-    var e = new Error('npm completion not supported on windows')
+  if (process.platform === 'win32' && !(/^MINGW(32|64)$/.test(process.env.MSYSTEM))) {
+    var e = new Error('npm completion supported only in MINGW / Git bash on Windows')
     e.code = 'ENOTSUP'
     e.errno = require('constants').ENOTSUP
     return cb(e)

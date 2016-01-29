@@ -12,12 +12,17 @@ var path = require('path')
 var port = exports.port = 1337
 exports.registry = 'http://localhost:' + port
 process.env.npm_config_loglevel = 'error'
+process.env.npm_config_progress = 'false'
 
 var npm_config_cache = path.resolve(__dirname, 'npm_cache')
 process.env.npm_config_cache = exports.npm_config_cache = npm_config_cache
 process.env.npm_config_userconfig = exports.npm_config_userconfig = path.join(__dirname, 'fixtures', 'config', 'userconfig')
 process.env.npm_config_globalconfig = exports.npm_config_globalconfig = path.join(__dirname, 'fixtures', 'config', 'globalconfig')
+process.env.npm_config_global_style = 'false'
+process.env.npm_config_legacy_bundling = 'false'
 process.env.random_env_var = 'foo'
+// suppress warnings about using a prerelease version of node
+process.env.npm_config_node_version = process.version.replace(/-.*$/, '')
 
 var bin = exports.bin = require.resolve('../bin/npm-cli.js')
 var chain = require('slide').chain

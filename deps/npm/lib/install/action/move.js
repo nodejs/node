@@ -7,7 +7,14 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var rmStuff = require('../../unbuild.js').rmStuff
 var lifecycle = require('../../utils/lifecycle.js')
-var updatePackageJson = require('../update-package-json')
+var updatePackageJson = require('../update-package-json.js')
+var rename = require('../../utils/rename.js')
+
+/*
+  Move a module from one point in the node_modules tree to another.
+  Do not disturb either the source or target location's node_modules
+  folders.
+*/
 
 module.exports = function (top, buildpath, pkg, log, next) {
   log.silly('move', pkg.fromPath, pkg.path)
@@ -16,7 +23,7 @@ module.exports = function (top, buildpath, pkg, log, next) {
     [lifecycle, pkg.package, 'uninstall', pkg.fromPath, false, true],
     [rmStuff, pkg.package, pkg.fromPath],
     [lifecycle, pkg.package, 'postuninstall', pkg.fromPath, false, true],
-    [moveModuleOnly, pkg.fromPath, pkg.path],
+    [moveModuleOnly, pkg.fromPath, pkg.path, log],
     [lifecycle, pkg.package, 'preinstall', pkg.path, false, true],
     [removeEmptyParents, path.resolve(pkg.fromPath, '..')],
     [updatePackageJson, pkg, pkg.path]
@@ -31,29 +38,61 @@ function removeEmptyParents (pkgdir, next) {
   })
 }
 
-function moveModuleOnly (from, to, done) {
-  var from_modules = path.join(from, 'node_modules')
-  var temp_modules = from + '.node_modules'
+function moveModuleOnly (from, to, log, done) {
+  var fromModules = path.join(from, 'node_modules')
+  var tempFromModules = from + '.node_modules'
+  var toModules = path.join(to, 'node_modules')
+  var tempToModules = to + '.node_modules'
 
-  rimraf(to, iferr(done, makeDestination))
+  log.silly('move', 'move existing destination node_modules away', toModules)
 
-  function makeDestination () {
-    mkdirp(path.resolve(to, '..'), iferr(done, moveNodeModules))
+  rename(toModules, tempToModules, removeDestination(done))
+
+  function removeDestination (next) {
+    return function (er) {
+      log.silly('move', 'remove existing destination', to)
+      if (er) {
+        rimraf(to, iferr(next, makeDestination(next)))
+      } else {
+        rimraf(to, iferr(next, makeDestination(iferr(next, moveToModulesBack(next)))))
+      }
+    }
   }
 
-  function moveNodeModules () {
-    fs.rename(from_modules, temp_modules, function (er) {
-      doMove(er ? done : moveNodeModulesBack)
-    })
+  function moveToModulesBack (next) {
+    return function () {
+      log.silly('move', 'move existing destination node_modules back', toModules)
+      rename(tempToModules, toModules, iferr(done, next))
+    }
+  }
+
+  function makeDestination (next) {
+    return function () {
+      log.silly('move', 'make sure destination parent exists', path.resolve(to, '..'))
+      mkdirp(path.resolve(to, '..'), iferr(done, moveNodeModules(next)))
+    }
+  }
+
+  function moveNodeModules (next) {
+    return function () {
+      log.silly('move', 'move source node_modules away', fromModules)
+      rename(fromModules, tempFromModules, iferr(doMove(next), doMove(moveNodeModulesBack(next))))
+    }
   }
 
   function doMove (next) {
-    fs.rename(from, to, iferr(done, next))
+    return function () {
+      log.silly('move', 'move module dir to final dest', from, to)
+      rename(from, to, iferr(done, next))
+    }
   }
 
-  function moveNodeModulesBack () {
-    mkdirp(from, iferr(done, function () {
-      fs.rename(temp_modules, from_modules, done)
-    }))
+  function moveNodeModulesBack (next) {
+    return function () {
+      mkdirp(from, iferr(done, function () {
+        log.silly('move', 'put source node_modules back', fromModules)
+        rename(tempFromModules, fromModules, iferr(done, next))
+      }))
+    }
   }
 }

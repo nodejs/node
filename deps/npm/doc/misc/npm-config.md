@@ -240,7 +240,7 @@ A client certificate to pass when accessing the registry.
 
 ### color
 
-* Default: true on Posix, false on Windows
+* Default: true
 * Type: Boolean or `"always"`
 
 If false, never shows colors.  If `"always"` then always shows colors.
@@ -385,6 +385,18 @@ Operates in "global" mode, so that packages are installed into the
 
 The config file to read for global config options.
 
+### global-style
+
+* Default: false
+* Type: Boolean
+
+Causes npm to install the package into your local `node_modules` folder with
+the same layout it uses with the global `node_modules` folder.  Only your
+direct dependencies will show in `node_modules` and everything they depend
+on will be flattened in their `node_modules` folders.  This obviously will
+elminate some deduping. If used with `legacy-bundling`, `legacy-bundling` will be
+preferred.
+
 ### group
 
 * Default: GID of the current process
@@ -490,6 +502,16 @@ change.  Only the output from `npm ls --json` is currently valid.
 * Type: String
 
 A client key to pass when accessing the registry.
+
+### legacy-bundling
+
+* Default: false
+* Type: Boolean
+
+Causes npm to install the package such that versions of npm prior to 1.4,
+such as the one included with node 0.8, can install the package.  This
+eliminates all automatic deduping. If used with `global-style` this option
+will be preferred.
 
 ### link
 
@@ -863,7 +885,7 @@ on success, but left behind on failure for forensic purposes.
 
 ### unicode
 
-* Default: true on windows and mac/unix systems with a unicode locale
+* Default: false on windows, true on mac/unix systems with a unicode locale
 * Type: Boolean
 
 When set to true, npm uses unicode characters in the tree output.  When

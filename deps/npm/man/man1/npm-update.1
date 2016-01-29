@@ -1,4 +1,4 @@
-.TH "NPM\-UPDATE" "1" "November 2015" "" ""
+.TH "NPM\-UPDATE" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-update\fR \- Update a package
 .SH SYNOPSIS
@@ -25,7 +25,7 @@ or local) will be updated\.
 .P
 As of \fBnpm@2\.6\.1\fP, the \fBnpm update\fP will only inspect top\-level packages\.
 Prior versions of \fBnpm\fP would also recursively inspect all dependencies\.
-To get the old behavior, use \fBnpm \-\-depth 9999 update\fP, but be warned that
+To get the old behavior, use \fBnpm \-\-depth Infinity update\fP, but be warned that
 simultaneous asynchronous update of all packages, including \fBnpm\fP itself
 and packages that \fBnpm\fP depends on, often causes problems up to and including
 the uninstallation of \fBnpm\fP itself\.

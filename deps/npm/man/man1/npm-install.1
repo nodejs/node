@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "November 2015" "" ""
+.TH "NPM\-INSTALL" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -27,7 +27,7 @@ by that\. See npm help shrinkwrap\.
 A \fBpackage\fP is:
 .RS 0
 .IP \(bu 2
-a) a folder containing a program described by a package\.json file
+a) a folder containing a program described by a npm help 5 \fBpackage\.json\fP file
 .IP \(bu 2
 b) a gzipped tarball containing (a)
 .IP \(bu 2
@@ -35,7 +35,7 @@ c) a url that resolves to (b)
 .IP \(bu 2
 d) a \fB<name>@<version>\fP that is published on the registry (see npm help 7 \fBnpm\-registry\fP) with (c)
 .IP \(bu 2
-e) a \fB<name>@<tag>\fP that points to (d)
+e) a \fB<name>@<tag>\fP (see npm help \fBnpm\-dist\-tag\fP) that points to (d)
 .IP \(bu 2
 f) a \fB<name>\fP that has a "latest" tag satisfying (e)
 .IP \(bu 2
@@ -54,7 +54,8 @@ after packing it up into a tarball (b)\.
   In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
   it installs the current package context (ie, the current working
   directory) as a global package\.
-  By default, \fBnpm install\fP will install all modules listed as dependencies\.
+  By default, \fBnpm install\fP will install all modules listed as dependencies
+  in npm help 5 \fBpackage\.json\fP\|\.
   With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment variable
   is set to \fBproduction\fP), npm will not install modules listed in
   \fBdevDependencies\fP\|\.
@@ -87,7 +88,7 @@ after packing it up into a tarball (b)\.
 .IP \(bu 2
 \fBnpm install [<@scope>/]<name> [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional]\fP:
   Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
-  npm help 7 \fBnpm\-config\fP\|\.)
+  npm help 7 \fBnpm\-config\fP\|\. The config's default value is \fBlatest\fP\|\.)
   In most cases, this will install the latest version
   of the module published on npm\.
   Example:
@@ -308,6 +309,16 @@ npm install sax \-\-force
 The \fB\-g\fP or \fB\-\-global\fP argument will cause npm to install the package globally
 rather than locally\.  See npm help 5 \fBnpm\-folders\fP\|\.
 .P
+The \fB\-\-global\-style\fP argument will cause npm to install the package into
+your local \fBnode_modules\fP folder with the same layout it uses with the
+global \fBnode_modules\fP folder\. Only your direct dependencies will show in
+\fBnode_modules\fP and everything they depend on will be flattened in their
+\fBnode_modules\fP folders\. This obviously will elminate some deduping\.
+.P
+The \fB\-\-legacy\-bundling\fP argument will cause npm to install the package such
+that versions of npm prior to 1\.4, such as the one included with node 0\.8,
+can install the package\. This eliminates all automatic deduping\.
+.P
 The \fB\-\-link\fP argument will cause npm to link global installs into the
 local space in some cases\.
 .P
@@ -429,9 +440,11 @@ npm help 7 registry
 .IP \(bu 2
 npm help tag
 .IP \(bu 2
-npm help rm
+npm help uninstall
 .IP \(bu 2
 npm help shrinkwrap
+.IP \(bu 2
+npm help 5 package\.json
 
 .RE
 

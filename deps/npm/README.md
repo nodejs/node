@@ -14,6 +14,17 @@ Much more info available via `npm help` once it's installed.
 To install an old **and unsupported** version of npm that works on node 0.3
 and prior, clone the git repo and dig through the old tags and branches.
 
+**npm is configured to use npm, Inc.'s public package registry at
+<https://registry.npmjs.org> by default.**
+
+You can configure npm to use any compatible registry you
+like, and even run your own registry. Check out the [doc on
+registries](https://docs.npmjs.com/misc/registry).
+
+Use of someone else's registry may be governed by terms of use. The
+terms of use for the default public registry are available at
+<https://www.npmjs.com>.
+
 ## Super Easy Install
 
 npm is bundled with [node](http://nodejs.org/download/).
@@ -127,52 +138,6 @@ must remove them yourself manually if you want them gone.  Note that
 this means that future npm installs will not remember the settings that
 you have chosen.
 
-## Using npm Programmatically
-
-Although npm can be used programmatically, its API is meant for use by the CLI
-*only*, and no guarantees are made regarding its fitness for any other purpose.
-If you want to use npm to reliably perform some task, the safest thing to do is
-to invoke the desired `npm` command with appropriate arguments.
-
-The semantic version of npm refers to the CLI itself, rather than the
-underlying API. _The internal API is not guaranteed to remain stable even when
-npm's version indicates no breaking changes have been made according to
-semver._
-
-If you _still_ would like to use npm programmatically, it's _possible_. The API
-isn't very well documented, but it _is_ rather simple.
-
-Eventually, npm will be just a thin CLI wrapper around the modules that it
-depends on, but for now, there are some things that only the CLI can do. You
-should try using one of npm's dependencies first, and only use the API if what
-you're trying to do is only supported by npm itself.
-
-```javascript
-var npm = require("npm")
-npm.load(myConfigObject, function (er) {
-  if (er) return handlError(er)
-  npm.commands.install(["some", "args"], function (er, data) {
-    if (er) return commandFailed(er)
-    // command succeeded, and data might have some info
-  })
-  npm.registry.log.on("log", function (message) { .... })
-})
-```
-
-The `load` function takes an object hash of the command-line configs.
-The various `npm.commands.<cmd>` functions take an **array** of
-positional argument **strings**.  The last argument to any
-`npm.commands.<cmd>` function is a callback.  Some commands take other
-optional arguments.  Read the source.
-
-You cannot set configs individually for any single npm function at this
-time.  Since `npm` is a singleton, any call to `npm.config.set` will
-change the value for *all* npm commands in that process.
-
-See `./bin/npm-cli.js` for an example of pulling config values off of the
-command line arguments using nopt.  You may also want to check out `npm
-help config` to learn about all the options you can set there.
-
 ## More Docs
 
 Check out the [docs](https://docs.npmjs.com/),
@@ -182,47 +147,6 @@ You can use the `npm help` command to read any of them.
 
 If you're a developer, and you want to use npm to publish your program,
 you should [read this](https://docs.npmjs.com/misc/developers)
-
-## Legal Stuff
-
-"npm" and "The npm Registry" are owned by npm, Inc.
-All rights reserved.  See the included LICENSE file for more details.
-
-"Node.js" and "node" are trademarks owned by Joyent, Inc.
-
-Modules published on the npm registry are not officially endorsed by
-npm, Inc. or the Node.js project.
-
-Data published to the npm registry is not part of npm itself, and is
-the sole property of the publisher.  While every effort is made to
-ensure accountability, there is absolutely no guarantee, warranty, or
-assertion expressed or implied as to the quality, fitness for a
-specific purpose, or lack of malice in any given npm package.
-
-If you have a complaint about a package in the public npm registry,
-and cannot [resolve it with the package
-owner](https://docs.npmjs.com/misc/disputes), please email
-<support@npmjs.com> and explain the situation.
-
-Any data published to The npm Registry (including user account
-information) may be removed or modified at the sole discretion of the
-npm server administrators.
-
-### In plainer English
-
-npm is the property of npm, Inc.
-
-If you publish something, it's yours, and you are solely accountable
-for it.
-
-If other people publish something, it's theirs.
-
-Users can publish Bad Stuff.  It will be removed promptly if reported.
-But there is no vetting process for published modules, and you use
-them at your own risk.  Please inspect the source.
-
-If you publish Bad Stuff, we may delete it from the registry, or even
-ban your account in extreme cases.  So don't do that.
 
 ## BUGS
 

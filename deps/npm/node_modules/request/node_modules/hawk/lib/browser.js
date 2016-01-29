@@ -93,8 +93,8 @@ hawk.client = {
             ts: timestamp,
             nonce: options.nonce || hawk.utils.randomString(6),
             method: method,
-            resource: uri.relative,
-            host: uri.hostname,
+            resource: uri.resource,
+            host: uri.host,
             port: uri.port,
             hash: options.hash,
             ext: options.ext,
@@ -201,8 +201,8 @@ hawk.client = {
             ts: exp,
             nonce: '',
             method: 'GET',
-            resource: uri.relative,                            // Maintain trailing '?' and query params
-            host: uri.hostname,
+            resource: uri.resource,                            // Maintain trailing '?' and query params
+            host: uri.host,
             port: uri.port,
             ext: options.ext
         });
@@ -583,26 +583,20 @@ hawk.utils = {
         return result.join('');
     },
 
+    uriRegex: /^([^:]+)\:\/\/(?:[^@]*@)?([^\/:]+)(?:\:(\d+))?([^#]*)(?:#.*)?$/,       // scheme://credentials@host:port/resource#fragment
     parseUri: function (input) {
 
-        // Based on: parseURI 1.2.2
-        // http://blog.stevenlevithan.com/archives/parseuri
-        // (c) Steven Levithan <stevenlevithan.com>
-        // MIT License
-
-        var keys = ['source', 'protocol', 'authority', 'userInfo', 'user', 'password', 'hostname', 'port', 'resource', 'relative', 'pathname', 'directory', 'file', 'query', 'fragment'];
-
-        var uriRegex = /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?(((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?)(?:#(.*))?)/;
-        var uriByNumber = input.match(uriRegex);
-        var uri = {};
-
-        for (var i = 0, il = keys.length; i < il; ++i) {
-            uri[keys[i]] = uriByNumber[i] || '';
+        var parts = input.match(hawk.utils.uriRegex);
+        if (!parts) {
+            return { host: '', port: '', resource: '' };
         }
 
-        if (uri.port === '') {
-            uri.port = (uri.protocol.toLowerCase() === 'http' ? '80' : (uri.protocol.toLowerCase() === 'https' ? '443' : ''));
-        }
+        var scheme = parts[1].toLowerCase();
+        var uri = {
+            host: parts[2],
+            port: parts[3] || (scheme === 'http' ? '80' : (scheme === 'https' ? '443' : '')),
+            resource: parts[4]
+        };
 
         return uri;
     },

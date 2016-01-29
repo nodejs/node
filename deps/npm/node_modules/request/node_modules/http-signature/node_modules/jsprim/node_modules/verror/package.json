@@ -1,0 +1,70 @@
+{
+  "_args": [
+    [
+      "verror@1.3.6",
+      "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim"
+    ]
+  ],
+  "_from": "verror@1.3.6",
+  "_id": "verror@1.3.6",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/jsprim/verror",
+  "_npmUser": {
+    "email": "dap@cs.brown.edu",
+    "name": "dap"
+  },
+  "_npmVersion": "1.1.65",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "verror",
+    "raw": "verror@1.3.6",
+    "rawSpec": "1.3.6",
+    "scope": null,
+    "spec": "1.3.6",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/request/http-signature/jsprim"
+  ],
+  "_resolved": "https://registry.npmjs.org/verror/-/verror-1.3.6.tgz",
+  "_shasum": "cff5df12946d297d2baaefaa2689e25be01c005c",
+  "_shrinkwrap": null,
+  "_spec": "verror@1.3.6",
+  "_where": "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim",
+  "bugs": {
+    "url": "https://github.com/davepacheco/node-verror/issues"
+  },
+  "dependencies": {
+    "extsprintf": "1.0.2"
+  },
+  "description": "richer JavaScript errors",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "cff5df12946d297d2baaefaa2689e25be01c005c",
+    "tarball": "http://registry.npmjs.org/verror/-/verror-1.3.6.tgz"
+  },
+  "engines": [
+    "node >=0.6.0"
+  ],
+  "homepage": "https://github.com/davepacheco/node-verror#readme",
+  "main": "./lib/verror.js",
+  "maintainers": [
+    {
+      "name": "dap",
+      "email": "dap@cs.brown.edu"
+    }
+  ],
+  "name": "verror",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/davepacheco/node-verror.git"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "version": "1.3.6"
+}
