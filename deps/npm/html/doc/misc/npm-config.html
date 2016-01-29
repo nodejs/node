@@ -203,7 +203,7 @@ explicitly used, and that only GET requests use the cache.</p>
 <p>A client certificate to pass when accessing the registry.</p>
 <h3 id="color">color</h3>
 <ul>
-<li>Default: true on Posix, false on Windows</li>
+<li>Default: true</li>
 <li>Type: Boolean or <code>&quot;always&quot;</code></li>
 </ul>
 <p>If false, never shows colors.  If <code>&quot;always&quot;</code> then always shows colors.
@@ -332,6 +332,17 @@ current working directory.</li>
 <li>Type: path</li>
 </ul>
 <p>The config file to read for global config options.</p>
+<h3 id="global-style">global-style</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package into your local <code>node_modules</code> folder with
+the same layout it uses with the global <code>node_modules</code> folder.  Only your
+direct dependencies will show in <code>node_modules</code> and everything they depend
+on will be flattened in their <code>node_modules</code> folders.  This obviously will
+elminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code> will be
+preferred.</p>
 <h3 id="group">group</h3>
 <ul>
 <li>Default: GID of the current process</li>
@@ -424,6 +435,15 @@ change.  Only the output from <code>npm ls --json</code> is currently valid.</p>
 <li>Type: String</li>
 </ul>
 <p>A client key to pass when accessing the registry.</p>
+<h3 id="legacy-bundling">legacy-bundling</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package such that versions of npm prior to 1.4,
+such as the one included with node 0.8, can install the package.  This
+eliminates all automatic deduping. If used with <code>global-style</code> this option
+will be preferred.</p>
 <h3 id="link">link</h3>
 <ul>
 <li>Default: false</li>
@@ -739,7 +759,7 @@ particular, use care when overriding this setting for public packages.</p>
 on success, but left behind on failure for forensic purposes.</p>
 <h3 id="unicode">unicode</h3>
 <ul>
-<li>Default: true on windows and mac/unix systems with a unicode locale</li>
+<li>Default: false on windows, true on mac/unix systems with a unicode locale</li>
 <li>Type: Boolean</li>
 </ul>
 <p>When set to true, npm uses unicode characters in the tree output.  When
@@ -829,5 +849,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@3.3.12</p>
+<p id="footer">npm-config &mdash; npm@3.6.0</p>
 

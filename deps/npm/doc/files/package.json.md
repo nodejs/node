@@ -21,7 +21,7 @@ The name is what your thing is called.
 
 Some rules:
 
-* The name must be shorter than 214 characters. This includes the scope for
+* The name must be less than or equal to 214 characters. This includes the scope for
   scoped packages.
 * The name can't start with a dot or an underscore.
 * New packages must not have uppercase letters in the name.
@@ -105,10 +105,10 @@ current SPDX license identifier for the license you're using, like this:
 
 You can check [the full list of SPDX license IDs](https://spdx.org/licenses/).
 Ideally you should pick one that is
-[OSI](http://opensource.org/licenses/alphabetical) approved.
+[OSI](https://opensource.org/licenses/alphabetical) approved.
 
 If your package is licensed under multiple common licenses, use an [SPDX license
-expression syntax version 2.0 string](http://npmjs.com/package/spdx), like this:
+expression syntax version 2.0 string](https://npmjs.com/package/spdx), like this:
 
     { "license" : "(ISC OR GPL-3.0)" }
 
@@ -410,7 +410,7 @@ See semver(7) for more details about specifying version ranges.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
 * `tag` A specific version tagged and published as `tag`  See `npm-tag(1)`
-* `path/path/path` See Local Paths below
+* `path/path/path` See [Local Paths](#local-paths) below
 
 For example, these are all valid:
 
@@ -726,4 +726,4 @@ npm will default some values based on package contents.
 * npm-faq(7)
 * npm-install(1)
 * npm-publish(1)
-* npm-rm(1)
+* npm-uninstall(1)

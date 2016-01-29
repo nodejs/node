@@ -4,7 +4,8 @@ var log = require('npmlog')
 var path = require('path')
 var sha = require('sha')
 var retry = require('retry')
-var createWriteStream = require('fs-write-stream-atomic')
+var writeStreamAtomic = require('fs-write-stream-atomic')
+var PassThrough = require('readable-stream').PassThrough
 var npm = require('../npm.js')
 var inflight = require('inflight')
 var addLocalTarball = require('./add-local-tarball.js')
@@ -90,7 +91,7 @@ function fetchAndShaCheck (u, tmp, shasum, auth, cb) {
       return cb(er, response)
     }
 
-    var tarball = createWriteStream(tmp, { mode: npm.modes.file })
+    var tarball = writeStreamAtomic(tmp, { mode: npm.modes.file })
     tarball.on('error', function (er) {
       cb(er)
       tarball.destroy()
@@ -117,6 +118,15 @@ function fetchAndShaCheck (u, tmp, shasum, auth, cb) {
       })
     })
 
-    response.pipe(tarball)
+    // 0.8 http streams have a bug, where if they're paused with data in
+    // their buffers when the socket closes, they call `end` before emptying
+    // those buffers, which results in the entire pipeline ending and thus
+    // the point that applied backpressure never being able to trigger a
+    // `resume`.
+    // We work around this by piping into a pass through stream that has
+    // unlimited buffering. The pass through stream is from readable-stream
+    // and is thus a current streams3 implementation that is free of these
+    // bugs even on 0.8.
+    response.pipe(PassThrough({highWaterMark: Infinity})).pipe(tarball)
   })
 }

@@ -5,7 +5,8 @@ var path = require('path')
 
 var projectData = {
   'save-prefix': '~',
-  'proprietary-attribs': false
+  'proprietary-attribs': false,
+  'legacy-bundling': true
 }
 
 var ucData = common.ucData
@@ -53,15 +54,16 @@ var expectSources = {
 }
 
 test('no builtin', function (t) {
+  t.comment(process.env)
   npmconf.load(cli, function (er, conf) {
     if (er) throw er
-    t.same(conf.list, expectList)
-    t.same(conf.sources, expectSources)
-    t.same(npmconf.rootConf.list, [])
-    t.equal(npmconf.rootConf.root, npmconf.defs.defaults)
-    t.equal(conf.root, npmconf.defs.defaults)
-    t.equal(conf.get('umask'), parseInt('022', 8))
-    t.equal(conf.get('heading'), 'npm')
+    t.same(conf.list, expectList, 'config properties in list format match expected')
+    t.same(conf.sources, expectSources, 'config by source matches expected')
+    t.same(npmconf.rootConf.list, [], 'root configuration is empty')
+    t.equal(npmconf.rootConf.root, npmconf.defs.defaults, 'defaults match up')
+    t.equal(conf.root, npmconf.defs.defaults, 'current root config matches defaults')
+    t.equal(conf.get('umask'), parseInt('022', 8), 'umask is as expected')
+    t.equal(conf.get('heading'), 'npm', 'config name is as expected')
     t.end()
   })
 })

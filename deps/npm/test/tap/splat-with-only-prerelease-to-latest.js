@@ -51,13 +51,13 @@ test('setup', function (t) {
     npm.config.set('loglevel', 'silly')
     npm.registry = {
       get: function (uri, opts, cb) {
-        setImmediate(function () {
+        setTimeout(function () {
           cb(null, testModule, null, {statusCode: 200})
         })
       },
       fetch: function (u, opts, cb) {
         lastFetched = u
-        setImmediate(function () {
+        setTimeout(function () {
           var empty = new stream.Readable()
           empty.push(null)
           cb(null, empty)

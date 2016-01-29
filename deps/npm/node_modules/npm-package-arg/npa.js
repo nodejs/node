@@ -82,6 +82,7 @@ function npa (arg) {
   // if it's got / chars in it, then assume that it's local.
 
   if (res.name) {
+    if (arg == '') arg = 'latest'
     var version = semver.valid(arg, true)
     var range = semver.validRange(arg, true)
     // foo@...
@@ -101,8 +102,8 @@ function npa (arg) {
     var p = arg.match(parseName)
     if (p && validName(p[2]) &&
         (!p[1] || validName(p[1]))) {
-      res.type = "range"
-      res.spec = "*"
+      res.type = "tag"
+      res.spec = "latest"
       res.rawSpec = ""
       res.name = arg
       if (p[1])

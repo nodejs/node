@@ -61,7 +61,11 @@ try {
   fs.statSync(projectConf)
 } catch (er) {
   // project conf not found, probably working with packed npm
-  fs.writeFileSync(projectConf, 'save-prefix = ~\nproprietary-attribs = false\n')
+  fs.writeFileSync(projectConf, function () {/*
+save-prefix = ~
+proprietary-attribs = false
+legacy-bundling = true
+  */}.toString().split('\n').slice(1, -1).join('\n'))
 }
 
 var projectRc = path.join(__dirname, '..', 'fixtures', 'config', '.npmrc')

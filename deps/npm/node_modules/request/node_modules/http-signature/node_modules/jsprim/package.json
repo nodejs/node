@@ -1,0 +1,73 @@
+{
+  "_args": [
+    [
+      "jsprim@^1.2.2",
+      "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/http-signature"
+    ]
+  ],
+  "_from": "jsprim@>=1.2.2 <2.0.0",
+  "_id": "jsprim@1.2.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/jsprim",
+  "_nodeVersion": "0.12.2",
+  "_npmUser": {
+    "email": "dap@cs.brown.edu",
+    "name": "dap"
+  },
+  "_npmVersion": "2.7.4",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "jsprim",
+    "raw": "jsprim@^1.2.2",
+    "rawSpec": "^1.2.2",
+    "scope": null,
+    "spec": ">=1.2.2 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/http-signature"
+  ],
+  "_resolved": "https://registry.npmjs.org/jsprim/-/jsprim-1.2.2.tgz",
+  "_shasum": "f20c906ac92abd58e3b79ac8bc70a48832512da1",
+  "_shrinkwrap": null,
+  "_spec": "jsprim@^1.2.2",
+  "_where": "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/http-signature",
+  "bugs": {
+    "url": "https://github.com/davepacheco/node-jsprim/issues"
+  },
+  "dependencies": {
+    "extsprintf": "1.0.2",
+    "json-schema": "0.2.2",
+    "verror": "1.3.6"
+  },
+  "description": "utilities for primitive JavaScript types",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "f20c906ac92abd58e3b79ac8bc70a48832512da1",
+    "tarball": "http://registry.npmjs.org/jsprim/-/jsprim-1.2.2.tgz"
+  },
+  "engines": [
+    "node >=0.6.0"
+  ],
+  "gitHead": "0e709876c35eddfe4c1f95104ac3c4abfc9dab84",
+  "homepage": "https://github.com/davepacheco/node-jsprim",
+  "license": "MIT",
+  "main": "./lib/jsprim.js",
+  "maintainers": [
+    {
+      "name": "dap",
+      "email": "dap@cs.brown.edu"
+    }
+  ],
+  "name": "jsprim",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/davepacheco/node-jsprim.git"
+  },
+  "scripts": {},
+  "version": "1.2.2"
+}
