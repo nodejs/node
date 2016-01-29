@@ -20,8 +20,18 @@ assert(flatOne !== one[0]);
 assert(flatLong.toString() === (new Array(10 + 1).join('asdf')));
 assert(flatLongLen.toString() === (new Array(10 + 1).join('asdf')));
 
-assert.throws(function() {
-  Buffer.concat([42]);
-}, TypeError);
+assertWrongList();
+assertWrongList(null);
+assertWrongList(new Buffer('hello'));
+assertWrongList([42]);
+assertWrongList(['hello', 'world']);
+assertWrongList(['hello', new Buffer('world')]);
 
-console.log('ok');
+function assertWrongList(value) {
+  assert.throws(function() {
+    Buffer.concat(value);
+  }, function(err) {
+    return err instanceof TypeError &&
+           err.message === 'list argument must be an Array of Buffers';
+  });
+}
