@@ -5,7 +5,6 @@ var p = path.resolve(__dirname, 'fixtures/readmes/package.json')
 
 var readJson = require('../')
 
-var expect = {}
 var expect = {
   'name': 'readmes',
   'version': '99.999.999999999',

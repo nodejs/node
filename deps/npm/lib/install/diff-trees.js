@@ -1,7 +1,6 @@
 'use strict'
 var validate = require('aproba')
 var npa = require('npm-package-arg')
-var npm = require('../npm.js')
 var flattenTree = require('./flatten-tree.js')
 
 function nonRegistrySource (pkg) {
@@ -130,11 +129,8 @@ function diffTrees (oldTree, newTree) {
     pkg.isInLink = (pkg.oldPkg && isLink(pkg.oldPkg.parent)) ||
                    (pkg.parent && isLink(pkg.parent)) ||
                    requiredByAllLinked(pkg)
-    if (pkg.fromBundle) {
-      if (npm.config.get('rebuild-bundle')) differences.push(['rebuild', pkg])
-      if (pkg.oldPkg) differences.push(['remove', pkg])
-    } else if (pkg.oldPkg) {
-      if (!pkg.directlyRequested && pkgAreEquiv(pkg.oldPkg.package, pkg.package)) return
+    if (pkg.oldPkg) {
+      if (!pkg.userRequired && pkgAreEquiv(pkg.oldPkg.package, pkg.package)) return
       if (!pkg.isInLink && (isLink(pkg.oldPkg) || isLink(pkg))) {
         differences.push(['update-linked', pkg])
       } else {

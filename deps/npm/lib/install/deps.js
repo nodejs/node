@@ -28,8 +28,6 @@ var isInstallable = require('./validate-args.js').isInstallable
 var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
 
-exports.test = {} // used to hold functions for testing by unit tests
-
 // The export functions in this module mutate a dependency tree, adding
 // items to them.
 
@@ -117,8 +115,8 @@ function recalculateMetadata (tree, log, seen, next) {
     [asyncMap, tomark, markDeps],
     [asyncMap, tree.children, function (child, done) { recalculateMetadata(child, log, seen, done) }]
   ], function () {
-    tree.userRequired = tree.package._requiredBy.some(function (req) { req === '#USER' })
-    tree.existing = tree.package._requiredBy.some(function (req) { req === '#EXISTING' })
+    tree.userRequired = tree.package._requiredBy.some(function (req) { return req === '#USER' })
+    tree.existing = tree.package._requiredBy.some(function (req) { return req === '#EXISTING' })
     tree.package._location = flatNameFromTree(tree)
     next(null, tree)
   })
@@ -133,12 +131,13 @@ function addRequiredDep (tree, child) {
   return true
 }
 
+exports._removeObsoleteDep = removeObsoleteDep
 function removeObsoleteDep (child) {
   if (child.removed) return
   child.removed = true
   var requires = child.requires || []
   requires.forEach(function (requirement) {
-    requirement.requiredBy = requirement.requiredBy.filter(function (reqBy) { reqBy !== child })
+    requirement.requiredBy = requirement.requiredBy.filter(function (reqBy) { return reqBy !== child })
     if (requirement.requiredBy.length === 0) removeObsoleteDep(requirement)
   })
 }
@@ -202,7 +201,7 @@ exports.loadRequestedDeps = function (args, tree, saveToDependencies, log, next)
         tree.package.dependencies[childName] =
           child.package._requested.rawSpec || child.package._requested.spec
       }
-      child.directlyRequested = true
+      child.userRequired = true
       child.save = saveToDependencies
 
       // For things the user asked to install, that aren't a dependency (or
@@ -210,7 +209,6 @@ exports.loadRequestedDeps = function (args, tree, saveToDependencies, log, next)
       // themselves, so we don't remove it as a dep that no longer exists
       if (!addRequiredDep(tree, child)) {
         replaceModuleName(child.package, '_requiredBy', '#USER')
-        child.directlyRequested = true
       }
       depLoaded(null, child, tracker)
     }))
@@ -290,6 +288,8 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
 
   if (!tree.parent) return true
 
+  if (tree.userRequired) return true
+
   for (var ii = 0; ii < tree.requiredBy.length; ++ii) {
     var requireParent = tree.requiredBy[ii]
     if (failedDependency(requireParent, tree.package)) {
@@ -297,6 +297,18 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
     }
   }
   return false
+}
+
+function top (tree) {
+  if (tree.parent) return top(tree.parent)
+  return tree
+}
+
+function treeWarn (tree, what, error) {
+  var topTree = top(tree)
+  if (!topTree.warnings) topTree.warnings = []
+  error.optional = flatNameFromTree(tree) + '/' + what
+  topTree.warnings.push(error)
 }
 
 function andHandleOptionalErrors (log, tree, name, done) {
@@ -307,8 +319,7 @@ function andHandleOptionalErrors (log, tree, name, done) {
     var isFatal = failedDependency(tree, name)
     if (er && !isFatal) {
       tree.children = tree.children.filter(noModuleNameMatches(name))
-      log.warn('install', "Couldn't install optional dependency:", er.message)
-      log.verbose('install', er.stack)
+      treeWarn(tree, name, er)
       return done()
     } else {
       return done(er, child, childLog)
@@ -416,13 +427,13 @@ function flatNameFromTree (tree) {
   return flatName(path, tree)
 }
 
-exports.test.replaceModuleName = replaceModuleName
+exports._replaceModuleName = replaceModuleName
 function replaceModuleName (obj, key, name) {
   validate('OSS', arguments)
   obj[key] = union(obj[key] || [], [name])
 }
 
-exports.test.replaceModule = replaceModule
+exports._replaceModule = replaceModule
 function replaceModule (obj, key, child) {
   validate('OSO', arguments)
   if (!obj[key]) obj[key] = []
@@ -577,6 +588,9 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
 
   if (!tree.parent) return tree
   if (tree.isGlobal) return tree
+
+  if (npm.config.get('global-style') && !tree.parent.parent) return tree
+  if (npm.config.get('legacy-bundling')) return tree
 
   return (earliestInstallable(requiredBy, tree.parent, pkg) || tree)
 }

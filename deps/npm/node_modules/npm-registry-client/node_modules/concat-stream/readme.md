@@ -1,6 +1,6 @@
 # concat-stream
 
-Writable stream that concatenates strings or binary data and calls a callback with the result. Not a transform stream -- more of a stream sink.
+Writable stream that concatenates all the data from a stream and calls a callback with the result. Use this when you want to collect all the data from a stream into a single buffer.
 
 [![Build Status](https://travis-ci.org/maxogden/concat-stream.svg?branch=master)](https://travis-ci.org/maxogden/concat-stream)
 
@@ -13,6 +13,10 @@ Streams emit many buffers. If you want to collect all of the buffers, and when t
 Only use this if you know you can fit all of the output of your stream into a single Buffer (e.g. in RAM).
 
 There are also `objectMode` streams that emit things other than Buffers, and you can concatenate these too. See below for details.
+
+## Related
+
+`stream-each` is part of the [mississippi stream utility collection](https://github.com/maxogden/mississippi) which includes more useful stream modules similar to this one.
 
 ### examples
 
@@ -88,6 +92,8 @@ If you don't specify an encoding, and the types can't be inferred (e.g. you writ
 # error handling
 
 `concat-stream` does not handle errors for you, so you must handle errors on whatever streams you pipe into `concat-stream`. This is a general rule when programming with node.js streams: always handle errors on each and every stream. Since `concat-stream` is not itself a stream it does not emit errors.
+
+We recommend using [`end-of-stream`](https://npmjs.org/end-of-stream) or [`pump`](https://npmjs.org/pump) for writing error tolerant stream code.
 
 # license
 

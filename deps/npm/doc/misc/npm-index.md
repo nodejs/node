@@ -85,6 +85,10 @@ Get help on npm
 
 Interactively create a package.json file
 
+### npm-install-test(1)
+
+Install package(s) and run tests
+
 ### npm-install(1)
 
 Install a package
