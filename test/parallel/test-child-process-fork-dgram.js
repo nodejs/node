@@ -42,7 +42,7 @@ if (process.argv[2] === 'child') {
   });
 
 } else {
-  var server = dgram.createSocket('udp4');
+  server = dgram.createSocket('udp4');
   var client = dgram.createSocket('udp4');
   var child = fork(__filename, ['child']);
 
