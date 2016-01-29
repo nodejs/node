@@ -25,7 +25,7 @@ A `package` is:
 * b) a gzipped tarball containing (a)
 * c) a url that resolves to (b)
 * d) a `<name>@<version>` that is published on the registry (see `npm-registry(7)`) with (c)
-* e) a `<name>@<tag>` that points to (d)
+* e) a `<name>@<tag>` (see `npm-dist-tag(1)`) that points to (d)
 * f) a `<name>` that has a "latest" tag satisfying (e)
 * g) a `<git remote url>` that resolves to (b)
 
@@ -76,7 +76,7 @@ after packing it up into a tarball (b).
 * `npm install [@<scope>/]<name> [--save|--save-dev|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
-    `npm-config(7)`.)
+    `npm-config(7)`. The config's default value is `latest`.)
 
     In most cases, this will install the latest version
     of the module published on npm.
