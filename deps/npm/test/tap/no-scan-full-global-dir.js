@@ -1,4 +1,5 @@
 'use strict'
+var fs = require('fs')
 var path = require('path')
 var test = require('tap').test
 var requireInject = require('require-inject')
@@ -34,10 +35,9 @@ var mockReadPackageJson = function (file, cb) {
   er.code = 'ENOENT'
   cb(er)
 }
-var mockFs = {
-  realpath: function (dir, cb) {
-    return cb(null, dir)
-  }
+var mockFs = Object.create(fs)
+mockFs.realpath = function (dir, cb) {
+  return cb(null, dir)
 }
 
 test('setup', function (t) {

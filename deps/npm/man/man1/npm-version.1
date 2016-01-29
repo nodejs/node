@@ -1,11 +1,11 @@
-.TH "NPM\-VERSION" "1" "November 2015" "" ""
+.TH "NPM\-VERSION" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease]
+npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from\-git]
 
 \|'npm [\-v | \-\-version]' to print npm version
 \|'npm view <pkg> version' to view a package's published version
@@ -17,10 +17,11 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 Run this in a package directory to bump the version and write the new
 data back to \fBpackage\.json\fP and, if present, \fBnpm\-shrinkwrap\.json\fP\|\.
 .P
-The \fBnewversion\fP argument should be a valid semver string, \fIor\fR a
-valid second argument to semver\.inc (one of \fBpatch\fP, \fBminor\fP, \fBmajor\fP,
-\fBprepatch\fP, \fBpreminor\fP, \fBpremajor\fP, \fBprerelease\fP)\. In the second case,
+The \fBnewversion\fP argument should be a valid semver string, a
+valid second argument to semver\.inc \fIhttps://github\.com/npm/node\-semver#functions\fR (one of \fBpatch\fP, \fBminor\fP, \fBmajor\fP,
+\fBprepatch\fP, \fBpreminor\fP, \fBpremajor\fP, \fBprerelease\fP), or \fBfrom\-git\fP\|\. In the second case,
 the existing version will be incremented by 1 in the specified field\.
+\fBfrom\-git\fP will try to read the latest git tag, and use that as the new npm version\.
 .P
 If run in a git repo, it will also create a version commit and tag\.
 This behavior is controlled by \fBgit\-tag\-version\fP (see below), and can

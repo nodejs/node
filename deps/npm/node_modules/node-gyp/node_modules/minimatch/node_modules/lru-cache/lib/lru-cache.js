@@ -13,6 +13,14 @@ function hOP (obj, key) {
 
 function naiveLength () { return 1 }
 
+var didTypeWarning = false
+function typeCheckKey(key) {
+  if (!didTypeWarning && typeof key !== 'string' && typeof key !== 'number') {
+    didTypeWarning = true
+    console.error(new TypeError("LRU: key must be a string or number. Almost certainly a bug! " + typeof key).stack)
+  }
+}
+
 function LRUCache (options) {
   if (!(this instanceof LRUCache))
     return new LRUCache(options)
@@ -163,6 +171,8 @@ LRUCache.prototype.dumpLru = function () {
 
 LRUCache.prototype.set = function (key, value, maxAge) {
   maxAge = maxAge || this._maxAge
+  typeCheckKey(key)
+
   var now = maxAge ? Date.now() : 0
   var len = this._lengthCalculator(value)
 
@@ -207,6 +217,7 @@ LRUCache.prototype.set = function (key, value, maxAge) {
 }
 
 LRUCache.prototype.has = function (key) {
+  typeCheckKey(key)
   if (!hOP(this._cache, key)) return false
   var hit = this._cache[key]
   if (isStale(this, hit)) {
@@ -216,10 +227,12 @@ LRUCache.prototype.has = function (key) {
 }
 
 LRUCache.prototype.get = function (key) {
+  typeCheckKey(key)
   return get(this, key, true)
 }
 
 LRUCache.prototype.peek = function (key) {
+  typeCheckKey(key)
   return get(this, key, false)
 }
 
@@ -230,6 +243,7 @@ LRUCache.prototype.pop = function () {
 }
 
 LRUCache.prototype.del = function (key) {
+  typeCheckKey(key)
   del(this, this._cache[key])
 }
 
@@ -241,6 +255,7 @@ LRUCache.prototype.load = function (arr) {
   //A previous serialized cache has the most recent items first
   for (var l = arr.length - 1; l >= 0; l-- ) {
     var hit = arr[l]
+    typeCheckKey(hit.k)
     var expiresAt = hit.e || 0
     if (expiresAt === 0) {
       //the item was created without expiration in a non aged cache
@@ -254,6 +269,7 @@ LRUCache.prototype.load = function (arr) {
 }
 
 function get (self, key, doUse) {
+  typeCheckKey(key)
   var hit = self._cache[key]
   if (hit) {
     if (isStale(self, hit)) {

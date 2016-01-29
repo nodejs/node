@@ -23,7 +23,7 @@ var childPath = require('./utils/child-path.js')
 module.exports = dedupe
 module.exports.Deduper = Deduper
 
-dedupe.usage = 'npm dedupe [package names...]'
+dedupe.usage = 'npm dedupe'
 
 function dedupe (args, cb) {
   validate('AF', arguments)

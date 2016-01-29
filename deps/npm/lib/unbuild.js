@@ -80,7 +80,12 @@ function rmBins (pkg, folder, parent, top, cb) {
     } else {
       gentlyRm(path.resolve(binRoot, b), true, folder, cb)
     }
-  }, cb)
+  }, gentlyRmBinRoot)
+
+  function gentlyRmBinRoot (err) {
+    if (err || top) return cb(err)
+    return gentlyRm(binRoot, true, parent, cb)
+  }
 }
 
 function rmMans (pkg, folder, parent, top, cb) {

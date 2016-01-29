@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "November 2015" "" ""
+.TH "NPM\-SCRIPTS" "7" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -195,10 +195,10 @@ For example, if your package\.json contains this:
 .fi
 .RE
 .P
-then the \fBscripts/install\.js\fP will be called for the install,
-post\-install, stages of the lifecycle, and the \fBscripts/uninstall\.js\fP
-would be called when the package is uninstalled\.  Since
-\fBscripts/install\.js\fP is running for three different phases, it would
+then \fBscripts/install\.js\fP will be called for the install
+and post\-install stages of the lifecycle, and \fBscripts/uninstall\.js\fP
+will be called when the package is uninstalled\.  Since
+\fBscripts/install\.js\fP is running for two different phases, it would
 be wise in this case to look at the \fBnpm_lifecycle_event\fP environment
 variable\.
 .P
@@ -252,7 +252,7 @@ by simply describing your package appropriately\.  In general, this
 will lead to a more robust and consistent state\.
 .IP \(bu 2
 Inspect the env to determine where to put things\.  For instance, if
-the \fBnpm_config_binroot\fP environ is set to \fB/home/user/bin\fP, then
+the \fBnpm_config_binroot\fP environment variable is set to \fB/home/user/bin\fP, then
 don't try to install executables into \fB/usr/local/bin\fP\|\.  The user
 probably set it up that way for a reason\.
 .IP \(bu 2

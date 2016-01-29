@@ -74,19 +74,20 @@ test('npm login', function (t) {
       }
     )
 
-    var o = ''
-    var e = ''
     var remaining = Object.keys(responses).length
     runner.stdout.on('data', function (chunk) {
-      remaining--
-      o += chunk
+      if (remaining > 0) {
+        remaining--
 
-      var label = chunk.toString('utf8').split(':')[0]
-      runner.stdin.write(responses[label])
+        var label = chunk.toString('utf8').split(':')[0]
+        runner.stdin.write(responses[label])
 
-      if (remaining === 0) runner.stdin.end()
+        if (remaining === 0) runner.stdin.end()
+      } else {
+        var message = chunk.toString('utf8').trim()
+        t.equal(message, 'Logged in as u on ' + common.registry + '/.')
+      }
     })
-    runner.stderr.on('data', function (chunk) { e += chunk })
   })
 })
 

@@ -1,0 +1,66 @@
+{
+  "_args": [
+    [
+      "extsprintf@1.0.2",
+      "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim"
+    ]
+  ],
+  "_from": "extsprintf@1.0.2",
+  "_id": "extsprintf@1.0.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/jsprim/extsprintf",
+  "_npmUser": {
+    "email": "dap@cs.brown.edu",
+    "name": "dap"
+  },
+  "_npmVersion": "1.1.65",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "extsprintf",
+    "raw": "extsprintf@1.0.2",
+    "rawSpec": "1.0.2",
+    "scope": null,
+    "spec": "1.0.2",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/request/http-signature/jsprim",
+    "/request/http-signature/jsprim/verror"
+  ],
+  "_resolved": "https://registry.npmjs.org/extsprintf/-/extsprintf-1.0.2.tgz",
+  "_shasum": "e1080e0658e300b06294990cc70e1502235fd550",
+  "_shrinkwrap": null,
+  "_spec": "extsprintf@1.0.2",
+  "_where": "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim",
+  "bugs": {
+    "url": "https://github.com/davepacheco/node-extsprintf/issues"
+  },
+  "dependencies": {},
+  "description": "extended POSIX-style sprintf",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "e1080e0658e300b06294990cc70e1502235fd550",
+    "tarball": "http://registry.npmjs.org/extsprintf/-/extsprintf-1.0.2.tgz"
+  },
+  "engines": [
+    "node >=0.6.0"
+  ],
+  "homepage": "https://github.com/davepacheco/node-extsprintf#readme",
+  "main": "./lib/extsprintf.js",
+  "maintainers": [
+    {
+      "name": "dap",
+      "email": "dap@cs.brown.edu"
+    }
+  ],
+  "name": "extsprintf",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/davepacheco/node-extsprintf.git"
+  },
+  "version": "1.0.2"
+}

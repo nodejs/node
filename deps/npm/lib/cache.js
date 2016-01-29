@@ -348,6 +348,7 @@ function afterAdd (cb) {
 
     // Save the resolved, shasum, etc. into the data so that the next
     // time we load from this cached data, we have all the same info.
+    // Ignore if it fails.
     var pj = path.join(cachedPackageRoot(data), 'package', 'package.json')
 
     var done = inflight(pj, cb)
@@ -358,7 +359,7 @@ function afterAdd (cb) {
       if (er) return done(er)
       writeFileAtomic(pj, JSON.stringify(data), { chown: cs }, function (er) {
         if (!er) log.verbose('afterAdd', pj, 'written')
-        return done(er, data)
+        return done(null, data)
       })
     })
   }

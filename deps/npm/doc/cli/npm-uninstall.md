@@ -1,4 +1,4 @@
-npm-rm(1) -- Remove a package
+npm-uninstall(1) -- Remove a package
 =============================
 
 ## SYNOPSIS

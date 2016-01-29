@@ -52,16 +52,9 @@ har-validator --schema request request.json
   a full [HAR](http://www.softwareishard.com/blog/har-12-spec/) object
 
 ```js
-var HAR = require('./har.json')
-var validate = require('har-validator')
-
-validate(HAR)
-  .then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.log(data)
@@ -72,14 +65,9 @@ validate(HAR)
   a [log](http://www.softwareishard.com/blog/har-12-spec/#log) object
 
 ```js
-var validate = require('har-validator')
-
-validate.log(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.log(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.cache(data)
@@ -90,14 +78,9 @@ validate.log(data.then(function (HAR) {
   a [cache](http://www.softwareishard.com/blog/har-12-spec/#cache) object
 
 ```js
-var validate = require('har-validator')
-
-validate.cache(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.cache(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.cacheEntry(data)
@@ -108,14 +91,9 @@ validate.cache(data.then(function (HAR) {
   a ["beforeRequest" or "afterRequest"](http://www.softwareishard.com/blog/har-12-spec/#cache) objects
 
 ```js
-var validate = require('har-validator')
-
-validate.cacheEntry(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.cacheEntry(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.content(data)
@@ -126,14 +104,9 @@ validate.cacheEntry(data.then(function (HAR) {
   a [content](http://www.softwareishard.com/blog/har-12-spec/#content) object
 
 ```js
-var validate = require('har-validator')
-
-validate.content(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.content(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.cookie(data)
@@ -144,14 +117,9 @@ validate.content(data.then(function (HAR) {
   a [cookie](http://www.softwareishard.com/blog/har-12-spec/#cookies) object
 
 ```js
-var validate = require('har-validator')
-
-validate.cookie(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.cookie(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.creator(data)
@@ -162,14 +130,9 @@ validate.cookie(data.then(function (HAR) {
   a [creator](http://www.softwareishard.com/blog/har-12-spec/#creator) object
 
 ```js
-var validate = require('har-validator')
-
-validate.creator(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.creator(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.entry(data)
@@ -180,14 +143,9 @@ validate.creator(data.then(function (HAR) {
   an [entry](http://www.softwareishard.com/blog/har-12-spec/#entries) object
 
 ```js
-var validate = require('har-validator')
-
-validate.entry(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.entry(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.log(data)
@@ -202,14 +160,9 @@ alias of [`Validate(data)`](#validate-data-callback-)
   a [page](http://www.softwareishard.com/blog/har-12-spec/#pages) object
 
 ```js
-var validate = require('har-validator')
-
-validate.page(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.page(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.pageTimings(data)
@@ -220,14 +173,9 @@ validate.page(data.then(function (HAR) {
   a [pageTimings](http://www.softwareishard.com/blog/har-12-spec/#pageTimings) object
 
 ```js
-var validate = require('har-validator')
-
-validate.pageTimings(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.pageTimings(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.postData(data)
@@ -238,14 +186,9 @@ validate.pageTimings(data.then(function (HAR) {
   a [postData](http://www.softwareishard.com/blog/har-12-spec/#postData) object
 
 ```js
-var validate = require('har-validator')
-
-validate.postData(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.postData(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.record(data)
@@ -256,14 +199,9 @@ validate.postData(data.then(function (HAR) {
   a [record](http://www.softwareishard.com/blog/har-12-spec/#headers) object
 
 ```js
-var validate = require('har-validator')
-
-validate.record(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.record(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.request(data)
@@ -274,14 +212,9 @@ validate.record(data.then(function (HAR) {
   a [request](http://www.softwareishard.com/blog/har-12-spec/#request) object
 
 ```js
-var validate = require('har-validator')
-
-validate.request(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.request(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.response(data)
@@ -292,14 +225,9 @@ validate.request(data.then(function (HAR) {
   a [response](http://www.softwareishard.com/blog/har-12-spec/#response) object
 
 ```js
-var validate = require('har-validator')
-
-validate.cacheEntry(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.cacheEntry(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ### Validate.timings(data)
@@ -310,14 +238,9 @@ validate.cacheEntry(data.then(function (HAR) {
   a [timings](http://www.softwareishard.com/blog/har-12-spec/#timings) object
 
 ```js
-var validate = require('har-validator')
-
-validate.timings(data.then(function (HAR) {
-    console.log('horray!')
-  })
-  .catch(function (error) {
-    console.error(error)
-  })
+validate.timings(data)
+  .then(data => console.log('horray!'))
+  .catch(console.error)
 ```
 
 ----

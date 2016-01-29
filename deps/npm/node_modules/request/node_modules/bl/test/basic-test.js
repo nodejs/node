@@ -336,6 +336,22 @@ tape('test String appendage', function (t) {
   t.end()
 })
 
+tape('test Number appendage', function (t) {
+  var bl = new BufferList()
+    , b  = new Buffer('1234567890')
+
+  bl.append(1234)
+  bl.append(567)
+  bl.append(89)
+  bl.append(0)
+
+  encodings.forEach(function (enc) {
+      t.equal(bl.toString(enc), b.toString(enc))
+    })
+
+  t.end()
+})
+
 tape('write nothing, should get empty buffer', function (t) {
   t.plan(3)
   BufferList(function (err, data) {

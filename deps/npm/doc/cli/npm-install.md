@@ -23,11 +23,11 @@ by that. See npm-shrinkwrap(1).
 
 A `package` is:
 
-* a) a folder containing a program described by a package.json file
+* a) a folder containing a program described by a `package.json(5)` file
 * b) a gzipped tarball containing (a)
 * c) a url that resolves to (b)
 * d) a `<name>@<version>` that is published on the registry (see `npm-registry(7)`) with (c)
-* e) a `<name>@<tag>` that points to (d)
+* e) a `<name>@<tag>` (see `npm-dist-tag(1)`) that points to (d)
 * f) a `<name>` that has a "latest" tag satisfying (e)
 * g) a `<git remote url>` that resolves to (a)
 
@@ -45,7 +45,9 @@ after packing it up into a tarball (b).
     it installs the current package context (ie, the current working
     directory) as a global package.
 
-    By default, `npm install` will install all modules listed as dependencies.
+    By default, `npm install` will install all modules listed as dependencies
+    in `package.json(5)`.
+
     With the `--production` flag (or when the `NODE_ENV` environment variable
     is set to `production`), npm will not install modules listed in
     `devDependencies`.
@@ -76,7 +78,7 @@ after packing it up into a tarball (b).
 * `npm install [<@scope>/]<name> [-S|--save|-D|--save-dev|-O|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
-    `npm-config(7)`.)
+    `npm-config(7)`. The config's default value is `latest`.)
 
     In most cases, this will install the latest version
     of the module published on npm.
@@ -257,6 +259,16 @@ local copy exists on disk.
 The `-g` or `--global` argument will cause npm to install the package globally
 rather than locally.  See `npm-folders(5)`.
 
+The `--global-style` argument will cause npm to install the package into
+your local `node_modules` folder with the same layout it uses with the
+global `node_modules` folder. Only your direct dependencies will show in
+`node_modules` and everything they depend on will be flattened in their
+`node_modules` folders. This obviously will elminate some deduping.
+
+The `--legacy-bundling` argument will cause npm to install the package such
+that versions of npm prior to 1.4, such as the one included with node 0.8,
+can install the package. This eliminates all automatic deduping.
+
 The `--link` argument will cause npm to link global installs into the
 local space in some cases.
 
@@ -353,5 +365,6 @@ affects a real use-case, it will be investigated.
 * npmrc(5)
 * npm-registry(7)
 * npm-tag(1)
-* npm-rm(1)
+* npm-uninstall(1)
 * npm-shrinkwrap(1)
+* package.json(5)

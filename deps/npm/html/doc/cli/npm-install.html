@@ -28,11 +28,11 @@ package has a shrinkwrap file, the installation of dependencies will be driven
 by that. See <a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a>.</p>
 <p>A <code>package</code> is:</p>
 <ul>
-<li>a) a folder containing a program described by a package.json file</li>
+<li>a) a folder containing a program described by a <code><a href="../files/package.json.html">package.json(5)</a></code> file</li>
 <li>b) a gzipped tarball containing (a)</li>
 <li>c) a url that resolves to (b)</li>
 <li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry (see <code><a href="../misc/npm-registry.html">npm-registry(7)</a></code>) with (c)</li>
-<li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li>
+<li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> (see <code><a href="../cli/npm-dist-tag.html">npm-dist-tag(1)</a></code>) that points to (d)</li>
 <li>f) a <code>&lt;name&gt;</code> that has a &quot;latest&quot; tag satisfying (e)</li>
 <li>g) a <code>&lt;git remote url&gt;</code> that resolves to (a)</li>
 </ul>
@@ -46,8 +46,9 @@ after packing it up into a tarball (b).</p>
 <p>  In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
   it installs the current package context (ie, the current working
   directory) as a global package.</p>
-<p>  By default, <code>npm install</code> will install all modules listed as dependencies.
-  With the <code>--production</code> flag (or when the <code>NODE_ENV</code> environment variable
+<p>  By default, <code>npm install</code> will install all modules listed as dependencies
+  in <code><a href="../files/package.json.html">package.json(5)</a></code>.</p>
+<p>  With the <code>--production</code> flag (or when the <code>NODE_ENV</code> environment variable
   is set to <code>production</code>), npm will not install modules listed in
   <code>devDependencies</code>.</p>
 </li>
@@ -69,7 +70,7 @@ after packing it up into a tarball (b).</p>
 </code></pre></li>
 <li><p><code>npm install [&lt;@scope&gt;/]&lt;name&gt; [-S|--save|-D|--save-dev|-O|--save-optional]</code>:</p>
 <p>  Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the &quot;tag&quot; config. (See
-  <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.)</p>
+  <code><a href="../misc/npm-config.html">npm-config(7)</a></code>. The config&#39;s default value is <code>latest</code>.)</p>
 <p>  In most cases, this will install the latest version
   of the module published on npm.</p>
 <p>  Example:</p>
@@ -206,6 +207,14 @@ local copy exists on disk.</p>
 <pre><code>npm install sax --force
 </code></pre><p>The <code>-g</code> or <code>--global</code> argument will cause npm to install the package globally
 rather than locally.  See <code><a href="../files/npm-folders.html">npm-folders(5)</a></code>.</p>
+<p>The <code>--global-style</code> argument will cause npm to install the package into
+your local <code>node_modules</code> folder with the same layout it uses with the
+global <code>node_modules</code> folder. Only your direct dependencies will show in
+<code>node_modules</code> and everything they depend on will be flattened in their
+<code>node_modules</code> folders. This obviously will elminate some deduping.</p>
+<p>The <code>--legacy-bundling</code> argument will cause npm to install the package such
+that versions of npm prior to 1.4, such as the one included with node 0.8,
+can install the package. This eliminates all automatic deduping.</p>
 <p>The <code>--link</code> argument will cause npm to link global installs into the
 local space in some cases.</p>
 <p>The <code>--no-bin-links</code> argument will prevent npm from creating symlinks for
@@ -280,8 +289,9 @@ affects a real use-case, it will be investigated.</p>
 <li><a href="../files/npmrc.html">npmrc(5)</a></li>
 <li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
 <li><a href="../cli/npm-tag.html">npm-tag(1)</a></li>
-<li><a href="../cli/npm-rm.html">npm-rm(1)</a></li>
+<li><a href="../cli/npm-uninstall.html">npm-uninstall(1)</a></li>
 <li><a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a></li>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
 </ul>
 
 </div>
@@ -295,5 +305,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@3.3.12</p>
+<p id="footer">npm-install &mdash; npm@3.6.0</p>
 

@@ -245,3 +245,6 @@ log.addLevel('http', 3000, { fg: 'green', bg: 'black' })
 log.addLevel('warn', 4000, { fg: 'black', bg: 'yellow' }, 'WARN')
 log.addLevel('error', 5000, { fg: 'red', bg: 'black' }, 'ERR!')
 log.addLevel('silent', Infinity)
+
+// allow 'error' prefix
+log.on('error', function(){})

@@ -6,6 +6,7 @@ var asyncMap = require('slide').asyncMap
 var mkdirp = require('mkdirp')
 var npm = require('../../npm.js')
 var andIgnoreErrors = require('../and-ignore-errors.js')
+var rename = require('../../utils/rename.js')
 
 // This is weird because we want to remove the module but not it's node_modules folder
 // allowing for this allows us to not worry about the order of operations
@@ -25,10 +26,12 @@ function removeLink (pkg, next) {
 function removeDir (pkg, log, next) {
   var modpath = path.join(path.dirname(pkg.path), '.' + path.basename(pkg.path) + '.MODULES')
 
-  fs.rename(path.join(pkg.path, 'node_modules'), modpath, unbuildPackage)
+  rename(path.join(pkg.path, 'node_modules'), modpath, unbuildPackage)
 
   function unbuildPackage (renameEr) {
-    npm.commands.unbuild(pkg.path, true, renameEr ? andRemoveEmptyParents(pkg.path) : moveModulesBack)
+    npm.commands.unbuild(pkg.path, true, function () {
+      rimraf(pkg.path, renameEr ? andRemoveEmptyParents(pkg.path) : moveModulesBack)
+    })
   }
 
   function andRemoveEmptyParents (path) {
@@ -55,7 +58,7 @@ function removeDir (pkg, log, next) {
       var to = path.join(pkg.path, 'node_modules', file)
       // we ignore errors here, because they can legitimately happen, for instance,
       // bundled modules will be in both node_modules folders
-      fs.rename(from, to, andIgnoreErrors(done))
+      rename(from, to, andIgnoreErrors(done))
     }, cleanup)
   }
 
@@ -64,7 +67,7 @@ function removeDir (pkg, log, next) {
   }
 
   function afterCleanup (rimrafEr) {
-    if (rimrafEr) log.warn('finalize', rimrafEr)
+    if (rimrafEr) log.warn('remove', rimrafEr)
     removeEmptyParents(path.resolve(pkg.path, '..'))
   }
 
@@ -75,8 +78,4 @@ function removeDir (pkg, log, next) {
       removeEmptyParents(path.resolve(pkgdir, '..'))
     })
   }
-}
-
-module.exports.commit = function (staging, pkg, next) {
-  rimraf(pkg.path, next)
 }
