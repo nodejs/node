@@ -1,4 +1,4 @@
-/* crypto/evp/e_camellia.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/evp/e_camellia.c */
 /* ====================================================================
  * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
  *
