@@ -1,81 +1,70 @@
 var fs = require("fs")
 var path = require("path")
 
-var test = require("tap").test
-var mkdirp = require("mkdirp")
-var rimraf = require("rimraf")
-var nock = require("nock")
-
-var npm = require("../../")
-var common = require("../common-tap.js")
+var test = require('tap').test
+var mkdirp = require('mkdirp')
+var rimraf = require('rimraf')
+var mr = require('npm-registry-mock')
+var common = require('../common-tap')
+var server
 
 var pkg = path.join(__dirname, "publish-access")
 
-// TODO: nock uses setImmediate, breaks 0.8: replace with mockRegistry
-if (!global.setImmediate) {
-  global.setImmediate = function () {
-    var args = [arguments[0], 0].concat([].slice.call(arguments, 1))
-    setTimeout.apply(this, args)
-  }
-}
-
-test("setup", function (t) {
-  mkdirp(path.join(pkg, "cache"), function () {
-    var configuration = {
-      cache    : path.join(pkg, "cache"),
-      loglevel : "silent",
-      registry : common.registry
-    }
-
-    npm.load(configuration, next)
+test('setup', function (t) {
+  mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
+    t.ifError(err, 'registry mocked successfully')
+    t.pass('setup done')
+    server = s
+    t.end()
   })
+})
 
-  function next (er) {
-    t.ifError(er, "npm loaded successfully")
+test('scoped packages pass public access if set', function (t) {
+  server.filteringRequestBody(function (body) {
+    t.doesNotThrow(function () {
+      var parsed = JSON.parse(body)
+      t.equal(parsed.access, 'public', 'access level is correct')
+    }, 'converted body back into object')
+    return true
+  }).put('/@bigco%2fpublish-access', true).reply(201, {ok: true})
 
-    process.chdir(pkg)
+  mkdirp(path.join(pkg, 'cache'), function () {
     fs.writeFile(
       path.join(pkg, "package.json"),
       JSON.stringify({
-        name: "@bigco/publish-access",
-        version: "1.2.5"
+        name: '@bigco/publish-access',
+        version: '1.2.5',
+        public: true
       }),
       "ascii",
       function (er) {
-        t.ifError(er)
+        t.ifError(er, 'package file written')
+        common.npm(
+          [
+            'publish',
+            '--access', 'public',
+            '--cache', path.join(pkg, 'cache'),
+            '--loglevel', 'silly',
+            '--registry', common.registry
+          ],
+          {
+            cwd: pkg
+          },
+          function (er) {
+            t.ifError(er, 'published without error')
 
-        t.pass("setup done")
-        t.end()
+            server.done()
+            t.end()
+          }
+        )
       }
     )
-  }
-})
-
-test("scoped packages pass public access if set", function (t) {
-  var put = nock(common.registry)
-              .put("/@bigco%2fpublish-access")
-              .reply(201, verify)
-
-  npm.config.set("access", "public")
-  npm.commands.publish([], false, function (er) {
-    t.ifError(er, "published without error")
-
-    put.done()
-    t.end()
   })
-
-  function verify (_, body) {
-    t.doesNotThrow(function () {
-      var parsed = JSON.parse(body)
-      t.equal(parsed.access, "public", "access level is correct")
-    }, "converted body back into object")
-
-    return {ok: true}
-  }
 })
 
 test("cleanup", function (t) {
   process.chdir(__dirname)
+  server.close()
   rimraf(pkg, function (er) {
     t.ifError(er)
 
