@@ -498,7 +498,7 @@ static void sv_usage(void)
     BIO_printf(bio_err,
                " -accept arg   - port to accept on (default is %d)\n", PORT);
     BIO_printf(bio_err,
-               " -verify_host host - check peer certificate matches \"host\"\n");
+               " -verify_hostname host - check peer certificate matches \"host\"\n");
     BIO_printf(bio_err,
                " -verify_email email - check peer certificate matches \"email\"\n");
     BIO_printf(bio_err,

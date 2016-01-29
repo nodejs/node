@@ -1591,7 +1591,7 @@ struct nistp_test_params {
     int degree;
     /*
      * Qx, Qy and D are taken from
-     * http://csrcdocut.gov/groups/ST/toolkit/documents/Examples/ECDSA_Prime.pdf
+     * http://csrc.nist.gov/groups/ST/toolkit/documents/Examples/ECDSA_Prime.pdf
      * Otherwise, values are standard curve parameters from FIPS 180-3
      */
     const char *p, *a, *b, *Qx, *Qy, *Gx, *Gy, *order, *d;
