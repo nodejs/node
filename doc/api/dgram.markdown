@@ -185,9 +185,10 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
-### socket.send(buf, offset, length, port, address[, callback])
+### socket.send(buf, [offset, length,] port, address[, callback])
 
-* `buf` Buffer object or string.  Message to be sent
+* `buf` Buffer object, string, or an array of either. Message to be
+  sent.
 * `offset` Integer. Offset in the buffer where the message starts.
 * `length` Integer. Number of bytes in the message.
 * `port` Integer. Destination port.
@@ -224,16 +225,35 @@ The only way to know for sure that the datagram has been sent is by using a
 passed as the first argument to the `callback`. If a `callback` is not given,
 the error is emitted as an `'error'` event on the `socket` object.
 
+Offset and length are optional, but if you specify one you would need to
+specify the other. Also, they are supported only when the first
+argument is a `Buffer`.
+
 Example of sending a UDP packet to a random port on `localhost`;
 
 ```js
 const dgram = require('dgram');
 const message = new Buffer('Some bytes');
 const client = dgram.createSocket('udp4');
-client.send(message, 0, message.length, 41234, 'localhost', (err) => {
+client.send(message, 41234, 'localhost', (err) => {
   client.close();
 });
 ```
+
+Example of sending a UDP packet composed of multiple buffers to a random port on `localhost`;
+
+```js
+const dgram = require('dgram');
+const buf1 = new Buffer('Some ');
+const buf2 = new Buffer('bytes');
+const client = dgram.createSocket('udp4');
+client.send([buf1, buf2], 41234, 'localhost', (err) => {
+  client.close();
+});
+```
+
+Sending multiple buffers might be faster or slower depending on your
+application and operating system: benchmark it. Usually it is faster.
 
 **A Note about UDP datagram size**
 
