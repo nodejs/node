@@ -1,4 +1,4 @@
-/* crypto/store/str_lib.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/store/str_lib.c */
 /*
  * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
  * 2003.

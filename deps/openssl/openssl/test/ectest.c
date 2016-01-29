@@ -1,1 +1,0 @@
-../crypto/ec/ectest.c

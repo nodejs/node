@@ -1,1 +1,0 @@
-../crypto/ecdsa/ecdsatest.c

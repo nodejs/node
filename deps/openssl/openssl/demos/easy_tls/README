@@ -62,4 +62,4 @@ As noted above, easy_tls.c will be changed to become a library one
 day, which means that future revisions will not be fully compatible to
 the current version.
 
-Bodo Möller <bodo@openssl.org>
+Bodo MÃ¶ller <bodo@openssl.org>
