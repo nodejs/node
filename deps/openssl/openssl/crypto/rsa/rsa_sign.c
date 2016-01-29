@@ -84,7 +84,7 @@ int RSA_sign(int type, const unsigned char *m, unsigned int m_len,
         return 0;
     }
 #endif
-    if ((rsa->flags & RSA_FLAG_SIGN_VER) && rsa->meth->rsa_sign) {
+    if (rsa->meth->rsa_sign) {
         return rsa->meth->rsa_sign(type, m, m_len, sigret, siglen, rsa);
     }
     /* Special case: SSL signature, just check the length */
@@ -304,7 +304,7 @@ int RSA_verify(int dtype, const unsigned char *m, unsigned int m_len,
                const unsigned char *sigbuf, unsigned int siglen, RSA *rsa)
 {
 
-    if ((rsa->flags & RSA_FLAG_SIGN_VER) && rsa->meth->rsa_verify) {
+    if (rsa->meth->rsa_verify) {
         return rsa->meth->rsa_verify(dtype, m, m_len, sigbuf, siglen, rsa);
     }
 
