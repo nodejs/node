@@ -92,42 +92,6 @@ npm config get globalconfig # defaults to /usr/local/etc/npmrc
 must remove them yourself manually if you want them gone.  Note that
 this means that future npm installs will not remember the settings that
 you have chosen.</p>
-<h2 id="using-npm-programmatically">Using npm Programmatically</h2>
-<p>Although npm can be used programmatically, its API is meant for use by the CLI
-<em>only</em>, and no guarantees are made regarding its fitness for any other purpose.
-If you want to use npm to reliably perform some task, the safest thing to do is
-to invoke the desired <code>npm</code> command with appropriate arguments.</p>
-<p>The semantic version of npm refers to the CLI itself, rather than the
-underlying API. <em>The internal API is not guaranteed to remain stable even when
-npm&#39;s version indicates no breaking changes have been made according to
-semver.</em></p>
-<p>If you <em>still</em> would like to use npm programmatically, it&#39;s <em>possible</em>. The API
-isn&#39;t very well documented, but it <em>is</em> rather simple.</p>
-<p>Eventually, npm will be just a thin CLI wrapper around the modules that it
-depends on, but for now, there are some things that only the CLI can do. You
-should try using one of npm&#39;s dependencies first, and only use the API if what
-you&#39;re trying to do is only supported by npm itself.</p>
-<pre><code class="lang-javascript">var npm = require(&quot;npm&quot;)
-npm.load(myConfigObject, function (er) {
-  if (er) return handlError(er)
-  npm.commands.install([&quot;some&quot;, &quot;args&quot;], function (er, data) {
-    if (er) return commandFailed(er)
-    // command succeeded, and data might have some info
-  })
-  npm.registry.log.on(&quot;log&quot;, function (message) { .... })
-})
-</code></pre>
-<p>The <code>load</code> function takes an object hash of the command-line configs.
-The various <code>npm.commands.&lt;cmd&gt;</code> functions take an <strong>array</strong> of
-positional argument <strong>strings</strong>.  The last argument to any
-<code>npm.commands.&lt;cmd&gt;</code> function is a callback.  Some commands take other
-optional arguments.  Read the source.</p>
-<p>You cannot set configs individually for any single npm function at this
-time.  Since <code>npm</code> is a singleton, any call to <code>npm.config.set</code> will
-change the value for <em>all</em> npm commands in that process.</p>
-<p>See <code>./bin/npm-cli.js</code> for an example of pulling config values off of the
-command line arguments using nopt.  You may also want to check out <code>npm
-help config</code> to learn about all the options you can set there.</p>
 <h2 id="more-docs">More Docs</h2>
 <p>Check out the <a href="https://docs.npmjs.com/">docs</a>,
 especially the <a href="https://docs.npmjs.com/misc/faq">faq</a>.</p>
@@ -163,5 +127,5 @@ will no doubt tell you to put the output in a gist or email.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@2.14.15</p>
+<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@2.14.16</p>
 

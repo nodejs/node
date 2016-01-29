@@ -142,53 +142,6 @@ Uninstalling npm does not remove configuration files by default\.  You
 must remove them yourself manually if you want them gone\.  Note that
 this means that future npm installs will not remember the settings that
 you have chosen\.
-.SH Using npm Programmatically
-.P
-Although npm can be used programmatically, its API is meant for use by the CLI
-\fIonly\fR, and no guarantees are made regarding its fitness for any other purpose\.
-If you want to use npm to reliably perform some task, the safest thing to do is
-to invoke the desired \fBnpm\fP command with appropriate arguments\.
-.P
-The semantic version of npm refers to the CLI itself, rather than the
-underlying API\. \fIThe internal API is not guaranteed to remain stable even when
-npm's version indicates no breaking changes have been made according to
-semver\.\fR
-.P
-If you \fIstill\fR would like to use npm programmatically, it's \fIpossible\fR\|\. The API
-isn't very well documented, but it \fIis\fR rather simple\.
-.P
-Eventually, npm will be just a thin CLI wrapper around the modules that it
-depends on, but for now, there are some things that only the CLI can do\. You
-should try using one of npm's dependencies first, and only use the API if what
-you're trying to do is only supported by npm itself\.
-.P
-.RS 2
-.nf
-var npm = require("npm")
-npm\.load(myConfigObject, function (er) {
-  if (er) return handlError(er)
-  npm\.commands\.install(["some", "args"], function (er, data) {
-    if (er) return commandFailed(er)
-    // command succeeded, and data might have some info
-  })
-  npm\.registry\.log\.on("log", function (message) { \.\.\.\. })
-})
-.fi
-.RE
-.P
-The \fBload\fP function takes an object hash of the command\-line configs\.
-The various \fBnpm\.commands\.<cmd>\fP functions take an \fBarray\fR of
-positional argument \fBstrings\fR\|\.  The last argument to any
-\fBnpm\.commands\.<cmd>\fP function is a callback\.  Some commands take other
-optional arguments\.  Read the source\.
-.P
-You cannot set configs individually for any single npm function at this
-time\.  Since \fBnpm\fP is a singleton, any call to \fBnpm\.config\.set\fP will
-change the value for \fIall\fR npm commands in that process\.
-.P
-See \fB\|\./bin/npm\-cli\.js\fP for an example of pulling config values off of the
-command line arguments using nopt\.  You may also want to check out \fBnpm
-help config\fP to learn about all the options you can set there\.
 .SH More Docs
 .P
 Check out the docs \fIhttps://docs\.npmjs\.com/\fR,
