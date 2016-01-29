@@ -501,7 +501,10 @@ bench-events: all
 bench-util: all
 	@$(NODE) benchmark/common.js util
 
-bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events
+bench-dgram: all
+	@$(NODE) benchmark/common.js dgram
+
+bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events bench-dgram bench-util
 
 bench: bench-net bench-http bench-fs bench-tls
 
