@@ -24,9 +24,8 @@ if (common.isWindows) {
   return;
 }
 
+var server;
 if (process.argv[2] === 'child') {
-  var server;
-
   process.on('message', function removeMe(msg, clusterServer) {
     if (msg === 'server') {
       server = clusterServer;
