@@ -2,6 +2,54 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2e and 1.0.2f [28 Jan 2016]
+
+  *) DH small subgroups
+
+     Historically OpenSSL only ever generated DH parameters based on "safe"
+     primes. More recently (in version 1.0.2) support was provided for
+     generating X9.42 style parameter files such as those required for RFC 5114
+     support. The primes used in such files may not be "safe". Where an
+     application is using DH configured with parameters based on primes that are
+     not "safe" then an attacker could use this fact to find a peer's private
+     DH exponent. This attack requires that the attacker complete multiple
+     handshakes in which the peer uses the same private DH exponent. For example
+     this could be used to discover a TLS server's private DH exponent if it's
+     reusing the private DH exponent or it's using a static DH ciphersuite.
+
+     OpenSSL provides the option SSL_OP_SINGLE_DH_USE for ephemeral DH (DHE) in
+     TLS. It is not on by default. If the option is not set then the server
+     reuses the same private DH exponent for the life of the server process and
+     would be vulnerable to this attack. It is believed that many popular
+     applications do set this option and would therefore not be at risk.
+
+     The fix for this issue adds an additional check where a "q" parameter is
+     available (as is the case in X9.42 based parameters). This detects the
+     only known attack, and is the only possible defense for static DH
+     ciphersuites. This could have some performance impact.
+
+     Additionally the SSL_OP_SINGLE_DH_USE option has been switched on by
+     default and cannot be disabled. This could have some performance impact.
+
+     This issue was reported to OpenSSL by Antonio Sanso (Adobe).
+     (CVE-2016-0701)
+     [Matt Caswell]
+
+  *) SSLv2 doesn't block disabled ciphers
+
+     A malicious client can negotiate SSLv2 ciphers that have been disabled on
+     the server and complete SSLv2 handshakes even if all SSLv2 ciphers have
+     been disabled, provided that the SSLv2 protocol was not also disabled via
+     SSL_OP_NO_SSLv2.
+
+     This issue was reported to OpenSSL on 26th December 2015 by Nimrod Aviram
+     and Sebastian Schinzel.
+     (CVE-2015-3197)
+     [Viktor Dukhovni]
+
+  *) Reject DH handshakes with parameters shorter than 1024 bits.
+     [Kurt Roeckx]
+
  Changes between 1.0.2d and 1.0.2e [3 Dec 2015]
 
   *) BN_mod_exp may produce incorrect results on x86_64

@@ -402,7 +402,7 @@ static int get_client_master_key(SSL *s)
         }
 
         cp = ssl2_get_cipher_by_char(p);
-        if (cp == NULL) {
+        if (cp == NULL || sk_SSL_CIPHER_find(s->session->ciphers, cp) < 0) {
             ssl2_return_error(s, SSL2_PE_NO_CIPHER);
             SSLerr(SSL_F_GET_CLIENT_MASTER_KEY, SSL_R_NO_CIPHER_MATCH);
             return (-1);
@@ -598,6 +598,11 @@ static int get_client_hello(SSL *s)
         s->s2->tmp.cipher_spec_length = i;
         n2s(p, i);
         s->s2->tmp.session_id_length = i;
+        if ((i < 0) || (i > SSL_MAX_SSL_SESSION_ID_LENGTH)) {
+            ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
+            SSLerr(SSL_F_GET_CLIENT_HELLO, SSL_R_LENGTH_MISMATCH);
+            return -1;
+        }
         n2s(p, i);
         s->s2->challenge_length = i;
         if ((i < SSL2_MIN_CHALLENGE_LENGTH) ||
@@ -687,8 +692,12 @@ static int get_client_hello(SSL *s)
             prio = cs;
             allow = cl;
         }
+
+        /* Generate list of SSLv2 ciphers shared between client and server */
         for (z = 0; z < sk_SSL_CIPHER_num(prio); z++) {
-            if (sk_SSL_CIPHER_find(allow, sk_SSL_CIPHER_value(prio, z)) < 0) {
+            const SSL_CIPHER *cp = sk_SSL_CIPHER_value(prio, z);
+            if ((cp->algorithm_ssl & SSL_SSLV2) == 0 ||
+                sk_SSL_CIPHER_find(allow, cp) < 0) {
                 (void)sk_SSL_CIPHER_delete(prio, z);
                 z--;
             }
@@ -696,6 +705,13 @@ static int get_client_hello(SSL *s)
         if (s->options & SSL_OP_CIPHER_SERVER_PREFERENCE) {
             sk_SSL_CIPHER_free(s->session->ciphers);
             s->session->ciphers = prio;
+        }
+
+        /* Make sure we have at least one cipher in common */
+        if (sk_SSL_CIPHER_num(s->session->ciphers) == 0) {
+            ssl2_return_error(s, SSL2_PE_NO_CIPHER);
+            SSLerr(SSL_F_GET_CLIENT_HELLO, SSL_R_NO_CIPHER_MATCH);
+            return -1;
         }
         /*
          * s->session->ciphers should now have a list of ciphers that are on
