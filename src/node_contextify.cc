@@ -518,10 +518,11 @@ class ContextifyScript : public BaseObject {
 
     ScriptCompiler::CachedData* cached_data = nullptr;
     if (!cached_data_buf.IsEmpty()) {
-      ArrayBuffer::Contents contents =
-          cached_data_buf.ToLocalChecked()->Buffer()->GetContents();
+      Local<Uint8Array> ui8 = cached_data_buf.ToLocalChecked();
+      ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
       cached_data = new ScriptCompiler::CachedData(
-          static_cast<uint8_t*>(contents.Data()), contents.ByteLength());
+          static_cast<uint8_t*>(contents.Data()) + ui8->ByteOffset(),
+          ui8->ByteLength());
     }
 
     ScriptOrigin origin(filename, lineOffset, columnOffset);
