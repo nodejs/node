@@ -176,4 +176,3 @@ variety of environments, like browser JS.)*
    that event.  So, within the constructor itself, you can use
    `process.nextTick()` to set a callback to emit the event after the
    constructor has finished, which provides the expected results.
-
