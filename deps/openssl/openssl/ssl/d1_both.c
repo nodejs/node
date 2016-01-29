@@ -291,8 +291,44 @@ int dtls1_do_write(SSL *s, int type)
         blocksize = 0;
 
     frag_off = 0;
+    s->rwstate = SSL_NOTHING;
+
     /* s->init_num shouldn't ever be < 0...but just in case */
     while (s->init_num > 0) {
+        if (type == SSL3_RT_HANDSHAKE && s->init_off != 0) {
+            /* We must be writing a fragment other than the first one */
+
+            if (frag_off > 0) {
+                /* This is the first attempt at writing out this fragment */
+
+                if (s->init_off <= DTLS1_HM_HEADER_LENGTH) {
+                    /*
+                     * Each fragment that was already sent must at least have
+                     * contained the message header plus one other byte.
+                     * Therefore |init_off| must have progressed by at least
+                     * |DTLS1_HM_HEADER_LENGTH + 1| bytes. If not something went
+                     * wrong.
+                     */
+                    return -1;
+                }
+
+                /*
+                 * Adjust |init_off| and |init_num| to allow room for a new
+                 * message header for this fragment.
+                 */
+                s->init_off -= DTLS1_HM_HEADER_LENGTH;
+                s->init_num += DTLS1_HM_HEADER_LENGTH;
+            } else {
+                /*
+                 * We must have been called again after a retry so use the
+                 * fragment offset from our last attempt. We do not need
+                 * to adjust |init_off| and |init_num| as above, because
+                 * that should already have been done before the retry.
+                 */
+                frag_off = s->d1->w_msg_hdr.frag_off;
+            }
+        }
+
         used_len = BIO_wpending(SSL_get_wbio(s)) + DTLS1_RT_HEADER_LENGTH
             + mac_size + blocksize;
         if (s->d1->mtu > used_len)
@@ -305,8 +341,10 @@ int dtls1_do_write(SSL *s, int type)
              * grr.. we could get an error if MTU picked was wrong
              */
             ret = BIO_flush(SSL_get_wbio(s));
-            if (ret <= 0)
+            if (ret <= 0) {
+                s->rwstate = SSL_WRITING;
                 return ret;
+            }
             used_len = DTLS1_RT_HEADER_LENGTH + mac_size + blocksize;
             if (s->d1->mtu > used_len + DTLS1_HM_HEADER_LENGTH) {
                 curr_mtu = s->d1->mtu - used_len;
@@ -332,25 +370,6 @@ int dtls1_do_write(SSL *s, int type)
          * XDTLS: this function is too long.  split out the CCS part
          */
         if (type == SSL3_RT_HANDSHAKE) {
-            if (s->init_off != 0) {
-                OPENSSL_assert(s->init_off > DTLS1_HM_HEADER_LENGTH);
-                s->init_off -= DTLS1_HM_HEADER_LENGTH;
-                s->init_num += DTLS1_HM_HEADER_LENGTH;
-
-                /*
-                 * We just checked that s->init_num > 0 so this cast should
-                 * be safe
-                 */
-                if (((unsigned int)s->init_num) > curr_mtu)
-                    len = curr_mtu;
-                else
-                    len = s->init_num;
-            }
-
-            /* Shouldn't ever happen */
-            if (len > INT_MAX)
-                len = INT_MAX;
-
             if (len < DTLS1_HM_HEADER_LENGTH) {
                 /*
                  * len is so small that we really can't do anything sensible
@@ -438,7 +457,16 @@ int dtls1_do_write(SSL *s, int type)
             }
             s->init_off += ret;
             s->init_num -= ret;
-            frag_off += (ret -= DTLS1_HM_HEADER_LENGTH);
+            ret -= DTLS1_HM_HEADER_LENGTH;
+            frag_off += ret;
+
+            /*
+             * We save the fragment offset for the next fragment so we have it
+             * available in case of an IO retry. We don't know the length of the
+             * next fragment yet so just set that to 0 for now. It will be
+             * updated again later.
+             */
+            dtls1_fix_message_header(s, frag_off, 0);
         }
     }
     return (0);
