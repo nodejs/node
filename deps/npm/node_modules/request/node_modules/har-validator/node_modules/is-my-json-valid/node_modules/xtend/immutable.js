@@ -1,5 +1,7 @@
 module.exports = extend
 
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
 function extend() {
     var target = {}
 
@@ -7,7 +9,7 @@ function extend() {
         var source = arguments[i]
 
         for (var key in source) {
-            if (source.hasOwnProperty(key)) {
+            if (hasOwnProperty.call(source, key)) {
                 target[key] = source[key]
             }
         }

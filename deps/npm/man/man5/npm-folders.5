@@ -1,4 +1,4 @@
-.TH "NPM\-FOLDERS" "5" "November 2015" "" ""
+.TH "NPM\-FOLDERS" "5" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-folders\fR \- Folder Structures Used by npm
 .SH DESCRIPTION
@@ -25,12 +25,10 @@ If you need both, then install it in both places, or use \fBnpm link\fP\|\.
 .SS prefix Configuration
 .P
 The \fBprefix\fP config defaults to the location where node is installed\.
-On most systems, this is \fB/usr/local\fP, and most of the time is the same
-as node's \fBprocess\.installPrefix\fP\|\.
-.P
-On windows, this is the exact location of the node\.exe binary\.  On Unix
-systems, it's one level up, since node is typically installed at
-\fB{prefix}/bin/node\fP rather than \fB{prefix}/node\.exe\fP\|\.
+On most systems, this is \fB/usr/local\fP\|\. On windows, this is the exact
+location of the node\.exe binary\.  On Unix systems, it's one level up,
+since node is typically installed at \fB{prefix}/bin/node\fP rather than
+\fB{prefix}/node\.exe\fP\|\.
 .P
 When the \fBglobal\fP flag is set, npm installs things into this prefix\.
 When it is not set, it uses the root of the current package, or the
@@ -49,7 +47,7 @@ Global installs on Windows go to \fB{prefix}/node_modules\fP (that is, no
 Scoped packages are installed the same way, except they are grouped together
 in a sub\-folder of the relevant \fBnode_modules\fP folder with the name of that
 scope prefix by the @ symbol, e\.g\. \fBnpm install @myorg/package\fP would place
-the package in \fB{prefix}/node_modules/@myorg/package\fP\|\. See npm help 7 \fBscopes\fP for
+the package in \fB{prefix}/node_modules/@myorg/package\fP\|\. See npm help 7 \fBscope\fP for
 more details\.
 .P
 If you wish to \fBrequire()\fP a package, then install it locally\.

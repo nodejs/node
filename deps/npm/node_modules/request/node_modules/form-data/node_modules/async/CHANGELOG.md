@@ -1,3 +1,24 @@
+# v1.5.2
+- Allow using `"consructor"` as an argument in `memoize` (#998)
+- Give a better error messsage when `auto` dependency checking fails (#994)
+- Various doc updates (#936, #956, #979, #1002)
+
+# v1.5.1
+- Fix issue with `pause` in `queue` with concurrency enabled (#946)
+- `while` and `until` now pass the final result to callback (#963)
+- `auto` will properly handle concurrency when there is no callback (#966)
+- `auto` will now  properly stop execution when an error occurs (#988, #993)
+- Various doc fixes (#971, #980)
+
+# v1.5.0
+
+- Added `transform`, analogous to [`_.transform`](http://lodash.com/docs#transform) (#892)
+- `map` now returns an object when an object is passed in, rather than array with non-numeric keys. `map` will begin always returning an array with numeric indexes in the next major release. (#873)
+- `auto` now accepts an optional `concurrency` argument to limit the number of  running tasks (#637)
+- Added `queue#workersList()`, to retrieve the list  of currently running tasks. (#891)
+- Various code simplifications (#896, #904)
+- Various doc fixes :scroll: (#890, #894, #903, #905, #912)
+
 # v1.4.2
 
 - Ensure coverage files don't get published on npm (#879)

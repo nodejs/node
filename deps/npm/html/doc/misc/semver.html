@@ -94,7 +94,7 @@ similar risk on the <em>next</em> set of prerelease versions.</p>
 <h4 id="prerelease-identifiers">Prerelease Identifiers</h4>
 <p>The method <code>.inc</code> takes an additional <code>identifier</code> string argument that
 will append the value of the string as a prerelease identifier:</p>
-<pre><code class="lang-javascript">&gt; semver.inc(&#39;1.2.3&#39;, &#39;pre&#39;, &#39;beta&#39;)
+<pre><code class="lang-javascript">&gt; semver.inc(&#39;1.2.3&#39;, &#39;prerelease&#39;, &#39;beta&#39;)
 &#39;1.2.4-beta.0&#39;
 </code></pre>
 <p>command-line example:</p>
@@ -199,6 +199,26 @@ zero.</p>
 <li><code>^1.x</code> := <code>&gt;=1.0.0 &lt;2.0.0</code></li>
 <li><code>^0.x</code> := <code>&gt;=0.0.0 &lt;1.0.0</code></li>
 </ul>
+<h3 id="range-grammar">Range Grammar</h3>
+<p>Putting all this together, here is a Backus-Naur grammar for ranges,
+for the benefit of parser authors:</p>
+<pre><code class="lang-bnf">range-set  ::= range ( logical-or range ) *
+logical-or ::= ( &#39; &#39; ) * &#39;||&#39; ( &#39; &#39; ) *
+range      ::= hyphen | simple ( &#39; &#39; simple ) * | &#39;&#39;
+hyphen     ::= partial &#39; - &#39; partial
+simple     ::= primitive | partial | tilde | caret
+primitive  ::= ( &#39;&lt;&#39; | &#39;&gt;&#39; | &#39;&gt;=&#39; | &#39;&lt;=&#39; | &#39;=&#39; | ) partial
+partial    ::= xr ( &#39;.&#39; xr ( &#39;.&#39; xr qualifier ? )? )?
+xr         ::= &#39;x&#39; | &#39;X&#39; | &#39;*&#39; | nr
+nr         ::= &#39;0&#39; | [&#39;1&#39;-&#39;9&#39;][&#39;0&#39;-&#39;9&#39;]+
+tilde      ::= &#39;~&#39; partial
+caret      ::= &#39;^&#39; partial
+qualifier  ::= ( &#39;-&#39; pre )? ( &#39;+&#39; build )?
+pre        ::= parts
+build      ::= parts
+parts      ::= part ( &#39;.&#39; part ) *
+part       ::= nr | [-0-9A-Za-z]+
+</code></pre>
 <h2 id="functions">Functions</h2>
 <p>All methods and classes take a final <code>loose</code> boolean argument that, if
 true, will be more forgiving about not-quite-valid semver strings.
@@ -282,5 +302,5 @@ range, use the <code>satisfies(version, range)</code> function.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">semver &mdash; npm@3.3.12</p>
+<p id="footer">semver &mdash; npm@3.6.0</p>
 

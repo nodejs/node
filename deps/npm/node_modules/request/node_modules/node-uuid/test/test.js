@@ -1,6 +1,9 @@
 if (!this.uuid) {
   // node.js
   uuid = require('../uuid');
+  if (!/_rb/.test(uuid._rng.toString())) {
+    throw new Error("should use crypto for node.js");
+  }
 }
 
 //

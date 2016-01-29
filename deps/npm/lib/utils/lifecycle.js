@@ -243,6 +243,11 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
       if (er.code !== 'EPERM') {
         er.code = 'ELIFECYCLE'
       }
+      fs.stat(npm.dir, function (statError, d) {
+        if (statError && statError.code === 'ENOENT' && npm.dir.split(path.sep).slice(-1)[0] === 'node_modules') {
+          log.warn('', 'Local package.json exists, but node_modules missing, did you mean to install?')
+        }
+      })
       er.pkgid = pkg._id
       er.stage = stage
       er.script = cmd

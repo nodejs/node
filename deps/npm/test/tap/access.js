@@ -59,6 +59,48 @@ test('npm access public on current package', function (t) {
   )
 })
 
+test('npm access public when no package passed and no package.json', function (t) {
+  // need to simulate a missing package.json
+  var missing = path.join(__dirname, 'access-public-missing-guard')
+  mkdirp.sync(path.join(missing, 'node_modules'))
+
+  common.npm([
+    'access',
+    'public',
+    '--registry', common.registry
+  ], {
+    cwd: missing
+  },
+  function (er, code, stdout, stderr) {
+    t.ifError(er, 'npm access')
+    t.match(stderr, /no package name passed to command and no package.json found/)
+    rimraf.sync(missing)
+    t.end()
+  })
+})
+
+test('npm access public when no package passed and invalid package.json', function (t) {
+  // need to simulate a missing package.json
+  var invalid = path.join(__dirname, 'access-public-invalid-package')
+  mkdirp.sync(path.join(invalid, 'node_modules'))
+  // it's hard to force `read-package-json` to break w/o ENOENT, but this will do it
+  fs.writeFileSync(path.join(invalid, 'package.json'), '{\n')
+
+  common.npm([
+    'access',
+    'public',
+    '--registry', common.registry
+  ], {
+    cwd: invalid
+  },
+  function (er, code, stdout, stderr) {
+    t.ifError(er, 'npm access')
+    t.match(stderr, /Failed to parse json/)
+    rimraf.sync(invalid)
+    t.end()
+  })
+})
+
 test('npm access restricted on current package', function (t) {
   server.post('/-/package/%40scoped%2Fpkg/access', JSON.stringify({
     access: 'restricted'
@@ -214,6 +256,33 @@ test('npm access revoke', function (t) {
   )
 })
 
+test('npm access ls-packages with no team', function (t) {
+  var serverPackages = {
+    '@foo/bar': 'write',
+    '@foo/util': 'read'
+  }
+  var clientPackages = {
+    '@foo/bar': 'read-write',
+    '@foo/util': 'read-only'
+  }
+  server.get(
+    '/-/org/username/package?format=cli'
+  ).reply(200, serverPackages)
+  common.npm(
+    [
+      'access',
+      'ls-packages',
+      '--registry', common.registry
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access ls-packages')
+      t.same(JSON.parse(stdout), clientPackages)
+      t.end()
+    }
+  )
+})
+
 test('npm access ls-packages on team', function (t) {
   var serverPackages = {
     '@foo/bar': 'write',
@@ -296,6 +365,42 @@ test('npm access ls-packages on user', function (t) {
     function (er, code, stdout, stderr) {
       t.ifError(er, 'npm access ls-packages')
       t.same(JSON.parse(stdout), clientPackages)
+      t.end()
+    }
+  )
+})
+
+test('npm access ls-packages with no package specified or package.json', function (t) {
+  // need to simulate a missing package.json
+  var missing = path.join(__dirname, 'access-missing-guard')
+  mkdirp.sync(path.join(missing, 'node_modules'))
+
+  var serverPackages = {
+    '@foo/bar': 'write',
+    '@foo/util': 'read'
+  }
+  var clientPackages = {
+    '@foo/bar': 'read-write',
+    '@foo/util': 'read-only'
+  }
+  server.get(
+    '/-/org/myorg/package?format=cli'
+  ).reply(404, {error: 'nope'})
+  server.get(
+    '/-/user/myorg/package?format=cli'
+  ).reply(200, serverPackages)
+  common.npm(
+    [
+      'access',
+      'ls-packages',
+      'myorg',
+      '--registry', common.registry
+    ],
+    { cwd: missing },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access ls-packages')
+      t.same(JSON.parse(stdout), clientPackages)
+      rimraf.sync(missing)
       t.end()
     }
   )

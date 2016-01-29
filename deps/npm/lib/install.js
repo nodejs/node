@@ -134,6 +134,7 @@ var doParallelActions = require('./install/actions.js').doParallel
 var doOneAction = require('./install/actions.js').doOne
 var packageId = require('./utils/package-id.js')
 var moduleName = require('./utils/module-name.js')
+var errorMessage = require('./utils/error-message.js')
 
 function unlockCB (lockPath, name, cb) {
   validate('SSF', arguments)
@@ -282,12 +283,19 @@ Installer.prototype.run = function (cb) {
         self.idealTree.warnings.forEach(function (warning) {
           if (warning.code === 'EPACKAGEJSON' && self.global) return
           if (warning.code === 'ENOTDIR') return
-          log.warn(warning.code, warning.message)
+          errorMessage(warning).summary.forEach(function (logline) {
+            log.warn.apply(log, logline)
+          })
         })
       }
       if (installEr && postInstallEr) {
-        log.warn('error', postInstallEr.message)
-        log.verbose('error', postInstallEr.stack)
+        var msg = errorMessage(postInstallEr)
+        msg.summary.forEach(function (logline) {
+          log.warn.apply(log, logline)
+        })
+        msg.detail.forEach(function (logline) {
+          log.verbose.apply(log, logline)
+        })
       }
       cb(installEr || postInstallEr, self.getInstalledModules(), self.idealTree)
     })
@@ -462,12 +470,6 @@ Installer.prototype.executeActions = function (cb) {
     [doParallelActions, 'extract', staging, todo, cg.newGroup('extract', 10)],
     [doParallelActions, 'preinstall', staging, todo, trackLifecycle.newGroup('preinstall')],
     [doReverseSerialActions, 'remove', staging, todo, cg.newGroup('remove')],
-    // FIXME: We do this here to commit the removes prior to trying to move
-    // anything into place. Once we can rollback removes we should find
-    // a better solution for this.
-    // This is to protect against cruft in the node_modules folder (like dot files)
-    // that stop it from being removed.
-    [this, this.commit, staging, this.todo],
     [doSerialActions, 'move', staging, todo, cg.newGroup('move')],
     [doSerialActions, 'finalize', staging, todo, cg.newGroup('finalize')],
     [doSerialActions, 'build', staging, todo, trackLifecycle.newGroup('build')],

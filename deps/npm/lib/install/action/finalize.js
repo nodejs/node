@@ -4,23 +4,7 @@ var rimraf = require('rimraf')
 var fs = require('graceful-fs')
 var mkdirp = require('mkdirp')
 var asyncMap = require('slide').asyncMap
-var iferr = require('iferr')
-
-function getTree (pkg) {
-  while (pkg.parent) pkg = pkg.parent
-  return pkg
-}
-
-function warn (pkg, code, msg) {
-  var tree = getTree(pkg)
-  var err = new Error(msg)
-  err.code = code
-  tree.warnings.push(err)
-}
-
-function pathToShortname (modpath) {
-  return modpath.replace(/node_modules[/]/g, '').replace(/[/]/g, ' > ')
-}
+var rename = require('../../utils/rename.js')
 
 module.exports = function (top, buildpath, pkg, log, next) {
   log.silly('finalize', pkg.path)
@@ -33,12 +17,12 @@ module.exports = function (top, buildpath, pkg, log, next) {
     if (mkdirEr) return next(mkdirEr)
     // We stat first, because we can't rely on ENOTEMPTY from Windows.
     // Windows, by contrast, gives the generic EPERM of a folder already exists.
-    fs.lstat(pkg.path, destStated)
+    fs.lstat(pkg.path, destStatted)
   }
 
-  function destStated (doesNotExist) {
+  function destStatted (doesNotExist) {
     if (doesNotExist) {
-      fs.rename(buildpath, pkg.path, whenMoved)
+      rename(buildpath, pkg.path, whenMoved)
     } else {
       moveAway()
     }
@@ -51,18 +35,18 @@ module.exports = function (top, buildpath, pkg, log, next) {
   }
 
   function moveAway () {
-    fs.rename(pkg.path, delpath, whenOldMovedAway)
+    rename(pkg.path, delpath, whenOldMovedAway)
   }
 
   function whenOldMovedAway (renameEr) {
     if (renameEr) return next(renameEr)
-    fs.rename(buildpath, pkg.path, whenConflictMoved)
+    rename(buildpath, pkg.path, whenConflictMoved)
   }
 
   function whenConflictMoved (renameEr) {
     // if we got an error we'll try to put back the original module back,
     // succeed or fail though we want the original error that caused this
-    if (renameEr) return fs.rename(delpath, pkg.path, function () { next(renameEr) })
+    if (renameEr) return rename(delpath, pkg.path, function () { next(renameEr) })
     fs.readdir(path.join(delpath, 'node_modules'), makeTarget)
   }
 
@@ -75,21 +59,9 @@ module.exports = function (top, buildpath, pkg, log, next) {
   function moveModules (mkdirEr, files) {
     if (mkdirEr) return next(mkdirEr)
     asyncMap(files, function (file, done) {
-      // `from` wins over `to`, because if `from` was there it's because the
-      // module installer wanted it to be there.  By contrast, `to` is just
-      // whatever was bundled in this module.  And the intentions of npm's
-      // installer should always beat out random module contents.
       var from = path.join(delpath, 'node_modules', file)
       var to = path.join(pkg.path, 'node_modules', file)
-      fs.stat(to, function (er, info) {
-        if (er) return fs.rename(from, to, done)
-
-        var shortname = pathToShortname(path.relative(getTree(pkg).path, to))
-        warn(pkg, 'EBUNDLEOVERRIDE', 'Replacing bundled ' + shortname + ' with new installed version')
-        rimraf(to, iferr(done, function () {
-          fs.rename(from, to, done)
-        }))
-      })
+      rename(from, to, done)
     }, cleanup)
   }
 

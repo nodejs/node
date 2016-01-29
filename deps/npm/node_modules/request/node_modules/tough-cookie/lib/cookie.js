@@ -1265,7 +1265,6 @@ CookieJar.deserialize = function(strOrObj, store, cb) {
   });
 };
 
-CookieJar.fromJSON = CookieJar.deserializeSync;
 CookieJar.deserializeSync = function(strOrObj, store) {
   var serialized = typeof strOrObj === 'string' ?
     JSON.parse(strOrObj) : strOrObj;
@@ -1279,6 +1278,7 @@ CookieJar.deserializeSync = function(strOrObj, store) {
   jar._importCookiesSync(serialized);
   return jar;
 };
+CookieJar.fromJSON = CookieJar.deserializeSync;
 
 CAN_BE_SYNC.push('clone');
 CookieJar.prototype.clone = function(newStore, cb) {

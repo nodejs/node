@@ -61,3 +61,23 @@ test("mutable", function (assert) {
     assert.equal(a.bar, "baz")
     assert.end()
 })
+
+test("null prototype", function(assert) {
+    var a = { a: "foo" }
+    var b = Object.create(null)
+    b.b = "bar";
+
+    assert.deepEqual(extend(a, b), { a: "foo", b: "bar" })
+    assert.end()
+})
+
+test("null prototype mutable", function (assert) {
+    var a = { foo: "bar" }
+    var b = Object.create(null)
+    b.bar = "baz";
+
+    mutableExtend(a, b)
+
+    assert.equal(a.bar, "baz")
+    assert.end()
+})

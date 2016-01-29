@@ -11,7 +11,7 @@
 
 <h1><a href="../cli/npm-version.html">npm-version</a></h1> <p>Bump a package version</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease]
+<pre><code>npm version [&lt;newversion&gt; | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]
 
 &#39;npm [-v | --version]&#39; to print npm version
 &#39;npm view &lt;pkg&gt; version&#39; to view a package&#39;s published version
@@ -19,10 +19,11 @@
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Run this in a package directory to bump the version and write the new
 data back to <code>package.json</code> and, if present, <code>npm-shrinkwrap.json</code>.</p>
-<p>The <code>newversion</code> argument should be a valid semver string, <em>or</em> a
-valid second argument to semver.inc (one of <code>patch</code>, <code>minor</code>, <code>major</code>,
-<code>prepatch</code>, <code>preminor</code>, <code>premajor</code>, <code>prerelease</code>). In the second case,
-the existing version will be incremented by 1 in the specified field.</p>
+<p>The <code>newversion</code> argument should be a valid semver string, a
+valid second argument to <a href="https://github.com/npm/node-semver#functions">semver.inc</a> (one of <code>patch</code>, <code>minor</code>, <code>major</code>,
+<code>prepatch</code>, <code>preminor</code>, <code>premajor</code>, <code>prerelease</code>), or <code>from-git</code>. In the second case,
+the existing version will be incremented by 1 in the specified field.
+<code>from-git</code> will try to read the latest git tag, and use that as the new npm version.</p>
 <p>If run in a git repo, it will also create a version commit and tag.
 This behavior is controlled by <code>git-tag-version</code> (see below), and can
 be disabled on the command line by running <code>npm --no-git-tag-version version</code>.
@@ -99,5 +100,5 @@ and tag up to the server, and deletes the <code>build/temp</code> directory.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-version &mdash; npm@3.3.12</p>
+<p id="footer">npm-version &mdash; npm@3.6.0</p>
 

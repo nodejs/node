@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "November 2015" "" ""
+.TH "PACKAGE\.JSON" "5" "January 2016" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -21,7 +21,7 @@ The name is what your thing is called\.
 Some rules:
 .RS 0
 .IP \(bu 2
-The name must be shorter than 214 characters\. This includes the scope for
+The name must be less than or equal to 214 characters\. This includes the scope for
 scoped packages\.
 .IP \(bu 2
 The name can't start with a dot or an underscore\.
@@ -118,10 +118,10 @@ current SPDX license identifier for the license you're using, like this:
 .P
 You can check the full list of SPDX license IDs \fIhttps://spdx\.org/licenses/\fR\|\.
 Ideally you should pick one that is
-OSI \fIhttp://opensource\.org/licenses/alphabetical\fR approved\.
+OSI \fIhttps://opensource\.org/licenses/alphabetical\fR approved\.
 .P
 If your package is licensed under multiple common licenses, use an SPDX license
-expression syntax version 2\.0 string \fIhttp://npmjs\.com/package/spdx\fR, like this:
+expression syntax version 2\.0 string \fIhttps://npmjs\.com/package/spdx\fR, like this:
 .P
 .RS 2
 .nf
@@ -506,7 +506,7 @@ See npm help 7 semver for more details about specifying version ranges\.
 .IP \(bu 2
 \fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBnpm\-tag\fP
 .IP \(bu 2
-\fBpath/path/path\fP See Local Paths below
+\fBpath/path/path\fP See Local Paths \fI#local\-paths\fR below
 
 .RE
 .P
@@ -877,7 +877,7 @@ npm help install
 .IP \(bu 2
 npm help publish
 .IP \(bu 2
-npm help rm
+npm help uninstall
 
 .RE
 

@@ -167,7 +167,8 @@ publish: link doc
 	git push origin --tags &&\
 	npm publish --tag=$(PUBLISHTAG)
 
-release:
+release: markedclean marked-manclean doc-clean doc
+	node cli.js prune --production
 	@bash scripts/release.sh
 
 sandwich:

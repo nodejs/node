@@ -40,6 +40,9 @@ you should write:
 
 instead of `"scripts": {"test": "node_modules/.bin/tap test/\*.js"}` to run your tests.
 
+If you try to run a script without having a `node_modules` directory and it fails,
+you will be given a warning to run `npm install`, just in case you've forgotten.
+
 ## SEE ALSO
 
 * npm-scripts(7)

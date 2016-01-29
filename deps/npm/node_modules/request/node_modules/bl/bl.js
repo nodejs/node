@@ -52,6 +52,11 @@ BufferList.prototype.append = function (buf) {
   var isBuffer = Buffer.isBuffer(buf) ||
                  buf instanceof BufferList
 
+  // coerce number arguments to strings, since Buffer(number) does
+  // uninitialized memory allocation
+  if (typeof buf == 'number')
+    buf = buf.toString()
+
   this._bufs.push(isBuffer ? buf : new Buffer(buf))
   this.length += buf.length
   return this

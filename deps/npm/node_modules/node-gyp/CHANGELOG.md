@@ -1,3 +1,13 @@
+v3.1.0 2015-11-14
+
+* [[`9049241f91`](https://github.com/nodejs/node-gyp/commit/9049241f91)] - **gyp**: don't use links at all, just copy the files instead (Nathan Zadoks)
+* [[`8ef90348d1`](https://github.com/nodejs/node-gyp/commit/8ef90348d1)] - **gyp**: apply https://codereview.chromium.org/11361103/ (Nathan Rajlich)
+* [[`a2ed0df84e`](https://github.com/nodejs/node-gyp/commit/a2ed0df84e)] - **gyp**: always install into $PRODUCT_DIR (Nathan Rajlich)
+* [[`cc8b2fa83e`](https://github.com/nodejs/node-gyp/commit/cc8b2fa83e)] - Update gyp to b3cef02. (Imran Iqbal) [#781](https://github.com/nodejs/node-gyp/pull/781)
+* [[`f5d86eb84e`](https://github.com/nodejs/node-gyp/commit/f5d86eb84e)] - Update to tar@2.0.0. (Edgar Muentes) [#797](https://github.com/nodejs/node-gyp/pull/797)
+* [[`2ac7de02c4`](https://github.com/nodejs/node-gyp/commit/2ac7de02c4)] - Fix infinite loop with zero-length options. (Ben Noordhuis) [#745](https://github.com/nodejs/node-gyp/pull/745)
+* [[`101bed639b`](https://github.com/nodejs/node-gyp/commit/101bed639b)] - This platform value came from debian package, and now the value (Jérémy Lal) [#738](https://github.com/nodejs/node-gyp/pull/738)
+
 v3.0.3 2015-09-14
 
 * [[`ad827cda30`](https://github.com/nodejs/node-gyp/commit/ad827cda30)] - tarballUrl global and && when checking for iojs (Lars-Magnus Skog) [#729](https://github.com/nodejs/node-gyp/pull/729)

@@ -87,6 +87,8 @@ generator_extra_sources_for_rules = [
   'mac_framework_private_headers',
 ]
 
+generator_filelist_paths = None
+
 # Xcode's standard set of library directories, which don't need to be duplicated
 # in LIBRARY_SEARCH_PATHS. This list is not exhaustive, but that's okay.
 xcode_standard_library_dirs = frozenset([
@@ -578,6 +580,26 @@ def PerformBuild(data, configurations, params):
     subprocess.check_call(arguments)
 
 
+def CalculateGeneratorInputInfo(params):
+  toplevel = params['options'].toplevel_dir
+  if params.get('flavor') == 'ninja':
+    generator_dir = os.path.relpath(params['options'].generator_output or '.')
+    output_dir = params.get('generator_flags', {}).get('output_dir', 'out')
+    output_dir = os.path.normpath(os.path.join(generator_dir, output_dir))
+    qualified_out_dir = os.path.normpath(os.path.join(
+        toplevel, output_dir, 'gypfiles-xcode-ninja'))
+  else:
+    output_dir = os.path.normpath(os.path.join(toplevel, 'xcodebuild'))
+    qualified_out_dir = os.path.normpath(os.path.join(
+        toplevel, output_dir, 'gypfiles'))
+
+  global generator_filelist_paths
+  generator_filelist_paths = {
+      'toplevel': toplevel,
+      'qualified_out_dir': qualified_out_dir,
+  }
+
+
 def GenerateOutput(target_list, target_dicts, data, params):
   # Optionally configure each spec to use ninja as the external builder.
   ninja_wrapper = params.get('flavor') == 'ninja'
@@ -590,6 +612,15 @@ def GenerateOutput(target_list, target_dicts, data, params):
   parallel_builds = generator_flags.get('xcode_parallel_builds', True)
   serialize_all_tests = \
       generator_flags.get('xcode_serialize_all_test_runs', True)
+  upgrade_check_project_version = \
+      generator_flags.get('xcode_upgrade_check_project_version', None)
+
+  # Format upgrade_check_project_version with leading zeros as needed.
+  if upgrade_check_project_version:
+    upgrade_check_project_version = str(upgrade_check_project_version)
+    while len(upgrade_check_project_version) < 4:
+      upgrade_check_project_version = '0' + upgrade_check_project_version
+
   skip_excluded_files = \
       not generator_flags.get('xcode_list_excluded_files', True)
   xcode_projects = {}
@@ -604,9 +635,17 @@ def GenerateOutput(target_list, target_dicts, data, params):
     xcode_projects[build_file] = xcp
     pbxp = xcp.project
 
+    # Set project-level attributes from multiple options
+    project_attributes = {};
     if parallel_builds:
-      pbxp.SetProperty('attributes',
-                       {'BuildIndependentTargetsInParallel': 'YES'})
+      project_attributes['BuildIndependentTargetsInParallel'] = 'YES'
+    if upgrade_check_project_version:
+      project_attributes['LastUpgradeCheck'] = upgrade_check_project_version
+      project_attributes['LastTestingUpgradeCheck'] = \
+          upgrade_check_project_version
+      project_attributes['LastSwiftUpdateCheck'] = \
+          upgrade_check_project_version
+    pbxp.SetProperty('attributes', project_attributes)
 
     # Add gyp/gypi files to project
     if not generator_flags.get('standalone'):
@@ -648,6 +687,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
       'loadable_module':             'com.googlecode.gyp.xcode.bundle',
       'shared_library':              'com.apple.product-type.library.dynamic',
       'static_library':              'com.apple.product-type.library.static',
+      'mac_kernel_extension':        'com.apple.product-type.kernel-extension',
       'executable+bundle':           'com.apple.product-type.application',
       'loadable_module+bundle':      'com.apple.product-type.bundle',
       'loadable_module+xctest':      'com.apple.product-type.bundle.unit-test',
@@ -655,7 +695,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
       'executable+extension+bundle': 'com.apple.product-type.app-extension',
       'executable+watch+extension+bundle':
           'com.apple.product-type.watchkit-extension',
-      'executable+watch+bundle': 'com.apple.product-type.application.watchapp',
+      'executable+watch+bundle':
+          'com.apple.product-type.application.watchapp',
+      'mac_kernel_extension+bundle': 'com.apple.product-type.kernel-extension',
     }
 
     target_properties = {

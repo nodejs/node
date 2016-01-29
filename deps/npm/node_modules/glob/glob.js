@@ -80,8 +80,21 @@ var GlobSync = glob.GlobSync = globSync.GlobSync
 // old api surface
 glob.glob = glob
 
+function extend (origin, add) {
+  if (add === null || typeof add !== 'object') {
+    return origin
+  }
+
+  var keys = Object.keys(add)
+  var i = keys.length
+  while (i--) {
+    origin[keys[i]] = add[keys[i]]
+  }
+  return origin
+}
+
 glob.hasMagic = function (pattern, options_) {
-  var options = util._extend({}, options_)
+  var options = extend({}, options_)
   options.noprocess = true
 
   var g = new Glob(pattern, options)

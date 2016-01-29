@@ -11,10 +11,10 @@ Additionally, npm's package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.
 
-The official public npm registry is at <http://registry.npmjs.org/>.  It
+The official public npm registry is at <https://registry.npmjs.org/>.  It
 is powered by a CouchDB database, of which there is a public mirror at
-<http://skimdb.npmjs.com/registry>.  The code for the couchapp is
-available at <http://github.com/npm/npm-registry-couchapp>.
+<https://skimdb.npmjs.com/registry>.  The code for the couchapp is
+available at <https://github.com/npm/npm-registry-couchapp>.
 
 The registry URL used is determined by the scope of the package (see
 `npm-scope(7)`). If no scope is specified, the default registry is used, which is

@@ -65,6 +65,11 @@
           'DYLIB_INSTALL_NAME_BASE': '@rpath'
         },
       }],
+      [ 'OS=="aix"', {
+        'ldflags': [
+          '-Wl,-bimport:<(node_exp_file)'
+        ],
+      }],
       [ 'OS=="win"', {
         'libraries': [
           '-lkernel32.lib',

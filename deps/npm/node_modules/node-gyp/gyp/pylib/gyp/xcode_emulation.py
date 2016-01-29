@@ -525,6 +525,13 @@ class XcodeSettings(object):
     if self._Test('GCC_WARN_ABOUT_MISSING_NEWLINE', 'YES', default='NO'):
       cflags.append('-Wnewline-eof')
 
+    # In Xcode, this is only activated when GCC_COMPILER_VERSION is clang or
+    # llvm-gcc. It also requires a fairly recent libtool, and
+    # if the system clang isn't used, DYLD_LIBRARY_PATH needs to contain the
+    # path to the libLTO.dylib that matches the used clang.
+    if self._Test('LLVM_LTO', 'YES', default='NO'):
+      cflags.append('-flto')
+
     self._AppendPlatformVersionMinFlags(cflags)
 
     # TODO:
@@ -831,8 +838,9 @@ class XcodeSettings(object):
       # These flags reflect the compilation options used by xcode to compile
       # extensions.
       ldflags.append('-lpkstart')
-      ldflags.append(sdk_root +
-          '/System/Library/PrivateFrameworks/PlugInKit.framework/PlugInKit')
+      if XcodeVersion() < '0900':
+        ldflags.append(sdk_root +
+            '/System/Library/PrivateFrameworks/PlugInKit.framework/PlugInKit')
       ldflags.append('-fapplication-extension')
       ldflags.append('-Xlinker -rpath '
           '-Xlinker @executable_path/../../Frameworks')
@@ -1024,7 +1032,23 @@ class XcodeSettings(object):
     sdk_root = self._SdkPath(config_name)
     if not sdk_root:
       sdk_root = ''
-    return l.replace('$(SDKROOT)', sdk_root)
+    # Xcode 7 started shipping with ".tbd" (text based stubs) files instead of
+    # ".dylib" without providing a real support for them. What it does, for
+    # "/usr/lib" libraries, is do "-L/usr/lib -lname" which is dependent on the
+    # library order and cause collision when building Chrome.
+    #
+    # Instead substitude ".tbd" to ".dylib" in the generated project when the
+    # following conditions are both true:
+    # - library is referenced in the gyp file as "$(SDKROOT)/**/*.dylib",
+    # - the ".dylib" file does not exists but a ".tbd" file do.
+    library = l.replace('$(SDKROOT)', sdk_root)
+    if l.startswith('$(SDKROOT)'):
+      basename, ext = os.path.splitext(library)
+      if ext == '.dylib' and not os.path.exists(library):
+        tbd_library = basename + '.tbd'
+        if os.path.exists(tbd_library):
+          library = tbd_library
+    return library
 
   def AdjustLibraries(self, libraries, config_name=None):
     """Transforms entries like 'Cocoa.framework' in libraries into entries like
@@ -1428,6 +1452,7 @@ def _GetXcodeEnv(xcode_settings, built_products_dir, srcroot, configuration,
 
   # These are filled in on a as-needed basis.
   env = {
+    'BUILT_FRAMEWORKS_DIR' : built_products_dir,
     'BUILT_PRODUCTS_DIR' : built_products_dir,
     'CONFIGURATION' : configuration,
     'PRODUCT_NAME' : xcode_settings.GetProductName(),
