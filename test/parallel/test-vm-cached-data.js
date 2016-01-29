@@ -4,30 +4,58 @@ const assert = require('assert');
 const vm = require('vm');
 const Buffer = require('buffer').Buffer;
 
-const originalSource = '(function bcd() { return \'original\'; })';
+function getSource(tag) {
+  return `(function ${tag}() { return \'${tag}\'; })`;
+}
 
-// It should produce code cache
-const original = new vm.Script(originalSource, {
-  produceCachedData: true
-});
-assert(original.cachedData instanceof Buffer);
+function produce(source) {
+  const script = new vm.Script(source, {
+    produceCachedData: true
+  });
+  assert(script.cachedData instanceof Buffer);
 
-assert.equal(original.runInThisContext()(), 'original');
+  return script.cachedData;
+}
 
-// It should consume code cache
-const success = new vm.Script(originalSource, {
-  cachedData: original.cachedData
-});
-assert(!success.cachedDataRejected);
+function testProduceConsume() {
+  const source = getSource('original');
 
-assert.equal(success.runInThisContext()(), 'original');
+  const data = produce(source);
 
-// It should reject invalid code cache
-const reject = new vm.Script('(function abc() { return \'invalid\'; })', {
-  cachedData: original.cachedData
-});
-assert(reject.cachedDataRejected);
-assert.equal(reject.runInThisContext()(), 'invalid');
+  // It should consume code cache
+  const script = new vm.Script(source, {
+    cachedData: data
+  });
+  assert(!script.cachedDataRejected);
+  assert.equal(script.runInThisContext()(), 'original');
+}
+testProduceConsume();
+
+function testRejectInvalid() {
+  const source = getSource('invalid');
+
+  const data = produce(source);
+
+  // It should reject invalid code cache
+  const script = new vm.Script(getSource('invalid_1'), {
+    cachedData: data
+  });
+  assert(script.cachedDataRejected);
+  assert.equal(script.runInThisContext()(), 'invalid_1');
+}
+testRejectInvalid();
+
+function testRejectSlice() {
+  const source = getSource('slice');
+
+  const data = produce(source).slice(4);
+
+  const script = new vm.Script(source, {
+    cachedData: data
+  });
+  assert(script.cachedDataRejected);
+}
+testRejectSlice();
 
 // It should throw on non-Buffer cachedData
 assert.throws(() => {
