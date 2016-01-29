@@ -3164,13 +3164,6 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
                 SSLerr(SSL_F_SSL3_CTRL, ERR_R_DH_LIB);
                 return (ret);
             }
-            if (!(s->options & SSL_OP_SINGLE_DH_USE)) {
-                if (!DH_generate_key(dh)) {
-                    DH_free(dh);
-                    SSLerr(SSL_F_SSL3_CTRL, ERR_R_DH_LIB);
-                    return (ret);
-                }
-            }
             if (s->cert->dh_tmp != NULL)
                 DH_free(s->cert->dh_tmp);
             s->cert->dh_tmp = dh;
@@ -3221,6 +3214,8 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
 #ifndef OPENSSL_NO_TLSEXT
     case SSL_CTRL_SET_TLSEXT_HOSTNAME:
         if (larg == TLSEXT_NAMETYPE_host_name) {
+            size_t len;
+
             if (s->tlsext_hostname != NULL)
                 OPENSSL_free(s->tlsext_hostname);
             s->tlsext_hostname = NULL;
@@ -3228,7 +3223,8 @@ long ssl3_ctrl(SSL *s, int cmd, long larg, void *parg)
             ret = 1;
             if (parg == NULL)
                 break;
-            if (strlen((char *)parg) > TLSEXT_MAXLEN_host_name) {
+            len = strlen((char *)parg);
+            if (len == 0 || len > TLSEXT_MAXLEN_host_name) {
                 SSLerr(SSL_F_SSL3_CTRL, SSL_R_SSL3_EXT_INVALID_SERVERNAME);
                 return 0;
             }
@@ -3478,13 +3474,6 @@ long ssl3_ctx_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg)
             if ((new = DHparams_dup(dh)) == NULL) {
                 SSLerr(SSL_F_SSL3_CTX_CTRL, ERR_R_DH_LIB);
                 return 0;
-            }
-            if (!(ctx->options & SSL_OP_SINGLE_DH_USE)) {
-                if (!DH_generate_key(new)) {
-                    SSLerr(SSL_F_SSL3_CTX_CTRL, ERR_R_DH_LIB);
-                    DH_free(new);
-                    return 0;
-                }
             }
             if (cert->dh_tmp != NULL)
                 DH_free(cert->dh_tmp);

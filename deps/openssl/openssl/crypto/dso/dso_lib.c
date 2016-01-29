@@ -1,4 +1,4 @@
-/* dso_lib.c -*- mode:C; c-file-style: "eay" -*- */
+/* dso_lib.c */
 /*
  * Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL project
  * 2000.
