@@ -1,15 +1,17 @@
-// test UDP send/recv throughput
+// test UDP send throughput with the multi buffer API against Buffer.concat
+'use strict';
 
-var common = require('../common.js');
-var PORT = common.PORT;
+const common = require('../common.js');
+const PORT = common.PORT;
 
 // `num` is the number of send requests to queue up each time.
 // Keep it reasonably high (>10) otherwise you're benchmarking the speed of
 // event loop cycles more than anything else.
 var bench = common.createBenchmark(main, {
-  len: [1, 64, 256, 1024],
+  len: [64, 256, 512, 1024],
   num: [100],
-  type: ['send', 'recv'],
+  chunks: [1, 2, 4, 8],
+  type: ['concat', 'multi'],
   dur: [5]
 });
 
@@ -18,6 +20,7 @@ var len;
 var num;
 var type;
 var chunk;
+var chunks;
 var encoding;
 
 function main(conf) {
@@ -25,7 +28,13 @@ function main(conf) {
   len = +conf.len;
   num = +conf.num;
   type = conf.type;
-  chunk = new Buffer(len);
+  chunks = +conf.chunks;
+
+  chunk = []
+  for (var i = 0; i < chunks; i++) {
+    chunk.push(new Buffer(Math.round(len / chunks)));
+  }
+
   server();
 }
 
@@ -36,10 +45,20 @@ function server() {
   var received = 0;
   var socket = dgram.createSocket('udp4');
 
-  function onsend() {
+  var onsend = type === 'concat' ? onsendConcat : onsendMulti;
+
+  function onsendConcat() {
     if (sent++ % num == 0)
-      for (var i = 0; i < num; i++)
-        socket.send(chunk, 0, chunk.length, PORT, '127.0.0.1', onsend);
+      for (var i = 0; i < num; i++) {
+        socket.send(Buffer.concat(chunk), PORT, '127.0.0.1', onsend);
+      }
+  }
+
+  function onsendMulti() {
+    if (sent++ % num == 0)
+      for (var i = 0; i < num; i++) {
+        socket.send(chunk, PORT, '127.0.0.1', onsend);
+      }
   }
 
   socket.on('listening', function() {
@@ -47,7 +66,7 @@ function server() {
     onsend();
 
     setTimeout(function() {
-      var bytes = (type === 'send' ? sent : received) * chunk.length;
+      var bytes = sent * len;
       var gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);
     }, dur * 1000);
