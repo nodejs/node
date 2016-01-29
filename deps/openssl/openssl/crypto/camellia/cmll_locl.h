@@ -1,4 +1,4 @@
-/* crypto/camellia/camellia_locl.h -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/camellia/camellia_locl.h */
 /* ====================================================================
  * Copyright 2006 NTT (Nippon Telegraph and Telephone Corporation) .
  * ALL RIGHTS RESERVED.

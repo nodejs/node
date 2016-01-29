@@ -1,4 +1,4 @@
-/* crypto/store/store.h -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/store/store.h */
 /*
  * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
  * 2003.

@@ -255,7 +255,8 @@ static int TS_verify_cert(X509_STORE *store, STACK_OF(X509) *untrusted,
 
     /* chain is an out argument. */
     *chain = NULL;
-    X509_STORE_CTX_init(&cert_ctx, store, signer, untrusted);
+    if (!X509_STORE_CTX_init(&cert_ctx, store, signer, untrusted))
+        return 0;
     X509_STORE_CTX_set_purpose(&cert_ctx, X509_PURPOSE_TIMESTAMP_SIGN);
     i = X509_verify_cert(&cert_ctx);
     if (i <= 0) {
