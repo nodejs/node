@@ -33,7 +33,7 @@ c) a url that resolves to (b)
 .IP \(bu 2
 d) a \fB<name>@<version>\fP that is published on the registry (see npm help 7 \fBnpm\-registry\fP) with (c)
 .IP \(bu 2
-e) a \fB<name>@<tag>\fP that points to (d)
+e) a \fB<name>@<tag>\fP (see npm help \fBnpm\-dist\-tag\fP) that points to (d)
 .IP \(bu 2
 f) a \fB<name>\fP that has a "latest" tag satisfying (e)
 .IP \(bu 2
@@ -86,7 +86,7 @@ after packing it up into a tarball (b)\.
 .IP \(bu 2
 \fBnpm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional]\fP:
   Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
-  npm help 7 \fBnpm\-config\fP\|\.)
+  npm help 7 \fBnpm\-config\fP\|\. The config's default value is \fBlatest\fP\|\.)
   In most cases, this will install the latest version
   of the module published on npm\.
   Example:
