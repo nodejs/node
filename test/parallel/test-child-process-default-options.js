@@ -6,10 +6,11 @@ var spawn = require('child_process').spawn;
 
 process.env.HELLO = 'WORLD';
 
+var child;
 if (common.isWindows) {
-  var child = spawn('cmd.exe', ['/c', 'set'], {});
+  child = spawn('cmd.exe', ['/c', 'set'], {});
 } else {
-  var child = spawn('/usr/bin/env', [], {});
+  child = spawn('/usr/bin/env', [], {});
 }
 
 var response = '';

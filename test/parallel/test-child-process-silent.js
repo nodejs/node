@@ -4,11 +4,11 @@ var assert = require('assert');
 var childProcess = require('child_process');
 
 // Child pipe test
-if (process.argv[2] === 'pipetest') {
+if (process.argv[2] === 'pipe') {
   process.stdout.write('stdout message');
   process.stderr.write('stderr message');
 
-} else if (process.argv[2] === 'ipctest') {
+} else if (process.argv[2] === 'ipc') {
   // Child IPC test
   process.send('message from child');
   process.on('message', function() {
@@ -18,7 +18,7 @@ if (process.argv[2] === 'pipetest') {
 } else if (process.argv[2] === 'parent') {
   // Parent | start child pipe test
 
-  var child = childProcess.fork(process.argv[1], ['pipetest'], {silent: true});
+  const child = childProcess.fork(process.argv[1], ['pipe'], {silent: true});
 
   // Allow child process to self terminate
   child._channel.close();
@@ -46,7 +46,7 @@ if (process.argv[2] === 'pipetest') {
   });
 
   // testing: do message system work when using silent
-  var child = childProcess.fork(process.argv[1], ['ipctest'], {silent: true});
+  const child = childProcess.fork(process.argv[1], ['ipc'], {silent: true});
 
   // Manual pipe so we will get errors
   child.stderr.pipe(process.stderr, {end: false});

@@ -36,7 +36,7 @@ function parent() {
 
   // then write a bunch more times.
   for (var i = 0; i < 100; i++) {
-    var buf = new Buffer(BUFSIZE);
+    const buf = new Buffer(BUFSIZE);
     buf.fill('.');
     sent += BUFSIZE;
     child.stdin.write(buf);
