@@ -669,14 +669,6 @@ bench: bench-net bench-http bench-fs bench-tls
 
 bench-ci: bench
 
-bench-http-simple:
-	benchmark/http_simple_bench.sh
-
-bench-idle:
-	$(NODE) benchmark/idle_server.js &
-	sleep 1
-	$(NODE) benchmark/idle_clients.js &
-
 jslint:
 	$(NODE) tools/jslint.js -J benchmark lib src test tools
 
