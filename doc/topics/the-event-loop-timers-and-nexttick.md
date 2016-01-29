@@ -1,6 +1,7 @@
 # Overview of the Event Loop, Timers, and `process.nextTick()`
 
-The Following diagram shows a simplified overview of the event loop's order of operations.
+The Following diagram shows a simplified overview of the event loop's
+order of operations.
 
        ┌───────────────────────┐
     ┌─>│        timers         │
@@ -15,24 +16,30 @@ The Following diagram shows a simplified overview of the event loop's order of o
     └──│     setImmediate      │
        └───────────────────────┘
 
-note: each box will be referred to as a "phase" of the event loop.
+*note: each box will be referred to as a "phase" of the event loop.*
 
 *There is a slight discrepancy between the Windows and the Unix/Linux
 implementation, but that's not important for this demonstration.  The most
 important parts are here.  There are actually seven or eight steps, but the
-ones we care about — ones that Node actually uses are these four.*
+ones we care about — ones that Node.js actually uses are these four.*
 
 ## timers
 
 This phase executes callbacks scheduled by `setTimeout()` and `setInterval()`.
-When you create a timer, you make a call to `setTimeout()`.  The event loop will
-eventually enter the `poll` phase which determines how many milliseconds remain
-until the next timer. If there is a timer, it will wait for connections for that
-many milliseconds. After that many milliseconds, it will break the `poll` phase
-and wrap back around to the timers phase where those callbacks can be processed.
+
+When you create a timer, you make a call to `setTimeout()`.  Then, when
+the poll phase of the event loop is entered, the number of ms before the 
+soonest timer is to be called is set as the poll's timeout. Meaning the 
+poll phase will return after "timeout" ms.  After that many 
+milliseconds, the `poll` phase will return and wrap back around to the 
+timers phase where those callbacks can be processed.
+
+Take note that the poll phase can only return while idle; execution of 
+a callback is allowed to run to completion, and can cause  unexpected 
+delay running the timer. 
 
 *Note: The `poll` phase technically controls when timers are called due to its
-ability to cause a thread to sit idly without burning CU in order to stall the
+ability to cause a thread to sit idly without burning CPU in order to stall the
 event loop so the timer can execute.*
 
 ## pending callbacks:
@@ -42,20 +49,21 @@ This phase executes callbacks for specific types of TCP errors, for example.
 ## poll:
 
 This is the phase in which the event loop sits and waits for incoming
-connections to be received.  Ideally, most scripts spend most of their time here.
+connections to be received.  Ideally, most scripts spend most of their time
+here.
 
-## setImmediate():
+## `setImmediate()`:
 
-`setImmediate()` is actually a special timer that runs in a separate
-phase of the event loop.  It uses a libuv API that schedules callbacks to execute
-after the poll phase has completed.
+`setImmediate()` is actually a special timer that runs in a separate phase of
+the event loop.  It uses a libuv API that schedules callbacks to execute after
+the poll phase has completed.
 
 Generally, as the code is executed, the event loop will eventually hit the
 `poll` phase where it will wait for an incoming connection, request, etc.
-However, after a callback has been scheduled with `setImmediate()`, at the start
-of the poll phase, a check will be run to see if there are any callbacks
-waiting.  If there are none waiting, the poll phase will end and continue to the
-`setImmediate` callback phase.
+However, after a callback has been scheduled with `setImmediate()`, at the
+start of the poll phase, a check will be run to see if there are any callbacks
+waiting.  If there are none waiting, the poll phase will end and continue to
+the `setImmediate` callback phase.
 
 ### `setImmediate()` vs `setTimeout()`
 
@@ -65,61 +73,59 @@ number of milliseconds passed have elapsed.
 
 The advantage to using `setImmediate()` over `setTimeout()` is that the lowest
 value you may set a timer's delay to is 1 ms (0 is coerced to 1) which doesn't
-seem like much time to us humans, but it's actually pretty slow compared to how
-quickly `setImmediate()` can execute — the event loop operates on the microsecond
-scale (1 ms = 1000 µs.)
+seem like much time to us humans, but it's actually pretty slow compared to
+how quickly `setImmediate()` can execute — the event loop operates on the
+microsecond scale (1 ms = 1000 µs.)
 
 ## `process.nextTick()`:
 
 ### Understanding `process.nextTick()`
 
-You may have noticed that `process.nextTick()` was not displayed in the diagram, even
-though its a part of the asynchronous API.  This is because `process.nextTick()` is not
-technically part of the event loop.  Instead, it is executed at the end of each
-phase of the event loop.
+You may have noticed that `process.nextTick()` was not displayed in the
+diagram, even though its a part of the asynchronous API.  This is because
+`process.nextTick()` is not technically part of the event loop.  Instead, it
+is executed at the end of each phase of the event loop.
 
-Looking back at our diagram, any time you call `process.nextTick()` in a given phase, all
-callbacks passed to `process.nextTick()` will be resolved before the event loop continues.
-This can create some bad situations because **it allows you to asynchronously
-"starve" your I/O by making recursive `process.nextTick()` calls.**  which prevents the
-event loop from reaching the poll phase.
+Looking back at our diagram, any time you call `process.nextTick()` in a given
+phase, all callbacks passed to `process.nextTick()` will be resolved before
+the event loop continues. This can create some bad situations because **it
+allows you to "starve" your I/O by making recursive `process.nextTick()`
+calls.**  which prevents the event loop from reaching the poll phase.
 
 ### Why would that be allowed?
 
-Why would something like this be included in Node?  Part of it is a design
-philosophy where an API should always be asynchronous even where it
-doesn't have to be.  Take this code snippet for example:
+Why would something like this be included in Node.js?  Part of it is a design
+philosophy where an API should always be asynchronous even where it doesn't
+have to be.  Take this code snippet for example:
 
 ```js
 function apiCall (arg, callback) {
   if (typeof arg !== 'string')
-    return process.nextTick(
-      callback,
-      new TypeError('argument should be a string'));
+    return process.nextTick(callback,
+      new TypeError('argument should be string'));
 }
 ```
 
-The snippet does an argument check and if its not correct, it will pass the
+The snippet does an argument check and if it's not correct, it will pass the
 error to the callback.  The API updated fairly recently to allow passing
-arguments to `process.nextTick()` allowing it to take any arguments passed after the callback
-to be propagated as the arguments to the callback so you don't have to nest functions.
+arguments to `process.nextTick()` allowing it to take any arguments passed
+after the callback to be propagated as the arguments to the callback so you
+don't have to nest functions.
 
-What we're doing is passing an error back to the user.  As far as the event loop
-is concerned, its happening **synchronously**, but as far as the user is
-concerned, it is happening **asynchronously** because the API of apiCall() was
-written to always be asynchronous.
+What we're doing is passing an error back to the user.  As far as the _event
+loop_ is concerned, this happens **synchronously**. However, as far as the
+_user_ is concerned, it occurs **asynchronously**: `apiCall()` always runs its
+callback *after* the rest of the user's code.
 
-This philosophy can lead to some potentially problematic situations.  Take this
-snippet for example:
+This philosophy can lead to some potentially problematic situations.  Take
+this snippet for example:
 
 ```js
 // this has an asynchronous signature, but calls callback synchronously
-function someAsyncApiCall (callback) {
-  callback();
-};
+function someAsyncApiCall (callback) { callback(); };
 
 // the callback is called before `someAsyncApiCall` completes.
-someAsyncApiCall(function () {
+someAsyncApiCall(() => {
 
   // since someAsyncApiCall has completed, bar hasn't been assigned any value
   console.log('bar', bar); // undefined
@@ -131,17 +137,17 @@ var bar = 1;
 
 The user defines `someAsyncApiCall()` to have an asynchronous signature,
 actually operates synchronously.  When it is called, the callback provided to
-`someAsyncApiCall ()` is called in the same phase of the event loop
-because `someAsyncApiCall()` doesn't actually do anything asynchronously.  As a
-result, the callback tries to reference `bar` but it may not have that variable
-in scope yet because the script has not been able to run to completion.
+`someAsyncApiCall ()` is called in the same phase of the event loop because
+`someAsyncApiCall()` doesn't actually do anything asynchronously.  As a
+result, the callback tries to reference `bar` but it may not have that
+variable in scope yet because the script has not been able to run to
+completion.
 
-By placing it in a `process.nextTick()`, the script
-still has the ability to run to completion, allowing all the variables,
-functions, etc., to be initialized prior to the callback being called.   It also
-has the advantage of not allowing the event loop to continue.  It may be useful
-that the user be alerted to an error before the event loop is allowed to
-continue.
+By placing it in a `process.nextTick()`, the script still has the ability to
+run to completion, allowing all the variables, functions, etc., to be
+initialized prior to the callback being called.   It also has the advantage of
+not allowing the event loop_ to continue.  It may be useful that the user be
+alerted to an error before the event loop is allowed to continue.
 
 ## process.nextTick() vs `setImmediate()`
 
@@ -149,26 +155,29 @@ We have two calls that are similar as far as users are concerned, but their
 names are confusing.
 
 * `process.nextTick()` fires immediately on the same phase
-* `setImmediate()` fires on the following iteration or 'tick' of the event loop
+* `setImmediate()` fires on the following iteration or 'tick' of the event
+  loop
 
-In essence, the names should be swapped.  `process.nextTick()` fires more immediately than
-`setImmediate()` but this is an artifact of the past which is unlikely to change.
-Making this switch would break a large percentage of the packages on npm.
-Every day more new modules are being added, which mean every day we wait, more
-potential breakages occur.  While they are confusing, the names themselves won't change.
+In essence, the names should be swapped.  `process.nextTick()` fires more
+immediately than `setImmediate()` but this is an artifact of the past which is
+unlikely to change. Making this switch would break a large percentage of the
+packages on npm. Every day more new modules are being added, which mean every
+day we wait, more potential breakages occur.  While they are confusing, the
+names themselves won't change.
 
-*We recommend developers use `setImmediate()` in all cases because its easier to
-reason about.*
+*We recommend developers use `setImmediate()` in all cases because its easier
+to reason about (and it leads to code that's compatible with a wider
+variety of environments, like browser JS.)*
 
 ## Two reasons to use `process.nextTick()`:
 
 1. Allow users to handle errors, cleanup any then unneeded resources, or
-perhaps try the request again before the event loop continues.
+   perhaps try the request again before the event loop continues.
 
 2. If you were to run a function constructor that was to, say, inherit from
-`EventEmitter` and it wanted to call an event within the constructor.  You can't
-emit an event from the constructor immediately because the script will not have
-processed to the point where the user assigns a callback to that event.  So,
-within the constructor itself, you can set a callback to emit the event after
-the constructor has finished, which provides the expected results.
-
+   `EventEmitter` and it wanted to call an event within the constructor.  You
+   can't emit an event from the constructor immediately because the script
+   will not have processed to the point where the user assigns a callback to
+   that event.  So, within the constructor itself, you can use
+   `process.nextTick()` to set a callback to emit the event after the
+   constructor has finished, which provides the expected results.
