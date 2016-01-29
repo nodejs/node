@@ -10,6 +10,13 @@ var stats = {}
 var effectiveOwner
 module.exports = function correctMkdir (path, cb) {
   cb = dezalgo(cb)
+  cb = inflight('correctMkdir:' + path, cb)
+  if (!cb) {
+    return log.verbose('correctMkdir', path, 'correctMkdir already in flight; waiting')
+  } else {
+    log.verbose('correctMkdir', path, 'correctMkdir not in flight; initializing')
+  }
+
   if (stats[path]) return cb(null, stats[path])
 
   fs.stat(path, function (er, st) {

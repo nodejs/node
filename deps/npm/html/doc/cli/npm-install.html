@@ -30,7 +30,7 @@ by that. See <a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a>.</p>
 <li>b) a gzipped tarball containing (a)</li>
 <li>c) a url that resolves to (b)</li>
 <li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry (see <code><a href="../misc/npm-registry.html">npm-registry(7)</a></code>) with (c)</li>
-<li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li>
+<li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> (see <code><a href="../cli/npm-dist-tag.html">npm-dist-tag(1)</a></code>) that points to (d)</li>
 <li>f) a <code>&lt;name&gt;</code> that has a &quot;latest&quot; tag satisfying (e)</li>
 <li>g) a <code>&lt;git remote url&gt;</code> that resolves to (b)</li>
 </ul>
@@ -68,7 +68,7 @@ after packing it up into a tarball (b).</p>
 </code></pre></li>
 <li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p>
 <p>  Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the &quot;tag&quot; config. (See
-  <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.)</p>
+  <code><a href="../misc/npm-config.html">npm-config(7)</a></code>. The config&#39;s default value is <code>latest</code>.)</p>
 <p>  In most cases, this will install the latest version
   of the module published on npm.</p>
 <p>  Example:</p>
@@ -279,5 +279,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@2.14.15</p>
+<p id="footer">npm-install &mdash; npm@2.14.16</p>
 
