@@ -528,7 +528,7 @@ The file is created if it does not exist.
 * `'ax+'` - Like `'a+'` but fails if `path` exists.
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
-created. It defaults to `0666`, readable and writeable.
+created. It defaults to `0666`, readable and writable.
 
 The callback gets two arguments `(err, fd)`.
 
