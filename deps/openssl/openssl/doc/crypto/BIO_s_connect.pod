@@ -21,8 +21,8 @@ BIO_set_nbio, BIO_do_connect - connect BIO
  long BIO_set_conn_int_port(BIO *b, char *port);
  char *BIO_get_conn_hostname(BIO *b);
  char *BIO_get_conn_port(BIO *b);
- char *BIO_get_conn_ip(BIO *b, dummy);
- long BIO_get_conn_int_port(BIO *b, int port);
+ char *BIO_get_conn_ip(BIO *b);
+ long BIO_get_conn_int_port(BIO *b);
 
  long BIO_set_nbio(BIO *b, long n);
 
