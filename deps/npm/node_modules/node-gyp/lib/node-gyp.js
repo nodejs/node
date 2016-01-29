@@ -164,7 +164,9 @@ proto.parseArgv = function parseOpts (argv) {
     } else {
       // add the user-defined options to the config
       name = name.substring(npm_config_prefix.length)
-      this.opts[name] = val
+      // gyp@741b7f1 enters an infinite loop when it encounters
+      // zero-length options so ensure those don't get through.
+      if (name) this.opts[name] = val
     }
   }, this)
 

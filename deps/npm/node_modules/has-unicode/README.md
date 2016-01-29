@@ -26,9 +26,12 @@ If you have a UTF-16 locale then you won't be detected as unicode capable.
 
 ### Windows
 
-Since at least Windows 7, `cmd` and `powershell` have been unicode capable.
-As such, we report any Windows installation as unicode capable.
-
+Since at least Windows 7, `cmd` and `powershell` have been unicode capable,
+but unfortunately even then it's not guaranteed. In many localizations it
+still uses legacy code pages and there's no facility short of running
+programs or linking C++ that will let us detect this. As such, we
+report any Windows installation as NOT unicode capable, and recommend
+that you encourage your users to override this via config.
 
 ### Unix Like Operating Systems
 

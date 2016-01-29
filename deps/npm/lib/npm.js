@@ -70,6 +70,7 @@
     'ln': 'link',
     'i': 'install',
     'isntall': 'install',
+    'it': 'install-test',
     'up': 'update',
     'upgrade': 'update',
     'c': 'config',
@@ -99,6 +100,7 @@
   // these are filenames in .
   var cmdList = [
     'install',
+    'install-test',
     'uninstall',
     'cache',
     'config',

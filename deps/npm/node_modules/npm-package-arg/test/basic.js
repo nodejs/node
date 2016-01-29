@@ -18,8 +18,8 @@ require("tap").test("basic", function (t) {
       name: "@foo/bar",
       scope: "@foo",
       rawSpec: "",
-      spec: "*",
-      type: "range"
+      spec: "latest",
+      type: "tag"
     },
 
     "@foo/bar@": {
@@ -27,8 +27,8 @@ require("tap").test("basic", function (t) {
       name: "@foo/bar",
       scope: "@foo",
       rawSpec: "",
-      spec: "*",
-      type: "range"
+      spec: "latest",
+      type: "tag"
     },
 
     "@foo/bar@baz": {
@@ -143,8 +143,8 @@ require("tap").test("basic", function (t) {
 
     "foo": {
       name: "foo",
-      type: "range",
-      spec: "*",
+      type: "tag",
+      spec: "latest",
       raw: "foo"
     }
   }

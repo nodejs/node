@@ -333,6 +333,9 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
 
   if (args.length && args.indexOf(dep) === -1) return skip()
   var parsed = npa(dep + '@' + req)
+  if (tree.isLink && (tree.parent !== null && tree.parent.parent === null)) {
+    return doIt('linked', 'linked')
+  }
   if (parsed.type === 'git' || parsed.type === 'hosted') {
     return doIt('git', 'git')
   }

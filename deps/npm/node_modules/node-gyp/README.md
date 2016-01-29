@@ -38,11 +38,11 @@ You will also need to install:
     * A proper C/C++ compiler toolchain, like [GCC](https://gcc.gnu.org)
   * On Mac OS X:
     * `python` (`v2.7` recommended, `v3.x.x` is __*not*__ supported) (already installed on Mac OS X)
-    * [Xcode](https://developer.apple.com/xcode/downloads/)
+    * [Xcode](https://developer.apple.com/xcode/download/)
       * You also need to install the `Command Line Tools` via Xcode. You can find this under the menu `Xcode -> Preferences -> Downloads`
       * This step will install `gcc` and the related toolchain containing `make`
   * On Windows:
-    * [Python][windows-python] ([`v2.7.3`][windows-python-v2.7.3] recommended, `v3.x.x` is __*not*__ supported)
+    * Python ([`v2.7.10`][python-v2.7.10] recommended, `v3.x.x` is __*not*__ supported)
       * Make sure that you have a PYTHON environment variable, and it is set to drive:\path\to\python.exe not to a folder
     * Windows XP/Vista/7:
       * Microsoft Visual Studio C++ 2013 ([Express][msvc2013] version works well)
@@ -50,6 +50,14 @@ You will also need to install:
         * If you get errors that the 64-bit compilers are not installed you may also need the [compiler update for the Windows SDK 7.1]
     * Windows 7/8:
       * Microsoft Visual Studio C++ 2013 for Windows Desktop ([Express][msvc2013] version works well)
+    * Windows 10:
+        * Install the latest version of npm (3.3.6 at the time of writing)
+        * Install Python 2.7 from https://www.python.org/download/releases/2.7/ and make sure its on the System Path
+        * Install Visual Studio Community 2015 Edition. (Custom Install, Select Visual C++ during the installation)
+        * Set the environment variable GYP_MSVS_VERSION=2015
+        * Run the command prompt as Administrator
+        * $ npm install (--msvs_version=2015) <-- Shouldn't be needed if you have set GYP_MSVS_VERSION env
+        * If the above steps have not worked or you are unsure please visit http://www.serverpals.com/blog/building-using-node-gyp-with-visual-studio-express-2015-on-windows-10-pro-x64 for a full walkthrough
     * All Windows Versions
       * For 64-bit builds of node and native modules you will _**also**_ need the [Windows 7 64-bit SDK][win7sdk]
       * You may need to run one of the following commands if your build complains about WindowsSDKDir not being set, and you are sure you have already installed the SDK:
@@ -136,9 +144,9 @@ A barebones `gyp` file appropriate for building a node addon looks like:
 Some additional resources for addons and writing `gyp` files:
 
  * ["Going Native" a nodeschool.io tutorial](http://nodeschool.io/#goingnative)
- * ["Hello World" node addon example](https://github.com/joyent/node/tree/master/test/addons/hello-world)
- * [gyp user documentation](https://chromium.googlesource.com/external/gyp/+/master/docs/UserDocumentation.md)
- * [gyp input format reference](https://chromium.googlesource.com/external/gyp/+/master/docs/InputFormatReference.md)
+ * ["Hello World" node addon example](https://github.com/nodejs/node/tree/master/test/addons/hello-world)
+ * [gyp user documentation](https://gyp.gsrc.io/docs/UserDocumentation.md)
+ * [gyp input format reference](https://gyp.gsrc.io/docs/InputFormatReference.md)
  * [*"binding.gyp" files out in the wild* wiki page](https://github.com/nodejs/node-gyp/wiki/%22binding.gyp%22-files-out-in-the-wild)
 
 
@@ -185,8 +193,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-[windows-python]: http://www.python.org/getit/windows
-[windows-python-v2.7.3]: http://www.python.org/download/releases/2.7.3#download
-[msvc2013]: http://www.microsoft.com/en-gb/download/details.aspx?id=44914
-[win7sdk]: http://www.microsoft.com/en-us/download/details.aspx?id=8279
-[compiler update for the Windows SDK 7.1]: http://www.microsoft.com/en-us/download/details.aspx?id=4422
+[python-v2.7.10]: https://www.python.org/downloads/release/python-2710/
+[msvc2013]: https://www.microsoft.com/en-gb/download/details.aspx?id=44914
+[win7sdk]: https://www.microsoft.com/en-us/download/details.aspx?id=8279
+[compiler update for the Windows SDK 7.1]: https://www.microsoft.com/en-us/download/details.aspx?id=4422
