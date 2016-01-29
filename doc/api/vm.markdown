@@ -277,7 +277,7 @@ console.log('localVar: ', localVar);
 // vmResult: 'vm', localVar: 'initial value'
 // evalResult: 'eval', localVar: 'eval'
 ```
-
+<a name="runInThisContext"></a>
 `vm.runInThisContext` does not have access to the local scope, so `localVar` is
 unchanged. `eval` does have access to the local scope, so `localVar` is changed.
 
@@ -296,6 +296,31 @@ e.g. `(0,eval)('code')`. However, it also has the following additional options:
   `true`.
 - `timeout`: a number of milliseconds to execute `code` before terminating
   execution. If execution is terminated, an [`Error`][] will be thrown.
+
+## vm.runInModuleContext(code[, options])
+
+`vm.runInModuleContext()` compiles `code`, runs it and returns the result. Running
+code does not have access to local scope, but does have access to `module`,
+`exports` and `require`. You can expect the script to behave similar to scripts
+in the global context e.g. requiring global modules.
+
+Example of using `vm.runInModuleContext` requiring `http` and a run a server:
+
+```js
+const vm = require('vm')
+
+const vmResult = vm.runInModuleContext(`
+  const http = require('http');
+  http.createServer( (request, response) => {
+    response.writeHead(200, {'Content-Type': 'text/plain'});
+    response.end('Hello World\\n');
+  }).listen(8124);
+
+  console.log('Server running at http://127.0.0.1:8124/');
+`)
+```
+
+For options, see [`vm.runInThisContext()`](#runInThisContext)
 
 [indirect `eval` call]: https://es5.github.io/#x10.4.2
 [global object]: https://es5.github.io/#x15.1
