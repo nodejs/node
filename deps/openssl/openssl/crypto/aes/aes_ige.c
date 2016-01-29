@@ -1,4 +1,4 @@
-/* crypto/aes/aes_ige.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/aes/aes_ige.c */
 /* ====================================================================
  * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
  *

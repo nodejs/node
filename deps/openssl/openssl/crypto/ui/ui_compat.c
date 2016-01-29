@@ -1,4 +1,4 @@
-/* crypto/ui/ui_compat.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/ui/ui_compat.c */
 /* ====================================================================
  * Copyright (c) 2001-2002 The OpenSSL Project.  All rights reserved.
  *

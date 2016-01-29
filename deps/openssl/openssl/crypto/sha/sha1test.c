@@ -157,8 +157,8 @@ int main(int argc, char *argv[])
     if (err)
         printf("ERROR: %d\n", err);
 # endif
-    EXIT(err);
     EVP_MD_CTX_cleanup(&c);
+    EXIT(err);
     return (0);
 }
 

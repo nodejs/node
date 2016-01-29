@@ -1,4 +1,4 @@
-/* v3_pci.c -*- mode:C; c-file-style: "eay" -*- */
+/* v3_pci.c */
 /*
  * Contributed to the OpenSSL Project 2004 by Richard Levitte
  * (richard@levitte.org)

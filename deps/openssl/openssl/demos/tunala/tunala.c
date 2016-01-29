@@ -1154,7 +1154,7 @@ static int tunala_item_io(tunala_selector_t * selector, tunala_item_t * item)
     /*
      * This function name is attributed to the term donated by David Schwartz
      * on openssl-dev, message-ID:
-     * <NCBBLIEPOCbmasEKBEAKEEDGLIAA.davids@webmaster.com>. :-)
+     * <NCBBLIEPOCNJOAEKBEAKEEDGLIAA.davids@webmaster.com>. :-)
      */
     if (!state_machine_churn(&item->sm))
         /*

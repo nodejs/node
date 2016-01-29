@@ -361,9 +361,13 @@ sub do_link_rule
 	$ret.="$target: $files $dep_libs";
 	if ($standalone == 1)
 		{
-		$ret.=" \$(OBJ_D)${o}applink.obj\n";
+		$ret.=" \$(OBJ_D)${o}applink.obj" if $shlib;
+		$ret.="\n";
 		$ret.="  \$(LINK) \$(LFLAGS) $efile$target @<<\n\t";
-		$ret.= "\$(EX_LIBS) \$(OBJ_D)${o}applink.obj " if ($files =~ /O_FIPSCANISTER/ && !$fipscanisterbuild);
+		if ($files =~ /O_FIPSCANISTER/ && !$fipscanisterbuild) {
+			$ret.= "\$(EX_LIBS) ";
+			$ret.= "\$(OBJ_D)${o}applink.obj " if $shlib;
+		}
 		$ret.="$files $libs\n<<\n";
 		}
 	elsif ($standalone == 2)

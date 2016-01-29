@@ -1,4 +1,4 @@
-/* apps/engine.c -*- mode: C; c-file-style: "eay" -*- */
+/* apps/engine.c */
 /*
  * Written by Richard Levitte <richard@levitte.org> for the OpenSSL project
  * 2000.

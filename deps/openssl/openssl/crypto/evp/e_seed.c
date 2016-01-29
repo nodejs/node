@@ -1,4 +1,4 @@
-/* crypto/evp/e_seed.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/evp/e_seed.c */
 /* ====================================================================
  * Copyright (c) 2007 The OpenSSL Project.  All rights reserved.
  *

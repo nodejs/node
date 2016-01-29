@@ -1,4 +1,4 @@
-/* crypto/o_time.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/o_time.c */
 /*
  * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
  * 2001.

@@ -1,4 +1,4 @@
-/* crypto/seed/seed_ofb.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/seed/seed_ofb.c */
 /* ====================================================================
  * Copyright (c) 1998-2007 The OpenSSL Project.  All rights reserved.
  *

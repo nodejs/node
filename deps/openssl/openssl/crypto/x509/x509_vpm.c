@@ -94,11 +94,11 @@ static int int_x509_param_set_hosts(X509_VERIFY_PARAM_ID *id, int mode,
      * Refuse names with embedded NUL bytes, except perhaps as final byte.
      * XXX: Do we need to push an error onto the error stack?
      */
-    if (namelen == 0)
+    if (namelen == 0 || name == NULL)
         namelen = name ? strlen(name) : 0;
     else if (name && memchr(name, '\0', namelen > 1 ? namelen - 1 : namelen))
         return 0;
-    if (name && name[namelen - 1] == '\0')
+    if (namelen > 0 && name[namelen - 1] == '\0')
         --namelen;
 
     if (mode == SET_HOST && id->hosts) {
