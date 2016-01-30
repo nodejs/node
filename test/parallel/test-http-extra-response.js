@@ -37,6 +37,10 @@ var server = net.createServer(function(socket) {
       socket.end(fullResponse);
     }
   });
+
+  socket.on('error', function(err) {
+    assert.equal(err.code, 'ECONNRESET');
+  });
 });
 
 
