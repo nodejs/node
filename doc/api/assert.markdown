@@ -236,16 +236,16 @@ const obj3 = {
 }
 const obj4 = Object.create(obj1);
 
-assert.deepEqual(obj1, obj1);
-  AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
-
-assert.deepEqual(obj1, obj2);
-  // OK, obj1 and obj2 are not deeply equal
-
-assert.deepEqual(obj1, obj3);
+assert.notDeepEqual(obj1, obj1);
   // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
 
-assert.deepEqual(obj1, obj4);
+assert.notDeepEqual(obj1, obj2);
+  // OK, obj1 and obj2 are not deeply equal
+
+assert.notDeepEqual(obj1, obj3);
+  // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
+
+assert.notDeepEqual(obj1, obj4);
   // OK, obj1 and obj2 are not deeply equal
 ```
 
