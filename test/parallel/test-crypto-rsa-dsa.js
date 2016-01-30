@@ -227,28 +227,30 @@ assert.throws(function() {
 //
 // Test DSA signing and verification with encrypted key
 //
-(function() {
-  var input = 'I AM THE WALRUS';
+const input = 'I AM THE WALRUS';
 
-  var sign = crypto.createSign('DSS1');
+{
+  const sign = crypto.createSign('DSS1');
   sign.update(input);
   assert.throws(function() {
     sign.sign({ key: dsaKeyPemEncrypted, passphrase: 'wrong' }, 'hex');
   });
+}
 
+{
   // DSA signatures vary across runs so there is no static string to verify
   // against
-  var sign = crypto.createSign('DSS1');
+  const sign = crypto.createSign('DSS1');
   sign.update(input);
 
-  var signature;
+  let signature;
   assert.doesNotThrow(function() {
-    var signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
+    const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
     signature = sign.sign(signOptions, 'hex');
   });
 
-  var verify = crypto.createVerify('DSS1');
+  const verify = crypto.createVerify('DSS1');
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
-})();
+}
