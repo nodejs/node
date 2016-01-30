@@ -1,7 +1,7 @@
+'use strict';
+
 var processIncludes = require('./preprocess.js');
-var marked = require('marked');
 var fs = require('fs');
-var path = require('path');
 
 // parse the args.
 // Don't use nopt or whatever for this.  It's simple enough.
@@ -11,7 +11,7 @@ var format = 'json';
 var template = null;
 var inputFile = null;
 
-args.forEach(function (arg) {
+args.forEach(function(arg) {
   if (!arg.match(/^\-\-/)) {
     inputFile = arg;
   } else if (arg.match(/^\-\-format=/)) {
@@ -19,7 +19,7 @@ args.forEach(function (arg) {
   } else if (arg.match(/^\-\-template=/)) {
     template = arg.replace(/^\-\-template=/, '');
   }
-})
+});
 
 
 if (!inputFile) {
@@ -33,8 +33,6 @@ fs.readFile(inputFile, 'utf8', function(er, input) {
   // process the input for @include lines
   processIncludes(inputFile, input, next);
 });
-
-
 
 
 function next(er, input) {

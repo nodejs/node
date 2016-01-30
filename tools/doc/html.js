@@ -1,3 +1,5 @@
+'use strict';
+
 var fs = require('fs');
 var marked = require('marked');
 var path = require('path');
@@ -6,7 +8,14 @@ var preprocess = require('./preprocess.js');
 module.exports = toHTML;
 
 // TODO(chrisdickinson): never stop vomitting / fix this.
-var gtocPath = path.resolve(path.join(__dirname, '..', '..', 'doc', 'api', '_toc.markdown'));
+var gtocPath = path.resolve(path.join(
+  __dirname,
+    '..',
+    '..',
+    'doc',
+    'api',
+    '_toc.markdown'
+));
 var gtocLoading = null;
 var gtocData = null;
 
@@ -55,7 +64,10 @@ function loadGtoc(cb) {
 }
 
 function toID(filename) {
-  return filename.replace('.html', '').replace(/[^\w\-]/g, '-').replace(/-+/g, '-');
+  return filename
+    .replace('.html', '')
+    .replace(/[^\w\-]/g, '-')
+    .replace(/-+/g, '-');
 }
 
 function render(lexed, filename, template, cb) {
@@ -85,7 +97,7 @@ function render(lexed, filename, template, cb) {
 
     // content has to be the last thing we do with
     // the lexed tokens, because it's destructive.
-    content = marked.parser(lexed);
+    const content = marked.parser(lexed);
     template = template.replace(/__CONTENT__/g, content);
 
     cb(null, template);
@@ -173,7 +185,6 @@ function parseAPIHeader(text) {
 
 // section is just the first heading
 function getSection(lexed) {
-  var section = '';
   for (var i = 0, l = lexed.length; i < l; i++) {
     var tok = lexed[i];
     if (tok.type === 'heading') return tok.text;
@@ -183,7 +194,6 @@ function getSection(lexed) {
 
 
 function buildToc(lexed, filename, cb) {
-  var indent = 0;
   var toc = [];
   var depth = 0;
   lexed.forEach(function(tok) {
