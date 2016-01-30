@@ -517,7 +517,7 @@ bench-idle:
 	$(NODE) benchmark/idle_clients.js &
 
 jslint:
-	$(NODE) tools/eslint/bin/eslint.js src lib test tools/eslint-rules \
+	$(NODE) tools/eslint/bin/eslint.js lib src test tools/doc tools/eslint-rules \
 		--rulesdir tools/eslint-rules --quiet
 
 CPPLINT_EXCLUDE ?=
