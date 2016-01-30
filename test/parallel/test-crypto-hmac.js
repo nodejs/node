@@ -59,14 +59,14 @@ var wikipedia = [
   },
 ];
 
-for (var i = 0, l = wikipedia.length; i < l; i++) {
-  for (var hash in wikipedia[i]['hmac']) {
+for (let i = 0, l = wikipedia.length; i < l; i++) {
+  for (const hash in wikipedia[i]['hmac']) {
     // FIPS does not support MD5.
     if (common.hasFipsCrypto && hash == 'md5')
       continue;
-    var result = crypto.createHmac(hash, wikipedia[i]['key'])
-                     .update(wikipedia[i]['data'])
-                     .digest('hex');
+    const result = crypto.createHmac(hash, wikipedia[i]['key'])
+                         .update(wikipedia[i]['data'])
+                         .digest('hex');
     assert.equal(wikipedia[i]['hmac'][hash],
                  result,
                  'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' wikipedia');
@@ -221,14 +221,14 @@ var rfc4231 = [
   }
 ];
 
-for (var i = 0, l = rfc4231.length; i < l; i++) {
-  for (var hash in rfc4231[i]['hmac']) {
-    var str = crypto.createHmac(hash, rfc4231[i].key);
+for (let i = 0, l = rfc4231.length; i < l; i++) {
+  for (const hash in rfc4231[i]['hmac']) {
+    const str = crypto.createHmac(hash, rfc4231[i].key);
     str.end(rfc4231[i].data);
-    var strRes = str.read().toString('hex');
-    var result = crypto.createHmac(hash, rfc4231[i]['key'])
-                     .update(rfc4231[i]['data'])
-                     .digest('hex');
+    let strRes = str.read().toString('hex');
+    let result = crypto.createHmac(hash, rfc4231[i]['key'])
+                       .update(rfc4231[i]['data'])
+                       .digest('hex');
     if (rfc4231[i]['truncate']) {
       result = result.substr(0, 32); // first 128 bits == 32 hex chars
       strRes = strRes.substr(0, 32);
@@ -350,7 +350,7 @@ var rfc2202_sha1 = [
 ];
 
 if (!common.hasFipsCrypto) {
-  for (var i = 0, l = rfc2202_md5.length; i < l; i++) {
+  for (let i = 0, l = rfc2202_md5.length; i < l; i++) {
     assert.equal(rfc2202_md5[i]['hmac'],
                  crypto.createHmac('md5', rfc2202_md5[i]['key'])
                      .update(rfc2202_md5[i]['data'])
@@ -358,7 +358,7 @@ if (!common.hasFipsCrypto) {
                  'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
   }
 }
-for (var i = 0, l = rfc2202_sha1.length; i < l; i++) {
+for (let i = 0, l = rfc2202_sha1.length; i < l; i++) {
   assert.equal(rfc2202_sha1[i]['hmac'],
                crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
                    .update(rfc2202_sha1[i]['data'])

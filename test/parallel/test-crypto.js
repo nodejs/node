@@ -67,7 +67,6 @@ assert.equal(-1, crypto.getCiphers().indexOf('AES-128-CBC'));
 assertSorted(crypto.getCiphers());
 
 // Assume that we have at least AES256-SHA.
-var tls = require('tls');
 assert.notEqual(0, tls.getCiphers().length);
 assert.notEqual(-1, tls.getCiphers().indexOf('aes256-sha'));
 assert.equal(-1, tls.getCiphers().indexOf('AES256-SHA'));
