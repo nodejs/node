@@ -46,11 +46,11 @@ assert.throws(function() {
 }, 'not enough data');
 
 // Test HMAC
-var h1 = crypto.createHmac('sha1', 'Node')
-               .update('some data')
-               .update('to hmac')
-               .digest('hex');
-assert.equal(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
+const hmacHash = crypto.createHmac('sha1', 'Node')
+                       .update('some data')
+                       .update('to hmac')
+                       .digest('hex');
+assert.equal(hmacHash, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 
 // Test HMAC-SHA-* (rfc 4231 Test Cases)
 var rfc4231 = [
@@ -199,7 +199,7 @@ var rfc4231 = [
   }
 ];
 
-for (var i = 0, l = rfc4231.length; i < l; i++) {
+for (let i = 0, l = rfc4231.length; i < l; i++) {
   for (var hash in rfc4231[i]['hmac']) {
     var result = crypto.createHmac(hash, rfc4231[i]['key'])
                      .update(rfc4231[i]['data'])
@@ -322,7 +322,7 @@ var rfc2202_sha1 = [
   }
 ];
 
-for (var i = 0, l = rfc2202_md5.length; i < l; i++) {
+for (let i = 0, l = rfc2202_md5.length; i < l; i++) {
   if (!common.hasFipsCrypto) {
     assert.equal(rfc2202_md5[i]['hmac'],
                  crypto.createHmac('md5', rfc2202_md5[i]['key'])
@@ -331,7 +331,7 @@ for (var i = 0, l = rfc2202_md5.length; i < l; i++) {
                  'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
   }
 }
-for (var i = 0, l = rfc2202_sha1.length; i < l; i++) {
+for (let i = 0, l = rfc2202_sha1.length; i < l; i++) {
   assert.equal(rfc2202_sha1[i]['hmac'],
                crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
                    .update(rfc2202_sha1[i]['data'])
@@ -394,29 +394,29 @@ assert.throws(function() {
 var s1 = crypto.createSign('RSA-SHA1')
                .update('Test123')
                .sign(keyPem, 'base64');
-var verified = crypto.createVerify('RSA-SHA1')
-                     .update('Test')
-                     .update('123')
-                     .verify(certPem, s1, 'base64');
-assert.strictEqual(verified, true, 'sign and verify (base 64)');
+var s1Verified = crypto.createVerify('RSA-SHA1')
+                       .update('Test')
+                       .update('123')
+                       .verify(certPem, s1, 'base64');
+assert.strictEqual(s1Verified, true, 'sign and verify (base 64)');
 
 var s2 = crypto.createSign('RSA-SHA256')
                .update('Test123')
                .sign(keyPem); // binary
-var verified = crypto.createVerify('RSA-SHA256')
-                     .update('Test')
-                     .update('123')
-                     .verify(certPem, s2); // binary
-assert.strictEqual(verified, true, 'sign and verify (binary)');
+var s2Verified = crypto.createVerify('RSA-SHA256')
+                       .update('Test')
+                       .update('123')
+                       .verify(certPem, s2); // binary
+assert.strictEqual(s2Verified, true, 'sign and verify (binary)');
 
 var s3 = crypto.createSign('RSA-SHA1')
                .update('Test123')
                .sign(keyPem, 'buffer');
-var verified = crypto.createVerify('RSA-SHA1')
-                     .update('Test')
-                     .update('123')
-                     .verify(certPem, s3);
-assert.strictEqual(verified, true, 'sign and verify (buffer)');
+var s3Verified = crypto.createVerify('RSA-SHA1')
+                       .update('Test')
+                       .update('123')
+                       .verify(certPem, s3);
+assert.strictEqual(s3Verified, true, 'sign and verify (buffer)');
 
 
 function testCipher1(key) {
