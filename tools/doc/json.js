@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = doJSON;
 
 // Take the lexed input, and return a JSON-encoded object
@@ -12,7 +14,7 @@ function doJSON(input, filename, cb) {
   var current = root;
   var state = null;
   var lexed = marked.lexer(input);
-  lexed.forEach(function (tok) {
+  lexed.forEach(function(tok) {
     var type = tok.type;
     var text = tok.text;
 
@@ -31,7 +33,7 @@ function doJSON(input, filename, cb) {
     if (type === 'heading' &&
         !text.trim().match(/^example/i)) {
       if (tok.depth - depth > 1) {
-        return cb(new Error('Inappropriate heading level\n'+
+        return cb(new Error('Inappropriate heading level\n' +
                             JSON.stringify(tok)));
       }
 
@@ -77,7 +79,7 @@ function doJSON(input, filename, cb) {
     //
     // If one of these isnt' found, then anything that comes between
     // here and the next heading should be parsed as the desc.
-    var stability
+    var stability;
     if (state === 'AFTERHEADING') {
       if (type === 'code' &&
           (stability = text.match(/^Stability: ([0-5])(?:\s*-\s*)?(.*)$/))) {
@@ -125,7 +127,7 @@ function doJSON(input, filename, cb) {
     finishSection(current, stack[stack.length - 1]);
   }
 
-  return cb(null, root)
+  return cb(null, root);
 }
 
 
@@ -146,7 +148,7 @@ function doJSON(input, filename, cb) {
 //   { type: 'list_item_end' },
 //   { type: 'list_item_start' },
 //   { type: 'text',
-//     text: 'silent: Boolean, whether or not to send output to parent\'s stdio.' },
+//     text: 'silent: Boolean, whether to send output to parent\'s stdio.' },
 //   { type: 'text', text: 'Default: `false`' },
 //   { type: 'space' },
 //   { type: 'list_item_end' },
@@ -168,7 +170,7 @@ function doJSON(input, filename, cb) {
 //          desc: 'string arguments passed to worker.' },
 //        { name: 'silent',
 //          type: 'boolean',
-//          desc: 'whether or not to send output to parent\'s stdio.',
+//          desc: 'whether to send output to parent\'s stdio.',
 //          default: 'false' } ] } ]
 
 function processList(section) {
@@ -231,7 +233,7 @@ function processList(section) {
       // each item is an argument, unless the name is 'return',
       // in which case it's the return value.
       section.signatures = section.signatures || [];
-      var sig = {}
+      var sig = {};
       section.signatures.push(sig);
       sig.params = values.filter(function(v) {
         if (v.name === 'return') {
@@ -273,7 +275,7 @@ function parseSignature(text, sig) {
   params = params[1];
   // the [ is irrelevant. ] indicates optionalness.
   params = params.replace(/\[/g, '');
-  params = params.split(/,/)
+  params = params.split(/,/);
   params.forEach(function(p, i, _) {
     p = p.trim();
     if (!p) return;
@@ -362,7 +364,7 @@ function parseListItem(item) {
 
 function finishSection(section, parent) {
   if (!section || !parent) {
-    throw new Error('Invalid finishSection call\n'+
+    throw new Error('Invalid finishSection call\n' +
                     JSON.stringify(section) + '\n' +
                     JSON.stringify(parent));
   }
@@ -405,7 +407,7 @@ function finishSection(section, parent) {
   // properties are a bit special.
   // their "type" is the type of object, not "property"
   if (section.properties) {
-    section.properties.forEach(function (p) {
+    section.properties.forEach(function(p) {
       if (p.typeof) p.type = p.typeof;
       else delete p.type;
       delete p.typeof;
