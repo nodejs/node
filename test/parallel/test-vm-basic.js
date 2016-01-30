@@ -35,16 +35,25 @@ var result = vm.runInThisContext(
 );
 assert.strictEqual(global.vmResult, 'foo');
 assert.strictEqual(result, '[object process]');
+
+// Test 4: vm.runInGlobalContext
+var result = vm.runInModuleContext(`
+  const path = require('path')
+  vmResult = path.dirname('/foo/bar/baz/asdf/quux');
+  Object.prototype.toString.call(process);`
+);
+assert.strictEqual(global.vmResult,
+  require('path').dirname('/foo/bar/baz/asdf/quux'));
 delete global.vmResult;
 
-// Test 4: vm.runInNewContext
+// Test 5: vm.runInNewContext
 var result = vm.runInNewContext(
   'vmResult = "foo"; typeof process;'
 );
 assert.strictEqual(global.vmResult, undefined);
 assert.strictEqual(result, 'undefined');
 
-// Test 5: vm.createContext
+// Test 6: vm.createContext
 var sandbox3 = {};
 var context2 = vm.createContext(sandbox3);
 assert.strictEqual(sandbox3, context2);
