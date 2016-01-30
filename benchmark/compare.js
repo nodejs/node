@@ -80,7 +80,7 @@ function run() {
   if (Array.isArray(benchmarks) && benchmarks.length) {
     child = spawn(
       node,
-      ['benchmark/common.js'].concat(benchmarks),
+      ['benchmark/run.js'].concat(benchmarks),
       { env: env }
     );
   } else {

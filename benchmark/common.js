@@ -15,35 +15,6 @@ if (['default', 'csv', 'silent'].indexOf(outputFormat) == -1) {
 
 exports.PORT = process.env.PORT || 12346;
 
-// If this is the main module, then run the benchmarks
-if (module === require.main) {
-  var type = process.argv[2];
-  var testFilter = process.argv[3];
-  if (!type) {
-    console.error('usage:\n ./node benchmark/common.js <type> [testFilter]');
-    process.exit(1);
-  }
-
-  var dir = path.join(__dirname, type);
-  var tests = fs.readdirSync(dir);
-
-  if (testFilter) {
-    var filteredTests = tests.filter(function(item) {
-      if (item.lastIndexOf(testFilter) >= 0) {
-        return item;
-      }
-    });
-
-    if (filteredTests.length === 0) {
-      console.error('%s is not found in \n %j', testFilter, tests);
-      return;
-    }
-    tests = filteredTests;
-  }
-
-  runBenchmarks();
-}
-
 function hasWrk() {
   var result = child_process.spawnSync('wrk', ['-h']);
   if (result.error && result.error.code === 'ENOENT') {
@@ -51,31 +22,6 @@ function hasWrk() {
       'benchmarks. Check benchmark/README.md for further instructions.');
     process.exit(-1);
   }
-}
-
-function runBenchmarks() {
-  var test = tests.shift();
-  if (!test)
-    return;
-
-  if (test.match(/^[\._]/))
-    return process.nextTick(runBenchmarks);
-
-  if (outputFormat == 'default')
-    console.error(type + '/' + test);
-
-  test = path.resolve(dir, test);
-
-  var a = (process.execArgv || []).concat(test);
-  var child = child_process.spawn(process.execPath, a, { stdio: 'inherit' });
-  child.on('close', function(code) {
-    if (code) {
-      process.exit(code);
-    } else {
-      console.log('');
-      runBenchmarks();
-    }
-  });
 }
 
 exports.createBenchmark = function(fn, options) {
@@ -262,4 +208,3 @@ exports.v8ForceOptimization = function(method, ...args) {
   method.apply(null, args);
   return eval('%GetOptimizationStatus(method)');
 };
-

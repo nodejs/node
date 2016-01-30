@@ -24,7 +24,7 @@ There are three ways to run benchmark tests:
 For example, buffers:
 
 ```bash
-node benchmark/common.js buffers
+node benchmark/run.js buffers
 ```
 
 The above command will find all scripts under `buffers` directory and require
