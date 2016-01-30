@@ -89,7 +89,7 @@ parameter is undefined, a default error message is assigned.
 
 ## assert.deepStrictEqual(actual, expected[, message])
 
-Generally identical to `assert.deepEqual` with the exception that primitive
+Generally identical to [`assert.deepEqual()`][] with the exception that primitive
 values are compared using the strict equality operator ( `===` ).
 
 ```js
@@ -214,7 +214,7 @@ assert.ifError(new Error()); // Throws Error
 
 ## assert.notDeepEqual(actual, expected[, message])
 
-Tests for any deep inequality. Opposite of [`assert.deepEqual`][].
+Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
 
 ```js
 const assert = require('assert');
@@ -255,7 +255,7 @@ parameter is undefined, a default error message is assigned.
 
 ## assert.notDeepStrictEqual(actual, expected[, message])
 
-Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual`][].
+Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 
 ```js
 const assert = require('assert');
@@ -402,8 +402,8 @@ assert.throws(
 ```
 
 [Locked]: documentation.html#documentation_stability_index
-[`assert.deepEqual`]: #assert_assert_deepequal_actual_expected_message
-[`assert.deepStrictEqual`]: #assert_assert_deepstrictequal_actual_expected_message
+[`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
+[`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
 [`Error`]: errors.html#errors_class_error
