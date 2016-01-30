@@ -11,7 +11,7 @@ var net = require('net');
 var id = '' + process.argv[2];
 
 if (id === 'undefined') {
-  var server = net.createServer(common.fail);
+  const server = net.createServer(common.fail);
   server.listen(common.PORT, function() {
     var worker = fork(__filename, ['worker']);
     worker.on('message', function(msg) {
@@ -23,7 +23,7 @@ if (id === 'undefined') {
   });
 }
 else if (id === 'worker') {
-  var server = net.createServer(common.fail);
+  let server = net.createServer(common.fail);
   server.listen(common.PORT, common.fail);
   server.on('error', common.mustCall(function(e) {
     assert(e.code, 'EADDRINUSE');
