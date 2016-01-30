@@ -1137,7 +1137,7 @@ int tls1_generate_master_secret(SSL *s, unsigned char *out, unsigned char *p,
         so = s->s3->server_opaque_prf_input;
         /*
          * must be same as col (see
-         * draft-resc-00.txts-opaque-prf-input-00.txt, section 3.1)
+         * draft-rescorla-tls-opaque-prf-input-00.txt, section 3.1)
          */
         sol = s->s3->client_opaque_prf_input_len;
     }
