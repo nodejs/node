@@ -502,7 +502,7 @@ var classMethExpr =
   /^class\s*method\s*:?[^\.]+\.([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
 var methExpr =
   /^(?:method:?\s*)?(?:[^\.]+\.)?([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
-var newExpr = /^new ([A-Z][a-z]+)\([^\)]*\)\s*?$/;
+var newExpr = /^new ([A-Z][a-zA-Z]+)\([^\)]*\)\s*?$/;
 var paramExpr = /\((.*)\);?$/;
 
 function newSection(tok) {
