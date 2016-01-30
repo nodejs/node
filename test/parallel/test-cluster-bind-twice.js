@@ -51,7 +51,7 @@ if (!id) {
     b.send('START');
   });
 
-  var ok = false;
+  let ok = false;
 
   b.on('message', function(m) {
     if (typeof m === 'object') return; // ignore system messages
@@ -68,7 +68,7 @@ if (!id) {
 else if (id === 'one') {
   if (cluster.isMaster) return startWorker();
 
-  var server = http.createServer(common.fail).listen(common.PORT, function() {
+  http.createServer(common.fail).listen(common.PORT, function() {
     process.send('READY');
   });
 
@@ -79,7 +79,7 @@ else if (id === 'one') {
 else if (id === 'two') {
   if (cluster.isMaster) return startWorker();
 
-  var ok = false;
+  let ok = false;
   process.on('exit', function() {
     assert(ok);
   });

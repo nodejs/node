@@ -20,7 +20,6 @@ else
 
 
 function master() {
-  var i;
   var received = 0;
 
   // Start listening on a socket.
