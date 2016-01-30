@@ -74,10 +74,11 @@ static void usage(void);
 
 static EVP_PKEY_CTX *init_ctx(int *pkeysize,
                               char *keyfile, int keyform, int key_type,
-                              char *passargin, int pkey_op, ENGINE *e);
+                              char *passargin, int pkey_op, ENGINE *e,
+                              int   impl);
 
 static int setup_peer(BIO *err, EVP_PKEY_CTX *ctx, int peerform,
-                      const char *file);
+                      const char *file, ENGINE* e);
 
 static int do_keyop(EVP_PKEY_CTX *ctx, int pkey_op,
                     unsigned char *out, size_t *poutlen,
@@ -97,6 +98,7 @@ int MAIN(int argc, char **argv)
     EVP_PKEY_CTX *ctx = NULL;
     char *passargin = NULL;
     int keysize = -1;
+    int engine_impl = 0;
 
     unsigned char *buf_in = NULL, *buf_out = NULL, *sig = NULL;
     size_t buf_outlen;
@@ -137,7 +139,7 @@ int MAIN(int argc, char **argv)
             else {
                 ctx = init_ctx(&keysize,
                                *(++argv), keyform, key_type,
-                               passargin, pkey_op, e);
+                               passargin, pkey_op, e, engine_impl);
                 if (!ctx) {
                     BIO_puts(bio_err, "Error initializing context\n");
                     ERR_print_errors(bio_err);
@@ -147,7 +149,7 @@ int MAIN(int argc, char **argv)
         } else if (!strcmp(*argv, "-peerkey")) {
             if (--argc < 1)
                 badarg = 1;
-            else if (!setup_peer(bio_err, ctx, peerform, *(++argv)))
+            else if (!setup_peer(bio_err, ctx, peerform, *(++argv), e))
                 badarg = 1;
         } else if (!strcmp(*argv, "-passin")) {
             if (--argc < 1)
@@ -171,6 +173,8 @@ int MAIN(int argc, char **argv)
                 badarg = 1;
             else
                 e = setup_engine(bio_err, *(++argv), 0);
+        } else if (!strcmp(*argv, "-engine_impl")) {
+                engine_impl = 1;
         }
 #endif
         else if (!strcmp(*argv, "-pubin"))
@@ -368,7 +372,8 @@ static void usage()
     BIO_printf(bio_err, "-hexdump        hex dump output\n");
 #ifndef OPENSSL_NO_ENGINE
     BIO_printf(bio_err,
-               "-engine e       use engine e, possibly a hardware device.\n");
+               "-engine e       use engine e, maybe a hardware device, for loading keys.\n");
+    BIO_printf(bio_err, "-engine_impl    also use engine given by -engine for crypto operations\n");
 #endif
     BIO_printf(bio_err, "-passin arg     pass phrase source\n");
 
@@ -376,10 +381,12 @@ static void usage()
 
 static EVP_PKEY_CTX *init_ctx(int *pkeysize,
                               char *keyfile, int keyform, int key_type,
-                              char *passargin, int pkey_op, ENGINE *e)
+                              char *passargin, int pkey_op, ENGINE *e,
+                              int   engine_impl)
 {
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
+    ENGINE *impl = NULL;
     char *passin = NULL;
     int rv = -1;
     X509 *x;
@@ -418,9 +425,14 @@ static EVP_PKEY_CTX *init_ctx(int *pkeysize,
 
     if (!pkey)
         goto end;
-
-    ctx = EVP_PKEY_CTX_new(pkey, e);
-
+        
+#ifndef OPENSSL_NO_ENGINE
+    if (engine_impl)
+	impl = e;
+#endif
+            
+    ctx = EVP_PKEY_CTX_new(pkey, impl);
+    
     EVP_PKEY_free(pkey);
 
     if (!ctx)
@@ -467,16 +479,20 @@ static EVP_PKEY_CTX *init_ctx(int *pkeysize,
 }
 
 static int setup_peer(BIO *err, EVP_PKEY_CTX *ctx, int peerform,
-                      const char *file)
+                      const char *file, ENGINE* e)
 {
     EVP_PKEY *peer = NULL;
+    ENGINE* engine = NULL;
     int ret;
     if (!ctx) {
         BIO_puts(err, "-peerkey command before -inkey\n");
         return 0;
     }
 
-    peer = load_pubkey(bio_err, file, peerform, 0, NULL, NULL, "Peer Key");
+    if (peerform == FORMAT_ENGINE)
+      engine = e;
+
+    peer = load_pubkey(bio_err, file, peerform, 0, NULL, engine, "Peer Key");
 
     if (!peer) {
         BIO_printf(bio_err, "Error reading peer key %s\n", file);

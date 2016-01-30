@@ -1,4 +1,4 @@
-/* crypto/aes/aes_core.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/aes/aes_core.c */
 /**
  * rijndael-alg-fst.c
  *
