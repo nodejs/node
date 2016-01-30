@@ -11,7 +11,7 @@ if (cluster.isMaster) {
     c: [50, 500]
   });
 } else {
-  require('../http_simple.js');
+  require('./_http_simple.js');
 }
 
 function main(conf) {
