@@ -1,4 +1,7 @@
 # Timers
+<!-- YAML
+added: v0.0.1
+-->
 
     Stability: 3 - Locked
 
@@ -6,18 +9,30 @@ All of the timer functions are globals.  You do not need to `require()`
 this module in order to use them.
 
 ## clearImmediate(immediateObject)
+<!-- YAML
+added: v0.9.1
+-->
 
 Stops an immediate from triggering.
 
 ## clearInterval(intervalObject)
+<!-- YAML
+added: v0.0.1
+-->
 
 Stops an interval from triggering.
 
 ## clearTimeout(timeoutObject)
+<!-- YAML
+added: v0.0.1
+-->
 
 Prevents a timeout from triggering.
 
 ## ref()
+<!-- YAML
+added: v0.9.1
+-->
 
 If you had previously `unref()`d a timer you can call `ref()` to explicitly
 request the timer hold the program open. If the timer is already `ref`d calling
@@ -26,6 +41,9 @@ request the timer hold the program open. If the timer is already `ref`d calling
 Returns the timer.
 
 ## setImmediate(callback[, arg][, ...])
+<!-- YAML
+added: v0.9.1
+-->
 
 To schedule the "immediate" execution of `callback` after I/O events
 callbacks and before [`setTimeout`][] and [`setInterval`][]. Returns an
@@ -40,6 +58,9 @@ until the next event loop iteration.
 If `callback` is not a function `setImmediate()` will throw immediately.
 
 ## setInterval(callback, delay[, arg][, ...])
+<!-- YAML
+added: v0.0.1
+-->
 
 To schedule the repeated execution of `callback` every `delay` milliseconds.
 Returns a `intervalObject` for possible use with `clearInterval()`. Optionally
@@ -52,6 +73,9 @@ milliseconds (approximately 25 days) or less than 1, Node.js will use 1 as the
 If `callback` is not a function `setInterval()` will throw immediately.
 
 ## setTimeout(callback, delay[, arg][, ...])
+<!-- YAML
+added: v0.0.1
+-->
 
 To schedule execution of a one-time `callback` after `delay` milliseconds.
 Returns a `timeoutObject` for possible use with `clearTimeout()`. Optionally you
@@ -69,6 +93,9 @@ immediately, as if the `delay` was set to 1.
 If `callback` is not a function `setTimeout()` will throw immediately.
 
 ## unref()
+<!-- YAML
+added: v0.9.1
+-->
 
 The opaque value returned by [`setTimeout`][] and [`setInterval`][] also has the
 method `timer.unref()` which will allow you to create a timer that is active but
