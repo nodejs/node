@@ -49,10 +49,6 @@ process.on('exit', function() {
   assert.equal(cnt, rclosed, 'readable streams closed');
 });
 
-for (var i = 0; i < chunkSize; i++) {
-  chunkSize[i] = i % 256;
-}
-
 for (var i = 0; i < cnt; i++) {
   var r = new FakeStream();
   r.on('close', function() {
