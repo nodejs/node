@@ -260,7 +260,7 @@ function expectBody(expected) {
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
 
-    var headers = headers || parser.headers;
+    headers = headers || parser.headers;
 
     assert.equal(headers.length, 2 * 256); // 256 key/value pairs
     for (var i = 0; i < headers.length; i += 2) {
