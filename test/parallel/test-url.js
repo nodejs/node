@@ -856,10 +856,10 @@ var parseTests = {
 
 };
 
-for (var u in parseTests) {
-  var actual = url.parse(u);
-  var spaced = url.parse('     \t  ' + u + '\n\t');
-  var expected = parseTests[u];
+for (const u in parseTests) {
+  let actual = url.parse(u);
+  const spaced = url.parse(`     \t  ${u}\n\t`);
+  let expected = parseTests[u];
 
   Object.keys(actual).forEach(function(i) {
     if (expected[i] === undefined && actual[i] === null) {
@@ -928,10 +928,10 @@ var parseTestsWithQueryString = {
     href: '/example?query=value'
   }
 };
-for (var u in parseTestsWithQueryString) {
-  var actual = url.parse(u, true);
-  var expected = parseTestsWithQueryString[u];
-  for (var i in actual) {
+for (const u in parseTestsWithQueryString) {
+  const actual = url.parse(u, true);
+  const expected = parseTestsWithQueryString[u];
+  for (const i in actual) {
     if (actual[i] === null && expected[i] === undefined) {
       expected[i] = null;
     }
@@ -1130,11 +1130,11 @@ var formatTests = {
     pathname: '/fooA100%mBr',
   }
 };
-for (var u in formatTests) {
-  var expect = formatTests[u].href;
+for (const u in formatTests) {
+  const expect = formatTests[u].href;
   delete formatTests[u].href;
-  var actual = url.format(u);
-  var actualObj = url.format(formatTests[u]);
+  const actual = url.format(u);
+  const actualObj = url.format(formatTests[u]);
   assert.equal(actual, expect,
                'wonky format(' + u + ') == ' + expect +
                '\nactual:' + actual);
@@ -1567,7 +1567,7 @@ var throws = [
   0,
   function() {}
 ];
-for (var i = 0; i < throws.length; i++) {
+for (let i = 0; i < throws.length; i++) {
   assert.throws(function() { url.format(throws[i]); }, TypeError);
 }
 assert(url.format('') === '');
