@@ -388,7 +388,7 @@ console.log(buf2.compare(buf3));
   // produces sort order [buf1, buf3, buf2]
 ```
 
-### buf.copy(targetBuffer[, targetStart][, sourceStart][, sourceEnd])
+### buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
 
 * `targetBuffer` {Buffer} Buffer to copy into
 * `targetStart` {Number} Default: 0
@@ -471,7 +471,7 @@ console.log(buf1.equals(buf3));
   // Prints: false
 ```
 
-### buf.fill(value[, offset][, end])
+### buf.fill(value[, offset[, end]])
 
 * `value` {String or Number}
 * `offset` {Number} Default: 0
@@ -915,7 +915,7 @@ buf.slice(-5, -2).toString();
   // Returns 'uff', equivalent to buf.slice(1, 4)
 ```
 
-### buf.toString([encoding][, start][, end])
+### buf.toString([encoding[, start[, end]]])
 
 * `encoding` {String} Default: `'utf8'`
 * `start` {Number} Default: 0
@@ -998,7 +998,7 @@ for (var value of buf) {
 //   114
 ```
 
-### buf.write(string[, offset][, length][, encoding])
+### buf.write(string[, offset[, length]][, encoding])
 
 * `string` {String} Bytes to be written to buffer
 * `offset` {Number} Default: 0
