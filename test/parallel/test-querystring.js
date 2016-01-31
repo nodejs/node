@@ -248,3 +248,6 @@ qs.unescape = function(str) {
 };
 assert.deepEqual(qs.parse('foo=bor'), {f__: 'b_r'});
 qs.unescape = prevUnescape;
+
+// test separator and "equals" parsing order
+assert.deepEqual(qs.parse('foo&bar', '&', '&'), { foo: '', bar: '' });
