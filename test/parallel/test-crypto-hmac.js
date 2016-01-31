@@ -65,8 +65,8 @@ for (let i = 0, l = wikipedia.length; i < l; i++) {
     if (common.hasFipsCrypto && hash == 'md5')
       continue;
     const result = crypto.createHmac(hash, wikipedia[i]['key'])
-                     .update(wikipedia[i]['data'])
-                     .digest('hex');
+                         .update(wikipedia[i]['data'])
+                         .digest('hex');
     assert.equal(wikipedia[i]['hmac'][hash],
                  result,
                  'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' wikipedia');
