@@ -129,7 +129,10 @@ int app_RAND_load_file(const char *file, BIO *bio_e, int dont_warn)
      * -no_rand_screen option in s_client
      */
     if (dont_warn != 2) {
+      BIO_printf(bio_e, "Loading 'screen' into random state -");
+      BIO_flush(bio_e);
       RAND_screen();
+      BIO_printf(bio_e, " done\n");
     }
 #endif
 

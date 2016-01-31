@@ -1,4 +1,4 @@
-/* v3_pcia.c -*- mode:C; c-file-style: "eay" -*- */
+/* v3_pcia.c */
 /*
  * Contributed to the OpenSSL Project 2004 by Richard Levitte
  * (richard@levitte.org)

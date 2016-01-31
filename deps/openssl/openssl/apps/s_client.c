@@ -316,7 +316,7 @@ static void sc_usage(void)
                " -connect host:port - who to connect to (default is %s:%s)\n",
                SSL_HOST_NAME, PORT_STR);
     BIO_printf(bio_err,
-               " -verify_host host - check peer certificate matches \"host\"\n");
+               " -verify_hostname host - check peer certificate matches \"host\"\n");
     BIO_printf(bio_err,
                " -verify_email email - check peer certificate matches \"email\"\n");
     BIO_printf(bio_err,
