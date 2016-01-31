@@ -20,14 +20,14 @@ function haveLocale(loc) {
 }
 
 if (!haveIntl) {
-  var erMsg =
+  const erMsg =
       '"Intl" object is NOT present but v8_enable_i18n_support is ' +
       enablei18n;
   assert.equal(enablei18n, false, erMsg);
   console.log('1..0 # Skipped: Intl tests because Intl object not present.');
 
 } else {
-  var erMsg =
+  const erMsg =
     '"Intl" object is present but v8_enable_i18n_support is ' +
     enablei18n +
     '. Is this test out of date?';
