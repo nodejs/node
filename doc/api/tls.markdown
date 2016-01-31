@@ -295,13 +295,13 @@ SNI.
 
 Add secure context that will be used if client request's SNI hostname is
 matching passed `hostname` (wildcards can be used). `context` can contain
-`key`, `cert`, `ca` and/or any other properties from `tls.createSecureContext`
-`options` argument.
+`key`, `cert`, `ca` and/or any other properties from
+[`tls.createSecureContext()`][] `options` argument.
 
 ### server.address()
 
 Returns the bound address, the address family name and port of the
-server as reported by the operating system.  See [net.Server.address()][] for
+server as reported by the operating system.  See [`net.Server.address()`][] for
 more information.
 
 ### server.close([callback])
@@ -355,8 +355,9 @@ of written data and all required TLS negotiation.
 This instance implements a duplex [Stream][] interfaces.  It has all the
 common stream methods and events.
 
-Methods that return TLS connection meta data (e.g. [getPeerCertificate][] will
-only return data while the connection is open.
+Methods that return TLS connection meta data (e.g.
+[`tls.TLSSocket.getPeerCertificate()`][] will only return data while the
+connection is open.
 
 ### new tls.TLSSocket(socket[, options])
 
@@ -367,22 +368,22 @@ Construct a new TLSSocket object from existing TCP socket.
 `options` is an optional object that might contain following properties:
 
   - `secureContext`: An optional TLS context object from
-     `tls.createSecureContext( ... )`
+     [`tls.createSecureContext()`][]
 
   - `isServer`: If `true` - TLS socket will be instantiated in server-mode.
     Default: `false`
 
   - `server`: An optional [`net.Server`][] instance
 
-  - `requestCert`: Optional, see [tls.createSecurePair][]
+  - `requestCert`: Optional, see [`tls.createSecurePair()`][]
 
-  - `rejectUnauthorized`: Optional, see [tls.createSecurePair][]
+  - `rejectUnauthorized`: Optional, see [`tls.createSecurePair()`][]
 
-  - `NPNProtocols`: Optional, see [tls.createServer][]
+  - `NPNProtocols`: Optional, see [`tls.createServer()`][]
 
-  - `ALPNProtocols`: Optional, see [tls.createServer][]
+  - `ALPNProtocols`: Optional, see [`tls.createServer()`][]
 
-  - `SNICallback`: Optional, see [tls.createServer][]
+  - `SNICallback`: Optional, see [`tls.createServer()`][]
 
   - `session`: Optional, a `Buffer` instance, containing TLS session
 
@@ -502,7 +503,7 @@ be used to speed up handshake establishment when reconnecting to the server.
 ### tlsSocket.getTLSTicket()
 
 NOTE: Works only with client TLS sockets. Useful only for debugging, for
-session reuse provide `session` option to `tls.connect`.
+session reuse provide `session` option to [`tls.connect()`][].
 
 Return TLS session ticket or `undefined` if none was negotiated.
 
@@ -530,8 +531,8 @@ The numeric representation of the remote port. For example, `443`.
 ### tlsSocket.renegotiate(options, callback)
 
 Initiate TLS renegotiation process. The `options` may contain the following
-fields: `rejectUnauthorized`, `requestCert` (See [tls.createServer][]
-for details). `callback(err)` will be executed with `null` as `err`,
+fields: `rejectUnauthorized`, `requestCert` (See [`tls.createServer()`][] for
+details). `callback(err)` will be executed with `null` as `err`,
 once the renegotiation is successfully completed.
 
 NOTE: Can be used to request peer's certificate after the secure connection
@@ -587,7 +588,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
     CAs will be used, like VeriSign. These are used to authorize connections.
 
   - `ciphers`: A string describing the ciphers to use or exclude, separated by
-   `:`. Uses the same default cipher suite as `tls.createServer`.
+   `:`. Uses the same default cipher suite as [`tls.createServer()`][].
 
   - `rejectUnauthorized`: If `true`, the server certificate is verified against
     the list of supplied CAs. An `'error'` event is emitted if verification
@@ -813,7 +814,7 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
   - `ecdhCurve`: A string describing a named curve to use for ECDH key agreement
     or false to disable ECDH.
 
-    Defaults to `prime256v1` (NIST P-256). Use [crypto.getCurves()][] to obtain
+    Defaults to `prime256v1` (NIST P-256). Use [`crypto.getCurves()`][] to obtain
     a list of available curve names. On recent releases,
     `openssl ecparam -list_curves` will also display the name and description of
     each available elliptic curve.
@@ -955,13 +956,13 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Deprecation-of-TLS-Features-Algorithms-in-Chrome
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [BEAST attacks]: https://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
-[crypto.getCurves()]: crypto.html#crypto_crypto_getcurves
-[tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
-[tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
+[`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
+[`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
+[`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [`tls.TLSSocket()`]: #tls_class_tls_tlssocket
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
-[net.Server.address()]: net.html#net_server_address
+[`net.Server.address()`]: net.html#net_server_address
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
@@ -977,4 +978,6 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
-[getPeerCertificate]: #tls_tlssocket_getpeercertificate_detailed
+[`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
+[`tls.createSecureContext()`]: #tls_tls_createsecurecontext_details
+[`tls.connect()`]: #tls_tls_connect_options_callback
