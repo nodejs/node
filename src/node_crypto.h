@@ -248,6 +248,7 @@ class SSLWrap {
   static void RequestOCSP(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetEphemeralKeyInfo(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_set_max_send_fragment
   static void SetMaxSendFragment(
