@@ -43,7 +43,7 @@ function testBuf(encoding, buf) {
 
   // write the whole buffer at once.
   var res2 = '';
-  var s = new SD(encoding);
+  s = new SD(encoding);
   res2 += s.write(buf);
   res2 += s.end();
 
