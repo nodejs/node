@@ -38,7 +38,7 @@ var msgBuf = new Buffer(msg + '\n');
 
 cmd = `"${process.execPath}" -e "console.log(\'${msg}\');"`;
 
-var ret = execSync(cmd);
+ret = execSync(cmd);
 
 assert.strictEqual(ret.length, msgBuf.length);
 assert.deepEqual(ret, msgBuf, 'execSync result buffer should match');
