@@ -38,6 +38,10 @@ assert.throws(function() {
   Buffer(8).fill('a', 0, 9);
 });
 
+assert.throws(function() {
+  Buffer(8).fill('a', 10);
+});
+
 // Make sure this doesn't hang indefinitely.
 Buffer(8).fill('');
 
