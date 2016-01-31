@@ -115,7 +115,7 @@ console.log(buf2);
 Note that when creating a Buffer using the TypeArray's `.buffer`, it is not
 currently possible to use only a portion of the underlying `ArrayBuffer`. To
 create a Buffer that uses only a part of the `ArrayBuffer`, use the
-`buf.slice()` function after the Buffer is created:
+[`buf.slice()`][] function after the Buffer is created:
 
 ```js
 const arr = new Uint16Array(20);
@@ -140,8 +140,8 @@ for (var b of buf)
 //   3
 ```
 
-Additionally, the `buffer.values()`, `buffer.keys()`, and `buffer.entries()`
-methods can be used to create iterators.
+Additionally, the [`buf.values()`][], [`buf.keys()`][], and
+[`buf.entries()`][] methods can be used to create iterators.
 
 ## Class: Buffer
 
@@ -276,7 +276,7 @@ console.log(`${str}: ${str.length} characters, ` +
 * Return: {Number}
 
 Compares `buf1` to `buf2` typically for the purpose of sorting arrays of
-Buffers. This is equivalent is calling `buf1.compare(buf2)`.
+Buffers. This is equivalent is calling [`buf1.compare(buf2)`][].
 
 ```js
 const arr = [Buffer('1234'), Buffer('0123')];
@@ -499,7 +499,7 @@ Operates similar to [`Array#indexOf()`][] in that it returns either the
 starting index position of `value` in Buffer or `-1` if the Buffer does not
 contain `value`. The `value` can be a String, Buffer or Number. Strings are by
 default interpreted as UTF8. Buffers will use the entire Buffer (to compare a
-partial Buffer use [`Buffer#slice()`][]).  Numbers can range from 0 to 255.
+partial Buffer use [`buf.slice()`][]).  Numbers can range from 0 to 255.
 
 ```js
 const buf = new Buffer('this is a buffer');
@@ -532,9 +532,10 @@ utf16Buffer.indexOf('\u03a3', -4, 'ucs2');
 * `encoding` {String} Default: `'utf8'`
 * Return: {Boolean}
 
-Operates similar to [Array#includes()][]. The `value` can be a String, Buffer
+Operates similar to [`Array#includes()`][]. The `value` can be a String, Buffer
 or Number. Strings are interpreted as UTF8 unless overridden with the
-`encoding` argument. Buffers will use the entire Buffer (to compare a partial Buffer use `Buffer#slice()`). Numbers can range from 0 to 255.
+`encoding` argument. Buffers will use the entire Buffer (to compare a partial
+Buffer use [`buf.slice()`][]). Numbers can range from 0 to 255.
 
 The `byteOffset` indicates the index in `buf` where searching begins.
 
@@ -600,7 +601,7 @@ console.log(buf.length);
 While the `length` property is not immutable, changing the value of `length`
 can result in undefined and inconsistent behavior. Applications that wish to
 modify the length of a Buffer should therefore treat `length` as read-only and
-use [`buf.slice`][] to create a new Buffer.
+use [`buf.slice()`][] to create a new Buffer.
 
 ```js
 const buf = new Buffer(10);
@@ -943,7 +944,7 @@ buf.toString(undefined,0,5);
 
 * Return: {Object}
 
-Returns a JSON representation of the Buffer instance.  `JSON.stringify`
+Returns a JSON representation of the Buffer instance.  [`JSON.stringify()`][]
 implicitly calls this function when stringifying a Buffer instance.
 
 Example:
@@ -1352,11 +1353,15 @@ has observed undue memory retention in their applications.
 
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
 [`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
-[Array#includes()]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
+[`Array#includes()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [`buf.fill(0)`]: #buffer_buf_fill_value_offset_end
-[`buf.slice`]: #buffer_buf_slice_start_end
+[`buf.slice()`]: #buffer_buf_slice_start_end
 [`buf1.compare(buf2)`]: #buffer_buf_compare_otherbuffer
 [`Buffer#slice()`]: #buffer_buf_slice_start_end
 [`RangeError`]: errors.html#errors_class_rangeerror
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
 [`util.inspect()`]: util.html#util_util_inspect_object_options
+[`buf.values()`]: #buffer_buf_values
+[`buf.keys()`]: #buffer_buf_keys
+[`buf.entries()`]: #buffer_buf_entries
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
