@@ -18,7 +18,7 @@ function stat_resource(resource) {
 }
 
 function check_mtime(resource, mtime) {
-  var mtime = fs._toUnixTimestamp(mtime);
+  mtime = fs._toUnixTimestamp(mtime);
   var stats = stat_resource(resource);
   var real_mtime = fs._toUnixTimestamp(stats.mtime);
   // check up to single-second precision

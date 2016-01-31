@@ -71,7 +71,6 @@ fs.writeFile(filename3, n, { mode: m }, function(e) {
 
 // test that writeFile accepts file descriptors
 var filename4 = join(common.tmpDir, 'test4.txt');
-var buf = new Buffer(s, 'utf8');
 
 fs.open(filename4, 'w+', function(e, fd) {
   if (e) throw e;
