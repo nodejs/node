@@ -4,7 +4,6 @@ require('../common');
 var assert = require('assert');
 
 var EventEmitter = require('events').EventEmitter;
-var assert = require('assert');
 
 var e = new EventEmitter();
 var fl;  // foo listeners
