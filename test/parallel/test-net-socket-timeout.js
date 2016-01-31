@@ -10,19 +10,19 @@ var nonNumericDelays = ['100', true, false, undefined, null, '', {}, noop, []];
 var badRangeDelays = [-0.001, -1, -Infinity, Infinity, NaN];
 var validDelays = [0, 0.001, 1, 1e6];
 
-for (var i = 0; i < nonNumericDelays.length; i++) {
+for (let i = 0; i < nonNumericDelays.length; i++) {
   assert.throws(function() {
     s.setTimeout(nonNumericDelays[i], noop);
   }, TypeError);
 }
 
-for (var i = 0; i < badRangeDelays.length; i++) {
+for (let i = 0; i < badRangeDelays.length; i++) {
   assert.throws(function() {
     s.setTimeout(badRangeDelays[i], noop);
   }, RangeError);
 }
 
-for (var i = 0; i < validDelays.length; i++) {
+for (let i = 0; i < validDelays.length; i++) {
   assert.doesNotThrow(function() {
     s.setTimeout(validDelays[i], noop);
   });
