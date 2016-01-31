@@ -14,7 +14,7 @@ system.
 ## os.arch()
 
 Returns the operating system CPU architecture. Possible values are `'x64'`,
-`'arm'` and `'ia32'`. Returns the value of `process.arch`.
+`'arm'` and `'ia32'`. Returns the value of [`process.arch`][].
 
 ## os.cpus()
 
@@ -155,7 +155,7 @@ interfaces that have been assigned an address.
 
 Returns the operating system platform. Possible values are `'darwin'`,
 `'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of
-`process.platform`.
+[`process.platform`][].
 
 ## os.release()
 
@@ -177,3 +177,6 @@ on OS X and `'Windows_NT'` on Windows.
 ## os.uptime()
 
 Returns the system uptime in seconds.
+
+[`process.arch`]: process.html#process_process_arch
+[`process.platform`]: process.html#process_process_platform
