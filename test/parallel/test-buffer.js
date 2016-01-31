@@ -40,7 +40,7 @@ assert.throws(function() {
 
 assert.throws(function() {
   Buffer(8).fill('a', 10);
-});
+}, RangeError);
 
 // Make sure this doesn't hang indefinitely.
 Buffer(8).fill('');

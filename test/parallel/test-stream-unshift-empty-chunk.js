@@ -28,8 +28,11 @@ r.on('readable', function() {
     // stream, like a parser might do.  We just fill it with
     // 'y' so that it's easy to see which bits were touched,
     // and which were not.
-    var putBack = new Buffer(readAll ? 0 : 5);
-    putBack.fill('y');
+    const putBack = new Buffer(readAll ? 0 : 5);
+    if (!readAll) {
+      putBack.fill('y');
+    }
+
     readAll = !readAll;
     r.unshift(putBack);
   }
