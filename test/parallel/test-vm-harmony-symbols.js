@@ -10,7 +10,7 @@ assert(typeof sandbox.Symbol === 'function');
 assert(sandbox.Symbol !== Symbol);
 
 // Unless we copy the Symbol constructor explicitly, of course.
-var sandbox = { Symbol: Symbol };
+sandbox = { Symbol: Symbol };
 vm.runInNewContext('this.Symbol = Symbol', sandbox);
 assert(typeof sandbox.Symbol === 'function');
 assert(sandbox.Symbol === Symbol);
