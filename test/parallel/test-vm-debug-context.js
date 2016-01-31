@@ -87,7 +87,7 @@ proc.once('exit', common.mustCall(function(exitCode, signalCode) {
   assert.equal(signalCode, null);
 }));
 
-var proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
+proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
 proc.stdout.on('data', common.fail);
 proc.stderr.on('data', common.fail);
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
