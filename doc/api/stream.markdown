@@ -1695,7 +1695,7 @@ horribly wrong.
 [`_write()`]: #stream_writable_write_chunk_encoding_callback_1
 [`_write(chunk, encoding, callback)`]: #stream_writable_write_chunk_encoding_callback_1
 [`end()`]: #stream_writable_end_chunk_encoding_callback
-[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`pause()`]: #stream_readable_pause
 [`pipe()`]: #stream_readable_pipe_destination_options
 [`process.stderr`]: process.html#process_process_stderr
@@ -1726,12 +1726,12 @@ horribly wrong.
 [fs read streams]: fs.html#fs_class_fs_readstream
 [fs write streams]: fs.html#fs_class_fs_writestream
 [http requests, on the client]: http.html#http_class_http_clientrequest
-[http requests, on the server]: http.html#http_http_incomingmessage
-[http responses, on the client]: http.html#http_http_incomingmessage
+[http requests, on the server]: http.html#http_class_http_incomingmessage
+[http responses, on the client]: http.html#http_class_http_incomingmessage
 [http responses, on the server]: http.html#http_class_http_serverresponse
 [Object mode]: #stream_object_mode
 [Readable]: #stream_class_stream_readable
-[request to an HTTP server]: http.html#http_http_incomingmessage
+[request to an HTTP server]: http.html#http_class_http_incomingmessage
 [SimpleProtocol v2]: #stream_example_simpleprotocol_parser_v2
 [tcp sockets]: net.html#net_class_net_socket
 [Transform]: #stream_class_stream_transform
