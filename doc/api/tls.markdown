@@ -435,14 +435,15 @@ Static boolean value, always `true`. May be used to distinguish TLS sockets
 from regular ones.
 
 ### tlsSocket.getCipher()
-Returns an object representing the cipher name and the SSL/TLS
-protocol version of the current connection.
+
+Returns an object representing the cipher name and the SSL/TLS protocol version
+that first defined the cipher.
 
 Example:
 { name: 'AES256-SHA', version: 'TLSv1/SSLv3' }
 
 See SSL_CIPHER_get_name() and SSL_CIPHER_get_version() in
-https://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_CIPHERS for more
+https://www.openssl.org/docs/manmaster/ssl/SSL_CIPHER_get_name.html for more
 information.
 
 ### tlsSocket.getEphemeralKeyInfo()
