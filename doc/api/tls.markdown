@@ -231,9 +231,9 @@ Typical flow:
 5. Client validates the response and either destroys socket or performs a
    handshake.
 
-NOTE: `issuer` could be null, if the certificate is self-signed or if the issuer
-is not in the root certificates list. (You could provide an issuer via `ca`
-option.)
+NOTE: `issuer` could be `null`, if the certificate is self-signed or if the
+issuer is not in the root certificates list. (An issuer may be provided via the
+`ca` option)
 
 NOTE: adding this event listener will have an effect only on connections
 established after addition of event listener.
@@ -451,7 +451,7 @@ information.
 Returns an object representing a type, name and size of parameter of
 an ephemeral key exchange in [Perfect forward Secrecy][] on a client
 connection. It returns an empty object when the key exchange is not
-ephemeral. As it is only supported on a client socket, it returns null
+ephemeral. As it is only supported on a client socket, it returns `null`
 if this is called on a server socket. The supported types are 'DH' and
 'ECDH'. The `name` property is only available in 'ECDH'.
 
