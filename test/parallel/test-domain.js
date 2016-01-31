@@ -175,7 +175,7 @@ function fn2(data) {
   assert.equal(data, 'data', 'should not be null err argument');
 }
 
-var bound = d.intercept(fn2);
+bound = d.intercept(fn2);
 bound(null, 'data');
 
 // intercepted should never pass first argument to callback
