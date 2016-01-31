@@ -45,23 +45,25 @@ assert.equal(util.inspect(Object.create({},
 // the following ways this hash is displayed.
 // See http://codereview.chromium.org/9124004/
 
-var out = util.inspect(Object.create({},
-    {visible: {value: 1, enumerable: true}, hidden: {value: 2}}), true);
-if (out !== '{ [hidden]: 2, visible: 1 }' &&
-    out !== '{ visible: 1, [hidden]: 2 }') {
-  assert.ok(false);
+{
+  const out = util.inspect(Object.create({},
+      {visible: {value: 1, enumerable: true}, hidden: {value: 2}}), true);
+  if (out !== '{ [hidden]: 2, visible: 1 }' &&
+      out !== '{ visible: 1, [hidden]: 2 }') {
+    assert.ok(false);
+  }
 }
-
 
 // Objects without prototype
-var out = util.inspect(Object.create(null,
-    { name: {value: 'Tim', enumerable: true},
-      hidden: {value: 'secret'}}), true);
-if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
-    out !== "{ name: 'Tim', [hidden]: 'secret' }") {
-  assert(false);
+{
+  const out = util.inspect(Object.create(null,
+      { name: {value: 'Tim', enumerable: true},
+        hidden: {value: 'secret'}}), true);
+  if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
+      out !== "{ name: 'Tim', [hidden]: 'secret' }") {
+    assert(false);
+  }
 }
-
 
 assert.equal(
   util.inspect(Object.create(null,
@@ -129,17 +131,19 @@ assert.equal(util.inspect(a, true), '[ \'foo\', , \'baz\', [length]: 3 ]');
 assert.equal(util.inspect(new Array(5)), '[ , , , ,  ]');
 
 // test for Array constructor in different context
-const Debug = require('vm').runInDebugContext('Debug');
-var map = new Map();
-map.set(1, 2);
-var mirror = Debug.MakeMirror(map.entries(), true);
-var vals = mirror.preview();
-var valsOutput = [];
-for (const o of vals) {
-  valsOutput.push(o);
-}
+{
+  const Debug = require('vm').runInDebugContext('Debug');
+  const map = new Map();
+  map.set(1, 2);
+  const mirror = Debug.MakeMirror(map.entries(), true);
+  const vals = mirror.preview();
+  const valsOutput = [];
+  for (const o of vals) {
+    valsOutput.push(o);
+  }
 
-assert.strictEqual(util.inspect(valsOutput), '[ [ 1, 2 ] ]');
+  assert.strictEqual(util.inspect(valsOutput), '[ [ 1, 2 ] ]');
+}
 
 // test for other constructors in different context
 var obj = require('vm').runInNewContext('(function(){return {}})()', {});
@@ -212,8 +216,10 @@ assert.doesNotThrow(function() {
 });
 
 // GH-2225
-var x = { inspect: util.inspect };
-assert.ok(util.inspect(x).indexOf('inspect') != -1);
+{
+  const x = { inspect: util.inspect };
+  assert.ok(util.inspect(x).indexOf('inspect') != -1);
+}
 
 // util.inspect should not display the escaped value of a key.
 var w = {
@@ -261,39 +267,41 @@ assert.doesNotThrow(function() {
 });
 
 // new API, accepts an "options" object
-var subject = { foo: 'bar', hello: 31, a: { b: { c: { d: 0 } } } };
-Object.defineProperty(subject, 'hidden', { enumerable: false, value: null });
+{
+  let subject = { foo: 'bar', hello: 31, a: { b: { c: { d: 0 } } } };
+  Object.defineProperty(subject, 'hidden', { enumerable: false, value: null });
 
-assert(util.inspect(subject, { showHidden: false }).indexOf('hidden') === -1);
-assert(util.inspect(subject, { showHidden: true }).indexOf('hidden') !== -1);
-assert(util.inspect(subject, { colors: false }).indexOf('\u001b[32m') === -1);
-assert(util.inspect(subject, { colors: true }).indexOf('\u001b[32m') !== -1);
-assert(util.inspect(subject, { depth: 2 }).indexOf('c: [Object]') !== -1);
-assert(util.inspect(subject, { depth: 0 }).indexOf('a: [Object]') !== -1);
-assert(util.inspect(subject, { depth: null }).indexOf('{ d: 0 }') !== -1);
+  assert(util.inspect(subject, { showHidden: false }).indexOf('hidden') === -1);
+  assert(util.inspect(subject, { showHidden: true }).indexOf('hidden') !== -1);
+  assert(util.inspect(subject, { colors: false }).indexOf('\u001b[32m') === -1);
+  assert(util.inspect(subject, { colors: true }).indexOf('\u001b[32m') !== -1);
+  assert(util.inspect(subject, { depth: 2 }).indexOf('c: [Object]') !== -1);
+  assert(util.inspect(subject, { depth: 0 }).indexOf('a: [Object]') !== -1);
+  assert(util.inspect(subject, { depth: null }).indexOf('{ d: 0 }') !== -1);
 
-// "customInspect" option can enable/disable calling inspect() on objects
-subject = { inspect: function() { return 123; } };
+  // "customInspect" option can enable/disable calling inspect() on objects
+  subject = { inspect: function() { return 123; } };
 
-assert(util.inspect(subject,
-                    { customInspect: true }).indexOf('123') !== -1);
-assert(util.inspect(subject,
-                    { customInspect: true }).indexOf('inspect') === -1);
-assert(util.inspect(subject,
-                    { customInspect: false }).indexOf('123') === -1);
-assert(util.inspect(subject,
-                    { customInspect: false }).indexOf('inspect') !== -1);
+  assert(util.inspect(subject,
+                      { customInspect: true }).indexOf('123') !== -1);
+  assert(util.inspect(subject,
+                      { customInspect: true }).indexOf('inspect') === -1);
+  assert(util.inspect(subject,
+                      { customInspect: false }).indexOf('123') === -1);
+  assert(util.inspect(subject,
+                      { customInspect: false }).indexOf('inspect') !== -1);
 
-// custom inspect() functions should be able to return other Objects
-subject.inspect = function() { return { foo: 'bar' }; };
+  // custom inspect() functions should be able to return other Objects
+  subject.inspect = function() { return { foo: 'bar' }; };
 
-assert.equal(util.inspect(subject), '{ foo: \'bar\' }');
+  assert.equal(util.inspect(subject), '{ foo: \'bar\' }');
 
-subject.inspect = function(depth, opts) {
-  assert.strictEqual(opts.customInspectOptions, true);
-};
+  subject.inspect = function(depth, opts) {
+    assert.strictEqual(opts.customInspectOptions, true);
+  };
 
-util.inspect(subject, { customInspectOptions: true });
+  util.inspect(subject, { customInspectOptions: true });
+}
 
 // util.inspect with "colors" option should produce as many lines as without it
 function test_lines(input) {
@@ -353,8 +361,8 @@ if (typeof Symbol !== 'undefined') {
   assert.equal(util.inspect([Symbol()]), '[ Symbol() ]');
   assert.equal(util.inspect({ foo: Symbol() }), '{ foo: Symbol() }');
 
-  var options = { showHidden: true };
-  var subject = {};
+  const options = { showHidden: true };
+  let subject = {};
 
   subject[Symbol('symbol')] = 42;
 
@@ -367,7 +375,6 @@ if (typeof Symbol !== 'undefined') {
   assert.equal(util.inspect(subject), '[ 1, 2, 3 ]');
   assert.equal(util.inspect(subject, options),
       '[ 1, 2, 3, [length]: 3, [Symbol(symbol)]: 42 ]');
-
 }
 
 // test Set
@@ -378,13 +385,15 @@ set.bar = 42;
 assert.equal(util.inspect(set, true), 'Set { \'foo\', [size]: 1, bar: 42 }');
 
 // test Map
-assert.equal(util.inspect(new Map()), 'Map {}');
-assert.equal(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])),
-             'Map { 1 => \'a\', 2 => \'b\', 3 => \'c\' }');
-var map = new Map([['foo', null]]);
-map.bar = 42;
-assert.equal(util.inspect(map, true),
-             'Map { \'foo\' => null, [size]: 1, bar: 42 }');
+{
+  assert.equal(util.inspect(new Map()), 'Map {}');
+  assert.equal(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])),
+               'Map { 1 => \'a\', 2 => \'b\', 3 => \'c\' }');
+  const map = new Map([['foo', null]]);
+  map.bar = 42;
+  assert.equal(util.inspect(map, true),
+               'Map { \'foo\' => null, [size]: 1, bar: 42 }');
+}
 
 // test Promise
 assert.equal(util.inspect(Promise.resolve(3)), 'Promise { 3 }');
@@ -457,41 +466,50 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 
 
 // Test display of constructors
+{
+  class ObjectSubclass {}
+  class ArraySubclass extends Array {}
+  class SetSubclass extends Set {}
+  class MapSubclass extends Map {}
+  class PromiseSubclass extends Promise {}
 
-class ObjectSubclass {}
-class ArraySubclass extends Array {}
-class SetSubclass extends Set {}
-class MapSubclass extends Map {}
-class PromiseSubclass extends Promise {}
-
-var x = new ObjectSubclass();
-x.foo = 42;
-assert.equal(util.inspect(x),
-             'ObjectSubclass { foo: 42 }');
-assert.equal(util.inspect(new ArraySubclass(1, 2, 3)),
-             'ArraySubclass [ 1, 2, 3 ]');
-assert.equal(util.inspect(new SetSubclass([1, 2, 3])),
-             'SetSubclass { 1, 2, 3 }');
-assert.equal(util.inspect(new MapSubclass([['foo', 42]])),
-            'MapSubclass { \'foo\' => 42 }');
-assert.equal(util.inspect(new PromiseSubclass(function() {})),
-             'PromiseSubclass { <pending> }');
+  const x = new ObjectSubclass();
+  x.foo = 42;
+  assert.equal(util.inspect(x),
+               'ObjectSubclass { foo: 42 }');
+  assert.equal(util.inspect(new ArraySubclass(1, 2, 3)),
+               'ArraySubclass [ 1, 2, 3 ]');
+  assert.equal(util.inspect(new SetSubclass([1, 2, 3])),
+               'SetSubclass { 1, 2, 3 }');
+  assert.equal(util.inspect(new MapSubclass([['foo', 42]])),
+              'MapSubclass { \'foo\' => 42 }');
+  assert.equal(util.inspect(new PromiseSubclass(function() {})),
+               'PromiseSubclass { <pending> }');
+}
 
 // Corner cases.
-var x = { constructor: 42 };
-assert.equal(util.inspect(x), '{ constructor: 42 }');
+{
+  const x = { constructor: 42 };
+  assert.equal(util.inspect(x), '{ constructor: 42 }');
+}
 
-var x = {};
-Object.defineProperty(x, 'constructor', {
-  get: function() {
-    throw new Error('should not access constructor');
-  },
-  enumerable: true
-});
-assert.equal(util.inspect(x), '{ constructor: [Getter] }');
+{
+  const x = {};
+  Object.defineProperty(x, 'constructor', {
+    get: function() {
+      throw new Error('should not access constructor');
+    },
+    enumerable: true
+  });
+  assert.equal(util.inspect(x), '{ constructor: [Getter] }');
+}
 
-var x = new (function() {});
-assert.equal(util.inspect(x), '{}');
+{
+  const x = new (function() {});
+  assert.equal(util.inspect(x), '{}');
+}
 
-var x = Object.create(null);
-assert.equal(util.inspect(x), '{}');
+{
+  const x = Object.create(null);
+  assert.equal(util.inspect(x), '{}');
+}
