@@ -304,9 +304,10 @@ assert.equal(path.posix.normalize('a//b//./c'), 'a/b/c');
 assert.equal(path.posix.normalize('a//b//.'), 'a/b');
 
 // path.resolve tests
+var resolveTests;
 if (common.isWindows) {
   // windows
-  var resolveTests =
+  resolveTests =
       // arguments                                    result
       [[['c:/blah\\blah', 'd:/games', 'c:../a'], 'c:\\blah\\a'],
        [['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'], 'd:\\e.exe'],
@@ -322,7 +323,7 @@ if (common.isWindows) {
       ];
 } else {
   // Posix
-  var resolveTests =
+  resolveTests =
       // arguments                                    result
       [[['/var/lib', '../', 'file/'], '/var/file'],
        [['/var/lib', '/../', 'file/'], '/file'],
@@ -330,7 +331,7 @@ if (common.isWindows) {
        [['.'], process.cwd()],
        [['/some/dir', '.', '/absolute/'], '/absolute']];
 }
-var failures = [];
+failures = [];
 resolveTests.forEach(function(test) {
   var actual = path.resolve.apply(path, test[0]);
   var expected = test[1];
@@ -358,9 +359,10 @@ assert.equal(path.posix.isAbsolute('bar/'), false);
 assert.equal(path.posix.isAbsolute('./baz'), false);
 
 // path.relative tests
+var relativeTests;
 if (common.isWindows) {
   // windows
-  var relativeTests =
+  relativeTests =
       // arguments                     result
       [['c:/blah\\blah', 'd:/games', 'd:\\games'],
        ['c:/aaaa/bbbb', 'c:/aaaa', '..'],
@@ -372,7 +374,7 @@ if (common.isWindows) {
        ['c:/aaaa/bbbb', 'd:\\', 'd:\\']];
 } else {
   // posix
-  var relativeTests =
+  relativeTests =
       // arguments                    result
       [['/var/lib', '/var', '..'],
        ['/var/lib', '/bin', '../../bin'],
@@ -381,7 +383,7 @@ if (common.isWindows) {
        ['/var/', '/var/lib', 'lib'],
        ['/', '/var/lib', 'var/lib']];
 }
-var failures = [];
+failures = [];
 relativeTests.forEach(function(test) {
   var actual = path.relative(test[0], test[1]);
   var expected = test[2];
