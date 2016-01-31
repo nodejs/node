@@ -296,7 +296,7 @@ function isWarned(emitter) {
     rli.question(expectedLines.join('\n'), function() {
       rli.close();
     });
-    var cursorPos = rli._getCursorPos();
+    cursorPos = rli._getCursorPos();
     assert.equal(cursorPos.rows, expectedLines.length - 1);
     assert.equal(cursorPos.cols, expectedLines.slice(-1)[0].length);
     rli.close();

@@ -42,7 +42,7 @@ var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
   zlibPairs = [[zlib.Gzip, zlib.Unzip]];
-  var testFiles = ['person.jpg'];
+  testFiles = ['person.jpg'];
 }
 
 var tests = {};

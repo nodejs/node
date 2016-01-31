@@ -12,7 +12,7 @@ const defaultCoreList = require('constants').defaultCoreCipherList;
 
 function doCheck(arg, check) {
   var out = '';
-  var arg = arg.concat([
+  arg = arg.concat([
     '-pe',
     'require("constants").defaultCipherList'
   ]);

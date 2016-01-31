@@ -272,11 +272,7 @@ function runTest(assertCleaned) {
     });
 
     function onClose() {
-      if (after) {
-        var cleaned = after();
-      } else {
-        var cleaned = cleanupTmpFile();
-      }
+      const cleaned = after ? after() : cleanupTmpFile();
 
       try {
         // Ensure everything that we expected was output
