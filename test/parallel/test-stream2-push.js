@@ -10,7 +10,7 @@ var EE = require('events').EventEmitter;
 
 // a mock thing a bit like the net.Socket/tcp_wrap.handle interaction
 
-var stream = new Readable({
+stream = new Readable({
   highWaterMark: 16,
   encoding: 'utf8'
 });

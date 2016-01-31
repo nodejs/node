@@ -22,9 +22,9 @@ write_str = Array(size).join(write_str);
 ucs2_control = Array(size).join(ucs2_control);
 
 // check resultant buffer and output string
-var b = new Buffer(write_str, 'ucs2');
+b = new Buffer(write_str, 'ucs2');
 // check fist Buffer created from write string
-for (var i = 0; i < b.length; i += 2) {
+for (let i = 0; i < b.length; i += 2) {
   assert.equal(b[i], 0x61);
   assert.equal(b[i + 1], 0);
 }
@@ -39,7 +39,7 @@ var c_ucs = new Buffer(b_ucs, 'ucs2');
 // make sure they're the same length
 assert.equal(c_bin.length, c_ucs.length);
 // make sure Buffers from externals are the same
-for (var i = 0; i < c_bin.length; i++) {
+for (let i = 0; i < c_bin.length; i++) {
   assert.equal(c_bin[i], c_ucs[i]);
 }
 // check resultant strings
