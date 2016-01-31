@@ -10,9 +10,6 @@ if (common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
 }
 
-var expected_bad_requests = 0;
-var actual_bad_requests = 0;
-
 var host = '********';
 host += host;
 host += host;
@@ -25,23 +22,20 @@ function do_not_call() {
 }
 
 function test(mod) {
-  expected_bad_requests += 2;
 
   // Bad host name should not throw an uncatchable exception.
   // Ensure that there is time to attach an error listener.
-  var req = mod.get({host: host, port: 42}, do_not_call);
-  req.on('error', function(err) {
+  var req1 = mod.get({host: host, port: 42}, do_not_call);
+  req1.on('error', common.mustCall(function(err) {
     assert.equal(err.code, 'ENOTFOUND');
-    actual_bad_requests++;
-  });
-  // http.get() called req.end() for us
+  }));
+  // http.get() called req1.end() for us
 
-  var req = mod.request({method: 'GET', host: host, port: 42}, do_not_call);
-  req.on('error', function(err) {
+  var req2 = mod.request({method: 'GET', host: host, port: 42}, do_not_call);
+  req2.on('error', common.mustCall(function(err) {
     assert.equal(err.code, 'ENOTFOUND');
-    actual_bad_requests++;
-  });
-  req.end();
+  }));
+  req2.end();
 }
 
 if (common.hasCrypto) {
@@ -51,7 +45,3 @@ if (common.hasCrypto) {
 }
 
 test(http);
-
-process.on('exit', function() {
-  assert.equal(actual_bad_requests, expected_bad_requests);
-});
