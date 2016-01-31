@@ -164,7 +164,7 @@ The following options from [`tls.connect()`][] can also be specified. However, a
 - `key`: Private key to use for SSL. Default `null`.
 - `passphrase`: A string of passphrase for the private key or pfx. Default `null`.
 - `cert`: Public x509 certificate to use. Default `null`.
-- `ca`: A string, `Buffer` or array of strings or `Buffer`s of trusted
+- `ca`: A string, [`Buffer`][] or array of strings or [`Buffer`][]s of trusted
   certificates in PEM format. If this is omitted several well known "root"
   CAs will be used, like VeriSign. These are used to authorize connections.
 - `ciphers`: A string describing the ciphers to use or exclude. Consult
@@ -216,6 +216,7 @@ Example:
     }
 
 [`Agent`]: #https_class_https_agent
+[`Buffer`]: buffer.html#buffer_buffer
 [`globalAgent`]: #https_https_globalagent
 [`http.Agent`]: http.html#http_class_http_agent
 [`http.close()`]: http.html#http_server_close_callback
