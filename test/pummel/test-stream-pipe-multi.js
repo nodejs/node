@@ -49,7 +49,11 @@ process.on('exit', function() {
   assert.equal(cnt, rclosed, 'readable streams closed');
 });
 
-for (var i = 0; i < cnt; i++) {
+for (let i = 0; i < chunkSize; i++) {
+  data[i] = i;
+}
+
+for (let i = 0; i < cnt; i++) {
   var r = new FakeStream();
   r.on('close', function() {
     console.error(this.ID, 'read close');
