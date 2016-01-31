@@ -1192,6 +1192,7 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
   env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
   env->SetProtoMethod(t, "getEphemeralKeyInfo", GetEphemeralKeyInfo);
+  env->SetProtoMethod(t, "getProtocol", GetProtocol);
 
 #ifdef SSL_set_max_send_fragment
   env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
@@ -1951,6 +1952,15 @@ void SSLWrap<Base>::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   info->Set(env->version_string(),
             OneByteString(args.GetIsolate(), cipher_version));
   args.GetReturnValue().Set(info);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::GetProtocol(const FunctionCallbackInfo<Value>& args) {
+  Base* w = Unwrap<Base>(args.Holder());
+
+  const char* tls_version = SSL_get_version(w->ssl_);
+  args.GetReturnValue().Set(OneByteString(args.GetIsolate(), tls_version));
 }
 
 
