@@ -494,6 +494,24 @@ Example:
 If the peer does not provide a certificate, it returns `null` or an empty
 object.
 
+### tlsSocket.getProtocol()
+
+Returns a string containing the negotiated SSL/TLS protocol version of the
+current connection. `'unknown'` will be returned for connected sockets that have
+not completed the handshaking process. `null` will be returned for server
+sockets or disconnected client sockets.
+
+Examples:
+```
+'SSLv3'
+'TLSv1'
+'TLSv1.1'
+'TLSv1.2'
+'unknown'
+```
+
+See https://www.openssl.org/docs/manmaster/ssl/SSL_get_version.html for more
+information.
 
 ### tlsSocket.getSession()
 
