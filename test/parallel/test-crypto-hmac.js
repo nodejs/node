@@ -227,8 +227,8 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
     str.end(rfc4231[i].data);
     let strRes = str.read().toString('hex');
     let result = crypto.createHmac(hash, rfc4231[i]['key'])
-                     .update(rfc4231[i]['data'])
-                     .digest('hex');
+                       .update(rfc4231[i]['data'])
+                       .digest('hex');
     if (rfc4231[i]['truncate']) {
       result = result.substr(0, 32); // first 128 bits == 32 hex chars
       strRes = strRes.substr(0, 32);

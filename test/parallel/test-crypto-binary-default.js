@@ -47,9 +47,9 @@ assert.throws(function() {
 
 // Test HMAC
 const hmacHash = crypto.createHmac('sha1', 'Node')
-               .update('some data')
-               .update('to hmac')
-               .digest('hex');
+                       .update('some data')
+                       .update('to hmac')
+                       .digest('hex');
 assert.equal(hmacHash, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 
 // Test HMAC-SHA-* (rfc 4231 Test Cases)
@@ -395,27 +395,27 @@ var s1 = crypto.createSign('RSA-SHA1')
                .update('Test123')
                .sign(keyPem, 'base64');
 var s1Verified = crypto.createVerify('RSA-SHA1')
-                     .update('Test')
-                     .update('123')
-                     .verify(certPem, s1, 'base64');
+                       .update('Test')
+                       .update('123')
+                       .verify(certPem, s1, 'base64');
 assert.strictEqual(s1Verified, true, 'sign and verify (base 64)');
 
 var s2 = crypto.createSign('RSA-SHA256')
                .update('Test123')
                .sign(keyPem); // binary
 var s2Verified = crypto.createVerify('RSA-SHA256')
-                     .update('Test')
-                     .update('123')
-                     .verify(certPem, s2); // binary
+                       .update('Test')
+                       .update('123')
+                       .verify(certPem, s2); // binary
 assert.strictEqual(s2Verified, true, 'sign and verify (binary)');
 
 var s3 = crypto.createSign('RSA-SHA1')
                .update('Test123')
                .sign(keyPem, 'buffer');
 var s3Verified = crypto.createVerify('RSA-SHA1')
-                     .update('Test')
-                     .update('123')
-                     .verify(certPem, s3);
+                       .update('Test')
+                       .update('123')
+                       .verify(certPem, s3);
 assert.strictEqual(s3Verified, true, 'sign and verify (buffer)');
 
 
