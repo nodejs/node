@@ -39,11 +39,13 @@ The options when creating a script are:
 
 ### script.runInContext(contextifiedSandbox[, options])
 
-Similar to `vm.runInContext` but a method of a precompiled `Script` object.
-`script.runInContext` runs `script`'s compiled code in `contextifiedSandbox`
-and returns the result. Running code does not have access to local scope.
+Similar to [`vm.runInContext()`][] but a method of a precompiled `Script`
+object. `script.runInContext()` runs `script`'s compiled code in
+`contextifiedSandbox` and returns the result. Running code does not have access
+to local scope.
 
-`script.runInContext` takes the same options as `script.runInThisContext`.
+`script.runInContext()` takes the same options as
+[`script.runInThisContext()`][].
 
 Example: compile code that increments a global variable and sets one, then
 execute the code multiple times. These globals are contained in the sandbox.
@@ -68,18 +70,19 @@ execute the code multiple times. These globals are contained in the sandbox.
     // { animal: 'cat', count: 12, name: 'kitty' }
 
 Note that running untrusted code is a tricky business requiring great care.
-`script.runInContext` is quite useful, but safely running untrusted code
+`script.runInContext()` is quite useful, but safely running untrusted code
 requires a separate process.
 
 ### script.runInNewContext([sandbox][, options])
 
-Similar to `vm.runInNewContext` but a method of a precompiled `Script` object.
-`script.runInNewContext` contextifies `sandbox` if passed or creates a new
-contextified sandbox if it's omitted, and then runs `script`'s compiled code
+Similar to [`vm.runInNewContext()`][] but a method of a precompiled `Script`
+object. `script.runInNewContext()` contextifies `sandbox` if passed or creates a
+new contextified sandbox if it's omitted, and then runs `script`'s compiled code
 with the sandbox as the global object and returns the result. Running code does
 not have access to local scope.
 
-`script.runInNewContext` takes the same options as `script.runInThisContext`.
+`script.runInNewContext()` takes the same options as
+[`script.runInThisContext()`][].
 
 Example: compile code that sets a global variable, then execute the code
 multiple times in different contexts. These globals are set on and contained in
@@ -101,17 +104,17 @@ the sandboxes.
     // [{ globalVar: 'set' }, { globalVar: 'set' }, { globalVar: 'set' }]
 
 Note that running untrusted code is a tricky business requiring great care.
-`script.runInNewContext` is quite useful, but safely running untrusted code
+`script.runInNewContext()` is quite useful, but safely running untrusted code
 requires a separate process.
 
 ### script.runInThisContext([options])
 
-Similar to `vm.runInThisContext` but a method of a precompiled `Script` object.
-`script.runInThisContext` runs `script`'s compiled code and returns the result.
-Running code does not have access to local scope, but does have access to the
-current `global` object.
+Similar to [`vm.runInThisContext()`]() but a method of a precompiled `Script`
+object. `script.runInThisContext()` runs `script`'s compiled code and returns
+the result. Running code does not have access to local scope, but does have
+access to the current `global` object.
 
-Example of using `script.runInThisContext` to compile code once and run it
+Example of using `script.runInThisContext()` to compile code once and run it
 multiple times:
 
     const vm = require('vm');
@@ -146,11 +149,11 @@ The options for running a script are:
 ## vm.createContext([sandbox])
 
 If given a `sandbox` object, will "contextify" that sandbox so that it can be
-used in calls to `vm.runInContext` or `script.runInContext`. Inside scripts run
-as such, `sandbox` will be the global object, retaining all its existing
-properties but also having the built-in objects and functions any standard
-[global object][] has. Outside of scripts run by the vm module, `sandbox` will
-be unchanged.
+used in calls to [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside
+scripts run as such, `sandbox` will be the global object, retaining all its
+existing properties but also having the built-in objects and functions any
+standard [global object][] has. Outside of scripts run by the vm module,
+`sandbox` will be unchanged.
 
 If not given a sandbox object, returns a new, empty contextified sandbox object
 you can use.
@@ -163,16 +166,16 @@ tags together inside that sandbox.
 ## vm.isContext(sandbox)
 
 Returns whether or not a sandbox object has been contextified by calling
-`vm.createContext` on it.
+[`vm.createContext()`][] on it.
 
 ## vm.runInContext(code, contextifiedSandbox[, options])
 
-`vm.runInContext` compiles `code`, then runs it in `contextifiedSandbox` and
+`vm.runInContext()` compiles `code`, then runs it in `contextifiedSandbox` and
 returns the result. Running code does not have access to local scope. The
 `contextifiedSandbox` object must have been previously contextified via
-`vm.createContext`; it will be used as the global object for `code`.
+[`vm.createContext()`][]; it will be used as the global object for `code`.
 
-`vm.runInContext` takes the same options as `vm.runInThisContext`.
+`vm.runInContext()` takes the same options as [`vm.runInThisContext()`][].
 
 Example: compile and execute different scripts in a single existing context.
 
@@ -190,13 +193,13 @@ Example: compile and execute different scripts in a single existing context.
     // { globalVar: 1024 }
 
 Note that running untrusted code is a tricky business requiring great care.
-`vm.runInContext` is quite useful, but safely running untrusted code requires a
-separate process.
+`vm.runInContext()` is quite useful, but safely running untrusted code requires
+a separate process.
 
 ## vm.runInDebugContext(code)
 
-`vm.runInDebugContext` compiles and executes `code` inside the V8 debug context.
-The primary use case is to get access to the V8 debug object:
+`vm.runInDebugContext()` compiles and executes `code` inside the V8 debug
+context. The primary use case is to get access to the V8 debug object:
 
     const Debug = vm.runInDebugContext('Debug');
     Debug.scripts().forEach(function(script) { console.log(script.name); });
@@ -208,11 +211,11 @@ The debug object can also be exposed with the `--expose_debug_as=` switch.
 
 ## vm.runInNewContext(code[, sandbox][, options])
 
-`vm.runInNewContext` compiles `code`, contextifies `sandbox` if passed or
+`vm.runInNewContext()` compiles `code`, contextifies `sandbox` if passed or
 creates a new contextified sandbox if it's omitted, and then runs the code with
 the sandbox as the global object and returns the result.
 
-`vm.runInNewContext` takes the same options as `vm.runInThisContext`.
+`vm.runInNewContext()` takes the same options as [`vm.runInThisContext()`][].
 
 Example: compile and execute code that increments a global variable and sets a
 new one. These globals are contained in the sandbox.
@@ -231,7 +234,7 @@ new one. These globals are contained in the sandbox.
     // { animal: 'cat', count: 3, name: 'kitty' }
 
 Note that running untrusted code is a tricky business requiring great care.
-`vm.runInNewContext` is quite useful, but safely running untrusted code requires
+`vm.runInNewContext()` is quite useful, but safely running untrusted code requires
 a separate process.
 
 ## vm.runInThisContext(code[, options])
@@ -240,7 +243,7 @@ a separate process.
 code does not have access to local scope, but does have access to the current
 `global` object.
 
-Example of using `vm.runInThisContext` and `eval` to run the same code:
+Example of using `vm.runInThisContext()` and [`eval()`][] to run the same code:
 
     const vm = require('vm');
     var localVar = 'initial value';
@@ -256,10 +259,11 @@ Example of using `vm.runInThisContext` and `eval` to run the same code:
     // vmResult: 'vm', localVar: 'initial value'
     // evalResult: 'eval', localVar: 'eval'
 
-`vm.runInThisContext` does not have access to the local scope, so `localVar` is
-unchanged. `eval` does have access to the local scope, so `localVar` is changed.
+`vm.runInThisContext()` does not have access to the local scope, so `localVar`
+is unchanged. [`eval()`][] does have access to the local scope, so `localVar` is
+changed.
 
-In this way `vm.runInThisContext` is much like an [indirect `eval` call][],
+In this way `vm.runInThisContext()` is much like an [indirect `eval()` call][],
 e.g. `(0,eval)('code')`. However, it also has the following additional options:
 
 - `filename`: allows you to control the filename that shows up in any stack
@@ -275,6 +279,13 @@ e.g. `(0,eval)('code')`. However, it also has the following additional options:
 - `timeout`: a number of milliseconds to execute `code` before terminating
   execution. If execution is terminated, an [`Error`][] will be thrown.
 
-[indirect `eval` call]: https://es5.github.io/#x10.4.2
+[indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [global object]: https://es5.github.io/#x15.1
 [`Error`]: errors.html#errors_class_error
+[`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
+[`script.runInThisContext()`]: #vm_script_runinthiscontext_options
+[`vm.createContext()`]: #vm_vm_createcontext_sandbox
+[`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
+[`vm.runInNewContext()`]: #vm_vm_runinnewcontext_code_sandbox_options
+[`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
+[`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
