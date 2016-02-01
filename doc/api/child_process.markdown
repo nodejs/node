@@ -182,6 +182,21 @@ terminated.
 *Note: Unlike the `exec()` POSIX system call, `child_process.exec()` does not
 replace the existing process and uses a shell to execute the command.*
 
+### child_process.exec(command[, options])
+
+A [`Promise`][def-promise]-returning variant of [`child_process.exec()`][].
+Resolves to a two-element array of [Strings][def-string], representing
+`stdout` output and `stderr` respectively.
+
+```js
+child_process.exec('cat *.js bad_file | wc -l').then((output) => {
+  console.log(`stdout: ${output[0]}`);
+  console.log(`stderr: ${output[1]}`);
+}).catch((err) => {
+  console.error(`something went wrong: ${err}`);
+});
+```
+
 ### child_process.execFile(file[, args][, options][, callback])
 
 * `file` {String} A path to an executable file
@@ -217,6 +232,20 @@ const child = execFile('node', ['--version'], (error, stdout, stderr) => {
     throw error;
   }
   console.log(stdout);
+});
+```
+
+### child_process.execFileAsync(file[, args][, options])
+
+A [`Promise`][def-promise]-returning variant of [`child_process.execFile()`][].
+Resolves to a two-element array of [Strings][def-string], representing
+`stdout` output and `stderr` respectively.
+
+```js
+const execFile = require('child_process').execFile;
+const child = execFile('node', ['--version']).then((output) => {
+  console.log(output[0]); // stdout
+  console.log(output[1]); // stderr
 });
 ```
 
@@ -755,7 +784,7 @@ grep.stdin.end();
 * `message` {Object}
 * `sendHandle` {Handle object}
 * `callback` {Function}
-* Return: Boolean
+* Return: Boolean | Promise
 
 When an IPC channel has been established between the parent and child (
 i.e. when using [`child_process.fork()`][]), the `child.send()` method can be
@@ -766,7 +795,7 @@ For example, in the parent script:
 
 ```js
 const cp = require('child_process');
-const n = cp.fork(`${__dirname}/sub.js`);
+const n = cp.fork(`${\_\_dirname}/sub.js`);
 
 n.on('message', (m) => {
   console.log('PARENT got message:', m);
@@ -801,18 +830,22 @@ passing a TCP server or socket object to the child process. The child will
 receive the object as the second argument passed to the callback function
 registered on the `process.on('message')` event.
 
-The optional `callback` is a function that is invoked after the message is
-sent but before the child may have received it.  The function is called with a
-single argument: `null` on success, or an [`Error`][] object on failure.
+The optional `callback` is a function that is invoked after the message is sent
+but before the child may have received it. The function is called with a single
+argument: `null` on success, or an [`Error`][] object on failure.
 
-If no `callback` function is provided and the message cannot be sent, an
-`'error'` event will be emitted by the `ChildProcess` object. This can happen,
-for instance, when the child process has already exited.
+If used with a callback, `child.send()` will return `false` if the channel has
+closed or when the backlog of unsent messages exceeds a threshold that makes it
+unwise to send more. Otherwise, the method returns `true`. The `callback`
+function can be used to implement flow control.
 
-`child.send()` will return `false` if the channel has closed or when the
-backlog of unsent messages exceeds a threshold that makes it unwise to send
-more. Otherwise, the method returns `true`. The `callback` function can be
-used to implement flow control.
+When no `callback` is provided, a [`Promise`][def-promise] will be returned.
+This promise will resolve after the message has been sent but before the
+child has received it.
+
+If no `callback` function is provided and the message cannot be sent, the
+returned [`Promise`][def-promise] will reject with an Error object. This can
+happen, for instance, when the child process has already exited.
 
 #### Example: sending a server object
 
@@ -986,4 +1019,6 @@ to the same value.
 [`options.detached`]: #child_process_options_detached
 [`options.stdio`]: #child_process_options_stdio
 [`stdio`]: #child_process_options_stdio
+[def-promise]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
+[def-string]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
 [synchronous counterparts]: #child_process_synchronous_process_creation
