@@ -36,7 +36,7 @@ The Node.js project maintains multiple types of releases:
   and security. Every second Stable release line (major version) will become an
   LTS line and receive 18 months of _Active LTS_ support and a further 12
   months of _Maintenance_. LTS release lines are given alphabetically
-  ordered codenames, begining with v4 Argon. LTS releases are less frequent
+  ordered codenames, beginning with v4 Argon. LTS releases are less frequent
   and will attempt to maintain consistent major and minor version numbers,
   only incrementing patch version numbers. There are no breaking changes or
   feature additions, except in some special circumstances. More information
