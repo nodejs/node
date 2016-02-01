@@ -1,63 +1,51 @@
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
-const child_process = require('child_process');
+const fork = require('child_process').fork;
+const CLI = require('./_cli.js');
 
-var outputFormat = process.env.OUTPUT_FORMAT ||
-                   (+process.env.NODE_BENCH_SILENT ? 'silent' : false) ||
-                   'default';
+const cli = CLI(`usage: ./node run.js [options] [--] <category> ...
+  Run each benchmark in the <category> directory a single time, more than one
+  <categoty> directory can be specified.
 
-// If this is the main module, then run the benchmarks
-if (module === require.main) {
-  var type = process.argv[2];
-  var testFilter = process.argv[3];
-  if (!type) {
-    console.error('usage:\n ./node benchmark/run.js <type> [testFilter]');
-    process.exit(1);
-  }
+  --filter pattern          string to filter benchmark scripts
+  --set    variable=value   set benchmark variable (can be repeated)
+`, {
+  arrayArgs: ['set']
+});
+const benchmarks = cli.benchmarks();
 
-  var dir = path.join(__dirname, type);
-  var tests = fs.readdirSync(dir);
-
-  if (testFilter) {
-    var filteredTests = tests.filter(function(item) {
-      if (item.lastIndexOf(testFilter) >= 0) {
-        return item;
-      }
-    });
-
-    if (filteredTests.length === 0) {
-      console.error('%s is not found in \n %j', testFilter, tests);
-      return;
-    }
-    tests = filteredTests;
-  }
-
-  runBenchmarks();
+if (benchmarks.length === 0) {
+  console.error('no benchmarks found');
+  process.exit(1);
 }
 
-function runBenchmarks() {
-  var test = tests.shift();
-  if (!test)
-    return;
+(function recursive(i) {
+  const filename = benchmarks[i];
+  const child = fork(path.resolve(__dirname, filename), cli.optional.set);
 
-  if (test.match(/^[\._]/))
-    return process.nextTick(runBenchmarks);
+  console.log();
+  console.log(filename);
 
-  if (outputFormat == 'default')
-    console.error(type + '/' + test);
+  child.on('message', function(data) {
+    // Construct configuration string, " A=a, B=b, ..."
+    let conf = '';
+    for (const key of Object.keys(data.conf)) {
+      conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
+    }
 
-  test = path.resolve(dir, test);
+    console.log(`${data.name}${conf}: ${data.rate}`);
+  });
 
-  var a = (process.execArgv || []).concat(test);
-  var child = child_process.spawn(process.execPath, a, { stdio: 'inherit' });
-  child.on('close', function(code) {
+  child.once('close', function(code) {
     if (code) {
       process.exit(code);
-    } else {
-      console.log('');
-      runBenchmarks();
+      return;
+    }
+
+    // If there are more benchmarks execute the next
+    if (i + 1 < benchmarks.length) {
+      recursive(i + 1);
     }
   });
-}
+})(0);
