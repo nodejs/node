@@ -858,7 +858,7 @@ var parseTests = {
 
 for (const u in parseTests) {
   let actual = url.parse(u);
-  const spaced = url.parse('     \t  ' + u + '\n\t');
+  const spaced = url.parse(`     \t  ${u}\n\t`);
   let expected = parseTests[u];
 
   Object.keys(actual).forEach(function(i) {
