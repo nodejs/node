@@ -1,15 +1,15 @@
-var processIncludes = require('./preprocess.js');
-var marked = require('marked');
-var fs = require('fs');
-var path = require('path');
+'use strict';
+
+const processIncludes = require('./preprocess.js');
+const fs = require('fs');
 
 // parse the args.
 // Don't use nopt or whatever for this.  It's simple enough.
 
-var args = process.argv.slice(2);
-var format = 'json';
-var template = null;
-var inputFile = null;
+const args = process.argv.slice(2);
+let format = 'json';
+let template = null;
+let inputFile = null;
 
 args.forEach(function (arg) {
   if (!arg.match(/^\-\-/)) {

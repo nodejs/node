@@ -1,0 +1,16 @@
+var baseConvert = require('./_baseConvert'),
+    util = require('./_util');
+
+/**
+ * Converts `func` of `name` to an immutable auto-curried iteratee-first data-last
+ * version. If `name` is an object its methods will be converted.
+ *
+ * @param {string} name The name of the function to wrap.
+ * @param {Function} [func] The function to wrap.
+ * @returns {Function|Object} Returns the converted function or object.
+ */
+function convert(name, func) {
+  return baseConvert(util, name, func);
+}
+
+module.exports = convert;
