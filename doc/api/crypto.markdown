@@ -907,7 +907,7 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'binary'` encoded strings or
 [buffers][].
 
-## crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
+### crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
 optional specific `generator`.
@@ -1074,7 +1074,7 @@ const hashes = crypto.getHashes();
 console.log(hashes); // ['sha', 'sha1', 'sha1WithRSAEncryption', ...]
 ```
 
-### crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)
+### crypto.pbkdf2(password, salt, iterations, keylen, digest[, callback])
 
 Provides an asynchronous Password-Based Key Derivation Function 2 (PBKDF2)
 implementation.  A selected HMAC digest algorithm specified by `digest` is
@@ -1084,6 +1084,8 @@ applied to derive a key of the requested byte length (`keylen`) from the
 The supplied `callback` function is called with two arguments: `err` and
 `derivedKey`. If an error occurs, `err` will be set; otherwise `err` will be
 null. The successfully generated `derivedKey` will be passed as a [`Buffer`][].
+If `callback` is not given, a [`Promise`][def-promise] will be returned that
+will resolve to a [`Buffer`][] on success or reject with `err`.
 
 The `iterations` argument must be a number set as high as possible. The
 higher the number of iterations, the more secure the derived key will be,
@@ -1229,7 +1231,8 @@ const crypto = require('crypto');
 crypto.randomBytes(256, (err, buf) => {
   if (err) throw err;
   console.log(
-    `${buf.length}` bytes of random data: ${buf.toString('hex')});
+    `${buf.length} bytes of random data: ${buf.toString('hex')}`
+  );
 });
 ```
 
@@ -1241,13 +1244,32 @@ there is a problem generating the bytes.
 // Synchronous
 const buf = crypto.randomBytes(256);
 console.log(
-  `${buf.length}` bytes of random data: ${buf.toString('hex')});
+  `${buf.length} bytes of random data: ${buf.toString('hex')}`
+);
 ```
 
 The `crypto.randomBytes()` method will block until there is sufficient entropy.
 This should normally never take longer than a few milliseconds. The only time
 when generating the random bytes may conceivably block for a longer period of
 time is right after boot, when the whole system is still low on entropy.
+
+### crypto.randomBytesAsync(size)
+
+A [`Promise`][def-promise]-returning variant of [`crypto.randomBytes`][].
+The return value is always asynchronously generated, resolves to a `Buffer`
+on success, or an `Error` object otherwise.
+
+Example:
+
+```js
+crypto.randomBytesAsync(256).then((buf) => {
+  console.log(
+    `${buf.length} bytes of random data: ${buf.toString('hex')}`
+  );
+}).catch((err) => {
+  console.error('Something went wrong: ${err.stack}');
+});
+```
 
 ### crypto.setEngine(engine[, flags])
 
@@ -1333,6 +1355,7 @@ See the reference for other recommendations and details.
 [`crypto.createDiffieHellman()`]: #crypto_crypto_creatediffiehellman_prime_prime_encoding_generator_generator_encoding
 [`crypto.getHashes()`]: #crypto_crypto_gethashes
 [`crypto.pbkdf2`]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`crypto.randomBytes`]: #crypto_crypto_randombytes_size_callback
 [`decipher.update`]: #crypto_decipher_update_data_input_encoding_output_encoding
 [`diffieHellman.setPublicKey()`]: #crypto_diffiehellman_setpublickey_public_key_encoding
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
@@ -1341,6 +1364,7 @@ See the reference for other recommendations and details.
 [`Buffer`]: buffer.html
 [buffers]: buffer.html
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
+[def-promise]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
