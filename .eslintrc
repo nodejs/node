@@ -12,6 +12,7 @@ ecmaFeatures:
   objectLiteralShorthandMethods: true
   objectLiteralShorthandProperties: true
   octalLiterals: true
+  spread: true
   templateStrings: true
 
 rules:
