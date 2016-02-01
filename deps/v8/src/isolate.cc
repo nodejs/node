@@ -1907,6 +1907,10 @@ void Isolate::Deinit() {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
   }
 
+  if (cpu_profiler_) {
+    cpu_profiler_->DeleteAllProfiles();
+  }
+
   // We must stop the logger before we tear down other components.
   Sampler* sampler = logger_->sampler();
   if (sampler && sampler->IsActive()) sampler->Stop();
