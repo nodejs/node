@@ -1,8 +1,6 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 var http = require('http');
-var net = require('net');
 
 var server = http.createServer(function(req, res) {
   console.log('got request. setting 1 second timeout');
@@ -19,7 +17,7 @@ var server = http.createServer(function(req, res) {
     }
   });
 
-  function closeServer () {
+  function closeServer() {
     req.connection.destroy();
     console.error('TIMEOUT');
     server.close();

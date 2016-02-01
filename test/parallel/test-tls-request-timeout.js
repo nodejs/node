@@ -19,7 +19,6 @@ var options = {
 
 var server = tls.Server(options, function(socket) {
   var s = socket.setTimeout(100);
-  var pending = 2;
 
   s.then(() => {
     ++hadTimeout;

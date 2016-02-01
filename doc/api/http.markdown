@@ -1046,6 +1046,20 @@ http.get('http://www.google.com/index.html', (res) => {
 });
 ```
 
+## http.getAsync(options)
+
+A [`Promise`][def-promise]-returning version of [`http.get()`][]. Returns an
+object containing a `Promise` resolving to a [`http.IncomingMessage`][] Parses
+`options` the same as [`http.get()`][]. Request errors will reject the promise.
+
+Example:
+
+```js
+http.getAsync('http://www.google.com/index.html').then((res) => {
+  res.pipe(process.stdout);
+});
+```
+
 ## http.globalAgent
 
 Global instance of Agent which is used as the default for all http client
@@ -1156,6 +1170,37 @@ There are a few special headers that should be noted.
 
 * Sending an Authorization header will override using the `auth` option
   to compute basic authentication.
+
+## http.requestAsync(options)
+
+* Returns: {Object} with attributes:
+  * `request` - a [`http.ClientRequest`][].
+  * `response` - a [`Promise`][def-promise] for a [`http.IncomingMessage`][].
+
+A [`Promise`][def-promise]-returning version of [`http.request()`][]. Returns
+an object containing a [`http.ClientRequest`][] and a `Promise` resolving to
+a [`http.IncomingMessage`][] as `request` and `response`, respectively. Parses
+`options` the same as [`http.request()`][].
+
+Example:
+
+```js
+const http = require('http');
+const url = require('url');
+
+const pair = http.requestAsync(url.parse('http://localhost:8080/'))
+
+pair.request.end();
+pair.response.then((resp) => {
+  const accumulator = [];
+  resp.on('data', (chunk) => {
+    accumulator.push(chunk);
+  });
+  resp.on('end', () => {
+    console.log(Buffer.concat(accumulator).toString('utf8'));
+  });
+});
+```
 
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'listening'`]: net.html#net_event_listening
