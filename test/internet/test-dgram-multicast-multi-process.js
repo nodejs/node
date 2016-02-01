@@ -132,10 +132,6 @@ if (process.argv[2] !== 'child') {
   }
 
   var sendSocket = dgram.createSocket('udp4');
-  // FIXME: a libuv limitation makes it necessary to bind()
-  // before calling any of the set*() functions. The bind()
-  // call is what creates the actual socket.
-  sendSocket.bind();
 
   // The socket is actually created async now.
   sendSocket.on('listening', function() {
