@@ -28,6 +28,10 @@ var c = new Buffer(512);
 console.log('c.length == %d', c.length);
 assert.strictEqual(512, c.length);
 
+var d = new Buffer([]);
+console.log('d.length == %d', d.length);
+assert.strictEqual(0, d.length);
+
 // First check Buffer#fill() works as expected.
 
 assert.throws(function() {
