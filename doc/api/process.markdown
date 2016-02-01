@@ -908,6 +908,29 @@ need to be root or have the `CAP_SETGID` capability.
 
 The list can contain group IDs, group names or both.
 
+## process.setPromiseImplementation(impl)
+
+Sets the [`Promise`][def-promises] implementation for the process. All promises
+returned by core APIs will be resolved by this implementation, giving third
+party promise implementations an opportunity to cast native promises into a
+different type.
+
+**Only top-level applications should use this API.** If this API is called more
+than once, subsequent calls will issue deprecation warnings so authors can
+track down offending modules.
+
+```javascript
+process.setPromiseImplementation(require('bluebird'));
+
+const fs = require('fs');
+
+fs.readFile('/usr/share/dict/words', 'utf8').then((words) => {
+  console.log(`a picture is worth ${words.split('\n').length} words.`);
+}, (err) => {
+  console.error('there are no words.');
+});
+```
+
 ## process.setuid(id)
 
 Note: this function is only available on POSIX platforms (i.e. not Windows,
