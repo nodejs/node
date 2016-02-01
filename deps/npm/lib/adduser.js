@@ -169,7 +169,9 @@ function save (c, u, cb) {
       })
     }
 
-    log.info("adduser", "Authorized user %s", u.u)
-    npm.config.save("user", cb)
+    log.info('adduser', 'Authorized user %s', u.u)
+    var scopeMessage = scope ? ' to scope ' + scope : ''
+    console.log('Logged in as %s%s on %s.', u.u, scopeMessage, uri)
+    npm.config.save('user', cb)
   })
 }

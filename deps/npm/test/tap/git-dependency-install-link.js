@@ -135,6 +135,7 @@ function setup (cb) {
             '--listen=localhost',
             '--export-all',
             '--base-path=.',
+            '--reuseaddr',
             '--port=1234'
           ],
           {

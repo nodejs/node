@@ -232,7 +232,7 @@ A client certificate to pass when accessing the registry.
 
 ### color
 
-* Default: true on Posix, false on Windows
+* Default: true
 * Type: Boolean or `"always"`
 
 If false, never shows colors.  If `"always"` then always shows colors.

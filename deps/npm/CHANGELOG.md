@@ -1,3 +1,124 @@
+### v2.14.16 (2016-01-21):
+
+Good to see you all again! It's been a while since we had an LTS release, and
+the team continues to work hard to both get the issue tracker under control, and
+get our test suite to be awesome and reliable.
+
+This is also the first LTS release of this year.
+
+We're gonna have an interesting time -- most of our focus this year will be
+around stability and maintainability of the CLI, so you might actually end up
+seeing a number of updates even over here, just for the sake of making sure
+we're stable, that bugs get fixed, and tests have proper coverage.
+
+What better way to start this effort, then, than getting Travis tests green, fix
+a few things here and there, and tweak a bunch of documentation? 😁
+
+#### FIX ALL THE BUGS AND TWEAK ALL THE THINGS
+
+* [`24b13fb`](https://github.com/npm/npm/commit/24b13fbc57d34db1d5b0a37bcca122c00deba978)
+  [#11158](https://github.com/npm/npm/pull/11158)
+  Fix custom node-gyp env var quoting on Windows.
+  ([@orangemocha](https://github.com/orangemocha))
+* [`e2503f2`](https://github.com/npm/npm/commit/e2503f2be40157b05a9c500ec3b5d16090ffee50)
+  [#11142](https://github.com/npm/npm/pull/11142)
+  Fix race condition with `correctMkdir` in the cache directory.
+  ([@Jimbly](https://github.com/Jimbly))
+
+* [`5c0e4c4`](https://github.com/npm/npm/commit/5c0e4c45a29d774ab729e86044377d4e5e424252)
+  [#10940](https://github.com/npm/npm/pull/10940)
+  Ignore failures replacing `package.json`. writeFileAtomic is not atomic in
+  Windows, it fails if the file is being accessed concurrently.
+  ([@orangemocha](https://github.com/orangemocha))
+* [`2c44d8d`](https://github.com/npm/npm/commit/2c44d8dc8c267d5e054d0175ce2f4750f0986463)
+  [#10903](https://github.com/npm/npm/pull/10903)
+  Add tests for `npm adduser --scope`.
+  ([@ekmartin](https://github.com/ekmartin))
+* [`4cb25d0`](https://github.com/npm/npm/commit/4cb25d0fed5c7792dfd1aec891380ecc1f8a5761)
+  [#10903](https://github.com/npm/npm/pull/10903)
+  Add a message informing users when they have been successfully logged in.
+  ([@ekmartin](https://github.com/ekmartin))
+* [`fe3ec6d`](https://github.com/npm/npm/commit/fe3ec6d6658262054c0c19c55373c21e84ab9f17)
+  [#10628](https://github.com/npm/npm/pull/10628)
+  Tell users how to open an issue with a package that has errored.
+  ([@trodrigues](https://github.com/trodrigues))
+
+#### DOCS DOCS DOCS
+
+We got a TON of lovely documentation patches, too! Thanks all for submitting!
+
+* [`22482a1`](https://github.com/npm/npm/commit/22482a1f22079d72c3f8ca55c2f0c153bdd024c0)
+  [#11188](https://github.com/npm/npm/pull/11188)
+  Briefly explain what's included when you publish.
+  ([@beaugunderson](https://github.com/beaugunderson))
+* [`fa47724`](https://github.com/npm/npm/commit/fa4772438df0c66a19309dd1c1a3ce43cbee5461)
+  [#11150](https://github.com/npm/npm/pull/11150)
+  Advise use of `--depth Infinity` instead of `--depth 9999` in `npm update`.
+  ([@halhenke](https://github.com/halhenke))
+* [`248ddfe`](https://github.com/npm/npm/commit/248ddfe8f7ddd3318e14bf61de41cab4a638c8a3)
+  [#11130](https://github.com/npm/npm/pull/11130)
+  Nuke "using npm programmatically" section from README. The programmatic npm
+  API is unsupported, and is not guaranteed not to break in non-major versions.
+  Removing this section so newcomers aren't encouraged to discover or use it.
+  ([@ljharb](https://github.com/ljharb))
+* [`ae9c452`](https://github.com/npm/npm/commit/ae9c4521222d60ab4a69c19fee5e361c62f41fae)
+  [#11128](https://github.com/npm/npm/pull/11128)
+  Add link to local paths section indocs for `package.json`.
+  ([@orangejulius](https://github.com/orangejulius))
+* [`663a8c6`](https://github.com/npm/npm/commit/663a8c6b4b1647f9b86c15ef32e30023edc8c060)
+  [#11044](https://github.com/npm/npm/pull/11044)
+  Update default value documentation for the color option in npm's config.
+  ([@scottaddie](https://github.com/scottaddie))
+* [`5c1dda0`](https://github.com/npm/npm/commit/5c1dda0d3a18b2954872dba33fbc696ff0700ffe)
+  [#11037](https://github.com/npm/npm/pull/11037)
+  Correct the name property max length constraint verbiage.
+  ([@scottaddie](https://github.com/scottaddie))
+* [`8288365`](https://github.com/npm/npm/commit/8288365d08e97fa3a5b0d31703c015a8be49e07f)
+  [#10990](https://github.com/npm/npm/pull/10990)
+  Update folder docs to reflect that process.installPrefix was removed as of
+  0.8.x.
+  ([@jeffmcmahan](https://github.com/jeffmcmahan))
+* [`61d63fa`](https://github.com/npm/npm/commit/61d63fa22c4f09742180c2de460a4ffb6c32738e)
+  [#10790](https://github.com/npm/npm/pull/10790)
+  Clarify that `npm install foo` is the same as `npm install foo@latest` now.
+  ([@cvrebert](https://github.com/cvrebert))
+* [`442c920`](https://github.com/npm/npm/commit/442c9207f375354c91d36df8711ba2d33e1c97f3)
+  [#10789](https://github.com/npm/npm/pull/10789)
+  Link over to `npm-dist-tag(1)` in `npm install` docs when they talk about the
+  `pkg@<tag>` syntax.
+  ([@cvrebert](https://github.com/cvrebert))
+* [`dca7a5e`](https://github.com/npm/npm/commit/dca7a5e2be3bfa306a870a123707d35c732406c0)
+  [#10788](https://github.com/npm/npm/pull/10788)
+  Link to tag docs in docs for `npm publish --tag`.
+  ([@cvrebert](https://github.com/cvrebert))
+* [`a72904e`](https://github.com/npm/npm/commit/a72904e8d4ab1d43ae8150fbe3f6468b0cbb1efd)
+  [#10787](https://github.com/npm/npm/pull/10787)
+  Explain why the `latest` tag matters.
+  ([@cvrebert](https://github.com/cvrebert))
+* [`9d0697a`](https://github.com/npm/npm/commit/9d0697a534046df7efda32170014041bbc1f4e7d)
+  [#10785](https://github.com/npm/npm/pull/10785)
+  Replace some quite marks in `npm dist-tag` docs for the sake of consistency.
+  ([@cvrebert](https://github.com/cvrebert))
+
+#### I REALLY LIKE GREEN. CAN YOU TELL?
+
+So Travis is all green now on `npm@2`, thanks to the removal of nock and a few
+other test suite tweaks. This is a fantastic step towards making sure we can all
+have confidence in our test suite! 🎉
+
+* [`64995be`](https://github.com/npm/npm/commit/64995be6d874356b15c136f9867302d805dfe1e9) [`75ab216`](https://github.com/npm/npm/commit/75ab2164cf79e28ac7f7ebe714f3c5aee99c6626) [`a9f6fe9`](https://github.com/npm/npm/commit/a9f6fe9dc558f17c4a7b9eb83329ac080f7df4b7) [`649c193`](https://github.com/npm/npm/commit/649c193adadf714c2819837f9372a29d724a5ec0) [`94cb05e`](https://github.com/npm/npm/commit/94cb05eaa9e5ad6675cf15c4ac0a44fbdde05900) [`6541690`](https://github.com/npm/npm/commit/65416907008061ac5a5f66b1630a57776803b526) [`255be6f`](https://github.com/npm/npm/commit/255be6f5bca9e3d216f3a5cbdf6714c6c9fcf132) [`9e84fa4`](https://github.com/npm/npm/commit/9e84fa43c49d04cf86ca1678e2a61412f5559cb9) [`8a587b0`](https://github.com/npm/npm/commit/8a587b0c1696ae7302891fa6355fc3e8670e00d3) [`bf812a5`](https://github.com/npm/npm/commit/bf812a54e497a573493346399798aa0b9373ac24)
+  [#10903](https://github.com/npm/npm/pull/10903)
+  Get rid of nock from tests, and get Travis green.
+  ([@zkat](https://github.com/zkat) and [@iarna](https://github.com/iarna))
+* [`70a5310`](https://github.com/npm/npm/commit/70a5310712c6666e753ca8f3bfff4a780ec6292d)
+  `npm-registry-couchapp@2.6.12`:
+  Better 0.8 compatibility, and ability to run in travis docker stuff. This
+  means the test suite should run a lot faster, too!
+  ([@iarna](https://github.com/iarna))
+* [`28fae39`](https://github.com/npm/npm/commit/28fae399212eda5554e6c0ffd8c9591144ab7b9d)
+  Get rid of sudo, for Travis!
+  ([@zkat](https://github.com/zkat))
+
 ### v2.14.15 (2015-12-10):
 
 Did you know that Bob Ross reached the rank of master sergeant in the US Air
