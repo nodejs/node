@@ -9,6 +9,5 @@ socket.on('listening', function() {
   socket.close();
 });
 
-var result = socket.bind(); // should not throw
-
+var result = socket.bind(() => {}); // should not throw
 assert.strictEqual(result, socket); // should have returned itself
