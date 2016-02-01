@@ -3,8 +3,8 @@
 var path = require('path');
 var http = require('http');
 var fs = require('fs');
-var spawn = require('child_process').spawn;
-require('../common.js');
+var fork = require('child_process').fork;
+var common = require('../common.js');
 var test = require('../../test/common.js');
 var pep = path.dirname(process.argv[1]) + '/_chunky_http_client.js';
 var PIPE = test.PIPE;
@@ -30,25 +30,10 @@ server.on('error', function(err) {
   throw new Error('server error: ' + err);
 });
 
-try {
-  var child;
+server.listen(PIPE);
 
-  server.listen(PIPE);
-
-  child = spawn(process.execPath, [pep], { });
-
-  child.on('error', function(err) {
-    throw new Error('spawn error: ' + err);
-  });
-
-  child.stdout.pipe(process.stdout);
-  child.stderr.pipe(process.stderr);
-
-  child.on('close', function(exitCode) {
-    server.close();
-  });
-
-} catch (e) {
-  throw new Error('error: ' + e);
-}
-
+var child = fork(pep, process.argv.slice(2));
+child.on('message', common.sendResult);
+child.on('close', function() {
+  server.close();
+});
