@@ -6,7 +6,7 @@ var assert = require('assert');
 // Verify that invalid delays throw
 var noop = function() {};
 var s = new net.Socket();
-var nonNumericDelays = ['100', true, false, undefined, null, '', {}, noop, []];
+var nonNumericDelays = ['100', true, false, undefined, null, '', {}, []];
 var badRangeDelays = [-0.001, -1, -Infinity, Infinity, NaN];
 var validDelays = [0, 0.001, 1, 1e6];
 
