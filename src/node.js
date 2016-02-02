@@ -47,7 +47,6 @@
     startup.processRawDebug();
 
     process.argv[0] = process.execPath;
-    NativeModule.require('internal/promises').setup(process);
 
     // There are various modes that Node can run in. The most common two
     // are running from a script and running the REPL - but there are a few

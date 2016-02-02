@@ -74,7 +74,6 @@
       'lib/internal/cluster.js',
       'lib/internal/freelist.js',
       'lib/internal/linkedlist.js',
-      'lib/internal/promises.js',
       'lib/internal/promisify.js',
       'lib/internal/net.js',
       'lib/internal/module.js',
