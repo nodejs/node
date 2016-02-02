@@ -288,11 +288,11 @@ class ContextifyContext {
     }
     Local<Object> sandbox = args[0].As<Object>();
 
-    Local<String> hidden_name =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "_contextifyHidden");
-
     // Don't allow contextifying a sandbox multiple times.
-    CHECK(sandbox->GetHiddenValue(hidden_name).IsEmpty());
+    CHECK(
+        !sandbox->HasPrivate(
+            env->context(),
+            env->contextify_private_symbol()).FromJust());
 
     TryCatch try_catch;
     ContextifyContext* context = new ContextifyContext(env, sandbox);
@@ -305,8 +305,10 @@ class ContextifyContext {
     if (context->context().IsEmpty())
       return;
 
-    Local<External> hidden_context = External::New(env->isolate(), context);
-    sandbox->SetHiddenValue(hidden_name, hidden_context);
+    sandbox->SetPrivate(
+        env->context(),
+        env->contextify_private_symbol(),
+        External::New(env->isolate(), context));
   }
 
 
@@ -319,10 +321,9 @@ class ContextifyContext {
     }
     Local<Object> sandbox = args[0].As<Object>();
 
-    Local<String> hidden_name =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "_contextifyHidden");
-
-    args.GetReturnValue().Set(!sandbox->GetHiddenValue(hidden_name).IsEmpty());
+    auto result =
+        sandbox->HasPrivate(env->context(), env->contextify_private_symbol());
+    args.GetReturnValue().Set(result.FromJust());
   }
 
 
@@ -342,17 +343,17 @@ class ContextifyContext {
 
 
   static ContextifyContext* ContextFromContextifiedSandbox(
-      Isolate* isolate,
+      Environment* env,
       const Local<Object>& sandbox) {
-    Local<String> hidden_name =
-        FIXED_ONE_BYTE_STRING(isolate, "_contextifyHidden");
-    Local<Value> context_external_v = sandbox->GetHiddenValue(hidden_name);
-    if (context_external_v.IsEmpty() || !context_external_v->IsExternal()) {
-      return nullptr;
+    auto maybe_value =
+        sandbox->GetPrivate(env->context(), env->contextify_private_symbol());
+    Local<Value> context_external_v;
+    if (maybe_value.ToLocal(&context_external_v) &&
+        context_external_v->IsExternal()) {
+      Local<External> context_external = context_external_v.As<External>();
+      return static_cast<ContextifyContext*>(context_external->Value());
     }
-    Local<External> context_external = context_external_v.As<External>();
-
-    return static_cast<ContextifyContext*>(context_external->Value());
+    return nullptr;
   }
 
 
@@ -612,8 +613,7 @@ class ContextifyScript : public BaseObject {
 
     // Get the context from the sandbox
     ContextifyContext* contextify_context =
-        ContextifyContext::ContextFromContextifiedSandbox(env->isolate(),
-                                                          sandbox);
+        ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
     if (contextify_context == nullptr) {
       return env->ThrowTypeError(
           "sandbox argument must have been converted to a context.");
@@ -654,15 +654,25 @@ class ContextifyScript : public BaseObject {
 
     AppendExceptionLine(env, exception, try_catch.Message());
     Local<Value> stack = err_obj->Get(env->stack_string());
-    Local<Value> arrow = err_obj->GetHiddenValue(env->arrow_message_string());
+    auto maybe_value =
+        err_obj->GetPrivate(
+            env->context(),
+            env->arrow_message_private_symbol());
 
-    if (!(stack->IsString() && arrow->IsString()))
+    Local<Value> arrow;
+    if (!(maybe_value.ToLocal(&arrow) &&
+          arrow->IsString() &&
+          stack->IsString())) {
       return;
+    }
 
     Local<String> decorated_stack = String::Concat(arrow.As<String>(),
                                                    stack.As<String>());
     err_obj->Set(env->stack_string(), decorated_stack);
-    err_obj->SetHiddenValue(env->decorated_string(), True(env->isolate()));
+    err_obj->SetPrivate(
+        env->context(),
+        env->decorated_private_symbol(),
+        True(env->isolate()));
   }
 
   static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,

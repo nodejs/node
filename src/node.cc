@@ -1402,8 +1402,10 @@ ssize_t DecodeWrite(Isolate* isolate,
 bool IsExceptionDecorated(Environment* env, Local<Value> er) {
   if (!er.IsEmpty() && er->IsObject()) {
     Local<Object> err_obj = er.As<Object>();
-    Local<Value> decorated = err_obj->GetHiddenValue(env->decorated_string());
-    return !decorated.IsEmpty() && decorated->IsTrue();
+    auto maybe_value =
+        err_obj->GetPrivate(env->context(), env->decorated_private_symbol());
+    Local<Value> decorated;
+    return maybe_value.ToLocal(&decorated) && decorated->IsTrue();
   }
   return false;
 }
@@ -1419,10 +1421,15 @@ void AppendExceptionLine(Environment* env,
   if (!er.IsEmpty() && er->IsObject()) {
     err_obj = er.As<Object>();
 
+    auto context = env->context();
+    auto processed_private_symbol = env->processed_private_symbol();
     // Do it only once per message
-    if (!err_obj->GetHiddenValue(env->processed_string()).IsEmpty())
+    if (err_obj->HasPrivate(context, processed_private_symbol).FromJust())
       return;
-    err_obj->SetHiddenValue(env->processed_string(), True(env->isolate()));
+    err_obj->SetPrivate(
+        context,
+        processed_private_symbol,
+        True(env->isolate()));
   }
 
   // Print (filename):(line number): (message).
@@ -1492,14 +1499,15 @@ void AppendExceptionLine(Environment* env,
 
   Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
 
-  // Allocation failed, just print it out
-  if (arrow_str.IsEmpty() || err_obj.IsEmpty() || !err_obj->IsNativeError())
-    goto print;
+  if (!arrow_str.IsEmpty() && !err_obj.IsEmpty() && err_obj->IsNativeError()) {
+    err_obj->SetPrivate(
+        env->context(),
+        env->arrow_message_private_symbol(),
+        arrow_str);
+    return;
+  }
 
-  err_obj->SetHiddenValue(env->arrow_message_string(), arrow_str);
-  return;
-
- print:
+  // Allocation failed, just print it out.
   if (env->printed_error())
     return;
   env->set_printed_error(true);
@@ -1525,7 +1533,10 @@ static void ReportException(Environment* env,
     Local<Object> err_obj = er->ToObject(env->isolate());
 
     trace_value = err_obj->Get(env->stack_string());
-    arrow = err_obj->GetHiddenValue(env->arrow_message_string());
+    arrow =
+        err_obj->GetPrivate(
+            env->context(),
+            env->arrow_message_private_symbol()).ToLocalChecked();
   }
 
   node::Utf8Value trace(env->isolate(), trace_value);
