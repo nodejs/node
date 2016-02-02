@@ -31,6 +31,10 @@ assert.strictEqual(512, c.length);
 var d = new Buffer([]);
 assert.strictEqual(0, d.length);
 
+var ui32 = new Uint32Array(4).fill(42);
+var e = Buffer(ui32);
+assert.deepEqual(ui32, e);
+
 // First check Buffer#fill() works as expected.
 
 assert.throws(function() {
