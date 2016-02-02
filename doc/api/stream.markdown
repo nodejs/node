@@ -3,9 +3,9 @@
     Stability: 2 - Stable
 
 A stream is an abstract interface implemented by various objects in
-Node.js.  For example a [request to an HTTP server][] is a stream, as is
-[`stdout`][]. Streams are readable, writable, or both. All streams are
-instances of [`EventEmitter`][].
+Node.js. For example a [request to an HTTP server][http-incoming-message] is a
+stream, as is [`process.stdout`][]. Streams are readable, writable, or both. All
+streams are instances of [`EventEmitter`][].
 
 You can load the Stream base classes by doing `require('stream')`.
 There are base classes provided for [Readable][] streams, [Writable][]
@@ -16,8 +16,8 @@ This document is split up into 3 sections:
 1. The first section explains the parts of the API that you need to be
    aware of to use streams in your programs.
 2. The second section explains the parts of the API that you need to
-   use if you implement your own custom streams yourself.  The API is
-   designed to make this easy for you to do.
+   use if you implement your own custom streams yourself. The API is designed to
+   make this easy for you to do.
 3. The third section goes into more depth about how streams work,
    including some of the internal mechanisms and functions that you
    should probably not modify unless you definitely know what you are
@@ -35,12 +35,12 @@ and properties depending on whether they are Readable, Writable, or
 Duplex.
 
 If a stream is both Readable and Writable, then it implements all of
-the methods and events.  So, a [Duplex][] or [Transform][] stream is
+the methods and events. So, a [Duplex][] or [Transform][] stream is
 fully described by this API, though their implementation may be
 somewhat different.
 
 It is not necessary to implement Stream interfaces in order to consume
-streams in your programs.  If you **are** implementing streaming
+streams in your programs. If you **are** implementing streaming
 interfaces in your own program, please also refer to
 [API for Stream Implementors][].
 
@@ -97,59 +97,60 @@ Duplex streams are streams that implement both the [Readable][] and
 
 Examples of Duplex streams include:
 
-* [tcp sockets][]
-* [zlib streams][]
-* [crypto streams][]
+* [TCP sockets][]
+* [zlib streams][zlib]
+* [crypto streams][crypto]
 
 ### Class: stream.Readable
 
 <!--type=class-->
 
 The Readable stream interface is the abstraction for a *source* of
-data that you are reading from.  In other words, data comes *out* of a
+data that you are reading from. In other words, data comes *out* of a
 Readable stream.
 
 A Readable stream will not start emitting data until you indicate that
 you are ready to receive it.
 
 Readable streams have two "modes": a **flowing mode** and a **paused
-mode**.  When in flowing mode, data is read from the underlying system
-and provided to your program as fast as possible.  In paused mode, you
-must explicitly call `stream.read()` to get chunks of data out.
+mode**. When in flowing mode, data is read from the underlying system
+and provided to your program as fast as possible. In paused mode, you
+must explicitly call [`stream.read()`][stream-read] to get chunks of data out.
 Streams start out in paused mode.
 
 **Note**: If no data event handlers are attached, and there are no
-[`pipe()`][] destinations, and the stream is switched into flowing
+[`stream.pipe()`][] destinations, and the stream is switched into flowing
 mode, then data will be lost.
 
 You can switch to flowing mode by doing any of the following:
 
 * Adding a [`'data'`][] event handler to listen for data.
-* Calling the [`resume()`][] method to explicitly open the flow.
-* Calling the [`pipe()`][] method to send the data to a [Writable][].
+* Calling the [`stream.resume()`][stream-resume] method to explicitly open the
+  flow.
+* Calling the [`stream.pipe()`][] method to send the data to a [Writable][].
 
 You can switch back to paused mode by doing either of the following:
 
-* If there are no pipe destinations, by calling the [`pause()`][]
-  method.
+* If there are no pipe destinations, by calling the
+  [`stream.pause()`][stream-pause] method.
 * If there are pipe destinations, by removing any [`'data'`][] event
   handlers, and removing all pipe destinations by calling the
-  [`unpipe()`][] method.
+  [`stream.unpipe()`][] method.
 
-Note that, for backwards compatibility reasons, removing `'data'`
-event handlers will **not** automatically pause the stream.  Also, if
-there are piped destinations, then calling `pause()` will not
-guarantee that the stream will *remain* paused once those
+Note that, for backwards compatibility reasons, removing [`'data'`][]
+event handlers will **not** automatically pause the stream. Also, if
+there are piped destinations, then calling [`stream.pause()`][stream-pause] will
+not guarantee that the stream will *remain* paused once those
 destinations drain and ask for more data.
 
 Examples of readable streams include:
 
-* [http responses, on the client][]
-* [http requests, on the server][]
+* [HTTP responses, on the client][http-incoming-message]
+* [HTTP requests, on the server][http-incoming-message]
 * [fs read streams][]
-* [zlib streams][]
-* [crypto streams][]
-* [tcp sockets][]
+* [zlib streams][zlib]
+* [crypto streams][crypto]
+* [TCP sockets][]
 * [child process stdout and stderr][]
 * [`process.stdin`][]
 
@@ -184,8 +185,9 @@ readable.on('data', (chunk) => {
 This event fires when there will be no more data to read.
 
 Note that the `'end'` event **will not fire** unless the data is
-completely consumed.  This can be done by switching into flowing mode,
-or by calling `read()` repeatedly until you get to the end.
+completely consumed. This can be done by switching into flowing mode,
+or by calling [`stream.read()`][stream-read] repeatedly until you get to the
+end.
 
 ```js
 var readable = getReadableStreamSomehow();
@@ -227,9 +229,9 @@ sole exception of the last one, on end-of-stream.
 
 The `'readable'` event indicates that the stream has new information:
 either new data is available or the end of the stream has been reached.
-In the former case, `.read()` will return that data. In the latter case,
-`.read()` will return null. For instance, in the following example, `foo.txt`
-is an empty file:
+In the former case, [`stream.read()`][stream-read] will return that data. In the
+latter case, [`stream.read()`][stream-read] will return null. For instance, in
+the following example, `foo.txt` is an empty file:
 
 ```js
 const fs = require('fs');
@@ -255,8 +257,8 @@ end
 * Return: `Boolean`
 
 This method returns whether or not the `readable` has been **explicitly**
-paused by client code (using `readable.pause()` without a corresponding
-`readable.resume()`).
+paused by client code (using [`stream.pause()`][stream-pause] without a
+corresponding [`stream.resume()`][stream-resume]).
 
 ```js
 var readable = new stream.Readable
@@ -273,7 +275,7 @@ readable.isPaused() // === false
 * Return: `this`
 
 This method will cause a stream in flowing mode to stop emitting
-`'data'` events, switching out of flowing mode.  Any data that becomes
+[`'data'`][] events, switching out of flowing mode. Any data that becomes
 available will remain in the internal buffer.
 
 ```js
@@ -324,9 +326,9 @@ For example, emulating the Unix `cat` command:
 process.stdin.pipe(process.stdout);
 ```
 
-By default [`end()`][] is called on the destination when the source stream
-emits `end`, so that `destination` is no longer writable. Pass `{ end:
-false }` as `options` to keep the destination stream open.
+By default [`stream.end()`][stream-end] is called on the destination when the
+source stream emits [`'end'`][], so that `destination` is no longer writable.
+Pass `{ end: false }` as `options` to keep the destination stream open.
 
 This keeps `writer` open so that "Goodbye" can be written at the
 end.
@@ -338,7 +340,7 @@ reader.on('end', () => {
 });
 ```
 
-Note that `process.stderr` and `process.stdout` are never closed until
+Note that [`process.stderr`][] and [`process.stdout`][] are never closed until
 the process exits, regardless of the specified options.
 
 #### readable.read([size])
@@ -347,18 +349,18 @@ the process exits, regardless of the specified options.
 * Return {String | Buffer | null}
 
 The `read()` method pulls some data out of the internal buffer and
-returns it.  If there is no data available, then it will return
+returns it. If there is no data available, then it will return
 `null`.
 
 If you pass in a `size` argument, then it will return that many
-bytes.  If `size` bytes are not available, then it will return `null`,
+bytes. If `size` bytes are not available, then it will return `null`,
 unless we've ended, in which case it will return the data remaining
 in the buffer.
 
 If you do not specify a `size` argument, then it will return all the
 data in the internal buffer.
 
-This method should only be called in paused mode.  In flowing mode,
+This method should only be called in paused mode. In flowing mode,
 this method is called automatically until the internal buffer is
 drained.
 
@@ -375,20 +377,20 @@ readable.on('readable', () => {
 If this method returns a data chunk, then it will also trigger the
 emission of a [`'data'`][] event.
 
-Note that calling `readable.read([size])` after the `'end'` event has been
-triggered will return `null`. No runtime error will be raised.
+Note that calling [`stream.read([size])`][stream-read] after the [`'end'`][]
+event has been triggered will return `null`. No runtime error will be raised.
 
 #### readable.resume()
 
 * Return: `this`
 
-This method will cause the readable stream to resume emitting `data`
+This method will cause the readable stream to resume emitting [`'data'`][]
 events.
 
-This method will switch the stream into flowing mode.  If you do *not*
+This method will switch the stream into flowing mode. If you do *not*
 want to consume the data from a stream, but you *do* want to get to
-its `'end'` event, you can call [`readable.resume()`][] to open the flow of
-data.
+its [`'end'`][] event, you can call [`stream.resume()`][stream-resume] to open
+the flow of data.
 
 ```js
 var readable = getReadableStreamSomehow();
@@ -403,16 +405,15 @@ readable.on('end', () => {
 * `encoding` {String} The encoding to use.
 * Return: `this`
 
-Call this function to cause the stream to return strings of the
-specified encoding instead of Buffer objects.  For example, if you do
-`readable.setEncoding('utf8')`, then the output data will be
-interpreted as UTF-8 data, and returned as strings.  If you do
-`readable.setEncoding('hex')`, then the data will be encoded in
-hexadecimal string format.
+Call this function to cause the stream to return strings of the specified
+encoding instead of Buffer objects. For example, if you do
+`readable.setEncoding('utf8')`, then the output data will be interpreted as
+UTF-8 data, and returned as strings. If you do `readable.setEncoding('hex')`,
+then the data will be encoded in hexadecimal string format.
 
 This properly handles multi-byte characters that would otherwise be
 potentially mangled if you simply pulled the Buffers directly and
-called `buf.toString(encoding)` on them.  If you want to read the data
+called [`buf.toString(encoding)`][] on them. If you want to read the data
 as strings, always use this method.
 
 ```js
@@ -428,7 +429,8 @@ readable.on('data', (chunk) => {
 
 * `destination` {[Writable][] Stream} Optional specific stream to unpipe
 
-This method will remove the hooks set up for a previous `pipe()` call.
+This method will remove the hooks set up for a previous [`stream.pipe()`][]
+call.
 
 If the destination is not specified, then all pipes are removed.
 
@@ -458,11 +460,11 @@ parser, which needs to "un-consume" some data that it has
 optimistically pulled out of the source, so that the stream can be
 passed on to some other party.
 
-Note that `stream.unshift(chunk)` cannot be called after the `'end'` event
+Note that `stream.unshift(chunk)` cannot be called after the [`'end'`][] event
 has been triggered; a runtime error will be raised.
 
 If you find that you must often call `stream.unshift(chunk)` in your
-programs, consider implementing a [Transform][] stream instead.  (See [API
+programs, consider implementing a [Transform][] stream instead. (See [API
 for Stream Implementors][].)
 
 ```js
@@ -500,26 +502,27 @@ function parseHeader(stream, callback) {
 }
 ```
 
-Note that, unlike `stream.push(chunk)`, `stream.unshift(chunk)` will not
-end the reading process by resetting the internal reading state of the
-stream. This can cause unexpected results if `unshift` is called during a
-read (i.e. from within a `_read` implementation on a custom stream). Following
-the call to `unshift` with an immediate `stream.push('')` will reset the
-reading state appropriately, however it is best to simply avoid calling
-`unshift` while in the process of performing a read.
+Note that, unlike [`stream.push(chunk)`][stream-push], `stream.unshift(chunk)`
+will not end the reading process by resetting the internal reading state of the
+stream. This can cause unexpected results if `unshift()` is called during a
+read (i.e. from within a [`stream._read()`][stream-_read] implementation on a
+custom stream). Following the call to `unshift()` with an immediate
+[`stream.push('')`][stream-push] will reset the reading state appropriately,
+however it is best to simply avoid calling `unshift()` while in the process of
+performing a read.
 
 #### readable.wrap(stream)
 
 * `stream` {Stream} An "old style" readable stream
 
 Versions of Node.js prior to v0.10 had streams that did not implement the
-entire Streams API as it is today.  (See [Compatibility][] for
+entire Streams API as it is today. (See [Compatibility][] for
 more information.)
 
-If you are using an older Node.js library that emits `'data'` events and
-has a [`pause()`][] method that is advisory only, then you can use the
-`wrap()` method to create a [Readable][] stream that uses the old stream
-as its data source.
+If you are using an older Node.js library that emits [`'data'`][] events and
+has a [`stream.pause()`][stream-pause] method that is advisory only, then you
+can use the `wrap()` method to create a [Readable][] stream that uses the old
+stream as its data source.
 
 You will very rarely ever need to call this function, but it exists
 as a convenience for interacting with old Node.js programs and libraries.
@@ -540,13 +543,13 @@ myReader.on('readable', () => {
 ### Class: stream.Transform
 
 Transform streams are [Duplex][] streams where the output is in some way
-computed from the input.  They implement both the [Readable][] and
+computed from the input. They implement both the [Readable][] and
 [Writable][] interfaces.
 
 Examples of Transform streams include:
 
-* [zlib streams][]
-* [crypto streams][]
+* [zlib streams][zlib]
+* [crypto streams][crypto]
 
 ### Class: stream.Writable
 
@@ -557,19 +560,19 @@ that you are writing data *to*.
 
 Examples of writable streams include:
 
-* [http requests, on the client][]
-* [http responses, on the server][]
+* [HTTP requests, on the client][]
+* [HTTP responses, on the server][]
 * [fs write streams][]
-* [zlib streams][]
-* [crypto streams][]
-* [tcp sockets][]
+* [zlib streams][zlib]
+* [crypto streams][crypto]
+* [TCP sockets][]
 * [child process stdin][]
 * [`process.stdout`][], [`process.stderr`][]
 
 #### Event: 'drain'
 
-If a [`writable.write(chunk)`][] call returns false, then the `'drain'`
-event will indicate when it is appropriate to begin writing more data
+If a [`stream.write(chunk)`][stream-write] call returns `false`, then the
+`'drain'` event will indicate when it is appropriate to begin writing more data
 to the stream.
 
 ```js
@@ -608,8 +611,8 @@ Emitted if there was an error when writing or piping data.
 
 #### Event: 'finish'
 
-When the [`end()`][] method has been called, and all data has been flushed
-to the underlying system, this event is emitted.
+When the [`stream.end()`][stream-end] method has been called, and all data has
+been flushed to the underlying system, this event is emitted.
 
 ```javascript
 var writer = getWritableStreamSomehow();
@@ -626,7 +629,7 @@ writer.on('finish', () => {
 
 * `src` {[Readable][] Stream} source stream that is piping to this writable
 
-This is emitted whenever the `pipe()` method is called on a readable
+This is emitted whenever the [`stream.pipe()`][] method is called on a readable
 stream, adding this writable to its set of destinations.
 
 ```js
@@ -641,9 +644,10 @@ reader.pipe(writer);
 
 #### Event: 'unpipe'
 
-* `src` {[Readable][] Stream} The source stream that [unpiped][] this writable
+* `src` {[Readable][] Stream} The source stream that
+  [unpiped][`stream.unpipe()`] this writable
 
-This is emitted whenever the [`unpipe()`][] method is called on a
+This is emitted whenever the [`stream.unpipe()`][] method is called on a
 readable stream, removing this writable from its set of destinations.
 
 ```js
@@ -661,7 +665,8 @@ reader.unpipe(writer);
 
 Forces buffering of all writes.
 
-Buffered data will be flushed either at `.uncork()` or at `.end()` call.
+Buffered data will be flushed either at [`stream.uncork()`][] or at
+[`stream.end()`][stream-end] call.
 
 #### writable.end([chunk][, encoding][, callback])
 
@@ -669,10 +674,11 @@ Buffered data will be flushed either at `.uncork()` or at `.end()` call.
 * `encoding` {String} The encoding, if `chunk` is a String
 * `callback` {Function} Optional callback for when the stream is finished
 
-Call this method when no more data will be written to the stream.  If
-supplied, the callback is attached as a listener on the `'finish'` event.
+Call this method when no more data will be written to the stream. If supplied,
+the callback is attached as a listener on the [`'finish'`][] event.
 
-Calling [`write()`][] after calling [`end()`][] will raise an error.
+Calling [`stream.write()`][stream-write] after calling
+[`stream.end()`][stream-end] will raise an error.
 
 ```js
 // write 'hello, ' and then end with 'world!'
@@ -690,26 +696,26 @@ Sets the default encoding for a writable stream.
 
 #### writable.uncork()
 
-Flush all data, buffered since `.cork()` call.
+Flush all data, buffered since [`stream.cork()`][] call.
 
 #### writable.write(chunk[, encoding][, callback])
 
 * `chunk` {String | Buffer} The data to write
 * `encoding` {String} The encoding, if `chunk` is a String
 * `callback` {Function} Callback for when this chunk of data is flushed
-* Returns: {Boolean} True if the data was handled completely.
+* Returns: {Boolean} `true` if the data was handled completely.
 
 This method writes some data to the underlying system, and calls the
 supplied callback once the data has been fully handled.
 
 The return value indicates if you should continue writing right now.
 If the data had to be buffered internally, then it will return
-`false`.  Otherwise, it will return `true`.
+`false`. Otherwise, it will return `true`.
 
-This return value is strictly advisory.  You MAY continue to write,
-even if it returns `false`.  However, writes will be buffered in
-memory, so it is best not to do this excessively.  Instead, wait for
-the `'drain'` event before writing more data.
+This return value is strictly advisory. You MAY continue to write,
+even if it returns `false`. However, writes will be buffered in
+memory, so it is best not to do this excessively. Instead, wait for
+the [`'drain'`][] event before writing more data.
 
 
 ## API for Stream Implementors
@@ -718,8 +724,8 @@ the `'drain'` event before writing more data.
 
 To implement any sort of stream, the pattern is the same:
 
-1. Extend the appropriate parent class in your own subclass.  (The
-   [`util.inherits`][] method is particularly helpful for this.)
+1. Extend the appropriate parent class in your own subclass. (The
+   [`util.inherits()`][] method is particularly helpful for this.)
 2. Call the appropriate parent class constructor in your constructor,
    to be sure that the internal mechanisms are set up properly.
 3. Implement one or more specific methods, as detailed below.
@@ -749,7 +755,7 @@ of stream class you are writing:
       <p>[Readable](#stream_class_stream_readable_1)</p>
     </td>
     <td>
-      <p><code>[_read][]</code></p>
+      <p><code>[_read][stream-_read]</code></p>
     </td>
   </tr>
   <tr>
@@ -760,7 +766,7 @@ of stream class you are writing:
       <p>[Writable](#stream_class_stream_writable_1)</p>
     </td>
     <td>
-      <p><code>[_write][]</code>, <code>[_writev][]</code></p>
+      <p><code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code></p>
     </td>
   </tr>
   <tr>
@@ -771,7 +777,7 @@ of stream class you are writing:
       <p>[Duplex](#stream_class_stream_duplex_1)</p>
     </td>
     <td>
-      <p><code>[_read][]</code>, <code>[_write][]</code>, <code>[_writev][]</code></p>
+      <p><code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code></p>
     </td>
   </tr>
   <tr>
@@ -782,45 +788,45 @@ of stream class you are writing:
       <p>[Transform](#stream_class_stream_transform_1)</p>
     </td>
     <td>
-      <p><code>[_transform][]</code>, <code>[_flush][]</code></p>
+      <p><code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code></p>
     </td>
   </tr>
 </table>
 
-In your implementation code, it is very important to never call the
-methods described in [API for Stream Consumers][].  Otherwise, you
-can potentially cause adverse side effects in programs that consume
-your streaming interfaces.
+In your implementation code, it is very important to never call the methods
+described in [API for Stream Consumers][]. Otherwise, you can potentially cause
+adverse side effects in programs that consume your streaming interfaces.
 
 ### Class: stream.Duplex
 
 <!--type=class-->
 
-A "duplex" stream is one that is both Readable and Writable, such as a
-TCP socket connection.
+A "duplex" stream is one that is both Readable and Writable, such as a TCP
+socket connection.
 
 Note that `stream.Duplex` is an abstract class designed to be extended
-with an underlying implementation of the `_read(size)` and
-[`_write(chunk, encoding, callback)`][] methods as you would with a
-Readable or Writable stream class.
+with an underlying implementation of the [`stream._read(size)`][stream-_read]
+and [`stream._write(chunk, encoding, callback)`][stream-_write] methods as you
+would with a Readable or Writable stream class.
 
-Since JavaScript doesn't have multiple prototypal inheritance, this
-class prototypally inherits from Readable, and then parasitically from
-Writable.  It is thus up to the user to implement both the lowlevel
-`_read(n)` method as well as the lowlevel
-[`_write(chunk, encoding, callback)`][] method on extension duplex classes.
+Since JavaScript doesn't have multiple prototypal inheritance, this class
+prototypally inherits from Readable, and then parasitically from Writable. It is
+thus up to the user to implement both the low-level
+[`stream._read(n)`][stream-_read] method as well as the low-level
+[`stream._write(chunk, encoding, callback)`][stream-_write] method on extension
+duplex classes.
 
 #### new stream.Duplex(options)
 
 * `options` {Object} Passed to both Writable and Readable
   constructors. Also has the following fields:
-  * `allowHalfOpen` {Boolean} Default=true.  If set to `false`, then
+  * `allowHalfOpen` {Boolean} Default = `true`. If set to `false`, then
     the stream will automatically end the readable side when the
     writable side ends and vice versa.
-  * `readableObjectMode` {Boolean} Default=false. Sets `objectMode`
+  * `readableObjectMode` {Boolean} Default = `false`. Sets `objectMode`
     for readable side of the stream. Has no effect if `objectMode`
     is `true`.
-  * `writableObjectMode` {Boolean} Default=false. Sets `objectMode`
+  * `writableObjectMode` {Boolean} Default = `false`. Sets `objectMode`
     for writable side of the stream. Has no effect if `objectMode`
     is `true`.
 
@@ -831,7 +837,7 @@ initialized.
 ### Class: stream.PassThrough
 
 This is a trivial implementation of a [Transform][] stream that simply
-passes the input bytes across to the output.  Its purpose is mainly
+passes the input bytes across to the output. Its purpose is mainly
 for examples and testing, but there are occasionally use cases where
 it can come in handy as a building block for novel sorts of streams.
 
@@ -840,10 +846,10 @@ it can come in handy as a building block for novel sorts of streams.
 <!--type=class-->
 
 `stream.Readable` is an abstract class designed to be extended with an
-underlying implementation of the [`_read(size)`][] method.
+underlying implementation of the [`stream._read(size)`][stream-_read] method.
 
 Please see [API for Stream Consumers][] for how to consume
-streams in your programs.  What follows is an explanation of how to
+streams in your programs. What follows is an explanation of how to
 implement Readable streams in your programs.
 
 #### new stream.Readable([options])
@@ -851,13 +857,14 @@ implement Readable streams in your programs.
 * `options` {Object}
   * `highWaterMark` {Number} The maximum number of bytes to store in
     the internal buffer before ceasing to read from the underlying
-    resource.  Default=16kb, or 16 for `objectMode` streams
+    resource. Default = `16384` (16kb), or `16` for `objectMode` streams
   * `encoding` {String} If specified, then buffers will be decoded to
-    strings using the specified encoding.  Default=null
+    strings using the specified encoding. Default = `null`
   * `objectMode` {Boolean} Whether this stream should behave
-    as a stream of objects. Meaning that stream.read(n) returns
-    a single value instead of a Buffer of size n.  Default=false
-  * `read` {Function} Implementation for the [`_read()`][] method.
+    as a stream of objects. Meaning that [`stream.read(n)`][stream-read] returns
+    a single value instead of a Buffer of size n. Default = `false`
+  * `read` {Function} Implementation for the [`stream._read()`][stream-_read]
+    method.
 
 In classes that extend the Readable class, make sure to call the
 Readable constructor so that the buffering settings can be properly
@@ -874,27 +881,28 @@ class that defines it and should only be called by the internal Readable
 class methods. All Readable stream implementations must provide a \_read
 method to fetch data from the underlying resource.
 
-When \_read is called, if data is available from the resource, `_read` should
-start pushing that data into the read queue by calling `this.push(dataChunk)`.
-`_read` should continue reading from the resource and pushing data until push
-returns false, at which point it should stop reading from the resource. Only
-when \_read is called again after it has stopped should it start reading
-more data from the resource and pushing that data onto the queue.
+When `_read()` is called, if data is available from the resource, the `_read()`
+implementation should start pushing that data into the read queue by calling
+[`this.push(dataChunk)`][stream-push]. `_read()` should continue reading from
+the resource and pushing data until push returns `false`, at which point it
+should stop reading from the resource. Only when `_read()` is called again after
+it has stopped should it start reading more data from the resource and pushing
+that data onto the queue.
 
 Note: once the `_read()` method is called, it will not be called again until
-the `push` method is called.
+the [`stream.push()`][stream-push] method is called.
 
 The `size` argument is advisory. Implementations where a "read" is a
 single call that returns data can use this to know how much data to
-fetch.  Implementations where that is not relevant, such as TCP or
+fetch. Implementations where that is not relevant, such as TCP or
 TLS, may ignore this argument, and simply provide data whenever it
-becomes available.  There is no need, for example to "wait" until
-`size` bytes are available before calling [`stream.push(chunk)`][].
+becomes available. There is no need, for example to "wait" until
+`size` bytes are available before calling [`stream.push(chunk)`][stream-push].
 
 #### readable.push(chunk[, encoding])
 
 * `chunk` {Buffer | null | String} Chunk of data to push into the read queue
-* `encoding` {String} Encoding of String chunks.  Must be a valid
+* `encoding` {String} Encoding of String chunks. Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * return {Boolean} Whether or not more pushes should be performed
 
@@ -906,12 +914,12 @@ into the queue for subsequent stream processors to consume. If `null` is
 passed, it signals the end of the stream (EOF), after which no more data
 can be written.
 
-The data added with `push` can be pulled out by calling the `read()` method
-when the `'readable'` event fires.
+The data added with `push()` can be pulled out by calling the
+[`stream.read()`][stream-read] method when the [`'readable'`][] event fires.
 
-This API is designed to be as flexible as possible.  For example,
+This API is designed to be as flexible as possible. For example,
 you may be wrapping a lower-level source which has some sort of
-pause/resume mechanism, and a data callback.  In those cases, you
+pause/resume mechanism, and a data callback. In those cases, you
 could wrap the low-level source object by doing something like this:
 
 ```js
@@ -950,7 +958,7 @@ SourceWrapper.prototype._read = function(size) {
 
 <!--type=example-->
 
-This is a basic example of a Readable stream.  It emits the numerals
+This is a basic example of a Readable stream. It emits the numerals
 from 1 to 1,000,000 in ascending order, and then ends.
 
 ```js
@@ -983,7 +991,7 @@ This is similar to the `parseHeader` function described
 Also, note that this implementation does not convert the incoming data to a
 string.
 
-However, this would be better implemented as a [Transform][] stream.  See
+However, this would be better implemented as a [Transform][] stream. See
 [SimpleProtocol v2][] for a better implementation.
 
 ```js
@@ -992,7 +1000,7 @@ However, this would be better implemented as a [Transform][] stream.  See
 // then a message body.
 //
 // NOTE: This can be done more simply as a Transform stream!
-// Using Readable directly for this is sub-optimal.  See the
+// Using Readable directly for this is sub-optimal. See the
 // alternative example below under the Transform section.
 
 const Readable = require('stream').Readable;
@@ -1098,21 +1106,24 @@ connected in some way to the input, such as a [zlib][] stream or a
 [crypto][] stream.
 
 There is no requirement that the output be the same size as the input,
-the same number of chunks, or arrive at the same time.  For example, a
+the same number of chunks, or arrive at the same time. For example, a
 Hash stream will only ever have a single chunk of output which is
-provided when the input is ended.  A zlib stream will produce output
+provided when the input is ended. A zlib stream will produce output
 that is either much smaller or much larger than its input.
 
-Rather than implement the [`_read()`][] and [`_write()`][] methods, Transform
-classes must implement the `_transform()` method, and may optionally
-also implement the `_flush()` method.  (See below.)
+Rather than implement the [`stream._read()`][stream-_read] and
+[`stream._write()`][stream-_write] methods, Transform classes must implement the
+[`stream._transform()`][stream-_transform] method, and may optionally
+also implement the [`stream._flush()`][stream-_flush] method. (See below.)
 
 #### new stream.Transform([options])
 
 * `options` {Object} Passed to both Writable and Readable
-  constructors.  Also has the following fields:
-  * `transform` {Function} Implementation for the [`_transform()`][] method.
-  * `flush` {Function} Implementation for the [`_flush()`][] method.
+  constructors. Also has the following fields:
+  * `transform` {Function} Implementation for the
+    [`stream._transform()`][stream-_transform] method.
+  * `flush` {Function} Implementation for the [`stream._flush()`][stream-_flush]
+    method.
 
 In classes that extend the Transform class, make sure to call the
 constructor so that the buffering settings can be properly
@@ -1122,9 +1133,10 @@ initialized.
 
 The [`'finish'`][] and [`'end'`][] events are from the parent Writable
 and Readable classes respectively. The `'finish'` event is fired after
-`.end()` is called and all chunks have been processed by `_transform`,
-`end` is fired after all data has been output which is after the callback
-in `_flush` has been called.
+[`stream.end()`][stream-end] is called and all chunks have been processed by
+[`stream._transform()`][stream-_transform], `'end'` is fired after all data has
+been output which is after the callback in [`stream._flush()`][stream-_flush]
+has been called.
 
 #### transform.\_flush(callback)
 
@@ -1136,21 +1148,21 @@ by child classes, and if so, will be called by the internal Transform
 class methods only.
 
 In some cases, your transform operation may need to emit a bit more
-data at the end of the stream.  For example, a `Zlib` compression
+data at the end of the stream. For example, a `Zlib` compression
 stream will store up some internal state so that it can optimally
-compress the output.  At the end, however, it needs to do the best it
+compress the output. At the end, however, it needs to do the best it
 can with what is left, so that the data will be complete.
 
-In those cases, you can implement a `_flush` method, which will be
+In those cases, you can implement a `_flush()` method, which will be
 called at the very end, after all the written data is consumed, but
-before emitting `end` to signal the end of the readable side.  Just
-like with `_transform`, call `transform.push(chunk)` zero or more
-times, as appropriate, and call `callback` when the flush operation is
-complete.
+before emitting [`'end'`][] to signal the end of the readable side. Just
+like with [`stream._transform()`][stream-_transform], call
+`transform.push(chunk)` zero or more times, as appropriate, and call `callback`
+when the flush operation is complete.
 
 This method is prefixed with an underscore because it is internal to
 the class that defines it, and should not be called directly by user
-programs.  However, you **are** expected to override this method in
+programs. However, you **are** expected to override this method in
 your own extension classes.
 
 #### transform.\_transform(chunk, encoding, callback)
@@ -1167,12 +1179,12 @@ Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Transform
 class methods only.
 
-All Transform stream implementations must provide a `_transform`
+All Transform stream implementations must provide a `_transform()`
 method to accept input and produce output.
 
-`_transform` should do whatever has to be done in this specific
+`_transform()` should do whatever has to be done in this specific
 Transform class, to handle the bytes being written, and pass them off
-to the readable portion of the interface.  Do asynchronous I/O,
+to the readable portion of the interface. Do asynchronous I/O,
 process things, and so on.
 
 Call `transform.push(outputChunk)` 0 or more times to generate output
@@ -1180,7 +1192,7 @@ from this input chunk, depending on how much data you want to output
 as a result of this chunk.
 
 Call the callback function only when the current chunk is completely
-consumed.  Note that there may or may not be output as a result of any
+consumed. Note that there may or may not be output as a result of any
 particular input chunk. If you supply a second argument to the callback
 it will be passed to the push method. In other words the following are
 equivalent:
@@ -1198,7 +1210,7 @@ transform.prototype._transform = function (data, encoding, callback) {
 
 This method is prefixed with an underscore because it is internal to
 the class that defines it, and should not be called directly by user
-programs.  However, you **are** expected to override this method in
+programs. However, you **are** expected to override this method in
 your own extension classes.
 
 #### Example: `SimpleProtocol` parser v2
@@ -1285,24 +1297,30 @@ SimpleProtocol.prototype._transform = function(chunk, encoding, done) {
 <!--type=class-->
 
 `stream.Writable` is an abstract class designed to be extended with an
-underlying implementation of the [`_write(chunk, encoding, callback)`][] method.
+underlying implementation of the
+[`stream._write(chunk, encoding, callback)`][stream-_write] method.
 
 Please see [API for Stream Consumers][] for how to consume
-writable streams in your programs.  What follows is an explanation of
+writable streams in your programs. What follows is an explanation of
 how to implement Writable streams in your programs.
 
 #### new stream.Writable([options])
 
 * `options` {Object}
-  * `highWaterMark` {Number} Buffer level when [`write()`][] starts
-    returning false. Default=16kb, or 16 for `objectMode` streams
+  * `highWaterMark` {Number} Buffer level when
+    [`stream.write()`][stream-write] starts returning `false`. Default = `16384`
+    (16kb), or `16` for `objectMode` streams.
   * `decodeStrings` {Boolean} Whether or not to decode strings into
-    Buffers before passing them to [`_write()`][].  Default=true
-  * `objectMode` {Boolean} Whether or not the `write(anyObj)` is
-    a valid operation. If set you can write arbitrary data instead
-    of only `Buffer` / `String` data.  Default=false
-  * `write` {Function} Implementation for the [`_write()`][] method.
-  * `writev` {Function} Implementation for the [`_writev()`][] method.
+    Buffers before passing them to [`stream._write()`][stream-_write].
+    Default = `true`
+  * `objectMode` {Boolean} Whether or not the
+    [`stream.write(anyObj)`][stream-write] is a valid operation. If set you can
+    write arbitrary data instead of only `Buffer` / `String` data.
+    Default = `false`
+  * `write` {Function} Implementation for the
+    [`stream._write()`][stream-_write] method.
+  * `writev` {Function} Implementation for the
+    [`stream._writev()`][stream-_writev] method.
 
 In classes that extend the Writable class, make sure to call the
 constructor so that the buffering settings can be properly
@@ -1318,8 +1336,9 @@ initialized.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done processing the supplied chunk.
 
-All Writable stream implementations must provide a [`_write()`][]
-method to send data to the underlying resource.
+All Writable stream implementations must provide a
+[`stream._write()`][stream-_write] method to send data to the underlying
+resource.
 
 Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Writable
@@ -1330,20 +1349,20 @@ signal that the write completed successfully or with an error.
 
 If the `decodeStrings` flag is set in the constructor options, then
 `chunk` may be a string rather than a Buffer, and `encoding` will
-indicate the sort of string that it is.  This is to support
+indicate the sort of string that it is. This is to support
 implementations that have an optimized handling for certain string
-data encodings.  If you do not explicitly set the `decodeStrings`
+data encodings. If you do not explicitly set the `decodeStrings`
 option to `false`, then you can safely ignore the `encoding` argument,
 and assume that `chunk` will always be a Buffer.
 
 This method is prefixed with an underscore because it is internal to
 the class that defines it, and should not be called directly by user
-programs.  However, you **are** expected to override this method in
+programs. However, you **are** expected to override this method in
 your own extension classes.
 
 #### writable.\_writev(chunks, callback)
 
-* `chunks` {Array} The chunks to be written.  Each chunk has following
+* `chunks` {Array} The chunks to be written. Each chunk has following
   format: `{ chunk: ..., encoding: ... }`.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done processing the supplied chunks.
@@ -1353,7 +1372,7 @@ implemented by child classes, and called by the internal Writable
 class methods only.
 
 This function is completely optional to implement. In most cases it is
-unnecessary.  If implemented, it will be called with all the chunks
+unnecessary. If implemented, it will be called with all the chunks
 that are buffered in the write queue.
 
 
@@ -1361,7 +1380,8 @@ that are buffered in the write queue.
 
 <!--type=misc-->
 
-In simple cases there is now the added benefit of being able to construct a stream without inheritance.
+In simple cases there is now the added benefit of being able to construct a
+stream without inheritance.
 
 This can be done by passing the appropriate methods as constructor options:
 
@@ -1483,14 +1503,14 @@ The amount of data that will potentially be buffered depends on the
 `highWaterMark` option which is passed into the constructor.
 
 Buffering in Readable streams happens when the implementation calls
-[`stream.push(chunk)`][].  If the consumer of the Stream does not call
-`stream.read()`, then the data will sit in the internal queue until it
-is consumed.
+[`stream.push(chunk)`][stream-push]. If the consumer of the Stream does not
+call [`stream.read()`][stream-read], then the data will sit in the internal
+queue until it is consumed.
 
 Buffering in Writable streams happens when the user calls
-[`stream.write(chunk)`][] repeatedly, even when `write()` returns `false`.
+[`stream.write(chunk)`][stream-write] repeatedly, even when it returns `false`.
 
-The purpose of streams, especially with the `pipe()` method, is to
+The purpose of streams, especially with the [`stream.pipe()`][] method, is to
 limit the buffering of data to acceptable levels, so that sources and
 destinations of varying speed will not overwhelm the available memory.
 
@@ -1501,26 +1521,27 @@ destinations of varying speed will not overwhelm the available memory.
 In versions of Node.js prior to v0.10, the Readable stream interface was
 simpler, but also less powerful and less useful.
 
-* Rather than waiting for you to call the `read()` method, `'data'`
-  events would start emitting immediately.  If you needed to do some
-  I/O to decide how to handle data, then you had to store the chunks
+* Rather than waiting for you to call the [`stream.read()`][stream-read] method,
+  [`'data'`][] events would start emitting immediately. If you needed to do
+  some I/O to decide how to handle data, then you had to store the chunks
   in some kind of buffer so that they would not be lost.
-* The [`pause()`][] method was advisory, rather than guaranteed.  This
-  meant that you still had to be prepared to receive `'data'` events
-  even when the stream was in a paused state.
+* The [`stream.pause()`][stream-pause] method was advisory, rather than
+  guaranteed. This meant that you still had to be prepared to receive
+  [`'data'`][] events even when the stream was in a paused state.
 
 In Node.js v0.10, the [Readable][] class was added.
 For backwards compatibility with older Node.js programs, Readable streams
-switch into "flowing mode" when a `'data'` event handler is added, or
-when the [`resume()`][] method is called.  The effect is that, even if
-you are not using the new `read()` method and `'readable'` event, you
-no longer have to worry about losing `'data'` chunks.
+switch into "flowing mode" when a [`'data'`][] event handler is added, or
+when the [`stream.resume()`][stream-resume] method is called. The effect is
+that, even if you are not using the new [`stream.read()`][stream-read] method
+and [`'readable'`][] event, you no longer have to worry about losing
+[`'data'`][] chunks.
 
-Most programs will continue to function normally.  However, this
+Most programs will continue to function normally. However, this
 introduces an edge case in the following conditions:
 
 * No [`'data'`][] event handler is added.
-* The [`resume()`][] method is never called.
+* The [`stream.resume()`][stream-resume] method is never called.
 * The stream is not piped to any writable destination.
 
 For example, consider the following code:
@@ -1539,11 +1560,11 @@ net.createServer((socket) => {
 ```
 
 In versions of Node.js prior to v0.10, the incoming message data would be
-simply discarded.  However, in Node.js v0.10 and beyond,
+simply discarded. However, in Node.js v0.10 and beyond,
 the socket will remain paused forever.
 
-The workaround in this situation is to call the `resume()` method to
-start the flow of data:
+The workaround in this situation is to call the
+[`stream.resume()`][stream-resume] method to start the flow of data:
 
 ```js
 // Workaround
@@ -1561,7 +1582,7 @@ net.createServer((socket) => {
 
 In addition to new Readable streams switching into flowing mode,
 pre-v0.10 style streams can be wrapped in a Readable class using the
-`wrap()` method.
+[`stream.wrap()`][] method.
 
 
 ### Object Mode
@@ -1574,23 +1595,23 @@ Streams that are in **object mode** can emit generic JavaScript values
 other than Buffers and Strings.
 
 A Readable stream in object mode will always return a single item from
-a call to `stream.read(size)`, regardless of what the size argument
-is.
+a call to [`stream.read(size)`][stream-read], regardless of what the size
+argument is.
 
 A Writable stream in object mode will always ignore the `encoding`
-argument to `stream.write(data, encoding)`.
+argument to [`stream.write(data, encoding)`][stream-write].
 
 The special value `null` still retains its special value for object
-mode streams.  That is, for object mode readable streams, `null` as a
-return value from `stream.read()` indicates that there is no more
-data, and [`stream.push(null)`][] will signal the end of stream data
+mode streams. That is, for object mode readable streams, `null` as a
+return value from [`stream.read()`][stream-read] indicates that there is no more
+data, and [`stream.push(null)`][stream-push] will signal the end of stream data
 (`EOF`).
 
-No streams in Node.js core are object mode streams.  This pattern is only
+No streams in Node.js core are object mode streams. This pattern is only
 used by userland streaming libraries.
 
 You should set `objectMode` in your stream child class constructor on
-the options object.  Setting `objectMode` mid-stream is not safe.
+the options object. Setting `objectMode` mid-stream is not safe.
 
 For Duplex streams `objectMode` can be set exclusively for readable or
 writable side with `readableObjectMode` and `writableObjectMode`
@@ -1655,12 +1676,12 @@ JSONParseStream.prototype._flush = function(cb) {
 
 There are some cases where you want to trigger a refresh of the
 underlying readable stream mechanisms, without actually consuming any
-data.  In that case, you can call `stream.read(0)`, which will always
+data. In that case, you can call `stream.read(0)`, which will always
 return null.
 
 If the internal read buffer is below the `highWaterMark`, and the
-stream is not currently reading, then calling `read(0)` will trigger
-a low-level `_read` call.
+stream is not currently reading, then calling `stream.read(0)` will trigger
+a low-level [`stream._read()`][stream-_read] call.
 
 There is almost never a need to do this. However, you will see some
 cases in Node.js's internals where this is done, particularly in the
@@ -1669,82 +1690,66 @@ Readable stream class internals.
 ### `stream.push('')`
 
 Pushing a zero-byte string or Buffer (when not in [Object mode][]) has an
-interesting side effect.  Because it *is* a call to
-[`stream.push()`][], it will end the `reading` process.  However, it
+interesting side effect. Because it *is* a call to
+[`stream.push()`][stream-push], it will end the `reading` process. However, it
 does *not* add any data to the readable buffer, so there's nothing for
 a user to consume.
 
 Very rarely, there are cases where you have no data to provide now,
 but the consumer of your stream (or, perhaps, another bit of your own
-code) will know when to check again, by calling `stream.read(0)`.  In
-those cases, you *may* call `stream.push('')`.
+code) will know when to check again, by calling [`stream.read(0)`][stream-read].
+In those cases, you *may* call `stream.push('')`.
 
 So far, the only use case for this functionality is in the
-[`tls.CryptoStream`][] class, which is deprecated in Node.js/io.js v1.0.  If you
+[`tls.CryptoStream`][] class, which is deprecated in Node.js/io.js v1.0. If you
 find that you have to use `stream.push('')`, please consider another
 approach, because it almost certainly indicates that something is
 horribly wrong.
 
-[_read]: #stream_readable_read_size_1
-[_write]: #stream_writable_write_chunk_encoding_callback_1
 [`'data'`]: #stream_event_data
+[`'drain'`]: #stream_event_drain
 [`'end'`]: #stream_event_end
 [`'finish'`]: #stream_event_finish
-[`_read()`]: #stream_readable_read_size_1
-[`_read(size)`]: #stream_readable_read_size_1
-[`_write()`]: #stream_writable_write_chunk_encoding_callback_1
-[`_write(chunk, encoding, callback)`]: #stream_writable_write_chunk_encoding_callback_1
-[`end()`]: #stream_writable_end_chunk_encoding_callback
+[`'readable'`]: #stream_event_readable
+[`buf.toString(encoding)`]: buffer.html#buffer_buf_tostring_encoding_start_end
 [`EventEmitter`]: events.html#events_class_eventemitter
-[`pause()`]: #stream_readable_pause
-[`pipe()`]: #stream_readable_pipe_destination_options
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
-[`readable.resume()`]: #stream_readable_resume
-[`resume()`]: #stream_readable_resume
-[`stdout`]: process.html#process_process_stdout
-[`stream.push()`]: #stream_readable_push_chunk_encoding
-[`stream.push(chunk)`]: #stream_readable_push_chunk_encoding
-[`stream.push(null)`]: #stream_readable_push_chunk_encoding
-[`stream.write(chunk)`]: #stream_writable_write_chunk_encoding_callback
+[`stream.cork()`]: #stream_writable_cork
+[`stream.pipe()`]: #stream_readable_pipe_destination_options
+[`stream.uncork()`]: #stream_writable_uncork
+[`stream.unpipe()`]: #stream_readable_unpipe_destination
+[`stream.wrap()`]: #stream_readable_wrap_stream
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
-[`unpipe()`]: #stream_readable_unpipe_destination
-[`unpipe()`]: #stream_readable_unpipe_destination
-[`util.inherits`]: util.html#util_util_inherits_constructor_superconstructor
-[`writable.write(chunk)`]: #stream_writable_write_chunk_encoding_callback
-[`write()`]: #stream_writable_write_chunk_encoding_callback
-[`write(chunk, encoding, callback)`]: #stream_writable_write_chunk_encoding_callback
+[`util.inherits()`]: util.html#util_util_inherits_constructor_superconstructor
 [API for Stream Consumers]: #stream_api_for_stream_consumers
 [API for Stream Implementors]: #stream_api_for_stream_implementors
 [child process stdin]: child_process.html#child_process_child_stdin
 [child process stdout and stderr]: child_process.html#child_process_child_stdout
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
-[crypto streams]: crypto.html
 [crypto]: crypto.html
 [Duplex]: #stream_class_stream_duplex
 [fs read streams]: fs.html#fs_class_fs_readstream
 [fs write streams]: fs.html#fs_class_fs_writestream
-[http requests, on the client]: http.html#http_class_http_clientrequest
-[http requests, on the server]: http.html#http_class_http_incomingmessage
-[http responses, on the client]: http.html#http_class_http_incomingmessage
-[http responses, on the server]: http.html#http_class_http_serverresponse
+[HTTP requests, on the client]: http.html#http_class_http_clientrequest
+[HTTP responses, on the server]: http.html#http_class_http_serverresponse
+[http-incoming-message]: http.html#http_class_http_incomingmessage
 [Object mode]: #stream_object_mode
 [Readable]: #stream_class_stream_readable
-[request to an HTTP server]: http.html#http_class_http_incomingmessage
 [SimpleProtocol v2]: #stream_example_simpleprotocol_parser_v2
-[tcp sockets]: net.html#net_class_net_socket
+[stream-_flush]: #stream_transform_flush_callback
+[stream-_read]: #stream_readable_read_size_1
+[stream-_transform]: #stream_transform_transform_chunk_encoding_callback
+[stream-_write]: #stream_writable_write_chunk_encoding_callback_1
+[stream-_writev]: #stream_writable_writev_chunks_callback
+[stream-end]: #stream_writable_end_chunk_encoding_callback
+[stream-pause]: #stream_readable_pause
+[stream-push]: #stream_readable_push_chunk_encoding
+[stream-read]: #stream_readable_read_size
+[stream-resume]: #stream_readable_resume
+[stream-write]: #stream_writable_write_chunk_encoding_callback
+[TCP sockets]: net.html#net_class_net_socket
 [Transform]: #stream_class_stream_transform
-[unpiped]: #stream_readable_unpipe_destination
 [Writable]: #stream_class_stream_writable
-[zlib streams]: zlib.html
 [zlib]: zlib.html
-[_transform]: #stream_transform_transform_chunk_encoding_callback
-[`_transform()`]: #stream_transform_transform_chunk_encoding_callback
-[`_transform(chunk, encoding, callback)`]: #stream_transform_transform_chunk_encoding_callback
-[_flush]: #stream_transform_flush_callback
-[`_flush()`]: #stream_transform_flush_callback
-[`_flush(callback)`]: #stream_transform_flush_callback
-[_writev]: #stream_writable_writev_chunks_callback
-[`_writev()`]: #stream_writable_writev_chunks_callback
-[`_writev(chunks, callback)`]: #stream_writable_writev_chunks_callback
