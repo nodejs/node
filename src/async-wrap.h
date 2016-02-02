@@ -21,6 +21,7 @@ namespace node {
   V(PIPEWRAP)                                                                 \
   V(PIPECONNECTWRAP)                                                          \
   V(PROCESSWRAP)                                                              \
+  V(PROMISE)                                                                  \
   V(QUERYWRAP)                                                                \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \

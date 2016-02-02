@@ -44,6 +44,7 @@
     if (process.argv[1] !== '--debug-agent')
       startup.processChannel();
 
+    NativeModule.require('internal/promise');
     startup.processRawDebug();
 
     process.argv[0] = process.execPath;
