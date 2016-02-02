@@ -690,7 +690,7 @@ Example: Using `Sign` objects as streams:
 
 ```js
 const crypto = require('crypto');
-const sign = crypto.createSign('rsa-sha256');
+const sign = crypto.createSign('RSA-SHA256');
 
 sign.write('some data to sign');
 sign.end();
@@ -704,7 +704,7 @@ Example: Using the `sign.update()` and `sign.sign()` methods:
 
 ```js
 const crypto = require('crypto');
-const sign = crypto.createSign('rsa-sha256');
+const sign = crypto.createSign('RSA-SHA256');
 
 sign.update('some data to sign');
 
@@ -754,7 +754,7 @@ Example: Using `Verify` objects as streams:
 
 ```js
 const crypto = require('crypto');
-const verify = crypto.createVerify('rsa-sha256');
+const verify = crypto.createVerify('RSA-SHA256');
 
 verify.write('some data to sign');
 verify.end();
@@ -769,7 +769,7 @@ Example: Using the `verify.update()` and `verify.verify()` methods:
 
 ```js
 const crypto = require('crypto');
-const verify = crypto.createVerify('rsa-sha256');
+const verify = crypto.createVerify('RSA-SHA256');
 
 verify.update('some data to sign');
 
