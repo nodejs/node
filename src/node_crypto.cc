@@ -1965,10 +1965,12 @@ int SSLWrap<Base>::AdvertiseNextProtoCallback(SSL* s,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Value> npn_buffer =
-      w->object()->GetHiddenValue(env->npn_buffer_string());
+  auto npn_buffer =
+      w->object()->GetPrivate(
+          env->context(),
+          env->npn_buffer_private_symbol()).ToLocalChecked();
 
-  if (npn_buffer.IsEmpty()) {
+  if (npn_buffer->IsUndefined()) {
     // No initialization - no NPN protocols
     *data = reinterpret_cast<const unsigned char*>("");
     *len = 0;
@@ -1994,19 +1996,23 @@ int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Value> npn_buffer =
-      w->object()->GetHiddenValue(env->npn_buffer_string());
+  auto npn_buffer =
+      w->object()->GetPrivate(
+          env->context(),
+          env->npn_buffer_private_symbol()).ToLocalChecked();
 
-  if (npn_buffer.IsEmpty()) {
+  if (npn_buffer->IsUndefined()) {
     // We should at least select one protocol
     // If server is using NPN
     *out = reinterpret_cast<unsigned char*>(const_cast<char*>("http/1.1"));
     *outlen = 8;
 
     // set status: unsupported
-    bool r = w->object()->SetHiddenValue(env->selected_npn_buffer_string(),
-                                         False(env->isolate()));
-    CHECK(r);
+    CHECK(
+        w->object()->SetPrivate(
+            env->context(),
+            env->selected_npn_buffer_private_symbol(),
+            False(env->isolate())).FromJust());
 
     return SSL_TLSEXT_ERR_OK;
   }
@@ -2032,9 +2038,11 @@ int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
       break;
   }
 
-  bool r = w->object()->SetHiddenValue(env->selected_npn_buffer_string(),
-                                       result);
-  CHECK(r);
+  CHECK(
+      w->object()->SetPrivate(
+          env->context(),
+          env->selected_npn_buffer_private_symbol(),
+          result).FromJust());
 
   return SSL_TLSEXT_ERR_OK;
 }
@@ -2044,14 +2052,14 @@ template <class Base>
 void SSLWrap<Base>::GetNegotiatedProto(
     const FunctionCallbackInfo<Value>& args) {
   Base* w = Unwrap<Base>(args.Holder());
+  Environment* env = w->env();
 
   if (w->is_client()) {
-    Local<Value> selected_npn_buffer =
-        w->object()->GetHiddenValue(w->env()->selected_npn_buffer_string());
-
-    if (selected_npn_buffer.IsEmpty() == false)
-      args.GetReturnValue().Set(selected_npn_buffer);
-
+    auto selected_npn_buffer =
+        w->object()->GetPrivate(
+            env->context(),
+            env->selected_npn_buffer_private_symbol()).ToLocalChecked();
+    args.GetReturnValue().Set(selected_npn_buffer);
     return;
   }
 
@@ -2076,9 +2084,11 @@ void SSLWrap<Base>::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("Must give a Buffer as first argument");
 
-  Local<Value> npn_buffer =  Local<Value>::New(env->isolate(), args[0]);
-  bool r = w->object()->SetHiddenValue(env->npn_buffer_string(), npn_buffer);
-  CHECK(r);
+  CHECK(
+      w->object()->SetPrivate(
+          env->context(),
+          env->npn_buffer_private_symbol(),
+          args[0]).FromJust());
 }
 #endif  // OPENSSL_NPN_NEGOTIATED
 
@@ -2101,7 +2111,9 @@ int SSLWrap<Base>::SelectALPNCallback(SSL* s,
   Context::Scope context_scope(env->context());
 
   Local<Value> alpn_buffer =
-      w->object()->GetHiddenValue(env->alpn_buffer_string());
+      w->object()->GetPrivate(
+          env->context(),
+          env->alpn_buffer_private_symbol()).ToLocalChecked();
   CHECK(Buffer::HasInstance(alpn_buffer));
   const unsigned char* alpn_protos =
       reinterpret_cast<const unsigned char*>(Buffer::Data(alpn_buffer));
@@ -2164,10 +2176,11 @@ void SSLWrap<Base>::SetALPNProtocols(
     int r = SSL_set_alpn_protos(w->ssl_, alpn_protos, alpn_protos_len);
     CHECK_EQ(r, 0);
   } else {
-    Local<Value> alpn_buffer =  Local<Value>::New(env->isolate(), args[0]);
-    bool ret = w->object()->SetHiddenValue(env->alpn_buffer_string(),
-                                           alpn_buffer);
-    CHECK(ret);
+    CHECK(
+        w->object()->SetPrivate(
+          env->context(),
+          env->alpn_buffer_private_symbol(),
+          args[0]).FromJust());
     // Server should select ALPN protocol from list of advertised by client
     SSL_CTX_set_alpn_select_cb(w->ssl_->ctx, SelectALPNCallback, nullptr);
   }

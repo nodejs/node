@@ -10,6 +10,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
+using v8::Private;
 using v8::String;
 using v8::Value;
 
@@ -48,8 +49,10 @@ static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> obj = args[0].As<Object>();
   Local<String> name = args[1].As<String>();
+  auto private_symbol = Private::ForApi(env->isolate(), name);
+  auto maybe_value = obj->GetPrivate(env->context(), private_symbol);
 
-  args.GetReturnValue().Set(obj->GetHiddenValue(name));
+  args.GetReturnValue().Set(maybe_value.ToLocalChecked());
 }
 
 static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
@@ -63,8 +66,10 @@ static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> obj = args[0].As<Object>();
   Local<String> name = args[1].As<String>();
+  auto private_symbol = Private::ForApi(env->isolate(), name);
+  auto maybe_value = obj->SetPrivate(env->context(), private_symbol, args[2]);
 
-  args.GetReturnValue().Set(obj->SetHiddenValue(name, args[2]));
+  args.GetReturnValue().Set(maybe_value.FromJust());
 }
 
 

@@ -44,14 +44,24 @@ namespace node {
 #define NODE_PUSH_VAL_TO_ARRAY_MAX 8
 #endif
 
+// Private symbols are per-isolate primitives but Environment proxies them
+// for the sake of convenience.  Strings should be ASCII-only and have a
+// "node:" prefix to avoid name clashes with third-party code.
+#define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                              \
+  V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
+  V(arrow_message_private_symbol, "node:arrowMessage")                        \
+  V(contextify_private_symbol, "node:contextify")                             \
+  V(decorated_private_symbol, "node:decorated")                               \
+  V(npn_buffer_private_symbol, "node:npnBuffer")                              \
+  V(processed_private_symbol, "node:processed")                               \
+  V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
+
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
-  V(alpn_buffer_string, "alpnBuffer")                                         \
   V(args_string, "args")                                                      \
   V(argv_string, "argv")                                                      \
-  V(arrow_message_string, "node:arrowMessage")                                \
   V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
   V(atime_string, "atime")                                                    \
@@ -73,7 +83,6 @@ namespace node {
   V(cwd_string, "cwd")                                                        \
   V(debug_port_string, "debugPort")                                           \
   V(debug_string, "debug")                                                    \
-  V(decorated_string, "node:decorated")                                       \
   V(dest_string, "dest")                                                      \
   V(detached_string, "detached")                                              \
   V(dev_string, "dev")                                                        \
@@ -140,7 +149,6 @@ namespace node {
   V(netmask_string, "netmask")                                                \
   V(nice_string, "nice")                                                      \
   V(nlink_string, "nlink")                                                    \
-  V(npn_buffer_string, "npnBuffer")                                           \
   V(nsname_string, "nsname")                                                  \
   V(ocsp_request_string, "OCSPRequest")                                       \
   V(offset_string, "offset")                                                  \
@@ -176,7 +184,6 @@ namespace node {
   V(port_string, "port")                                                      \
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
-  V(processed_string, "processed")                                            \
   V(produce_cached_data_string, "produceCachedData")                          \
   V(prototype_string, "prototype")                                            \
   V(raw_string, "raw")                                                        \
@@ -192,7 +199,6 @@ namespace node {
   V(serial_string, "serial")                                                  \
   V(scavenge_string, "scavenge")                                              \
   V(scopeid_string, "scopeid")                                                \
-  V(selected_npn_buffer_string, "selectedNpnBuffer")                          \
   V(sent_shutdown_string, "sentShutdown")                                     \
   V(serial_number_string, "serialNumber")                                     \
   V(service_string, "service")                                                \
@@ -507,12 +513,17 @@ class Environment {
 
   inline v8::Local<v8::Object> NewInternalFieldObject();
 
-  // Strings are shared across shared contexts. The getters simply proxy to
-  // the per-isolate primitive.
-#define V(PropertyName, StringValue)                                          \
-  inline v8::Local<v8::String> PropertyName() const;
-  PER_ISOLATE_STRING_PROPERTIES(V)
+  // Strings and private symbols are shared across shared contexts
+  // The getters simply proxy to the per-isolate primitive.
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+  inline v8::Local<TypeName> PropertyName() const;
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
+#undef VS
+#undef VP
 
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> PropertyName() const;                            \
@@ -585,10 +596,15 @@ class Environment {
     inline void Put();
     inline uv_loop_t* event_loop() const;
 
-#define V(PropertyName, StringValue)                                          \
-    inline v8::Local<v8::String> PropertyName() const;
-    PER_ISOLATE_STRING_PROPERTIES(V)
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+    inline v8::Local<TypeName> PropertyName() const;
+    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+    PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
+#undef VS
+#undef VP
 
    private:
     inline static IsolateData* Get(v8::Isolate* isolate);
@@ -598,10 +614,15 @@ class Environment {
     uv_loop_t* const event_loop_;
     v8::Isolate* const isolate_;
 
-#define V(PropertyName, StringValue)                                          \
-    v8::Eternal<v8::String> PropertyName ## _;
-    PER_ISOLATE_STRING_PROPERTIES(V)
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+    v8::Eternal<TypeName> PropertyName ## _;
+    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+    PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
+#undef VS
+#undef VP
 
     unsigned int ref_count_;
 
