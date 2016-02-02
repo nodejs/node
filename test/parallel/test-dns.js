@@ -104,6 +104,14 @@ assert.throws(function() {
     noop);
 });
 
+assert.throws(function() {
+  dns.lookup('www.google.com');
+}, 'invalid arguments: callback must be passed');
+
+assert.throws(function() {
+  dns.lookup('www.google.com', 4);
+}, 'invalid arguments: callback must be passed');
+
 assert.doesNotThrow(function() {
   dns.lookup('www.google.com', 6, noop);
 });

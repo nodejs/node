@@ -55,8 +55,10 @@ function ondone(err, key) {
   assert.equal(key.toString('hex'), expected);
 }
 
-// Should return promise if no callback given
-assert.ok(crypto.pbkdf2('password', 'salt', 1, 20, null) instanceof Promise);
+// Error path should not leak memory (check with valgrind).
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', 1, 20, null);
+});
 
 // Should not work with Infinity key length
 assert.throws(function() {

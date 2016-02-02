@@ -10,7 +10,7 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-var hadTimeout = 0;
+var hadTimeout = false;
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
@@ -19,13 +19,10 @@ var options = {
 
 var server = tls.Server(options, function(socket) {
   var s = socket.setTimeout(100);
-
-  s.then(() => {
-    ++hadTimeout;
-  });
+  assert.ok(s instanceof tls.TLSSocket);
 
   socket.on('timeout', function(err) {
-    ++hadTimeout;
+    hadTimeout = true;
     socket.end();
     server.close();
   });
@@ -39,5 +36,5 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(hadTimeout, 2);
+  assert.ok(hadTimeout);
 });

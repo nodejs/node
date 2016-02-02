@@ -10,7 +10,7 @@ const emptyFile = path.join(common.fixturesDir, 'empty.js');
 
 const n = fork(emptyFile);
 
-const rv = n.send({ hello: 'world' }, noop);
+const rv = n.send({ hello: 'world' });
 assert.strictEqual(rv, true);
 
 const spawnOptions = { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] };
@@ -22,11 +22,8 @@ s.on('exit', function() {
 
 net.createServer(common.fail).listen(common.PORT, function() {
   handle = this._handle;
-  assert.strictEqual(s.send('one', handle, noop), true);
-  assert.strictEqual(s.send('two', handle, noop), true);
-  assert.strictEqual(s.send('three', noop), false);
-  assert.strictEqual(s.send('four', noop), false);
+  assert.strictEqual(s.send('one', handle), true);
+  assert.strictEqual(s.send('two', handle), true);
+  assert.strictEqual(s.send('three'), false);
+  assert.strictEqual(s.send('four'), false);
 });
-
-function noop() {
-}
