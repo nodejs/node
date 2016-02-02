@@ -1,4 +1,7 @@
 # Zlib
+<!-- YAML
+added: v0.5.8
+-->
 
     Stability: 2 - Stable
 
@@ -242,30 +245,51 @@ See the description of `deflateInit2` and `inflateInit2` at
 <http://zlib.net/manual.html#Advanced> for more information on these.
 
 ## Class: zlib.Deflate
+<!-- YAML
+added: v0.5.8
+-->
 
 Compress data using deflate.
 
 ## Class: zlib.DeflateRaw
+<!-- YAML
+added: v0.5.8
+-->
 
 Compress data using deflate, and do not append a zlib header.
 
 ## Class: zlib.Gunzip
+<!-- YAML
+added: v0.5.8
+-->
 
 Decompress a gzip stream.
 
 ## Class: zlib.Gzip
+<!-- YAML
+added: v0.5.8
+-->
 
 Compress data using gzip.
 
 ## Class: zlib.Inflate
+<!-- YAML
+added: v0.5.8
+-->
 
 Decompress a deflate stream.
 
 ## Class: zlib.InflateRaw
+<!-- YAML
+added: v0.5.8
+-->
 
 Decompress a raw deflate stream.
 
 ## Class: zlib.Unzip
+<!-- YAML
+added: v0.5.8
+-->
 
 Decompress either a Gzip- or Deflate-compressed stream by auto-detecting
 the header.
@@ -276,6 +300,9 @@ Not exported by the `zlib` module. It is documented here because it is the base
 class of the compressor/decompressor classes.
 
 ### zlib.flush([kind], callback)
+<!-- YAML
+added: v0.5.8
+-->
 
 `kind` defaults to `zlib.Z_FULL_FLUSH`.
 
@@ -293,30 +320,51 @@ Reset the compressor/decompressor to factory defaults. Only applicable to
 the inflate and deflate algorithms.
 
 ## zlib.createDeflate([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Deflate][] object with an [options][].
 
 ## zlib.createDeflateRaw([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [DeflateRaw][] object with an [options][].
 
 ## zlib.createGunzip([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Gunzip][] object with an [options][].
 
 ## zlib.createGzip([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Gzip][] object with an [options][].
 
 ## zlib.createInflate([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Inflate][] object with an [options][].
 
 ## zlib.createInflateRaw([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [InflateRaw][] object with an [options][].
 
 ## zlib.createUnzip([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Unzip][] object with an [options][].
 
