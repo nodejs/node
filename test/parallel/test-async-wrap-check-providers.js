@@ -12,7 +12,7 @@ const tls = require('tls');
 const zlib = require('zlib');
 const ChildProcess = require('child_process').ChildProcess;
 const StreamWrap = require('_stream_wrap').StreamWrap;
-const async_wrap = require('internal/async_wrap');
+const async_wrap = process.binding('async_wrap');
 const pkeys = Object.keys(async_wrap.Providers);
 
 let keyList = pkeys.slice();
@@ -26,7 +26,7 @@ function init(id) {
 
 function noop() { }
 
-async_wrap.setupHooks({init});
+async_wrap.setupHooks(init, noop, noop);
 
 async_wrap.enable();
 
@@ -49,10 +49,6 @@ new (process.binding('tty_wrap').TTY)();
 crypto.randomBytes(1, noop);
 
 common.refreshTmpDir();
-
-new Promise((resolve) => {
-  resolve();
-});
 
 net.createServer(function(c) {
   c.end();

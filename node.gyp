@@ -69,7 +69,6 @@
       'lib/v8.js',
       'lib/vm.js',
       'lib/zlib.js',
-      'lib/internal/async_wrap.js',
       'lib/internal/callbackify.js',
       'lib/internal/child_process.js',
       'lib/internal/cluster.js',
