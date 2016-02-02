@@ -89,7 +89,7 @@ parameter is undefined, a default error message is assigned.
 
 ## assert.deepStrictEqual(actual, expected[, message])
 
-Generally identical to `assert.deepEqual()` with the exception that primitive
+Generally identical to [`assert.deepEqual()`][] with the exception that primitive
 values are compared using the strict equality operator ( `===` ).
 
 ```js
