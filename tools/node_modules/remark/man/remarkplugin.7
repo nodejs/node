@@ -1,0 +1,84 @@
+.TH "REMARKPLUGIN" "7" "January 2016" "3.2.2" "remark manual"
+.SH "NAME"
+\fBremarkplugin\fR - remark plug-in usage
+.SH "SYNOPSIS"
+.P
+On \fBremark\fR(1)
+.P
+.RS 2
+.nf
+npm install remark-lint
+remark --use lint example.md
+.fi
+.RE
+.P
+On \fBremark\fR(3)
+.P
+.RS 2
+.nf
+var remark \[eq] require(\[aq]remark\[aq]);
+var lint \[eq] require(\[aq]remark-lint\[aq]);
+
+remark.use(lint).process(\[aq]Alpha **Bravo** Charlie\[aq]);
+.fi
+.RE
+.SH "DESCRIPTION"
+.P
+This manual contains information on how \fBremark\fR(3) plugins can be used. To create plugins, see \fBremarkplugin\fR(3).
+.P
+\fBremark\fR plugins lie at the core of \fBremark\fR\[cq]s vision. As they operate on the same syntax tree, there is no start-up time penalty when using more than one plug-in\[em]something which traditional tools, which need to re-compile to markdown to connect together, can be immense on large documents.
+.SH "USING PLUGINS"
+.SS "PROGRAMMATIC USAGE"
+.P
+To use plugins in \fBremark\fR(3), the JavaScript API, pass a plugin to \fBremark.use(plugin, options)\fR.
+.P
+See \fBremark\fR(3)\[cq]s USE section for more information.
+.SS "COMMAND LINE USAGE"
+.P
+To use plugins from the CLI, use the \fB--use\fR key (short: \fB-u\fR), which can be passed a single npm plugin, or a path to any CommonJS JavaScript file which exposes a plugin. When referencing an npm plugin, and the plugin\[cq]s name is prefixed by \fBremark-\fR, this prefix can be omitted.
+.P
+To pass options, follow the plugin\[cq]s location by an equals sign (\fB\[eq]\fR), which is then followed by settings. For example, \fB--use toc\[eq]heading:contents\fR.
+.P
+Each setting is delimited by a comma or a semi-colon, and each key is separated with a colon from its value.
+.P
+See \fBremark\fR(1)\[cq]s \fB-u\fR, \fB--use\fR option for more information.
+.SS ".remarkrc"
+.P
+\fB.remarkrc\fR and \fBpackage.json\fR files can declare which plugins should be used by including either a list of plugins or a map of plugin\[en]options pairs on a \fBplugins\fR field in the exposed object. When referencing an npm plugin, and the plugin\[cq]s name is prefixed by \fBremark-\fR, this prefix can be omitted.
+.P
+For example, the following \fB.remarkrc\fR file will use \fB\fBremark-lint\fR\fR \fI\(lahttps:\[sl]\[sl]www.npmjs.com\[sl]package\[sl]remark-lint\(ra\fR:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]plugins\[dq]: \[lB]
+    \[dq]lint\[dq]
+  \[rB]
+\[rC]
+.fi
+.RE
+.P
+The following \fB.remarkrc\fR file does the same, but additionally provides options to the plugin:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]plugins\[dq]: \[lC]
+    \[dq]lint\[dq]: \[lC]
+      \[dq]maximum-line-length\[dq]: 70
+    \[rC]
+  \[rC]
+\[rC]
+.fi
+.RE
+.P
+See \fBremarkrc\fR(5) for more information.
+.SH "BUGS"
+.P
+\fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]remark\[sl]issues\(ra\fR
+.SH "SEE ALSO"
+.P
+\fBremark\fR(1), \fBremark\fR(3), \fBremarkplugin\fR(7)
+.SH "NOTES"
+.P
+See also \fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]mdast\(ra\fR.

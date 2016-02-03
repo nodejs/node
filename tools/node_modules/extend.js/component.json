@@ -1,0 +1,14 @@
+{
+  "name": "extend",
+  "repo": "matthewmueller/extend.js",
+  "description": "extend(obj, obj2, ...)",
+  "version": "0.0.2",
+  "keywords": [],
+  "dependencies": {},
+  "development": {},
+  "license": "MIT",
+  "main": "index.js",
+  "scripts": [
+    "index.js"
+  ]
+}

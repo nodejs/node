@@ -1,0 +1,22 @@
+{
+  "name": "async-each",
+  "repo": "paulmillr/async-each",
+  "description": "No-bullshit, ultra-simple, 35-lines-of-code async parallel forEach / map function for JavaScript.",
+  "version": "0.1.6",
+  "keywords": [
+    "async", "forEach", "each", "map",
+    "asynchronous",
+    "iteration", "iterate",
+    "loop", "parallel",
+    "concurrent", "array",
+    "flow", "control flow"
+  ],
+  "main": "index.js",
+  "dependencies": {},
+  "development": {},
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components"
+  ]
+}
