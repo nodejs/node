@@ -12,7 +12,7 @@ if (cluster.isMaster) {
     // ensure that the port is not 0 or null
     assert(port);
     // ensure that the port is numerical
-    assert.strictEqual(typeof(port), 'number');
+    assert.strictEqual(typeof port, 'number');
     worker.kill();
   });
   process.on('exit', function() {

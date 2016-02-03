@@ -18,7 +18,7 @@ var body = 'hello world\n';
 
 var httpsServer = https.createServer(options, function(req, res) {
   res.on('finish', function() {
-    assert(typeof(req.connection.bytesWritten) === 'number');
+    assert(typeof req.connection.bytesWritten === 'number');
     assert(req.connection.bytesWritten > 0);
     httpsServer.close();
     console.log('ok');
