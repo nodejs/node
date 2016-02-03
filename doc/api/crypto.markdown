@@ -538,7 +538,7 @@ used in one of two ways:
 
 - As a [stream][] that is both readable and writable, where data is written
   to produce a computed hash digest on the readable side, or
-- Using the `hash.update()` and `hash.final()` methods to produce the
+- Using the `hash.update()` and `hash.digest()` methods to produce the
   computed hash.
 
 The `crypto.createHash()` method is used to create `Hash` instances. `Hash`
