@@ -21,8 +21,8 @@ assert.throws(function() {
   vm.runInDebugContext('(function(f) { f(f) })(function(f) { f(f) })');
 }, /RangeError/);
 
-assert.equal(typeof(vm.runInDebugContext('this')), 'object');
-assert.equal(typeof(vm.runInDebugContext('Debug')), 'object');
+assert.equal(typeof vm.runInDebugContext('this'), 'object');
+assert.equal(typeof vm.runInDebugContext('Debug'), 'object');
 
 assert.strictEqual(vm.runInDebugContext(), undefined);
 assert.strictEqual(vm.runInDebugContext(0), 0);
