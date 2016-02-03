@@ -21,10 +21,13 @@ The `Buffer` class is a global within Node.js, making it unlikely that one
 would need to ever use `require('buffer')`.
 
 ```js
+const Buffer = require('buffer').Buffer;
+
+/* eslint no-unused-vars:0 */
 const buf1 = new Buffer(10);
   // creates a buffer of length 10
 
-const buf2 = new Buffer([1,2,3]);
+const buf2 = new Buffer([1, 2, 3]);
   // creates a buffer containing [01, 02, 03]
 
 const buf3 = new Buffer('test');
@@ -42,6 +45,7 @@ convert back and forth between Buffers and ordinary JavaScript string objects
 by using an explicit encoding method.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer('hello world', 'ascii');
 console.log(buf.toString('hex'));
   // prints: 68656c6c6f20776f726c64
@@ -93,6 +97,7 @@ It is possible to create a new Buffer that shares the same allocated memory as
 a TypedArray instance by using the TypeArray objects `.buffer` property:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const arr = new Uint16Array(2);
 arr[0] = 5000;
 arr[1] = 4000;
@@ -118,6 +123,7 @@ create a Buffer that uses only a part of the `ArrayBuffer`, use the
 [`buf.slice()`][] function after the Buffer is created:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const arr = new Uint16Array(20);
 const buf = new Buffer(arr.buffer).slice(0, 16);
 console.log(buf.length);
@@ -129,10 +135,11 @@ console.log(buf.length);
 Buffers can be iterated over using the ECMAScript 2015 (ES6) `for..of` syntax:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer([1, 2, 3]);
 
 for (var b of buf)
-  console.log(b)
+  console.log(b);
 
 // Prints:
 //   1
@@ -155,7 +162,9 @@ It can be constructed in a variety of ways.
 Allocates a new Buffer using an `array` of octets.
 
 ```js
-const buf = new Buffer([0x62,0x75,0x66,0x66,0x65,0x72]);
+const Buffer = require('buffer').Buffer;
+/* eslint no-unused-vars:0 */
+const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
   // creates a new Buffer containing ASCII bytes
   // ['b','u','f','f','e','r']
 ```
@@ -167,6 +176,7 @@ const buf = new Buffer([0x62,0x75,0x66,0x66,0x65,0x72]);
 Copies the passed `buffer` data onto a new `Buffer` instance.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer('buffer');
 const buf2 = new Buffer(buf1);
 
@@ -187,6 +197,7 @@ the newly created Buffer will share the same allocated memory as the
 TypedArray.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const arr = new Uint16Array(2);
 arr[0] = 5000;
 arr[1] = 4000;
@@ -219,6 +230,7 @@ unknown and could contain sensitive data. Use [`buf.fill(0)`][] to initialize a
 Buffer to zeroes.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(5);
 console.log(buf);
   // <Buffer 78 e0 82 02 01>
@@ -237,6 +249,7 @@ Creates a new Buffer containing the given JavaScript string `str`. If
 provided, the `encoding` parameter identifies the strings character encoding.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer('this is a tést');
 console.log(buf1.toString());
   // prints: this is a tést
@@ -261,6 +274,7 @@ a string.
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const str = '\u00bd + \u00bc = \u00be';
 
 console.log(`${str}: ${str.length} characters, ` +
@@ -279,6 +293,7 @@ Compares `buf1` to `buf2` typically for the purpose of sorting arrays of
 Buffers. This is equivalent is calling [`buf1.compare(buf2)`][].
 
 ```js
+const Buffer = require('buffer').Buffer;
 const arr = [Buffer('1234'), Buffer('0123')];
 arr.sort(Buffer.compare);
 ```
@@ -302,6 +317,7 @@ to provide the length explicitly.
 Example: build a single Buffer from a list of three Buffers:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer(10).fill(0);
 const buf2 = new Buffer(14).fill(0);
 const buf3 = new Buffer(18).fill(0);
@@ -344,7 +360,8 @@ range is between `0x00` and `0xFF` (hex) or `0` and `255` (decimal).
 Example: copy an ASCII string into a Buffer, one byte at a time:
 
 ```js
-const str = "Node.js";
+const Buffer = require('buffer').Buffer;
+const str = 'Node.js';
 const buf = new Buffer(str.length);
 
 for (var i = 0; i < str.length ; i++) {
@@ -369,6 +386,7 @@ Comparison is based on the actual sequence of bytes in each Buffer.
 * `-1` is returned if `otherBuffer` should come *after* `buf` when sorted.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer('ABC');
 const buf2 = new Buffer('BCD');
 const buf3 = new Buffer('ABCD');
@@ -403,6 +421,7 @@ Example: build two Buffers, then copy `buf1` from byte 16 through byte 19
 into `buf2`, starting at the 8th byte in `buf2`.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer(26);
 const buf2 = new Buffer(26).fill('!');
 
@@ -419,6 +438,7 @@ Example: Build a single Buffer, then copy data from one region to an overlapping
 region in the same Buffer
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(26);
 
 for (var i = 0 ; i < 26 ; i++) {
@@ -439,6 +459,7 @@ Creates and returns an [iterator][] of `[index, byte]` pairs from the Buffer
 contents.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer('buffer');
 for (var pair of buf.entries()) {
   console.log(pair);
@@ -461,6 +482,7 @@ Returns a boolean indicating whether `this` and `otherBuffer` have exactly the
 same bytes.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer('ABC');
 const buf2 = new Buffer('414243', 'hex');
 const buf3 = new Buffer('ABCD');
@@ -483,6 +505,7 @@ given it will fill the entire Buffer. The method returns a reference to the
 Buffer so calls can be chained.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const b = new Buffer(50).fill('h');
 console.log(b.toString());
   // Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
@@ -502,6 +525,7 @@ default interpreted as UTF8. Buffers will use the entire Buffer (to compare a
 partial Buffer use [`buf.slice()`][]).  Numbers can range from 0 to 255.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer('this is a buffer');
 
 buf.indexOf('this');
@@ -514,7 +538,7 @@ buf.indexOf(97); // ascii for 'a'
   // returns 8
 buf.indexOf(new Buffer('a buffer example'));
   // returns -1
-buf.indexOf(new Buffer('a buffer example').slice(0,8));
+buf.indexOf(new Buffer('a buffer example').slice(0, 8));
   // returns 8
 
 const utf16Buffer = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
@@ -540,6 +564,7 @@ Buffer use [`buf.slice()`][]). Numbers can range from 0 to 255.
 The `byteOffset` indicates the index in `buf` where searching begins.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer('this is a buffer');
 
 buf.includes('this');
@@ -552,7 +577,7 @@ buf.includes(97); // ascii for 'a'
   // returns true
 buf.includes(new Buffer('a buffer example'));
   // returns false
-buf.includes(new Buffer('a buffer example').slice(0,8));
+buf.includes(new Buffer('a buffer example').slice(0, 8));
   // returns true
 buf.includes('this', 4);
   // returns false
@@ -565,6 +590,7 @@ buf.includes('this', 4);
 Creates and returns an [iterator][] of Buffer keys (indices).
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer('buffer');
 for (var key of buf.keys()) {
   console.log(key);
@@ -588,6 +614,7 @@ Buffer. For instance, in the example below, a Buffer with 1234 bytes is
 allocated, but only 11 ASCII bytes are written.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(1234);
 
 console.log(buf.length);
@@ -604,11 +631,12 @@ modify the length of a Buffer should therefore treat `length` as read-only and
 use [`buf.slice()`][] to create a new Buffer.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(10);
 buf.write('abcdefghj', 0, 'ascii');
 console.log(buf.length);
   // Prints: 10
-buf = buf.slice(0,5);
+buf = buf.slice(0, 5);
 console.log(buf.length);
   // Prints: 5
 ```
@@ -628,7 +656,8 @@ Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 `offset` to be beyond the end of the Buffer.
 
 ```js
-const buf = new Buffer([1,2,3,4,5,6,7,8]);
+const Buffer = require('buffer').Buffer;
+const buf = new Buffer([1, 2, 3, 4, 5, 6, 7, 8]);
 
 buf.readDoubleBE();
   // Returns: 8.20788039913184e-304
@@ -656,7 +685,8 @@ Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 `offset` to be beyond the end of the Buffer.
 
 ```js
-const buf = new Buffer([1,2,3,4]);
+const Buffer = require('buffer').Buffer;
+const buf = new Buffer([1, 2, 3, 4]);
 
 buf.readFloatBE();
   // Returns: 2.387939260590663e-38
@@ -683,7 +713,8 @@ Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 Integers read from the Buffer are interpreted as two's complement signed values.
 
 ```js
-const buf = new Buffer([1,-2,3,4]);
+const Buffer = require('buffer').Buffer;
+const buf = new Buffer([1, -2, 3, 4]);
 
 buf.readInt8(0);
   // returns 1
@@ -708,7 +739,8 @@ Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 Integers read from the Buffer are interpreted as two's complement signed values.
 
 ```js
-const buf = new Buffer([1,-2,3,4]);
+const Buffer = require('buffer').Buffer;
+const buf = new Buffer([1, -2, 3, 4]);
 
 buf.readInt16BE();
   // returns 510
@@ -733,7 +765,8 @@ Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 Integers read from the Buffer are interpreted as two's complement signed values.
 
 ```js
-const buf = new Buffer([1,-2,3,4]);
+const Buffer = require('buffer').Buffer;
+const buf = new Buffer([1, -2, 3, 4]);
 
 buf.readInt32BE();
   // returns 33424132
@@ -754,6 +787,7 @@ and interprets the result as a two's complement signed value. Supports up to 48
 bits of accuracy. For example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(6);
 buf.writeUInt16LE(0x90ab, 0);
 buf.writeUInt32LE(0x12345678, 2);
@@ -779,7 +813,8 @@ Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 `offset` to be beyond the end of the Buffer.
 
 ```js
-const buf = new Buffer([1,-2,3,4]);
+const Buffer = require('buffer').Buffer;
+const buf = new Buffer([1, -2, 3, 4]);
 
 buf.readUInt8(0);
   // returns 1
@@ -804,6 +839,7 @@ Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer([0x3, 0x4, 0x23, 0x42]);
 
 buf.readUInt16BE(0);
@@ -837,6 +873,7 @@ Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer([0x3, 0x4, 0x23, 0x42]);
 
 buf.readUInt32BE(0);
@@ -858,6 +895,7 @@ and interprets the result as an unsigned integer. Supports up to 48
 bits of accuracy. For example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(6);
 buf.writeUInt16LE(0x90ab, 0);
 buf.writeUInt32LE(0x12345678, 2);
@@ -887,6 +925,7 @@ Example: build a Buffer with the ASCII alphabet, take a slice, then modify one
 byte from the original Buffer.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer(26);
 
 for (var i = 0 ; i < 26 ; i++) {
@@ -905,6 +944,7 @@ Specifying negative indexes causes the slice to be generated relative to the
 end of the Buffer rather than the beginning.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer('buffer');
 
 buf.slice(-6, -1).toString();
@@ -926,17 +966,18 @@ Decodes and returns a string from the Buffer data using the specified
 character set `encoding`.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(26);
 for (var i = 0 ; i < 26 ; i++) {
   buf[i] = i + 97; // 97 is ASCII a
 }
 buf.toString('ascii');
   // Returns: 'abcdefghijklmnopqrstuvwxyz'
-buf.toString('ascii',0,5);
+buf.toString('ascii', 0, 5);
   // Returns: 'abcde'
-buf.toString('utf8',0,5);
+buf.toString('utf8', 0, 5);
   // Returns: 'abcde'
-buf.toString(undefined,0,5);
+buf.toString(undefined, 0, 5);
   // Returns: 'abcde', encoding defaults to 'utf8'
 ```
 
@@ -950,6 +991,7 @@ implicitly calls this function when stringifying a Buffer instance.
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer('test');
 const json = JSON.stringify(buf);
 
@@ -957,10 +999,10 @@ console.log(json);
 // Prints: '{"type":"Buffer","data":[116,101,115,116]}'
 
 const copy = JSON.parse(json, (key, value) => {
-    return value && value.type === 'Buffer'
-      ? new Buffer(value.data)
-      : value;
-  });
+  return value && value.type === 'Buffer'
+    ? new Buffer(value.data)
+    : value;
+});
 
 console.log(copy.toString());
 // Prints: 'test'
@@ -974,8 +1016,9 @@ Creates and returns an [iterator][] for Buffer values (bytes). This function is
 called automatically when the Buffer is used in a `for..of` statement.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer('buffer');
-for (var value of buf.values()) {
+for (const value of buf.values()) {
   console.log(value);
 }
 // prints:
@@ -985,8 +1028,12 @@ for (var value of buf.values()) {
 //   102
 //   101
 //   114
+```
 
-for (var value of buf) {
+```js
+const Buffer = require('buffer').Buffer;
+const buf = new Buffer('buffer');
+for (const value of buf) {
   console.log(value);
 }
 // prints:
@@ -1013,6 +1060,7 @@ string will be written however, it will not write only partially encoded
 characters.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(256);
 const len = buf.write('\u00bd + \u00bc = \u00be', 0);
 console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
@@ -1039,6 +1087,7 @@ should not be used unless you are certain of correctness.
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(8);
 buf.writeDoubleBE(0xdeadbeefcafebabe, 0);
 
@@ -1072,6 +1121,7 @@ should not be used unless you are certain of correctness.
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(4);
 buf.writeFloatBE(0xcafebabe, 0);
 
@@ -1102,6 +1152,7 @@ should not be used unless you are certain of correctness.
 The `value` is interpreted and written as a two's complement signed integer.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(2);
 buf.writeInt8(2, 0);
 buf.writeInt8(-2, 1);
@@ -1129,9 +1180,10 @@ should not be used unless you are certain of correctness.
 The `value` is interpreted and written as a two's complement signed integer.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(4);
-buf.writeInt16BE(0x0102,0);
-buf.writeInt16LE(0x0304,2);
+buf.writeInt16BE(0x0102, 0);
+buf.writeInt16LE(0x0304, 2);
 console.log(buf);
   // Prints: <Buffer 01 02 04 03>
 ```
@@ -1156,9 +1208,10 @@ should not be used unless you are certain of correctness.
 The `value` is interpreted and written as a two's complement signed integer.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(8);
-buf.writeInt32BE(0x01020304,0);
-buf.writeInt32LE(0x05060708,4);
+buf.writeInt32BE(0x01020304, 0);
+buf.writeInt32LE(0x05060708, 4);
 console.log(buf);
   // Prints: <Buffer 01 02 03 04 08 07 06 05>
 ```
@@ -1176,6 +1229,7 @@ Writes `value` to the Buffer at the specified `offset` and `byteLength`.
 Supports up to 48 bits of accuracy. For example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer(6);
 buf1.writeUIntBE(0x1234567890ab, 0, 6);
 console.log(buf1);
@@ -1210,6 +1264,7 @@ should not be used unless you are certain of correctness.
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(4);
 buf.writeUInt8(0x3, 0);
 buf.writeUInt8(0x4, 1);
@@ -1240,6 +1295,7 @@ should not be used unless you are certain of correctness.
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(4);
 buf.writeUInt16BE(0xdead, 0);
 buf.writeUInt16BE(0xbeef, 2);
@@ -1274,6 +1330,7 @@ should not be used unless you are certain of correctness.
 Example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(4);
 buf.writeUInt32BE(0xfeedface, 0);
 
@@ -1299,6 +1356,7 @@ Writes `value` to the Buffer at the specified `offset` and `byteLength`.
 Supports up to 48 bits of accuracy. For example:
 
 ```js
+const Buffer = require('buffer').Buffer;
 const buf = new Buffer(6);
 buf.writeUIntBE(0x1234567890ab, 0, 6);
 console.log(buf);
@@ -1336,8 +1394,10 @@ un-pooled Buffer instance using `SlowBuffer` then copy out the relevant bits.
 
 ```js
 // need to keep around a few small chunks of memory
+const SlowBuffer = require('buffer').SlowBuffer;
 const store = [];
 
+/* eslint no-undef:0 */
 socket.on('readable', () => {
   var data = socket.read();
   // allocate for retained data
