@@ -257,7 +257,32 @@ established after addition of event listener.
 Here's an example for using TLS session resumption:
 
 ```js
-var tlsSessionStore = {};
+const tls = require('tls');
+const fs = require('fs');
+
+const options = {
+  key: fs.readFileSync('server-key.pem'),
+  cert: fs.readFileSync('server-cert.pem'),
+
+  // This is necessary only if using the client certificate authentication.
+  requestCert: true,
+
+  // This is necessary only if the client uses the self-signed certificate.
+  ca: [ fs.readFileSync('client-cert.pem') ]
+};
+
+var server = tls.createServer(options, (socket) => {
+  console.log('server connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  socket.write('welcome!\n');
+  socket.setEncoding('utf8');
+  socket.pipe(socket);
+});
+server.listen(8000, () => {
+  console.log('server bound');
+});
+
+const tlsSessionStore = {};
 server.on('newSession', (id, data, cb) => {
   tlsSessionStore[id.toString('hex')] = data;
   cb();
@@ -677,6 +702,7 @@ socket.on('data', (data) => {
   console.log(data);
 });
 socket.on('end', () => {
+/* eslint no-undef:0 */
   server.close();
 });
 ```
@@ -702,6 +728,7 @@ socket.on('data', (data) => {
   console.log(data);
 });
 socket.on('end', () => {
+/* eslint no-undef:0 */
   server.close();
 });
 ```
@@ -793,7 +820,7 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
   - `ciphers`: A string describing the ciphers to use or exclude, separated by
     `:`. The default cipher suite is:
 
-    ```js
+    ```
     ECDHE-RSA-AES128-GCM-SHA256:
     ECDHE-ECDSA-AES128-GCM-SHA256:
     ECDHE-RSA-AES256-GCM-SHA384:
@@ -966,7 +993,8 @@ Returns an array with the names of the supported SSL ciphers.
 Example:
 
 ```js
-var ciphers = tls.getCiphers();
+const tls = require('tls');
+const ciphers = tls.getCiphers();
 console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 ```
 
