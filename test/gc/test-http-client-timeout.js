@@ -57,7 +57,7 @@ for (var i = 0; i < 10; i++)
   getall();
 
 function afterGC() {
-  countGC ++;
+  countGC++;
 }
 
 var timer;

@@ -56,7 +56,7 @@ function runTest() {
 }
 
 function afterGC() {
-  countGC ++;
+  countGC++;
 }
 
 var timer;

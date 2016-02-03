@@ -55,7 +55,7 @@ file.on('close', function() {
 var file3 = fs.createReadStream(fn, {encoding: 'utf8'});
 file3.length = 0;
 file3.on('data', function(data) {
-  assert.equal('string', typeof(data));
+  assert.equal('string', typeof data);
   file3.length += data.length;
 
   for (var i = 0; i < data.length; i++) {
