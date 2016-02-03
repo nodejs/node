@@ -32,6 +32,7 @@ returned function is a no-op.
 For example:
 
 ```js
+const util = require('util');
 var debuglog = util.debuglog('foo');
 
 var bar = 123;
@@ -105,6 +106,7 @@ If the placeholder does not have a corresponding argument, the placeholder is
 not replaced.
 
 ```js
+/* eslint no-undef:0 */
 util.format('%s:%s', 'foo'); // 'foo:%s'
 ```
 
@@ -113,6 +115,7 @@ coerced to strings (for objects and symbols, `util.inspect()` is used)
 and then concatenated, delimited by a space.
 
 ```js
+/* eslint no-undef:0 */
 util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
 ```
 
@@ -121,6 +124,7 @@ a string that is the concatenation of all its arguments separated by spaces.
 Each argument is converted to a string with `util.inspect()`.
 
 ```js
+/* eslint no-undef:0 */
 util.format(1, 2, 3); // '1 2 3'
 ```
 
@@ -138,14 +142,14 @@ const util = require('util');
 const EventEmitter = require('events');
 
 function MyStream() {
-    EventEmitter.call(this);
+  EventEmitter.call(this);
 }
 
 util.inherits(MyStream, EventEmitter);
 
 MyStream.prototype.write = function(data) {
-    this.emit('data', data);
-}
+  this.emit('data', data);
+};
 
 var stream = new MyStream();
 
@@ -154,7 +158,7 @@ console.log(MyStream.super_ === EventEmitter); // true
 
 stream.on('data', (data) => {
   console.log(`Received data: "${data}"`);
-})
+});
 stream.write('It works!'); // Received data: "It works!"
 ```
 
@@ -239,6 +243,8 @@ formatted according to the returned Object. This is similar to how
 `JSON.stringify()` works:
 
 ```js
+const util = require('util');
+
 var obj = { foo: 'this will not show up in the inspect() output' };
 obj.inspect = function(depth) {
   return { bar: 'baz' };
@@ -259,11 +265,11 @@ Returns `true` if the given "object" is an `Array`. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isArray([])
+util.isArray([]);
   // true
-util.isArray(new Array)
+util.isArray(new Array());
   // true
-util.isArray({})
+util.isArray({});
   // false
 ```
 
@@ -276,11 +282,11 @@ Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isBoolean(1)
+util.isBoolean(1);
   // false
-util.isBoolean(0)
+util.isBoolean(0);
   // false
-util.isBoolean(false)
+util.isBoolean(false);
   // true
 ```
 
@@ -292,12 +298,13 @@ Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
 
 ```js
 const util = require('util');
+const Buffer = require('buffer').Buffer;
 
-util.isBuffer({ length: 0 })
+util.isBuffer({ length: 0 });
   // false
-util.isBuffer([])
+util.isBuffer([]);
   // false
-util.isBuffer(new Buffer('hello world'))
+util.isBuffer(new Buffer('hello world'));
   // true
 ```
 
@@ -310,11 +317,11 @@ Returns `true` if the given "object" is a `Date`. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isDate(new Date())
+util.isDate(new Date());
   // true
-util.isDate(Date())
+util.isDate(Date());
   // false (without 'new' returns a String)
-util.isDate({})
+util.isDate({});
   // false
 ```
 
@@ -327,11 +334,11 @@ Returns `true` if the given "object" is an [`Error`][]. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isError(new Error())
+util.isError(new Error());
   // true
-util.isError(new TypeError())
+util.isError(new TypeError());
   // true
-util.isError({ name: 'Error', message: 'an error occurred' })
+util.isError({ name: 'Error', message: 'an error occurred' });
   // false
 ```
 
@@ -347,11 +354,11 @@ const util = require('util');
 function Foo() {}
 var Bar = function() {};
 
-util.isFunction({})
+util.isFunction({});
   // false
-util.isFunction(Foo)
+util.isFunction(Foo);
   // true
-util.isFunction(Bar)
+util.isFunction(Bar);
   // true
 ```
 
@@ -364,11 +371,11 @@ Returns `true` if the given "object" is strictly `null`. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isNull(0)
+util.isNull(0);
   // false
-util.isNull(undefined)
+util.isNull(undefined);
   // false
-util.isNull(null)
+util.isNull(null);
   // true
 ```
 
@@ -381,11 +388,11 @@ Returns `true` if the given "object" is `null` or `undefined`. `false` otherwise
 ```js
 const util = require('util');
 
-util.isNullOrUndefined(0)
+util.isNullOrUndefined(0);
   // false
-util.isNullOrUndefined(undefined)
+util.isNullOrUndefined(undefined);
   // true
-util.isNullOrUndefined(null)
+util.isNullOrUndefined(null);
   // true
 ```
 
@@ -398,13 +405,13 @@ Returns `true` if the given "object" is a `Number`. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isNumber(false)
+util.isNumber(false);
   // false
-util.isNumber(Infinity)
+util.isNumber(Infinity);
   // true
-util.isNumber(0)
+util.isNumber(0);
   // true
-util.isNumber(NaN)
+util.isNumber(NaN);
   // true
 ```
 
@@ -418,13 +425,13 @@ Returns `true` if the given "object" is strictly an `Object` __and__ not a
 ```js
 const util = require('util');
 
-util.isObject(5)
+util.isObject(5);
   // false
-util.isObject(null)
+util.isObject(null);
   // false
-util.isObject({})
+util.isObject({});
   // true
-util.isObject(function(){})
+util.isObject(function() {});
   // false
 ```
 
@@ -437,23 +444,23 @@ Returns `true` if the given "object" is a primitive type. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isPrimitive(5)
+util.isPrimitive(5);
   // true
-util.isPrimitive('foo')
+util.isPrimitive('foo');
   // true
-util.isPrimitive(false)
+util.isPrimitive(false);
   // true
-util.isPrimitive(null)
+util.isPrimitive(null);
   // true
-util.isPrimitive(undefined)
+util.isPrimitive(undefined);
   // true
-util.isPrimitive({})
+util.isPrimitive({});
   // false
-util.isPrimitive(function() {})
+util.isPrimitive(function() {});
   // false
-util.isPrimitive(/^$/)
+util.isPrimitive(/^$/);
   // false
-util.isPrimitive(new Date())
+util.isPrimitive(new Date());
   // false
 ```
 
@@ -466,11 +473,11 @@ Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isRegExp(/some regexp/)
+util.isRegExp(/some regexp/);
   // true
-util.isRegExp(new RegExp('another regexp'))
+util.isRegExp(new RegExp('another regexp'));
   // true
-util.isRegExp({})
+util.isRegExp({});
   // false
 ```
 
@@ -483,13 +490,13 @@ Returns `true` if the given "object" is a `String`. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isString('')
+util.isString('');
   // true
-util.isString('foo')
+util.isString('foo');
   // true
-util.isString(String('foo'))
+util.isString(String('foo'));
   // true
-util.isString(5)
+util.isString(5);
   // false
 ```
 
@@ -502,11 +509,11 @@ Returns `true` if the given "object" is a `Symbol`. `false` otherwise.
 ```js
 const util = require('util');
 
-util.isSymbol(5)
+util.isSymbol(5);
   // false
-util.isSymbol('foo')
+util.isSymbol('foo');
   // false
-util.isSymbol(Symbol('foo'))
+util.isSymbol(Symbol('foo'));
   // true
 ```
 
@@ -520,11 +527,11 @@ Returns `true` if the given "object" is `undefined`. `false` otherwise.
 const util = require('util');
 
 var foo;
-util.isUndefined(5)
+util.isUndefined(5);
   // false
-util.isUndefined(foo)
+util.isUndefined(foo);
   // true
-util.isUndefined(null)
+util.isUndefined(null);
   // false
 ```
 
