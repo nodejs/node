@@ -351,10 +351,10 @@ assert.equal(rangeBuffer.toString({toString: function() {
 // testing for smart defaults and ability to pass string values as offset
 var writeTest = new Buffer('abcdes');
 writeTest.write('n', 'ascii');
-writeTest.write('o', 'ascii', '1');
+writeTest.write('o', '1', 'ascii');
 writeTest.write('d', '2', 'ascii');
 writeTest.write('e', 3, 'ascii');
-writeTest.write('j', 'ascii', 4);
+writeTest.write('j', 4, 'ascii');
 assert.equal(writeTest.toString(), 'nodejs');
 
 // ASCII slice test
@@ -895,7 +895,7 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   assert.equal(buf[3], 0x63);
 
   buf.fill(0xFF);
-  written = buf.write('abcd', 'utf8', 1, 2);  // legacy style
+  written = buf.write('abcd', 1, 2, 'utf8');
   console.log(buf);
   assert.equal(written, 2);
   assert.equal(buf[0], 0xFF);
