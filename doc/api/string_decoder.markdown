@@ -7,6 +7,7 @@ buffer to a string. It is a simple interface to `buffer.toString()` but provides
 additional support for utf8.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const StringDecoder = require('string_decoder').StringDecoder;
 const decoder = new StringDecoder('utf8');
 
