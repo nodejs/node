@@ -15,13 +15,15 @@ Return the last portion of a path.  Similar to the Unix `basename` command.
 Example:
 
 ```js
-path.basename('/foo/bar/baz/asdf/quux.html')
-// returns
-'quux.html'
+const path = require('path');
 
-path.basename('/foo/bar/baz/asdf/quux.html', '.html')
+path.basename('/foo/bar/baz/asdf/quux.html');
 // returns
-'quux'
+// 'quux.html'
+
+path.basename('/foo/bar/baz/asdf/quux.html', '.html');
+// returns
+// 'quux'
 ```
 
 ## path.delimiter
@@ -31,23 +33,27 @@ The platform-specific path delimiter, `;` or `':'`.
 An example on \*nix:
 
 ```js
-console.log(process.env.PATH)
+const path = require('path');
+
+console.log(process.env.PATH);
 // '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
 
-process.env.PATH.split(path.delimiter)
+process.env.PATH.split(path.delimiter);
 // returns
-['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
+// ['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
 ```
 
 An example on Windows:
 
 ```js
-console.log(process.env.PATH)
+const path = require('path');
+
+console.log(process.env.PATH);
 // 'C:\Windows\system32;C:\Windows;C:\Program Files\node\'
 
-process.env.PATH.split(path.delimiter)
+process.env.PATH.split(path.delimiter);
 // returns
-['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
+// ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 ```
 
 ## path.dirname(p)
@@ -57,9 +63,11 @@ Return the directory name of a path.  Similar to the Unix `dirname` command.
 Example:
 
 ```js
-path.dirname('/foo/bar/baz/asdf/quux')
+const path = require('path');
+
+path.dirname('/foo/bar/baz/asdf/quux');
 // returns
-'/foo/bar/baz/asdf'
+// '/foo/bar/baz/asdf'
 ```
 
 ## path.extname(p)
@@ -70,25 +78,27 @@ of the path or the first character of it is '.', then it returns
 an empty string.  Examples:
 
 ```js
-path.extname('index.html')
-// returns
-'.html'
+const path = require('path');
 
-path.extname('index.coffee.md')
+path.extname('index.html');
 // returns
-'.md'
+// '.html'
 
-path.extname('index.')
+path.extname('index.coffee.md');
 // returns
-'.'
+// '.md'
 
-path.extname('index')
+path.extname('index.');
 // returns
-''
+// '.'
 
-path.extname('.index')
+path.extname('index');
 // returns
-''
+// ''
+
+path.extname('.index');
+// returns
+// ''
 ```
 
 ## path.format(pathObject)
@@ -96,25 +106,27 @@ path.extname('.index')
 Returns a path string from an object, the opposite of [`path.parse`][].
 
 ```js
+const path = require('path');
+
 path.format({
-    root : "/",
-    dir : "/home/user/dir",
-    base : "file.txt",
-    ext : ".txt",
-    name : "file"
-})
+  root : '/',
+  dir : '/home/user/dir',
+  base : 'file.txt',
+  ext : '.txt',
+  name : 'file'
+});
 // returns
-'/home/user/dir/file.txt'
+// '/home/user/dir/file.txt'
 
 // `root` will be used if `dir` is not specified and `name` + `ext` will be used
 // if `base` is not specified
 path.format({
-    root : "/",
-    ext : ".txt",
-    name : "file"
-})
+  root : '/',
+  ext : '.txt',
+  name : 'file'
+});
 // returns
-'/file.txt'
+// '/file.txt'
 ```
 
 ## path.isAbsolute(path)
@@ -125,19 +137,23 @@ resolve to the same location, regardless of the working directory.
 Posix examples:
 
 ```js
-path.isAbsolute('/foo/bar') // true
-path.isAbsolute('/baz/..')  // true
-path.isAbsolute('qux/')     // false
-path.isAbsolute('.')        // false
+const path = require('path');
+
+path.isAbsolute('/foo/bar'); // true
+path.isAbsolute('/baz/..');  // true
+path.isAbsolute('qux/');     // false
+path.isAbsolute('.');        // false
 ```
 
 Windows examples:
 
 ```js
-path.isAbsolute('//server')  // true
-path.isAbsolute('C:/foo/..') // true
-path.isAbsolute('bar\\baz')  // false
-path.isAbsolute('.')         // false
+const path = require('path');
+
+path.isAbsolute('//server');  // true
+path.isAbsolute('C:/foo/..'); // true
+path.isAbsolute('bar\\baz');  // false
+path.isAbsolute('.');         // false
 ```
 
 *Note:* If the path string passed as parameter is a zero-length string, unlike
@@ -154,13 +170,15 @@ silently ignored.  In v0.10 and up, an exception is thrown.
 Example:
 
 ```js
-path.join('/foo', 'bar', 'baz/asdf', 'quux', '..')
-// returns
-'/foo/bar/baz/asdf'
+const path = require('path');
 
-path.join('foo', {}, 'bar')
+path.join('/foo', 'bar', 'baz/asdf', 'quux', '..');
+// returns
+// '/foo/bar/baz/asdf'
+
+path.join('foo', {}, 'bar');
 // throws exception
-TypeError: Arguments to path.join must be strings
+// TypeError: Arguments to path.join must be strings
 ```
 
 *Note:* If the arguments to `join` have zero-length strings, unlike other path
@@ -179,9 +197,11 @@ On Windows backslashes are used.
 Example:
 
 ```js
-path.normalize('/foo/bar//baz/asdf/quux/..')
+const path = require('path');
+
+path.normalize('/foo/bar//baz/asdf/quux/..');
 // returns
-'/foo/bar/baz/asdf'
+// '/foo/bar/baz/asdf'
 ```
 
 *Note:* If the path string passed as argument is a zero-length string then `'.'`
@@ -194,29 +214,33 @@ Returns an object from a path string.
 An example on \*nix:
 
 ```js
-path.parse('/home/user/dir/file.txt')
+const path = require('path');
+
+path.parse('/home/user/dir/file.txt');
 // returns
-{
-    root : "/",
-    dir : "/home/user/dir",
-    base : "file.txt",
-    ext : ".txt",
-    name : "file"
-}
+// {
+//     root : "/",
+//     dir : "/home/user/dir",
+//     base : "file.txt",
+//     ext : ".txt",
+//     name : "file"
+// }
 ```
 
 An example on Windows:
 
 ```js
-path.parse('C:\\path\\dir\\index.html')
+const path = require('path');
+
+path.parse('C:\\path\\dir\\index.html');
 // returns
-{
-    root : "C:\\",
-    dir : "C:\\path\\dir",
-    base : "index.html",
-    ext : ".html",
-    name : "index"
-}
+// {
+//     root : "C:\\",
+//     dir : "C:\\path\\dir",
+//     base : "index.html",
+//     ext : ".html",
+//     name : "index"
+// }
 ```
 
 ## path.posix
@@ -233,19 +257,26 @@ path from one to the other.  This is actually the reverse transform of
 `path.resolve`, which means we see that:
 
 ```js
-path.resolve(from, path.relative(from, to)) == path.resolve(to)
+const path = require('path');
+
+const from = '/some/path/';
+const to = '/another/different/path/';
+
+path.resolve(from, path.relative(from, to)) == path.resolve(to);
 ```
 
 Examples:
 
 ```js
-path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb')
-// returns
-'..\\..\\impl\\bbb'
+const path = require('path');
 
-path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb')
+path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb');
 // returns
-'../../impl/bbb'
+// '..\\..\\impl\\bbb'
+
+path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb');
+// returns
+// '../../impl/bbb'
 ```
 
 *Note:* If the arguments to `relative` have zero-length strings then the current
@@ -265,7 +296,9 @@ gets resolved to the root directory. Non-string `from` arguments are ignored.
 Another way to think of it is as a sequence of `cd` commands in a shell.
 
 ```js
-path.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile')
+const path = require('path');
+
+path.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
 ```
 
 Is similar to:
@@ -284,17 +317,19 @@ files.
 Examples:
 
 ```js
-path.resolve('/foo/bar', './baz')
-// returns
-'/foo/bar/baz'
+const path = require('path');
 
-path.resolve('/foo/bar', '/tmp/file/')
+path.resolve('/foo/bar', './baz');
 // returns
-'/tmp/file'
+// '/foo/bar/baz'
 
-path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
+path.resolve('/foo/bar', '/tmp/file/');
+// returns
+// '/tmp/file'
+
+path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif');
 // if currently in /home/myself/node, it returns
-'/home/myself/node/wwwroot/static_files/gif/image.gif'
+// '/home/myself/node/wwwroot/static_files/gif/image.gif'
 ```
 
 *Note:* If the arguments to `resolve` have zero-length strings then the current
@@ -307,17 +342,21 @@ The platform-specific file separator. `'\\'` or `'/'`.
 An example on \*nix:
 
 ```js
-'foo/bar/baz'.split(path.sep)
+const path = require('path');
+
+'foo/bar/baz'.split(path.sep);
 // returns
-['foo', 'bar', 'baz']
+// ['foo', 'bar', 'baz']
 ```
 
 An example on Windows:
 
 ```js
-'foo\\bar\\baz'.split(path.sep)
+const path = require('path');
+
+'foo\\bar\\baz'.split(path.sep);
 // returns
-['foo', 'bar', 'baz']
+// ['foo', 'bar', 'baz']
 ```
 
 ## path.win32
