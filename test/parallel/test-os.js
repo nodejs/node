@@ -103,6 +103,8 @@ switch (platform) {
 var EOL = os.EOL;
 assert.ok(EOL.length > 0);
 
+var descriptor = Object.getOwnPropertyDescriptor(os, 'EOL');
+assert.ok(descriptor.writable === false);
 
 var home = os.homedir();
 
