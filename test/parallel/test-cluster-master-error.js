@@ -92,15 +92,15 @@ if (cluster.isWorker) {
     // Check that the cluster died accidently
     existMaster = !!code;
 
-    // Give the workers time to shut down
-    var timeout = 200;
-    if (common.isAix) {
-      // AIX needs more time due to default exit performance
-      timeout = 1000;
-    }
-    setTimeout(checkWorkers, timeout);
+    // Give the workers time to shut down.
+    // Since the parent process of the workers does not clean up after the
+    // forked children they will end up as zombie processes. pid 1 (init) will
+    // reparent those and eventually reap them. This takes normally <200ms but
+    // some init systems, like AIX and busybox init, needs a bit more.
+    var timeout = 1000;
 
-    function checkWorkers() {
+    var waitWorker = setInterval(function() {
+      timeout -= 10;
       // When master is dead all workers should be dead to
       var alive = false;
       workers.forEach(function(pid) {
@@ -111,7 +111,10 @@ if (cluster.isWorker) {
 
       // If a worker was alive this did not act as expected
       existWorker = !alive;
-    }
+
+      if (!alive || (timeout <= 0))
+        clearInterval(waitWorker);
+    }, 10);
   });
 
   process.once('exit', function() {
