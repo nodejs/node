@@ -7,6 +7,7 @@
 You can access this module with:
 
 ```js
+/* eslint no-unused-vars:0 */
 const vm = require('vm');
 ```
 
@@ -139,7 +140,7 @@ const script = new vm.Script('globalVar += 1', { filename: 'myfile.vm' });
 for (var i = 0; i < 1000; ++i) {
   script.runInThisContext();
 }
-
+/* eslint no-undef:0 */
 console.log(globalVar);
 
 // 1000
@@ -201,7 +202,7 @@ const sandbox = { globalVar: 1 };
 vm.createContext(sandbox);
 
 for (var i = 0; i < 10; ++i) {
-    vm.runInContext('globalVar *= 2;', sandbox);
+  vm.runInContext('globalVar *= 2;', sandbox);
 }
 console.log(util.inspect(sandbox));
 
@@ -218,6 +219,7 @@ a separate process.
 context. The primary use case is to get access to the V8 debug object:
 
 ```js
+const vm = require('vm');
 const Debug = vm.runInDebugContext('Debug');
 Debug.scripts().forEach(function(script) { console.log(script.name); });
 ```
