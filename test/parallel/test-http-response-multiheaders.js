@@ -59,7 +59,7 @@ server.listen(common.PORT, common.mustCall(function() {
     http.get(
       {port:common.PORT, headers:{'x-num': n}},
       common.mustCall(function(res) {
-        if (++ count === 2) server.close();
+        if (++count === 2) server.close();
         assert.equal(res.headers['content-length'], 1);
         for (const name of norepeat) {
           assert.equal(res.headers[name], 'A');

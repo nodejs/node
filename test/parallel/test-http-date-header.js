@@ -6,7 +6,7 @@ var http = require('http');
 var testResBody = 'other stuff!\n';
 
 var server = http.createServer(function(req, res) {
-  assert.ok(! ('date' in req.headers),
+  assert.ok(!('date' in req.headers),
             'Request headers contained a Date.');
   res.writeHead(200, {
     'Content-Type': 'text/plain'
