@@ -69,6 +69,10 @@ you intend to keep one HTTP request open for a long time and don't
 want it to stay in the pool you can do something along the lines of:
 
 ```js
+const http = require('http');
+
+const options = { /* ... */ };
+
 http.get(options, (res) => {
   // Do stuff
 }).on('socket', (socket) => {
@@ -80,6 +84,8 @@ Alternatively, you could just opt out of pooling entirely using
 `agent:false`:
 
 ```js
+const http = require('http');
+
 http.get({
   hostname: 'localhost',
   port: 80,
@@ -87,7 +93,7 @@ http.get({
   agent: false  // create a new agent just for this one request
 }, (res) => {
   // Do stuff with response
-})
+});
 ```
 
 ### new Agent([options])
@@ -113,8 +119,11 @@ To configure any of them, you must create your own [`http.Agent`][] object.
 ```js
 const http = require('http');
 var keepAliveAgent = new http.Agent({ keepAlive: true });
+var options = { /* ... */ };
 options.agent = keepAliveAgent;
-http.request(options, onResponseCallback);
+http.request(options, (res) => {
+  /* ... */
+});
 ```
 
 ### agent.destroy()
@@ -227,7 +236,7 @@ const net = require('net');
 const url = require('url');
 
 // Create an HTTP tunneling proxy
-var proxy = http.createServer( (req, res) => {
+var proxy = http.createServer((req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('okay');
 });
@@ -317,7 +326,7 @@ A client server pair that show you how to listen for the `'upgrade'` event.
 const http = require('http');
 
 // Create an HTTP server
-var srv = http.createServer( (req, res) => {
+var srv = http.createServer((req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('okay');
 });
@@ -642,6 +651,7 @@ Note that HTTP requires the `Trailer` header to be sent if you intend to
 emit trailers, with a list of the header fields in its value. E.g.,
 
 ```js
+/* eslint no-undef:0 */
 response.writeHead(200, { 'Content-Type': 'text/plain',
                           'Trailer': 'Content-MD5' });
 response.write(fileData);
@@ -678,6 +688,7 @@ implicitly flushed.
 Example:
 
 ```js
+/* eslint no-unused-vars:0, no-undef:0 */
 var contentType = response.getHeader('content-type');
 ```
 
@@ -692,6 +703,7 @@ Removes a header that's queued for implicit sending.
 Example:
 
 ```js
+/* eslint no-undef:0 */
 response.removeHeader('Content-Encoding');
 ```
 
@@ -712,12 +724,14 @@ here if you need to send multiple headers with the same name.
 Example:
 
 ```js
+/* eslint no-undef:0 */
 response.setHeader('Content-Type', 'text/html');
 ```
 
 or
 
 ```js
+/* eslint no-undef:0 */
 response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 ```
 
@@ -729,8 +743,11 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 [`response.writeHead()`][] given precedence.
 
 ```js
+const http = require('http');
+
 // returns content-type = text/plain
-const server = http.createServer((req,res) => {
+/* eslint no-unused-vars:0 */
+const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -764,6 +781,7 @@ the headers get flushed.
 Example:
 
 ```js
+/* eslint no-undef:0 */
 response.statusCode = 404;
 ```
 
@@ -780,6 +798,7 @@ code will be used.
 Example:
 
 ```js
+/* eslint no-undef:0 */
 response.statusMessage = 'Not found';
 ```
 
@@ -828,6 +847,7 @@ Example:
 
 ```js
 var body = 'hello world';
+/* eslint no-undef:0 */
 response.writeHead(200, {
   'Content-Length': body.length,
   'Content-Type': 'text/plain' });
@@ -844,8 +864,11 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 [`response.writeHead()`][] given precedence.
 
 ```js
+const http = require('http');
+
 // returns content-type = text/plain
-const server = http.createServer((req,res) => {
+/* eslint no-unused-vars:0 */
+const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -893,6 +916,7 @@ Example:
 // { 'user-agent': 'curl/7.22.0',
 //   host: '127.0.0.1:8000',
 //   accept: '*/*' }
+/* eslint no-undef:0 */
 console.log(request.headers);
 ```
 
@@ -943,6 +967,7 @@ Header names are not lowercased, and duplicates are not merged.
 //   '127.0.0.1:8000',
 //   'ACCEPT',
 //   '*/*' ]
+/* eslint no-undef:0 */
 console.log(request.rawHeaders);
 ```
 
@@ -1068,6 +1093,8 @@ is that it sets the method to GET and calls `req.end()` automatically.
 Example:
 
 ```js
+const http = require('http');
+
 http.get('http://www.google.com/index.html', (res) => {
   console.log(`Got response: ${res.statusCode}`);
   // consume response body
@@ -1128,6 +1155,9 @@ upload a file with a POST request, then write to the `ClientRequest` object.
 Example:
 
 ```js
+const querystring = require('querystring');
+const http = require('http');
+
 var postData = querystring.stringify({
   'msg' : 'Hello World!'
 });
@@ -1151,8 +1181,8 @@ var req = http.request(options, (res) => {
     console.log(`BODY: ${chunk}`);
   });
   res.on('end', () => {
-    console.log('No more data in response.')
-  })
+    console.log('No more data in response.');
+  });
 });
 
 req.on('error', (e) => {
