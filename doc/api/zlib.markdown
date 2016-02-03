@@ -16,6 +16,9 @@ Compressing or decompressing a file can be done by piping an
 fs.ReadStream into a zlib stream, then into an fs.WriteStream.
 
 ```js
+'use strict';
+
+const zlib = require('zlib');
 const gzip = zlib.createGzip();
 const fs = require('fs');
 const inp = fs.createReadStream('input.txt');
@@ -28,6 +31,10 @@ Compressing or decompressing data in one step can be done by using
 the convenience methods.
 
 ```js
+'use strict';
+
+const zlib = require('zlib');
+const Buffer = require('buffer').Buffer;
 const input = '.................................';
 zlib.deflate(input, (err, buffer) => {
   if (!err) {
@@ -56,6 +63,8 @@ ought to be cached.  See [Memory Usage Tuning][] for more information
 on the speed/memory/compression tradeoffs involved in zlib usage.
 
 ```js
+'use strict';
+
 // client request example
 const zlib = require('zlib');
 const http = require('http');
@@ -84,9 +93,6 @@ request.on('response', (response) => {
 // server example
 // Running a gzip operation on every request is quite expensive.
 // It would be much more efficient to cache the compressed buffer.
-const zlib = require('zlib');
-const http = require('http');
-const fs = require('fs');
 http.createServer((request, response) => {
   var raw = fs.createReadStream('index.html');
   var acceptEncoding = request.headers['accept-encoding'];
