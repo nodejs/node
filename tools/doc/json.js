@@ -184,14 +184,13 @@ function processList(section) {
     var type = tok.type;
     if (type === 'space') return;
     if (type === 'list_item_start') {
+      var n = {};
       if (!current) {
-        var n = {};
         values.push(n);
         current = n;
       } else {
         current.options = current.options || [];
         stack.push(current);
-        var n = {};
         current.options.push(n);
         current = n;
       }
@@ -478,14 +477,14 @@ function deepCopy(src, dest) {
 function deepCopy_(src) {
   if (!src) return src;
   if (Array.isArray(src)) {
-    var c = new Array(src.length);
+    const c = new Array(src.length);
     src.forEach(function(v, i) {
       c[i] = deepCopy_(v);
     });
     return c;
   }
   if (typeof src === 'object') {
-    var c = {};
+    const c = {};
     Object.keys(src).forEach(function(k) {
       c[k] = deepCopy_(src[k]);
     });
