@@ -12,7 +12,7 @@ The contents of `foo.js`:
 
 ```js
 const circle = require('./circle.js');
-console.log( `The area of a circle of radius 4 is ${circle.area(4)}`);
+console.log(`The area of a circle of radius 4 is ${circle.area(4)}`);
 ```
 
 The contents of `circle.js`:
@@ -54,7 +54,7 @@ module.exports = (width) => {
   return {
     area: () => width * width
   };
-}
+};
 ```
 
 The module system is implemented in the `require("module")` module.
@@ -68,7 +68,7 @@ When a file is run directly from Node.js, `require.main` is set to its
 directly by testing
 
 ```js
-require.main === module
+require.main === module;
 ```
 
 For a file `foo.js`, this will be `true` if run via `node foo.js`, but
@@ -491,10 +491,12 @@ To illustrate the behavior, imagine this hypothetical implementation of
 `require()`:
 
 ```js
-function require(...) {
+/* eslint no-unused-vars:0 */
+function require(/* ... */) {
   // ...
   ((module, exports) => {
     // Your module code here
+    /* eslint no-undef:0 */
     exports = some_func;        // re-assigns exports, exports is no longer
                                 // a shortcut, and nothing is exported.
     module.exports = some_func; // makes your module export 0
