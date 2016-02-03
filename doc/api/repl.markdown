@@ -167,6 +167,9 @@ to signal `'end'` on the `input` stream.
 Example of listening for `exit`:
 
 ```js
+const repl = require('repl');
+
+var replServer = repl.start();
 replServer.on('exit', () => {
   console.log('Got "exit" event from repl!');
   process.exit();
@@ -185,8 +188,11 @@ be emitted.
 Example of listening for `reset`:
 
 ```js
+const repl = require('repl');
+
 // Extend the initial repl context.
-var replServer = repl.start({ options ... });
+var replServer = repl.start({ /* options ... */ });
+/* eslint no-undef:0 */
 someExtension.extend(r.context);
 
 // When a new context is created extend it as well.
@@ -318,7 +324,7 @@ net.createServer((socket) => {
     output: socket
   }).on('exit', () => {
     socket.end();
-  })
+  });
 }).listen('/tmp/node-repl-sock');
 
 net.createServer((socket) => {
