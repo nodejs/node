@@ -30,8 +30,10 @@ For example, suppose `myscript.js` is written as:
 
 ```js
 // myscript.js
-x = 5;
+/* eslint no-unused-vars:0 */
+const x = 5;
 setTimeout(() => {
+/* eslint no-debugger:0 */
   debugger;
   console.log('world');
 }, 1000);
