@@ -118,6 +118,8 @@ it can be obtained using `cluster.worker`.
 Similar to the `cluster.on('disconnect')` event, but specific to this worker.
 
 ```js
+const cluster = require('cluster');
+
 cluster.fork().on('disconnect', () => {
   // Worker has disconnected
 });
@@ -138,11 +140,12 @@ In a worker you can also use `process.on('error')`.
 Similar to the `cluster.on('exit')` event, but specific to this worker.
 
 ```js
+const cluster = require('cluster');
 const worker = cluster.fork();
 worker.on('exit', (code, signal) => {
-  if( signal ) {
+  if (signal) {
     console.log(`worker was killed by signal: ${signal}`);
-  } else if( code !== 0 ) {
+  } else if (code !== 0) {
     console.log(`worker exited with error code: ${code}`);
   } else {
     console.log('worker success!');
@@ -157,6 +160,8 @@ worker.on('exit', (code, signal) => {
 Similar to the `cluster.on('listening')` event, but specific to this worker.
 
 ```js
+const cluster = require('cluster');
+
 cluster.fork().on('listening', (address) => {
   // Worker is listening
 });
@@ -224,6 +229,8 @@ if (cluster.isMaster) {
 Similar to the `cluster.on('online')` event, but specific to this worker.
 
 ```js
+const cluster = require('cluster');
+
 cluster.fork().on('online', () => {
   // Worker is online
 });
@@ -260,6 +267,8 @@ close them. It also may be useful to implement a timeout, killing a worker if
 the `'disconnect'` event has not been emitted after some time.
 
 ```js
+const cluster = require('cluster');
+
 if (cluster.isMaster) {
   var worker = cluster.fork();
   var timeout;
@@ -285,7 +294,7 @@ if (cluster.isMaster) {
   server.listen(8000);
 
   process.on('message', (msg) => {
-    if(msg === 'shutdown') {
+    if (msg === 'shutdown') {
       // initiate graceful close of any connections to server
     }
   });
@@ -361,6 +370,8 @@ In a worker this sends a message to the master. It is identical to
 This example will echo back all messages from the master:
 
 ```js
+const cluster = require('cluster');
+
 if (cluster.isMaster) {
   var worker = cluster.fork();
   worker.send('hi there');
@@ -382,13 +393,16 @@ The boolean `worker.suicide` lets you distinguish between voluntary and accident
 exit, the master may choose not to respawn a worker based on this value.
 
 ```js
+const cluster = require('cluster');
+
 cluster.on('exit', (worker, code, signal) => {
   if (worker.suicide === true) {
-    console.log('Oh, it was just suicide\' – no need to worry').
+    console.log('Oh, it was just suicide\' – no need to worry');
   }
 });
 
 // kill worker
+/* eslint no-undef:0 */
 worker.kill();
 ```
 
@@ -405,6 +419,8 @@ can be used to detect if the process is stuck in a cleanup or if there are
 long-living connections.
 
 ```js
+const cluster = require('cluster');
+
 cluster.on('disconnect', (worker) => {
   console.log(`The worker #${worker.id} has disconnected`);
 });
@@ -422,6 +438,8 @@ When any of the workers die the cluster module will emit the `'exit'` event.
 This can be used to restart the worker by calling `.fork()` again.
 
 ```js
+const cluster = require('cluster');
+
 cluster.on('exit', (worker, code, signal) => {
   console.log('worker %d died (%s). restarting...',
     worker.process.pid, signal || code);
@@ -439,6 +457,8 @@ When a new worker is forked the cluster module will emit a `'fork'` event.
 This can be used to log worker activity, and create your own timeout.
 
 ```js
+const cluster = require('cluster');
+
 var timeouts = [];
 function errorMsg() {
   console.error('Something must be wrong with the connection ...');
@@ -470,6 +490,8 @@ object and the `address` object contains the following connection properties:
 on more than one address.
 
 ```js
+const cluster = require('cluster');
+
 cluster.on('listening', (worker, address) => {
   console.log(
     `A worker is now connected to ${address.address}:${address.port}`);
@@ -502,6 +524,8 @@ The difference between `'fork'` and `'online'` is that fork is emitted when the
 master forks a worker, and 'online' is emitted when the worker is running.
 
 ```js
+const cluster = require('cluster');
+
 cluster.on('online', (worker) => {
   console.log('Yay, the worker responded after it was forked');
 });
@@ -663,6 +687,8 @@ However, it is guaranteed that the removal from the cluster.workers list happens
 before last `'disconnect'` or `'exit'` event is emitted.
 
 ```js
+const cluster = require('cluster');
+
 // Go through all workers
 function eachWorker(callback) {
   for (var id in cluster.workers) {
@@ -678,6 +704,9 @@ Should you wish to reference a worker over a communication channel, using
 the worker's unique id is the easiest way to find the worker.
 
 ```js
+const cluster = require('cluster');
+
+/* eslint no-undef:0, no-unused-vars:0 */
 socket.on('data', (id) => {
   var worker = cluster.workers[id];
 });
