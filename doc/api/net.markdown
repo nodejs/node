@@ -46,6 +46,8 @@ Returns an object with three properties, e.g.
 Example:
 
 ```js
+const net = require('net');
+
 var server = net.createServer((socket) => {
   socket.end('goodbye\n');
 });
@@ -53,7 +55,7 @@ var server = net.createServer((socket) => {
 // grab a random port.
 server.listen((err) => {
   if (err) throw err;
-  address = server.address();
+  const address = server.address();
   console.log('opened server on %j', address);
 });
 ```
@@ -131,6 +133,11 @@ results in an error. An example which listens on an exclusive port is
 shown below.
 
 ```js
+const net = require('net');
+
+var server = net.createServer((socket) => {
+  // New Connection
+});
 server.listen({
   host: 'localhost',
   port: 80,
@@ -190,6 +197,10 @@ another server is already running on the requested port. One way of handling thi
 would be to wait a second and then try again. This can be done with
 
 ```js
+const PORT = 8000;
+const HOST = 'localhost';
+
+/* eslint no-undef:0 */
 server.on('error', (e) => {
   if (e.code == 'EADDRINUSE') {
     console.log('Address in use, retrying...');
@@ -245,7 +256,7 @@ Construct a new socket object.
 
 `options` is an object with the following defaults:
 
-```js
+```
 {
   fd: null,
   allowHalfOpen: false,
@@ -547,6 +558,8 @@ To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
 ```js
+const net = require('net');
+/* eslint no-unused-vars:0 */
 const client = net.connect({path: '/tmp/echo.sock'});
 ```
 
@@ -601,6 +614,8 @@ To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
 ```js
+const net = require('net');
+/* eslint no-unused-vars:0 */
 const client = net.connect({path: '/tmp/echo.sock'});
 ```
 
@@ -629,7 +644,7 @@ automatically set as a listener for the [`'connection'`][] event.
 
 `options` is an object with the following defaults:
 
-```js
+```
 {
   allowHalfOpen: false,
   pauseOnConnect: false
@@ -677,6 +692,7 @@ To listen on the socket `/tmp/echo.sock` the third line from the last would
 just be changed to
 
 ```js
+/* eslint no-undef:0 */
 server.listen('/tmp/echo.sock', (err) => {
   // 'listening' listener
   if (err) throw err;
@@ -685,7 +701,7 @@ server.listen('/tmp/echo.sock', (err) => {
 
 Use `nc` to connect to a UNIX domain socket server:
 
-```js
+```
 nc -U /tmp/echo.sock
 ```
 
