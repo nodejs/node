@@ -41,6 +41,8 @@ results. For example, the following example does not throw an `AssertionError`
 because the properties on the [`Error`][] object are non-enumerable:
 
 ```js
+const assert = require('assert');
+
 // WARNING: This does not throw an AssertionError!
 assert.deepEqual(Error('a'), Error('b'));
 ```
@@ -65,7 +67,7 @@ const obj3 = {
   a : {
     b : 1
   }
-}
+};
 const obj4 = Object.create(obj1);
 
 assert.deepEqual(obj1, obj1);
@@ -124,6 +126,8 @@ The following, for instance, will throw the [`TypeError`][] because there is no
 matching error type in the assertion:
 
 ```js
+const assert = require('assert');
+
 assert.doesNotThrow(
   () => {
     throw new TypeError('Wrong value');
@@ -136,6 +140,8 @@ However, the following will result in an `AssertionError` with the message
 'Got unwanted exception (TypeError)..':
 
 ```js
+const assert = require('assert');
+
 assert.doesNotThrow(
   () => {
     throw new TypeError('Wrong value');
@@ -149,6 +155,8 @@ parameter, the value of `message` will be appended to the `AssertionError`
 message:
 
 ```js
+const assert = require('assert');
+
 assert.doesNotThrow(
   () => {
     throw new TypeError('Wrong value');
@@ -208,7 +216,7 @@ const assert = require('assert');
 
 assert.ifError(0); // OK
 assert.ifError(1); // Throws 1
-assert.ifError('error') // Throws 'error'
+assert.ifError('error'); // Throws 'error'
 assert.ifError(new Error()); // Throws Error
 ```
 
@@ -233,7 +241,7 @@ const obj3 = {
   a : {
     b : 1
   }
-}
+};
 const obj4 = Object.create(obj1);
 
 assert.notDeepEqual(obj1, obj1);
@@ -366,6 +374,8 @@ constructor, [`RegExp`][], or validation function.
 Validate instanceof using constructor:
 
 ```js
+const assert = require('assert');
+
 assert.throws(
   () => {
     throw new Error('Wrong value');
@@ -377,6 +387,8 @@ assert.throws(
 Validate error message using [`RegExp`][]:
 
 ```js
+const assert = require('assert');
+
 assert.throws(
   () => {
     throw new Error('Wrong value');
@@ -388,12 +400,14 @@ assert.throws(
 Custom error validation:
 
 ```js
+const assert = require('assert');
+
 assert.throws(
   () => {
     throw new Error('Wrong value');
   },
   function(err) {
-    if ( (err instanceof Error) && /value/.test(err) ) {
+    if ((err instanceof Error) && /value/.test(err)) {
       return true;
     }
   },
