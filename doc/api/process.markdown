@@ -107,6 +107,7 @@ setTimeout(() => {
 }, 500);
 
 // Intentionally cause an exception, but don't catch it.
+/* eslint no-undef:0 */
 nonexistentFunc();
 console.log('This will not run.');
 ```
@@ -146,8 +147,8 @@ Here is an example that logs every unhandled rejection to the console
 
 ```js
 process.on('unhandledRejection', (reason, p) => {
-    console.log("Unhandled Rejection at: Promise ", p, " reason: ", reason);
-    // application specific logging, throwing an error, or other logic here
+  console.log('Unhandled Rejection at: Promise ', p, ' reason: ', reason);
+  // application specific logging, throwing an error, or other logic here
 });
 ```
 
@@ -155,6 +156,7 @@ For example, here is a rejection that will trigger the `'unhandledRejection'`
 event:
 
 ```js
+/* eslint no-undef:0 */
 somePromise.then((res) => {
   return reportToUser(JSON.parse(res)); // note the typo
 }); // no `.catch` or `.then`
@@ -169,6 +171,7 @@ function SomeResource() {
   this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
 }
 
+/* eslint no-unused-vars:0 */
 var resource = new SomeResource();
 // no .catch or .then on resource.loaded for at least a turn
 ```
@@ -397,7 +400,7 @@ An object containing the user environment. See environ(7).
 
 An example of this object looks like:
 
-```js
+```
 { TERM: 'xterm-256color',
   SHELL: '/usr/local/bin/bash',
   USER: 'maciej',
@@ -466,13 +469,13 @@ $ node --harmony script.js --version
 
 results in process.execArgv:
 
-```js
+```
 ['--harmony']
 ```
 
 and process.argv:
 
-```js
+```
 ['/usr/local/bin/node', 'script.js', '--version']
 ```
 
@@ -676,7 +679,7 @@ console.log(util.inspect(process.memoryUsage()));
 
 This will generate:
 
-```js
+```
 { rss: 4935680,
   heapTotal: 1826816,
   heapUsed: 650472 }
@@ -731,6 +734,9 @@ It is very important for APIs to be either 100% synchronous or 100%
 asynchronous.  Consider this example:
 
 ```js
+/* eslint no-unused-vars:0 */
+const fs = require('fs');
+
 // WARNING!  DO NOT USE!  BAD UNSAFE HAZARD!
 function maybeSync(arg, cb) {
   if (arg) {
@@ -745,6 +751,7 @@ function maybeSync(arg, cb) {
 This API is hazardous.  If you do this:
 
 ```js
+/* eslint no-undef:0 */
 maybeSync(true, () => {
   foo();
 });
@@ -756,6 +763,9 @@ then it's not clear whether `foo()` or `bar()` will be called first.
 This approach is much better:
 
 ```js
+const fs = require('fs');
+
+/* eslint no-unused-vars:0 */
 function definitelyAsync(arg, cb) {
   if (arg) {
     process.nextTick(cb);
@@ -810,7 +820,7 @@ for the source tarball and headers-only tarball.
 
 e.g.
 
-```js
+```
 { name: 'node',
   sourceUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0.tar.gz',
   headersUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0-headers.tar.gz',
@@ -1058,7 +1068,7 @@ console.log(process.versions);
 
 Will print something like:
 
-```js
+```
 { http_parser: '2.3.0',
   node: '1.1.1',
   v8: '4.1.0.14',
