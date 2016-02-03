@@ -83,6 +83,8 @@ rules:
   space-after-keywords: 2
   ## no leading/trailing spaces in parens
   space-in-parens: [2, "never"]
+  ## no spaces with non-word unary operators, require for word unary operators
+  space-unary-ops: 2
 
   # ECMAScript 6
   # list: http://eslint.org/docs/rules/#ecmascript-6

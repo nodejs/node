@@ -51,7 +51,7 @@ for (var i = 0; i < 10; i++)
   getall();
 
 function afterGC() {
-  countGC ++;
+  countGC++;
 }
 
 setInterval(status, 1000).unref();
