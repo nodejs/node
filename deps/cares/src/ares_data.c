@@ -79,6 +79,7 @@ void ares_free_data(void *dataptr)
         break;
 
       case ARES_DATATYPE_TXT_REPLY:
+      case ARES_DATATYPE_TXT_EXT:
 
         if (ptr->data.txt_reply.next)
           ares_free_data(ptr->data.txt_reply.next);
@@ -155,6 +156,10 @@ void *ares_malloc_data(ares_datatype type)
         ptr->data.srv_reply.weight = 0;
         ptr->data.srv_reply.port = 0;
         break;
+
+      case ARES_DATATYPE_TXT_EXT:
+        ptr->data.txt_ext.record_start = 0;
+        /* FALLTHROUGH */
 
       case ARES_DATATYPE_TXT_REPLY:
         ptr->data.txt_reply.next = NULL;

@@ -475,6 +475,17 @@ struct ares_txt_reply {
   size_t                  length;  /* length excludes null termination */
 };
 
+/* NOTE: This structure is a superset of ares_txt_reply
+ */
+struct ares_txt_ext {
+  struct ares_txt_ext      *next;
+  unsigned char            *txt;
+  size_t                   length;
+  /* 1 - if start of new record
+   * 0 - if a chunk in the same record */
+  unsigned char            record_start;
+};
+
 struct ares_naptr_reply {
   struct ares_naptr_reply *next;
   unsigned char           *flags;
@@ -537,6 +548,10 @@ CARES_EXTERN int ares_parse_mx_reply(const unsigned char* abuf,
 CARES_EXTERN int ares_parse_txt_reply(const unsigned char* abuf,
                                       int alen,
                                       struct ares_txt_reply** txt_out);
+
+CARES_EXTERN int ares_parse_txt_reply_ext(const unsigned char* abuf,
+                                          int alen,
+                                          struct ares_txt_ext** txt_out);
 
 CARES_EXTERN int ares_parse_naptr_reply(const unsigned char* abuf,
                                         int alen,
