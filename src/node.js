@@ -20,7 +20,17 @@
     });
     EventEmitter.call(process);
 
-    process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
+    let eeWarned = false;
+    Object.defineProperty(process, 'EventEmitter', {
+      get() {
+        const internalUtil = NativeModule.require('internal/util');
+        eeWarned = internalUtil.printDeprecationMessage(
+          `process.EventEmitter is deprecated. Use require('events') instead.`,
+          eeWarned
+        );
+        return EventEmitter;
+      }
+    });
 
     startup.setupProcessObject();
 
