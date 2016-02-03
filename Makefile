@@ -209,19 +209,19 @@ test-timers-clean:
 
 test-v8:
 	# note: performs full test unless QUICKCHECK is specified
-	deps/v8/tools/run-tests.py --arch=$(ARCH) --mode=$(BUILDTYPE_LOWER) $(V8_TEST_NO_I18N) \
-	  $(QUICKCHECK_ARG) --no-presubmit --shell-dir=$(PWD)/deps/v8/out/$(ARCH).$(BUILDTYPE_LOWER) \
+	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) $(V8_TEST_NO_I18N) \
+	  $(QUICKCHECK_ARG) --no-presubmit --shell-dir=$(PWD)/deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) \
 	 $(TAP_V8)
 
 test-v8-intl:
 	# note: performs full test unless QUICKCHECK is specified
-	deps/v8/tools/run-tests.py --arch=$(ARCH) --mode=$(BUILDTYPE_LOWER) --no-presubmit \
-	  $(QUICKCHECK_ARG) --shell-dir=deps/v8/out/$(ARCH).$(BUILDTYPE_LOWER) intl $(TAP_V8_INTL)
+	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) --no-presubmit \
+	  $(QUICKCHECK_ARG) --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) intl $(TAP_V8_INTL)
 
 test-v8-benchmarks:
 	# note: this runs with --download-data so it'll go out and
-	deps/v8/tools/run-tests.py --arch=$(ARCH) --mode=$(BUILDTYPE_LOWER) --download-data \
-	  $(QUICKCHECK_ARG) --no-presubmit --shell-dir=deps/v8/out/$(ARCH).$(BUILDTYPE_LOWER) benchmarks \
+	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) --download-data \
+	  $(QUICKCHECK_ARG) --no-presubmit --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) benchmarks \
 	 $(TAP_V8_BENCHMARKS)
  
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
@@ -329,7 +329,6 @@ endif
 
 # node and v8 use different arch names (e.g. node 'x86' vs v8 'ia32').
 # pass the proper v8 arch name to $V8_ARCH based on user-specified $DESTCPU.
-
 ifeq ($(DESTCPU),x86)
 V8_ARCH=ia32
 else
