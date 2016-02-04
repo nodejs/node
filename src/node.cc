@@ -6,6 +6,7 @@
 #include "node_javascript.h"
 #include "node_version.h"
 #include "node_internals.h"
+#include "node_revert.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -2976,6 +2977,16 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
+  // --security-revert flags
+#define V(code, _, __)                                                        \
+  do {                                                                        \
+    if (IsReverted(REVERT_ ## code)) {                                        \
+      READONLY_PROPERTY(process, "REVERT_" #code, True(env->isolate()));      \
+    }                                                                         \
+  } while (0);
+  REVERSIONS(V)
+#undef V
+
   size_t exec_path_len = 2 * PATH_MAX;
   char* exec_path = new char[exec_path_len];
   Local<String> exec_path_value;
@@ -3339,6 +3350,9 @@ static void ParseArgs(int* argc,
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
+    } else if (strncmp(arg, "--security-revert=", 18) == 0) {
+      const char* cve = arg + 18;
+      Revert(cve);
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
