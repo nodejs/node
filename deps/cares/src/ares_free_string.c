@@ -21,5 +21,5 @@
 
 void ares_free_string(void *str)
 {
-  free(str);
+  ares_free(str);
 }

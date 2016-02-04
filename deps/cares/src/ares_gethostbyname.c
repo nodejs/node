@@ -99,18 +99,18 @@ void ares_gethostbyname(ares_channel channel, const char *name, int family,
     return;
 
   /* Allocate and fill in the host query structure. */
-  hquery = malloc(sizeof(struct host_query));
+  hquery = ares_malloc(sizeof(struct host_query));
   if (!hquery)
     {
       callback(arg, ARES_ENOMEM, 0, NULL);
       return;
     }
   hquery->channel = channel;
-  hquery->name = strdup(name);
+  hquery->name = ares_strdup(name);
   hquery->want_family = family;
   hquery->sent_family = -1; /* nothing is sent yet */
   if (!hquery->name) {
-    free(hquery);
+    ares_free(hquery);
     callback(arg, ARES_ENOMEM, 0, NULL);
     return;
   }
@@ -194,6 +194,8 @@ static void host_callback(void *arg, int status, int timeouts,
             /* The query returned something but either there were no AAAA
                records (e.g. just CNAME) or the response was malformed.  Try
                looking up A instead. */
+            if (host)
+              ares_free_hostent(host);
             hquery->sent_family = AF_INET;
             ares_search(hquery->channel, hquery->name, C_IN, T_A,
                         host_callback, hquery);
@@ -225,8 +227,8 @@ static void end_hquery(struct host_query *hquery, int status,
   hquery->callback(hquery->arg, status, hquery->timeouts, host);
   if (host)
     ares_free_hostent(host);
-  free(hquery->name);
-  free(hquery);
+  ares_free(hquery->name);
+  ares_free(hquery);
 }
 
 /* If the name looks like an IP address, fake up a host entry, end the
@@ -285,7 +287,7 @@ static int fake_hostent(const char *name, int family,
       addrs[0] = (char *)&in6;
     }
   /* Duplicate the name, to avoid a constness violation. */
-  hostent.h_name = strdup(name);
+  hostent.h_name = ares_strdup(name);
   if (!hostent.h_name)
     {
       callback(arg, ARES_ENOMEM, 0, NULL);
@@ -299,7 +301,7 @@ static int fake_hostent(const char *name, int family,
   hostent.h_addr_list = addrs;
   callback(arg, ARES_SUCCESS, 0, &hostent);
 
-  free((char *)(hostent.h_name));
+  ares_free((char *)(hostent.h_name));
   return 1;
 }
 
