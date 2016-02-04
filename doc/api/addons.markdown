@@ -1,9 +1,9 @@
 # Addons
 
 Node.js Addons are dynamically-linked shared objects, written in C or C++, that
-can be loaded into Node.js using the `require()` function, and used just as if
-they were an ordinary Node.js module. They are used primarily to provide an
-interface between JavaScript running in Node.js and C/C++ libraries.
+can be loaded into Node.js using the [`require()`][require] function, and used
+just as if they were an ordinary Node.js module. They are used primarily to
+provide an interface between JavaScript running in Node.js and C/C++ libraries.
 
 At the moment, the method for implementing Addons is rather complicated,
 involving knowledge of several components and APIs :
@@ -12,7 +12,7 @@ involving knowledge of several components and APIs :
    JavaScript implementation. V8 provides the mechanisms for creating objects,
    calling functions, etc. V8's API is documented mostly in the
    `v8.h` header file (`deps/v8/include/v8.h` in the Node.js source
-   tree), which is also available [online][].
+   tree), which is also available [online][v8-docs].
 
  - [libuv][]: The C library that implements the Node.js event loop, its worker
    threads and all of the asynchronous behaviors of the platform. It also
@@ -118,7 +118,7 @@ Node.js as part of `npm`. This version is not made directly available for
 developers to use and is intended only to support the ability to use the
 `npm install` command to compile and install Addons. Developers who wish to
 use `node-gyp` directly can install it using the command
-`npm install -g node-gyp`. See the `node-gyp` [installation instructions] for
+`npm install -g node-gyp`. See the `node-gyp` [installation instructions][] for
 more information, including platform-specific requirements.*
 
 Once the `binding.gyp` file has been created, use `node-gyp configure` to
@@ -134,7 +134,7 @@ version of `node-gyp` to perform this same set of actions, generating a
 compiled version of the Addon for the user's platform on demand.
 
 Once built, the binary Addon can be used from within Node.js by pointing
-`require()` to the built `addon.node` module:
+[`require()`][require] to the built `addon.node` module:
 
 ```js
 // hello.js
@@ -184,17 +184,17 @@ dependencies.
 ### Loading Addons using require()
 
 The filename extension of the compiled Addon binary is `.node` (as opposed
-to `.dll` or `.so`). The `require()` function is written to look for files
-with the `.node` file extension and initialize those as dynamically-linked
+to `.dll` or `.so`). The [`require()`][require] function is written to look for
+files with the `.node` file extension and initialize those as dynamically-linked
 libraries.
 
-When calling `require()`, the `.node` extension can usually be
+When calling [`require()`][require], the `.node` extension can usually be
 omitted and Node.js will still find and initialize the Addon. One caveat,
 however, is that Node.js will first attempt to locate and load modules or
 JavaScript files that happen to share the same base name. For instance, if
 there is a file `addon.js` in the same directory as the binary `addon.node`,
-then `require('addon')` will give precedence to the `addon.js` file and load it
-instead.
+then [`require('addon')`][require] will give precedence to the `addon.js` file
+and load it instead.
 
 ## Native Abstractions for Node.js
 
@@ -215,9 +215,10 @@ illustration of how it can be used.
 ## Addon examples
 
 Following are some example Addons intended to help developers get started. The
-examples make use of the V8 APIs. Refer to the online [V8 reference][] for help
-with the various V8 calls, and V8's [Embedder's Guide][] for an explanation of
-several concepts used such as handles, scopes, function templates, etc.
+examples make use of the V8 APIs. Refer to the online [V8 reference][v8-docs]
+for help with the various V8 calls, and V8's [Embedder's Guide][] for an
+explanation of several concepts used such as handles, scopes, function
+templates, etc.
 
 Each of these examples using the following `binding.gyp` file:
 
@@ -1077,14 +1078,14 @@ Test in JavaScript by running:
 const addon = require('./build/Release/addon');
 ```
 
-[online]: https://v8docs.nodesource.com/
-[libuv]: https://github.com/libuv/libuv
-[download]: https://github.com/nodejs/node-addon-examples
-[node-gyp]: https://github.com/nodejs/node-gyp
-[V8 reference]: https://v8docs.nodesource.com/
-[Embedder's Guide]: https://developers.google.com/v8/embed
-[Native Abstrations for Node.js]: https://github.com/nodejs/nan
-[examples]: https://github.com/nodejs/nan/tree/master/examples/
 [bindings]: https://github.com/TooTallNate/node-bindings
-[Linking to Node.js' own dependencies]: #linking-to-nodejs-own-dependencies
+[download]: https://github.com/nodejs/node-addon-examples
+[Embedder's Guide]: https://developers.google.com/v8/embed
+[examples]: https://github.com/nodejs/nan/tree/master/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
+[libuv]: https://github.com/libuv/libuv
+[Linking to Node.js' own dependencies]: #linking-to-nodejs-own-dependencies
+[Native Abstrations for Node.js]: https://github.com/nodejs/nan
+[node-gyp]: https://github.com/nodejs/node-gyp
+[require]: globals.html#globals_require
+[v8-docs]: https://v8docs.nodesource.com/
