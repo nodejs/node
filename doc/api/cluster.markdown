@@ -46,7 +46,7 @@ server in a worker.
 
 <!--type=misc-->
 
-The worker processes are spawned using the [`child_process.fork`][] method,
+The worker processes are spawned using the [`child_process.fork()`][] method,
 so that they can communicate with the parent via IPC and pass server
 handles back and forth.
 
