@@ -24,6 +24,7 @@
 #include "v8.h"
 #include "node.h"
 #include "node_buffer.h"
+#include "node_revert.h"
 
 #include <string.h>  /* strdup() */
 #if !defined(_MSC_VER)
@@ -546,6 +547,8 @@ private:
 
   void Init(enum http_parser_type type) {
     http_parser_init(&parser_, type);
+    /* Allow the strict http header parsing to be reverted */
+    parser_.lenient_http_headers = IsReverted(REVERT_CVE_2016_2216) ? 1 : 0;
     url_.Reset();
     num_fields_ = 0;
     num_values_ = 0;
