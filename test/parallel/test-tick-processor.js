@@ -5,6 +5,16 @@ var path = require('path');
 var cp = require('child_process');
 var common = require('../common');
 
+// TODO(mhdawson) Currently the test-tick-processor functionality in V8
+// depends on addresses being smaller than a full 64 bits.  Aix supports
+// the full 64 bits and the result is that it does not process the
+// addresses correctly and runs out of memory
+// Disabling until we get a fix upstreamed into V8
+if (common.isAix) {
+  console.log('1..0 # Skipped: Aix address range too big for scripts.');
+  return;
+}
+
 common.refreshTmpDir();
 process.chdir(common.tmpDir);
 var processor =
