@@ -73,16 +73,16 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
     return status;
   if ( aptr + len + QFIXEDSZ > abuf + alen )
   {
-    free( hostname );
+    ares_free( hostname );
     return ARES_EBADRESP;
   }
   aptr += len + QFIXEDSZ;
 
   /* Allocate nameservers array; ancount gives an upper bound */
-  nameservers = malloc( ( ancount + 1 ) * sizeof( char * ) );
+  nameservers = ares_malloc( ( ancount + 1 ) * sizeof( char * ) );
   if ( !nameservers )
   {
-    free( hostname );
+    ares_free( hostname );
     return ARES_ENOMEM;
   }
   nameservers_num = 0;
@@ -98,7 +98,7 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
     if ( aptr + RRFIXEDSZ > abuf + alen )
     {
       status = ARES_EBADRESP;
-      free(rr_name);
+      ares_free(rr_name);
       break;
     }
     rr_type = DNS_RR_TYPE( aptr );
@@ -107,7 +107,7 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
     aptr += RRFIXEDSZ;
     if (aptr + rr_len > abuf + alen)
       {
-        free(rr_name);
+        ares_free(rr_name);
         status = ARES_EBADRESP;
         break;
       }
@@ -119,33 +119,33 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
                                                &len);
       if ( status != ARES_SUCCESS )
       {
-        free(rr_name);
+        ares_free(rr_name);
         break;
       }
 
-      nameservers[nameservers_num] = malloc(strlen(rr_data)+1);
+      nameservers[nameservers_num] = ares_malloc(strlen(rr_data)+1);
 
       if (nameservers[nameservers_num]==NULL)
       {
-        free(rr_name);
-        free(rr_data);
+        ares_free(rr_name);
+        ares_free(rr_data);
         status=ARES_ENOMEM;
         break;
       }
       strcpy(nameservers[nameservers_num],rr_data);
-      free(rr_data);
+      ares_free(rr_data);
 
       nameservers_num++;
     }
 
-    free( rr_name );
+    ares_free( rr_name );
 
     aptr += rr_len;
     if ( aptr > abuf + alen )
-    {
+    {  /* LCOV_EXCL_START: already checked above */
       status = ARES_EBADRESP;
       break;
-    }
+    }  /* LCOV_EXCL_STOP */
   }
 
   if ( status == ARES_SUCCESS && nameservers_num == 0 )
@@ -156,10 +156,10 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
   {
     /* We got our answer.  Allocate memory to build the host entry. */
     nameservers[nameservers_num] = NULL;
-    hostent = malloc( sizeof( struct hostent ) );
+    hostent = ares_malloc( sizeof( struct hostent ) );
     if ( hostent )
     {
-      hostent->h_addr_list = malloc( 1 * sizeof( char * ) );
+      hostent->h_addr_list = ares_malloc( 1 * sizeof( char * ) );
       if ( hostent->h_addr_list )
       {
         /* Fill in the hostent and return successfully. */
@@ -171,13 +171,13 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
         *host = hostent;
         return ARES_SUCCESS;
       }
-      free( hostent );
+      ares_free( hostent );
     }
     status = ARES_ENOMEM;
   }
   for ( i = 0; i < nameservers_num; i++ )
-    free( nameservers[i] );
-  free( nameservers );
-  free( hostname );
+    ares_free( nameservers[i] );
+  ares_free( nameservers );
+  ares_free( hostname );
   return status;
 }
