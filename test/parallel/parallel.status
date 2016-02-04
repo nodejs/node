@@ -13,6 +13,7 @@ test-tick-processor                  : PASS,FLAKY
 
 [$system==linux]
 test-tick-processor                  : PASS,FLAKY
+test-child-process-fork-regr-gh-2847 : PASS,FLAKY
 
 [$system==macos]
 
