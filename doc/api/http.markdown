@@ -614,8 +614,8 @@ emit trailers, with a list of the header fields in its value. E.g.,
     response.addTrailers({'Content-MD5': '7895bf4b8828b55ceaf47747b4bca667'});
     response.end();
 
-Attempting to set a trailer field name that contains invalid characters will
-result in a [`TypeError`][] being thrown.
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
 
 ### response.end([data][, encoding][, callback])
 
@@ -678,8 +678,8 @@ or
 
     response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 
-Attempting to set a header field name that contains invalid characters will
-result in a [`TypeError`][] being thrown.
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
 
 ### response.setTimeout(msecs, callback)
 
@@ -773,8 +773,8 @@ Example:
 This method must only be called once on a message and it must
 be called before [`response.end()`][] is called.
 
-If you call [`response.write()`][] or [`response.end()`][] before calling this, the
-implicit/mutable headers will be calculated and call this function for you.
+If you call [`response.write()`][] or [`response.end()`][] before calling this,
+the implicit/mutable headers will be calculated and call this function for you.
 
 Note that Content-Length is given in bytes not characters. The above example
 works because the string `'hello world'` contains only single byte characters.
@@ -782,6 +782,9 @@ If the body contains higher coded characters then `Buffer.byteLength()`
 should be used to determine the number of bytes in a given encoding.
 And Node.js does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
 
 ## Class: http.IncomingMessage
 
