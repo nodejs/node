@@ -457,9 +457,9 @@
 
       var args;
       if (arguments.length > 1) {
-        args = [];
+        args = new Array(arguments.length - 1);
         for (var i = 1; i < arguments.length; i++)
-          args.push(arguments[i]);
+          args[i - 1] = arguments[i];
       }
 
       nextTickQueue.push(new TickObject(callback, args));
