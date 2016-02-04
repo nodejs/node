@@ -27,7 +27,7 @@ extern "C" {
 /* Also update SONAME in the Makefile whenever you change these. */
 #define HTTP_PARSER_VERSION_MAJOR 2
 #define HTTP_PARSER_VERSION_MINOR 6
-#define HTTP_PARSER_VERSION_PATCH 0
+#define HTTP_PARSER_VERSION_PATCH 1
 
 #include <sys/types.h>
 #if defined(_WIN32) && !defined(__MINGW32__) && \
@@ -148,6 +148,7 @@ enum flags
   , F_TRAILING              = 1 << 4
   , F_UPGRADE               = 1 << 5
   , F_SKIPBODY              = 1 << 6
+  , F_CONTENTLENGTH         = 1 << 7
   };
 
 
@@ -190,6 +191,8 @@ enum flags
   XX(INVALID_HEADER_TOKEN, "invalid character in header")            \
   XX(INVALID_CONTENT_LENGTH,                                         \
      "invalid character in content-length header")                   \
+  XX(UNEXPECTED_CONTENT_LENGTH,                                      \
+     "unexpected content-length header")                             \
   XX(INVALID_CHUNK_SIZE,                                             \
      "invalid character in chunk size header")                       \
   XX(INVALID_CONSTANT, "invalid constant string")                    \
@@ -214,10 +217,11 @@ enum http_errno {
 struct http_parser {
   /** PRIVATE **/
   unsigned int type : 2;         /* enum http_parser_type */
-  unsigned int flags : 7;        /* F_* values from 'flags' enum; semi-public */
+  unsigned int flags : 8;        /* F_* values from 'flags' enum; semi-public */
   unsigned int state : 7;        /* enum state from http_parser.c */
-  unsigned int header_state : 8; /* enum header_state from http_parser.c */
-  unsigned int index : 8;        /* index into current matcher */
+  unsigned int header_state : 7; /* enum header_state from http_parser.c */
+  unsigned int index : 7;        /* index into current matcher */
+  unsigned int lenient_http_headers : 1;
 
   uint32_t nread;          /* # bytes read in various scenarios */
   uint64_t content_length; /* # bytes in body (0 if no Content-Length header) */
