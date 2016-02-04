@@ -23,6 +23,7 @@
 #include "req_wrap.h"
 #include "handle_wrap.h"
 #include "string_bytes.h"
+#include "node_revert.h"
 
 #include "ares.h"
 #include "uv.h"
@@ -2386,6 +2387,16 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
     process->Set(String::NewSymbol("traceDeprecation"), True());
   }
 
+  // --security-revert flags
+#define V(code, _, __)                                                        \
+  do {                                                                        \
+    if (IsReverted(REVERT_ ## code)) {                                        \
+      process->Set(String::NewSymbol("REVERT_" #code), True());               \
+    }                                                                         \
+  } while (0);
+  REVERSIONS(V)
+#undef V
+
   size_t size = 2*PATH_MAX;
   char* execPath = new char[size];
   if (uv_exepath(execPath, &size) != 0) {
@@ -2655,6 +2666,10 @@ static void ParseArgs(int argc, char **argv) {
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       argv[i] = const_cast<char*>("");
       throw_deprecation = true;
+    } else if (strncmp(arg, "--security-revert=", 18) == 0) {
+      const char* cve = arg + 18;
+      argv[i] = const_cast<char*>("");
+      Revert(cve);
     } else if (argv[i][0] != '-') {
       break;
     }
