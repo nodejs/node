@@ -32,8 +32,8 @@
  * For *master* this list should always be empty!
  *
  **/
-#define REVERSIONS(XX)
-//  XX(CVE_2016_PEND, "CVE-2016-PEND", "Vulnerability Title")
+#define REVERSIONS(XX)                                                        \
+  XX(CVE_2016_2216, "CVE-2016-2216", "Strict HTTP Header Parsing")
 
 namespace node {
 

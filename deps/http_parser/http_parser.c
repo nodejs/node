@@ -383,6 +383,12 @@ enum http_host_state
   (IS_ALPHANUM(c) || (c) == '.' || (c) == '-' || (c) == '_')
 #endif
 
+/**
+ * Verify that a char is a valid visible (printable) US-ASCII
+ * character or %x80-FF
+ **/
+#define IS_HEADER_CHAR(ch)                                                     \
+  (ch == CR || ch == LF || ch == 9 || (ch > 31 && ch != 127))
 
 #define start_state (parser->type == HTTP_REQUEST ? s_start_req : s_start_res)
 
@@ -586,6 +592,8 @@ size_t http_parser_execute (http_parser *parser,
   const char *url_mark = 0;
   const char *body_mark = 0;
   const char *status_mark = 0;
+
+  const unsigned int lenient = parser->lenient_http_headers;
 
   /* We're in an error state. Don't bother doing anything. */
   if (HTTP_PARSER_ERRNO(parser) != HPE_OK) {
@@ -1340,7 +1348,12 @@ size_t http_parser_execute (http_parser *parser,
                   || c != CONTENT_LENGTH[parser->index]) {
                 parser->header_state = h_general;
               } else if (parser->index == sizeof(CONTENT_LENGTH)-2) {
+                if (parser->flags & F_CONTENTLENGTH) {
+                  SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
+                  goto error;
+                }
                 parser->header_state = h_content_length;
+                parser->flags |= F_CONTENTLENGTH;
               }
               break;
 
@@ -1486,6 +1499,11 @@ size_t http_parser_execute (http_parser *parser,
           goto reexecute_byte;
         }
 
+        if (!lenient && !IS_HEADER_CHAR(ch)) {
+          SET_ERRNO(HPE_INVALID_HEADER_TOKEN);
+          goto error;
+        }
+
         c = LOWER(ch);
 
         switch (parser->header_state) {
@@ -1570,7 +1588,10 @@ size_t http_parser_execute (http_parser *parser,
 
       case s_header_almost_done:
       {
-        STRICT_CHECK(ch != LF);
+        if (ch != LF) {
+          SET_ERRNO(HPE_LF_EXPECTED);
+          goto error;
+        }
 
         parser->state = s_header_value_lws;
         break;
@@ -1632,6 +1653,14 @@ size_t http_parser_execute (http_parser *parser,
           parser->state = NEW_MESSAGE();
           CALLBACK_NOTIFY(message_complete);
           break;
+        }
+
+        /* Cannot use chunked encoding and a content-length header together
+           per the HTTP specification. */
+        if ((parser->flags & F_CHUNKED) &&
+            (parser->flags & F_CONTENTLENGTH)) {
+          SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
+          goto error;
         }
 
         parser->state = s_headers_done;

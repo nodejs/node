@@ -18,7 +18,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+// Flags: --security-revert=CVE-2016-2216
 var common = require('../common'),
     assert = require('assert'),
     http = require('http');
