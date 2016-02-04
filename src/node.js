@@ -643,6 +643,13 @@
           writable: true
         });
         stream._type = 'pipe';
+        stream.cursorTo = function() {};
+        stream.moveCursor = function() {};
+        stream.clearLine = function() {};
+        stream.clearScreenDown = function() {};
+        stream.getWindowSize = function() {
+          return [0, 0];
+        };
         break;
 
       default:
