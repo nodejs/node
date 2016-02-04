@@ -302,6 +302,9 @@ should be used to determine the number of bytes in a given encoding.
 And Node does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
 
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
+
 ### response.setTimeout(msecs, callback)
 
 * `msecs` {Number}
@@ -357,6 +360,9 @@ Example:
 or
 
     response.setHeader("Set-Cookie", ["type=ninja", "language=javascript"]);
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
 
 ### response.headersSent
 
@@ -433,6 +439,8 @@ emit trailers, with a list of the header fields in its value. E.g.,
     response.addTrailers({'Content-MD5': "7895bf4b8828b55ceaf47747b4bca667"});
     response.end();
 
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
 
 ### response.end([data][, encoding][, callback])
 
