@@ -5,7 +5,7 @@ var http = require('http');
 var Agent = http.Agent;
 
 var agent = new Agent({
-  keepAlive: true,
+  keepAlive: true
 });
 
 var requestParams = {

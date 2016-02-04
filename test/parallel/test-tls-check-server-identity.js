@@ -198,7 +198,7 @@ var tests = [
     },
     error: 'Host: localhost. is not in the cert\'s altnames: ' +
            'DNS:a.com'
-  },
+  }
 ];
 
 tests.forEach(function(test, i) {

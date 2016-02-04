@@ -134,7 +134,7 @@ const tests = [
         });
       });
     });
-  },
+  }
 ];
 
 if (process.argv[2] === 'child') {

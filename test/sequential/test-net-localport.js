@@ -14,7 +14,7 @@ var server = net.createServer(function(socket) {
   var client = net.connect({
     host: '127.0.0.1',
     port: common.PORT,
-    localPort: common.PORT + 1,
+    localPort: common.PORT + 1
   }).on('connect', function() {
     assert.strictEqual(client.localPort, common.PORT + 1);
   });

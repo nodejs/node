@@ -50,14 +50,14 @@ addTest('io.JS', [
   { name: 'o', sequence: 'o' },
   undefined, // emitted as `emit('keypress', '.', undefined)`
   { name: 'j', sequence: 'J', shift: true },
-  { name: 's', sequence: 'S', shift: true },
+  { name: 's', sequence: 'S', shift: true }
 ]);
 
 // named characters
 addTest('\n\r\t', [
   { name: 'enter', sequence: '\n' },
   { name: 'return', sequence: '\r' },
-  { name: 'tab', sequence: '\t' },
+  { name: 'tab', sequence: '\t' }
 ]);
 
 // space and backspace
@@ -67,14 +67,14 @@ addTest('\b\x7f\x1b\b\x1b\x7f \x1b ', [
   { name: 'backspace', sequence: '\x1b\b', meta: true },
   { name: 'backspace', sequence: '\x1b\x7f', meta: true },
   { name: 'space', sequence: ' ' },
-  { name: 'space', sequence: '\x1b ', meta: true },
+  { name: 'space', sequence: '\x1b ', meta: true }
 ]);
 
 // control keys
 addTest('\x01\x0b\x10', [
   { name: 'a', sequence: '\x01', ctrl: true },
   { name: 'k', sequence: '\x0b', ctrl: true },
-  { name: 'p', sequence: '\x10', ctrl: true },
+  { name: 'p', sequence: '\x10', ctrl: true }
 ]);
 
 // alt keys
@@ -82,19 +82,19 @@ addTest('a\x1baA\x1bA', [
   { name: 'a', sequence: 'a' },
   { name: 'a', sequence: '\x1ba', meta: true },
   { name: 'a', sequence: 'A', shift: true },
-  { name: 'a', sequence: '\x1bA', meta: true, shift: true },
+  { name: 'a', sequence: '\x1bA', meta: true, shift: true }
 ]);
 
 // xterm/gnome
 addTest('\x1bOA\x1bOB', [
   { name: 'up', sequence: '\x1bOA', code: 'OA' },
-  { name: 'down', sequence: '\x1bOB', code: 'OB' },
+  { name: 'down', sequence: '\x1bOB', code: 'OB' }
 ]);
 
 // old xterm shift-arrows
 addTest('\x1bO2A\x1bO2B', [
   { name: 'up', sequence: '\x1bO2A', code: 'OA', shift: true },
-  { name: 'down', sequence: '\x1bO2B', code: 'OB', shift: true },
+  { name: 'down', sequence: '\x1bO2B', code: 'OB', shift: true }
 ]);
 
 // gnome terminal
@@ -102,26 +102,26 @@ addTest('\x1b[A\x1b[B\x1b[2A\x1b[2B', [
   { name: 'up', sequence: '\x1b[A', code: '[A' },
   { name: 'down', sequence: '\x1b[B', code: '[B' },
   { name: 'up', sequence: '\x1b[2A', code: '[A', shift: true },
-  { name: 'down', sequence: '\x1b[2B', code: '[B', shift: true },
+  { name: 'down', sequence: '\x1b[2B', code: '[B', shift: true }
 ]);
 
 // rxvt
 addTest('\x1b[20~\x1b[2$\x1b[2^', [
   { name: 'f9', sequence: '\x1b[20~', code: '[20~' },
   { name: 'insert', sequence: '\x1b[2$', code: '[2$', shift: true },
-  { name: 'insert', sequence: '\x1b[2^', code: '[2^', ctrl: true },
+  { name: 'insert', sequence: '\x1b[2^', code: '[2^', ctrl: true }
 ]);
 
 // xterm + modifiers
 addTest('\x1b[20;5~\x1b[6;5^', [
   { name: 'f9', sequence: '\x1b[20;5~', code: '[20~', ctrl: true },
-  { name: 'pagedown', sequence: '\x1b[6;5^', code: '[6^', ctrl: true },
+  { name: 'pagedown', sequence: '\x1b[6;5^', code: '[6^', ctrl: true }
 ]);
 
 addTest('\x1b[H\x1b[5H\x1b[1;5H', [
   { name: 'home', sequence: '\x1b[H', code: '[H' },
   { name: 'home', sequence: '\x1b[5H', code: '[H', ctrl: true },
-  { name: 'home', sequence: '\x1b[1;5H', code: '[H', ctrl: true },
+  { name: 'home', sequence: '\x1b[1;5H', code: '[H', ctrl: true }
 ]);
 
 // escape sequences broken into multiple data chunks
@@ -129,7 +129,7 @@ addTest('\x1b[D\x1b[C\x1b[D\x1b[C'.split(''), [
   { name: 'left', sequence: '\x1b[D', code: '[D' },
   { name: 'right', sequence: '\x1b[C', code: '[C' },
   { name: 'left', sequence: '\x1b[D', code: '[D' },
-  { name: 'right', sequence: '\x1b[C', code: '[C' },
+  { name: 'right', sequence: '\x1b[C', code: '[C' }
 ]);
 
 // escape sequences mixed with regular ones
@@ -139,7 +139,7 @@ addTest('\x1b[DD\x1b[2DD\x1b[2^D', [
   { name: 'left', sequence: '\x1b[2D', code: '[D', shift: true },
   { name: 'd', sequence: 'D', shift: true },
   { name: 'insert', sequence: '\x1b[2^', code: '[2^', ctrl: true },
-  { name: 'd', sequence: 'D', shift: true },
+  { name: 'd', sequence: 'D', shift: true }
 ]);
 
 // color sequences
@@ -147,5 +147,5 @@ addTest('\x1b[31ma\x1b[39ma', [
   { name: 'undefined', sequence: '\x1b[31m', code: '[31m' },
   { name: 'a', sequence: 'a' },
   { name: 'undefined', sequence: '\x1b[39m', code: '[39m' },
-  { name: 'a', sequence: 'a' },
+  { name: 'a', sequence: 'a' }
 ]);

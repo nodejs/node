@@ -707,7 +707,7 @@ var parseTests = {
     hostname: '-lovemonsterz.tumblr.com',
     href: 'http://-lovemonsterz.tumblr.com/rss',
     pathname: '/rss',
-    path: '/rss',
+    path: '/rss'
   },
 
   'http://-lovemonsterz.tumblr.com:80/rss': {
@@ -718,7 +718,7 @@ var parseTests = {
     hostname: '-lovemonsterz.tumblr.com',
     href: 'http://-lovemonsterz.tumblr.com:80/rss',
     pathname: '/rss',
-    path: '/rss',
+    path: '/rss'
   },
 
   'http://user:pass@-lovemonsterz.tumblr.com/rss': {
@@ -729,7 +729,7 @@ var parseTests = {
     hostname: '-lovemonsterz.tumblr.com',
     href: 'http://user:pass@-lovemonsterz.tumblr.com/rss',
     pathname: '/rss',
-    path: '/rss',
+    path: '/rss'
   },
 
   'http://user:pass@-lovemonsterz.tumblr.com:80/rss': {
@@ -741,7 +741,7 @@ var parseTests = {
     hostname: '-lovemonsterz.tumblr.com',
     href: 'http://user:pass@-lovemonsterz.tumblr.com:80/rss',
     pathname: '/rss',
-    path: '/rss',
+    path: '/rss'
   },
 
   'http://_jabber._tcp.google.com/test': {
@@ -751,7 +751,7 @@ var parseTests = {
     hostname: '_jabber._tcp.google.com',
     href: 'http://_jabber._tcp.google.com/test',
     pathname: '/test',
-    path: '/test',
+    path: '/test'
   },
 
   'http://user:pass@_jabber._tcp.google.com/test': {
@@ -762,7 +762,7 @@ var parseTests = {
     hostname: '_jabber._tcp.google.com',
     href: 'http://user:pass@_jabber._tcp.google.com/test',
     pathname: '/test',
-    path: '/test',
+    path: '/test'
   },
 
   'http://_jabber._tcp.google.com:80/test': {
@@ -773,7 +773,7 @@ var parseTests = {
     hostname: '_jabber._tcp.google.com',
     href: 'http://_jabber._tcp.google.com:80/test',
     pathname: '/test',
-    path: '/test',
+    path: '/test'
   },
 
   'http://user:pass@_jabber._tcp.google.com:80/test': {
@@ -785,7 +785,7 @@ var parseTests = {
     hostname: '_jabber._tcp.google.com',
     href: 'http://user:pass@_jabber._tcp.google.com:80/test',
     pathname: '/test',
-    path: '/test',
+    path: '/test'
   },
 
   'http://x:1/\' <>"`/{}|\\^~`/': {
@@ -1117,7 +1117,7 @@ var formatTests = {
     hostname: 'ex.com',
     hash: '#frag',
     search: '?abc=the#1?&foo=bar',
-    pathname: '/foo?100%m#r',
+    pathname: '/foo?100%m#r'
   },
 
   // `?` and `#` in search only
@@ -1127,7 +1127,7 @@ var formatTests = {
     hostname: 'ex.com',
     hash: '#frag',
     search: '?abc=the#1?&foo=bar',
-    pathname: '/fooA100%mBr',
+    pathname: '/fooA100%mBr'
   }
 };
 for (const u in formatTests) {

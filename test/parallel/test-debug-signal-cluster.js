@@ -67,7 +67,7 @@ var expectedLines = [
   'Starting debugger agent.',
   'Debugger listening on port ' + (port + 1),
   'Starting debugger agent.',
-  'Debugger listening on port ' + (port + 2),
+  'Debugger listening on port ' + (port + 2)
 ];
 
 function assertOutputLines() {

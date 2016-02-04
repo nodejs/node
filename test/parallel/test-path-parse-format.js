@@ -72,7 +72,7 @@ const errors = [
   {method: 'format', input: [true],
    message: /Parameter "pathObject" must be an object, not boolean/},
   {method: 'format', input: [1],
-   message: /Parameter "pathObject" must be an object, not number/},
+   message: /Parameter "pathObject" must be an object, not number/}
 ];
 
 checkParseFormat(path.win32, winPaths);

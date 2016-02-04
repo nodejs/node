@@ -14,7 +14,7 @@ server.listen(common.PORT, common.localhostIPv4, function() {
   var req = http.request({
     method: 'GET',
     host: common.localhostIPv4,
-    port: common.PORT,
+    port: common.PORT
   }, onResponse);
 
   req.end();

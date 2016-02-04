@@ -52,7 +52,7 @@ srv.listen(common.PORT, function() {
       ['sec-websocket-extensions', 'baz'],
       ['constructor', 'foo'],
       ['constructor', 'bar'],
-      ['constructor', 'baz'],
+      ['constructor', 'baz']
     ]
   });
 });

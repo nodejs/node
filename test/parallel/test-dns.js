@@ -11,7 +11,7 @@ function noop() {}
 
 var goog = [
   '8.8.8.8',
-  '8.8.4.4',
+  '8.8.4.4'
 ];
 assert.doesNotThrow(function() { dns.setServers(goog); });
 assert.deepEqual(dns.getServers(), goog);
@@ -20,7 +20,7 @@ assert.deepEqual(dns.getServers(), goog);
 
 var goog6 = [
   '2001:4860:4860::8888',
-  '2001:4860:4860::8844',
+  '2001:4860:4860::8844'
 ];
 assert.doesNotThrow(function() { dns.setServers(goog6); });
 assert.deepEqual(dns.getServers(), goog6);
@@ -31,11 +31,11 @@ assert.deepEqual(dns.getServers(), goog6);
 
 var ports = [
   '4.4.4.4:53',
-  '[2001:4860:4860::8888]:53',
+  '[2001:4860:4860::8888]:53'
 ];
 var portsExpected = [
   '4.4.4.4',
-  '2001:4860:4860::8888',
+  '2001:4860:4860::8888'
 ];
 dns.setServers(ports);
 assert.deepEqual(dns.getServers(), portsExpected);

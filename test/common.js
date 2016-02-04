@@ -90,7 +90,7 @@ exports.localIPv6Hosts = [
   'ipv6-loopback',
 
   // Typically universal
-  'localhost',
+  'localhost'
 ];
 
 Object.defineProperty(exports, 'inFreeBSDJail', {

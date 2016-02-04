@@ -17,6 +17,8 @@ ecmaFeatures:
 rules:
   # Possible Errors
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#possible-errors
+  ## disallow trailing commas on final line of object/array declaration
+  comma-dangle: 2
   ## check debugger sentence
   no-debugger: 2
   ## check duplicate arguments
