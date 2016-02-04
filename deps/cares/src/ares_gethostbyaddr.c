@@ -79,7 +79,7 @@ void ares_gethostbyaddr(ares_channel channel, const void *addr, int addrlen,
       return;
     }
 
-  aquery = malloc(sizeof(struct addr_query));
+  aquery = ares_malloc(sizeof(struct addr_query));
   if (!aquery)
     {
       callback(arg, ARES_ENOMEM, 0, NULL);
@@ -169,7 +169,7 @@ static void end_aquery(struct addr_query *aquery, int status,
   aquery->callback(aquery->arg, status, aquery->timeouts, host);
   if (host)
     ares_free_hostent(host);
-  free(aquery);
+  ares_free(aquery);
 }
 
 static int file_lookup(struct ares_addr *addr, struct hostent **host)

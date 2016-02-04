@@ -77,7 +77,7 @@ static char *lookup_service(unsigned short port, int flags,
 static void append_scopeid(struct sockaddr_in6 *addr6, unsigned int scopeid,
                            char *buf, size_t buflen);
 #endif
-static char *ares_striendstr(const char *s1, const char *s2);
+STATIC_TESTABLE char *ares_striendstr(const char *s1, const char *s2);
 
 void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
                       ares_socklen_t salen,
@@ -163,7 +163,7 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
     /* This is where a DNS lookup becomes necessary */
     else
       {
-        niquery = malloc(sizeof(struct nameinfo_query));
+        niquery = ares_malloc(sizeof(struct nameinfo_query));
         if (!niquery)
           {
             callback(arg, ARES_ENOMEM, 0, NULL, NULL);
@@ -234,7 +234,7 @@ static void nameinfo_callback(void *arg, int status, int timeouts,
       niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts,
                         (char *)(host->h_name),
                         service);
-      free(niquery);
+      ares_free(niquery);
       return;
     }
   /* We couldn't find the host, but it's OK, we can use the IP */
@@ -265,11 +265,11 @@ static void nameinfo_callback(void *arg, int status, int timeouts,
         }
       niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts, ipbuf,
                         service);
-      free(niquery);
+      ares_free(niquery);
       return;
     }
   niquery->callback(niquery->arg, status, niquery->timeouts, NULL, NULL);
-  free(niquery);
+  ares_free(niquery);
 }
 
 static char *lookup_service(unsigned short port, int flags,
@@ -304,7 +304,7 @@ static char *lookup_service(unsigned short port, int flags,
 #if GETSERVBYPORT_R_ARGS == 6
           if (getservbyport_r(port, proto, &se, (void *)tmpbuf,
                               sizeof(tmpbuf), &sep) != 0)
-            sep = NULL;
+            sep = NULL;  /* LCOV_EXCL_LINE: buffer large so this never fails */
 #elif GETSERVBYPORT_R_ARGS == 5
           sep = getservbyport_r(port, proto, &se, (void *)tmpbuf,
                                 sizeof(tmpbuf));
@@ -341,7 +341,7 @@ static char *lookup_service(unsigned short port, int flags,
         memcpy(buf, name, name_len + 1);
       else
         /* avoid reusing previous one */
-        buf[0] = '\0';
+        buf[0] = '\0';  /* LCOV_EXCL_LINE: no real service names are too big */
       return buf;
     }
   buf[0] = '\0';
@@ -391,7 +391,7 @@ static void append_scopeid(struct sockaddr_in6 *addr6, unsigned int flags,
 #endif
 
 /* Determines if s1 ends with the string in s2 (case-insensitive) */
-static char *ares_striendstr(const char *s1, const char *s2)
+STATIC_TESTABLE char *ares_striendstr(const char *s1, const char *s2)
 {
   const char *c1, *c2, *c1_begin;
   int lo1, lo2;
@@ -417,7 +417,5 @@ static char *ares_striendstr(const char *s1, const char *s2)
           c2++;
         }
     }
-  if (c2 == c1 && c2 == NULL)
-    return (char *)c1_begin;
-  return NULL;
+  return (char *)c1_begin;
 }

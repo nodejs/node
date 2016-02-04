@@ -607,9 +607,9 @@ class QueryTxtWrap: public QueryWrap {
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    struct ares_txt_reply* txt_out;
+    struct ares_txt_ext* txt_out;
 
-    int status = ares_parse_txt_reply(buf, len, &txt_out);
+    int status = ares_parse_txt_reply_ext(buf, len, &txt_out);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
@@ -618,7 +618,7 @@ class QueryTxtWrap: public QueryWrap {
     Local<Array> txt_records = Array::New(env()->isolate());
     Local<Array> txt_chunk;
 
-    ares_txt_reply* current = txt_out;
+    struct ares_txt_ext* current = txt_out;
     uint32_t i = 0;
     for (uint32_t j = 0; current != nullptr; current = current->next) {
       Local<String> txt = OneByteString(env()->isolate(), current->txt);
