@@ -75,8 +75,8 @@ The character encodings currently supported by Node.js include:
 Buffers are also `Uint8Array` TypedArray instances. However, there are subtle
 incompatibilities with the TypedArray specification in ECMAScript 2015. For
 instance, while `ArrayBuffer#slice()` creates a copy of the slice,
-the implementation of [`Buffer#slice()`][] creates a view over the existing
-Buffer without copying, making `Buffer#slice()` far more efficient.
+the implementation of [`Buffer#slice()`][`buf.slice()`] creates a view over the
+existing Buffer without copying, making `Buffer#slice()` far more efficient.
 
 It is also possible to create new TypedArray instances from a `Buffer` with the
 following caveats:
@@ -1351,17 +1351,16 @@ socket.on('readable', () => {
 Use of `SlowBuffer` should be used only as a last resort *after* a developer
 has observed undue memory retention in their applications.
 
-[iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
-[`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
 [`Array#includes()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
+[`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
+[`buf.entries()`]: #buffer_buf_entries
 [`buf.fill(0)`]: #buffer_buf_fill_value_offset_end
+[`buf.keys()`]: #buffer_buf_keys
 [`buf.slice()`]: #buffer_buf_slice_start_end
+[`buf.values()`]: #buffer_buf_values
 [`buf1.compare(buf2)`]: #buffer_buf_compare_otherbuffer
-[`Buffer#slice()`]: #buffer_buf_slice_start_end
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`RangeError`]: errors.html#errors_class_rangeerror
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
 [`util.inspect()`]: util.html#util_util_inspect_object_options
-[`buf.values()`]: #buffer_buf_values
-[`buf.keys()`]: #buffer_buf_keys
-[`buf.entries()`]: #buffer_buf_entries
-[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
