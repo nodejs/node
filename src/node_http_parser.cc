@@ -1,6 +1,7 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_http_parser.h"
+#include "node_revert.h"
 
 #include "base-object.h"
 #include "base-object-inl.h"
@@ -670,6 +671,8 @@ class Parser : public BaseObject {
 
   void Init(enum http_parser_type type) {
     http_parser_init(&parser_, type);
+    /* Allow the strict http header parsing to be reverted */
+    parser_.lenient_http_headers = IsReverted(REVERT_CVE_2016_2216) ? 1 : 0;
     url_.Reset();
     status_message_.Reset();
     num_fields_ = 0;

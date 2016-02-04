@@ -1,3 +1,4 @@
+// Flags: --security-revert=CVE-2016-2216
 'use strict';
 var common = require('../common'),
     assert = require('assert'),
