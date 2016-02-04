@@ -401,7 +401,6 @@ assert.throws(
 );
 ```
 
-[Locked]: documentation.html#documentation_stability_index
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
@@ -409,3 +408,4 @@ assert.throws(
 [`Error`]: errors.html#errors_class_error
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
 [`TypeError`]: errors.html#errors_class_typeerror
+[Locked]: documentation.html#documentation_stability_index
