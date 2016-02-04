@@ -209,7 +209,7 @@ parser.add_option_group(shared_optgroup)
 parser.add_option('--systemtap-includes',
     action='store',
     dest='systemtap_includes',
-    help=optparse.SUPPRESS_HELP)
+    help="directory containing systemtap header files")
 
 parser.add_option('--tag',
     action='store',
@@ -1050,7 +1050,7 @@ def configure_intl(o):
   if not icu_ver_major:
     print ' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h
     sys.exit(1)
-  icu_endianness = sys.byteorder[0];  # TODO(srl295): EBCDIC should be 'e'
+  icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
   icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')
