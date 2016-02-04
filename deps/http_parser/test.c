@@ -3271,6 +3271,155 @@ test_simple (const char *buf, enum http_errno err_expected)
 }
 
 void
+test_invalid_header_content (int req, const char* str)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = str;
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_INVALID_HEADER_TOKEN);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in invalid header content test ***\n");
+  abort();
+}
+
+void
+test_invalid_header_field_content_error (int req)
+{
+  test_invalid_header_content(req, "Foo: F\01ailure");
+  test_invalid_header_content(req, "Foo: B\02ar");
+}
+
+void
+test_invalid_header_field (int req, const char* str)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = str;
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_INVALID_HEADER_TOKEN);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in invalid header token test ***\n");
+  abort();
+}
+
+void
+test_invalid_header_field_token_error (int req)
+{
+  test_invalid_header_field(req, "Fo@: Failure");
+  test_invalid_header_field(req, "Foo\01\test: Bar");
+}
+
+void
+test_double_content_length_error (int req)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = "Content-Length: 0\r\nContent-Length: 1\r\n\r\n";
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_MULTIPLE_CONTENT_LENGTH);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in double content-length test ***\n");
+  abort();
+}
+
+void
+test_chunked_content_length_error (int req)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = "Transfer-Encoding: chunked\r\nContent-Length: 1\r\n\r\n";
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_CHUNKED_WITH_CONTENT_LENGTH);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in chunked content-length test ***\n");
+  abort();
+}
+
+void
+test_header_cr_no_lf_error (int req)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = "Foo: 1\rBar: 1\r\n\r\n";
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_LF_EXPECTED);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in header whitespace test ***\n");
+  abort();
+}
+
+void
 test_header_overflow_error (int req)
 {
   http_parser parser;
@@ -3695,6 +3844,18 @@ main (void)
 
   test_header_content_length_overflow_error();
   test_chunk_content_length_overflow_error();
+
+  //// HEADER FIELD CONDITIONS
+  test_double_content_length_error(HTTP_REQUEST);
+  test_chunked_content_length_error(HTTP_REQUEST);
+  test_header_cr_no_lf_error(HTTP_REQUEST);
+  test_invalid_header_field_token_error(HTTP_REQUEST);
+  test_invalid_header_field_content_error(HTTP_REQUEST);
+  test_double_content_length_error(HTTP_RESPONSE);
+  test_chunked_content_length_error(HTTP_RESPONSE);
+  test_header_cr_no_lf_error(HTTP_RESPONSE);
+  test_invalid_header_field_token_error(HTTP_RESPONSE);
+  test_invalid_header_field_content_error(HTTP_RESPONSE);
 
   //// RESPONSES
 
