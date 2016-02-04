@@ -13,11 +13,12 @@
   function startup() {
     var EventEmitter = NativeModule.require('events');
 
-    process.__proto__ = Object.create(EventEmitter.prototype, {
+    Object.setPrototypeOf(process, Object.create(EventEmitter.prototype, {
       constructor: {
         value: process.constructor
       }
-    });
+    }));
+
     EventEmitter.call(process);
 
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
