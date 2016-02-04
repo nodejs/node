@@ -6,6 +6,7 @@
 #include "node_javascript.h"
 #include "node_version.h"
 #include "node_internals.h"
+#include "node_revert.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -1843,7 +1844,6 @@ static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
   }
 }
 
-
 static void GetUid(const FunctionCallbackInfo<Value>& args) {
   // uid_t is an uint32_t on all supported platforms.
   args.GetReturnValue().Set(static_cast<uint32_t>(getuid()));
@@ -3015,6 +3015,16 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
+  // --security-revert flags
+#define V(code, _, __)                                                        \
+  do {                                                                        \
+    if (IsReverted(REVERT_ ## code)) {                                        \
+      READONLY_PROPERTY(process, "REVERT_" #code, True(env->isolate()));      \
+    }                                                                         \
+  } while (0);
+  REVERSIONS(V)
+#undef V
+
   size_t exec_path_len = 2 * PATH_MAX;
   char* exec_path = new char[exec_path_len];
   Local<String> exec_path_value;
@@ -3264,19 +3274,19 @@ static void PrintHelp() {
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
-         "NODE_PATH               ';'-separated list of directories\n"
+         "NODE_PATH                ';'-separated list of directories\n"
 #else
-         "NODE_PATH               ':'-separated list of directories\n"
+         "NODE_PATH                ':'-separated list of directories\n"
 #endif
-         "                        prefixed to the module search path.\n"
-         "NODE_DISABLE_COLORS     set to 1 to disable colors in the REPL\n"
+         "                         prefixed to the module search path.\n"
+         "NODE_DISABLE_COLORS      set to 1 to disable colors in the REPL\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "NODE_ICU_DATA           data path for ICU (Intl object) data\n"
+         "NODE_ICU_DATA            data path for ICU (Intl object) data\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                        (will extend linked-in data)\n"
+         "                         (will extend linked-in data)\n"
 #endif
 #endif
-         "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
+         "NODE_REPL_HISTORY        path to the persistent REPL history file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
@@ -3382,6 +3392,9 @@ static void ParseArgs(int* argc,
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
+    } else if (strncmp(arg, "--security-revert=", 18) == 0) {
+      const char* cve = arg + 18;
+      Revert(cve);
     } else if (strcmp(arg, "--prof-process") == 0) {
       prof_process = true;
       short_circuit = true;
