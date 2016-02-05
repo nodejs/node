@@ -724,6 +724,20 @@ response.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
 Attempting to set a header field name that contains invalid characters will
 result in a [`TypeError`][] being thrown.
 
+When headers have been set with [`response.setHeader()`][], they will be merged with
+any headers passed to [`response.writeHead()`][], with the headers passed to
+[`response.writeHead()`][] given precedence.
+
+```js
+// returns content-type = text/plain
+const server = http.createServer((req,res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('X-Foo', 'bar');
+  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.end('ok');
+});
+```
+
 ### response.setTimeout(msecs, callback)
 
 * `msecs` {Number}
@@ -824,6 +838,20 @@ be called before [`response.end()`][] is called.
 
 If you call [`response.write()`][] or [`response.end()`][] before calling this, the
 implicit/mutable headers will be calculated and call this function for you.
+
+When headers have been set with [`response.setHeader()`][], they will be merged with
+any headers passed to [`response.writeHead()`][], with the headers passed to
+[`response.writeHead()`][] given precedence.
+
+```js
+// returns content-type = text/plain
+const server = http.createServer((req,res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('X-Foo', 'bar');
+  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.end('ok');
+});
+```
 
 Note that Content-Length is given in bytes not characters. The above example
 works because the string `'hello world'` contains only single byte characters.
@@ -1180,6 +1208,7 @@ There are a few special headers that should be noted.
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http_response_end_data_encoding_callback
+[`response.setHeader()`]: #http_response_setheader_name_value
 [`response.write()`]: #http_response_write_chunk_encoding_callback
 [`response.write(data, encoding)`]: #http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http_response_writecontinue
