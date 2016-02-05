@@ -15,9 +15,8 @@ function clientSend(client, port) {
     if (err) {
       // The setInterval might send a message after the server closes, so
       // ECANCELED is OK.
-      if (err.code === 'ECANCELED')
-        return client.close();
-      throw err;
+      if (err.code !== 'ECANCELED')
+        throw err;
     }
   });
 }
@@ -67,6 +66,10 @@ function pingPongTest(port, host) {
       assert.equal(N, count);
       tests_run += 1;
       server.close();
+      // Don't let any stuck server sockets keep the process open
+      // Open an issue for this, yeah?
+      // Or is it expected behavior?
+      server.unref();
       assert(N - 1, callbacks);
     });
 
