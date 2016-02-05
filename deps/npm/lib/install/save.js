@@ -180,8 +180,10 @@ function computeVersionSpec (child) {
         pathname: relativePath
       })
     }
-  } else {
+  } else if (requested.type === 'hosted') {
     return requested.spec
+  } else {
+    return requested.rawSpec
   }
 }
 
