@@ -1,89 +1,46 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var Buffer = require('buffer').Buffer;
-var dgram = require('dgram');
-
-var debug = false;
-var tests_run = 0;
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
 function pingPongTest(port, host) {
-  var callbacks = 0;
-  var N = 500;
-  var count = 0;
 
-  var server = dgram.createSocket('udp4', function(msg, rinfo) {
-    if (debug) console.log('server got: ' + msg +
-                           ' from ' + rinfo.address + ':' + rinfo.port);
-
-    if (/PING/.exec(msg)) {
-      var buf = new Buffer(4);
-      buf.write('PONG');
-      server.send(buf, 0, buf.length,
-                  rinfo.port, rinfo.address,
-                  function(err, sent) {
-                    callbacks++;
-                  });
-    }
-  });
+  const server = dgram.createSocket('udp4', common.mustCall((msg, rinfo) => {
+    assert.strictEqual('PING', msg.toString('ascii'));
+    server.send('PONG', 0, 4, rinfo.port, rinfo.address);
+  }));
 
   server.on('error', function(e) {
     throw e;
   });
 
   server.on('listening', function() {
-    console.log('server listening on ' + port + ' ' + host);
+    console.log('server listening on ' + port);
 
-    const buf = new Buffer('PING');
     const client = dgram.createSocket('udp4');
 
-    client.on('message', function(msg, rinfo) {
-      if (debug) console.log('client got: ' + msg +
-                             ' from ' + rinfo.address + ':' + rinfo.port);
-      assert.equal('PONG', msg.toString('ascii'));
+    client.on('message', function(msg) {
+      assert.strictEqual('PONG', msg.toString('ascii'));
 
-      count += 1;
-
-      if (count < N) {
-        client.send(buf, 0, buf.length, port, 'localhost');
-      } else {
-        client.send(buf, 0, buf.length, port, 'localhost', function() {
-          client.close();
-        });
-      }
-    });
-
-    client.on('close', function() {
-      console.log('client has closed, closing server');
-      assert.equal(N, count);
-      tests_run += 1;
+      client.close();
       server.close();
-      assert.equal(N - 1, callbacks);
     });
 
     client.on('error', function(e) {
       throw e;
     });
 
-    console.log('Client sending to ' + port + ', localhost ' + buf);
-    client.send(buf, 0, buf.length, port, 'localhost', function(err, bytes) {
-      if (err) {
-        throw err;
-      }
-      console.log('Client sent ' + bytes + ' bytes');
-    });
-    count += 1;
+    console.log('Client sending to ' + port);
+
+    function clientSend() {
+      client.send('PING', 0, 4, port, 'localhost');
+    }
+
+    clientSend();
   });
   server.bind(port, host);
+  return server;
 }
 
-// All are run at once, so run on different ports
-pingPongTest(common.PORT + 0, 'localhost');
-pingPongTest(common.PORT + 1, 'localhost');
-pingPongTest(common.PORT + 2);
-//pingPongTest('/tmp/pingpong.sock');
-
-process.on('exit', function() {
-  assert.equal(3, tests_run);
-  console.log('done');
-});
+const server = pingPongTest(common.PORT, 'localhost');
+server.on('close', common.mustCall(pingPongTest.bind(undefined, common.PORT)));
