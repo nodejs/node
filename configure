@@ -204,12 +204,10 @@ shared_optgroup.add_option('--shared-zlib-libpath',
 
 parser.add_option_group(shared_optgroup)
 
-# TODO document when we've decided on what the tracing API and its options will
-# look like
 parser.add_option('--systemtap-includes',
     action='store',
     dest='systemtap_includes',
-    help=optparse.SUPPRESS_HELP)
+    help='directory containing systemtap header files')
 
 parser.add_option('--tag',
     action='store',
