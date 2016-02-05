@@ -1,23 +1,34 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var Buffer = require('buffer').Buffer;
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const Buffer = require('buffer').Buffer;
+const dgram = require('dgram');
 
-var debug = false;
 var tests_run = 0;
+
+const intervals = new Map();
+
+function clientSend(client, port) {
+  const buf = new Buffer('PING');
+
+  client.send(buf, 0, buf.length, port, 'localhost', function(err, bytes) {
+    if (err) {
+      // The setInterval might send a message after the server closes, so
+      // ECANCELED is OK.
+      if (err.code !== 'ECANCELED')
+        throw err;
+    }
+  });
+}
 
 function pingPongTest(port, host) {
   var callbacks = 0;
-  var N = 500;
+  const N = 500;
   var count = 0;
 
-  var server = dgram.createSocket('udp4', function(msg, rinfo) {
-    if (debug) console.log('server got: ' + msg +
-                           ' from ' + rinfo.address + ':' + rinfo.port);
-
+  const server = dgram.createSocket('udp4', function(msg, rinfo) {
     if (/PING/.exec(msg)) {
-      var buf = new Buffer(4);
+      const buf = new Buffer(4);
       buf.write('PONG');
       server.send(buf, 0, buf.length,
                   rinfo.port, rinfo.address,
@@ -32,24 +43,21 @@ function pingPongTest(port, host) {
   });
 
   server.on('listening', function() {
-    console.log('server listening on ' + port + ' ' + host);
+    console.log('server listening on ' + port);
 
-    const buf = new Buffer('PING');
     const client = dgram.createSocket('udp4');
 
     client.on('message', function(msg, rinfo) {
-      if (debug) console.log('client got: ' + msg +
-                             ' from ' + rinfo.address + ':' + rinfo.port);
       assert.equal('PONG', msg.toString('ascii'));
 
       count += 1;
 
       if (count < N) {
-        client.send(buf, 0, buf.length, port, 'localhost');
+        clientSend(client, port);
       } else {
-        client.send(buf, 0, buf.length, port, 'localhost', function() {
-          client.close();
-        });
+        clearInterval(intervals.get(port));
+        intervals.delete(port);
+        client.close();
       }
     });
 
@@ -58,20 +66,17 @@ function pingPongTest(port, host) {
       assert.equal(N, count);
       tests_run += 1;
       server.close();
-      assert.equal(N - 1, callbacks);
+      assert(N - 1, callbacks);
     });
 
     client.on('error', function(e) {
       throw e;
     });
 
-    console.log('Client sending to ' + port + ', localhost ' + buf);
-    client.send(buf, 0, buf.length, port, 'localhost', function(err, bytes) {
-      if (err) {
-        throw err;
-      }
-      console.log('Client sent ' + bytes + ' bytes');
-    });
+    console.log('Client sending to ' + port);
+    const intervalFunc = () => { clientSend(client, port); };
+    intervals.set(port, setInterval(intervalFunc, common.platformTimeout(1)));
+    clientSend(client, port);
     count += 1;
   });
   server.bind(port, host);
