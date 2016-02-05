@@ -30,7 +30,10 @@ var DEP_PKG = {
 
 var INSTALLED = {
   dependencies: {
-    'dep1': '1.1.1'
+    'dep1': {
+      version: '1.1.1',
+      link: false
+    }
   }
 }
 
@@ -91,7 +94,7 @@ function resetPackage (options) {
   }
 
   if (options.installed) {
-    mockInstalled.dependencies.dep1 = options.installed
+    mockInstalled.dependencies.dep1.version = options.installed
     mockDepJson.version = options.installed
   }
 }
