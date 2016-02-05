@@ -23,6 +23,10 @@ class NodeBIO {
 
   static BIO* New();
 
+  // NewFixed takes a copy of `len` bytes from `data` and returns a BIO that,
+  // when read from, returns those bytes followed by EOF.
+  static BIO* NewFixed(const char* data, size_t len);
+
   void AssignEnvironment(Environment* env);
 
   // Move read head to next buffer if needed
