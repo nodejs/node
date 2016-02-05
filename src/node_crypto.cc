@@ -407,29 +407,18 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
 static BIO* LoadBIO(Environment* env, Local<Value> v) {
-  BIO* bio = NodeBIO::New();
-  if (!bio)
-    return nullptr;
-
   HandleScope scope(env->isolate());
-
-  int r = -1;
 
   if (v->IsString()) {
     const node::Utf8Value s(env->isolate(), v);
-    r = BIO_write(bio, *s, s.length());
-  } else if (Buffer::HasInstance(v)) {
-    char* buffer_data = Buffer::Data(v);
-    size_t buffer_length = Buffer::Length(v);
-    r = BIO_write(bio, buffer_data, buffer_length);
+    return NodeBIO::NewFixed(*s, s.length());
   }
 
-  if (r <= 0) {
-    BIO_free_all(bio);
-    return nullptr;
+  if (Buffer::HasInstance(v)) {
+    return NodeBIO::NewFixed(Buffer::Data(v), Buffer::Length(v));
   }
 
-  return bio;
+  return nullptr;
 }
 
 
@@ -769,15 +758,12 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
     root_cert_store = X509_STORE_new();
 
     for (size_t i = 0; i < ARRAY_SIZE(root_certs); i++) {
-      BIO* bp = NodeBIO::New();
-
-      if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
-        BIO_free_all(bp);
+      BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
+      if (bp == nullptr) {
         return;
       }
 
       X509 *x509 = PEM_read_bio_X509(bp, nullptr, CryptoPemCallback, nullptr);
-
       if (x509 == nullptr) {
         BIO_free_all(bp);
         return;
