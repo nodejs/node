@@ -10,7 +10,6 @@ prefix sequential
 
 [$system==linux]
 test-vm-syntax-error-stderr : PASS,FLAKY
-test-dgram-pingpong         : PASS,FLAKY
 test-http-regr-gh-2928      : PASS,FLAKY
 
 [$system==macos]
