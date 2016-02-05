@@ -397,7 +397,18 @@ If `options` is a string, then it specifies the encoding.
     Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
 Test whether or not the given path exists by checking with the file system.
-Then call the `callback` argument with either true or false.  Example:
+The last argument, `callback`, is a callback function that is invoked with
+a possible error argument and argument with value `true` if the file exists or `false`
+if not. Example:
+
+```js
+fs.exists('/etc/passwd', (err, exists) => {
+  console.log(exists ? 'it\'s there' : 'no passwd!');
+});
+```
+
+For backward compatibility `callback` can be a function invoked with single argument
+having value `true` if the file exists or `false` if not. Example:
 
 ```js
 fs.exists('/etc/passwd', (exists) => {
