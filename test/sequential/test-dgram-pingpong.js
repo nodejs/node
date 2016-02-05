@@ -15,8 +15,9 @@ function clientSend(client, port) {
     if (err) {
       // The setInterval might send a message after the server closes, so
       // ECANCELED is OK.
-      if (err.code !== 'ECANCELED')
-        throw err;
+      if (err.code === 'ECANCELED')
+        return client.close();
+      throw err;
     }
   });
 }
