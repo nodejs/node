@@ -75,7 +75,7 @@ function pingPongTest(port, host) {
 
     console.log('Client sending to ' + port);
     const intervalFunc = () => { clientSend(client, port); };
-    intervals.set(port, setInterval(intervalFunc, common.platformTimeout(1)));
+    intervals.set(port, setInterval(intervalFunc, common.platformTimeout(999)));
     clientSend(client, port);
     count += 1;
   });
