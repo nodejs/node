@@ -113,7 +113,7 @@ expression syntax version 2.0 string](https://npmjs.com/package/spdx), like this
     { "license" : "(ISC OR GPL-3.0)" }
 
 If you are using a license that hasn't been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:
+you are using a custom license, use a string value like this one:
 
     { "license" : "SEE LICENSE IN <filename>" }
 
@@ -186,9 +186,10 @@ works just like a `.gitignore`.
 Certain files are always included, regardless of settings:
 
 * `package.json`
-* `README` (and its variants)
-* `CHANGELOG` (and its variants)
+* `README`
+* `CHANGES` / `CHANGELOG` / `HISTORY` (any casing and file extension)
 * `LICENSE` / `LICENCE`
+* The file in the "main" field
 
 Conversely, some files are always ignored:
 
@@ -198,10 +199,11 @@ Conversely, some files are always ignored:
 * `.hg`
 * `.lock-wscript`
 * `.wafpickle-N`
-* `*.swp`
+* `.*.swp`
 * `.DS_Store`
 * `._*`
 * `npm-debug.log`
+* `.npmrc`
 
 ## main
 
