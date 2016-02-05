@@ -1,8 +1,6 @@
 ## Code of Conduct
 
-This Code of Conduct is adapted from [Rust's wonderful
-CoC](http://www.rust-lang.org/conduct.html) as well as the
-[Contributor Covenant v1.3.0](http://contributor-covenant.org/version/1/3/0/).
+### Conduct
 
 * We are committed to providing a friendly, safe and welcoming
   environment for all, regardless of level of experience, gender
@@ -39,3 +37,19 @@ CoC](http://www.rust-lang.org/conduct.html) as well as the
 * Avoid the use of personal pronouns in code comments or
   documentation. There is no need to address persons when explaining
   code (e.g. "When the developer").
+
+### Contact
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported by:
+
+* Emailing [report@nodejs.org](mailto:report@nodejs.org) (this will email all TSC members)
+* Contacting [individual TSC members](https://nodejs.org/en/foundation/tsc/#current-members-of-the-technical-steering-committee).
+
+### Moderation
+See the TSC's [moderation policy](https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md) for details about moderation.
+
+### Attribution
+
+This Code of Conduct is adapted from [Rust's wonderful
+CoC](http://www.rust-lang.org/conduct.html) as well as the
+[Contributor Covenant v1.3.0](http://contributor-covenant.org/version/1/3/0/).
