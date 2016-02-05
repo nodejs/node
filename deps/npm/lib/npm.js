@@ -283,8 +283,14 @@ npm.load = function (cli, cb_) {
     npm.config.loaded = true
     loaded = true
     loadCb(loadErr = er)
-    if (onload = onload && npm.config.get("onload-script")) {
-      require(onload)
+    onload = onload && npm.config.get('onload-script')
+    if (onload) {
+      try {
+        require(onload)
+      } catch (err) {
+        log.warn('onload-script', 'failed to require onload script', onload)
+        log.warn('onload-script', err)
+      }
       onload = false
     }
   }

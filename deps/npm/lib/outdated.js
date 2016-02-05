@@ -252,6 +252,7 @@ function outdated_ (args, dir, parentHas, depth, cb) {
       has = Object.create(parentHas)
       pvs.forEach(function (pv) {
         has[pv[0]] = {
+          link: data.dependencies[pv[0]].link,
           version: pv[1],
           from: pv[2]
         }
@@ -310,6 +311,9 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
   var parsed = npa(dep + '@' + req)
   if (parsed.type === "git" || (parsed.hosted && parsed.hosted.type === "github")) {
     return doIt("git", "git")
+  }
+  if (curr && curr.link) {
+    return doIt("linked", "linked")
   }
 
   // search for the latest package
