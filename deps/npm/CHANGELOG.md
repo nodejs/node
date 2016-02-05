@@ -1,3 +1,55 @@
+### v2.14.17 (2016-01-28):
+
+Another week, another small LTS release!
+
+#### BETTER ERROR REPORTING YAY
+
+So as it turns out, when stuff goes wrong, it's actually nice to give people a
+better clue rather than just say "oh well 😏".
+
+* [`5b8ccb9`](https://github.com/npm/npm/commit/5b8ccb91cf11b4edb463609cd4ed1dee84ed4db0)
+  [#11289](https://github.com/npm/npm/pull/11289)
+  There is an obscure feature that lets you monkey-patch npm when it starts up.
+  If the module being required with this feature failed, it would previous just
+  make npm error out– this reduces that to a warning.
+  ([@evanlucas](https://github.com/evanlucas))
+* [`556e42a`](https://github.com/npm/npm/commit/556e42ac6bab078722ddc1dc6cce4428d001133b)
+  [#11300](https://github.com/npm/npm/pull/11300)
+  Report symlinked packages as 'linked' in the output for `npm outdated`.
+  ([@halhenke](https://github.com/halhenke))
+* [`3842317`](https://github.com/npm/npm/commit/3842317583e0ea2eca78e39aa03f5bc06ba21de7)
+  [#11290](https://github.com/npm/npm/pull/11290)
+  Suppress warnings about pre-release node versions. This should get node's CI
+  passing on non-Windows platforms without needing to modify the node version to
+  get rid of the pre-release suffix.
+  ([@iarna](https://github.com/iarna))
+
+#### EVERYONE WANTS THOSE NPM SOCKS, GEEZE
+
+Did you know that you can get npm socks for contributing to our docs? I bet
+these people do, and now so do you!
+
+* [`dcde451`](https://github.com/npm/npm/commit/dcde451cb85a6ca08acc6ef45782c652f1d8fc89)
+  [#11232](https://github.com/npm/npm/pull/11232)
+  Update automatically included/excluded packages in `package.json`.
+  ([@jscissr](https://github.com/jscissr))
+* [`e3f8d5b`](https://github.com/npm/npm/commit/e3f8d5be5ac5ec1d72db42f7abf50cc4a8c5935c)
+  [#11273](https://github.com/npm/npm/pull/11273)
+  Add an example for `npm view <pkg> versions`.
+  ([@vedatmahir](https://github.com/vedatmahir))
+* [`6a06ef2`](https://github.com/npm/npm/commit/6a06ef2252748089f0013de951f2d06160b90306)
+  [#11272](https://github.com/npm/npm/pull/11272)
+  Fix a typo in `npm-update.md`.
+  ([@jonathanp](https://github.com/jonathanp))
+* [`2515ff1`](https://github.com/npm/npm/commit/2515ff1de28f0b261fb25c79a66bd762a65961c4)
+  [#11215](https://github.com/npm/npm/pull/11215)
+  Correct small thinko in docs for SPDX expressions.
+  ([@kemitchell](https://github.com/kemitchell))
+* [`70f897b`](https://github.com/npm/npm/commit/70f897b03da9a5d5d4fd34614e9ee40e6f9e9653)
+  [#11196](https://github.com/npm/npm/pull/11196)
+  Make JSON snippets valid JSON in `npm update` docs.
+  ([@s100](https://github.com/s100))
+
 ### v2.14.16 (2016-01-21):
 
 Good to see you all again! It's been a while since we had an LTS release, and
