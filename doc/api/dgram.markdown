@@ -377,6 +377,7 @@ s.bind(1234, () => {
 ## `dgram` module functions
 
 ### dgram.createSocket(options[, callback])
+
 * `options` Object
 * `callback` Function. Attached as a listener to `'message'` events.
 * Returns: Socket object
@@ -397,7 +398,7 @@ interfaces" address on a random port (it does the right thing for both `udp4`
 and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
-## dgram.createSocket(type[, callback])
+### dgram.createSocket(type[, callback])
 
 * `type` String. Either 'udp4' or 'udp6'
 * `callback` Function. Attached as a listener to `'message'` events.
