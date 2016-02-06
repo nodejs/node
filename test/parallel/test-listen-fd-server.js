@@ -30,7 +30,7 @@ test(function(child) {
   http.get({
     server: 'localhost',
     port: PORT,
-    path: '/',
+    path: '/'
   }).on('response', function(res) {
     var s = '';
     res.on('data', function(c) {

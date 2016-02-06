@@ -14,7 +14,7 @@ initialLines.splice(2, 0, /Restoring/, /Warning/);
 
 // Restart the debugged script
 repl.addTest('restart', [
-  /terminated/,
+  /terminated/
 ].concat(initialLines));
 
 repl.addTest('list(5)', linesWithBreakpoint);

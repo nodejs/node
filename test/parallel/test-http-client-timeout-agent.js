@@ -9,7 +9,7 @@ var requests_done = 0;
 var options = {
   method: 'GET',
   port: common.PORT,
-  host: '127.0.0.1',
+  host: '127.0.0.1'
 };
 
 //http.globalAgent.maxSockets = 15;

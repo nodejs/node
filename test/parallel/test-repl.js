@@ -286,7 +286,7 @@ function error_test() {
     // REPL should get a normal require() function, not one that allows
     // access to internal modules without the --expose_internals flag.
     { client: client_unix, send: 'require("internal/repl")',
-      expect: /^Error: Cannot find module 'internal\/repl'/ },
+      expect: /^Error: Cannot find module 'internal\/repl'/ }
   ]);
 }
 

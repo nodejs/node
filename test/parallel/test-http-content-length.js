@@ -5,17 +5,17 @@ var http = require('http');
 
 var expectedHeadersMultipleWrites = {
   'connection': 'close',
-  'transfer-encoding': 'chunked',
+  'transfer-encoding': 'chunked'
 };
 
 var expectedHeadersEndWithData = {
   'connection': 'close',
-  'content-length': 'hello world'.length,
+  'content-length': 'hello world'.length
 };
 
 var expectedHeadersEndNoData = {
   'connection': 'close',
-  'content-length': '0',
+  'content-length': '0'
 };
 
 var receivedRequests = 0;

@@ -30,7 +30,7 @@ const recv = {
     assert.strictEqual(this, recv);
     assert.strictEqual(x, 1337);
     return 42;
-  }),
+  })
 };
 
 assert.strictEqual(42, makeCallback(recv, 'one'));

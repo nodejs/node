@@ -28,7 +28,7 @@ var multipleAllowed = [
 
   // make sure that unspecified headers is treated as multiple
   'Some-Random-Header',
-  'X-Some-Random-Header',
+  'X-Some-Random-Header'
 ];
 
 var multipleForbidden = [
@@ -42,7 +42,7 @@ var multipleForbidden = [
   'If-Unmodified-Since',
   'From',
   'Location',
-  'Max-Forwards',
+  'Max-Forwards'
 
   // special case, tested differently
   //'Content-Length',
@@ -85,6 +85,6 @@ srv.listen(common.PORT, function() {
     host: 'localhost',
     port: common.PORT,
     path: '/',
-    headers: headers,
+    headers: headers
   });
 });

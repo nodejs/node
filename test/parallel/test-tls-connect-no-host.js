@@ -24,7 +24,7 @@ tls.createServer({
 
 var socket = tls.connect({
   port: common.PORT,
-  ca: cert,
+  ca: cert
   // No host set here. 'localhost' is the default,
   // but tls.checkServerIdentity() breaks before the fix with:
   // Error: Hostname/IP doesn't match certificate's altnames:

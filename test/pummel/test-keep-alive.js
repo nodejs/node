@@ -30,7 +30,7 @@ function runAb(opts, callback) {
   var args = [
     '-c', opts.concurrent || 100,
     '-t', opts.threads || 2,
-    '-d', opts.duration || '10s',
+    '-d', opts.duration || '10s'
   ];
 
   if (!opts.keepalive) {

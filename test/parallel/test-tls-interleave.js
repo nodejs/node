@@ -19,7 +19,7 @@ var options = { key: fs.readFileSync(dir + '/test_key.pem'),
 var writes = [
   'some server data',
   'and a separate packet',
-  'and one more',
+  'and one more'
 ];
 var receivedWrites = 0;
 

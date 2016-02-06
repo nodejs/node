@@ -9,7 +9,7 @@ if (process.env.NODE_TEST_FORK) {
     headers: {'Content-Length': '42'},
     method: 'POST',
     host: '127.0.0.1',
-    port: common.PORT,
+    port: common.PORT
   }, process.exit);
   req.write('BAM');
   req.end();

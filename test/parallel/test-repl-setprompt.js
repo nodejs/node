@@ -6,7 +6,7 @@ const os = require('os');
 
 var args = [
   '-e',
-  'var e = new (require("repl")).REPLServer("foo.. "); e.context.e = e;',
+  'var e = new (require("repl")).REPLServer("foo.. "); e.context.e = e;'
 ];
 
 var p = 'bar.. ';

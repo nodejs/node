@@ -10,14 +10,14 @@ var hadRun = 0;
 var expect = 'blahblahblahblahblahblah';
 var opts = {
   level: 9,
-  chunkSize: 1024,
+  chunkSize: 1024
 };
 
 [
   ['gzip', 'gunzip'],
   ['gzip', 'unzip'],
   ['deflate', 'inflate'],
-  ['deflateRaw', 'inflateRaw'],
+  ['deflateRaw', 'inflateRaw']
 ].forEach(function(method) {
 
   zlib[method[0]](expect, opts, function(err, result) {

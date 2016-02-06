@@ -20,7 +20,7 @@ var lines = [
   // This line shouldn't cause an assertion error.
   'require(\'' + buildPath + '\')' +
   // Log output to double check callback ran.
-  '.method(function() { console.log(\'cb_ran\'); });',
+  '.method(function() { console.log(\'cb_ran\'); });'
 ];
 
 var dInput = new stream.Readable();

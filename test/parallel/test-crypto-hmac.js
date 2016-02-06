@@ -56,7 +56,7 @@ var wikipedia = [
           'b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c71214' +
           '4292c5ad'
     }
-  },
+  }
 ];
 
 for (let i = 0, l = wikipedia.length; i < l; i++) {

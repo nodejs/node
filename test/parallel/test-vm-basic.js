@@ -11,7 +11,7 @@ var result = vm.runInNewContext(
 );
 assert.deepEqual(sandbox, {
   foo: 'bar',
-  typeofProcess: 'undefined',
+  typeofProcess: 'undefined'
 });
 assert.strictEqual(result, 'function');
 
