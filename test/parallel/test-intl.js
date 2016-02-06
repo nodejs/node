@@ -9,7 +9,7 @@ if (enablei18n === undefined) {
 }
 
 // is the Intl object present?
-var haveIntl = (global.Intl != undefined);
+var haveIntl = (global.Intl !== undefined);
 
 // Returns true if no specific locale ids were configured (i.e. "all")
 // Else, returns true if loc is in the configured list

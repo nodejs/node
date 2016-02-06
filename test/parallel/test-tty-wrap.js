@@ -5,7 +5,7 @@ var assert = require('assert');
 var TTY = process.binding('tty_wrap').TTY;
 var isTTY = process.binding('tty_wrap').isTTY;
 
-if (isTTY(1) == false) {
+if (isTTY(1) === false) {
   console.log('1..0 # Skipped: fd 1 is not a tty.');
   return;
 }

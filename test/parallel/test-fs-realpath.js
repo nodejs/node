@@ -18,7 +18,7 @@ if (common.isWindows) {
   // We'll only try to run symlink test if we have enough privileges.
   try {
     exec('whoami /priv', function(err, o) {
-      if (err || o.indexOf('SeCreateSymbolicLinkPrivilege') == -1) {
+      if (err || o.indexOf('SeCreateSymbolicLinkPrivilege') === -1) {
         skipSymlinks = true;
       }
       runTest();

@@ -16,7 +16,7 @@ function after(err, stdout, stderr) {
     assert.equal(false, err.killed);
   } else {
     success_count++;
-    assert.equal(true, stdout != '');
+    assert.equal(true, stdout !== '');
   }
 }
 

@@ -17,7 +17,7 @@ var total = 100;
 var requests = 0, responses = 0;
 
 var server = http.Server(function(req, res) {
-  if (++requests == total) {
+  if (++requests === total) {
     server.close();
   }
 
@@ -49,7 +49,7 @@ server.listen(common.PORT, function() {
 
         s.on('finish', function() {
           console.error('done ' + x);
-          if (++responses == total) {
+          if (++responses === total) {
             checkFiles();
           }
         });
