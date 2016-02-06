@@ -73,10 +73,6 @@ var errors = [
    message: /Parameter 'pathObject' must be an object, not boolean/},
   {method: 'format', input: [1],
    message: /Parameter 'pathObject' must be an object, not number/},
-  {method: 'format', input: [{root: true}],
-   message: /'pathObject.root' must be a string or undefined, not boolean/},
-  {method: 'format', input: [{root: 12}],
-   message: /'pathObject.root' must be a string or undefined, not number/},
 ];
 
 checkParseFormat(path.win32, winPaths);
