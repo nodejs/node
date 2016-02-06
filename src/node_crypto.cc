@@ -1001,7 +1001,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   if (cert != nullptr)
     X509_free(cert);
   if (extra_certs != nullptr)
-    sk_X509_free(extra_certs);
+    sk_X509_pop_free(extra_certs, X509_free);
 
   PKCS12_free(p12);
   BIO_free_all(in);
