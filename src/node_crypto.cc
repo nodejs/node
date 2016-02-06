@@ -982,6 +982,17 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
                                     &sc->cert_,
                                     &sc->issuer_) &&
       SSL_CTX_use_PrivateKey(sc->ctx_, pkey)) {
+    // Add CA certs too
+    for (int i = 0; i < sk_X509_num(extra_certs); i++) {
+      X509* ca = sk_X509_value(extra_certs, i);
+
+      if (!sc->ca_store_) {
+        sc->ca_store_ = X509_STORE_new();
+        SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
+      }
+      X509_STORE_add_cert(sc->ca_store_, ca);
+      SSL_CTX_add_client_CA(sc->ctx_, ca);
+    }
     ret = true;
   }
 
