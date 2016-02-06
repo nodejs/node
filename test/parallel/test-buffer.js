@@ -10,7 +10,7 @@ var cntr = 0;
 
 var b = Buffer(1024); // safe constructor
 
-console.log('b.length == %d', b.length);
+console.log('b.length === %d', b.length);
 assert.strictEqual(1024, b.length);
 
 b[0] = -1;
@@ -25,7 +25,7 @@ for (let i = 0; i < 1024; i++) {
 }
 
 var c = new Buffer(512);
-console.log('c.length == %d', c.length);
+console.log('c.length === %d', c.length);
 assert.strictEqual(512, c.length);
 
 var d = new Buffer([]);

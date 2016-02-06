@@ -30,7 +30,7 @@ function testLeak(endFn, callback) {
   var check = 0;
 
   var checkFunction = function() {
-    if (openCount != 0 && check < totalCheck) {
+    if (openCount !== 0 && check < totalCheck) {
       check++;
       setTimeout(checkFunction, 100);
       return;

@@ -28,5 +28,5 @@ n.on('exit', function(c) {
 });
 
 process.on('exit', function() {
-  assert.ok(childExitCode == 0);
+  assert.ok(childExitCode === 0);
 });

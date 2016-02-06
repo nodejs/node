@@ -10,7 +10,7 @@ var fork = require('child_process').fork;
 
 var MAGIC_EXIT_CODE = 42;
 
-var isTestRunner = process.argv[2] != 'child';
+var isTestRunner = process.argv[2] !== 'child';
 
 if (isTestRunner) {
   var exitCode = -1;

@@ -38,7 +38,7 @@ function runTest(pattern, code) {
   var matches = fs.readdirSync(common.tmpDir).filter(function(file) {
     return /^isolate-/.test(file);
   });
-  if (matches.length != 1) {
+  if (matches.length !== 1) {
     assert.fail(null, null, 'There should be a single log file.');
   }
   var log = matches[0];

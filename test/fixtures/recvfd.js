@@ -8,7 +8,7 @@ var receivedFDs = [];
 var numSentMessages = 0;
 
 function processData(s) {
-  if (receivedData.length == 0 || receivedFDs.length == 0) {
+  if (receivedData.length === 0 || receivedFDs.length === 0) {
     return;
   }
 
@@ -25,7 +25,7 @@ function processData(s) {
   var drainFunc = function() {
     pipeStream.destroy();
 
-    if (++numSentMessages == 2) {
+    if (++numSentMessages === 2) {
       s.destroy();
     }
   };

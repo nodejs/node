@@ -306,9 +306,9 @@ try {
   assert.equal(util.inspect(e), e.stack);
 }
 var ex = util.inspect(new Error('FAIL'), true);
-assert.ok(ex.indexOf('Error: FAIL') != -1);
-assert.ok(ex.indexOf('[stack]') != -1);
-assert.ok(ex.indexOf('[message]') != -1);
+assert.ok(ex.indexOf('Error: FAIL') !== -1);
+assert.ok(ex.indexOf('[stack]') !== -1);
+assert.ok(ex.indexOf('[message]') !== -1);
 // Doesn't capture stack trace
 function BadCustomError(msg) {
   Error.call(this);
@@ -353,7 +353,7 @@ assert.doesNotThrow(function() {
 // GH-2225
 {
   const x = { inspect: util.inspect };
-  assert.ok(util.inspect(x).indexOf('inspect') != -1);
+  assert.ok(util.inspect(x).indexOf('inspect') !== -1);
 }
 
 // util.inspect should not display the escaped value of a key.

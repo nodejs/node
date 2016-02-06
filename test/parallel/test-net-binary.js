@@ -7,8 +7,8 @@ var binaryString = '';
 for (var i = 255; i >= 0; i--) {
   var s = '\'\\' + i.toString(8) + '\'';
   var S = eval(s);
-  assert.ok(S.charCodeAt(0) == i);
-  assert.ok(S == String.fromCharCode(i));
+  assert.ok(S.charCodeAt(0) === i);
+  assert.ok(S === String.fromCharCode(i));
   binaryString += S;
 }
 

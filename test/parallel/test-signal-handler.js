@@ -32,7 +32,7 @@ var i = 0;
 setInterval(function() {
   console.log('running process...' + ++i);
 
-  if (i == 5) {
+  if (i === 5) {
     process.kill(process.pid, 'SIGUSR1');
   }
 }, 1);

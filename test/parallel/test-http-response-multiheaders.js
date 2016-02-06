@@ -28,14 +28,14 @@ const norepeat = [
 ];
 
 const server = http.createServer(function(req, res) {
-  var num = req.headers['x-num'];
-  if (num == 1) {
+  var num = +req.headers['x-num'];
+  if (num === 1) {
     res.setHeader('content-length', [1, 2]);
     for (const name of norepeat) {
       res.setHeader(name, ['A', 'B']);
     }
     res.setHeader('X-A', ['A', 'B']);
-  } else if (num == 2) {
+  } else if (num === 2) {
     const headers = {};
     headers['content-length'] = [1, 2];
     for (const name of norepeat) {

@@ -52,7 +52,7 @@ echo_server.listen(common.PORT, function() {
         client.write('hello\r\n');
       }, 500);
 
-      if (exchanges == 5) {
+      if (exchanges === 5) {
         console.log('wait for timeout - should come in ' + timeout + ' ms');
         starttime = new Date();
         console.dir(starttime);

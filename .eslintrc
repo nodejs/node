@@ -50,6 +50,8 @@ rules:
   no-fallthrough: 2
   ## disallow declaring the same variable more than once
   no-redeclare: 2
+  ## enforce using strict comparison besides equal null checks
+  eqeqeq: [2, "allow-null"]
 
   # Stylistic Issues
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#stylistic-issues

@@ -71,11 +71,11 @@
         NativeModule.require('_third_party_main');
       });
 
-    } else if (process.argv[1] == 'debug') {
+    } else if (process.argv[1] === 'debug') {
       // Start the debugger agent
       NativeModule.require('_debugger').start();
 
-    } else if (process.argv[1] == '--debug-agent') {
+    } else if (process.argv[1] === '--debug-agent') {
       // Start the debugger agent
       NativeModule.require('_debug_agent').start();
 
@@ -799,7 +799,7 @@
     process.kill = function(pid, sig) {
       var err;
 
-      if (pid != (pid | 0)) {
+      if (pid != (pid | 0)) { // eslint-disable-line eqeqeq
         throw new TypeError('invalid pid');
       }
 
@@ -927,7 +927,7 @@
   NativeModule._cache = {};
 
   NativeModule.require = function(id) {
-    if (id == 'native_module') {
+    if (id === 'native_module') {
       return NativeModule;
     }
 

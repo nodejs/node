@@ -17,7 +17,7 @@ client.bind(common.PORT);
 
 function callback() {
   callbacks++;
-  if (callbacks == 2) {
+  if (callbacks === 2) {
     clearTimeout(timer);
     client.close();
   } else if (callbacks > 2) {
