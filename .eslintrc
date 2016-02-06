@@ -17,6 +17,8 @@ ecmaFeatures:
 rules:
   # Possible Errors
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#possible-errors
+  ## disallow control characters in regular expressions
+  no-control-regex: 2
   ## check debugger sentence
   no-debugger: 2
   ## check duplicate arguments
@@ -25,24 +27,24 @@ rules:
   no-dupe-keys: 2
   ## check duplicate switch-case
   no-duplicate-case: 2
-  ## disallow superfluous semicolons
-  no-extra-semi: 2
+  ## disallow the use of empty character classes in regular expressions
+  no-empty-character-class: 2
   ## disallow assignment of exceptional params
   no-ex-assign: 2
-  ## disallow unreachable code
-  no-unreachable: 2
-  ## require valid typeof compared string like typeof foo === 'strnig'
-  valid-typeof: 2
-  ## disallow controls characters in regular expressions
-  no-control-regex: 2
   ## disallow extra boolean casts
   no-extra-boolean-cast : 2
+  ## disallow superfluous semicolons
+  no-extra-semi: 2
   ## validate regular expressions
   no-invalid-regexp: 2
   ## forbid weird whitespace characters
   no-irregular-whitespace: 2
   ## avoid unexpected multiline expressions
   no-unexpected-multiline: 2
+  ## disallow unreachable code
+  no-unreachable: 2
+  ## require valid typeof compared string like typeof foo === 'strnig'
+  valid-typeof: 2
 
   # Best Practices
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#best-practices
