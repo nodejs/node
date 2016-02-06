@@ -86,7 +86,7 @@ Returns an object containing the address information for a socket.
 For UDP sockets, this object will contain `address`, `family` and `port`
 properties.
 
-### [socket.bind([port][, address][, callback])]
+### socket.bind([port][, address][, callback])
 
 * `port` Integer, Optional
 * `address` String, Optional
