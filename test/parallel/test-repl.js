@@ -282,6 +282,19 @@ function error_test() {
     // access to internal modules without the --expose_internals flag.
     { client: client_unix, send: 'require("internal/repl")',
       expect: /^Error: Cannot find module 'internal\/repl'/ },
+    // REPL should handle quotes within regexp literal in multiline mode
+    { client: client_unix, send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
+      expect: prompt_multiline + prompt_multiline +
+            'undefined\n' + prompt_unix },
+    { client: client_unix, send: "function x(s) {\nreturn s.replace(/\'/,'');\n}",
+      expect: prompt_multiline + prompt_multiline +
+            'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x(s) {\nreturn s.replace(/"/,"");\n}',
+      expect: prompt_multiline + prompt_multiline +
+            'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x(s) {\nreturn s.replace(/.*/,"");\n}',
+      expect: prompt_multiline + prompt_multiline +
+            'undefined\n' + prompt_unix },
   ]);
 }
 
