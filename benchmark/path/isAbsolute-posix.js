@@ -3,23 +3,30 @@ var path = require('path');
 var v8 = require('v8');
 
 var bench = common.createBenchmark(main, {
-  type: ['win32', 'posix'],
-  n: [1e6],
+  path: [
+    '',
+    '.',
+    '/foo/bar',
+    '/baz/..',
+    'bar/baz'
+  ],
+  n: [1e6]
 });
 
 function main(conf) {
   var n = +conf.n;
-  var p = path[conf.type];
+  var p = path.posix;
+  var input = '' + conf.path;
 
   // Force optimization before starting the benchmark
-  p.join('/foo', 'bar', '', 'baz/asdf', 'quux', '..');
+  p.isAbsolute(input);
   v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.join)');
-  p.join('/foo', 'bar', '', 'baz/asdf', 'quux', '..');
+  eval('%OptimizeFunctionOnNextCall(p.isAbsolute)');
+  p.isAbsolute(input);
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    p.join('/foo', 'bar', '', 'baz/asdf', 'quux', '..');
+    p.isAbsolute(input);
   }
   bench.end(n);
 }

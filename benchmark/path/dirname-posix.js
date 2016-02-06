@@ -3,23 +3,32 @@ var path = require('path');
 var v8 = require('v8');
 
 var bench = common.createBenchmark(main, {
-  type: ['win32', 'posix'],
-  n: [1e6],
+  path: [
+    '',
+    '/',
+    '/foo',
+    '/foo/bar',
+    'foo',
+    'foo/bar',
+    '/foo/bar/baz/asdf/quux'
+  ],
+  n: [1e6]
 });
 
 function main(conf) {
   var n = +conf.n;
-  var p = path[conf.type];
+  var p = path.posix;
+  var input = '' + conf.path;
 
   // Force optimization before starting the benchmark
-  p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+  p.dirname(input);
   v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.resolve)');
-  p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+  eval('%OptimizeFunctionOnNextCall(p.dirname)');
+  p.dirname(input);
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+    p.dirname(input);
   }
   bench.end(n);
 }
