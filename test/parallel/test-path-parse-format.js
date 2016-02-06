@@ -41,7 +41,16 @@ const unixPaths = [
   './file',
   'C:\\foo',
   '/',
-  ''
+  '',
+  '.',
+  '..',
+  '/foo',
+  '/foo.',
+  '/foo.bar',
+  '/.',
+  '/.foo',
+  '/.foo.bar',
+  '/foo/bar.baz',
 ];
 
 const unixSpecialCaseFormatTests = [
@@ -81,6 +90,67 @@ checkErrors(path.win32);
 checkErrors(path.posix);
 checkFormat(path.win32, winSpecialCaseFormatTests);
 checkFormat(path.posix, unixSpecialCaseFormatTests);
+
+// Test removal of trailing path separators
+const trailingTests = [
+  [ path.win32.parse,
+    [['.\\', { root: '', dir: '', base: '.', ext: '', name: '.' }],
+     ['\\\\', { root: '\\', dir: '\\', base: '', ext: '', name: '' }],
+     ['\\\\', { root: '\\', dir: '\\', base: '', ext: '', name: '' }],
+     ['c:\\foo\\\\\\',
+      { root: 'c:\\', dir: 'c:\\', base: 'foo', ext: '', name: 'foo' }],
+     ['D:\\foo\\\\\\bar.baz',
+      { root: 'D:\\',
+        dir: 'D:\\foo\\\\',
+        base: 'bar.baz',
+        ext: '.baz',
+        name: 'bar'
+      }
+     ]
+    ]
+  ],
+  [ path.posix.parse,
+    [['./', { root: '', dir: '', base: '.', ext: '', name: '.' }],
+     ['//', { root: '/', dir: '/', base: '', ext: '', name: '' }],
+     ['///', { root: '/', dir: '/', base: '', ext: '', name: '' }],
+     ['/foo///', { root: '/', dir: '/', base: 'foo', ext: '', name: 'foo' }],
+     ['/foo///bar.baz',
+      { root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar' }
+     ]
+    ]
+  ]
+];
+const failures = [];
+trailingTests.forEach(function(test) {
+  const parse = test[0];
+  test[1].forEach(function(test) {
+    const actual = parse(test[0]);
+    const expected = test[1];
+    const fn = 'path.' +
+               (parse === path.win32.parse ? 'win32' : 'posix') +
+               '.parse(';
+    const message = fn +
+                    JSON.stringify(test[0]) +
+                    ')' +
+                    '\n  expect=' + JSON.stringify(expected) +
+                    '\n  actual=' + JSON.stringify(actual);
+    const actualKeys = Object.keys(actual);
+    const expectedKeys = Object.keys(expected);
+    let failed = (actualKeys.length !== expectedKeys.length);
+    if (!failed) {
+      for (let i = 0; i < actualKeys.length; ++i) {
+        const key = actualKeys[i];
+        if (expectedKeys.indexOf(key) === -1 || actual[key] !== expected[key]) {
+          failed = true;
+          break;
+        }
+      }
+    }
+    if (failed)
+      failures.push('\n' + message);
+  });
+});
+assert.equal(failures.length, 0, failures.join(''));
 
 function checkErrors(path) {
   errors.forEach(function(errorCase) {
