@@ -221,7 +221,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 // by clearing all callbacks that could handle the error.
 void ClearFatalExceptionHandlers(Environment* env);
 
-enum NodeInstanceType { MAIN, WORKER };
+enum NodeInstanceType { MAIN, WORKER, REMOTE_DEBUG_SERVER };
 
 class NodeInstanceData {
   public:
@@ -263,6 +263,10 @@ class NodeInstanceData {
 
     bool is_worker() {
       return node_instance_type_ == WORKER;
+    }
+
+    bool is_remote_debug_server() {
+      return node_instance_type_ == REMOTE_DEBUG_SERVER;
     }
 
     int argc() {

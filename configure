@@ -415,6 +415,11 @@ parser.add_option('--no-browser-globals',
     help='do not export browser globals like setTimeout, console, etc. ' +
          '(This mode is not officially supported for regular applications)')
 
+parser.add_option('--without-inspector',
+    action='store_true',
+    dest='without_inspector',
+    help='disable experimental V8 inspector support')
+
 (options, args) = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -810,6 +815,7 @@ def configure_node(o):
     o['variables']['library_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
+  o['variables']['v8_inspector'] = b(not options.without_inspector)
 
   if options.use_xcode and options.use_ninja:
     raise Exception('--xcode and --ninja cannot be used together.')
