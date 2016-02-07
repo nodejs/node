@@ -53,19 +53,10 @@ duplicate the browsers functionality exactly.
 
 ## Asynchronous vs Synchronous Consoles
 
-The console functions are synchronous when the destination is a terminal or
-a file (to avoid lost messages in case of premature exit) and asynchronous
-when the destination is a pipe (to avoid blocking for long periods of time).
-
-In the following example, stdout is non-blocking while stderr is blocking:
-
-```
-$ node script.js 2> error.log | tee info.log
-```
-
-Typically, the distinction between blocking/non-blocking is not important
-unless an application is logging significant amounts of data. High volume
-logging *should* use a `Console` instance that writes to a pipe.
+The console functions are asynchronous unless the destination is a file.
+Disks are fast and operating systems normally employ write-back caching;
+it should be a very rare occurrence indeed that a write blocks, but it
+is possible.
 
 ## Class: Console
 
