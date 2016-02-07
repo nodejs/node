@@ -137,6 +137,9 @@ static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
+#if HAVE_INSPECTOR
+static bool use_inspector = false;
+#endif
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
@@ -3412,6 +3415,22 @@ static bool ParseDebugOpt(const char* arg) {
     port = arg + sizeof("--debug-brk=") - 1;
   } else if (!strncmp(arg, "--debug-port=", sizeof("--debug-port=") - 1)) {
     port = arg + sizeof("--debug-port=") - 1;
+#if HAVE_INSPECTOR
+  // Specifying both --inspect and --debug means debugging is on, using Chromium
+  // inspector.
+  } else if (!strcmp(arg, "--inspect")) {
+    use_debug_agent = true;
+    use_inspector = true;
+  } else if (!strncmp(arg, "--inspect=", sizeof("--inspect=") - 1)) {
+    use_debug_agent = true;
+    use_inspector = true;
+    port = arg + sizeof("--inspect=") - 1;
+#else
+  } else if (!strncmp(arg, "--inspect", sizeof("--inspect") - 1)) {
+    fprintf(stderr,
+            "Inspector support is not available with this Node.js build\n");
+    return false;
+#endif
   } else {
     return false;
   }
@@ -3682,10 +3701,20 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 
 static void StartDebug(Environment* env, bool wait) {
   CHECK(!debugger_running);
+#if HAVE_INSPECTOR
+  if (use_inspector) {
+    env->inspector_agent()->Start(default_platform,
+        debug_port, wait);
+    debugger_running = true;
+  } else {
+#endif
+    env->debugger_agent()->set_dispatch_handler(
+          DispatchMessagesDebugAgentCallback);
+    debugger_running = env->debugger_agent()->Start(debug_port, wait);
+#if HAVE_INSPECTOR
+  }
+#endif
 
-  env->debugger_agent()->set_dispatch_handler(
-        DispatchMessagesDebugAgentCallback);
-  debugger_running = env->debugger_agent()->Start(debug_port, wait);
   if (debugger_running == false) {
     fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
     fflush(stderr);
@@ -3697,6 +3726,11 @@ static void StartDebug(Environment* env, bool wait) {
 // Called from the main thread.
 static void EnableDebug(Environment* env) {
   CHECK(debugger_running);
+#if HAVE_INSPECTOR
+  if (use_inspector) {
+    return;
+  }
+#endif
 
   // Send message to enable debug in workers
   HandleScope handle_scope(env->isolate());
@@ -3991,7 +4025,15 @@ static void DebugPause(const FunctionCallbackInfo<Value>& args) {
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
   if (debugger_running) {
     Environment* env = Environment::GetCurrent(args);
-    env->debugger_agent()->Stop();
+#if HAVE_INSPECTOR
+    if (use_inspector) {
+      env->inspector_agent()->Stop();
+    } else {
+#endif
+      env->debugger_agent()->Stop();
+#if HAVE_INSPECTOR
+    }
+#endif
     debugger_running = false;
   }
 }
@@ -4419,6 +4461,24 @@ static void StartNodeInstance(void* arg) {
     if (instance_data->is_main())
       instance_data->set_exit_code(exit_code);
     RunAtExit(env);
+
+#if HAVE_INSPECTOR
+    if (env->inspector_agent()->connected()) {
+      // Restore signal dispositions, the app is done and is no longer
+      // capable of handling signals.
+#ifdef __POSIX__
+      struct sigaction act;
+      memset(&act, 0, sizeof(act));
+      for (unsigned nr = 1; nr < 32; nr += 1) {
+        if (nr == SIGKILL || nr == SIGSTOP || nr == SIGPROF)
+          continue;
+        act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
+        CHECK_EQ(0, sigaction(nr, &act, nullptr));
+      }
+#endif
+      env->inspector_agent()->WaitForDisconnect();
+    }
+#endif
 
 #if defined(LEAK_SANITIZER)
     __lsan_do_leak_check();
