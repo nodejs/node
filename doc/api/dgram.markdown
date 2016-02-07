@@ -185,12 +185,12 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
-### socket.send(buf, [offset, length,] port, address[, callback])
+### socket.send(msg, [offset, length,] port, address[, callback])
 
-* `buf` Buffer object, string, or an array of either. Message to be
+* `msg` Buffer object, string, or an array of either. Message to be
   sent.
-* `offset` Integer. Offset in the buffer where the message starts.
-* `length` Integer. Number of bytes in the message.
+* `offset` Integer. Optional. Offset in the buffer where the message starts.
+* `length` Integer. Optional. Number of bytes in the message.
 * `port` Integer. Destination port.
 * `address` String. Destination hostname or IP address.
 * `callback` Function. Called when the message has been sent. Optional.
@@ -198,11 +198,15 @@ drop membership on all valid interfaces.
 Broadcasts a datagram on the socket. The destination `port` and `address` must
 be specified.
 
-The `buf` argument is a [`Buffer`] object containing the message. The `offset`
-and `length` specify the offset within the `Buffer` where the message begins
-and the number of bytes in the message, respectively. With messages that
+The `msg` argument containins the message to be sent.
+Depending on its type, different behavior can apply. If `msg` is a `Buffer`,
+the `offset` and `length` specify the offset within the `Buffer` where the
+message begins and the number of bytes in the message, respectively.
+If `msg` is a `String`, then it is automatically converted to a `Buffer`
+with `'utf8'` enecoding. With messages that
 contain  multi-byte characters, `offset` and `length` will be calculated with
 respect to [byte length][] and not the character position.
+If `msg` is an array, `offset` and `length` must not be specified.
 
 The `address` argument is a string. If the value of `address` is a host name,
 DNS will be used to resolve the address of the host. If the `address` is not
