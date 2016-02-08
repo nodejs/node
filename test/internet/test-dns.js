@@ -84,6 +84,18 @@ TEST(function test_resolveMx(done) {
   checkWrap(req);
 });
 
+TEST(function test_resolveMx_failure(done) {
+  var req = dns.resolveMx('something.invalid', function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.errno, 'ENOTFOUND');
+
+    assert.ok(result == undefined);
+
+    done();
+  });
+
+  checkWrap(req);
+});
 
 TEST(function test_resolveNs(done) {
   var req = dns.resolveNs('rackspace.com', function(err, names) {
@@ -103,6 +115,18 @@ TEST(function test_resolveNs(done) {
   checkWrap(req);
 });
 
+TEST(function test_resolveNs_failure(done) {
+  var req = dns.resolveNs('something.invalid', function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.errno, 'ENOTFOUND');
+
+    assert.ok(result == undefined);
+
+    done();
+  });
+
+  checkWrap(req);
+});
 
 TEST(function test_resolveSrv(done) {
   var req = dns.resolveSrv('_jabber._tcp.google.com', function(err, result) {
@@ -129,6 +153,19 @@ TEST(function test_resolveSrv(done) {
   checkWrap(req);
 });
 
+TEST(function test_resolveSrv_failure(done) {
+  var req = dns.resolveSrv('something.invalid', function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.errno, 'ENOTFOUND');
+
+    assert.ok(result == undefined);
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
 TEST(function test_resolveNaptr(done) {
   var req = dns.resolveNaptr('sip2sip.info', function(err, result) {
     if (err) throw err;
@@ -147,6 +184,19 @@ TEST(function test_resolveNaptr(done) {
       assert.ok(typeof item.order === 'number');
       assert.ok(typeof item.preference === 'number');
     }
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+TEST(function test_resolveNaptr_failure(done) {
+  var req = dns.resolveNaptr('something.invalid', function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.errno, 'ENOTFOUND');
+
+    assert.ok(result == undefined);
 
     done();
   });
@@ -188,6 +238,19 @@ TEST(function test_resolveSoa(done) {
   checkWrap(req);
 });
 
+TEST(function test_resolveSoa_failure(done) {
+  var req = dns.resolveSoa('something.invalid', function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.errno, 'ENOTFOUND');
+
+    assert.ok(result == undefined);
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
 TEST(function test_resolveCname(done) {
   var req = dns.resolveCname('www.microsoft.com', function(err, names) {
     if (err) throw err;
@@ -206,6 +269,19 @@ TEST(function test_resolveCname(done) {
   checkWrap(req);
 });
 
+TEST(function test_resolveCname_failure(done) {
+  var req = dns.resolveCname('something.invalid', function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.errno, 'ENOTFOUND');
+
+    assert.ok(result == undefined);
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
 
 TEST(function test_resolveTxt(done) {
   var req = dns.resolveTxt('google.com', function(err, records) {
@@ -213,6 +289,19 @@ TEST(function test_resolveTxt(done) {
     assert.equal(records.length, 1);
     assert.ok(util.isArray(records[0]));
     assert.equal(records[0][0].indexOf('v=spf1'), 0);
+    done();
+  });
+
+  checkWrap(req);
+});
+
+TEST(function test_resolveTxt_failure(done) {
+  var req = dns.resolveTxt('something.invalid', function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.errno, 'ENOTFOUND');
+
+    assert.ok(result == undefined);
+
     done();
   });
 
