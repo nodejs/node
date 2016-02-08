@@ -2800,15 +2800,20 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
 
 #define READONLY_PROPERTY(obj, str, var)                                      \
   do {                                                                        \
-    obj->ForceSet(OneByteString(env->isolate(), str), var, v8::ReadOnly);     \
+    obj->DefineOwnProperty(env->context(),                                    \
+                           OneByteString(env->isolate(), str),                \
+                           var,                                               \
+                           v8::ReadOnly).FromJust();                          \
   } while (0)
 
 #define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                            \
   do {                                                                        \
-    obj->ForceSet(OneByteString(env->isolate(), str),                         \
-                  var,                                                        \
-                  static_cast<v8::PropertyAttribute>(v8::ReadOnly |           \
-                                                     v8::DontEnum));          \
+    obj->DefineOwnProperty(env->context(),                                    \
+                           OneByteString(env->isolate(), str),                \
+                           var,                                               \
+                           static_cast<v8::PropertyAttribute>(v8::ReadOnly |  \
+                                                              v8::DontEnum))  \
+        .FromJust();                                                          \
   } while (0)
 
 
