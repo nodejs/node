@@ -5,9 +5,23 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1q and OpenSSL 1.0.1r [28 Jan 2016]
+
+      o Protection for DH small subgroup attacks
+      o SSLv2 doesn't block disabled ciphers (CVE-2015-3197)
+
+  Major changes between OpenSSL 1.0.1p and OpenSSL 1.0.1q [3 Dec 2015]
+
+      o Certificate verify crash with missing PSS parameter (CVE-2015-3194)
+      o X509_ATTRIBUTE memory leak (CVE-2015-3195)
+      o Rewrite EVP_DecodeUpdate (base64 decoding) to fix several bugs
+      o In DSA_generate_parameters_ex, if the provided seed is too short,
+        return an error
+
   Major changes between OpenSSL 1.0.1o and OpenSSL 1.0.1p [9 Jul 2015]
 
       o Alternate chains certificate forgery (CVE-2015-1793)
+      o Race condition handling PSK identify hint (CVE-2015-3196)
 
   Major changes between OpenSSL 1.0.1n and OpenSSL 1.0.1o [12 Jun 2015]
 

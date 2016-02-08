@@ -1,4 +1,4 @@
-/* crypto/engine/e_chil.c -*- mode: C; c-file-style: "eay" -*- */
+/* crypto/engine/e_chil.c */
 /*
  * Written by Richard Levitte (richard@levitte.org), Geoff Thorpe
  * (geoff@geoffthorpe.net) and Dr Stephen N Henson (steve@openssl.org) for
@@ -839,6 +839,10 @@ static EVP_PKEY *hwcrhk_load_privkey(ENGINE *eng, const char *key_id,
     bn_fix_top(rtmp->n);
 
     res = EVP_PKEY_new();
+    if (res == NULL) {
+        HWCRHKerr(HWCRHK_F_HWCRHK_LOAD_PRIVKEY, HWCRHK_R_CHIL_ERROR);
+        goto err;
+    }
     EVP_PKEY_assign_RSA(res, rtmp);
 #  endif
 
