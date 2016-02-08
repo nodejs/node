@@ -24,8 +24,9 @@ const vals = [new T(4), T(4)];
 
 vals.forEach(function(t) {
   assert.equal(t.constructor, T);
-  assert.equal(t.__proto__, T.prototype);
-  assert.equal(t.__proto__.__proto__, Buffer.prototype);
+  assert.equal(Object.getPrototypeOf(t), T.prototype);
+  assert.equal(Object.getPrototypeOf(Object.getPrototypeOf(t)),
+    Buffer.prototype);
 
   t.fill(5);
   let cntr = 0;

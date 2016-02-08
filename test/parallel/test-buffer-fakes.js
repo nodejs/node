@@ -5,8 +5,8 @@ const assert = require('assert');
 const Buffer = require('buffer').Buffer;
 
 function FakeBuffer() { }
-FakeBuffer.__proto__ = Buffer;
-FakeBuffer.prototype.__proto__ = Buffer.prototype;
+Object.setPrototypeOf(FakeBuffer, Buffer);
+Object.setPrototypeOf(FakeBuffer.prototype, Buffer.prototype);
 
 const fb = new FakeBuffer();
 
