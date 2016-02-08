@@ -140,7 +140,7 @@ class ContextifyContext {
     int length = names->Length();
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
-      bool has = sandbox->HasOwnProperty(key);
+      bool has = sandbox->HasOwnProperty(context, key).FromJust();
       if (!has) {
         // Could also do this like so:
         //
