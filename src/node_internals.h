@@ -22,10 +22,10 @@ struct sockaddr;
         v8::String::NewFromUtf8(isolate, constant);                           \
     v8::PropertyAttribute constant_attributes =                               \
         static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
-    target->ForceSet(isolate->GetCurrentContext(),                            \
-                     constant_name,                                           \
-                     constant_value,                                          \
-                     constant_attributes);                                    \
+    target->DefineOwnProperty(isolate->GetCurrentContext(),                   \
+                              constant_name,                                  \
+                              constant_value,                                 \
+                              constant_attributes).FromJust();                \
   } while (0)
 
 namespace node {
