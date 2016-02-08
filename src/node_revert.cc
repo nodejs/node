@@ -25,7 +25,7 @@ void Revert(const char* cve) {
 #define V(code, label, _)                                                     \
   do {                                                                        \
     if (strcmp(cve, label) == 0) {                                            \
-      Revert(REVERT_ ## code);                                                \
+      Revert(static_cast<unsigned int>(REVERT_ ## code));                     \
       return;                                                                 \
     }                                                                         \
   } while (0);
@@ -43,7 +43,7 @@ bool IsReverted(const char * cve) {
 #define V(code, label, _)                                                     \
   do {                                                                        \
     if (strcmp(cve, label) == 0)                                              \
-      return IsReverted(REVERT_ ## code);                                     \
+      return IsReverted(static_cast<unsigned int>(REVERT_ ## code));          \
   } while (0);
   REVERSIONS(V)
   return false;
