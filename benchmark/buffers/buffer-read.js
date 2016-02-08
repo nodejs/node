@@ -2,7 +2,7 @@
 var common = require('../common.js');
 
 var bench = common.createBenchmark(main, {
-  noAssert: [false, true],
+  noAssert: ['false', 'true'],
   buffer: ['fast', 'slow'],
   type: ['UInt8', 'UInt16LE', 'UInt16BE',
          'UInt32LE', 'UInt32BE',
