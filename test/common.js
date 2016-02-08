@@ -190,7 +190,7 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
 
 function protoCtrChain(o) {
   var result = [];
-  for (; o; o = o.__proto__) { result.push(o.constructor); }
+  for (; o; o = Object.getPrototypeOf(o)) { result.push(o.constructor); }
   return result.join();
 }
 

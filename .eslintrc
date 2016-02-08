@@ -17,6 +17,8 @@ ecmaFeatures:
 rules:
   # Possible Errors
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#possible-errors
+  ## Disallow Use of __proto__
+  no-proto: 2
   ## disallow control characters in regular expressions
   no-control-regex: 2
   ## check debugger sentence
