@@ -40,8 +40,8 @@ assert.equal(dv.getFloat64(8, true), 3.1415);
 
 assert.throws(function() {
   function AB() { }
-  AB.__proto__ = ArrayBuffer;
-  AB.prototype.__proto__ = ArrayBuffer.prototype;
+  Object.setPrototypeOf(AB, ArrayBuffer);
+  Object.setPrototypeOf(AB.prototype, ArrayBuffer.prototype);
   new Buffer(new AB());
 }, TypeError);
 
