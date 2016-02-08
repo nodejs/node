@@ -166,6 +166,37 @@ TEST(function test_resolveSrv_failure(done) {
   checkWrap(req);
 });
 
+TEST(function test_resolvePtr(done) {
+  var req = dns.resolvePtr('8.8.8.8.in-addr.arpa', function(err, result) {
+    if (err) throw err;
+
+    assert.ok(result.length > 0);
+
+    for (var i = 0; i < result.length; i++) {
+      var item = result[i];
+      assert.ok(item);
+      assert.ok(typeof item === 'string');
+    }
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
+TEST(function test_resolvePtr_failure(done) {
+  var req = dns.resolvePtr('something.invalid', function(err, result) {
+    assert.ok(err instanceof Error);
+    assert.strictEqual(err.errno, 'ENOTFOUND');
+
+    assert.ok(result == undefined);
+
+    done();
+  });
+
+  checkWrap(req);
+});
+
 TEST(function test_resolveNaptr(done) {
   var req = dns.resolveNaptr('sip2sip.info', function(err, result) {
     if (err) throw err;
