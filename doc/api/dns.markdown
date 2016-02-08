@@ -155,7 +155,7 @@ Valid values for `rrtype` are:
  * `'MX'` - mail exchange records
  * `'TXT'` - text records
  * `'SRV'` - SRV records
- * `'PTR'` - used for reverse IP lookups
+ * `'PTR'` - PTR records
  * `'NS'` - name server records
  * `'CNAME'` - canonical name records
  * `'SOA'` - start of authority record
@@ -247,6 +247,12 @@ be an array of objects with the following properties:
   name: 'service.example.com'
 }
 ```
+
+## dns.resolvePtr(hostname, callback)
+
+Uses the DNS protocol to resolve pointer records (`PTR` records) for the
+`hostname`. The `addresses` argument passed to the `callback` function will
+be an array of strings containing the reply records.
 
 ## dns.resolveTxt(hostname, callback)
 

@@ -12,6 +12,7 @@ var methods = [
   'resolveNs',
   'resolveTxt',
   'resolveSrv',
+  'resolvePtr',
   'resolveNaptr',
   'resolveSoa'
 ];
