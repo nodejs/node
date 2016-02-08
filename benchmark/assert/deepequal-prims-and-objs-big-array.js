@@ -1,22 +1,25 @@
 'use strict';
 var common = require('../common.js');
 var assert = require('assert');
+
+const primValues = {
+  'null': null,
+  'undefined': undefined,
+  'string': 'a',
+  'number': 1,
+  'boolean': true,
+  'object': { 0: 'a' },
+  'array': [1, 2, 3],
+  'new-array': new Array([1, 2, 3])
+};
+
 var bench = common.createBenchmark(main, {
-  prim: [
-    null,
-    undefined,
-    'a',
-    1,
-    true,
-    {0: 'a'},
-    [1, 2, 3],
-    new Array([1, 2, 3])
-  ],
+  prim: Object.keys(primValues),
   n: [25]
 });
 
 function main(conf) {
-  var prim = conf.prim;
+  var prim = primValues[conf.prim];
   var n = +conf.n;
   var primArray;
   var primArrayCompare;
