@@ -217,7 +217,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     name = OneByteString(env->isolate(), raw_name);
 #endif
 
-    if (ret->Has(name)) {
+    if (ret->Has(env->context(), name).FromJust()) {
       ifarr = Local<Array>::Cast(ret->Get(name));
     } else {
       ifarr = Array::New(env->isolate());
