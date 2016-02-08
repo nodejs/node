@@ -152,6 +152,10 @@ Benchmark.prototype._run = function() {
     var j = 0;
     set.forEach(function(s) {
       vals.forEach(function(val) {
+        if (typeof val !== 'number' && typeof val !== 'string') {
+          throw new TypeError(`configuration "${key}" had type ${typeof val}`);
+        }
+
         newSet[j++] = s.concat(key + '=' + val);
       });
     });
