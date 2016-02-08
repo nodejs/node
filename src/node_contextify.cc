@@ -525,7 +525,7 @@ class ContextifyScript : public BaseObject {
     else if (produce_cached_data)
       compile_options = ScriptCompiler::kProduceCodeCache;
 
-    Local<UnboundScript> v8_script = ScriptCompiler::CompileUnbound(
+    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
         env->isolate(),
         &source,
         compile_options);
@@ -537,7 +537,8 @@ class ContextifyScript : public BaseObject {
       try_catch.ReThrow();
       return;
     }
-    contextify_script->script_.Reset(env->isolate(), v8_script);
+    contextify_script->script_.Reset(env->isolate(),
+                                     v8_script.ToLocalChecked());
 
     if (compile_options == ScriptCompiler::kConsumeCodeCache) {
       args.This()->Set(
