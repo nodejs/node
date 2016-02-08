@@ -1,5 +1,29 @@
 # Node.js ChangeLog
 
+## 2016-02-09, Version 4.3.0 'Argon' (LTS), @jasnell
+
+This is an important security release. All Node.js users should consult the security release summary at nodejs.org for details on patched vulnerabilities.
+
+Note that this release includes a non-backward compatible change to address a security issue. This change increases the version of the LTS v4.x line to v4.3.0. There will be *no further updates* to v4.2.x.
+
+### Notable changes
+
+* **http**: fix defects in HTTP header parsing for requests and responses that can allow request smuggling (CVE-2016-2086) or response splitting (CVE-2016-2216). HTTP header parsing now aligns more closely with the HTTP spec including restricting the acceptable characters.
+* **http-parser**: upgrade from 2.5.0 to 2.5.1
+* **openssl**: upgrade from 1.0.2e to 1.0.2f. To mitigate against the Logjam attack, TLS clients now reject Diffie-Hellman handshakes with parameters shorter than 1024-bits, up from the previous limit of 768-bits.
+* **src**:
+  - introduce new `--security-revert={cvenum}` command line flag for selective reversion of specific CVE fixes
+  - allow the fix for CVE-2016-2216 to be selectively reverted using `--security-revert=CVE-2016-2216`
+
+### Commits
+
+* [[`cd07fddc58`](https://github.com/nodejs/node/commit/cd07fddc58)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [#1836](https://github.com/nodejs/node/pull/1836)
+* [[`b089052846`](https://github.com/nodejs/node/commit/b089052846)] - **deps**: upgrade openssl sources to 1.0.2f (Myles Borins) [#4961](https://github.com/nodejs/node/pull/4961)
+* [[`d66b618828`](https://github.com/nodejs/node/commit/d66b618828)] - **(SEMVER-MINOR)** **deps**: update http-parser to version 2.5.1 (James M Snell)
+* [[`092d1aeb8a`](https://github.com/nodejs/node/commit/092d1aeb8a)] - **(SEMVER-MINOR)** **http**: strictly forbid invalid characters from headers (James M Snell)
+* [[`9bd1b3bbf7`](https://github.com/nodejs/node/commit/9bd1b3bbf7)] - **src**: avoid compiler warning in node_revert.cc (James M Snell)
+* [[`3a964ea9d7`](https://github.com/nodejs/node/commit/3a964ea9d7)] - **(SEMVER-MAJOR)** **src**: add --security-revert command line flag (James M Snell)
+
 ## 2016-01-21, Version 4.2.6 'Argon' (LTS), @TheAlphaNerd
 
 ### Notable changes
