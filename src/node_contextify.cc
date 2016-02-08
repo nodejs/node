@@ -167,9 +167,8 @@ class ContextifyContext {
               "  }\n"
               "})");
 
-          Local<String> fname = FIXED_ONE_BYTE_STRING(env()->isolate(),
-              "binding:script");
-          Local<Script> script = Script::Compile(code, fname);
+          Local<Script> script =
+              Script::Compile(context, code).ToLocalChecked();
           clone_property_method = Local<Function>::Cast(script->Run());
           CHECK(clone_property_method->IsFunction());
         }
@@ -262,10 +261,10 @@ class ContextifyContext {
     }
 
     Context::Scope context_scope(debug_context);
-    Local<Script> script = Script::Compile(script_source);
+    MaybeLocal<Script> script = Script::Compile(debug_context, script_source);
     if (script.IsEmpty())
       return;  // Exception pending.
-    args.GetReturnValue().Set(script->Run());
+    args.GetReturnValue().Set(script.ToLocalChecked()->Run());
   }
 
 
