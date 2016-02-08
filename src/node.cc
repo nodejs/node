@@ -2381,7 +2381,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   Local<Object> cache = env->binding_cache_object();
   Local<Object> exports;
 
-  if (cache->Has(module)) {
+  if (cache->Has(env->context(), module).FromJust()) {
     exports = cache->Get(module)->ToObject(env->isolate());
     args.GetReturnValue().Set(exports);
     return;
