@@ -98,6 +98,30 @@ https.get('https://encrypted.google.com/', (res) => {
 });
 ```
 
+## https.getAsync(options)
+
+Like [`http.getAsync()`][] but for HTTPS. If 
+
+`options` can be an object or a string. If `options` is a string, it is
+automatically parsed with [`url.parse()`][].
+
+Example:
+
+```js
+const https = require('https');
+
+https.getAsync('https://encrypted.google.com/').then((res) => {
+  console.log('statusCode: ', res.statusCode);
+  console.log('headers: ', res.headers);
+
+  res.on('data', (d) => {
+    process.stdout.write(d);
+  });
+}).catch((err) => {
+  console.error(err);
+});
+```
+
 ## https.globalAgent
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
@@ -226,6 +250,17 @@ var req = https.request(options, (res) => {
   ...
 }
 ```
+
+## https.requestAsync(options)
+
+* Returns: {Object} with attributes:
+  * `request` - a [`http.ClientRequest`][].
+  * `response` - a [`Promise`][def-promise] for a [`http.IncomingMessage`][].
+
+A [`Promise`][def-promise]-returning version of [`https.request()`][]. Returns
+an object containing a [`http.ClientRequest`][] and a `Promise` resolving to
+a [`http.IncomingMessage`][] as `request` and `response`, respectively. Parses
+`options` the same as [`http.request()`][].
 
 [`Agent`]: #https_class_https_agent
 [`Buffer`]: buffer.html#buffer_buffer

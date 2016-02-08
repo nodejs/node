@@ -157,6 +157,9 @@ underlying socket handle allowing connection handling duties to be shared.
 When `exclusive` is `true`, however, the handle is not shared and attempted
 port sharing results in an error.
 
+If `callback` is not given, a [`Promise`][def-promise] will be returned, which
+will resolve to `undefined` once the socket emits a `'listening'` event.
+
 An example socket listening on an exclusive port is shown below.
 
 ```js
@@ -170,7 +173,9 @@ socket.bind({
 ### socket.close([callback])
 
 Close the underlying socket and stop listening for data on it. If a callback is
-provided, it is added as a listener for the [`'close'`][] event.
+provided, it is added as a listener for the [`'close'`][] event. If not provided,
+a [`Promise`][def-promise] will be returned, resolving to `undefined` when the
+socket is closed.
 
 ### socket.dropMembership(multicastAddress[, multicastInterface])
 
@@ -219,15 +224,9 @@ If the socket has not been previously bound with a call to `bind`, the socket
 is assigned a random port number and is bound to the "all interfaces" address
 (`'0.0.0.0'` for `udp4` sockets, `'::0'` for `udp6` sockets.)
 
-An optional `callback` function  may be specified to as a way of reporting
-DNS errors or for determining when it is safe to reuse the `buf` object.
-Note that DNS lookups delay the time to send for at least one tick of the
-Node.js event loop.
-
-The only way to know for sure that the datagram has been sent is by using a
-`callback`. If an error occurs and a `callback` is given, the error will be
-passed as the first argument to the `callback`. If a `callback` is not given,
-the error is emitted as an `'error'` event on the `socket` object.
+The `callback` parameter is optional. If not provided, `.send()` will return
+a [`Promise`][def-promise] resolving to `undefined` that will forward any
+errors encountered during `send` as a rejection.
 
 Offset and length are optional, but if you specify one you would need to
 specify the other. Also, they are supported only when the first
@@ -376,9 +375,9 @@ s.bind(1234, () => {
 
 ## `dgram` module functions
 
-### dgram.createSocket(options[, callback])
+### dgram.createSocket(options[, onmessage])
 * `options` Object
-* `callback` Function. Attached as a listener to `'message'` events.
+* `onmessage` Function. Attached as a listener to `'message'` events.
 * Returns: Socket object
 
 Creates a `dgram.Socket` object. The `options` argument is an object that
@@ -397,10 +396,10 @@ interfaces" address on a random port (it does the right thing for both `udp4`
 and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
-## dgram.createSocket(type[, callback])
+### dgram.createSocket(type[, onmessage])
 
 * `type` String. Either 'udp4' or 'udp6'
-* `callback` Function. Attached as a listener to `'message'` events.
+* `onmessage` Function. Attached as a listener to `'message'` events.
   Optional
 * Returns: Socket object
 
@@ -427,3 +426,4 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().port`]: #dgram_socket_address
 [`socket.bind()`]: #dgram_socket_bind_port_address_callback
 [byte length]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
+[def-promise]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise

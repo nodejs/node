@@ -492,7 +492,9 @@ If `timeout` is 0, then the existing idle timeout is disabled.
 The optional `callback` parameter will be added as a one time listener for the
 [`'timeout'`][] event.
 
-Returns `socket`.
+Returns `socket` if `callback` is provided, otherwise returns a
+[`Promise`][def-promise] that resolves to `undefined` once the timeout has
+fired.
 
 ### socket.unref()
 
@@ -567,6 +569,11 @@ If `host` is omitted, `'localhost'` will be assumed.
 
 The `connectListener` parameter will be added as a listener for the
 [`'connect'`][] event once.
+
+## net.connectAsync(options)
+
+Returns a [`Promise`][def-promise] for a new [`net.Socket`][] that resolves
+when the socket has connected.
 
 ## net.createConnection(options[, connectListener])
 
@@ -728,4 +735,5 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`socket.connect`]: #net_socket_connect_options_connectlistener
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
+[def-promise]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [Readable Stream]: stream.html#stream_class_stream_readable
