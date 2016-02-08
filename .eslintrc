@@ -65,6 +65,8 @@ rules:
   max-len: [2, 80, 2]
   ## require parens for Constructor
   new-parens: 2
+  ## disallow mixed spaces and tabs for indentation
+  no-mixed-spaces-and-tabs: 2
   ## max 2 consecutive empty lines
   no-multiple-empty-lines: [2, {max: 2}]
   ## no trailing spaces
