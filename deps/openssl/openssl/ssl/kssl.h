@@ -1,4 +1,4 @@
-/* ssl/kssl.h -*- mode: C; c-file-style: "eay" -*- */
+/* ssl/kssl.h */
 /*
  * Written by Vern Staats <staatsvr@asc.hpc.mil> for the OpenSSL project
  * 2000. project 2000.
