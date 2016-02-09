@@ -188,19 +188,6 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
   });
 });
 
-function protoCtrChain(o) {
-  var result = [];
-  for (; o; o = Object.getPrototypeOf(o)) { result.push(o.constructor); }
-  return result.join();
-}
-
-exports.indirectInstanceOf = function(obj, cls) {
-  if (obj instanceof cls) { return true; }
-  var clsChain = protoCtrChain(cls.prototype);
-  var objChain = protoCtrChain(obj);
-  return objChain.slice(-clsChain.length) === clsChain;
-};
-
 
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
