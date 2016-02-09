@@ -3,7 +3,7 @@
     Stability: 2 - Stable
 
 A stream is an abstract interface implemented by various objects in
-Node.js. For example a [request to an HTTP server][http-incoming-message] is a
+Node.js. For example a [request to an HTTP server][http-incoming-message] is ai
 stream, as is [`process.stdout`][]. Streams are readable, writable, or both. All
 streams are instances of [`EventEmitter`][].
 
@@ -259,6 +259,8 @@ end
 This method returns whether or not the `readable` has been **explicitly**
 paused by client code (using [`stream.pause()`][stream-pause] without a
 corresponding [`stream.resume()`][stream-resume]).
+
+The `unpipe` call also makes the stream paused.
 
 ```js
 var readable = new stream.Readable
