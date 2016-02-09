@@ -416,6 +416,10 @@ potentially mangled if you simply pulled the Buffers directly and
 called [`buf.toString(encoding)`][] on them. If you want to read the data
 as strings, always use this method.
 
+Also you can disable any encoding at all with `readable.setEncoding(null)`.
+This approach is very useful if you deal with binary data or with large
+multi-byte strings spread out over multiple chunks.
+
 ```js
 var readable = getReadableStreamSomehow();
 readable.setEncoding('utf8');
