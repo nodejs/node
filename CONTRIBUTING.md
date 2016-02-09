@@ -173,7 +173,7 @@ to address, apply your changes in a separate commit and push that to your
 feature branch. Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
-# Developer's Certificate of Origin 1.1
+## Developer's Certificate of Origin 1.1
 
 By making a contribution to this project, I certify that:
 
