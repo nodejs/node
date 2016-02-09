@@ -3,7 +3,7 @@
     Stability: 2 - Stable
 
 A stream is an abstract interface implemented by various objects in
-Node.js. For example a [request to an HTTP server][http-incoming-message] is ai
+Node.js. For example a [request to an HTTP server][http-incoming-message] is a
 stream, as is [`process.stdout`][]. Streams are readable, writable, or both. All
 streams are instances of [`EventEmitter`][].
 
