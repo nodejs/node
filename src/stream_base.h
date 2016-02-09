@@ -139,7 +139,7 @@ class StreamResource {
 
   StreamResource() {
   }
-  ~StreamResource();
+  virtual ~StreamResource();
 
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
