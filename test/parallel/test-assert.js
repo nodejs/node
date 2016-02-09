@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var a = require('assert');
 
@@ -10,7 +10,7 @@ function makeBlock(f) {
   };
 }
 
-assert.ok(common.indirectInstanceOf(a.AssertionError.prototype, Error),
+assert.ok(a.AssertionError.prototype instanceof Error,
           'a.AssertionError instanceof Error');
 
 assert.throws(makeBlock(a, false), a.AssertionError, 'ok(false)');
