@@ -120,7 +120,7 @@ bool Agent::Start(int port, bool wait) {
 
 
 void Agent::Enable() {
-  v8::Debug::SetMessageHandler(MessageHandler);
+  v8::Debug::SetMessageHandler(parent_env()->isolate(), MessageHandler);
 
   // Assign environment to the debugger's context
   // NOTE: The debugger context is created after `SetMessageHandler()` call
@@ -135,7 +135,7 @@ void Agent::Stop() {
     return;
   }
 
-  v8::Debug::SetMessageHandler(nullptr);
+  v8::Debug::SetMessageHandler(parent_env()->isolate(), nullptr);
 
   // Send empty message to terminate things
   EnqueueMessage(new AgentMessage(nullptr, 0));
