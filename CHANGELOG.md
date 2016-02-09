@@ -17,12 +17,12 @@ Note that this release includes a non-backward compatible change to address a se
 
 ### Commits
 
-* [[`cd07fddc58`](https://github.com/nodejs/node/commit/cd07fddc58)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [#1836](https://github.com/nodejs/node/pull/1836)
-* [[`b089052846`](https://github.com/nodejs/node/commit/b089052846)] - **deps**: upgrade openssl sources to 1.0.2f (Myles Borins) [#4961](https://github.com/nodejs/node/pull/4961)
-* [[`d66b618828`](https://github.com/nodejs/node/commit/d66b618828)] - **(SEMVER-MINOR)** **deps**: update http-parser to version 2.5.1 (James M Snell)
-* [[`092d1aeb8a`](https://github.com/nodejs/node/commit/092d1aeb8a)] - **(SEMVER-MINOR)** **http**: strictly forbid invalid characters from headers (James M Snell)
-* [[`9bd1b3bbf7`](https://github.com/nodejs/node/commit/9bd1b3bbf7)] - **src**: avoid compiler warning in node_revert.cc (James M Snell)
-* [[`3a964ea9d7`](https://github.com/nodejs/node/commit/3a964ea9d7)] - **(SEMVER-MAJOR)** **src**: add --security-revert command line flag (James M Snell)
+* [[`d94f864abd`](https://github.com/nodejs/node/commit/d94f864abd0933c125afeb84b6f72ec709c63b43)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [#1836](https://github.com/nodejs/node/pull/1836)
+* [[`136295e202`](https://github.com/nodejs/node/commit/136295e202)] - **deps**: upgrade openssl sources to 1.0.2f (Myles Borins) [#4961](https://github.com/nodejs/node/pull/4961)
+* [[`0eae95eae3`](https://github.com/nodejs/node/commit/0eae95eae3)] - **(SEMVER-MINOR)** **deps**: update http-parser to version 2.5.1 (James M Snell)
+* [[`cf2b714b02`](https://github.com/nodejs/node/commit/cf2b714b02)] - **(SEMVER-MINOR)** **http**: strictly forbid invalid characters from headers (James M Snell)
+* [[`49ae2e0334`](https://github.com/nodejs/node/commit/49ae2e0334)] - **src**: avoid compiler warning in node_revert.cc (James M Snell)
+* [[`da3750f981`](https://github.com/nodejs/node/commit/da3750f981)] - **(SEMVER-MAJOR)** **src**: add --security-revert command line flag (James M Snell)
 
 ## 2016-01-21, Version 4.2.6 'Argon' (LTS), @TheAlphaNerd
 
