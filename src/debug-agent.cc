@@ -124,7 +124,8 @@ void Agent::Enable() {
 
   // Assign environment to the debugger's context
   // NOTE: The debugger context is created after `SetMessageHandler()` call
-  parent_env()->AssignToContext(v8::Debug::GetDebugContext());
+  auto debug_context = v8::Debug::GetDebugContext(parent_env()->isolate());
+  parent_env()->AssignToContext(debug_context);
 }
 
 
