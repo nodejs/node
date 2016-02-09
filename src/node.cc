@@ -3572,7 +3572,7 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
   }
 
   Isolate::Scope isolate_scope(isolate);
-  v8::Debug::ProcessDebugMessages();
+  v8::Debug::ProcessDebugMessages(isolate);
   CHECK_EQ(nullptr, node_isolate.exchange(isolate));
 }
 
