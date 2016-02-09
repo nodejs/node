@@ -6,7 +6,7 @@ const jsPrimitiveUrl = 'https://developer.mozilla.org/en-US/docs/Web/' +
   'JavaScript/Data_structures';
 const jsPrimitives = [
   'Number', 'String', 'Boolean', 'Null', 'Symbol'
-]
+];
 const jsGlobalTypes = [
   'Error', 'Object', 'Function', 'Array', 'Uint8Array',
   'Uint16Array', 'Uint32Array', 'Int8Array', 'Int16Array', 'Int32Array',
@@ -28,12 +28,12 @@ const typeMap = {
 };
 
 module.exports = {
-  toLink: function (typeInput) {
-    let typeLinks = [];
+  toLink: function(typeInput) {
+    const typeLinks = [];
     typeInput = typeInput.replace('{', '').replace('}', '');
-    let typeTexts = typeInput.split('|');
+    const typeTexts = typeInput.split('|');
 
-    typeTexts.forEach(function (typeText) {
+    typeTexts.forEach(function(typeText) {
       typeText = typeText.trim();
       if (typeText) {
         let typeUrl = null;
@@ -56,4 +56,4 @@ module.exports = {
 
     return typeLinks.length ? typeLinks.join(' | ') : typeInput;
   }
-}
+};
