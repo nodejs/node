@@ -16,7 +16,7 @@ ecmaFeatures:
 
 rules:
   # Possible Errors
-  # list: https://github.com/eslint/eslint/tree/master/docs/rules#possible-errors
+  # https://github.com/eslint/eslint/tree/master/docs/rules#possible-errors
   no-control-regex: 2
   no-debugger: 2
   no-dupe-args: 2
@@ -34,12 +34,12 @@ rules:
   valid-typeof: 2
 
   # Best Practices
-  # list: https://github.com/eslint/eslint/tree/master/docs/rules#best-practices
+  # https://github.com/eslint/eslint/tree/master/docs/rules#best-practices
   no-fallthrough: 2
   no-redeclare: 2
 
   # Stylistic Issues
-  # list: https://github.com/eslint/eslint/tree/master/docs/rules#stylistic-issues
+  # https://github.com/eslint/eslint/tree/master/docs/rules#stylistic-issues
   comma-spacing: 2
   eol-last: 2
   indent: [2, 2, {SwitchCase: 1}]
@@ -59,18 +59,18 @@ rules:
   space-unary-ops: 2
 
   # ECMAScript 6
-  # list: http://eslint.org/docs/rules/#ecmascript-6
+  # http://eslint.org/docs/rules/#ecmascript-6
   arrow-parens: [2, "always"]
   arrow-spacing: [2, {"before": true, "after": true}]
   no-arrow-condition: 2
   prefer-const: 2
 
   # Strict Mode
-  # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
+  # https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
   strict: [2, "global"]
 
   # Variables
-  # list: https://github.com/eslint/eslint/tree/master/docs/rules#variables
+  # https://github.com/eslint/eslint/tree/master/docs/rules#variables
   no-undef: 2
   no-unused-vars: [2, {"args": "none"}]
 
