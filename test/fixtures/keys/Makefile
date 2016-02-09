@@ -81,6 +81,7 @@ agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 
 agent1-pfx.pem: agent1-cert.pem agent1-key.pem ca1-cert.pem
 	openssl pkcs12 -export \
+		-descert \
 		-in agent1-cert.pem \
 		-inkey agent1-key.pem \
 		-certfile ca1-cert.pem \
