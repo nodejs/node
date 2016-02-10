@@ -1,10 +1,12 @@
 #!/bin/bash
 
 
-git_origin=$(git config --get remote.origin.url)
+git_origin=$(git config --get remote.origin.url | sed 's/.\+[\/:]\([^\/]\+\/[^\/]\+\)$/\1/')
 git_branch=$(git rev-parse --abbrev-ref HEAD)
 v8ver=${1:-v8} #default v8
-svn_path="$git_origin/branches/$git_branch/deps/$v8ver"
+svn_prefix=https://github.com
+svn_path="$svn_prefix/$git_origin/branches/$git_branch/deps/$v8ver"
+#svn_path="$git_origin/branches/$git_branch/deps/$v8ver"
 gclient_string="solutions = [{'name': 'v8', 'url': '$svn_path', 'managed': False}]"
 
 # clean up if someone presses ctrl-c
