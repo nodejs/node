@@ -118,7 +118,7 @@ inline uint32_t Environment::DomainFlag::count() const {
   return fields_[kCount];
 }
 
-inline Environment::TickInfo::TickInfo() : in_tick_(false) {
+inline Environment::TickInfo::TickInfo() {
   for (int i = 0; i < kFieldsCount; ++i)
     fields_[i] = 0;
 }
@@ -131,20 +131,12 @@ inline int Environment::TickInfo::fields_count() const {
   return kFieldsCount;
 }
 
-inline bool Environment::TickInfo::in_tick() const {
-  return in_tick_;
-}
-
 inline uint32_t Environment::TickInfo::index() const {
   return fields_[kIndex];
 }
 
 inline uint32_t Environment::TickInfo::length() const {
   return fields_[kLength];
-}
-
-inline void Environment::TickInfo::set_in_tick(bool value) {
-  in_tick_ = value;
 }
 
 inline void Environment::TickInfo::set_index(uint32_t value) {
