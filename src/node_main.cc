@@ -1,7 +1,15 @@
 #include "node.h"
 
 #ifdef _WIN32
+#include <VersionHelpers.h>
+
 int wmain(int argc, wchar_t *wargv[]) {
+  if (!IsWindows7OrGreater()) {
+    fprintf(stderr, "This application is only supported on Windows 7, "
+                    "Windows Server 2008 R2, or higher.");
+    exit(1);
+  }
+
   // Convert argv to to UTF8
   char** argv = new char*[argc];
   for (int i = 0; i < argc; i++) {
