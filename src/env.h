@@ -351,10 +351,8 @@ class Environment {
    public:
     inline uint32_t* fields();
     inline int fields_count() const;
-    inline bool in_tick() const;
     inline uint32_t index() const;
     inline uint32_t length() const;
-    inline void set_in_tick(bool value);
     inline void set_index(uint32_t value);
 
    private:
@@ -368,7 +366,6 @@ class Environment {
     };
 
     uint32_t fields_[kFieldsCount];
-    bool in_tick_;
 
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
