@@ -18,6 +18,16 @@ let keyList = pkeys.slice();
 // Drop NONE
 keyList.splice(0, 1);
 
+// fs-watch currently needs special configuration on AIX and we
+// want to improve under https://github.com/nodejs/node/issues/5085.
+// strip out fs watch related parts for now
+if (common.isAix) {
+  for (var i = 0; i < keyList.length; i++) {
+    if ((keyList[i] === 'FSEVENTWRAP') || (keyList[i] === 'STATWATCHER')) {
+      keyList.splice(i, 1);
+    }
+  }
+}
 
 function init(id) {
   keyList = keyList.filter((e) => e != pkeys[id]);
@@ -33,9 +43,15 @@ async_wrap.enable();
 setTimeout(function() { });
 
 fs.stat(__filename, noop);
-fs.watchFile(__filename, noop);
-fs.unwatchFile(__filename);
-fs.watch(__filename).close();
+
+if (!common.isAix) {
+  // fs-watch currently needs special configuration on AIX and we
+  // want to improve under https://github.com/nodejs/node/issues/5085.
+  // strip out fs watch related parts for now
+  fs.watchFile(__filename, noop);
+  fs.unwatchFile(__filename);
+  fs.watch(__filename).close();
+}
 
 dns.lookup('localhost', noop);
 dns.lookupService('::', 0, noop);
