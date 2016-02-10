@@ -118,7 +118,9 @@ Do *not* use it as the Node.js equivalent of `On Error Resume Next`. An
 unhandled exception means your application - and by extension Node.js itself -
 is in an undefined state. Blindly resuming means *anything* could happen.
 
-Additionally, no more than one uncaughtException can be caught per tick. Subsequent exceptions will print the stack trace and exit. In the case that more than one uncaughtException must be caught, ensure that continuation of the program is delayed until the next tick.  This can be achieved by using [`Process.nextTick`][].
+Exceptions thrown from within the event handler will not be caught. Instead the 
+process will die and the stack trace will be printed. This is to avoid
+infinite recursion.
 
 Think of resuming as pulling the power cord when you are upgrading your system.
 Nine out of ten times nothing happens - but the 10th time, your system is bust.
@@ -1080,7 +1082,6 @@ Will print something like:
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`process.exit()`]: #process_process_exit_code
-[`process.nextTick`]: #process_process_nexttick_callback_arg
 [`promise.catch(...)`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`'rejectionHandled'`]: #process_event_rejectionhandled
 [`require.main`]: modules.html#modules_accessing_the_main_module
