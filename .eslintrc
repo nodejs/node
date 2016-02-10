@@ -26,16 +26,21 @@ rules:
   no-ex-assign: 2
   no-extra-boolean-cast : 2
   no-extra-semi: 2
+  no-func-assign: 2
   no-invalid-regexp: 2
   no-irregular-whitespace: 2
+  no-negated-in-lhs: 2
+  no-obj-calls: 2
   no-proto: 2
   no-unexpected-multiline: 2
   no-unreachable: 2
+  use-isnan: 2
   valid-typeof: 2
 
   # Best Practices
   # https://github.com/eslint/eslint/tree/master/docs/rules#best-practices
   no-fallthrough: 2
+  no-octal: 2
   no-redeclare: 2
 
   # Stylistic Issues
@@ -71,6 +76,7 @@ rules:
 
   # Variables
   # https://github.com/eslint/eslint/tree/master/docs/rules#variables
+  no-delete-var: 2
   no-undef: 2
   no-unused-vars: [2, {"args": "none"}]
 
