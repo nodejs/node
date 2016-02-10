@@ -815,13 +815,10 @@ with legacy programs that expect `'binary'` to be the default encoding.
 New applications should expect the default to be `'buffer'`. This property may
 become deprecated in a future Node.js release.
 
-### crypto.hasFipsCrypto()
+### crypto.fips
 
-Identifies whether a FIPS compliant crypto provider is currently in use.
-
-### crypto.setFipsCrypto(mode)
-
-Sets FIPS compliant cryptographic provider on or off.
+Property for checking and controlling whether a FIPS compliant crypto provider is
+currently in use. Setting to true requires a FIPS build of Node.js.
 
 ### crypto.createCipher(algorithm, password)
 
