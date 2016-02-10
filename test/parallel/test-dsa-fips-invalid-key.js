@@ -2,18 +2,13 @@
 var common = require('../common');
 var assert = require('assert');
 
-if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+if (!common.hasFipsCrypto) {
+  console.log('1..0 # Skipped: node compiled without FIPS OpenSSL.');
   return;
 }
 
 var crypto = require('crypto');
 var fs = require('fs');
-
-if (!crypto.hasFipsCrypto()) {
-  console.log('1..0 # Skipped: node started without FIPS OpenSSL.');
-  return;
-}
 
 var input = 'hello';
 

@@ -5762,10 +5762,10 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   bool mode = args[0]->BooleanValue();
   if (disable_fips_crypto) {
     return env->ThrowError(
-     "Cannot set FIPS mode, it was forced with --disable-fips at startup.");
+        "Cannot set FIPS mode, it was forced with --disable-fips at startup.");
   } else if (enable_fips_crypto) {
     return env->ThrowError(
-     "Cannot set FIPS mode, it was forced with --enable-fips at startup.");
+        "Cannot set FIPS mode, it was forced with --enable-fips at startup.");
   } else if (!FIPS_mode_set(mode)) {
     unsigned long err = ERR_get_error();
     return ThrowCryptoError(env, err);

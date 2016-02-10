@@ -6,7 +6,7 @@ if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-if (crypto.hasFipsCrypto()) {
+if (common.hasFipsCrypto) {
   console.log('1..0 # Skipped: BF-ECB is not FIPS 140-2 compatible');
   return;
 }

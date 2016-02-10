@@ -18,7 +18,7 @@ function test() {
 }
 
 // FIPS requires a length of at least 1024
-if (!crypto.hasFipsCrypto()) {
+if (!common.hasFipsCrypto) {
   assert.doesNotThrow(function() { test(); });
 } else {
   assert.throws(function() { test(); }, /key size too small/);

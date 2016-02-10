@@ -3436,9 +3436,9 @@ static void ParseArgs(int* argc,
       default_cipher_list = arg + 18;
 #if NODE_FIPS_MODE
     } else if (strcmp(arg, "--disable-fips") == 0) {
-    disable_fips_crypto = true;
+      disable_fips_crypto = true;
     } else if (strcmp(arg, "--enable-fips") == 0) {
-    enable_fips_crypto = true;
+      enable_fips_crypto = true;
 #endif /* NODE_FIPS_MODE */
 #endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)

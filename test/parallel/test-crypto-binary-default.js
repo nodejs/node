@@ -345,7 +345,7 @@ var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
 var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
-if (!crypto.hasFipsCrypto()) {
+if (!common.hasFipsCrypto) {
   var a0 = crypto.createHash('md5').update('Test123').digest('binary');
   assert.equal(a0, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
                '\u00bd\u008c', 'Test MD5 as binary');
@@ -495,7 +495,7 @@ function testCipher4(key, iv) {
   assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
 }
 
-if (!crypto.hasFipsCrypto()) {
+if (!common.hasFipsCrypto) {
   testCipher1('MySecretKey123');
   testCipher1(new Buffer('MySecretKey123'));
 
@@ -519,7 +519,7 @@ assert.throws(function() {
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
-var dh1 = crypto.createDiffieHellman(crypto.hasFipsCrypto() ? 1024 : 256);
+var dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
 var p1 = dh1.getPrime('buffer');
 var dh2 = crypto.createDiffieHellman(p1, 'base64');
 var key1 = dh1.generateKeys();

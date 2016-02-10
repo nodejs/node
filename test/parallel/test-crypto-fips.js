@@ -14,10 +14,11 @@ const FIPS_ENABLED = 1;
 const FIPS_DISABLED = 0;
 const FIPS_ERROR_STRING = 'Error: Cannot set FIPS mode';
 const OPTION_ERROR_STRING = 'bad option';
-const CNF_FIPS_ON = common.fixturesDir + '/openssl_fips_enabled.cnf';
-const CNF_FIPS_OFF = common.fixturesDir + '/openssl_fips_disabled.cnf';
+const CNF_FIPS_ON = path.join(common.fixturesDir, 'openssl_fips_enabled.cnf');
+const CNF_FIPS_OFF = path.join(common.fixturesDir, 'openssl_fips_disabled.cnf');
 var num_children_spawned = 0;
 var num_children_ok = 0;
+const child_responses = {};
 
 function compiledWithFips() {
   return process.config.variables.openssl_fips ? true : false;
@@ -32,13 +33,8 @@ function addToEnv(newVar, value) {
   return envCopy;
 }
 
-function getResponse(data)
-{
-  return data.toString().replace('\n', '').replace('>', '').trim();
-}
-
 function childOk(child) {
-  console.log('Child ' +  ++num_children_ok + '/' + num_children_spawned +
+  console.error('Child ' +  ++num_children_ok + '/' + num_children_spawned +
       ' [pid:' + child.pid + '] OK.');
 }
 
@@ -48,46 +44,62 @@ function testHelper(requiresFips, args, expectedOutput, cmd, env) {
     env: env
   });
 
-  console.log('Spawned child [pid:' + child.pid + '] with cmd ' +
-              cmd + ' and args \'' + args + '\'');
+  console.error('Spawned child [pid:' + child.pid + '] with cmd ' +
+      cmd + ' and args \'' + args + '\'');
   num_children_spawned++;
+
+  const response_handler = function(response, expectedOutput, expectedError) {
+    // We won't always have data on both stdout and stderr.
+    if (undefined !== response) {
+      if (EXIT_FAILURE === expectedOutput) {
+        assert.notEqual(-1, response.indexOf(expectedError));
+      } else {
+        assert.equal(expectedOutput, response);
+      }
+      childOk(child);
+    }
+  };
+
+  // Buffer all data received from children on stderr/stdout.
+  const response_buffer = function(child, data) {
+    // Prompt and newline may occur in undefined order.
+    const response = data.toString().replace(/\n|>/g, '').trim();
+    if (response.length > 0) {
+      child_responses[child] = response;
+    }
+  };
+
+  child.stdout.on('data', function(data) {
+    response_buffer(child.pid + '-stdout', data);
+  });
+
+  child.stderr.on('data', function(data) {
+    response_buffer(child.pid + '-stderr', data);
+  });
 
   // If using FIPS mode binary, or running a generic test.
   if (compiledWithFips() || !requiresFips) {
-    child.stdin.setEncoding('utf-8');
-    child.stdout.on('data', function(data) {
-      // Prompt and newline may occur in undefined order.
-      const response = getResponse(data);
-      if (response.length > 0) {
-        if (EXIT_FAILURE === expectedOutput) {
-          assert.notEqual(-1, response.indexOf(FIPS_ERROR_STRING));
-        } else {
-          assert.equal(expectedOutput, response);
-        }
-        childOk(child);
-      }
+    child.stdout.on('end', function(data) {
+      response_handler(child_responses[child.pid + '-stdout'],
+          expectedOutput, FIPS_ERROR_STRING);
     });
   } else {
-    // If using a non-FIPS binary, expect a failure.
-    const error_handler = function(data, string) {
-      const response = getResponse(data);
-      if (response.length > 0) {
-        assert.notEqual(-1, response.indexOf(string));
-        childOk(child);
-      }
-    };
-    child.stdout.on('data', function(data) {
-      error_handler(data, FIPS_ERROR_STRING);
+    // If using a non-FIPS binary expect a failure.
+    child.stdout.on('end', function() {
+      response_handler(child_responses[child.pid + '-stdout'],
+          EXIT_FAILURE, FIPS_ERROR_STRING);
     });
     /* Failure to start Node executable is reported on stderr */
-    child.stderr.on('data', function(data) {
-      error_handler(data, OPTION_ERROR_STRING);
+    child.stderr.on('end', function() {
+      response_handler(child_responses[child.pid + '-stderr'],
+          EXIT_FAILURE, OPTION_ERROR_STRING);
     });
   }
-  // Wait for write to complete before exiting child, but won't be able to
-  // write to child stdin if cmd line args are rejected and process dies first,
-  // resulting in EPIPE, we avoid this by simply not writing anything.
+  // Wait for write to complete before exiting child, but we won't be able to
+  // write to the child's stdin if cmd line args are rejected and process dies
+  // first, resulting in EPIPE. We can avoid EPIPE by  not writing anything.
   if (null !== cmd) {
+    child.stdin.setEncoding('utf-8');
     child.stdin.write(cmd + '\n;process.exit()\n');
   }
 }
@@ -110,7 +122,7 @@ testHelper(true,
 testHelper(true,
   ['--disable-fips'],
   compiledWithFips() ? FIPS_DISABLED : EXIT_FAILURE,
-  'require("crypto").hasFipsCrypto()',
+  compiledWithFips() ? 'require("crypto").hasFipsCrypto()' : null,
   process.env);
 
 // --disable-fips should take precedence over --enable-fips
@@ -192,3 +204,4 @@ testHelper(true,
   EXIT_FAILURE,
   compiledWithFips() ? 'require("crypto").setFipsCrypto(0)' : null,
   process.env);
+
