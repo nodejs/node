@@ -15,6 +15,13 @@ if (!cluster.isMaster) {
 }
 
 var server = net.createServer(function(s) {
+  if (common.isWindows) {
+    s.on('error', function(err) {
+      // Prevent possible ECONNRESET errors from popping up
+      if (err.code !== 'ECONNRESET')
+        throw err;
+    });
+  }
   setTimeout(function() {
     s.destroy();
   }, 100);
