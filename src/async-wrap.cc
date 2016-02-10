@@ -176,10 +176,25 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                       int argc,
                                       Local<Value>* argv) {
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
+  Local<Object> context = object();
+
+  if (env()->in_async_callback()) {
+    TryCatch try_catch(env()->isolate());
+    try_catch.SetVerbose(true);
+
+    Local<Value> ret = cb->Call(context, argc, argv);
+
+    if (try_catch.HasCaught()) {
+      return Undefined(env()->isolate());
+    }
+
+    return ret;
+  }
+
+  Environment::AsyncCallbackScope async_scope(env());
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
   Local<Function> post_fn = env()->async_hooks_post_function();
-  Local<Object> context = object();
   Local<Object> process = env()->process_object();
   Local<Object> domain;
   bool has_domain = false;
