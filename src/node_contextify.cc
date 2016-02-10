@@ -167,8 +167,8 @@ class ContextifyContext {
               "  }\n"
               "})");
 
-          Local<Script> script = Script::Compile(context, code)
-              .ToLocalChecked();
+          Local<Script> script =
+              Script::Compile(context, code).ToLocalChecked();
           clone_property_method = Local<Function>::Cast(script->Run());
           CHECK(clone_property_method->IsFunction());
         }
