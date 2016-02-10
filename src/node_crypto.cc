@@ -3126,8 +3126,10 @@ void CipherBase::Init(const char* cipher_type,
   HandleScope scope(env()->isolate());
 
 #ifdef NODE_FIPS_MODE
-  return env()->ThrowError(
-    "crypto.createCipher() is not supported in FIPS mode.");
+  if (FIPS_mode()) {
+    return env()->ThrowError(
+        "crypto.createCipher() is not supported in FIPS mode.");
+  }
 #endif  // NODE_FIPS_MODE
 
   CHECK_EQ(cipher_, nullptr);

@@ -161,7 +161,7 @@ Object.defineProperty(exports, 'hasCrypto', {
 
 Object.defineProperty(exports, 'hasFipsCrypto', {
   get: function() {
-    return hasCrypto && require('crypto').hasFipsCrypto();
+    return exports.hasCrypto && require('crypto').hasFipsCrypto();
   }
 });
 
