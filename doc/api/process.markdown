@@ -112,6 +112,10 @@ Do *not* use it as the Node.js equivalent of `On Error Resume Next`. An
 unhandled exception means your application - and by extension Node.js itself -
 is in an undefined state. Blindly resuming means *anything* could happen.
 
+Exceptions thrown from within the event handler will not be caught. Instead the
+process will exit with a non zero exit code and the stack trace will be printed.
+This is to avoid infinite recursion.
+
 Think of resuming as pulling the power cord when you are upgrading your system.
 Nine out of ten times nothing happens - but the 10th time, your system is bust.
 
