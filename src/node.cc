@@ -131,6 +131,7 @@ using v8::Uint32Array;
 using v8::V8;
 using v8::Value;
 
+static bool enable_promises = false;
 static bool print_eval = false;
 static bool force_repl = false;
 static bool syntax_check_only = false;
@@ -2988,6 +2989,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
   }
 
+  // --enable-promises
+  if (enable_promises) {
+    READONLY_PROPERTY(process, "_enablePromises", True(env->isolate()));
+  }
+
   if (preload_module_count) {
     CHECK(preload_modules);
     Local<Array> array = Array::New(env->isolate());
@@ -3271,6 +3277,8 @@ static void PrintHelp() {
          "                        present.\n"
 #endif
 #endif
+         "  --enable-promises     EXPERIMENTAL: enable promisified API\n"
+         "                        (see nodejs/node#5020)\n"
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
@@ -3378,6 +3386,8 @@ static void ParseArgs(int* argc,
       }
       args_consumed += 1;
       local_preload_modules[preload_module_count++] = module;
+    } else if (strcmp(arg, "--enable-promises") == 0) {
+      enable_promises = true;
     } else if (strcmp(arg, "--check") == 0 || strcmp(arg, "-c") == 0) {
       syntax_check_only = true;
     } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
