@@ -207,25 +207,22 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   }
 
   if (ran_init_callback() && !pre_fn.IsEmpty()) {
-    try_catch.SetVerbose(false);
     pre_fn->Call(context, 0, nullptr);
     if (try_catch.HasCaught())
       FatalError("node::AsyncWrap::MakeCallback", "pre hook threw");
-    try_catch.SetVerbose(true);
   }
 
   Local<Value> ret = cb->Call(context, argc, argv);
 
-  if (try_catch.HasCaught()) {
-    return Undefined(env()->isolate());
-  }
-
   if (ran_init_callback() && !post_fn.IsEmpty()) {
-    try_catch.SetVerbose(false);
     post_fn->Call(context, 0, nullptr);
     if (try_catch.HasCaught())
       FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
-    try_catch.SetVerbose(true);
+  }
+
+  // If the return value is empty then the callback threw.
+  if (ret.IsEmpty()) {
+    return Undefined(env()->isolate());
   }
 
   if (has_domain) {
