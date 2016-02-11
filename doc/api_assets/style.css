@@ -35,7 +35,7 @@ a:active {
   text-decoration: none;
   border-radius: 2px;
   padding: .1em .2em;
-  margin: -.1em -.1em;
+  margin: -.1em;
 }
 
 a:hover,
@@ -286,7 +286,7 @@ pre, tt, code {
 pre {
   padding: 1em;
   vertical-align: top;
-  background: #f3f3f3;
+  background: #f2f2f2;
   margin: 1em;
   overflow-x: auto;
 }
@@ -360,7 +360,7 @@ p code,
 li code {
   font-size: .9em;
   color: #040404;
-  background-color: #f3f3f3;
+  background-color: #f2f2f2;
   border-radius: 2px;
   padding: .1em .3em;
 }
@@ -372,18 +372,14 @@ a code {
 }
 
 span.type, a.type {
-  font-size: .9em;
-  padding: .2em .4em;
   line-height: 1.5em;
-  font-family: Monaco, Consolas, "Lucida Console", monospace;
-  margin: 0;
+  font-family: monospace;
 }
 
 #column1.interior {
   margin-left: 234px;
   padding: 0 2em;
   -webkit-padding-start: 1.5em;
-  -webkit-padding-end: 1.5em;
   height: 100%;
   position: relative;
   overflow-y: scroll;
