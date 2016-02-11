@@ -1,5 +1,92 @@
 # Node.js ChangeLog
 
+## 2016-02-11, Version 4.3.1 'Argon' (LTS), @thealphanerd
+
+### Notable changes
+
+* **buffer**
+  * make byteLength work with Buffer correctly (Jackson Tian)
+* **debugger** 
+  * guard against call from non-node context (Ben Noordhuis) [#4328](https://github.com/nodejs/node/pull/4328)
+    - fixes segfaults in debugger
+  * do not incept debug context (Myles Borins)
+    - fixes crash in debugger when using util methods
+* **deps**
+  * upgrade to npm 2.14.17 (Kat Marchán)
+
+### Commits
+
+* [[`d8fbefc6f7`](https://github.com/nodejs/node/commit/d8fbefc6f7)] - **buffer**: make byteLength work with Buffer correctly (Jackson Tian) [#4738](https://github.com/nodejs/node/pull/4738)
+* [[`17e1e4ffc9`](https://github.com/nodejs/node/commit/17e1e4ffc9)] - **buffer**: remove unnecessary TODO comments (Peter Geiss) [#4719](https://github.com/nodejs/node/pull/4719)
+* [[`6c3db3a0c9`](https://github.com/nodejs/node/commit/6c3db3a0c9)] - **cluster**: ignore queryServer msgs on disconnection (Santiago Gimeno) [#4465](https://github.com/nodejs/node/pull/4465)
+* [[`638dadeaba`](https://github.com/nodejs/node/commit/638dadeaba)] - **cluster**: fix race condition setting suicide prop (Santiago Gimeno) [#4349](https://github.com/nodejs/node/pull/4349)
+* [[`e5dc2ad4da`](https://github.com/nodejs/node/commit/e5dc2ad4da)] - **crypto**: clear error stack in ECDH::Initialize (Fedor Indutny) [#4689](https://github.com/nodejs/node/pull/4689)
+* [[`7e3c6a737b`](https://github.com/nodejs/node/commit/7e3c6a737b)] - **debugger**: remove variable redeclarations (Rich Trott) [#4633](https://github.com/nodejs/node/pull/4633)
+* [[`ed5169b264`](https://github.com/nodejs/node/commit/ed5169b264)] - **debugger**: guard against call from non-node context (Ben Noordhuis) [#4328](https://github.com/nodejs/node/pull/4328)
+* [[`831f496a90`](https://github.com/nodejs/node/commit/831f496a90)] - **deps**: upgrade to npm 2.14.17 (Kat Marchán) [#5110](https://github.com/nodejs/node/pull/5110)
+* [[`0b1822f1a1`](https://github.com/nodejs/node/commit/0b1822f1a1)] - **deps**: upgrade to npm 2.14.16 (Kat Marchán) [#4960](https://github.com/nodejs/node/pull/4960)
+* [[`c8e583f533`](https://github.com/nodejs/node/commit/c8e583f533)] - **deps**: upgrade to npm 2.14.15 (Kat Marchán) [#4872](https://github.com/nodejs/node/pull/4872)
+* [[`5ad5ebbab1`](https://github.com/nodejs/node/commit/5ad5ebbab1)] - **dgram**: prevent disabled optimization of bind() (Brian White) [#4613](https://github.com/nodejs/node/pull/4613)
+* [[`681a56c45f`](https://github.com/nodejs/node/commit/681a56c45f)] - **doc**: Update small error in LICENSE for npm (Kat Marchán) [#4872](https://github.com/nodejs/node/pull/4872)
+* [[`c758cf4d6c`](https://github.com/nodejs/node/commit/c758cf4d6c)] - **doc**: update list of personal traits in CoC (Kat Marchán) [#4801](https://github.com/nodejs/node/pull/4801)
+* [[`ae15235517`](https://github.com/nodejs/node/commit/ae15235517)] - **doc**: style fixes for the TOC (Roman Reiss) [#4748](https://github.com/nodejs/node/pull/4748)
+* [[`096a31e6ce`](https://github.com/nodejs/node/commit/096a31e6ce)] - **doc**: add `servername` parameter docs (Alexander Makarenko) [#4729](https://github.com/nodejs/node/pull/4729)
+* [[`121095cbbc`](https://github.com/nodejs/node/commit/121095cbbc)] - **doc**: update branch-diff arguments in release doc (Rod Vagg) [#4691](https://github.com/nodejs/node/pull/4691)
+* [[`0c66620c03`](https://github.com/nodejs/node/commit/0c66620c03)] - **doc**: add docs for more stream options (zoubin) [#4639](https://github.com/nodejs/node/pull/4639)
+* [[`0eefe24779`](https://github.com/nodejs/node/commit/0eefe24779)] - **doc**: mention that http.Server inherits from net.Server (Ryan Sobol) [#4455](https://github.com/nodejs/node/pull/4455)
+* [[`59bb498cb1`](https://github.com/nodejs/node/commit/59bb498cb1)] - **doc**: copyedit setTimeout() documentation (Rich Trott) [#4434](https://github.com/nodejs/node/pull/4434)
+* [[`77db592ebb`](https://github.com/nodejs/node/commit/77db592ebb)] - **doc**: fix formatting in process.markdown (Rich Trott) [#4433](https://github.com/nodejs/node/pull/4433)
+* [[`c945c2afd4`](https://github.com/nodejs/node/commit/c945c2afd4)] - **doc**: add path property to Write/ReadStream in fs.markdown (Claudio Rodriguez) [#4368](https://github.com/nodejs/node/pull/4368)
+* [[`5360c2e5b0`](https://github.com/nodejs/node/commit/5360c2e5b0)] - **doc**: add docs working group (Bryan English) [#4244](https://github.com/nodejs/node/pull/4244)
+* [[`3316de6726`](https://github.com/nodejs/node/commit/3316de6726)] - **doc**: restore ICU third-party software licenses (Richard Lau) [#4762](https://github.com/nodejs/node/pull/4762)
+* [[`6aa84c0b2a`](https://github.com/nodejs/node/commit/6aa84c0b2a)] - **doc**: rebuild LICENSE using tools/license-builder.sh (Rod Vagg) [#4194](https://github.com/nodejs/node/pull/4194)
+* [[`77244422cf`](https://github.com/nodejs/node/commit/77244422cf)] - **gitignore**: never ignore debug module (Michaël Zasso) [#2286](https://github.com/nodejs/node/pull/2286)
+* [[`8fbc38b894`](https://github.com/nodejs/node/commit/8fbc38b894)] - **http**: remove variable redeclaration (Rich Trott) [#4612](https://github.com/nodejs/node/pull/4612)
+* [[`1aa941172d`](https://github.com/nodejs/node/commit/1aa941172d)] - **http**: fix non-string header value concatenation (Brian White) [#4460](https://github.com/nodejs/node/pull/4460)
+* [[`a23788a0e4`](https://github.com/nodejs/node/commit/a23788a0e4)] - **lib**: fix style issues after eslint update (Michaël Zasso) [nodejs/io.js#2286](https://github.com/nodejs/io.js/pull/2286)
+* [[`88519207da`](https://github.com/nodejs/node/commit/88519207da)] - **module**: move unnecessary work for early return (Andres Suarez) [#3579](https://github.com/nodejs/node/pull/3579)
+* [[`62f18c350a`](https://github.com/nodejs/node/commit/62f18c350a)] - **net**: remove hot path comment from connect (Evan Lucas) [#4648](https://github.com/nodejs/node/pull/4648)
+* [[`2b649b7de2`](https://github.com/nodejs/node/commit/2b649b7de2)] - **net**: fix dns lookup for android (Josh Dague) [#4580](https://github.com/nodejs/node/pull/4580)
+* [[`2a2580bad9`](https://github.com/nodejs/node/commit/2a2580bad9)] - **net, doc**: fix line wrapping lint in net.js (James M Snell) [#4588](https://github.com/nodejs/node/pull/4588)
+* [[`e7a7c8c3e2`](https://github.com/nodejs/node/commit/e7a7c8c3e2)] - **node_contextify**: do not incept debug context (Myles Borins) [#4815](https://github.com/nodejs/node/issues/4815)
+* [[`c8cc179195`](https://github.com/nodejs/node/commit/c8cc179195)] - **querystring**: improve parse() performance (Brian White) [#4675](https://github.com/nodejs/node/pull/4675)
+* [[`c2b396386c`](https://github.com/nodejs/node/commit/c2b396386c)] - **readline**: Remove XXX and output debuglog (Kohei TAKATA) [#4690](https://github.com/nodejs/node/pull/4690)
+* [[`84ee8ae5b5`](https://github.com/nodejs/node/commit/84ee8ae5b5)] - **repl**: make sure historyPath is trimmed (Evan Lucas) [#4539](https://github.com/nodejs/node/pull/4539)
+* [[`f64b69fffe`](https://github.com/nodejs/node/commit/f64b69fffe)] - **src**: remove redeclarations of variables (Rich Trott) [#4605](https://github.com/nodejs/node/pull/4605)
+* [[`12c80a9d0c`](https://github.com/nodejs/node/commit/12c80a9d0c)] - **src**: don't check failure with ERR_peek_error() (Ben Noordhuis) [#4731](https://github.com/nodejs/node/pull/4731)
+* [[`c022951e7c`](https://github.com/nodejs/node/commit/c022951e7c)] - **stream**: remove useless if test in transform (zoubin) [#4617](https://github.com/nodejs/node/pull/4617)
+* [[`c4f98bbef6`](https://github.com/nodejs/node/commit/c4f98bbef6)] - **test**: fix tls-no-rsa-key flakiness (Santiago Gimeno) [#4043](https://github.com/nodejs/node/pull/4043)
+* [[`bebf951362`](https://github.com/nodejs/node/commit/bebf951362)] - **test**: make npm tests work on prerelease node versions (Kat Marchán) [#4960](https://github.com/nodejs/node/pull/4960)
+* [[`95071258cc`](https://github.com/nodejs/node/commit/95071258cc)] - **test**: make npm tests work on prerelease node versions (Kat Marchán) [#4872](https://github.com/nodejs/node/pull/4872)
+* [[`f60ace8123`](https://github.com/nodejs/node/commit/f60ace8123)] - **test**: fix issues for space-in-parens ESLint rule (Roman Reiss) [#4753](https://github.com/nodejs/node/pull/4753)
+* [[`4f2f140a52`](https://github.com/nodejs/node/commit/4f2f140a52)] - **test**: improve test-cluster-disconnect-suicide-race (Rich Trott) [#4739](https://github.com/nodejs/node/pull/4739)
+* [[`bd867da802`](https://github.com/nodejs/node/commit/bd867da802)] - **test**: make test-cluster-disconnect-leak reliable (Rich Trott) [#4736](https://github.com/nodejs/node/pull/4736)
+* [[`0462b789df`](https://github.com/nodejs/node/commit/0462b789df)] - **test**: fix flaky test-net-socket-local-address (cjihrig) [#4650](https://github.com/nodejs/node/pull/4650)
+* [[`bab8a11a22`](https://github.com/nodejs/node/commit/bab8a11a22)] - **test**: fix race in test-net-server-pause-on-connect (Rich Trott) [#4637](https://github.com/nodejs/node/pull/4637)
+* [[`acee468ea2`](https://github.com/nodejs/node/commit/acee468ea2)] - **test**: remove 1 second delay from test (Rich Trott) [#4616](https://github.com/nodejs/node/pull/4616)
+* [[`1b8ec818dc`](https://github.com/nodejs/node/commit/1b8ec818dc)] - **test**: move resource intensive tests to sequential (Rich Trott) [#4615](https://github.com/nodejs/node/pull/4615)
+* [[`c007e4723b`](https://github.com/nodejs/node/commit/c007e4723b)] - **test**: require common module only once (Rich Trott) [#4611](https://github.com/nodejs/node/pull/4611)
+* [[`b7a5c58ec4`](https://github.com/nodejs/node/commit/b7a5c58ec4)] - **test**: only include http module once (Rich Trott) [#4606](https://github.com/nodejs/node/pull/4606)
+* [[`8462467d44`](https://github.com/nodejs/node/commit/8462467d44)] - **test**: fix `http-upgrade-client` flakiness (Santiago Gimeno) [#4602](https://github.com/nodejs/node/pull/4602)
+* [[`c1ba1dc45e`](https://github.com/nodejs/node/commit/c1ba1dc45e)] - **test**: fix flaky unrefed timers test (Rich Trott) [#4599](https://github.com/nodejs/node/pull/4599)
+* [[`f10c937277`](https://github.com/nodejs/node/commit/f10c937277)] - **test**: fix `http-upgrade-agent` flakiness (Santiago Gimeno) [#4520](https://github.com/nodejs/node/pull/4520)
+* [[`ab91e12c93`](https://github.com/nodejs/node/commit/ab91e12c93)] - **test**: fix flaky test-cluster-shared-leak (Rich Trott) [#4510](https://github.com/nodejs/node/pull/4510)
+* [[`9ebf495d99`](https://github.com/nodejs/node/commit/9ebf495d99)] - **test**: fix flaky cluster-net-send (Brian White) [#4444](https://github.com/nodejs/node/pull/4444)
+* [[`ceb84605b9`](https://github.com/nodejs/node/commit/ceb84605b9)] - **test**: fix flaky child-process-fork-regr-gh-2847 (Brian White) [#4442](https://github.com/nodejs/node/pull/4442)
+* [[`2c8713322e`](https://github.com/nodejs/node/commit/2c8713322e)] - **test**: use addon.md block headings as test dir names (Rod Vagg) [#4412](https://github.com/nodejs/node/pull/4412)
+* [[`13c7060399`](https://github.com/nodejs/node/commit/13c7060399)] - **test**: test each block in addon.md contains js & cc (Rod Vagg) [#4411](https://github.com/nodejs/node/pull/4411)
+* [[`8e2cc70d78`](https://github.com/nodejs/node/commit/8e2cc70d78)] - **test**: fix tls-multi-key race condition (Santiago Gimeno) [#3966](https://github.com/nodejs/node/pull/3966)
+* [[`be524377a7`](https://github.com/nodejs/node/commit/be524377a7)] - **test**: fix style issues after eslint update (Michaël Zasso) [nodejs/io.js#2286](https://github.com/nodejs/io.js/pull/2286)
+* [[`5cf132a1d6`](https://github.com/nodejs/node/commit/5cf132a1d6)] - **tls**: copy client CAs and cert store on CertCb (Fedor Indutny) [#3537](https://github.com/nodejs/node/pull/3537)
+* [[`9244955898`](https://github.com/nodejs/node/commit/9244955898)] - **tls_legacy**: do not read on OpenSSL's stack (Fedor Indutny) [#4624](https://github.com/nodejs/node/pull/4624)
+* [[`961b8abd07`](https://github.com/nodejs/node/commit/961b8abd07)] - **tools**: add support for subkeys in release tools (Myles Borins) [#4807](https://github.com/nodejs/node/pull/4807)
+* [[`faf1ff1466`](https://github.com/nodejs/node/commit/faf1ff1466)] - **tools**: enable space-in-parens ESLint rule (Roman Reiss) [#4753](https://github.com/nodejs/node/pull/4753)
+* [[`dcb26b31aa`](https://github.com/nodejs/node/commit/dcb26b31aa)] - **tools**: fix style issue after eslint update (Michaël Zasso) [nodejs/io.js#2286](https://github.com/nodejs/io.js/pull/2286)
+* [[`abeb1be777`](https://github.com/nodejs/node/commit/abeb1be777)] - **tools**: update eslint config (Michaël Zasso) [nodejs/io.js#2286](https://github.com/nodejs/io.js/pull/2286)
+* [[`7faf8771a3`](https://github.com/nodejs/node/commit/7faf8771a3)] - **tools**: update eslint to v1.10.3 (Michaël Zasso) [nodejs/io.js#2286](https://github.com/nodejs/io.js/pull/2286)
+* [[`44c10715cc`](https://github.com/nodejs/node/commit/44c10715cc)] - **tools**: fix license-builder.sh for ICU (Richard Lau) [#4762](https://github.com/nodejs/node/pull/4762)
+* [[`b53e71aeea`](https://github.com/nodejs/node/commit/b53e71aeea)] - **tools**: add license-builder.sh to construct LICENSE (Rod Vagg) [#4194](https://github.com/nodejs/node/pull/4194)
+
 ## 2016-02-09, Version 4.3.0 'Argon' (LTS), @jasnell
 
 This is an important security release. All Node.js users should consult the security release summary at nodejs.org for details on patched vulnerabilities.
