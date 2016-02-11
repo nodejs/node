@@ -1119,10 +1119,10 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 
 
 Local<Value> MakeCallback(Environment* env,
-                           Local<Value> recv,
-                           const Local<Function> callback,
-                           int argc,
-                           Local<Value> argv[]) {
+                          Local<Value> recv,
+                          const Local<Function> callback,
+                          int argc,
+                          Local<Value> argv[]) {
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
@@ -1154,7 +1154,7 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
-  TryCatch try_catch;
+  TryCatch try_catch(env->isolate());
   try_catch.SetVerbose(true);
 
   if (has_domain) {

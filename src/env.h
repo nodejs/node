@@ -332,12 +332,10 @@ class Environment {
     inline uint32_t* fields();
     inline int fields_count() const;
     inline bool in_tick() const;
-    inline bool last_threw() const;
     inline uint32_t index() const;
     inline uint32_t length() const;
     inline void set_in_tick(bool value);
     inline void set_index(uint32_t value);
-    inline void set_last_threw(bool value);
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -351,7 +349,6 @@ class Environment {
 
     uint32_t fields_[kFieldsCount];
     bool in_tick_;
-    bool last_threw_;
 
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
