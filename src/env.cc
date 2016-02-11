@@ -11,6 +11,7 @@ using v8::Message;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::TryCatch;
+using v8::Value;
 
 void Environment::PrintSyncTrace() const {
   if (!trace_sync_io_)
@@ -73,16 +74,10 @@ bool Environment::KickNextTick(Environment::AsyncCallbackScope* scope) {
     return true;
   }
 
-  // process nextTicks after call
-  TryCatch try_catch(isolate());
-  try_catch.SetVerbose(true);
-  tick_callback_function()->Call(process_object(), 0, nullptr);
+  Local<Value> ret =
+    tick_callback_function()->Call(process_object(), 0, nullptr);
 
-  if (try_catch.HasCaught()) {
-    return false;
-  }
-
-  return true;
+  return !ret.IsEmpty();
 }
 
 }  // namespace node
