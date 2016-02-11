@@ -605,6 +605,14 @@ encoding of `'binary'` is enforced. If `data` is a [`Buffer`][] then
 
 This can be called many times with new data as it is streamed.
 
+### hmac.validate(inputHmac)
+
+Return true if and only if the computed hmac matches the input hmac,
+provided as a [Buffer](buffer.html). This uses a timing-safe comparison.
+
+The `hmac` object can not be used after `validate()` method has been
+called.
+
 ## Class: Hmac
 
 The `Hmac` Class is a utility for creating cryptographic HMAC digests. It can
@@ -664,6 +672,13 @@ console.log(hmac.digest('hex'));
 Calculates the HMAC digest of all of the data passed using `hmac.update()`. The
 `encoding` can be `'hex'`, `'binary'` or `'base64'`.  If `encoding` is provided
 a string is returned; otherwise a [`Buffer`][] is returned;
+
+Caution: Code that uses `digest()` directly for comparison with an input value
+is very likely to introduce a
+[timing attack](http://codahale.com/a-lesson-in-timing-attacks/).
+Such a timing attack would allow someone to construct an
+HMAC value for a message of their choosing without posessing the key.
+Prefer `validate()`, which does a timing-safe comparison.
 
 The `Hmac` object can not be used again after `hmac.digest()` has been
 called. Multiple calls to `hmac.digest()` will result in an error being thrown.
@@ -1152,6 +1167,15 @@ keys:
   * `constants.RSA_PKCS1_OAEP_PADDING`
 
 All paddings are defined in the `constants` module.
+
+## crypto.timingSafeEqual(a, b)
+
+Returns true if a is equal to b, without leaking timing information that would
+help an attacker guess one of the values. This is suitable for comparing secret
+values like authentication cookies or
+[capability urls](http://www.w3.org/TR/capability-urls/).
+
+`a` and `b` can be strings or [Buffers](buffer.html).
 
 ### crypto.privateEncrypt(private_key, buffer)
 
