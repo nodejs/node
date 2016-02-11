@@ -38,9 +38,9 @@ via the following environment variables:
    will be saved to the specified file rather than `.node_repl_history` in the
    user's home directory. Setting this value to `""` will disable persistent
    REPL history. Whitespace will be trimmed from the value.
- - `NODE_REPL_HISTORY_SIZE` - defaults to `1000`. Controls how many lines of
+ - `NODE_REPL_HISTORY_SIZE` - Defaults to `1000`. Controls how many lines of
    history will be persisted if history is available. Must be a positive number.
- - `NODE_REPL_MODE` - may be any of `sloppy`, `strict`, or `magic`. Defaults
+ - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. Defaults
    to `magic`, which will automatically run "strict mode only" statements in
    strict mode.
 
@@ -269,7 +269,7 @@ You can use your own `eval` function if it has following signature:
       callback(null, result);
     }
 
-On tab completion - `eval` will be called with `.scope` as an input string. It
+On tab completion, `eval` will be called with `.scope` as an input string. It
 is expected to return an array of scope names to be used for the auto-completion.
 
 Multiple REPLs may be started against the same running instance of Node.js.  Each
