@@ -69,6 +69,9 @@ nothing is displayed.
 Example usage:
 
 ```js
+const readline = require('readline');
+const rl = readline.createInterface(process.stdin, process.stdout);
+
 rl.question('What is your favorite food?', (answer) => {
   console.log(`Oh, so your favorite food is ${answer}`);
 });
@@ -94,6 +97,9 @@ This will also resume the `input` stream if it has been paused.
 Example:
 
 ```js
+const readline = require('readline');
+const rl = readline.createInterface(process.stdin, process.stdout);
+
 rl.write('Delete me!');
 // Simulate ctrl+u to delete the line written previously
 rl.write(null, {ctrl: true, name: 'u'});
@@ -125,6 +131,9 @@ hook to listen for user input.
 Example of listening for `'line'`:
 
 ```js
+const readline = require('readline');
+const rl = readline.createInterface(process.stdin, process.stdout);
+
 rl.on('line', (cmd) => {
   console.log(`You just typed: ${cmd}`);
 });
@@ -142,6 +151,9 @@ Also emitted whenever the `input` stream is not paused and receives the
 Example of listening for `'pause'`:
 
 ```js
+const readline = require('readline');
+const rl = readline.createInterface(process.stdin, process.stdout);
+
 rl.on('pause', () => {
   console.log('Readline paused.');
 });
@@ -156,6 +168,9 @@ Emitted whenever the `input` stream is resumed.
 Example of listening for `'resume'`:
 
 ```js
+const readline = require('readline');
+const rl = readline.createInterface(process.stdin, process.stdout);
+
 rl.on('resume', () => {
   console.log('Readline resumed.');
 });
@@ -175,6 +190,9 @@ background.
 Example of listening for `SIGCONT`:
 
 ```js
+const readline = require('readline');
+const rl = readline.createInterface(process.stdin, process.stdout);
+
 rl.on('SIGCONT', () => {
   // `prompt` will automatically resume the stream
   rl.prompt();
@@ -192,6 +210,9 @@ stream receives a `SIGINT`, `pause` will be triggered.
 Example of listening for `SIGINT`:
 
 ```js
+const readline = require('readline');
+const rl = readline.createInterface(process.stdin, process.stdout);
+
 rl.on('SIGINT', () => {
   rl.question('Are you sure you want to exit?', (answer) => {
     if (answer.match(/^y(es)?$/i)) rl.pause();
@@ -218,6 +239,9 @@ before the program was sent to the background.
 Example of listening for `SIGTSTP`:
 
 ```js
+const readline = require('readline');
+const rl = readline.createInterface(process.stdin, process.stdout);
+
 rl.on('SIGTSTP', () => {
   // This will override SIGTSTP and prevent the program from going to the
   // background.
@@ -238,7 +262,7 @@ rl.setPrompt('OHAI> ');
 rl.prompt();
 
 rl.on('line', (line) => {
-  switch(line.trim()) {
+  switch (line.trim()) {
     case 'hello':
       console.log('world!');
       break;
@@ -315,17 +339,19 @@ Which ends up looking something like:
 Example:
 
 ```js
+/* eslint no-unused-vars:0 */
 function completer(line) {
-  var completions = '.help .error .exit .quit .q'.split(' ')
-  var hits = completions.filter((c) => { return c.indexOf(line) == 0 })
+  var completions = '.help .error .exit .quit .q'.split(' ');
+  var hits = completions.filter((c) => { return c.indexOf(line) == 0; });
   // show all completions if none found
-  return [hits.length ? hits : completions, line]
+  return [hits.length ? hits : completions, line];
 }
 ```
 
 Also `completer` can be run in async mode if it accepts two arguments:
 
 ```js
+/* eslint no-unused-vars:0 */
 function completer(linePartial, callback) {
   callback(null, [['123'], linePartial]);
 }
@@ -336,6 +362,7 @@ function completer(linePartial, callback) {
 
 ```js
 const readline = require('readline');
+/* eslint no-unused-vars:0 */
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout

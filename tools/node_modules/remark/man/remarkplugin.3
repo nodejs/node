@@ -1,0 +1,271 @@
+.TH "REMARKPLUGIN" "3" "January 2016" "3.2.2" "remark manual"
+.SH "NAME"
+\fBremarkplugin\fR - remark plug-in creation
+.SH "SYNOPSIS"
+.P
+.RS 2
+.nf
+\[sl]**
+ * Change a file-extension to \[ga]\[aq]html\[aq]\[ga].
+ *\[sl]
+function transformer(ast, file) \[lC]
+    file.move(\[lC]
+        \[aq]extension\[aq]: \[aq]html\[aq]
+    \[rC]);
+\[rC]
+
+\[sl]**
+ * Expose.
+ * This plugin can be used as \[ga]remark.use(plugin)\[ga].
+ *\[sl]
+module.exports \[eq] function () \[lC]
+    return transformer;
+\[rC];
+.fi
+.RE
+.SH "DESCRIPTION"
+.P
+This manual contains information on how \fBremark\fR(3) plugins work. It focusses on how to create plugins, rather than on how to implement them. To implement plugins, see \fBremark\fR(3) and \fBremarkplugin\fR(7).
+.P
+An \fBremark\fR plugin does up to three things:
+.RS 0
+.IP \(bu 4
+It modifies the processor: the parser, the compiler;
+.IP \(bu 4
+It transforms the AST;
+.IP \(bu 4
+It adds new files to be processed by \fBremark\fR(1).
+.RE 0
+
+.P
+All have their own function. The first is called an \[lq]attacher\[rq] (see \fBATTACHER\fR). The second is named a \[lq]transformer\[rq] (see \fBTRANSFORMER\fR). The third is named a \[lq]completer\[rq] (see \fBCOMPLETER\fR). An \[lq]attacher\[rq] may return a \[lq]transformer\[rq] and attach a \[lq]completer\[rq].
+.P
+An attacher has access to the parser, which provides its own pluggable interface, consisting of tokenizers (see \fBTOKENIZER\fR) and locators (see \fBLOCATOR\fR).
+.SH "\FBFUNCTION ATTACHER(REMARK\[LB], OPTIONS\[RB]\[LB], FILESET\[RB])\FR"
+.P
+.RS 2
+.nf
+\[sl]**
+ * Add an extension.
+ * The \[ga]processor\[ga] is the instance of remark this attacher
+ * is \[ga]use\[ga]d on.
+ * This plugin can be used as \[ga]remark.use(plugin, \[lC]ext: \[aq]html\[aq]\[rC])\[ga].
+ *\[sl]
+module.exports \[eq] function (processor, options) \[lC]
+    var extension \[eq] (options \[ba]\[ba] \[lC]\[rC]).ext;
+
+    \[sl]**
+     * Change a file-extension to \[ga]extension\[ga].
+     *\[sl]
+    function transformer(ast, file) \[lC]
+        file.move(\[lC]
+            \[aq]extension\[aq]: extension
+        \[rC]);
+    \[rC]
+
+    return transformer;
+\[rC];
+.fi
+.RE
+.P
+To modify the parser, the compiler, or access the file-set on \fBremark\fR(1), create an attacher.
+.P
+An attacher is the thing passed to \fBuse()\fR. It can receive plugin specific options, but that is entirely up to the developer. An \fBattacher\fR is invoked when the plugin is \fBuse\fRd on an \fBremark\fR instance, and can return a \fBtransformer\fR which will be called on subsequent processes.
+.P
+Note that \fBremark\fR(1) invokes \fBattacher\fR for each file, not just once.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBtransformer? \[eq] attacher(remark, options\[lB], fileSet\[rB])\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBremark\fR (\fBObject\fR) \[em] Context on which the plugin was \fBuse\fRd;
+.IP \(bu 4
+\fBoptions\fR (\fBObject\fR, optional) \[em] Plugin specific options;
+.IP \(bu 4
+\fBfileSet\fR (\fBFileSet\fR, optional) \[em] Access to all files being processed by \fBremark\fR(1). Only passed on the Command-Line. See \fBremark\fR(3) for more information regarding file-sets.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBtransformer\fR (optional) \[em] See FUNCTION TRANSFORMER(NODE, FILE\[lB], NEXT\[rB]).
+.SH "\FBFUNCTION TRANSFORMER(NODE, FILE\[LB], NEXT\[RB])\FR"
+.P
+.RS 2
+.nf
+var visit \[eq] require(\[aq]unist-util-visit\[aq]);
+
+\[sl]**
+ * Add a \[ga]js\[ga] language flag to code nodes when without flag.
+ *\[sl]
+function transformer(ast, file) \[lC]
+    visit(ast, \[aq]code\[aq], function (node) \[lC]
+        if (!node.lang) \[lC]
+            node.lang \[eq] \[aq]js\[aq];
+        \[rC]
+    \[rC]);
+\[rC]
+
+\[sl]**
+ * Expose.
+ * This plugin can be used as \[ga]remark.use(plugin)\[ga].
+ *\[sl]
+module.exports \[eq] function () \[lC]
+    return transformer;
+\[rC];
+.fi
+.RE
+.P
+To transform an \fBmdast\fR node, create a \fBtransformer\fR. A \fBtransformer\fR is a simple function which is invoked each time a document is processed by a \fBremark\fR processor. A transformer should transform \fBnode\fR or modify \fBfile\fR.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBerr? \[eq] transformer(node, file, \[lB]next\[rB])\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBnode\fR (\fBNode\fR) \[em] See \fBmdast\fR;
+.IP \(bu 4
+\fBfile\fR (\fBVFile\fR) \[em] Virtual file;
+.IP \(bu 4
+\fBnext\fR (\fBfunction(err?)\fR, optional) \[em] If the signature includes \fBnode\fR, \fBfile\fR, and \fBnext\fR, \fBtransformer\fR \fBmay\fR finish asynchronous, and \fBmust\fR invoke \fBnext()\fR on completion with an optional error.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBerr\fR (\fBError\fR, optional) \[em] Exception which will be thrown.
+.SH "\FBFUNCTION COMPLETER(FILESET\[LB], NEXT\[RB])\FR"
+.P
+To access all files once they are transformed, create a \fBcompleter\fR. A \fBcompleter\fR is invoked before files are compiled, written, and logged, but after reading, parsing, and transforming. Thus, a completer can still change files or add messages.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBerr? \[eq] completer(fileSet\[lB], next\[rB])\fR.
+.RE 0
+
+.P
+\fBProperties\fR
+.RS 0
+.IP \(bu 4
+\fBpluginId\fR (\fB*\fR) \[em] \fBattacher\fR is invoked for each file, so if it \fBuse\fRs \fBcompleter\fR on the file-set, it would attach multiple times. By providing \fBpluginId\fR on \fBcompleter\fR, \fBremark\fR will ensure only one \fBcompleter\fR with that identifier is will be added.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBfileSet\fR (\fBFileSet\fR) \[em] All files being processed by \fBremark\fR(1);
+.IP \(bu 4
+\fBnext\fR (\fBfunction(err?)\fR, optional) \[em] If the signature includes \fBfileSet\fR and \fBnext\fR, \fBcompleter\fR \fBmay\fR finish asynchronous, and \fBmust\fR invoke \fBnext()\fR on completion with an optional error.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBerr\fR (\fBError\fR, optional) \[em] Exception which will be thrown.
+.SH "\FBFUNCTION TOKENIZER(EAT, VALUE, SILENT)\FR"
+.P
+.RS 2
+.nf
+function mention(eat, value) \[lC]
+    var match \[eq] \[sl]\[ha]\[at](\[rs]w\[pl])\[sl].exec(value);
+
+    if (match) \[lC]
+        if (silent) \[lC]
+            return true;
+        \[rC]
+
+        return eat(match\[lB]0\[rB])(\[lC]
+            \[aq]type\[aq]: \[aq]link\[aq],
+            \[aq]href\[aq]: \[aq]https:\[sl]\[sl]my-social-network\[sl]\[aq] \[pl] match\[lB]1\[rB],
+            \[aq]children\[aq]: \[lB]\[lC]
+                \[aq]type\[aq]: \[aq]text\[aq],
+                \[aq]value\[aq]: match\[lB]0\[rB]
+            \[rC]\[rB]
+        \[rC]);
+    \[rC]
+\[rC]
+.fi
+.RE
+.P
+Most often, using transformers to manipulate a syntax-tree produces the desired output. Sometimes, mainly when there is a need to introduce new syntactic entities with a certain level of precedence, interfacing with the parser is necessary. \fBremark\fR knows two types of tokenizers based on the kinds of markdown nodes: block level (e.g., paragraphs or fenced code blocks) and inline level (e.g., emphasis or inline code spans). Block level tokenizers are the same as inline level tokenizers, with the exception that the latter require \fBlocator\fR functions.
+.P
+Tokenizers \fItest\fR whether a certain given documents starts with a certain syntactic entity. When that occurs, they consume that token, a process which is called \[lq]eating\[rq] in \fBremark\fR. Locators enable tokenizers to function faster by providing information on the where the next entity occurs.
+.P
+For a complete example, see \fB\fBtest\[sl]mentions.js\fR\fR \fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]remark\[sl]blob\[sl]master\[sl]test\[sl]mentions.js\(ra\fR and how it utilises and attaches a tokenizer and a locator.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBNode? \[eq] transformer(eat, value)\fR;
+.IP \(bu 4
+\fBboolean? \[eq] transformer(eat, value, silent\[rB]\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBeat\fR (\fBFunction\fR) \[em] Function used to eat, when applicable, an entity;
+.IP \(bu 4
+\fBvalue\fR (\fBstring\fR) \[em] Value which might start an entity;
+.IP \(bu 4
+\fBsilent\fR (\fBboolean\fR, optional) \[em] When \fBtrue\fR, instead of actually eating a value, the tokenizer must return whether a node can definitely be found at the start of \fBvalue\fR.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+In \fInormal\fR mode, optionally an \fBmdast\fR node representing the eaten entity. Otherwise, in \fIsilent\fR mode, a truthy value must be returned when the tokenizer predicts with certainty an entity could be found.
+.SH "\FBFUNCTION LOCATOR(VALUE, FROMINDEX)\FR"
+.P
+.RS 2
+.nf
+function locator(value, fromIndex) \[lC]
+    return value.indexOf(\[aq]\[at]\[aq], fromIndex);
+\[rC]
+.fi
+.RE
+.P
+As mentioned in the previous section, locators are required for inline tokenization in order to keep the process performant. Locators enable inline tokenizers to function faster by providing information on the where the next entity occurs.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBnumber \[eq] locator(value, fromIndex)\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBvalue\fR (\fBstring\fR) \[em] Value which might contain an entity;
+.IP \(bu 4
+\fBfromIndex\fR (\fBnumber\fR) \[em] Position to start searching at.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+The index at which the entity might start, and \fB-1\fR otherwise.
+.SH "BUGS"
+.P
+\fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]remark\[sl]issues\(ra\fR
+.SH "SEE ALSO"
+.P
+\fBremark\fR(1), \fBremark\fR(3), \fBremarkplugin\fR(7)
+.SH "NOTES"
+.P
+See also \fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]mdast\(ra\fR.

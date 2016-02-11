@@ -46,6 +46,7 @@ For example, this is not a good idea:
 
 ```js
 // XXX WARNING!  BAD IDEA!
+const PORT = 8000;
 
 var d = require('domain').create();
 d.on('error', (er) => {
@@ -57,6 +58,7 @@ d.on('error', (er) => {
 });
 d.run(() => {
   require('http').createServer((req, res) => {
+/* eslint no-undef:0 */
     handleRequest(req, res);
   }).listen(PORT);
 });
@@ -156,11 +158,12 @@ if (cluster.isMaster) {
 // This part isn't important.  Just an example routing thing.
 // You'd put your fancy application logic here.
 function handleRequest(req, res) {
-  switch(req.url) {
+  switch (req.url) {
     case '/error':
       // We do some async stuff, and then...
       setTimeout(() => {
         // Whoops!
+/* eslint no-undef:0 */
         flerb.bark();
       });
       break;
@@ -346,8 +349,11 @@ thrown will be routed to the domain's `'error'` event.
 #### Example
 
 ```js
+const fs = require('fs');
+const domain = require('domain');
 const d = domain.create();
 
+/* eslint no-unused-vars:0 */
 function readSomeFile(filename, cb) {
   fs.readFile(filename, 'utf8', d.bind((er, data) => {
     // if this throws, it will also be passed to the domain
@@ -377,8 +383,11 @@ with a single error handler in a single place.
 #### Example
 
 ```js
+const fs = require('fs');
+const domain = require('domain');
 const d = domain.create();
 
+/* eslint no-unused-vars:0 */
 function readSomeFile(filename, cb) {
   fs.readFile(filename, 'utf8', d.intercept((data) => {
     // note, the first argument is never passed to the

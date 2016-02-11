@@ -36,6 +36,7 @@ or by calling `crypto.Certificate()` as a function:
 ```js
 const crypto = require('crypto');
 
+/* eslint no-unused-vars:0 */
 const cert1 = new crypto.Certificate();
 const cert2 = crypto.Certificate();
 ```
@@ -49,6 +50,7 @@ or a [`Buffer`][].
 
 ```js
 const cert = require('crypto').Certificate();
+/* eslint no-undef:0 */
 const spkac = getSpkacSomehow();
 const challenge = cert.exportChallenge(spkac);
 console.log(challenge.toString('utf8'));
@@ -64,6 +66,7 @@ or a [`Buffer`][].
 
 ```js
 const cert = require('crypto').Certificate();
+/* eslint no-undef:0 */
 const spkac = getSpkacSomehow();
 const publicKey = cert.exportPublicKey(spkac);
 console.log(publicKey);
@@ -76,7 +79,9 @@ Returns `true` if the given `spkac` data structure is valid, `false` otherwise.
 The `spkac` argument must be a Node.js [`Buffer`][].
 
 ```js
+const Buffer = require('buffer').Buffer;
 const cert = require('crypto').Certificate();
+/* eslint no-undef:0 */
 const spkac = getSpkacSomehow();
 console.log(cert.verifySpkac(new Buffer(spkac)));
   // Prints true or false
@@ -221,14 +226,15 @@ var decrypted = '';
 decipher.on('readable', () => {
   var data = decipher.read();
   if (data)
-  decrypted += data.toString('utf8');
+    decrypted += data.toString('utf8');
 });
 decipher.on('end', () => {
   console.log(decrypted);
   // Prints: some clear text data
 });
 
-var encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
+var encrypted =
+            'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
 decipher.write(encrypted, 'hex');
 decipher.end();
 ```
@@ -252,7 +258,8 @@ Example: Using the `decipher.update()` and `decipher.final()` methods:
 const crypto = require('crypto');
 const decipher = crypto.createDecipher('aes192', 'a password');
 
-var encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
+var encrypted =
+            'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
 var decrypted = decipher.update(encrypted, 'hex', 'utf8');
 decrypted += decipher.final('utf8');
 console.log(decrypted);
@@ -695,6 +702,7 @@ const sign = crypto.createSign('RSA-SHA256');
 sign.write('some data to sign');
 sign.end();
 
+/* eslint no-undef:0 */
 const private_key = getPrivateKeySomehow();
 console.log(sign.sign(private_key, 'hex'));
   // Prints the calculated signature
@@ -708,6 +716,7 @@ const sign = crypto.createSign('RSA-SHA256');
 
 sign.update('some data to sign');
 
+/* eslint no-undef:0 */
 const private_key = getPrivateKeySomehow();
 console.log(sign.sign(private_key, 'hex'));
   // Prints the calculated signature
@@ -759,6 +768,7 @@ const verify = crypto.createVerify('RSA-SHA256');
 verify.write('some data to sign');
 verify.end();
 
+/* eslint no-undef:0 */
 const public_key = getPublicKeySomehow();
 const signature = getSignatureToVerify();
 console.log(sign.verify(public_key, signature));
@@ -773,6 +783,7 @@ const verify = crypto.createVerify('RSA-SHA256');
 
 verify.update('some data to sign');
 
+/* eslint no-undef:0 */
 const public_key = getPublicKeySomehow();
 const signature = getSignatureToVerify();
 console.log(verify.verify(public_key, signature));
@@ -1018,6 +1029,7 @@ Returns an array with the names of the supported cipher algorithms.
 Example:
 
 ```js
+const crypto = require('crypto');
 const ciphers = crypto.getCiphers();
 console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
 ```
@@ -1029,6 +1041,7 @@ Returns an array with the names of the supported elliptic curves.
 Example:
 
 ```js
+const crypto = require('crypto');
 const curves = crypto.getCurves();
 console.log(curves); // ['secp256k1', 'secp384r1', ...]
 ```
@@ -1070,6 +1083,7 @@ Returns an array with the names of the supported hash algorithms.
 Example:
 
 ```js
+const crypto = require('crypto');
 const hashes = crypto.getHashes();
 console.log(hashes); // ['sha', 'sha1', 'sha1WithRSAEncryption', ...]
 ```
@@ -1229,7 +1243,7 @@ const crypto = require('crypto');
 crypto.randomBytes(256, (err, buf) => {
   if (err) throw err;
   console.log(
-    `${buf.length}` bytes of random data: ${buf.toString('hex')});
+    `${buf.length} bytes of random data: ${buf.toString('hex')}`);
 });
 ```
 
@@ -1239,9 +1253,10 @@ there is a problem generating the bytes.
 
 ```js
 // Synchronous
+const crypto = require('crypto');
 const buf = crypto.randomBytes(256);
 console.log(
-  `${buf.length}` bytes of random data: ${buf.toString('hex')});
+  `${buf.length} bytes of random data: ${buf.toString('hex')}`);
 ```
 
 The `crypto.randomBytes()` method will block until there is sufficient entropy.

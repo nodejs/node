@@ -1,0 +1,296 @@
+.TH "REMARK" "3" "January 2016" "3.2.2" "remark manual"
+.SH "NAME"
+\fBremark\fR - Markdown processor
+.SH "SYNOPSIS"
+.P
+.RS 2
+.nf
+\[sl]\[sl] Load dependencies:
+var remark \[eq] require(\[aq].\[sl]index.js\[aq]);
+var html \[eq] require(\[aq]remark-html\[aq]);
+var yamlConfig \[eq] require(\[aq]remark-yaml-config\[aq]);
+
+\[sl]\[sl] Use plugins:
+var processor \[eq] remark().use(yamlConfig).use(html);
+
+\[sl]\[sl] Process the document:
+var doc \[eq] processor.process(\[lB]
+    \[aq]---\[aq],
+    \[aq]remark:\[aq],
+    \[aq]  commonmark: true\[aq],
+    \[aq]---\[aq],
+    \[aq]\[aq],
+    \[aq]2) Some *emphasis*, **strongness**, and \[ga]code\[ga].\[aq]
+\[rB].join(\[aq]\[rs]n\[aq]));
+.fi
+.RE
+.SH "DESCRIPTION"
+.P
+These are the docs for the application programming interface of \fBremark\fR. To find documentation for the command line interface, see \fBremark\fR(1).
+.SH "\FBREMARK.USE(PLUGIN\[LB], OPTIONS\[RB])\FR"
+.P
+Change the way \fBremark\fR works by using a plugin. Plugins are documented at on GitHub.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBprocessor \[eq] remark.use(plugin\[lB], options\[rB])\fR;
+.IP \(bu 4
+\fBprocessor \[eq] remark.use(plugins)\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBplugin\fR (\fBFunction\fR) \[em] Plugin.
+.IP \(bu 4
+\fBplugins\fR (\fBArray.<Function>\fR) \[em] List of plugins.
+.IP \(bu 4
+\fBoptions\fR (\fBObject?\fR) \[em] Passed to plugin. Specified by its documentation.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBObject\fR \[em] An instance of \fBRemark\fR. The instance functions just like the \fBremark\fR object itself (it has the same methods), but caches the \fBuse\fRd plugins.
+.SH "\FBREMARK.PARSE(FILE\[LB], OPTIONS\[RB])\FR"
+.P
+Parse a markdown document into an \fBmdast\fR node.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBnode \[eq] remark.parse(file\[ba]value\[lB], options\[rB])\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBfile\fR (\fBVFile\fR) \[em] Virtual file;
+.IP \(bu 4
+\fBvalue\fR (\fBstring\fR) \[em] String representation of a file;
+.IP \(bu 4
+\fBoptions\fR (\fBObject\fR) \[em] Configuration given to the parser.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBNode\fR \[em] Node. Nodes are documented at \fBmdast\fR.
+.SH "\FBREMARK.RUN(NODE\[LB], FILE\[RB]\[LB], DONE\[RB])\FR"
+.P
+Transform a node by applying plug-ins to it. Either a node or a file which was previously passed to \fBparse()\fR, must be given.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBnode \[eq] remark.run(node\[lB], file\[ba]value\[rB]\[lB], done\[rB])\fR;
+.IP \(bu 4
+\fBnode \[eq] remark.run(file\[lB], done\[rB])\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBnode\fR (\fBObject\fR) \[em] Node as returned by \fBparse()\fR, see \fBmdast\fR;
+.IP \(bu 4
+\fBfile\fR (\fBVFile\fR) \[em] Virtual file;
+.IP \(bu 4
+\fBvalue\fR (\fBstring\fR) \[em] String representation of a file;
+.IP \(bu 4
+\fBdone\fR (\fBfunction done(err, node, file)\fR) \[em] See FUNCTION DONE(ERR, NODE, FILE).
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBNode\fR \[em] The given node.
+.P
+\fBThrows\fR
+.P
+When no \fBnode\fR was given and no node was found on the file.
+.SS "\fBfunction done(err, node, file)\fR"
+.P
+Invoked when transformation is complete.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBfunction done(err)\fR;
+.IP \(bu 4
+\fBfunction done(null, node, file)\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBerr\fR (\fBError\fR) \[em] Failure;
+.IP \(bu 4
+\fBnode\fR (\fBNode\fR) \[em] Transformed node;
+.IP \(bu 4
+\fBfile\fR (\fBFile\fR) \[em] File object representing the input file;
+.RE 0
+
+.SH "\FBREMARK.STRINGIFY(NODE\[LB], FILE\[RB]\[LB], OPTIONS\[RB])\FR"
+.P
+Compile a node into a document.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBdoc \[eq] remark.stringify(node\[lB], file\[ba]value\[rB]\[lB], options\[rB])\fR;
+.IP \(bu 4
+\fBdoc \[eq] remark.stringify(file\[lB], options\[rB])\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBnode\fR (\fBObject\fR) \[em] Node as returned by \fBparse()\fR, see \fBmdast\fR;
+.IP \(bu 4
+\fBfile\fR (\fBVFile\fR) \[em] Virtual file;
+.IP \(bu 4
+\fBvalue\fR (\fBstring\fR) \[em] String representation of a file;
+.IP \(bu 4
+\fBoptions\fR (\fBObject\fR) \[em] Configuration.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBdoc\fR (\fBstring\fR) \[em] Document.
+.P
+\fBThrows\fR
+.P
+When no \fBnode\fR was given and no node was found on the file.
+.SH "\FBREMARK.PROCESS(FILE\[LB], OPTIONS\[RB]\[LB], DONE\[RB])\FR"
+.P
+Parse, transform, and compile markdown into something else.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBdoc? \[eq] remark.process(file\[ba]value\[lB], options\[rB]\[lB], done\[rB])\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBfile\fR (\fBFile\fR) \[em] Virtual file;
+.IP \(bu 4
+\fBvalue\fR (\fBstring\fR) \[em] Source of a (virtual) file;
+.IP \(bu 4
+\fBoptions\fR (\fBObject\fR) \[em] Settings. See \fBremarksetting\fR(7);
+.IP \(bu 4
+\fBdone\fR (\fBfunction done(err?, doc?, file?)\fR.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBstring?\fR \[em] Document. Formatted in markdown by default, or in whatever a asynchronous generates. When an async transformer is used, \fBnull\fR is returned and \fBdone\fR must be given to receive the results upon completion.
+.SS "\fBfunction done(err\[lB], doc\[lB], file\[rB]\[rB])\fR"
+.P
+Invoked when processing is complete.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBfunction done(err)\fR;
+.IP \(bu 4
+\fBfunction done(null, doc, file)\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBerr\fR (\fBError\fR) \[em] Failure;
+.IP \(bu 4
+\fBdoc\fR (\fBstring\fR) \[em] Document generated by the process;
+.IP \(bu 4
+\fBfile\fR (\fBFile\fR) \[em] File object representing the input file;
+.RE 0
+
+.SH "\FBFILESET()\FR"
+.P
+\fBremark\fR(1) compiles multiple files using a \fBFileSet\fR instance. This set is exposed to plug-ins as an argument to the attacher. \fBFileSet\fRs should not be created by plug-ins.
+.SH "\FBFILESET.VALUEOF()\FR"
+.SH "\FBFILESET.TOJSON()\FR"
+.P
+Get access to the file objects in a set.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBfiles \[eq] fileSet.valueOf()\fR.
+.RE 0
+
+.P
+\fBReturns\fR
+.P
+\fBArray.<File>\fR \[em] List of files being processed by \fBremark\fR(1).
+.SH "\FBFILESET.USE(COMPLETER)\FR"
+.P
+Add a completer to the middleware pipeline of a file-set. When all files are transformed, this pipeline is run and \fBcompleter\fR is invoked with \fBfileSet\fR.
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBfileSet.use(completer)\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBcompleter\fR (\fBFunction\fR).
+.RE 0
+
+.SH "\FBFILESET.ADD(FILE \[BA] FILEPATH)\FR"
+.P
+Add a new file to be processed by \fBremark\fR(1). The given file is processed just like other files, with a few differences.
+.P
+Programmatically added files are:
+.RS 0
+.IP \(bu 4
+Ignored when their file-path is already added;
+.IP \(bu 4
+Never written to the file-system;
+.IP \(bu 4
+Not logged about.
+.RE 0
+
+.P
+\fBSignatures\fR
+.RS 0
+.IP \(bu 4
+\fBfileSet.use(filePath)\fR;
+.IP \(bu 4
+\fBfileSet.use(file)\fR.
+.RE 0
+
+.P
+\fBParameters\fR
+.RS 0
+.IP \(bu 4
+\fBfilePath\fR (\fBstring\fR) - Path to virtual file;
+.IP \(bu 4
+\fBfile\fR (\fBFile\fR) - Virtual file.
+.RE 0
+
+.SH "BUGS"
+.P
+\fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]remark\[sl]issues\(ra\fR
+.SH "SEE ALSO"
+.P
+\fBremark\fR(1), \fBremarkconfig\fR(7), \fBremarksetting\fR(7)
+.SH "NOTES"
+.P
+See also \fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]mdast\(ra\fR.

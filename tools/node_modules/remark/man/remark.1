@@ -1,0 +1,226 @@
+.TH "REMARK" "1" "January 2016" "3.2.2" "remark manual"
+.SH "NAME"
+\fBremark\fR - Markdown processor
+.SH "SYNOPSIS"
+.P
+\fBremark\fR \[lB]\fBoptions\fR\[rB] <\fIpathspec\fR...>
+.SH "DESCRIPTION"
+.P
+\fBremark\fR is a markdown processor powered by plugins.
+.P
+<\fIpathspec\fR...> refers to files to process. Fileglobs (e.g., \fB*.md\fR) can be given to add all matching files. Directories can be given (e.g. \fBdir\fR to add \fBdir\[sl]readme.md\fR and \fBdir\[sl]sub\[sl]history.mkd\fR) to add files with a known markdown extension (see the \fB-e\fR, \fB--ext\fR flag).
+.P
+Logs verbose debugging information when \fB\[Do]DEBUG\fR is set to \fB\[dq]*\[dq]\fR.
+.SH "OPTIONS"
+.SS "\fB-h\fR, \fB--help\fR"
+.P
+.RS 2
+.nf
+remark --help
+.fi
+.RE
+.P
+Output short usage information.
+.SS "\fB-v\fR, \fB--version\fR"
+.P
+.RS 2
+.nf
+remark --version
+.fi
+.RE
+.P
+Output CLI version number.
+.SS "\fB-o\fR, \fB--output\fR \[lB]\fIpath\fR\[rB]"
+.P
+.RS 2
+.nf
+remark . --output
+remark . --output doc
+remark readme.md --output doc\[sl]foo.bar
+.fi
+.RE
+.P
+Specify output.
+.RS 0
+.IP \(bu 4
+If output is \fBnot\fR given and one file is processed, the file is written to \fBstdout\fR(4). See \fB--no-stdout\fR to disable this behaviour;
+.IP \(bu 4
+Otherwise, if output is \fBnot\fR given and multiple files are processed, files are neither written to \fBstdout\fR(4) nor to the file-system;
+.IP \(bu 4
+Otherwise, if output is given but \fBwithout\fR path, input files are overwritten;
+.IP \(bu 4
+Otherwise, if a path to an existing directory is given, files are written to that directory;
+.IP \(bu 4
+Otherwise, if one file is processed and the parent directory of the given path exists, the file is written to the given path;
+.IP \(bu 4
+Otherwise, a fatal error is thrown.
+.RE 0
+
+.SS "\fB-c\fR, \fB--config-path\fR <\fIpath\fR>"
+.P
+.RS 2
+.nf
+remark . --config-path remarkrc.json
+.fi
+.RE
+.P
+Specify configuration location. This loads an \fBremarkrc\fR(5) file which cannot be detected (either because \fB--no-rc\fR is given or because it has a different name) in addition to other detected files.
+.SS "\fB-i\fR, \fB--ignore-path\fR <\fIpath\fR>"
+.P
+.RS 2
+.nf
+remark . --ignore-path .gitignore
+.fi
+.RE
+.P
+Specify ignore location. This loads an \fBremarkignore\fR(5) file which cannot be detected (either because \fB--no-ignore\fR is given or because it has a different name) in addition to other detected files.
+.SS "\fB-s\fR, \fB--setting\fR <\fIsettings\fR>"
+.P
+.RS 2
+.nf
+remark readme.md --setting commonmark:true
+.fi
+.RE
+.P
+Specify settings (see \fBremarksetting\fR(7)). This must be a valid JSON object except for a few differences. See \fBremarkconfig\fR(7) COMMAND LINE SETTINGS for more information.
+.SS "\fB-u\fR, \fB--use\fR <\fIplugin\fR>"
+.P
+.RS 2
+.nf
+remark readme.md --use man
+.fi
+.RE
+.P
+Specify a plug-in to use, optionally with options. See \fBremarkplugin\fR(7) COMMAND LINE USAGE for more information.
+.SS "\fB-e\fR, \fB--ext\fR <\fIextensions\fR>"
+.P
+.RS 2
+.nf
+remark . --ext doc
+.fi
+.RE
+.P
+Specify one or more extensions to include when searching for files. This will add the given \fBextensions\fR to the internal list, which includes \fB\[aq]md\[aq]\fR, \fB\[aq]markdown\[aq]\fR, \fB\[aq]mkd\[aq]\fR, \fB\[aq]mkdn\[aq]\fR, \fB\[aq]mkdown\[aq]\fR, and \fB\[aq]ron\[aq]\fR.
+.P
+The given \fBextensions\fR can be comma or semi-colon separated.
+.SS "\fB-w\fR, \fB--watch\fR"
+.P
+.RS 2
+.nf
+remark . -w
+.fi
+.RE
+.P
+Watch all files and reprocess when they change.
+.P
+When watching files which would normally regenerate, this behaviour is ignored until the watch is closed.
+.P
+.RS 2
+.nf
+\[Do] remark --no-rc readme.md -oqw
+\[sh] Watching... (press CTRL\[pl]C to exit)
+\[sh] Warning: remark does not overwrite watched files until exit.
+\[sh] Messages and other files are not affected.
+.fi
+.RE
+.P
+The watch is stopped when \fBSIGINT\fR is received (usually done by pressing \fBCTRL-C\fR).
+.SS "\fB-a\fR, \fB--ast\fR"
+.P
+.RS 2
+.nf
+remark readme.md --ast
+.fi
+.RE
+.P
+Instead of outputting document the internally used AST is exposed.
+.SS "\fB-q\fR, \fB--quiet\fR"
+.P
+.RS 2
+.nf
+remark readme.md --quiet
+.fi
+.RE
+.P
+Do not output non-essential text, only warnings and errors.
+.SS "\fB-S\fR, \fB--silent\fR"
+.P
+.RS 2
+.nf
+remark readme.md --silent
+.fi
+.RE
+.P
+Do not output non-essential text or warning, only errors.
+.SS "\fB-f\fR, \fB--frail\fR"
+.P
+.RS 2
+.nf
+remark readme.md --frail
+.fi
+.RE
+.P
+Exit with a status code of \fB1\fR if warnings or errors occur, instead of the default of only exiting with \fB1\fR on errors.
+.SS "\fB--file-path\fR <\fIpath\fR>"
+.P
+.RS 2
+.nf
+remark --file-path readme.md < readme.md > doc\[sl]out.md
+.fi
+.RE
+.P
+Process the piped-in document as if it was a file at \fBpath\fR.
+.SS "\fB--no-stdout\fR"
+.P
+.RS 2
+.nf
+remark readme.md --no-stdout
+.fi
+.RE
+.P
+Do not write a processed file to \fBstdout\fR(4).
+.SS "\fB--no-color\fR"
+.P
+.RS 2
+.nf
+remark readme.md --no-color
+.fi
+.RE
+.P
+Disable ANSI codes in output.
+.SS "\fB--no-rc\fR"
+.P
+.RS 2
+.nf
+remark readme.md --no-rc
+.fi
+.RE
+.P
+Disables configuration from \fBremarkrc\fR(5) files. This does not apply to explicitly provided files through \fB-c\fR, \fB--config-path\fR.
+.SS "\fB--no-ignore\fR"
+.P
+.RS 2
+.nf
+remark . --no-ignore
+.fi
+.RE
+.P
+Disables configuration from \fBremarkignore\fR(5) files. This does not apply to explicitly provided files through \fB-i\fR, \fB--ignore-path\fR.
+.SS "\fB--\fR"
+.P
+.RS 2
+.nf
+remark . --
+.fi
+.RE
+.P
+If a \fB--\fR argument is found, argument parsing is stopped.
+.SH "DIAGNOSTICS"
+.P
+\fBremark\fR exits 0 on success, and 1 otherwise.
+.SH "BUGS"
+.P
+\fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]remark\[sl]issues\(ra\fR
+.SH "SEE ALSO"
+.P
+\fBremarkignore\fR(5), \fBremarkrc\fR(5), \fBremarkconfig\fR(7), \fBremarkplugin\fR(7), \fBremarksetting\fR(7)

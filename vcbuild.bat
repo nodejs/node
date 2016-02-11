@@ -260,6 +260,7 @@ goto jslint
 if not defined jslint goto exit
 echo running jslint
 %config%\node tools\eslint\bin\eslint.js lib src test tools\doc tools\eslint-rules --rulesdir tools\eslint-rules --quiet
+%config%\node tools\eslint\bin\eslint.js --plugin eslint-plugin-markdown --ext markdown doc\api\ --rulesdir tools\eslint-rules --rule "strict:0" --rule "eol-last:0" --quiet
 goto exit
 
 :create-msvs-files-failed

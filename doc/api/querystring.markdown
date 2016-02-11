@@ -27,16 +27,19 @@ it can be used to decode a `non-utf8` encoding string if necessary.
 Example:
 
 ```js
-querystring.parse('foo=bar&baz=qux&baz=quux&corge')
+const querystring = require('querystring');
+
+querystring.parse('foo=bar&baz=qux&baz=quux&corge');
 // returns
-{ foo: 'bar', baz: ['qux', 'quux'], corge: '' }
+// { foo: 'bar', baz: ['qux', 'quux'], corge: '' }
 
 // Suppose gbkDecodeURIComponent function already exists,
 // it can decode `gbk` encoding string
+/* eslint no-undef: 0 */
 querystring.parse('w=%D6%D0%CE%C4&foo=bar', null, null,
-  { decodeURIComponent: gbkDecodeURIComponent })
+  { decodeURIComponent: gbkDecodeURIComponent });
 // returns
-{ w: '中文', foo: 'bar' }
+// { w: '中文', foo: 'bar' }
 ```
 
 ## querystring.stringify(obj[, sep][, eq][, options])
@@ -51,20 +54,23 @@ it can be used to encode string with `non-utf8` encoding if necessary.
 Example:
 
 ```js
-querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' })
-// returns
-'foo=bar&baz=qux&baz=quux&corge='
+const querystring = require('querystring');
 
-querystring.stringify({foo: 'bar', baz: 'qux'}, ';', ':')
+querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' });
 // returns
-'foo:bar;baz:qux'
+// 'foo=bar&baz=qux&baz=quux&corge='
+
+querystring.stringify({foo: 'bar', baz: 'qux'}, ';', ':');
+// returns
+// 'foo:bar;baz:qux'
 
 // Suppose gbkEncodeURIComponent function already exists,
 // it can encode string with `gbk` encoding
+/* eslint no-undef: 0 */
 querystring.stringify({ w: '中文', foo: 'bar' }, null, null,
-  { encodeURIComponent: gbkEncodeURIComponent })
+  { encodeURIComponent: gbkEncodeURIComponent });
 // returns
-'w=%D6%D0%CE%C4&foo=bar'
+// 'w=%D6%D0%CE%C4&foo=bar'
 ```
 
 ## querystring.unescape

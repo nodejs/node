@@ -40,6 +40,8 @@ With the asynchronous methods there is no guaranteed ordering. So the
 following is prone to error:
 
 ```js
+const fs = require('fs');
+
 fs.rename('/tmp/hello', '/tmp/world', (err) => {
   if (err) throw err;
   console.log('renamed complete');
@@ -54,6 +56,8 @@ It could be that `fs.stat` is executed before `fs.rename`.
 The correct way to do this is to chain the callbacks.
 
 ```js
+const fs = require('fs');
+
 fs.rename('/tmp/hello', '/tmp/world', (err) => {
   if (err) throw err;
   fs.stat('/tmp/world', (err, stats) => {
@@ -146,7 +150,7 @@ synchronous counterparts are of this type.
 For a regular file [`util.inspect(stats)`][] would return a string very
 similar to this:
 
-```js
+```
 {
   dev: 2114,
   ino: 48064969,
@@ -239,6 +243,8 @@ argument will be populated. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```js
+const fs = require('fs');
+
 fs.access('/etc/passwd', fs.R_OK | fs.W_OK, (err) => {
   console.log(err ? 'no access!' : 'can read/write');
 });
@@ -265,6 +271,8 @@ Asynchronously append data to a file, creating the file if it does not yet exist
 Example:
 
 ```js
+const fs = require('fs');
+
 fs.appendFile('message.txt', 'data to append', (err) => {
   if (err) throw err;
   console.log('The "data to append" was appended to file!');
@@ -274,6 +282,9 @@ fs.appendFile('message.txt', 'data to append', (err) => {
 If `options` is a string, then it specifies the encoding. Example:
 
 ```js
+const fs = require('fs');
+
+/* eslint no-undef:0 */
 fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 ```
 
@@ -322,7 +333,7 @@ default value of 64 kb for the same parameter.
 
 `options` is an object or string with the following defaults:
 
-```js
+```
 {
   flags: 'r',
   encoding: null,
@@ -353,6 +364,8 @@ file was created.
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
 ```js
+const fs = require('fs');
+
 fs.createReadStream('sample.txt', {start: 90, end: 99});
 ```
 
@@ -364,7 +377,7 @@ Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 
 `options` is an object or string with the following defaults:
 
-```js
+```
 {
   flags: 'w',
   defaultEncoding: 'utf8',
@@ -400,6 +413,8 @@ Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
 
 ```js
+const fs = require('fs');
+
 fs.exists('/etc/passwd', (exists) => {
   console.log(exists ? 'it\'s there' : 'no passwd!');
 });
@@ -626,6 +641,8 @@ Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 Asynchronously reads the entire contents of a file. Example:
 
 ```js
+const fs = require('fs');
+
 fs.readFile('/etc/passwd', (err, data) => {
   if (err) throw err;
   console.log(data);
@@ -640,6 +657,9 @@ If no encoding is specified, then the raw buffer is returned.
 If `options` is a string, then it specifies the encoding. Example:
 
 ```js
+const fs = require('fs');
+
+/* eslint no-undef:0 */
 fs.readFile('/etc/passwd', 'utf8', callback);
 ```
 
@@ -673,6 +693,8 @@ resolution or avoid additional `fs.stat` calls for known real paths.
 Example:
 
 ```js
+const fs = require('fs');
+
 var cache = {'/etc':'/private/etc'};
 fs.realpath('/etc/passwd', cache, (err, resolvedPath) => {
   if (err) throw err;
@@ -730,6 +752,8 @@ Note that Windows junction points require the destination path to be absolute.  
 Here is an example below:
 
 ```js
+const fs = require('fs');
+
 fs.symlink('./foo', './new-port');
 ```
 
@@ -845,6 +869,8 @@ be provided. Therefore, don't assume that `filename` argument is always
 provided in the callback, and have some fallback logic if it is null.
 
 ```js
+const fs = require('fs');
+
 fs.watch('somedir', (event, filename) => {
   console.log(`event is: ${event}`);
   if (filename) {
@@ -871,6 +897,8 @@ The `listener` gets two arguments the current stat object and the previous
 stat object:
 
 ```js
+const fs = require('fs');
+
 fs.watchFile('message.text', (curr, prev) => {
   console.log(`the current mtime is: ${curr.mtime}`);
   console.log(`the previous mtime was: ${prev.mtime}`);
@@ -959,6 +987,8 @@ to `'utf8'`.
 Example:
 
 ```js
+const fs = require('fs');
+
 fs.writeFile('message.txt', 'Hello Node.js', (err) => {
   if (err) throw err;
   console.log('It\'s saved!');
@@ -968,6 +998,9 @@ fs.writeFile('message.txt', 'Hello Node.js', (err) => {
 If `options` is a string, then it specifies the encoding. Example:
 
 ```js
+const fs = require('fs');
+
+/* eslint no-undef:0 */
 fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 ```
 

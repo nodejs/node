@@ -90,6 +90,7 @@ cctest: all
 test: | cctest  # Depends on 'all'.
 	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
 	$(MAKE) jslint
+	$(MAKE) jslint-docs
 	$(MAKE) cpplint
 
 test-parallel: all
@@ -523,6 +524,9 @@ bench-idle:
 jslint:
 	$(NODE) tools/eslint/bin/eslint.js lib src test tools/doc tools/eslint-rules \
 		--rulesdir tools/eslint-rules --quiet
+jslint-docs:
+	$(NODE) tools/eslint/bin/eslint.js --plugin eslint-plugin-markdown --ext markdown doc/api/ \
+		--rulesdir tools/eslint-rules --rule "strict:0" --rule "eol-last:0" --quiet
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc
@@ -549,11 +553,11 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 cpplint:
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
 
-lint: jslint cpplint
+lint: jslint jslint-docs cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
+.PHONY: lint cpplint jslint jslint-docs bench clean docopen docclean doc \
 	check uninstall install install-includes install-bin all staticlib \
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
-	bench-http bench-fs bench-tls cctest run-ci
+	bench-http bench-fs bench-tls cctest run-ci distclean dist

@@ -69,6 +69,14 @@ keyword is intentionally set to reference the `EventEmitter` to which the
 listener is attached.
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 myEmitter.on('event', function(a, b) {
   console.log(a, b, this);
@@ -86,6 +94,14 @@ It is possible to use ES6 Arrow Functions as listeners, however, when doing so,
 the `this` keyword will no longer reference the `EventEmitter` instance:
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
@@ -103,6 +119,14 @@ listener functions can switch to an asynchronous mode of operation using
 the `setImmediate()` or `process.nextTick()` methods:
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   setImmediate(() => {
@@ -118,6 +142,14 @@ When a listener is registered using the `eventEmitter.on()` method, that
 listener will be invoked _every time_ the named event is emitted.
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 var m = 0;
 myEmitter.on('event', () => {
@@ -133,6 +165,14 @@ Using the `eventEmitter.once()` method, it is possible to register a listener
 that is immediately unregistered after it is called.
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 var m = 0;
 myEmitter.once('event', () => {
@@ -155,6 +195,14 @@ If an `EventEmitter` does _not_ have at least one listener registered for the
 stack trace is printed, and the Node.js process exits.
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 myEmitter.emit('error', new Error('whoops!'));
   // Throws and crashes Node.js
@@ -166,6 +214,14 @@ a listener for the `process.on('uncaughtException')` event or use the
 deprecated_).
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 
 process.on('uncaughtException', (err) => {
@@ -180,6 +236,14 @@ As a best practice, developers should always register listeners for the
 `'error'` event:
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 myEmitter.on('error', (err) => {
   console.log('whoops! there was an error');
@@ -193,6 +257,7 @@ myEmitter.emit('error', new Error('whoops!'));
 The `EventEmitter` class is defined and exposed by the `events` module:
 
 ```js
+/* eslint no-unused-vars:0 */
 const EventEmitter = require('events');
 ```
 
@@ -216,6 +281,14 @@ but important side effect: any *additional* listeners registered to the same
 listener that is in the process of being added.
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 // Only do this once so we don't loop forever
 myEmitter.once('newListener', (event, listener) => {
@@ -250,6 +323,14 @@ A class method that returns the number of listeners for the given `event`
 registered on the given `emitter`.
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
 const myEmitter = new MyEmitter();
 myEmitter.on('event', () => {});
 myEmitter.on('event', () => {});
@@ -277,6 +358,15 @@ that a `possible EventEmitter memory leak` has been detected. For any single
 methods can be used to temporarily avoid this warning:
 
 ```js
+const EventEmitter = require('events');
+const util = require('util');
+
+function MyEmitter() {
+  EventEmitter.call(this);
+}
+util.inherits(MyEmitter, EventEmitter);
+
+const emitter = new MyEmitter();
 emitter.setMaxListeners(emitter.getMaxListeners() + 1);
 emitter.once('event', () => {
   // do stuff
@@ -312,6 +402,9 @@ Returns the number of listeners listening to the `event` type.
 Returns a copy of the array of listeners for the specified `event`.
 
 ```js
+const util = require('util');
+
+/* eslint no-undef:0 */
 server.on('connection', (stream) => {
   console.log('someone connected!');
 });
@@ -328,6 +421,7 @@ been added. Multiple calls passing the same combination of `event` and
 times.
 
 ```js
+/* eslint no-undef:0 */
 server.on('connection', (stream) => {
   console.log('someone connected!');
 });
@@ -341,6 +435,7 @@ Adds a **one time** `listener` function for the `event`. This listener is
 invoked only the next time `event` is triggered, after which it is removed.
 
 ```js
+/* eslint no-undef:0 */
 server.once('connection', (stream) => {
   console.log('Ah, we have our first user!');
 });
@@ -367,6 +462,7 @@ Removes the specified `listener` from the listener array for the specified
 var callback = (stream) => {
   console.log('someone connected!');
 };
+/* eslint no-undef:0 */
 server.on('connection', callback);
 // ...
 server.removeListener('connection', callback);

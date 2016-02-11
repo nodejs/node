@@ -50,7 +50,7 @@ way. Here is an example of using Streams in an Node.js program:
 ```js
 const http = require('http');
 
-var server = http.createServer( (req, res) => {
+var server = http.createServer((req, res) => {
   // req is an http.IncomingMessage, which is a Readable Stream
   // res is an http.ServerResponse, which is a Writable Stream
 
@@ -174,6 +174,7 @@ If you just want to get all the data out of the stream as fast as
 possible, this is the best way to do so.
 
 ```js
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
@@ -190,6 +191,7 @@ or by calling [`stream.read()`][stream-read] repeatedly until you get to the
 end.
 
 ```js
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
@@ -215,6 +217,7 @@ to be read into the internal buffer from the underlying system, if it
 hadn't already.
 
 ```javascript
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 readable.on('readable', () => {
   // there is some data to read now
@@ -261,13 +264,14 @@ paused by client code (using [`stream.pause()`][stream-pause] without a
 corresponding [`stream.resume()`][stream-resume]).
 
 ```js
-var readable = new stream.Readable
+const stream = require('stream');
+var readable = new stream.Readable();
 
-readable.isPaused() // === false
-readable.pause()
-readable.isPaused() // === true
-readable.resume()
-readable.isPaused() // === false
+readable.isPaused(); // === false
+readable.pause();
+readable.isPaused(); // === true
+readable.resume();
+readable.isPaused(); // === false
 ```
 
 #### readable.pause()
@@ -279,6 +283,7 @@ This method will cause a stream in flowing mode to stop emitting
 available will remain in the internal buffer.
 
 ```js
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 readable.on('data', (chunk) => {
   console.log('got %d bytes of data', chunk.length);
@@ -304,6 +309,7 @@ the destination is not overwhelmed by a fast readable stream.
 Multiple destinations can be piped to safely.
 
 ```js
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 var writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt'
@@ -314,6 +320,9 @@ This function returns the destination stream, so you can set up pipe
 chains like so:
 
 ```js
+const fs = require('fs');
+const zlib = require('zlib');
+
 var r = fs.createReadStream('file.txt');
 var z = zlib.createGzip();
 var w = fs.createWriteStream('file.txt.gz');
@@ -334,6 +343,7 @@ This keeps `writer` open so that "Goodbye" can be written at the
 end.
 
 ```js
+/* eslint no-undef:0 */
 reader.pipe(writer, { end: false });
 reader.on('end', () => {
   writer.end('Goodbye\n');
@@ -365,6 +375,7 @@ this method is called automatically until the internal buffer is
 drained.
 
 ```js
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 readable.on('readable', () => {
   var chunk;
@@ -393,6 +404,7 @@ its [`'end'`][] event, you can call [`stream.resume()`][stream-resume] to open
 the flow of data.
 
 ```js
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 readable.resume();
 readable.on('end', () => {
@@ -417,6 +429,7 @@ called [`buf.toString(encoding)`][] on them. If you want to read the data
 as strings, always use this method.
 
 ```js
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 readable.setEncoding('utf8');
 readable.on('data', (chunk) => {
@@ -438,6 +451,7 @@ If the destination is specified, but no pipe is set up for it, then
 this is a no-op.
 
 ```js
+/* eslint no-undef:0 */
 var readable = getReadableStreamSomehow();
 var writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt',
@@ -471,7 +485,9 @@ for Stream Implementors][].)
 // Pull off a header delimited by \n\n
 // use unshift() if we get too much
 // Call the callback with (error, header, stream)
+const Buffer = require('buffer').Buffer;
 const StringDecoder = require('string_decoder').StringDecoder;
+/* eslint no-unused-vars:0 */
 function parseHeader(stream, callback) {
   stream.on('error', callback);
   stream.on('readable', onReadable);
@@ -531,6 +547,7 @@ For example:
 
 ```js
 const OldReader = require('./old-api-module.js').OldReader;
+/* eslint new-parens:0 */
 const Readable = require('stream').Readable;
 const oreader = new OldReader;
 const myReader = new Readable().wrap(oreader);
@@ -578,6 +595,7 @@ to the stream.
 ```js
 // Write the data to the supplied writable stream one million times.
 // Be attentive to back-pressure.
+/* eslint no-unused-vars:0 */
 function writeOneMillionTimes(writer, data, encoding, callback) {
   var i = 1000000;
   write();
@@ -615,8 +633,9 @@ When the [`stream.end()`][stream-end] method has been called, and all data has
 been flushed to the underlying system, this event is emitted.
 
 ```javascript
+/* eslint no-undef:0 */
 var writer = getWritableStreamSomehow();
-for (var i = 0; i < 100; i ++) {
+for (var i = 0; i < 100; i++) {
   writer.write('hello, #${i}!\n');
 }
 writer.end('this is the end\n');
@@ -633,6 +652,7 @@ This is emitted whenever the [`stream.pipe()`][] method is called on a readable
 stream, adding this writable to its set of destinations.
 
 ```js
+/* eslint no-undef:0 */
 var writer = getWritableStreamSomehow();
 var reader = getReadableStreamSomehow();
 writer.on('pipe', (src) => {
@@ -651,6 +671,7 @@ This is emitted whenever the [`stream.unpipe()`][] method is called on a
 readable stream, removing this writable from its set of destinations.
 
 ```js
+/* eslint no-undef:0 */
 var writer = getWritableStreamSomehow();
 var reader = getReadableStreamSomehow();
 writer.on('unpipe', (src) => {
@@ -682,6 +703,7 @@ Calling [`stream.write()`][stream-write] after calling
 
 ```js
 // write 'hello, ' and then end with 'world!'
+const fs = require('fs');
 var file = fs.createWriteStream('example.txt');
 file.write('hello, ');
 file.end('world!');
@@ -927,12 +949,15 @@ could wrap the low-level source object by doing something like this:
 // source is an object with readStop() and readStart() methods,
 // and an `ondata` member that gets called when it has data, and
 // an `onend` member that gets called when the data is over.
+const util = require('util');
+const Readable = require('stream').Readable;
 
 util.inherits(SourceWrapper, Readable);
 
 function SourceWrapper(options) {
   Readable.call(this, options);
 
+/* eslint no-undef:0 */
   this._source = getLowlevelSourceObject();
 
   // Every time there's data, we push it into the internal buffer.
@@ -963,6 +988,7 @@ This is a basic example of a Readable stream. It emits the numerals
 from 1 to 1,000,000 in ascending order, and then ends.
 
 ```js
+const Buffer = require('buffer').Buffer;
 const Readable = require('stream').Readable;
 const util = require('util');
 util.inherits(Counter, Readable);
@@ -1004,6 +1030,7 @@ However, this would be better implemented as a [Transform][] stream. See
 // Using Readable directly for this is sub-optimal. See the
 // alternative example below under the Transform section.
 
+const Buffer = require('buffer').Buffer;
 const Readable = require('stream').Readable;
 const util = require('util');
 
@@ -1036,8 +1063,10 @@ function SimpleProtocol(source, options) {
 }
 
 SimpleProtocol.prototype._read = function(n) {
+  var chunk;
+
   if (!this._inBody) {
-    var chunk = this._source.read();
+    chunk = this._source.read();
 
     // if the source doesn't have data, we don't have data yet.
     if (chunk === null)
@@ -1089,7 +1118,7 @@ SimpleProtocol.prototype._read = function(n) {
   } else {
     // from there on, just provide the data to our consumer.
     // careful not to push(null), since that would indicate EOF.
-    var chunk = this._source.read();
+    chunk = this._source.read();
     if (chunk) this.push(chunk);
   }
 };
@@ -1199,12 +1228,13 @@ it will be passed to the push method. In other words the following are
 equivalent:
 
 ```js
-transform.prototype._transform = function (data, encoding, callback) {
+/* eslint no-undef:0 */
+transform.prototype._transform = function(data, encoding, callback) {
   this.push(data);
   callback();
 };
 
-transform.prototype._transform = function (data, encoding, callback) {
+transform.prototype._transform = function(data, encoding, callback) {
   callback(null, data);
 };
 ```
@@ -1226,6 +1256,7 @@ would be piped into the parser, which is a more idiomatic Node.js stream
 approach.
 
 ```javascript
+const Buffer = require('buffer').Buffer;
 const util = require('util');
 const Transform = require('stream').Transform;
 util.inherits(SimpleProtocol, Transform);
@@ -1391,24 +1422,29 @@ Examples:
 ### Duplex
 
 ```js
+const stream = require('stream');
+
+/* eslint no-unused-vars:0 */
 var duplex = new stream.Duplex({
   read: function(n) {
     // sets this._read under the hood
 
     // push data onto the read queue, passing null
     // will signal the end of the stream (EOF)
+/* eslint no-undef:0 */
     this.push(chunk);
   },
   write: function(chunk, encoding, next) {
     // sets this._write under the hood
 
     // An optional error can be passed as the first argument
-    next()
+    next();
   }
 });
 
 // or
 
+/* eslint no-redeclare:0 */
 var duplex = new stream.Duplex({
   read: function(n) {
     // sets this._read under the hood
@@ -1421,7 +1457,7 @@ var duplex = new stream.Duplex({
     // sets this._writev under the hood
 
     // An optional error can be passed as the first argument
-    next()
+    next();
   }
 });
 ```
@@ -1429,12 +1465,16 @@ var duplex = new stream.Duplex({
 ### Readable
 
 ```js
+const stream = require('stream');
+
+/* eslint no-unused-vars:0 */
 var readable = new stream.Readable({
   read: function(n) {
     // sets this._read under the hood
 
     // push data onto the read queue, passing null
     // will signal the end of the stream (EOF)
+/* eslint no-undef:0 */
     this.push(chunk);
   }
 });
@@ -1443,6 +1483,9 @@ var readable = new stream.Readable({
 ### Transform
 
 ```js
+const stream = require('stream');
+
+/* eslint no-unused-vars:0 */
 var transform = new stream.Transform({
   transform: function(chunk, encoding, next) {
     // sets this._transform under the hood
@@ -1467,23 +1510,27 @@ var transform = new stream.Transform({
 ### Writable
 
 ```js
+const stream = require('stream');
+
+/* eslint no-unused-vars:0 */
 var writable = new stream.Writable({
   write: function(chunk, encoding, next) {
     // sets this._write under the hood
 
     // An optional error can be passed as the first argument
-    next()
+    next();
   }
 });
 
 // or
 
+/* eslint no-redeclare:0 */
 var writable = new stream.Writable({
   writev: function(chunks, next) {
     // sets this._writev under the hood
 
     // An optional error can be passed as the first argument
-    next()
+    next();
   }
 });
 ```
@@ -1548,6 +1595,8 @@ introduces an edge case in the following conditions:
 For example, consider the following code:
 
 ```js
+const net = require('net');
+
 // WARNING!  BROKEN!
 net.createServer((socket) => {
 
@@ -1568,6 +1617,8 @@ The workaround in this situation is to call the
 [`stream.resume()`][stream-resume] method to start the flow of data:
 
 ```js
+const net = require('net');
+
 // Workaround
 net.createServer((socket) => {
 

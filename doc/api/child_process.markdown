@@ -140,6 +140,7 @@ generated output.
 
 ```js
 const exec = require('child_process').exec;
+/* eslint no-unused-vars:0 */
 const child = exec('cat *.js bad_file | wc -l',
   (error, stdout, stderr) => {
     console.log(`stdout: ${stdout}`);
@@ -147,7 +148,8 @@ const child = exec('cat *.js bad_file | wc -l',
     if (error !== null) {
       console.log(`exec error: ${error}`);
     }
-});
+  }
+);
 ```
 
 If a `callback` function is provided, it is called with the arguments
@@ -160,7 +162,7 @@ to be an error.
 The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
 
-```js
+```
 {
   encoding: 'utf8',
   timeout: 0,
@@ -212,6 +214,7 @@ spawned, behaviors such as I/O redirection and file globbing are not supported.
 
 ```js
 const execFile = require('child_process').execFile;
+/* eslint no-unused-vars:0 */
 const child = execFile('node', ['--version'], (error, stdout, stderr) => {
   if (error) {
     throw error;
@@ -290,7 +293,7 @@ to an empty array.
 
 A third argument may be used to specify additional options, with these defaults:
 
-```js
+```
 {
   cwd: undefined,
   env: process.env
@@ -401,8 +404,8 @@ const out = fs.openSync('./out.log', 'a');
 const err = fs.openSync('./out.log', 'a');
 
 const child = spawn('prg', [], {
- detached: true,
- stdio: [ 'ignore', out, err ]
+  detached: true,
+  stdio: [ 'ignore', out, err ]
 });
 
 child.unref();
@@ -940,11 +943,11 @@ const fs = require('fs');
 const child_process = require('child_process');
 
 const child = child_process.spawn('ls', {
-    stdio: [
-      0, // Use parents stdin for child
-      'pipe', // Pipe child's stdout to parent
-      fs.openSync('err.out', 'w') // Direct child's stderr to a file
-    ]
+  stdio: [
+    0, // Use parents stdin for child
+    'pipe', // Pipe child's stdout to parent
+    fs.openSync('err.out', 'w') // Direct child's stderr to a file
+  ]
 });
 
 assert.equal(child.stdio[0], null);

@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+'use strict';
+
+/* eslint-env node */
+
+/*
+ * Dependencies.
+ */
+
+var cli = require('../lib/cli');
+
+/*
+ * Methods.
+ */
+
+var stderr = process.stderr;
+var argv = process.argv;
+
+/*
+ * Constants.
+ */
+
+var exitStatus = 0;
+
+/**
+ * Failure handler.
+ *
+ * @param {Error?} exception
+ */
+function fail(exception, success) {
+    if (exception) {
+        stderr.write((exception.stack || exception) + '\n');
+    }
+
+    if (exception || !success) {
+        exitStatus = 1;
+    }
+}
+
+/*
+ * Set-up.
+ */
+
+var position = argv.indexOf('--');
+
+if (position !== -1) {
+    argv = argv.slice(0, position);
+}
+
+/*
+ * Process.
+ */
+
+cli(argv, fail);
+
+/*
+ * Exit.
+ */
+
+process.on('exit', function () {
+    /* eslint-disable no-process-exit */
+    process.exit(exitStatus);
+    /* eslint-enable no-process-exit */
+});

@@ -64,6 +64,7 @@ The event handler function is passed two arguments: `msg` and `rinfo`. The
 address information provided by the `address`, `family` and `port` properties:
 
 ```js
+/* eslint no-undef:0 */
 socket.on('message', (msg, rinfo) => {
   console.log('Received %d bytes from %s:%d\n',
               msg.length, rinfo.address, rinfo.port);
@@ -160,6 +161,7 @@ port sharing results in an error.
 An example socket listening on an exclusive port is shown below.
 
 ```js
+/* eslint no-undef:0 */
 socket.bind({
   address: 'localhost',
   port: 8000,
@@ -236,6 +238,7 @@ Example of sending a UDP packet to a random port on `localhost`;
 
 ```js
 const dgram = require('dgram');
+const Buffer = require('buffer').Buffer;
 const message = new Buffer('Some bytes');
 const client = dgram.createSocket('udp4');
 client.send(message, 41234, 'localhost', (err) => {
@@ -247,6 +250,7 @@ Example of sending a UDP packet composed of multiple buffers to a random port on
 
 ```js
 const dgram = require('dgram');
+const Buffer = require('buffer').Buffer;
 const buf1 = new Buffer('Some ');
 const buf2 = new Buffer('bytes');
 const client = dgram.createSocket('udp4');
@@ -358,6 +362,7 @@ execution model. Legacy code that assumes synchronous behavior, as in the
 following example:
 
 ```js
+const dgram = require('dgram');
 const s = dgram.createSocket('udp4');
 s.bind(1234);
 s.addMembership('224.0.0.114');
@@ -367,6 +372,7 @@ Must be changed to pass a callback function to the [`dgram.Socket#bind()`][]
 function:
 
 ```js
+const dgram = require('dgram');
 const s = dgram.createSocket('udp4');
 s.bind(1234, () => {
   s.addMembership('224.0.0.114');

@@ -42,6 +42,7 @@ language.
 ```js
 // Throws with a ReferenceError because z is undefined
 try {
+/* eslint no-unused-vars:0, no-undef:0 */
   const m = 1;
   const n = m + z;
 } catch (err) {
@@ -141,15 +142,15 @@ the first argument will be passed as `null`.
 const fs = require('fs');
 
 function nodeStyleCallback(err, data) {
- if (err) {
-   console.error('There was an error', err);
-   return;
- }
- console.log(data);
+  if (err) {
+    console.error('There was an error', err);
+    return;
+  }
+  console.log(data);
 }
 
 fs.readFile('/some/file/that/does-not-exist', nodeStyleCallback);
-fs.readFile('/some/file/that/does-exist', nodeStyleCallback)
+fs.readFile('/some/file/that/does-exist', nodeStyleCallback);
 ```
 
 The JavaScript `try / catch` mechanism **cannot** be used to intercept errors
@@ -167,7 +168,7 @@ try {
       throw err;
     }
   });
-} catch(err) {
+} catch (err) {
   // This will not catch the throw!
   console.log(err);
 }
@@ -212,7 +213,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack  // similar to `new Error().stack`
+myObject.stack;  // similar to `new Error().stack`
 ```
 
 The first line of the trace, instead of being prefixed with `ErrorType:
@@ -233,7 +234,7 @@ function MyError() {
 // Without passing MyError to captureStackTrace, the MyError
 // frame would should up in the .stack property. by passing
 // the constructor, we omit that frame and all frames above it.
-new MyError().stack
+new MyError().stack;
 ```
 
 ### Error.stackTraceLimit
@@ -363,6 +364,7 @@ While client code may generate and propagate these errors, in practice, only V8
 will do so.
 
 ```js
+/* eslint no-undef:0 */
 doesNotExist;
   // throws ReferenceError, doesNotExist is not a variable in this program.
 ```
@@ -374,8 +376,9 @@ that was not defined.
 ```js
 const assert = require('assert');
 try {
+/* eslint no-undef:0 */
   doesNotExist;
-} catch(err) {
+} catch (err) {
   assert(err.arguments[0], 'doesNotExist');
 }
 ```
@@ -395,7 +398,7 @@ program.
 ```js
 try {
   require('vm').runInThisContext('binary ! isNotOk');
-} catch(err) {
+} catch (err) {
   // err will be a SyntaxError
 }
 ```

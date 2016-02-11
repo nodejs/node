@@ -42,6 +42,7 @@ function toHTML(input, filename, template, cb) {
 
   function onGtocLoaded() {
     var lexed = marked.lexer(input);
+
     fs.readFile(template, 'utf8', function(er, template) {
       if (er) return cb(er);
       render(lexed, filename, template, cb);
@@ -118,6 +119,9 @@ function parseLists(input) {
       tok.text = parseAPIHeader(tok.text);
       output.push({ type: 'html', text: tok.text });
       return;
+    }
+    if (tok.type === 'code') {
+      tok.text = tok.text.replace(/\/\*\s*eslint.*\*\/\n/, '');
     }
     if (state === null ||
       (state === 'AFTERHEADING' && tok.type === 'heading')) {

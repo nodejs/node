@@ -1,0 +1,152 @@
+.TH "REMARKRC" "5" "January 2016" "3.2.2" "remark manual"
+.SH "NAME"
+\fBremarkrc\fR - remark config files
+.SH "SYNOPSIS"
+.P
+\fB.remarkrc\fR, \fBpackage.json\fR
+.SH "DESCRIPTION"
+.P
+\fBremark\fR gets its configuration from the command line and \fBremarkrc\fR files.
+.P
+For a list of available configuration options, see \fBremark\fR(1) or \fBremarksetting\fR(7).
+.SH "FILES"
+.P
+All \fBremarkrc\fR(5) configuration files are in JSON.
+.P
+Automatically detected files named \fBpackage.json\fR use the \fBremarkConfig\fR field, whereas other files are used as a whole.
+.SH "FIELDS"
+.SS "output"
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]output\[dq]: \[dq]man\[sl]\[dq]
+\[rC]
+.fi
+.RE
+.P
+The \fBoutput\fR field specifies whether or not files should be written to the file-system (similar to \fB-o\fR, \fB--output\fR \fIpath\fR on \fBremark\fR(1)). It can be either a boolean, or a string. In the case of a string, the value is treated as the \fBtarget\fR or \fBdirectory\fR field for \fBmv\fR(1).
+.SS "settings"
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]settings\[dq]: \[lC]
+    \[dq]commonmark\[dq]: true,
+    \[dq]bullet\[dq]: \[dq]*\[dq]
+  \[rC]
+\[rC]
+.fi
+.RE
+.P
+Settings contains an object mapping a setting to a value. See \fBremarksetting\fR(7) for available settings.
+.SS "plugins"
+.P
+List:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]plugins\[dq]: \[lB]
+    \[dq]toc\[dq]
+  \[rB]
+\[rC]
+.fi
+.RE
+.P
+Options:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]plugins\[dq]: \[lC]
+    \[dq]github\[dq]: \[lC]
+      \[dq]repository\[dq]: \[dq]foo\[sl]bar\[dq]
+    \[rC]
+  \[rC]
+\[rC]
+.fi
+.RE
+.P
+The \fBplugins\fR field contains either an array of plugins, or an object mapping plugins to their options.
+.P
+When a plugin is prefixed with \fBremark-\fR (which is recommended), the prefix can be omitted in the plugin list or map.
+.SH "CASCADE"
+.P
+Precedence is as follows:
+.RS 0
+.IP \(bu 4
+Plug-ins and settings passed to \fBremark\fR(1);
+.IP \(bu 4
+Files passed to \fBremark\fR(1);
+.IP \(bu 4
+Files named \fB.remarkrc\fR and \fBremarkConfig\fR fields in \fBpackage.json\fR in the directory of the processed file, and in ancestral directories;
+.IP \(bu 4
+If no \fB.remarkrc\fR and \fBpackage.json\fR were detected in the directory of the file or its ancestral directories, a per-user configuration file (\fB\[ti]\[sl].remarkrc\fR) is used;
+.RE 0
+
+.P
+If both \fB.remarkrc\fR and \fBpackage.json\fR exist in a directory, the file named \fB.remarkrc\fR takes precedence in the cascade over \fBpackage.json\fR.
+.P
+For example, for the following project:
+.P
+.RS 2
+.nf
+project
+\[ba]-- docs
+\[ba]   \[ba]-- .remarkrc
+\[ba]   \[ba]-- doc.md
+\[ba]
+\[ba]-- .remarkrc
+\[ba]-- package.json
+\[ba]-- readme.md
+.fi
+.RE
+.P
+Where \fBdocs\[sl].remarkrc\fR looks as follows:
+.P
+.RS 2
+.nf
+\[lC]
+    \[dq]settings\[dq]: \[lC]
+        \[dq]bullet\[dq]: \[dq]\[pl]\[dq]
+    \[rC]
+\[rC]
+.fi
+.RE
+.P
+And \fBpackage.json\fR contains:
+.P
+.RS 2
+.nf
+\[lC]
+    \[dq]remarkConfig\[dq]: \[lC]
+        \[dq]settings\[dq]: \[lC]
+            \[dq]bullet\[dq]: \[dq]*\[dq]
+        \[rC]
+    \[rC]
+\[rC]
+.fi
+.RE
+.P
+And \fB.remarkrc\fR contains:
+.P
+.RS 2
+.nf
+\[lC]
+    \[dq]settings\[dq]: \[lC]
+        \[dq]bullet\[dq]: \[dq]-\[dq]
+    \[rC]
+\[rC]
+.fi
+.RE
+.P
+Then, when compiling \fBdocs\[sl]doc.md\fR, \fBremark\fR(1) would use \fBbullet: \[dq]\[pl]\[dq]\fR because \fBdocs\[sl].remarkrc\fR takes precedence over \fB.remarkrc\fR and \fBpackage.json\fR.
+.P
+When compiling \fBreadme.md\fR, \fBremark\fR(1) would use \fBbullet: \[dq]-\[dq]\fR, because \fB.remarkrc\fR takes precedence over \fBpackage.json\fR.
+.SH "BUGS"
+.P
+\fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]remark\[sl]issues\(ra\fR
+.SH "SEE ALSO"
+.P
+\fBremark\fR(1), \fBremarkignore\fR(5), \fBremarksetting\fR(7)

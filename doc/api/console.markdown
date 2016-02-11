@@ -31,6 +31,7 @@ console.warn(`Danger ${name}! Danger!`);
 Example using the `Console` class:
 
 ```js
+/* eslint no-undef:0 */
 const out = getStreamSomehow();
 const err = getStreamSomehow();
 const myConsole = new console.Console(out, err);
@@ -67,7 +68,9 @@ output streams and can be accessed using either `require('console').Console`
 or `console.Console`:
 
 ```js
+/* eslint no-unused-vars:0 */
 const Console = require('console').Console;
+/* eslint no-redeclare:0 */
 const Console = console.Console;
 ```
 
@@ -79,6 +82,8 @@ is used for warning or error output. If `stderr` isn't passed, the warning
 and error output will be sent to the `stdout`.
 
 ```js
+const fs = require('fs');
+const Console = require('console').Console;
 const output = fs.createWriteStream('./stdout.log');
 const errorOutput = fs.createWriteStream('./stderr.log');
 // custom simple logger
@@ -93,6 +98,8 @@ The global `console` is a special `Console` whose output is sent to
 `process.stdout` and `process.stderr`. It is equivalent to calling:
 
 ```js
+/* eslint no-unused-vars:0 */
+const Console = require('console').Console;
 new Console(process.stdout, process.stderr);
 ```
 
@@ -184,7 +191,7 @@ prints the result to stdout:
 ```js
 console.time('100-elements');
 for (var i = 0; i < 100; i++) {
-  ;
+  // Do Nothing
 }
 console.timeEnd('100-elements');
 // prints 100-elements: 225.438ms

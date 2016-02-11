@@ -318,7 +318,7 @@ Once compiled, the example Addon can be required and used from within Node.js:
 // test.js
 const addon = require('./build/Release/addon');
 
-console.log('This should be eight:', addon.add(3,5));
+console.log('This should be eight:', addon.add(3, 5));
 ```
 
 
@@ -423,7 +423,7 @@ const addon = require('./build/Release/addon');
 
 var obj1 = addon('hello');
 var obj2 = addon('world');
-console.log(obj1.msg+' '+obj2.msg); // 'hello world'
+console.log(obj1.msg + ' ' + obj2.msg); // 'hello world'
 ```
 
 
@@ -638,9 +638,9 @@ Test it with:
 const addon = require('./build/Release/addon');
 
 var obj = new addon.MyObject(10);
-console.log( obj.plusOne() ); // 11
-console.log( obj.plusOne() ); // 12
-console.log( obj.plusOne() ); // 13
+console.log(obj.plusOne()); // 11
+console.log(obj.plusOne()); // 12
+console.log(obj.plusOne()); // 13
 ```
 
 ### Factory of wrapped objects
@@ -649,6 +649,7 @@ Alternatively, it is possible to use a factory pattern to avoid explicitly
 creating object instances using the JavaScript `new` operator:
 
 ```js
+/* eslint no-unused-vars:0, no-undef:0 */
 var obj = addon.createObject();
 // instead of:
 // var obj = new addon.Object();
@@ -824,14 +825,14 @@ Test it with:
 const createObject = require('./build/Release/addon');
 
 var obj = createObject(10);
-console.log( obj.plusOne() ); // 11
-console.log( obj.plusOne() ); // 12
-console.log( obj.plusOne() ); // 13
+console.log(obj.plusOne()); // 11
+console.log(obj.plusOne()); // 12
+console.log(obj.plusOne()); // 13
 
 var obj2 = createObject(20);
-console.log( obj2.plusOne() ); // 21
-console.log( obj2.plusOne() ); // 22
-console.log( obj2.plusOne() ); // 23
+console.log(obj2.plusOne()); // 21
+console.log(obj2.plusOne()); // 22
+console.log(obj2.plusOne()); // 23
 ```
 
 
@@ -1075,6 +1076,7 @@ Test in JavaScript by running:
 
 ```js
 // test.js
+/* eslint no-unused-vars:0 */
 const addon = require('./build/Release/addon');
 ```
 

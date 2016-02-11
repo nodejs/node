@@ -1,0 +1,1542 @@
+.TH "REMARKSETTING" "7" "January 2016" "3.2.2" "remark manual"
+.SH "NAME"
+\fBremarksetting\fR - remark settings
+.SH "SYNOPSIS"
+.P
+\fBremark\fR(1), \fBremark\fR(3), \fBremarkrc\fR(5)
+.SH "DESCRIPTION"
+.P
+This page contains information and usage examples regarding available options for \fBremark\fR(3)\[cq]s \fBparse()\fR and \fBstringify()\fR.
+.SH "TABLE OF CONTENTS"
+.RS 0
+.IP \(bu 4
+\fBParse\fR \fI(Parse)\fR
+.RS 4
+.IP \(bu 4
+\fBBreaks\fR \fI(Breaks)\fR
+.IP \(bu 4
+\fBCommonMark\fR \fI(CommonMark)\fR
+.IP \(bu 4
+\fBFootnotes\fR \fI(Footnotes)\fR
+.IP \(bu 4
+\fBGitHub Flavoured Markdown\fR \fI(GitHub Flavoured Markdown)\fR
+.IP \(bu 4
+\fBPedantic\fR \fI(Pedantic)\fR
+.IP \(bu 4
+\fBPosition\fR \fI(Position)\fR
+.IP \(bu 4
+\fBYAML\fR \fI(YAML)\fR
+.RE 0
+
+.IP \(bu 4
+\fBStringify\fR \fI(Stringify)\fR
+.RS 4
+.IP \(bu 4
+\fBList Item Bullets\fR \fI(List Item Bullets)\fR
+.IP \(bu 4
+\fBClosed ATX Headings\fR \fI(Closed ATX Headings)\fR
+.IP \(bu 4
+\fBEmphasis Markers\fR \fI(Emphasis Markers)\fR
+.IP \(bu 4
+\fBEncoding Entities\fR \fI(Encoding Entities)\fR
+.IP \(bu 4
+\fBFence\fR \fI(Fence)\fR
+.IP \(bu 4
+\fBFences\fR \fI(Fences)\fR
+.IP \(bu 4
+\fBList Item Indent\fR \fI(List Item Indent)\fR
+.IP \(bu 4
+\fBLoose Tables\fR \fI(Loose Tables)\fR
+.IP \(bu 4
+\fBList Marker Increase\fR \fI(List Marker Increase)\fR
+.IP \(bu 4
+\fBHorizontal Rules\fR \fI(Horizontal Rules)\fR
+.IP \(bu 4
+\fBSetext Headings\fR \fI(Setext Headings)\fR
+.IP \(bu 4
+\fBSpaced Tables\fR \fI(Spaced Tables)\fR
+.RE 0
+
+.RE 0
+
+.SH "PARSE"
+.SS "Breaks"
+.P
+Setting \fBbreaks: true\fR (default: \fBfalse\fR) exposes new line characters inside Paragraphs as Breaks.
+.P
+The following document:
+.P
+.RS 2
+.nf
+A
+paragraph.
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document, \[lC]
+  \[dq]breaks\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]type\[dq]: \[dq]root\[dq],
+  \[dq]children\[dq]: \[lB]
+    \[lC]
+      \[dq]type\[dq]: \[dq]paragraph\[dq],
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]A\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 2
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]break\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 2
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 2,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]indent\[dq]: \[lB]
+              1
+            \[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]paragraph.\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 2,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 2,
+              \[dq]column\[dq]: 11
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC]
+      \[rB],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 2,
+          \[dq]column\[dq]: 11
+        \[rC],
+        \[dq]indent\[dq]: \[lB]
+          1
+        \[rB]
+      \[rC]
+    \[rC]
+  \[rB],
+  \[dq]position\[dq]: \[lC]
+    \[dq]start\[dq]: \[lC]
+      \[dq]line\[dq]: 1,
+      \[dq]column\[dq]: 1
+    \[rC],
+    \[dq]end\[dq]: \[lC]
+      \[dq]line\[dq]: 3,
+      \[dq]column\[dq]: 1
+    \[rC]
+  \[rC]
+\[rC]
+.fi
+.RE
+.SS "CommonMark"
+.P
+Setting \fBcommonmark: true\fR (default: \fBfalse\fR) allows and disallows several constructs.
+.P
+The following constructs are allowed:
+.RS 0
+.IP \(bu 4
+Empty lines to split \fBBlockquotes\fR;
+.IP \(bu 4
+Parentheses (\fB(\fR and \fB)\fR) as delimiters for \fBLink\fR and \fBImage\fR titles;
+.IP \(bu 4
+Any escaped \fBASCII-punctuation\fR \fI\(lahttp:\[sl]\[sl]spec.commonmark.org\[sl]0.18\[sl]\[sh]backslash-escapes\(ra\fR character;
+.IP \(bu 4
+Ordered list-items with a closing parenthesis (\fB)\fR);
+.IP \(bu 4
+Link (and footnote, when enabled) reference definitions in blockquotes;
+.RE 0
+
+.P
+The following constructs are not allowed:
+.RS 0
+.IP \(bu 4
+\fBCode\fR directly following a \fBParagraph\fR;
+.IP \(bu 4
+ATX-headings (\fB\[sh] Hash headings\fR) without spacing after initial hashes or and before closing hashes;
+.IP \(bu 4
+Setext headings (\fBUnderline headings\[rs]n---\fR) when following a paragraph;
+.IP \(bu 4
+Newlines in \fBLink\fR and \fBImage\fR titles;
+.IP \(bu 4
+White space in \fBLink\fR and \fBImage\fR URLs in auto-links (links in brackets, \fB<\fR and \fB>\fR);
+.IP \(bu 4
+Lazy \fBBlockquote\fR continuation\[em]lines not preceded by a closing angle bracket (\fB>\fR)\[em]for \fBList\fRs, \fBCode\fR, and \fBHorizontalRule\fR.
+.RE 0
+
+.P
+The following document:
+.P
+.RS 2
+.nf
+This is a paragraph
+    and this is also part of the preceding paragraph.
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document, \[lC]
+  \[dq]commonmark\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]type\[dq]: \[dq]root\[dq],
+  \[dq]children\[dq]: \[lB]
+    \[lC]
+      \[dq]type\[dq]: \[dq]paragraph\[dq],
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]This is a paragraph\[rs]n    and this is also part of the preceding paragraph.\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 2,
+              \[dq]column\[dq]: 54
+            \[rC],
+            \[dq]indent\[dq]: \[lB]
+              1
+            \[rB]
+          \[rC]
+        \[rC]
+      \[rB],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 2,
+          \[dq]column\[dq]: 54
+        \[rC],
+        \[dq]indent\[dq]: \[lB]
+          1
+        \[rB]
+      \[rC]
+    \[rC]
+  \[rB],
+  \[dq]position\[dq]: \[lC]
+    \[dq]start\[dq]: \[lC]
+      \[dq]line\[dq]: 1,
+      \[dq]column\[dq]: 1
+    \[rC],
+    \[dq]end\[dq]: \[lC]
+      \[dq]line\[dq]: 3,
+      \[dq]column\[dq]: 1
+    \[rC]
+  \[rC]
+\[rC]
+.fi
+.RE
+.SS "Footnotes"
+.P
+Setting \fBfootnotes: true\fR (default: \fBfalse\fR) enables inline and reference footnotes.
+.P
+Footnotes are wrapped in square brackets, and preceded by a caret (\fB\[ha]\fR).
+.P
+It is possible to reference other footnotes inside footnotes.
+.P
+The following document:
+.P
+.RS 2
+.nf
+Something something\[lB]\[ha]or something?\[rB].
+
+And something else\[lB]\[ha]1\[rB].
+
+\[lB]\[ha]1\[rB]: This reference style footnote can contains paragraphs.
+
+   - and lists
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document, \[lC]
+  \[dq]footnotes\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]type\[dq]: \[dq]root\[dq],
+  \[dq]children\[dq]: \[lB]
+    \[lC]
+      \[dq]type\[dq]: \[dq]paragraph\[dq],
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]Something something\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 20
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]footnote\[dq],
+          \[dq]children\[dq]: \[lB]
+            \[lC]
+              \[dq]type\[dq]: \[dq]text\[dq],
+              \[dq]value\[dq]: \[dq]or something?\[dq],
+              \[dq]position\[dq]: \[lC]
+                \[dq]start\[dq]: \[lC]
+                  \[dq]line\[dq]: 1,
+                  \[dq]column\[dq]: 36
+                \[rC],
+                \[dq]end\[dq]: \[lC]
+                  \[dq]line\[dq]: 1,
+                  \[dq]column\[dq]: 49
+                \[rC],
+                \[dq]indent\[dq]: \[lB]\[rB]
+              \[rC]
+            \[rC]
+          \[rB],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 20
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 36
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq].\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 36
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 37
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC]
+      \[rB],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 37
+        \[rC],
+        \[dq]indent\[dq]: \[lB]\[rB]
+      \[rC]
+    \[rC],
+    \[lC]
+      \[dq]type\[dq]: \[dq]paragraph\[dq],
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]And something else\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 3,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 3,
+              \[dq]column\[dq]: 19
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]footnoteReference\[dq],
+          \[dq]identifier\[dq]: \[dq]1\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 3,
+              \[dq]column\[dq]: 19
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 3,
+              \[dq]column\[dq]: 23
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq].\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 3,
+              \[dq]column\[dq]: 23
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 3,
+              \[dq]column\[dq]: 24
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC]
+      \[rB],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 3,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 3,
+          \[dq]column\[dq]: 24
+        \[rC],
+        \[dq]indent\[dq]: \[lB]\[rB]
+      \[rC]
+    \[rC],
+    \[lC]
+      \[dq]type\[dq]: \[dq]footnoteDefinition\[dq],
+      \[dq]identifier\[dq]: \[dq]1\[dq],
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]paragraph\[dq],
+          \[dq]children\[dq]: \[lB]
+            \[lC]
+              \[dq]type\[dq]: \[dq]text\[dq],
+              \[dq]value\[dq]: \[dq]This reference style footnote can contains paragraphs.\[dq],
+              \[dq]position\[dq]: \[lC]
+                \[dq]start\[dq]: \[lC]
+                  \[dq]line\[dq]: 5,
+                  \[dq]column\[dq]: 7
+                \[rC],
+                \[dq]end\[dq]: \[lC]
+                  \[dq]line\[dq]: 5,
+                  \[dq]column\[dq]: 61
+                \[rC],
+                \[dq]indent\[dq]: \[lB]\[rB]
+              \[rC]
+            \[rC]
+          \[rB],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 5,
+              \[dq]column\[dq]: 7
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 5,
+              \[dq]column\[dq]: 61
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]list\[dq],
+          \[dq]ordered\[dq]: false,
+          \[dq]start\[dq]: null,
+          \[dq]loose\[dq]: false,
+          \[dq]children\[dq]: \[lB]
+            \[lC]
+              \[dq]type\[dq]: \[dq]listItem\[dq],
+              \[dq]loose\[dq]: false,
+              \[dq]checked\[dq]: null,
+              \[dq]children\[dq]: \[lB]
+                \[lC]
+                  \[dq]type\[dq]: \[dq]paragraph\[dq],
+                  \[dq]children\[dq]: \[lB]
+                    \[lC]
+                      \[dq]type\[dq]: \[dq]text\[dq],
+                      \[dq]value\[dq]: \[dq]and lists\[dq],
+                      \[dq]position\[dq]: \[lC]
+                        \[dq]start\[dq]: \[lC]
+                          \[dq]line\[dq]: 7,
+                          \[dq]column\[dq]: 6
+                        \[rC],
+                        \[dq]end\[dq]: \[lC]
+                          \[dq]line\[dq]: 7,
+                          \[dq]column\[dq]: 15
+                        \[rC],
+                        \[dq]indent\[dq]: \[lB]\[rB]
+                      \[rC]
+                    \[rC]
+                  \[rB],
+                  \[dq]position\[dq]: \[lC]
+                    \[dq]start\[dq]: \[lC]
+                      \[dq]line\[dq]: 7,
+                      \[dq]column\[dq]: 6
+                    \[rC],
+                    \[dq]end\[dq]: \[lC]
+                      \[dq]line\[dq]: 7,
+                      \[dq]column\[dq]: 15
+                    \[rC],
+                    \[dq]indent\[dq]: \[lB]\[rB]
+                  \[rC]
+                \[rC]
+              \[rB],
+              \[dq]position\[dq]: \[lC]
+                \[dq]start\[dq]: \[lC]
+                  \[dq]line\[dq]: 7,
+                  \[dq]column\[dq]: 1
+                \[rC],
+                \[dq]end\[dq]: \[lC]
+                  \[dq]line\[dq]: 7,
+                  \[dq]column\[dq]: 15
+                \[rC],
+                \[dq]indent\[dq]: \[lB]\[rB]
+              \[rC]
+            \[rC]
+          \[rB],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 7,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 7,
+              \[dq]column\[dq]: 15
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC]
+      \[rB],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 5,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 7,
+          \[dq]column\[dq]: 15
+        \[rC],
+        \[dq]indent\[dq]: \[lB]
+          1,
+          1
+        \[rB]
+      \[rC]
+    \[rC]
+  \[rB],
+  \[dq]position\[dq]: \[lC]
+    \[dq]start\[dq]: \[lC]
+      \[dq]line\[dq]: 1,
+      \[dq]column\[dq]: 1
+    \[rC],
+    \[dq]end\[dq]: \[lC]
+      \[dq]line\[dq]: 8,
+      \[dq]column\[dq]: 1
+    \[rC]
+  \[rC]
+\[rC]
+.fi
+.RE
+.SS "GitHub Flavoured Markdown"
+.P
+Setting \fBgfm: true\fR (default: \fBtrue\fR) enables:
+.RS 0
+.IP \(bu 4
+\fBFenced code blocks\fR \fI\(lahttps:\[sl]\[sl]help.github.com\[sl]articles\[sl]github-flavored-markdown\[sl]\[sh]fenced-code-blocks\(ra\fR;
+.IP \(bu 4
+\fBAutolinking of URLs\fR \fI\(lahttps:\[sl]\[sl]help.github.com\[sl]articles\[sl]github-flavored-markdown\[sl]\[sh]url-autolinking\(ra\fR;
+.IP \(bu 4
+\fBDeletions (strikethrough)\fR \fI\(lahttps:\[sl]\[sl]help.github.com\[sl]articles\[sl]github-flavored-markdown\[sl]\[sh]strikethrough\(ra\fR;
+.IP \(bu 4
+\fBTask lists\fR \fI\(lahttps:\[sl]\[sl]help.github.com\[sl]articles\[sl]writing-on-github\[sl]\[sh]task-lists\(ra\fR;
+.IP \(bu 4
+\fBTables\fR \fI\(lahttps:\[sl]\[sl]help.github.com\[sl]articles\[sl]github-flavored-markdown\[sl]\[sh]tables\(ra\fR.
+.RE 0
+
+.P
+The following document:
+.P
+.RS 2
+.nf
+hello \[ti]\[ti]hi\[ti]\[ti] world
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document, \[lC]
+  \[dq]gfm\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]type\[dq]: \[dq]root\[dq],
+  \[dq]children\[dq]: \[lB]
+    \[lC]
+      \[dq]type\[dq]: \[dq]paragraph\[dq],
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]hello \[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 7
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]delete\[dq],
+          \[dq]children\[dq]: \[lB]
+            \[lC]
+              \[dq]type\[dq]: \[dq]text\[dq],
+              \[dq]value\[dq]: \[dq]hi\[dq],
+              \[dq]position\[dq]: \[lC]
+                \[dq]start\[dq]: \[lC]
+                  \[dq]line\[dq]: 1,
+                  \[dq]column\[dq]: 9
+                \[rC],
+                \[dq]end\[dq]: \[lC]
+                  \[dq]line\[dq]: 1,
+                  \[dq]column\[dq]: 11
+                \[rC],
+                \[dq]indent\[dq]: \[lB]\[rB]
+              \[rC]
+            \[rC]
+          \[rB],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 7
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 13
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq] world\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 13
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 19
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC]
+      \[rB],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 19
+        \[rC],
+        \[dq]indent\[dq]: \[lB]\[rB]
+      \[rC]
+    \[rC]
+  \[rB],
+  \[dq]position\[dq]: \[lC]
+    \[dq]start\[dq]: \[lC]
+      \[dq]line\[dq]: 1,
+      \[dq]column\[dq]: 1
+    \[rC],
+    \[dq]end\[dq]: \[lC]
+      \[dq]line\[dq]: 2,
+      \[dq]column\[dq]: 1
+    \[rC]
+  \[rC]
+\[rC]
+.fi
+.RE
+.SS "Pedantic"
+.P
+Setting \fBpedantic: true\fR (default: \fBfalse\fR):
+.RS 0
+.IP \(bu 4
+Adds support for emphasis and strongness, with underscores (\fB\[ul]\fR), inside words;
+.IP \(bu 4
+Adds support for different list bullets (\fB*\fR, \fB-\fR, \fB\[pl]\fR) for the same list (when in \fBcommonmark: true\fR mode, the same goes for both ordered list delimiters: \fB.\fR and \fB)\fR);
+.IP \(bu 4
+Removes less spaces in list-items (a maximum of four instead of the whole indent).
+.RE 0
+
+.P
+The following document:
+.P
+.RS 2
+.nf
+Check out some\[ul]file\[ul]name.txt
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document, \[lC]
+  \[dq]pedantic\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]type\[dq]: \[dq]root\[dq],
+  \[dq]children\[dq]: \[lB]
+    \[lC]
+      \[dq]type\[dq]: \[dq]paragraph\[dq],
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]Check out some\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 1
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 15
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]emphasis\[dq],
+          \[dq]children\[dq]: \[lB]
+            \[lC]
+              \[dq]type\[dq]: \[dq]text\[dq],
+              \[dq]value\[dq]: \[dq]file\[dq],
+              \[dq]position\[dq]: \[lC]
+                \[dq]start\[dq]: \[lC]
+                  \[dq]line\[dq]: 1,
+                  \[dq]column\[dq]: 16
+                \[rC],
+                \[dq]end\[dq]: \[lC]
+                  \[dq]line\[dq]: 1,
+                  \[dq]column\[dq]: 20
+                \[rC],
+                \[dq]indent\[dq]: \[lB]\[rB]
+              \[rC]
+            \[rC]
+          \[rB],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 15
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 21
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]name.txt\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 21
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 1,
+              \[dq]column\[dq]: 29
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC]
+      \[rB],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 29
+        \[rC],
+        \[dq]indent\[dq]: \[lB]\[rB]
+      \[rC]
+    \[rC]
+  \[rB],
+  \[dq]position\[dq]: \[lC]
+    \[dq]start\[dq]: \[lC]
+      \[dq]line\[dq]: 1,
+      \[dq]column\[dq]: 1
+    \[rC],
+    \[dq]end\[dq]: \[lC]
+      \[dq]line\[dq]: 2,
+      \[dq]column\[dq]: 1
+    \[rC]
+  \[rC]
+\[rC]
+.fi
+.RE
+.SS "Position"
+.P
+Setting \fBposition: false\fR (default: \fBtrue\fR) disables positions on nodes. Positions show where each node was originally located in the document.
+.RS 0
+.P
+\fBCareful! Disabling this will stop some plug-ins from working and will no longer show line\[sl]column information in warnings!\fR
+.RE 0
+
+.P
+The following document:
+.P
+.RS 2
+.nf
+Hello **world**!
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document, \[lC]
+  \[dq]position\[dq]: false
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]type\[dq]: \[dq]root\[dq],
+  \[dq]children\[dq]: \[lB]
+    \[lC]
+      \[dq]type\[dq]: \[dq]paragraph\[dq],
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]Hello \[dq]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]strong\[dq],
+          \[dq]children\[dq]: \[lB]
+            \[lC]
+              \[dq]type\[dq]: \[dq]text\[dq],
+              \[dq]value\[dq]: \[dq]world\[dq]
+            \[rC]
+          \[rB]
+        \[rC],
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]!\[dq]
+        \[rC]
+      \[rB]
+    \[rC]
+  \[rB]
+\[rC]
+.fi
+.RE
+.SS "YAML"
+.P
+Setting \fByaml: true\fR (default: \fBtrue\fR) enables raw YAML front matter to be detected (thus ignoring markdown-like syntax).
+.P
+The following document:
+.P
+.RS 2
+.nf
+---
+title: YAML is Cool
+---
+
+\[sh] YAML is Cool
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document, \[lC]
+  \[dq]yaml\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[lC]
+  \[dq]type\[dq]: \[dq]root\[dq],
+  \[dq]children\[dq]: \[lB]
+    \[lC]
+      \[dq]type\[dq]: \[dq]yaml\[dq],
+      \[dq]value\[dq]: \[dq]title: YAML is Cool\[dq],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 1,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 3,
+          \[dq]column\[dq]: 4
+        \[rC],
+        \[dq]indent\[dq]: \[lB]
+          1,
+          1
+        \[rB]
+      \[rC]
+    \[rC],
+    \[lC]
+      \[dq]type\[dq]: \[dq]heading\[dq],
+      \[dq]depth\[dq]: 1,
+      \[dq]children\[dq]: \[lB]
+        \[lC]
+          \[dq]type\[dq]: \[dq]text\[dq],
+          \[dq]value\[dq]: \[dq]YAML is Cool\[dq],
+          \[dq]position\[dq]: \[lC]
+            \[dq]start\[dq]: \[lC]
+              \[dq]line\[dq]: 5,
+              \[dq]column\[dq]: 3
+            \[rC],
+            \[dq]end\[dq]: \[lC]
+              \[dq]line\[dq]: 5,
+              \[dq]column\[dq]: 15
+            \[rC],
+            \[dq]indent\[dq]: \[lB]\[rB]
+          \[rC]
+        \[rC]
+      \[rB],
+      \[dq]position\[dq]: \[lC]
+        \[dq]start\[dq]: \[lC]
+          \[dq]line\[dq]: 5,
+          \[dq]column\[dq]: 1
+        \[rC],
+        \[dq]end\[dq]: \[lC]
+          \[dq]line\[dq]: 5,
+          \[dq]column\[dq]: 15
+        \[rC],
+        \[dq]indent\[dq]: \[lB]\[rB]
+      \[rC]
+    \[rC]
+  \[rB],
+  \[dq]position\[dq]: \[lC]
+    \[dq]start\[dq]: \[lC]
+      \[dq]line\[dq]: 1,
+      \[dq]column\[dq]: 1
+    \[rC],
+    \[dq]end\[dq]: \[lC]
+      \[dq]line\[dq]: 6,
+      \[dq]column\[dq]: 1
+    \[rC]
+  \[rC]
+\[rC]
+.fi
+.RE
+.SH "STRINGIFY"
+.SS "List Item Bullets"
+.P
+Setting \fBbullet: string\fR (\fB\[dq]-\[dq]\fR, \fB\[dq]*\[dq]\fR, or \fB\[dq]\[pl]\[dq]\fR, default: \fB\[dq]-\[dq]\fR) will stringify list items in unordered lists using the provided character as bullets.
+.P
+The following document:
+.P
+.RS 2
+.nf
+- First level
+
+  - Second level
+
+    - Third level
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]bullet\[dq]: \[dq]*\[dq]
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+*   First level
+
+    *   Second level
+
+        *   Third level
+.fi
+.RE
+.SS "Closed ATX Headings"
+.P
+Setting \fBcloseAtx: true\fR (default: \fBfalse\fR) will stringify ATX headings with additional hash-marks after the heading.
+.P
+The following document:
+.P
+.RS 2
+.nf
+\[sh] First level
+
+\[sh]\[sh] Second level
+
+\[sh]\[sh]\[sh] Third level
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]closeAtx\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[sh] First level \[sh]
+
+\[sh]\[sh] Second level \[sh]\[sh]
+
+\[sh]\[sh]\[sh] Third level \[sh]\[sh]\[sh]
+.fi
+.RE
+.SS "Emphasis Markers"
+.P
+Two options are provided to customise how slight- and strong emphasis are compiled:
+.RS 0
+.IP \(bu 4
+\fBemphasis: string\fR (\fB\[dq]\[ul]\[dq]\fR or \fB\[dq]*\[dq]\fR, default: \fB\[dq]\[ul]\[dq]\fR) will wrap slight emphasis in the provided character;
+.IP \(bu 4
+\fBstrong: string\fR (\fB\[dq]\[ul]\[dq]\fR or \fB\[dq]*\[dq]\fR, default: \fB\[dq]*\[dq]\fR) will wrap strong emphasis with the provided character (twice).
+.RE 0
+
+.P
+The following document:
+.P
+.RS 2
+.nf
+*emphasis*
+
+\[ul]\[ul]strong\[ul]\[ul]
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]emphasis\[dq]: \[dq]\[ul]\[dq],
+  \[dq]strong\[dq]: \[dq]*\[dq]
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[ul]emphasis\[ul]
+
+**strong**
+.fi
+.RE
+.SS "Encoding Entities"
+.P
+Setting \fBentities: true\fR (default: \fBfalse\fR) will \fBencode\fR \fI\(lahttps:\[sl]\[sl]github.com\[sl]mathiasbynens\[sl]he\[sh]heencodetext-options\(ra\fR any symbols that are not printable ASCII symbols and special HTML characters (\fB&\fR, \fB<\fR, \fB>\fR, \fB\[dq]\fR, \fB\[aq]\fR, and \fB\[ga]\fR).
+.P
+When \fBtrue\fR, named entities are generated (\fB&\fR > \fB&amp;\fR); when \fB\[dq]numbers\[dq]\fR, numbered entities are generated (\fB&\fR > \fB&\[sh]x26;\fR); when \fB\[dq]escape\[dq]\fR, only special HTML characters are encoded (\fB&\fR > \fB&amp;\fR, but \fBö\fR remains \fBö\fR).
+.P
+Although markdown does not need to encode HTML entities, they can be useful to ensure an ASCII document.
+.P
+The following document:
+.P
+.RS 2
+.nf
+AT&T, \[lB]AT&T\[rB](http:\[sl]\[sl]at&t.com \[dq]AT&T\[dq]), !\[lB]AT&T\[rB](http:\[sl]\[sl]at&t.com\[sl]fav.ico \[dq]AT&T\[dq])
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]entities\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+AT&amp;T, \[lB]AT&amp;T\[rB](http:\[sl]\[sl]at&amp;t.com \[dq]AT&amp;T\[dq]), !\[lB]AT&amp;T\[rB](http:\[sl]\[sl]at&amp;t.com\[sl]fav.ico \[dq]AT&amp;T\[dq])
+.fi
+.RE
+.SS "Fence"
+.P
+It\[aq]s possible to customise how GFM code fences are compiled:
+.RS 0
+.IP \(bu 4
+\fBfence: string\fR (\fB\[dq]\[ti]\[dq]\fR or \fB\[dq]\[ga]\[dq]\fR, default: \fB\[dq]\[ga]\[dq]\fR) will wrap code blocks in the provided character.
+.RE 0
+
+.P
+To render all code blocks with fences (the default behaviour is to only use non-standard fences when a language-flag is present), use \fBfences: true\fR.
+.P
+The following document:
+.P
+.RS 2
+.nf
+    \[ga]\[ga]\[ga]javascript
+    alert(\[aq]Hello World!\[aq]);
+    \[ga]\[ga]\[ga]
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]fence\[dq]: \[dq]\[ti]\[dq]
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+    \[ti]\[ti]\[ti]javascript
+    alert(\[aq]Hello World!\[aq]);
+    \[ti]\[ti]\[ti]
+.fi
+.RE
+.SS "Fences"
+.P
+Setting \fBfences: true\fR (default: \fBfalse\fR) will stringify code blocks without programming-language flags using heredoc-style fences.
+.P
+To use different fence markers, use \fBfence: string\fR.
+.P
+The following document:
+.P
+.RS 2
+.nf
+A code block:
+
+    alert(\[aq]Hello World!\[aq]);
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]fences\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+    A code block:
+
+    \[ga]\[ga]\[ga]
+    alert(\[aq]Hello World!\[aq]);
+    \[ga]\[ga]\[ga]
+.fi
+.RE
+.SS "List Item Indent"
+.P
+Setting \fBlistItemIndent: \[dq]1\[dq]\fR (\fB\[dq]tab\[dq]\fR, \fB\[dq]mixed\[dq]\fR, or \fB\[dq]1\[dq]\fR, default: \fB\[dq]tab\[dq]\fR) will stringify list items with a single space following the bullet.
+.P
+The default, \fB\[dq]tab\[dq]\fR, will compile to bullets and spacing set to tab-stops (multiples of 4).
+.P
+The other value, \fB\[dq]mixed\[dq]\fR, uses \fB\[dq]tab\[dq]\fR when the list item spans multiple lines, and \fB\[dq]1\[dq]\fR otherwise.
+.RS 0
+.P
+\fBNote\fR: choosing \fB\[dq]tab\[dq]\fR results in the greatest support across vendors when mixing lists, block quotes, indented code, etcetera.
+.RE 0
+
+.P
+The following document:
+.P
+.RS 2
+.nf
+1. foo bar baz.
+
+<!--  -->
+
+99. foo bar baz.
+
+<!--  -->
+
+999. foo bar baz.
+
+<!--  -->
+
+1. foo bar baz.
+   foo bar baz.
+
+<!--  -->
+
+99. foo bar baz.
+    foo bar baz.
+
+<!--  -->
+
+999. foo bar baz.
+     foo bar baz.
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]listItemIndent\[dq]: \[dq]mixed\[dq]
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+1. foo bar baz.
+
+<!--  -->
+
+99. foo bar baz.
+
+<!--  -->
+
+999. foo bar baz.
+
+<!--  -->
+
+1.  foo bar baz.
+    foo bar baz.
+
+<!--  -->
+
+99. foo bar baz.
+    foo bar baz.
+
+<!--  -->
+
+999.    foo bar baz.
+        foo bar baz.
+.fi
+.RE
+.SS "Loose Tables"
+.P
+Setting \fBlooseTable: true\fR (default: \fBfalse\fR) will stringify GFM tables with neither starting nor ending pipes.
+.P
+The following document:
+.P
+.RS 2
+.nf
+\[ba] Hello \[ba] World  \[ba]
+\[ba] :---- \[ba] -----: \[ba]
+\[ba] How   \[ba]    are \[ba]
+\[ba] you   \[ba] today? \[ba]
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]looseTable\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+Hello \[ba]  World
+:---- \[ba] -----:
+How   \[ba]    are
+you   \[ba] today?
+.fi
+.RE
+.SS "List Marker Increase"
+.P
+Setting \fBincrementListMarker: false\fR (default: \fBtrue\fR) will stringify ordered list items based on the first item\[cq]s marker and will not increment further list items.
+.P
+The following document:
+.P
+.RS 2
+.nf
+1.  Alpha;
+2.  Bravo;
+3.  Charley.
+
+
+3.  Delta;
+4.  Echo;
+5.  Foxtrott.
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]incrementListMarker\[dq]: false
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+1.  Alpha;
+1.  Bravo;
+1.  Charley.
+
+
+3.  Delta;
+3.  Echo;
+3.  Foxtrott.
+.fi
+.RE
+.SS "Horizontal Rules"
+.P
+Three options are provided to customise how horizontal rules will be compiled:
+.RS 0
+.IP \(bu 4
+\fBrule: string\fR (\fB\[dq]-\[dq]\fR, \fB\[dq]*\[dq]\fR, or \fB\[dq]\[ul]\[dq]\fR, default: \fB\[dq]*\[dq]\fR) will stringify horizontal rules using the provided character as its bullets;
+.IP \(bu 4
+\fBruleSpaces: true\fR (default: \fBfalse\fR) will stringify horizontal rules using spaces;
+.IP \(bu 4
+\fBruleRepetition: number\fR (default: \fB3\fR) will stringify horizontal rules with the provided amount of repetitions.
+.RE 0
+
+.P
+The following document:
+.P
+.RS 2
+.nf
+A rule:
+
+---
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]rule\[dq]: \[dq]*\[dq],
+  \[dq]ruleRepetition\[dq]: 40,
+  \[dq]ruleSpaces\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+A rule:
+
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+.fi
+.RE
+.SS "Setext Headings"
+.P
+Setting \fBsetext: true\fR (default: \fBfalse\fR) will stringify headings as \fBSetext\fR \fI\(lahttp:\[sl]\[sl]en.wikipedia.org\[sl]wiki\[sl]Setext\[sh]Setext\[ul]tags\(ra\fR (underlines) when possible.
+.P
+Respectively, primary headings are compiled with a row of equals-signs (\fB\[eq]\fR), and secondary headings with a row of dashes (\fB-\fR).
+.P
+The following document:
+.P
+.RS 2
+.nf
+\[sh] First level
+
+\[sh]\[sh] Second level
+
+\[sh]\[sh]\[sh] Third level
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]setext\[dq]: true
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+First level
+\[eq]\[eq]\[eq]\[eq]\[eq]\[eq]\[eq]\[eq]\[eq]\[eq]\[eq]
+
+Second level
+------------
+
+\[sh]\[sh]\[sh] Third level
+.fi
+.RE
+.SS "Spaced Tables"
+.P
+Setting \fBspacedTable: false\fR (default: \fBtrue\fR) will stringify GFM tables without spaces after starting pipes, before ending pipes, and surrounding delimiting pipes.
+.P
+The following document:
+.P
+.RS 2
+.nf
+\[ba] Hello \[ba] World  \[ba]
+\[ba] :---- \[ba] -----: \[ba]
+\[ba] How   \[ba]    are \[ba]
+\[ba] you   \[ba] today? \[ba]
+.fi
+.RE
+.P
+And the below JavaScript:
+.P
+.RS 2
+.nf
+var ast \[eq] remark.parse(document);
+
+remark.stringify(ast, \[lC]
+  \[dq]spacedTable\[dq]: false
+\[rC]);
+.fi
+.RE
+.P
+Yields:
+.P
+.RS 2
+.nf
+\[ba]Hello\[ba] World\[ba]
+\[ba]:----\[ba]-----:\[ba]
+\[ba]How  \[ba]   are\[ba]
+\[ba]you  \[ba]today?\[ba]
+.fi
+.RE

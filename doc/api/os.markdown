@@ -24,7 +24,7 @@ milliseconds the CPU/core spent in: user, nice, sys, idle, and irq).
 
 Example inspection of os.cpus:
 
-```js
+```
 [ { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
     times:
@@ -127,7 +127,7 @@ Windows.
 
 Get a list of network interfaces:
 
-```js
+```
 { lo:
    [ { address: '127.0.0.1',
        netmask: '255.0.0.0',

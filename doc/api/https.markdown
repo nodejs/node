@@ -192,6 +192,9 @@ In order to specify these options, use a custom [`Agent`][].
 Example:
 
 ```js
+const fs = require('fs');
+const https = require('https');
+
 var options = {
   hostname: 'encrypted.google.com',
   port: 443,
@@ -202,9 +205,10 @@ var options = {
 };
 options.agent = new https.Agent(options);
 
+/* eslint no-unused-vars:0 */
 var req = https.request(options, (res) => {
-  ...
-}
+  /* ... */
+});
 ```
 
 Alternatively, opt out of connection pooling by not using an `Agent`.
@@ -212,6 +216,9 @@ Alternatively, opt out of connection pooling by not using an `Agent`.
 Example:
 
 ```js
+const fs = require('fs');
+const https = require('https');
+
 var options = {
   hostname: 'encrypted.google.com',
   port: 443,
@@ -222,9 +229,10 @@ var options = {
   agent: false
 };
 
+/* eslint no-unused-vars:0 */
 var req = https.request(options, (res) => {
-  ...
-}
+  /* ... */
+});
 ```
 
 [`Agent`]: #https_class_https_agent

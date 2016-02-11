@@ -1,0 +1,58 @@
+.TH "REMARKCONFIG" "7" "January 2016" "3.2.2" "remark manual"
+.SH "NAME"
+\fBremarkconfig\fR - remark configuration
+.SH "SYNOPSIS"
+.P
+\fBremark\fR(1), \fBremark\fR(3), \fBremarkrc\fR(5)
+.SH "DESCRIPTION"
+.P
+\fBremark\fR is configured from multiple sources:
+.RS 0
+.IP \(bu 4
+\fBremark\fR(3) accepts configuration as a parameter to its \fBparse()\fR, \fBrun()\fR, and \fBstringify()\fR methods;
+.IP \(bu 4
+\fBremark\fR(1) accepts configuration as command line flags through \fB-s\fR, \fB--setting\fR \fIsettings\fR;
+.IP \(bu 4
+\fBremark\fR(1) additionally accepts configuration through a \fBsettings\fR key in \fBremarkrc\fR(5) configuration files;
+.IP \(bu 4
+Plug-ins can configure \fBremark\fR. For example, \fBremark-yaml-config\fR allows configuration to be set through YAML front-matter.
+.RE 0
+
+.P
+For a list of available configuration settings, see \fBremarksetting\fR(7).
+.SH "SETTINGS FOR \FBPROCESS\FR, \FBPARSE\FR, AND \FBSTRINGIFY\FR"
+.P
+To configure the programmatic interface of \fBremark\fR, pass an object as a second parameter to \fBprocess()\fR, \fBparse()\fR, and \fBstringify()\fR.
+.SH "COMMAND LINE SETTINGS"
+.P
+To configure the shell interface of \fBremark\fR, pass a string to the \fB--setting\fR (or \fB-s\fR) flag.
+.P
+Command line settings are just JSON, with two exceptions:
+.RS 0
+.IP \(bu 4
+Keys do not need to be escaped, thus, both \fB\[dq]foo\[dq]: \[dq]bar\[dq]\fR and \fBfoo: \[dq]bar\[dq]\fR are considered equal;
+.IP \(bu 4
+The surrounding braces must not be used: \fB\[dq]foo\[dq]: 1\fR, is first wrapped as \fB\[lC]\[dq]foo\[dq]: 1\[rC]\fR, and then passed to \fBJSON.parse\fR.
+.RE 0
+
+.P
+Valid examples are:
+.P
+.RS 2
+.nf
+remark --setting \[dq]foo:true\[dq] --setting \[dq]\[rs]\[dq]bar\[rs]\[dq]: \[rs]\[dq]baz\[rs]\[dq]\[dq]
+remark --setting \[dq]foo-bar:-2\[dq]
+remark --setting \[dq]foo: false, bar-baz: \[lB]\[rs]\[dq]qux\[rs]\[dq], 1\[rB]\[dq]
+.fi
+.RE
+.P
+Command Line Settings can be specified both in camel- and dash-case: \fBfoo-bar: true\fR and \fBfooBar: true\fR are treated equally.
+.SH "CONFIGURATION FILES"
+.P
+Specify directory specific settings with \fB.remarkrc\fR and \fBpackage.json\fR files. See \fBremarkrc\fR(5) for more information.
+.SH "BUGS"
+.P
+\fI\(lahttps:\[sl]\[sl]github.com\[sl]wooorm\[sl]remark\[sl]issues\(ra\fR
+.SH "SEE ALSO"
+.P
+\fBremark\fR(1), \fBremark\fR(3), \fBremarkignore\fR(5), \fBremarkrc\fR(5), \fBremarksetting\fR(7)
