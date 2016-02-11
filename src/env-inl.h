@@ -118,7 +118,7 @@ inline uint32_t Environment::DomainFlag::count() const {
   return fields_[kCount];
 }
 
-inline Environment::TickInfo::TickInfo() : in_tick_(false), last_threw_(false) {
+inline Environment::TickInfo::TickInfo() : in_tick_(false) {
   for (int i = 0; i < kFieldsCount; ++i)
     fields_[i] = 0;
 }
@@ -139,10 +139,6 @@ inline uint32_t Environment::TickInfo::index() const {
   return fields_[kIndex];
 }
 
-inline bool Environment::TickInfo::last_threw() const {
-  return last_threw_;
-}
-
 inline uint32_t Environment::TickInfo::length() const {
   return fields_[kLength];
 }
@@ -153,10 +149,6 @@ inline void Environment::TickInfo::set_in_tick(bool value) {
 
 inline void Environment::TickInfo::set_index(uint32_t value) {
   fields_[kIndex] = value;
-}
-
-inline void Environment::TickInfo::set_last_threw(bool value) {
-  last_threw_ = value;
 }
 
 inline Environment::ArrayBufferAllocatorInfo::ArrayBufferAllocatorInfo() {

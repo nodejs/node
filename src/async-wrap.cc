@@ -173,8 +173,8 @@ void LoadAsyncWrapperInfo(Environment* env) {
 
 
 Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
-                                      int argc,
-                                      Local<Value>* argv) {
+                                     int argc,
+                                     Local<Value>* argv) {
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
@@ -254,7 +254,6 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   env()->tick_callback_function()->Call(process, 0, nullptr);
 
   if (try_catch.HasCaught()) {
-    tick_info->set_last_threw(true);
     return Undefined(env()->isolate());
   }
 
