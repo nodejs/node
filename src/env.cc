@@ -74,12 +74,11 @@ bool Environment::KickNextTick(Environment::AsyncCallbackScope* scope) {
   }
 
   // process nextTicks after call
-  TryCatch try_catch;
+  TryCatch try_catch(isolate());
   try_catch.SetVerbose(true);
   tick_callback_function()->Call(process_object(), 0, nullptr);
 
   if (try_catch.HasCaught()) {
-    info->set_last_threw(true);
     return false;
   }
 
