@@ -18,7 +18,6 @@ const CNF_FIPS_ON = path.join(common.fixturesDir, 'openssl_fips_enabled.cnf');
 const CNF_FIPS_OFF = path.join(common.fixturesDir, 'openssl_fips_disabled.cnf');
 var num_children_spawned = 0;
 var num_children_ok = 0;
-const child_responses = {};
 
 function compiledWithFips() {
   return process.config.variables.openssl_fips ? true : false;
@@ -48,51 +47,52 @@ function testHelper(requiresFips, args, expectedOutput, cmd, env) {
       cmd + ' and args \'' + args + '\'');
   num_children_spawned++;
 
-  const response_handler = function(response, expectedOutput, expectedError) {
+  function response_handler(response, expectedOutput, expectedError) {
     // We won't always have data on both stdout and stderr.
-    if (undefined !== response) {
+    if (response.length > 0) {
       if (EXIT_FAILURE === expectedOutput) {
-        if(-1 === response.indexOf(expectedError))
-        assert.notEqual(-1, response.indexOf(expectedError));
+        if (-1 === response.indexOf(expectedError))
+          assert.notEqual(-1, response.indexOf(expectedError));
       } else {
         assert.equal(expectedOutput, response);
       }
       childOk(child);
     }
-  };
+  }
 
   // Buffer all data received from children on stderr/stdout.
-  const response_buffer = function(child, data) {
+  const buffer = { stderr: '', stdout: '' };
+  const response_buffer = function(stream, data) {
     // Prompt and newline may occur in undefined order.
     const response = data.toString().replace(/\n|>/g, '').trim();
     if (response.length > 0) {
-      child_responses[child] = response;
+      buffer[stream] += response;
     }
   };
 
   child.stdout.on('data', function(data) {
-    response_buffer(child.pid + '-stdout', data);
+    response_buffer('stdout', data);
   });
 
   child.stderr.on('data', function(data) {
-    response_buffer(child.pid + '-stderr', data);
+    response_buffer('stderr', data);
   });
 
   // If using FIPS mode binary, or running a generic test.
   if (compiledWithFips() || !requiresFips) {
     child.stdout.on('end', function(data) {
-      response_handler(child_responses[child.pid + '-stdout'],
+      response_handler(buffer['stdout'],
           expectedOutput, FIPS_ERROR_STRING);
     });
   } else {
     // If using a non-FIPS binary expect a failure.
     child.stdout.on('end', function() {
-      response_handler(child_responses[child.pid + '-stdout'],
+      response_handler(buffer['stdout'],
           EXIT_FAILURE, FIPS_ERROR_STRING);
     });
     /* Failure to start Node executable is reported on stderr */
     child.stderr.on('end', function() {
-      response_handler(child_responses[child.pid + '-stderr'],
+      response_handler(buffer['stderr'],
           EXIT_FAILURE, OPTION_ERROR_STRING);
     });
   }
