@@ -1154,33 +1154,28 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
-  TryCatch try_catch(env->isolate());
-  try_catch.SetVerbose(true);
-
   if (has_domain) {
     Local<Value> enter_v = domain->Get(env->enter_string());
     if (enter_v->IsFunction()) {
-        enter_v.As<Function>()->Call(domain, 0, nullptr);
-      if (try_catch.HasCaught())
-        return Undefined(env->isolate());
+      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::MakeCallback",
+                   "domain enter callback threw, please report this");
+      }
     }
   }
 
   if (ran_init_callback && !pre_fn.IsEmpty()) {
-    pre_fn->Call(object, 0, nullptr);
-    if (try_catch.HasCaught())
+    if (pre_fn->Call(object, 0, nullptr).IsEmpty())
       FatalError("node::MakeCallback", "pre hook threw");
   }
 
   Local<Value> ret = callback->Call(recv, argc, argv);
 
   if (ran_init_callback && !post_fn.IsEmpty()) {
-    post_fn->Call(object, 0, nullptr);
-    if (try_catch.HasCaught())
+    if (post_fn->Call(object, 0, nullptr).IsEmpty())
       FatalError("node::MakeCallback", "post hook threw");
   }
 
-  // If the return value is empty then the callback threw.
   if (ret.IsEmpty()) {
     return Undefined(env->isolate());
   }
@@ -1188,14 +1183,16 @@ Local<Value> MakeCallback(Environment* env,
   if (has_domain) {
     Local<Value> exit_v = domain->Get(env->exit_string());
     if (exit_v->IsFunction()) {
-      exit_v.As<Function>()->Call(domain, 0, nullptr);
-      if (try_catch.HasCaught())
-        return Undefined(env->isolate());
+      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::MakeCallback",
+                   "domain exit callback threw, please report this");
+      }
     }
   }
 
-  if (!env->KickNextTick(&callback_scope))
+  if (!env->KickNextTick(&callback_scope)) {
     return Undefined(env->isolate());
+  }
 
   return ret;
 }
