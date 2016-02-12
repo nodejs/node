@@ -18,3 +18,5 @@ process.on('SIGPIPE', common.mustCall((data) => {
 process.emit('normal', 'normalData');
 process.emit(sym, 'symbolData');
 process.emit('SIGPIPE', 'signalData');
+
+assert.strictEqual(isNaN(process._eventsCount), false);
