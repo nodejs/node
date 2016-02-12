@@ -380,7 +380,7 @@ multiple times to remove each instance.
 Note that once an event has been emitted, all listeners attached to it at the
 time of emitting will be called in order. This implies that any `removeListener`
 call *after* emitting and *before* the last listener finishes execution will
-not affect the current listener array. Subsequent events will behave as expected.
+not affect that `emit()`. Subsequent events will behave as expected.
 
 ```js
 const myEmitter = new MyEmitter();
@@ -402,8 +402,8 @@ myEmitter.on('event', callbackB);
 // Interal listener array at time of emit [callbackA, callbackB]
 myEmitter.emit('event');
   // Prints:
-  //   B
   //   A
+  //   B
 
 // callbackB is now removed.
 // Interal listener array [callbackA]
