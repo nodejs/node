@@ -99,13 +99,13 @@ function listener4() {
 e6.on('hello', listener3);
 e6.on('hello', listener4);
 
-//listener4 will still be called although it is removed by listener 3.
+// listener4 will still be called although it is removed by listener 3.
 e6.emit('hello');
-//This is so because the interal listener array at time of emit
-//was [listener3,listener4]
+// This is so because the interal listener array at time of emit
+// was [listener3,listener4]
 assert.equal(count, 2);
 
 count = 0;
-//Interal listener array [listener3]
+// Interal listener array [listener3]
 e6.emit('hello');
 assert.equal(count, 1);
