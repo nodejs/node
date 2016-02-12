@@ -84,17 +84,16 @@ e5.once('removeListener', common.mustCall(function(name, cb) {
 e5.removeListener('hello', listener1);
 assert.deepEqual([], e5.listeners('hello'));
 
-var e6 = new events.EventEmitter();
-count = 0;
+const e6 = new events.EventEmitter();
 
-function listener3() {
-  count++;
+var listener3 = common.mustCall(() => {
+  console.log('listener3');
   e6.removeListener('hello', listener4);
-}
+}, 2);
 
-function listener4() {
-  count++;
-}
+var listener4 = common.mustCall(() => {
+  console.log('listener4');
+}, 1);
 
 e6.on('hello', listener3);
 e6.on('hello', listener4);
@@ -103,9 +102,6 @@ e6.on('hello', listener4);
 e6.emit('hello');
 // This is so because the interal listener array at time of emit
 // was [listener3,listener4]
-assert.equal(count, 2);
 
-count = 0;
 // Interal listener array [listener3]
 e6.emit('hello');
-assert.equal(count, 1);
