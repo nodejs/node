@@ -7,12 +7,13 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-debug-no-context                : PASS,FLAKY
-test-tls-ticket-cluster              : PASS,FLAKY
-test-tick-processor                  : PASS,FLAKY
+test-debug-no-context   : PASS,FLAKY
+test-tls-ticket-cluster : PASS,FLAKY
+test-tick-processor     : PASS,FLAKY
 
 [$system==linux]
-test-tick-processor                  : PASS,FLAKY
+test-http-agent         : PASS,FLAKY
+test-tick-processor     : PASS,FLAKY
 
 [$system==macos]
 
