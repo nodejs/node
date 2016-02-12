@@ -1,4 +1,4 @@
-.TH "NPM\-VIEW" "1" "January 2016" "" ""
+.TH "NPM\-VIEW" "1" "February 2016" "" ""
 .SH "NAME"
 \fBnpm-view\fR \- View registry info
 .SH SYNOPSIS
@@ -103,6 +103,15 @@ was required by each matching version of yui3:
 .RS 2
 .nf
 npm view yui3@'>0\.5\.4' dependencies\.jsdom
+.fi
+.RE
+.P
+To show the \fBconnect\fP package version history, you can do
+this:
+.P
+.RS 2
+.nf
+npm view connect versions
 .fi
 .RE
 .SH OUTPUT

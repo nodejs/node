@@ -169,9 +169,12 @@ after packing it up into a tarball (b).
 
           <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit-ish>]
 
-    `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
-    `git+https`.  If no `<commit-ish>` is specified, then `master` is
-    used.
+    `<protocol>` is one of `git`, `git+ssh`, `git+http`, `git+https`,
+    or `git+file`.
+    If no `<commit-ish>` is specified, then `master` is used.
+
+    If the repository makes use of submodules, those submodules will
+    be cloned as well.
 
     The following git environment variables are recognized by npm and will be added
     to the environment when running git:
