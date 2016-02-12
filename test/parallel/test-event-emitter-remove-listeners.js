@@ -86,14 +86,11 @@ assert.deepEqual([], e5.listeners('hello'));
 
 const e6 = new events.EventEmitter();
 
-var listener3 = common.mustCall(() => {
-  console.log('listener3');
+const listener3 = common.mustCall(() => {
   e6.removeListener('hello', listener4);
 }, 2);
 
-var listener4 = common.mustCall(() => {
-  console.log('listener4');
-}, 1);
+const listener4 = common.mustCall(() => {}, 1);
 
 e6.on('hello', listener3);
 e6.on('hello', listener4);
