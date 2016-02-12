@@ -117,6 +117,7 @@ using v8::Local;
 using v8::Locker;
 using v8::MaybeLocal;
 using v8::Message;
+using v8::Name;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -2470,7 +2471,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(effective_exports);
 }
 
-static void ProcessTitleGetter(Local<String> property,
+static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
@@ -2478,7 +2479,7 @@ static void ProcessTitleGetter(Local<String> property,
 }
 
 
-static void ProcessTitleSetter(Local<String> property,
+static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
@@ -2707,13 +2708,13 @@ static Local<Object> GetFeatures(Environment* env) {
 }
 
 
-static void DebugPortGetter(Local<String> property,
+static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(debug_port);
 }
 
 
-static void DebugPortSetter(Local<String> property,
+static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
   debug_port = value->Int32Value();
@@ -2725,7 +2726,7 @@ static void DebugPause(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 
-void NeedImmediateCallbackGetter(Local<String> property,
+void NeedImmediateCallbackGetter(Local<Name> property,
                                  const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   const uv_check_t* immediate_check_handle = env->immediate_check_handle();
@@ -2736,7 +2737,7 @@ void NeedImmediateCallbackGetter(Local<String> property,
 
 
 static void NeedImmediateCallbackSetter(
-    Local<String> property,
+    Local<Name> property,
     Local<Value> value,
     const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
@@ -2820,10 +2821,12 @@ void SetupProcessObject(Environment* env,
 
   Local<Object> process = env->process_object();
 
-  process->SetAccessor(env->title_string(),
-                       ProcessTitleGetter,
-                       ProcessTitleSetter,
-                       env->as_external());
+  auto maybe = process->SetAccessor(env->context(),
+                                    env->title_string(),
+                                    ProcessTitleGetter,
+                                    ProcessTitleSetter,
+                                    env->as_external());
+  CHECK(maybe.FromJust());
 
   // process.version
   READONLY_PROPERTY(process,
@@ -2986,10 +2989,12 @@ void SetupProcessObject(Environment* env,
 
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
-  process->SetAccessor(env->need_imm_cb_string(),
-                       NeedImmediateCallbackGetter,
-                       NeedImmediateCallbackSetter,
-                       env->as_external());
+  maybe = process->SetAccessor(env->context(),
+                               env->need_imm_cb_string(),
+                               NeedImmediateCallbackGetter,
+                               NeedImmediateCallbackSetter,
+                               env->as_external());
+  CHECK(maybe.FromJust());
 
   // -e, --eval
   if (eval_string) {
@@ -3074,10 +3079,13 @@ void SetupProcessObject(Environment* env,
   process->Set(env->exec_path_string(), exec_path_value);
   delete[] exec_path;
 
-  process->SetAccessor(env->debug_port_string(),
-                       DebugPortGetter,
-                       DebugPortSetter,
-                       env->as_external());
+  maybe = process->SetAccessor(env->context(),
+                               env->debug_port_string(),
+                               DebugPortGetter,
+                               DebugPortSetter,
+                               env->as_external());
+  CHECK(maybe.FromJust());
+
 
   // define various internal methods
   env->SetMethod(process,
