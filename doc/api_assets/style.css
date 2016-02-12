@@ -20,6 +20,10 @@ body {
   display: block;
 }
 
+pre, tt, code, .pre, span.type, a.type {
+  font-family: Monaco, Consolas, "Lucida Console", monospace;
+}
+
 #content {
   font-size: 1.8em;
   overflow: hidden;
@@ -28,9 +32,7 @@ body {
   height: 100%;
 }
 
-a,
-a:link,
-a:active {
+a, a:link, a:active {
   color: #80bd01;
   text-decoration: none;
   border-radius: 2px;
@@ -38,8 +40,7 @@ a:active {
   margin: -.1em;
 }
 
-a:hover,
-a:focus {
+a:hover, a:focus {
   color: #fff;
   background-color: #80bd01;
   outline: none;
@@ -109,8 +110,7 @@ em code {
   text-decoration: underline;
 }
 
-.api_stability a:hover,
-.api_stability a:active {
+.api_stability a:hover, .api_stability a:active, .api_stability a:focus {
   background: rgba(255, 255, 255, .4);
 }
 
@@ -163,9 +163,6 @@ th, td {
   border: 1px solid #aaa;
 }
 
-table p {
-}
-
 th {
   text-align:left;
 }
@@ -175,9 +172,7 @@ ol, ul, dl {
   padding: 0;
 }
 
-ol ul, ol ol, ol dl,
-ul ul, ul ol, ul dl,
-dl ul, dl ol, dl dl {
+ol ul, ol ol, ol dl, ul ul, ul ol, ul dl, dl ul, dl ol, dl dl {
   margin-bottom: 0;
 }
 
@@ -273,12 +268,10 @@ h6 {
 
 pre, tt, code {
   line-height: 1.5em;
-  font-family: Monaco, Consolas, "Lucida Console", monospace;
   margin: 0; padding: 0;
 }
 
 .pre {
-  font-family: Monaco, Consolas, "Lucida Console", monospace;
   line-height: 1.5em;
   font-size: 1.2em;
 }
@@ -332,7 +325,9 @@ hr {
   font-size: .8125em;
 }
 
-#toc ul ul { font-size: 1em; }
+#toc ul ul {
+  font-size: 1em;
+}
 
 #toc ul a {
   text-decoration:none;
@@ -355,9 +350,7 @@ hr {
   margin-bottom: 0;
 }
 
-p tt,
-p code,
-li code {
+p tt, p code, li code {
   font-size: .9em;
   color: #040404;
   background-color: #f2f2f2;
@@ -373,7 +366,6 @@ a code {
 
 span.type, a.type {
   line-height: 1.5em;
-  font-family: monospace;
 }
 
 #column1.interior {
@@ -418,8 +410,7 @@ span.type, a.type {
   border-radius: 0;
 }
 
-#column2 ul li a.active,
-#column2 ul li a.active:hover,
+#column2 ul li a.active, #column2 ul li a.active:hover,
 #column2 ul li a.active:focus {
   color: #80bd01;
   border-radius: 0;
@@ -427,15 +418,12 @@ span.type, a.type {
   background: none;
 }
 
-#intro a:hover,
-#column2 ul li a:hover,
-#column2 ul li a:focus {
+#intro a:hover, #column2 ul li a:hover, #column2 ul li a:focus {
   color: #fff;
   background: none;
 }
 
-span > .mark,
-span > .mark:visited {
+span > .mark, span > .mark:visited {
   font-size: 18px;
   color: #707070;
   position: absolute;
@@ -443,9 +431,7 @@ span > .mark:visited {
   right: 0px;
 }
 
-span > .mark:hover,
-span > .mark:focus,
-span > .mark:active {
+span > .mark:hover, span > .mark:focus, span > .mark:active {
   color: #80bd01;
   background: none;
 }
@@ -455,8 +441,7 @@ th, td {
   vertical-align: top;
 }
 
-th > *:last-child,
-td > *:last-child {
+th > *:last-child, td > *:last-child {
   margin-bottom: 0;
 }
 
