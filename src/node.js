@@ -12,6 +12,7 @@
 
   function startup() {
     var EventEmitter = NativeModule.require('events');
+    process._eventsCount = 0;
 
     Object.setPrototypeOf(process, Object.create(EventEmitter.prototype, {
       constructor: {
