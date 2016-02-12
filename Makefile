@@ -522,7 +522,7 @@ jslint:
 		--rulesdir tools/eslint-rules --quiet
 jslint-docs:
 	$(NODE) tools/eslint/bin/eslint.js --plugin eslint-plugin-markdown --ext markdown doc/api/ \
-		--rulesdir tools/eslint-rules --rule "strict:0" --rule "eol-last:0" --quiet
+		--rulesdir tools/eslint-rules --quiet
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc

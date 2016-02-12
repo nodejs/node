@@ -1,0 +1,5 @@
+## Documentation-specific linter rules
+
+rules:
+  strict: 0
+  eol-last: 0

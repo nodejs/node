@@ -25,6 +25,7 @@ set msi=
 set upload=
 set licensertf=
 set jslint=
+set jslint_docs=
 set buildnodeweak=
 set noetw=
 set noetw_msi_arg=
@@ -63,6 +64,7 @@ if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
+if /i "%1"=="jslint-docs"   set jslint_docs=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
@@ -260,7 +262,12 @@ goto jslint
 if not defined jslint goto exit
 echo running jslint
 %config%\node tools\eslint\bin\eslint.js lib src test tools\doc tools\eslint-rules --rulesdir tools\eslint-rules --quiet
-%config%\node tools\eslint\bin\eslint.js --plugin eslint-plugin-markdown --ext markdown doc\api\ --rulesdir tools\eslint-rules --rule "strict:0" --rule "eol-last:0" --quiet
+goto jslint-docs
+
+:jslint-docs
+if not defined jslint_docs goto exit
+echo running jslint-docs
+%config%\node tools\eslint\bin\eslint.js --plugin eslint-plugin-markdown --ext markdown doc\api\ --rulesdir tools\eslint-rules --quiet
 goto exit
 
 :create-msvs-files-failed
