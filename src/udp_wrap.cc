@@ -69,6 +69,7 @@ UDPWrap::UDPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
                  AsyncWrap::PROVIDER_UDPWRAP) {
   int r = uv_udp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // can't fail anyway
+  RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&handle_));
 }
 
 

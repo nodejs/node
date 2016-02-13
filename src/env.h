@@ -9,6 +9,7 @@
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
+#include "async-wrap.h"
 
 #include <stdint.h>
 
@@ -277,6 +278,27 @@ namespace node {
   V(udp_constructor_function, v8::Function)                                   \
   V(write_wrap_constructor_function, v8::Function)                            \
 
+#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
+  V(worker_init_symbol, "worker_init")                                        \
+
+
+// All weak persistent handles that need to be walked upon Environment
+// destruction should have defined a class id. Finalizers are not called even
+// when a V8 isolate (and its heap) are destroyed so non-JS resources are
+// easily leaked. The clean-ups for these are defined in
+// persistent-handle-cleanup.cc.
+//
+// The cleanup for resources that are backing strong persistent handles is
+// ensured in some other way, e.g. RegisterHandleCleanup.
+enum ClassId : uint16_t {
+  CONTEXTIFY_SCRIPT = 0xA10C + 1,
+#define V(PROVIDER)                                                           \
+  PROVIDER_CLASS_ID_ ## PROVIDER =                                            \
+      AsyncWrap::PROVIDER_ ## PROVIDER + NODE_ASYNC_ID_OFFSET,
+  NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+};
+
 class Environment;
 
 // TODO(bnoordhuis) Rename struct, the ares_ prefix implies it's part
@@ -289,6 +311,25 @@ struct ares_task_t {
 };
 
 RB_HEAD(ares_task_list, ares_task_t);
+
+typedef void (*HandleCleanupCb)(Environment* env,
+                                uv_handle_t* handle,
+                                void* arg);
+class HandleCleanup {
+ private:
+  friend class Environment;
+
+  HandleCleanup(uv_handle_t* handle, HandleCleanupCb cb, void* arg)
+      : handle_(handle),
+        cb_(cb),
+        arg_(arg) {
+  }
+
+  uv_handle_t* handle_;
+  HandleCleanupCb cb_;
+  void* arg_;
+  ListNode<HandleCleanup> handle_cleanup_queue_;
+};
 
 class Environment {
  public:
@@ -391,26 +432,6 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocatorInfo);
   };
 
-  typedef void (*HandleCleanupCb)(Environment* env,
-                                  uv_handle_t* handle,
-                                  void* arg);
-
-  class HandleCleanup {
-   private:
-    friend class Environment;
-
-    HandleCleanup(uv_handle_t* handle, HandleCleanupCb cb, void* arg)
-        : handle_(handle),
-          cb_(cb),
-          arg_(arg) {
-    }
-
-    uv_handle_t* handle_;
-    HandleCleanupCb cb_;
-    void* arg_;
-    ListNode<HandleCleanup> handle_cleanup_queue_;
-  };
-
   static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
   static inline Environment* GetCurrent(
@@ -445,10 +466,11 @@ class Environment {
   inline uv_check_t* idle_check_handle();
 
   // Register clean-up cb to be called on env->Dispose()
-  inline void RegisterHandleCleanup(uv_handle_t* handle,
-                                    HandleCleanupCb cb,
-                                    void *arg);
+  inline HandleCleanup* RegisterHandleCleanup(uv_handle_t* handle,
+                                              HandleCleanupCb cb,
+                                              void *arg);
   inline void FinishHandleCleanup(uv_handle_t* handle);
+  inline void DeregisterHandleCleanup(HandleCleanup* hc);
 
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
@@ -461,6 +483,7 @@ class Environment {
   inline ares_channel cares_channel();
   inline ares_channel* cares_channel_ptr();
   inline ares_task_list* cares_task_list();
+  inline void set_using_cares();
 
   inline bool using_domains() const;
   inline void set_using_domains(bool value);
@@ -536,6 +559,11 @@ class Environment {
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, StringName)                                           \
+  inline v8::Local<v8::Symbol> PropertyName() const;
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 
   inline debugger::Agent* debugger_agent() {
@@ -614,6 +642,11 @@ class Environment {
 #undef VS
 #undef VP
 
+#define V(PropertyName, StringName)                                           \
+    inline v8::Local<v8::Symbol> PropertyName() const;
+    PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
    private:
     inline static IsolateData* Get(v8::Isolate* isolate);
     inline explicit IsolateData(v8::Isolate* isolate, uv_loop_t* loop);
@@ -631,6 +664,11 @@ class Environment {
 #undef V
 #undef VS
 #undef VP
+
+#define V(PropertyName, StringName)                                          \
+    v8::Eternal<v8::Symbol> PropertyName ## _;
+    PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
 
     unsigned int ref_count_;
 

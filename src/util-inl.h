@@ -89,6 +89,15 @@ bool ListHead<T, M>::IsEmpty() const {
 }
 
 template <typename T, ListNodeMember(T) M>
+void ListHead<T, M>::Remove(T* element) {
+  CHECK_NE(element, nullptr);
+  CHECK(!IsEmpty());
+  ListNode<T>* node = &(element->*M);
+  CHECK(!node->IsEmpty());
+  node->Remove();
+}
+
+template <typename T, ListNodeMember(T) M>
 T* ListHead<T, M>::PopFront() {
   if (IsEmpty())
     return nullptr;

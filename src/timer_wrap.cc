@@ -66,6 +66,7 @@ class TimerWrap : public HandleWrap {
                    AsyncWrap::PROVIDER_TIMERWRAP) {
     int r = uv_timer_init(env->event_loop(), &handle_);
     CHECK_EQ(r, 0);
+    RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&handle_));
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {

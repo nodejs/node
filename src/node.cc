@@ -4082,19 +4082,19 @@ Environment* CreateEnvironment(Isolate* isolate,
   // Register handle cleanups
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->immediate_check_handle()),
-      HandleCleanup,
+      HandleCleanupCallback,
       nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->immediate_idle_handle()),
-      HandleCleanup,
+      HandleCleanupCallback,
       nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()),
-      HandleCleanup,
+      HandleCleanupCallback,
       nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->idle_check_handle()),
-      HandleCleanup,
+      HandleCleanupCallback,
       nullptr);
 
   if (v8_is_profiling) {

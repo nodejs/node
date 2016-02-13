@@ -7,6 +7,7 @@
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
+#include "persistent-handle-cleanup.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -70,6 +71,14 @@ inline Environment::IsolateData::IsolateData(v8::Isolate* isolate,
             v8::NewStringType::kInternalized,                                 \
             sizeof(StringValue) - 1).ToLocalChecked()),
     PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, StringName)                                           \
+    PropertyName ## _(isolate,                                                \
+                      v8::Symbol::New(isolate,                                \
+                                      FIXED_ONE_BYTE_STRING(isolate,          \
+                                                            StringName))),
+    PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
     ref_count_(0) {}
 
@@ -246,6 +255,9 @@ inline Environment::Environment(v8::Local<v8::Context> context,
 inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
 
+  PersistentHandleCleanup cleanup(this);
+  isolate()->VisitHandlesWithClassIds(&cleanup);
+
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
 #define V(PropertyName, TypeName) PropertyName ## _.Reset();
@@ -256,6 +268,17 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
+
+  if (using_cares_) {
+    ares_destroy(ares_channel());
+    using_cares_ = false;
+  }
+
+  // For valgrind. The main environment cannot deal with CleanupHandles()
+  // for some reason.
+  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront())
+    delete hc;
+}
 }
 
 inline void Environment::CleanupHandles() {
@@ -318,10 +341,18 @@ inline uv_check_t* Environment::idle_check_handle() {
   return &idle_check_handle_;
 }
 
-inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
-                                               HandleCleanupCb cb,
-                                               void *arg) {
-  handle_cleanup_queue_.PushBack(new HandleCleanup(handle, cb, arg));
+inline void Environment::DeregisterHandleCleanup(HandleCleanup* hc) {
+  handle_cleanup_queue_.Remove(hc);
+  delete hc;
+}
+
+inline HandleCleanup* Environment::RegisterHandleCleanup(
+    uv_handle_t* handle,
+    HandleCleanupCb cb,
+    void* arg) {
+  HandleCleanup* hc = new HandleCleanup(handle, cb, arg);
+  handle_cleanup_queue_.PushBack(hc);
+  return hc;
 }
 
 inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
@@ -426,6 +457,10 @@ inline ares_channel* Environment::cares_channel_ptr() {
 
 inline ares_task_list* Environment::cares_task_list() {
   return &cares_task_list_;
+}
+
+inline void Environment::set_using_cares() {
+  using_cares_ = true;
 }
 
 inline Environment::IsolateData* Environment::isolate_data() const {
@@ -563,6 +598,21 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #undef VS
 #undef VP
 
+#define V(PropertyName, StringName)                                           \
+  inline                                                                      \
+  v8::Local<v8::Symbol> Environment::IsolateData::PropertyName() const {      \
+    return const_cast<IsolateData*>(this)->PropertyName ## _.Get(isolate());  \
+  }
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, StringName)                                           \
+  inline v8::Local<v8::Symbol> Environment::PropertyName() const {            \
+    return isolate_data()->PropertyName();                                    \
+  }
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
     return StrongPersistentToLocal(PropertyName ## _);                        \
@@ -576,6 +626,7 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #undef ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES
 #undef PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES
 #undef PER_ISOLATE_STRING_PROPERTIES
+#undef PER_ISOLATE_SYMBOL_PROPERTIES
 
 }  // namespace node
 

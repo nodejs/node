@@ -106,6 +106,7 @@ class ListHead {
   inline void MoveBack(ListHead* that);
   inline void PushBack(T* element);
   inline void PushFront(T* element);
+  inline void Remove(T* element);
   inline bool IsEmpty() const;
   inline T* PopFront();
   inline Iterator begin() const;

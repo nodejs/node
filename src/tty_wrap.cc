@@ -134,7 +134,9 @@ TTYWrap::TTYWrap(Environment* env, Local<Object> object, int fd, bool readable)
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),
                  AsyncWrap::PROVIDER_TTYWRAP) {
-  uv_tty_init(env->event_loop(), &handle_, fd, readable);
+  int r = uv_tty_init(env->event_loop(), &handle_, fd, readable);
+  CHECK_EQ(r, 0);
+  RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&handle_));
 }
 
 }  // namespace node
