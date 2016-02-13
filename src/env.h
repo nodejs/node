@@ -9,6 +9,7 @@
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
+#include "worker.h"
 #include "async-wrap.h"
 
 #include <stdint.h>
@@ -105,6 +106,7 @@ namespace node {
   V(exit_code_string, "exitCode")                                             \
   V(exit_string, "exit")                                                      \
   V(expire_string, "expire")                                                  \
+  V(experimental_workers_string, "experimental_workers")                      \
   V(exponent_string, "exponent")                                              \
   V(exports_string, "exports")                                                \
   V(ext_key_usage_string, "ext_key_usage")                                    \
@@ -443,7 +445,8 @@ class Environment {
 
   // See CreateEnvironment() in src/node.cc.
   static inline Environment* New(v8::Local<v8::Context> context,
-                                 uv_loop_t* loop);
+                                 uv_loop_t* loop,
+                                 WorkerContext* worker_context = nullptr);
   inline void CleanupHandles();
   inline void Dispose();
 
@@ -507,6 +510,19 @@ class Environment {
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
 
+  inline WorkerContext* worker_context() const;
+  inline void set_worker_context(WorkerContext* context);
+
+  inline Environment* owner_env() const;
+  inline void set_owner_env(Environment* env);
+
+  inline size_t thread_id() const;
+
+  inline bool is_main_thread() const;
+  inline bool is_worker_thread() const;
+
+  inline size_t sub_worker_context_count() const;
+
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
@@ -542,6 +558,19 @@ class Environment {
                                 v8::FunctionCallback callback);
 
   inline v8::Local<v8::Object> NewInternalFieldObject();
+
+  typedef
+  ListHead<WorkerContext,
+           &WorkerContext::subworker_list_member_> WorkerContextList;
+
+  inline uv_mutex_t* ApiMutex();
+  inline bool CanCallIntoJs() const;
+  inline void AddSubWorkerContext(WorkerContext* context);
+  inline void RemoveSubWorkerContext(WorkerContext* context);
+  inline WorkerContextList* sub_worker_contexts();
+  inline void Exit(int exit_code = 0);
+  inline void ProcessNotifications();
+  inline void TerminateSubWorkers();
 
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.
@@ -583,12 +612,16 @@ class Environment {
   static const int kIsolateSlot = NODE_ISOLATE_SLOT;
 
   class IsolateData;
-  inline Environment(v8::Local<v8::Context> context, uv_loop_t* loop);
+  inline Environment(v8::Local<v8::Context> context,
+                     uv_loop_t* loop,
+                     size_t thread_id);
   inline ~Environment();
   inline IsolateData* isolate_data() const;
 
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
+  WorkerContext* worker_context_ = nullptr;
+  Environment* owner_env_ = nullptr;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
@@ -606,13 +639,18 @@ class Environment {
   bool trace_sync_io_;
   size_t makecallback_cntr_;
   int64_t async_wrap_uid_;
+  bool using_cares_ = false;
   debugger::Agent debugger_agent_;
 
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
   ListHead<HandleCleanup,
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
-  int handle_cleanup_waiting_;
+  WorkerContextList sub_worker_contexts_;
+  size_t sub_worker_context_count_ = 0;
+  size_t handle_cleanup_waiting_ = 0;
+  size_t const thread_id_;
+  bool sub_worker_context_list_dirty_ = false;
 
   uint32_t* heap_statistics_buffer_ = nullptr;
   uint32_t* heap_space_statistics_buffer_ = nullptr;

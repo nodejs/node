@@ -191,6 +191,8 @@ void StreamWrap::OnReadImpl(ssize_t nread,
                             void* ctx) {
   StreamWrap* wrap = static_cast<StreamWrap*>(ctx);
   Environment* env = wrap->env();
+  if (!env->CanCallIntoJs())
+    return;
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
@@ -232,6 +234,8 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
                               const uv_buf_t* buf,
                               uv_handle_type pending) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
+  if (!wrap->env()->CanCallIntoJs())
+    return;
   HandleScope scope(wrap->env()->isolate());
   Context::Scope context_scope(wrap->env()->context());
 
