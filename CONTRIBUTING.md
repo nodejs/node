@@ -17,7 +17,7 @@ For general help using Node.js, please file an issue at the
 
 Discussion of non-technical topics including subjects like intellectual
 property, trademark and high level project questions should move to the
-[node-forward discussions repository](https://github.com/node-forward/discussions)
+[Technical Steering Committee (TSC)](https://github.com/nodejs/TSC/issues)
 instead.
 
 ## Code Contributions
