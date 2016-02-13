@@ -113,7 +113,7 @@ expression syntax version 2.0 string](https://npmjs.com/package/spdx), like this
     { "license" : "(ISC OR GPL-3.0)" }
 
 If you are using a license that hasn't been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:
+you are using a custom license, use a string value like this one:
 
     { "license" : "SEE LICENSE IN <filename>" }
 

@@ -15,6 +15,11 @@ exports.version = function () {
 };
 
 
+exports.limits = {
+    maxMatchLength: 4096            // Limit the length of uris and headers to avoid a DoS attack on string matching
+};
+
+
 // Extract host and port from request
 
 //                                            $1                            $2
@@ -26,6 +31,10 @@ exports.parseHost = function (req, hostHeaderName) {
     hostHeaderName = (hostHeaderName ? hostHeaderName.toLowerCase() : 'host');
     var hostHeader = req.headers[hostHeaderName];
     if (!hostHeader) {
+        return null;
+    }
+
+    if (hostHeader.length > exports.limits.maxMatchLength) {
         return null;
     }
 
@@ -63,8 +72,11 @@ exports.parseRequest = function (req, options) {
 
     // Obtain host and port information
 
-    if (!options.host || !options.port) {
-        var host = exports.parseHost(req, options.hostHeaderName);
+    var host;
+    if (!options.host ||
+        !options.port) {
+
+        host = exports.parseHost(req, options.hostHeaderName);
         if (!host) {
             return new Error('Invalid Host header');
         }
@@ -95,6 +107,10 @@ exports.nowSecs = function (localtimeOffsetMsec) {
 };
 
 
+internals.authHeaderRegex = /^(\w+)(?:\s+(.*))?$/;                                      // Header: scheme[ something]
+internals.attributeRegex = /^[ \w\!#\$%&'\(\)\*\+,\-\.\/\:;<\=>\?@\[\]\^`\{\|\}~]+$/;   // !#$%&'()*+,-./:;<=>?@[]^_`{|}~ and space, a-z, A-Z, 0-9
+
+
 // Parse Hawk HTTP Authorization header
 
 exports.parseAuthorizationHeader = function (header, keys) {
@@ -105,7 +121,11 @@ exports.parseAuthorizationHeader = function (header, keys) {
         return Boom.unauthorized(null, 'Hawk');
     }
 
-    var headerParts = header.match(/^(\w+)(?:\s+(.*))?$/);       // Header: scheme[ something]
+    if (header.length > exports.limits.maxMatchLength) {
+        return Boom.badRequest('Header length too long');
+    }
+
+    var headerParts = header.match(internals.authHeaderRegex);
     if (!headerParts) {
         return Boom.badRequest('Invalid header syntax');
     }
@@ -131,9 +151,9 @@ exports.parseAuthorizationHeader = function (header, keys) {
             return;
         }
 
-        // Allowed attribute value characters: !#$%&'()*+,-./:;<=>?@[]^_`{|}~ and space, a-z, A-Z, 0-9
+        // Allowed attribute value characters
 
-        if ($2.match(/^[ \w\!#\$%&'\(\)\*\+,\-\.\/\:;<\=>\?@\[\]\^`\{\|\}~]+$/) === null) {
+        if ($2.match(internals.attributeRegex) === null) {
             errorMessage = 'Bad attribute value: ' + $1;
             return;
         }
