@@ -39,7 +39,7 @@ inline Environment* BaseObject::env() const {
 
 template <typename Type>
 inline void BaseObject::WeakCallback(
-    const v8::WeakCallbackData<v8::Object, Type>& data) {
+    const v8::WeakCallbackInfo<Type>& data) {
   Type* self = data.GetParameter();
   self->persistent().Reset();
   delete self;
@@ -53,7 +53,8 @@ inline void BaseObject::MakeWeak(Type* ptr) {
   CHECK_GT(handle->InternalFieldCount(), 0);
   Wrap(handle, ptr);
   handle_.MarkIndependent();
-  handle_.SetWeak<Type>(ptr, WeakCallback<Type>);
+  handle_.SetWeak<Type>(ptr, WeakCallback<Type>,
+                        v8::WeakCallbackType::kParameter);
 }
 
 
