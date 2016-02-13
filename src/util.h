@@ -179,6 +179,8 @@ inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
 inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
 
+char* ToUtf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value);
+
 class Utf8Value {
   public:
     explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
