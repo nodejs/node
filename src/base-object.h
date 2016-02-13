@@ -40,7 +40,7 @@ class BaseObject {
 
   template <typename Type>
   static inline void WeakCallback(
-      const v8::WeakCallbackData<v8::Object, Type>& data);
+      const v8::WeakCallbackInfo<Type>& data);
 
   v8::Persistent<v8::Object> handle_;
   Environment* env_;
