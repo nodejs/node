@@ -583,7 +583,7 @@ Here is an example of a client of the previously described echo server:
 
 ```js
 const net = require('net');
-const client = net.connect({port: 8124}, () => {
+const client = net.createConnection({port: 8124}, () => {
   //'connect' listener
   console.log('connected to server!');
   client.write('world!\r\n');
