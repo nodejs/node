@@ -1,16 +1,19 @@
 'use strict';
 
-const msg = 'Use const Buffer = require(\'buffer\').Buffer; ' +
-            'at the beginning of this file';
-
 module.exports = function(context) {
+  function flagIt(reference) {
+    const msg = 'Use const Buffer = require(\'buffer\').Buffer; ' +
+                'at the beginning of this file';
+    context.report(reference.identifier, msg);
+  }
+
   return {
     'Program:exit': function() {
-      context.getScope().through.forEach(function(ref) {
-        if (ref.identifier.name === 'Buffer') {
-          context.report(ref.identifier, msg);
-        }
-      });
+      const globalScope = context.getScope();
+      const variable = globalScope.set.get('Buffer');
+      if (variable) {
+        variable.references.forEach(flagIt);
+      }
     }
   };
 };
