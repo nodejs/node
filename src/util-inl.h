@@ -2,6 +2,7 @@
 #define SRC_UTIL_INL_H_
 
 #include "util.h"
+#include "uv.h"
 
 namespace node {
 
@@ -213,6 +214,79 @@ void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
 }
 
 
+
+class ScopedLock {
+  public:
+    class Mutex {
+      public:
+        explicit Mutex(uv_mutex_t* lock) : lock_(lock) {
+          if (lock_ != nullptr)
+            uv_mutex_lock(lock_);
+        }
+
+        void unlock() {
+          if (!unlocked_ && lock_ != nullptr) {
+            uv_mutex_unlock(lock_);
+            unlocked_ = true;
+          }
+        }
+
+        ~Mutex() {
+          unlock();
+        }
+
+      private:
+        uv_mutex_t* lock_;
+        bool unlocked_ = false;
+        DISALLOW_COPY_AND_ASSIGN(Mutex);
+    };
+
+    class Read {
+      public:
+        explicit Read(uv_rwlock_t* lock) : lock_(lock) {
+          if (lock_ != nullptr)
+            uv_rwlock_rdlock(lock_);
+        }
+
+        void unlock() {
+          if (!unlocked_ && lock_ != nullptr) {
+            uv_rwlock_rdunlock(lock_);
+            unlocked_ = true;
+          }
+        }
+
+        ~Read() {
+          unlock();
+        }
+      private:
+        uv_rwlock_t* lock_;
+        bool unlocked_ = false;
+        DISALLOW_COPY_AND_ASSIGN(Read);
+    };
+
+    class Write {
+      public:
+        explicit Write(uv_rwlock_t* lock) : lock_(lock) {
+          if (lock_ != nullptr)
+            uv_rwlock_wrlock(lock_);
+        }
+
+        void unlock() {
+          if (!unlocked_ && lock_ != nullptr) {
+            uv_rwlock_wrunlock(lock_);
+            unlocked_ = true;
+          }
+        }
+
+        ~Write() {
+          unlock();
+        }
+      private:
+        uv_rwlock_t* lock_;
+        bool unlocked_ = false;
+        DISALLOW_COPY_AND_ASSIGN(Write);
+    };
+};
 
 }  // namespace node
 
