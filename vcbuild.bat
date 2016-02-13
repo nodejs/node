@@ -148,7 +148,7 @@ if defined msi (
   if not exist "%WIX%\SDK\VS2013" (
     echo Failed to find WiX install for Visual Studio 2013
     echo VS2013 support for WiX is only present starting at version 3.8
-    goto vc-set-2012
+    goto wix-not-found
   )
 )
 if "%VCVARS_VER%" NEQ "120" (
