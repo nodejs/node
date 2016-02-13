@@ -364,7 +364,8 @@ a code {
   padding: 0;
 }
 
-span.type, a.type {
+.type {
+  font-size: .9em;
   line-height: 1.5em;
 }
 
