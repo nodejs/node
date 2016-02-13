@@ -231,6 +231,12 @@ test-v8-benchmarks:
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
 	# runs all v8 tests
 
+test-workers: all
+	$(PYTHON) tools/test.py --mode=release workers -J
+
+test-workers-debug: all
+	$(PYTHON) tools/test.py --mode=debug workers -J
+
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
 		$(addprefix out/,$(apidoc_sources:.markdown=.json))
