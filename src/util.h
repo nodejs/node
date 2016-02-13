@@ -51,7 +51,8 @@ namespace node {
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_NE(a, b) CHECK((a) != (b))
 
-#define UNREACHABLE() ABORT()
+#define STATIC_ASSERT(expression) static_assert(expression, #expression)
+#define UNREACHABLE() abort()
 
 // TAILQ-style intrusive list node.
 template <typename T>
