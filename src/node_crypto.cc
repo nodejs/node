@@ -5475,6 +5475,13 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void AddSystemEntropy(const FunctionCallbackInfo<Value>& args) {
+  // Delegate entropy generation to OpenSSL, which will add
+  // entropy from system sources.
+  RAND_poll();
+}
+
+
 void Certificate::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
@@ -5769,6 +5776,7 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);
   env->SetMethod(target, "getCurves", GetCurves);
+  env->SetMethod(target, "addSystemEntropy", AddSystemEntropy);
   env->SetMethod(target, "publicEncrypt",
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_encrypt_init,
