@@ -79,20 +79,18 @@ class CallbackInfo {
  public:
   static inline void Free(char* data, void* hint);
   static inline CallbackInfo* New(Isolate* isolate,
-                                  Local<Object> object,
+                                  Local<ArrayBuffer> object,
                                   FreeCallback callback,
                                   void* hint = 0);
-  inline void Dispose(Isolate* isolate);
-  inline Persistent<Object>* persistent();
  private:
-  static void WeakCallback(const WeakCallbackData<Object, CallbackInfo>&);
-  inline void WeakCallback(Isolate* isolate, Local<Object> object);
+  static void WeakCallback(const WeakCallbackData<ArrayBuffer, CallbackInfo>&);
+  inline void WeakCallback(Isolate* isolate, Local<ArrayBuffer> object);
   inline CallbackInfo(Isolate* isolate,
-                      Local<Object> object,
+                      Local<ArrayBuffer> object,
                       FreeCallback callback,
                       void* hint);
   ~CallbackInfo();
-  Persistent<Object> persistent_;
+  Persistent<ArrayBuffer> persistent_;
   FreeCallback const callback_;
   void* const hint_;
   DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
@@ -105,30 +103,25 @@ void CallbackInfo::Free(char* data, void*) {
 
 
 CallbackInfo* CallbackInfo::New(Isolate* isolate,
-                                Local<Object> object,
+                                Local<ArrayBuffer> object,
                                 FreeCallback callback,
                                 void* hint) {
   return new CallbackInfo(isolate, object, callback, hint);
 }
 
 
-void CallbackInfo::Dispose(Isolate* isolate) {
-  WeakCallback(isolate, PersistentToLocal(isolate, persistent_));
-}
-
-
-Persistent<Object>* CallbackInfo::persistent() {
-  return &persistent_;
-}
-
-
 CallbackInfo::CallbackInfo(Isolate* isolate,
-                           Local<Object> object,
+                           Local<ArrayBuffer> object,
                            FreeCallback callback,
                            void* hint)
     : persistent_(isolate, object),
       callback_(callback),
       hint_(hint) {
+  ArrayBuffer::Contents obj_c = object->GetContents();
+  char* const data = static_cast<char*>(obj_c.Data());
+  if (object->ByteLength() != 0)
+    CHECK_NE(data, nullptr);
+
   persistent_.SetWeak(this, WeakCallback);
   persistent_.SetWrapperClassId(BUFFER_ID);
   persistent_.MarkIndependent();
@@ -142,19 +135,14 @@ CallbackInfo::~CallbackInfo() {
 
 
 void CallbackInfo::WeakCallback(
-    const WeakCallbackData<Object, CallbackInfo>& data) {
+    const WeakCallbackData<ArrayBuffer, CallbackInfo>& data) {
   data.GetParameter()->WeakCallback(data.GetIsolate(), data.GetValue());
 }
 
 
-void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
-  CHECK(object->IsArrayBuffer());
-  Local<ArrayBuffer> buf = object.As<ArrayBuffer>();
+void CallbackInfo::WeakCallback(Isolate* isolate, Local<ArrayBuffer> buf) {
   ArrayBuffer::Contents obj_c = buf->GetContents();
   char* const obj_data = static_cast<char*>(obj_c.Data());
-  if (buf->ByteLength() != 0)
-    CHECK_NE(obj_data, nullptr);
-
   buf->Neuter();
   callback_(obj_data, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
