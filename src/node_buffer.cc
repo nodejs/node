@@ -72,7 +72,7 @@ using v8::Uint32;
 using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
-using v8::WeakCallbackData;
+using v8::WeakCallbackInfo;
 
 
 class CallbackInfo {
@@ -83,8 +83,8 @@ class CallbackInfo {
                                   FreeCallback callback,
                                   void* hint = 0);
  private:
-  static void WeakCallback(const WeakCallbackData<ArrayBuffer, CallbackInfo>&);
-  inline void WeakCallback(Isolate* isolate, Local<ArrayBuffer> object);
+  static void WeakCallback(const WeakCallbackInfo<CallbackInfo>&);
+  inline void WeakCallback(Isolate* isolate, char* const data);
   inline CallbackInfo(Isolate* isolate,
                       Local<ArrayBuffer> object,
                       FreeCallback callback,
@@ -122,7 +122,10 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
   if (object->ByteLength() != 0)
     CHECK_NE(data, nullptr);
 
-  persistent_.SetWeak(this, WeakCallback);
+  object->SetAlignedPointerInInternalField(kBufferInternalFieldIndex, data);
+
+  persistent_.SetWeak(this, WeakCallback,
+                      v8::WeakCallbackType::kInternalFields);
   persistent_.SetWrapperClassId(BUFFER_ID);
   persistent_.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
@@ -135,16 +138,15 @@ CallbackInfo::~CallbackInfo() {
 
 
 void CallbackInfo::WeakCallback(
-    const WeakCallbackData<ArrayBuffer, CallbackInfo>& data) {
-  data.GetParameter()->WeakCallback(data.GetIsolate(), data.GetValue());
+    const WeakCallbackInfo<CallbackInfo>& data) {
+  data.GetParameter()->WeakCallback(
+      data.GetIsolate(),
+      static_cast<char*>(data.GetInternalField(kBufferInternalFieldIndex)));
 }
 
 
-void CallbackInfo::WeakCallback(Isolate* isolate, Local<ArrayBuffer> buf) {
-  ArrayBuffer::Contents obj_c = buf->GetContents();
-  char* const obj_data = static_cast<char*>(obj_c.Data());
-  buf->Neuter();
-  callback_(obj_data, hint_);
+void CallbackInfo::WeakCallback(Isolate* isolate, char* const data) {
+  callback_(data, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 
