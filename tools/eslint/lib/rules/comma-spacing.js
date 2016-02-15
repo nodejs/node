@@ -95,7 +95,7 @@ module.exports = function(context) {
         }
 
         if (tokens.right && !options.after && tokens.right.type === "Line") {
-            return false;
+            return;
         }
 
         if (tokens.right && astUtils.isTokenOnSameLine(tokens.comma, tokens.right) &&

@@ -20,7 +20,7 @@ var exitCode = 0,
 
 // must do this initialization *before* other requires in order to work
 if (debug) {
-    require("debug").enable("eslint:*");
+    require("debug").enable("eslint:*,-eslint:code-path");
 }
 
 //------------------------------------------------------------------------------
@@ -60,10 +60,16 @@ if (useStdIn) {
     exitCode = cli.execute(process.argv);
 }
 
-/*
- * Wait for the stdout buffer to drain.
- * See https://github.com/eslint/eslint/issues/317
- */
-process.on("exit", function() {
-    process.exit(exitCode);
-});
+// https://github.com/eslint/eslint/issues/4691
+// In Node.js >= 0.12, you can use a cleaner way
+if ("exitCode" in process) {
+    process.exitCode = exitCode;
+} else {
+    /*
+     * Wait for the stdout buffer to drain.
+     * See https://github.com/eslint/eslint/issues/317
+     */
+    process.on("exit", function() {
+        process.exit(exitCode);
+    });
+}

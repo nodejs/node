@@ -16,21 +16,28 @@ var globals = require("globals");
 //------------------------------------------------------------------------------
 
 module.exports = {
-    builtin: globals.builtin,
+    builtin: globals.es5,
     browser: {
         globals: globals.browser
     },
     node: {
         globals: globals.node,
-        ecmaFeatures: {
-            globalReturn: true
+        parserOptions: {
+            ecmaFeatures: {
+                globalReturn: true
+            }
         }
     },
     commonjs: {
         globals: globals.commonjs,
-        ecmaFeatures: {
-            globalReturn: true
+        parserOptions: {
+            ecmaFeatures: {
+                globalReturn: true
+            }
         }
+    },
+    "shared-node-browser": {
+        globals: globals["shared-node-browser"]
     },
     worker: {
         globals: globals.worker
@@ -80,6 +87,9 @@ module.exports = {
     serviceworker: {
         globals: globals.serviceworker
     },
+    atomtest: {
+        globals: globals.atomtest
+    },
     embertest: {
         globals: globals.embertest
     },
@@ -87,28 +97,12 @@ module.exports = {
         globals: globals.webextensions
     },
     es6: {
-        ecmaFeatures: {
-            arrowFunctions: true,
-            blockBindings: true,
-            regexUFlag: true,
-            regexYFlag: true,
-            templateStrings: true,
-            binaryLiterals: true,
-            octalLiterals: true,
-            unicodeCodePointEscapes: true,
-            superInFunctions: true,
-            defaultParams: true,
-            restParams: true,
-            forOf: true,
-            objectLiteralComputedProperties: true,
-            objectLiteralShorthandMethods: true,
-            objectLiteralShorthandProperties: true,
-            objectLiteralDuplicateProperties: true,
-            generators: true,
-            destructuring: true,
-            classes: true,
-            spread: true,
-            newTarget: true
+        globals: globals.es6,
+        parserOptions: {
+            ecmaVersion: 6
         }
+    },
+    greasemonkey: {
+        globals: globals.greasemonkey
     }
 };

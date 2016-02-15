@@ -17,8 +17,9 @@ module.exports = function(context) {
     var ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
         NEVER_MESSAGE = "Unexpected blank line after variable declarations.";
 
-    // Default `mode` to "always". This means that invalid options will also
-    // be treated as "always" and the only special case is "never"
+    var sourceCode = context.getSourceCode();
+
+    // Default `mode` to "always".
     var mode = context.options[0] === "never" ? "never" : "always";
 
     // Cache starting and ending line numbers of comments for faster lookup
@@ -64,24 +65,14 @@ module.exports = function(context) {
     }
 
     /**
-     * Determine if provided nodeType is a function specifier
-     * @private
-     * @param {string} nodeType - nodeType to test
-     * @returns {boolean} True if `nodeType` is a function specifier
-     */
-    function isFunctionSpecifier(nodeType) {
-        return nodeType === "FunctionDeclaration" || nodeType === "FunctionExpression" ||
-            nodeType === "ArrowFunctionExpression";
-    }
-
-    /**
-     * Determine if provided node is the last of his parent
+     * Determine if provided node is the last of their parent block.
      * @private
      * @param {ASTNode} node - node to test
-     * @returns {boolean} True if `node` is last of his parent
+     * @returns {boolean} True if `node` is last of their parent block.
      */
     function isLastNode(node) {
-        return node.parent.body[node.parent.body.length - 1] === node;
+        var token = sourceCode.getTokenAfter(node);
+        return !token || (token.type === "Punctuator" && token.value === "}");
     }
 
     /**
@@ -108,8 +99,8 @@ module.exports = function(context) {
      * @returns {void}
      */
     function checkForBlankLine(node) {
-        var lastToken = context.getLastToken(node),
-            nextToken = context.getTokenAfter(node),
+        var lastToken = sourceCode.getLastToken(node),
+            nextToken = sourceCode.getTokenAfter(node),
             nextLineNum = lastToken.loc.end.line + 1,
             noNextLineToken,
             hasNextLineComment;
@@ -135,8 +126,8 @@ module.exports = function(context) {
             return;
         }
 
-        // Ignore if it is last statement in a function
-        if (node.parent.parent && isFunctionSpecifier(node.parent.parent.type) && isLastNode(node)) {
+        // Ignore if it is last statement in a block
+        if (isLastNode(node)) {
             return;
         }
 

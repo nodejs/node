@@ -38,21 +38,15 @@
  * {errorMessage} - Message that is returned by the rule on failure
  * {errorNodeType} - AST node type that is returned by they rule as
  *                   a cause of the failure.
- *
- * Requirements:
- * Each rule has to have at least one invalid and at least one valid check.
- * If one of them is missing, the test will be marked as failed.
  */
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-var assert = require("assert"),
+var lodash = require("lodash"),
+    assert = require("assert"),
     util = require("util"),
-    merge = require("lodash.merge"),
-    omit = require("lodash.omit"),
-    clone = require("lodash.clonedeep"),
     validator = require("../config/config-validator"),
     validate = require("is-my-json-valid"),
     eslint = require("../eslint"),
@@ -144,10 +138,10 @@ function RuleTester(testerConfig) {
      * configuration and the default configuration.
      * @type {Object}
      */
-    this.testerConfig = merge(
+    this.testerConfig = lodash.merge(
         // we have to clone because merge uses the object on the left for
         // recipient
-        clone(defaultConfig),
+        lodash.cloneDeep(defaultConfig),
         testerConfig
     );
 }
@@ -181,15 +175,15 @@ RuleTester.getDefaultConfig = function() {
  * @returns {void}
  */
 RuleTester.resetDefaultConfig = function() {
-    defaultConfig = clone(testerDefaultConfig);
+    defaultConfig = lodash.cloneDeep(testerDefaultConfig);
 };
 
 // default separators for testing
-RuleTester.describe = (typeof describe === "function") ? describe : function(text, method) {
+RuleTester.describe = (typeof describe === "function") ? describe : /* istanbul ignore next */ function(text, method) {
     return method.apply(this);
 };
 
-RuleTester.it = (typeof it === "function") ? it : function(text, method) {
+RuleTester.it = (typeof it === "function") ? it : /* istanbul ignore next */ function(text, method) {
     return method.apply(this);
 };
 
@@ -227,7 +221,7 @@ RuleTester.prototype = {
          * @private
          */
         function runRuleForItem(ruleName, item) {
-            var config = clone(testerConfig),
+            var config = lodash.cloneDeep(testerConfig),
                 code, filename, schema, beforeAST, afterAST;
 
             if (typeof item === "string") {
@@ -236,10 +230,10 @@ RuleTester.prototype = {
                 code = item.code;
                 // Assumes everything on the item is a config except for the
                 // parameters used by this tester
-                var itemConfig = omit(item, RuleTesterParameters);
+                var itemConfig = lodash.omit(item, RuleTesterParameters);
                 // Create the config object from the tester config and this item
                 // specific configurations.
-                config = merge(
+                config = lodash.merge(
                     config,
                     itemConfig
                 );
@@ -261,14 +255,16 @@ RuleTester.prototype = {
 
             schema = validator.getRuleOptionsSchema(ruleName);
 
-            validateSchema(schema);
+            if (schema) {
+                validateSchema(schema);
 
-            if (validateSchema.errors) {
-                throw new Error([
-                    "Schema for rule " + ruleName + " is invalid:"
-                ].concat(validateSchema.errors.map(function(error) {
-                    return "\t" + error.field + ": " + error.message;
-                })).join("\n"));
+                if (validateSchema.errors) {
+                    throw new Error([
+                        "Schema for rule " + ruleName + " is invalid:"
+                    ].concat(validateSchema.errors.map(function(error) {
+                        return "\t" + error.field + ": " + error.message;
+                    })).join("\n"));
+                }
             }
 
             validator.validate(config, "rule-tester");
@@ -289,14 +285,28 @@ RuleTester.prototype = {
             try {
                 rules.get = function(ruleId) {
                     var rule = originalGet(ruleId);
-                    return function(context) {
-                        Object.freeze(context);
-                        freezeDeeply(context.options);
-                        freezeDeeply(context.settings);
-                        freezeDeeply(context.ecmaFeatures);
+                    if (typeof rule === "function") {
+                        return function(context) {
+                            Object.freeze(context);
+                            freezeDeeply(context.options);
+                            freezeDeeply(context.settings);
+                            freezeDeeply(context.parserOptions);
 
-                        return rule(context);
-                    };
+                            return rule(context);
+                        };
+                    } else {
+                        return {
+                            meta: rule.meta,
+                            create: function(context) {
+                                Object.freeze(context);
+                                freezeDeeply(context.options);
+                                freezeDeeply(context.settings);
+                                freezeDeeply(context.parserOptions);
+
+                                return rule.create(context);
+                            }
+                        };
+                    }
                 };
 
                 return {
@@ -343,18 +353,15 @@ RuleTester.prototype = {
             var result = runRuleForItem(ruleName, item);
             var messages = result.messages;
 
+
+
             if (typeof item.errors === "number") {
-                assert.equal(messages.length, item.errors, util.format("Should have %d errors but had %d: %s",
-                    item.errors, messages.length, util.inspect(messages)));
+                assert.equal(messages.length, item.errors, util.format("Should have %d error%s but had %d: %s",
+                    item.errors, item.errors === 1 ? "" : "s", messages.length, util.inspect(messages)));
             } else {
                 assert.equal(messages.length, item.errors.length,
-                    util.format("Should have %d errors but had %d: %s",
-                    item.errors.length, messages.length, util.inspect(messages)));
-
-                if (item.hasOwnProperty("output")) {
-                    var fixResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
-                    assert.equal(fixResult.output, item.output, "Output is incorrect.");
-                }
+                    util.format("Should have %d error%s but had %d: %s",
+                    item.errors.length, item.errors.length === 1 ? "" : "s", messages.length, util.inspect(messages)));
 
                 for (var i = 0, l = item.errors.length; i < l; i++) {
                     assert.ok(!("fatal" in messages[i]), "A fatal parsing error occurred: " + messages[i].message);
@@ -388,6 +395,12 @@ RuleTester.prototype = {
                         assert.fail(messages[i], null, "Error should be a string or object.");
                     }
                 }
+
+                if (item.hasOwnProperty("output")) {
+                    var fixResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
+                    assert.equal(fixResult.output, item.output, "Output is incorrect.");
+                }
+
             }
 
             assert.deepEqual(
@@ -400,15 +413,19 @@ RuleTester.prototype = {
         // this creates a mocha test suite and pipes all supplied info
         // through one of the templates above.
         RuleTester.describe(ruleName, function() {
-            test.valid.forEach(function(valid) {
-                RuleTester.it(valid.code || valid, function() {
-                    testValidTemplate(ruleName, valid);
+            RuleTester.describe("valid", function() {
+                test.valid.forEach(function(valid) {
+                    RuleTester.it(valid.code || valid, function() {
+                        testValidTemplate(ruleName, valid);
+                    });
                 });
             });
 
-            test.invalid.forEach(function(invalid) {
-                RuleTester.it(invalid.code, function() {
-                    testInvalidTemplate(ruleName, invalid);
+            RuleTester.describe("invalid", function() {
+                test.invalid.forEach(function(invalid) {
+                    RuleTester.it(invalid.code, function() {
+                        testInvalidTemplate(ruleName, invalid);
+                    });
                 });
             });
         });

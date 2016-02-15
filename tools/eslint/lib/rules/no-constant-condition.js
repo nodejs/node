@@ -34,7 +34,7 @@ module.exports = function(context) {
                 return isConstant(node.argument);
             case "BinaryExpression":
             case "LogicalExpression":
-                return isConstant(node.left) && isConstant(node.right);
+                return isConstant(node.left) && isConstant(node.right) && node.operator !== "in";
             case "AssignmentExpression":
                 return (node.operator === "=") && isConstant(node.right);
             case "SequenceExpression":

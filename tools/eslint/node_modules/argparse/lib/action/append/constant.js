@@ -24,7 +24,7 @@ var Action = require('../../action');
 var ActionAppendConstant = module.exports = function ActionAppendConstant(options) {
   options = options || {};
   options.nargs = 0;
-  if (options.constant === undefined) {
+  if (typeof options.constant === 'undefined') {
     throw new Error('constant option is required for appendAction');
   }
   Action.call(this, options);

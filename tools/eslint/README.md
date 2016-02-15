@@ -1,5 +1,6 @@
 [![NPM version][npm-image]][npm-url]
 [![build status][travis-image]][travis-url]
+[![Build status][appveyor-image]][appveyor-url]
 [![Test coverage][coveralls-image]][coveralls-url]
 [![Downloads][downloads-image]][downloads-url]
 [![Bountysource](https://www.bountysource.com/badge/tracker?tracker_id=282608)](https://www.bountysource.com/trackers/282608-eslint?utm_source=282608&utm_medium=shield&utm_campaign=TRACKER_BADGE)
@@ -7,7 +8,7 @@
 
 # ESLint
 
-[Website](http://eslint.org) | [Configuring](http://eslint.org/docs/user-guide/configuring) | [Rules](http://eslint.org/docs/rules/) | [Contributing](http://eslint.org/docs/developer-guide/contributing) | [Twitter](https://twitter.com/geteslint) | [Mailing List](https://groups.google.com/group/eslint)
+[Website](http://eslint.org) | [Configuring](http://eslint.org/docs/user-guide/configuring) | [Rules](http://eslint.org/docs/rules/) | [Contributing](http://eslint.org/docs/developer-guide/contributing) | [Reporting Bugs](http://eslint.org/docs/developer-guide/contributing/reporting-bugs) | [Twitter](https://twitter.com/geteslint) | [Mailing List](https://groups.google.com/group/eslint)
 
 ESLint is a tool for identifying and reporting on patterns found in ECMAScript/JavaScript code. In many ways, it is similar to JSLint and JSHint with a few exceptions:
 
@@ -55,6 +56,7 @@ The three error levels allow you fine-grained control over how ESLint applies ru
 ## Sponsors
 
 * Development is sponsored by [Box](https://box.com)
+* Site search ([eslint.org](http://eslint.org)) is sponsored by [Algolia](https://www.algolia.com)
 
 ## Team
 
@@ -74,6 +76,14 @@ These folks keep the project moving and are resources for help:
 ## Releases
 
 We have scheduled releases every two weeks on Friday or Saturday.
+
+## Filing Issues
+
+Before filing an issue, please be sure to read the guidelines for what you're reporting:
+
+* [Bug Report](http://eslint.org/docs/developer-guide/contributing/reporting-bugs)
+* [Propose a New Rule](http://eslint.org/docs/developer-guide/contributing/new-rules)
+* [Request a Change](http://eslint.org/docs/developer-guide/contributing/changes)
 
 ## Frequently Asked Questions
 
@@ -120,6 +130,8 @@ Join our [Mailing List](https://groups.google.com/group/eslint) or [Chatroom](ht
 [npm-url]: https://www.npmjs.com/package/eslint
 [travis-image]: https://img.shields.io/travis/eslint/eslint/master.svg?style=flat-square
 [travis-url]: https://travis-ci.org/eslint/eslint
+[appveyor-image]: https://ci.appveyor.com/api/projects/status/iwxmiobcvbw3b0av/branch/master?svg=true
+[appveyor-url]: https://ci.appveyor.com/project/nzakas/eslint/branch/master
 [coveralls-image]: https://img.shields.io/coveralls/eslint/eslint/master.svg?style=flat-square
 [coveralls-url]: https://coveralls.io/r/eslint/eslint?branch=master
 [downloads-image]: https://img.shields.io/npm/dm/eslint.svg?style=flat-square

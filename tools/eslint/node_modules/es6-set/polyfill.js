@@ -14,12 +14,14 @@ var clear          = require('es5-ext/array/#/clear')
 
   , call = Function.prototype.call
   , defineProperty = Object.defineProperty, getPrototypeOf = Object.getPrototypeOf
-  , SetPoly, getValues;
+  , SetPoly, getValues, NativeSet;
 
-module.exports = SetPoly = function (/*iterable*/) {
+if (isNative) NativeSet = Set;
+
+module.exports = SetPoly = function Set(/*iterable*/) {
 	var iterable = arguments[0], self;
 	if (!(this instanceof SetPoly)) throw new TypeError('Constructor requires \'new\'');
-	if (isNative && setPrototypeOf) self = setPrototypeOf(new Set(), getPrototypeOf(this));
+	if (isNative && setPrototypeOf) self = setPrototypeOf(new NativeSet(), getPrototypeOf(this));
 	else self = this;
 	if (iterable != null) iterator(iterable);
 	defineProperty(self, '__setData__', d('c', []));
@@ -32,8 +34,8 @@ module.exports = SetPoly = function (/*iterable*/) {
 };
 
 if (isNative) {
-	if (setPrototypeOf) setPrototypeOf(SetPoly, Set);
-	SetPoly.prototype = Object.create(Set.prototype, { constructor: d(SetPoly) });
+	if (setPrototypeOf) setPrototypeOf(SetPoly, NativeSet);
+	SetPoly.prototype = Object.create(NativeSet.prototype, { constructor: d(SetPoly) });
 }
 
 ee(Object.defineProperties(SetPoly.prototype, {

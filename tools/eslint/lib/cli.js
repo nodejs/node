@@ -158,6 +158,22 @@ var cli = {
             }
 
             engine = new CLIEngine(translateOptions(currentOptions));
+            if (currentOptions.printConfig) {
+                if (files.length !== 1) {
+                    log.error("The --print-config option requires a " +
+                        "single file as positional argument.");
+                    return 1;
+                }
+
+                if (text) {
+                    log.error("The --print-config option is not available for piped-in code.");
+                    return 1;
+                }
+
+                var fileConfig = engine.getConfigForFile(files[0]);
+                log.info(JSON.stringify(fileConfig, null, "  "));
+                return 0;
+            }
 
             report = text ? engine.executeOnText(text, currentOptions.stdinFilename) : engine.executeOnFiles(files);
             if (currentOptions.fix) {

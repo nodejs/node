@@ -7,7 +7,7 @@
  */
 "use strict";
 
-var escapeStringRegexp = require("escape-string-regexp");
+var lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -20,7 +20,7 @@ var escapeStringRegexp = require("escape-string-regexp");
  */
 function escape(s) {
     var isOneChar = s.length === 1;
-    s = escapeStringRegexp(s);
+    s = lodash.escapeRegExp(s);
     return isOneChar ? s : "(?:" + s + ")";
 }
 
@@ -116,7 +116,7 @@ function createAlwaysStylePattern(markers, exceptions) {
  * @returns {RegExp} A RegExp object for `never` mode.
  */
 function createNeverStylePattern(markers) {
-    var pattern = "^(" + markers.map(escape).join("|") + ")?[ \t]";
+    var pattern = "^(" + markers.map(escape).join("|") + ")?[ \t]+";
     return new RegExp(pattern);
 }
 
@@ -138,11 +138,43 @@ module.exports = function(context) {
         // Create RegExp object for valid patterns.
         rule[type] = {
             regex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
-            hasExceptions: exceptions.length > 0
+            hasExceptions: exceptions.length > 0,
+            markers: new RegExp("^(" + markers.map(escape).join("|") + ")")
         };
 
         return rule;
     }, {});
+
+    /**
+     * Reports a spacing error with an appropriate message.
+     * @param {ASTNode} node - A comment node to check.
+     * @param {string} message - An error message to report
+     * @param {Array} match - An array of match results for markers.
+     * @returns {void}
+     */
+    function report(node, message, match) {
+        var type = node.type.toLowerCase(),
+            commentIdentifier = type === "block" ? "/*" : "//";
+
+        context.report({
+            node: node,
+            fix: function(fixer) {
+                var start = node.range[0],
+                    end = start + 2;
+
+                if (requireSpace) {
+                    if (match) {
+                        end += match[0].length;
+                    }
+                    return fixer.insertTextAfterRange([start, end], " ");
+                } else {
+                    end += match[0].length;
+                    return fixer.replaceTextRange([start, end], commentIdentifier + (match[1] ? match[1] : ""));
+                }
+            },
+            message: message
+        });
+    }
 
     /**
      * Reports a given comment if it's invalid.
@@ -162,19 +194,21 @@ module.exports = function(context) {
         // Checks.
         if (requireSpace) {
             if (!rule.regex.test(node.value)) {
+                var hasMarker = rule.markers.exec(node.value);
+                var marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
                 if (rule.hasExceptions) {
-                    context.report(node, "Expected exception block, space or tab after \"" + commentIdentifier + "\" in comment.");
+                    report(node, "Expected exception block, space or tab after '" + marker + "' in comment.", hasMarker);
                 } else {
-                    context.report(node, "Expected space or tab after \"" + commentIdentifier + "\" in comment.");
+                    report(node, "Expected space or tab after '" + marker + "' in comment.", hasMarker);
                 }
             }
         } else {
             var matched = rule.regex.exec(node.value);
             if (matched) {
                 if (!matched[1]) {
-                    context.report(node, "Unexpected space or tab after \"" + commentIdentifier + "\" in comment.");
+                    report(node, "Unexpected space or tab after '" + commentIdentifier + "' in comment.", matched);
                 } else {
-                    context.report(node, "Unexpected space or tab after marker (" + matched[1] + ") in comment.");
+                    report(node, "Unexpected space or tab after marker (" + matched[1] + ") in comment.", matched);
                 }
             }
         }
