@@ -126,7 +126,6 @@ function run_test_3() {
   var file, options;
 
   const data = '\u2026\u2026';    // 3 bytes * 2 = 6 bytes in UTF-8
-  let fileData;
 
   options = { start: 10,
               flags: 'r+' };
@@ -144,7 +143,7 @@ function run_test_3() {
     console.log('    (debug: start         ', file.start);
     console.log('    (debug: pos           ', file.pos);
     assert.strictEqual(file.bytesWritten, data.length * 3);
-    fileData = fs.readFileSync(filepath, 'utf8');
+    const fileData = fs.readFileSync(filepath, 'utf8');
     console.log('    (debug: file data   ', fileData);
     console.log('    (debug: expected    ', fileDataExpected_3);
     assert.equal(fileData, fileDataExpected_3);
