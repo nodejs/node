@@ -7,37 +7,10 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-/**
- * Collects unresolved references from the global scope, then creates a map to references from its name.
- * @param {RuleContext} context - The current context.
- * @returns {object} A map object. Its key is the variable names. Its value is the references of each variable.
- */
-function collectUnresolvedReferences(context) {
-    var unresolved = Object.create(null);
-    var references = context.getScope().through;
-
-    for (var i = 0; i < references.length; ++i) {
-        var reference = references[i];
-        var name = reference.identifier.name;
-
-        if (name in unresolved === false) {
-            unresolved[name] = [];
-        }
-        unresolved[name].push(reference);
-    }
-
-    return unresolved;
-}
-
-//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    var unresolvedReferences = Object.create(null);
     var stack = [];
 
     /**
@@ -66,7 +39,7 @@ module.exports = function(context) {
         var identifier = reference.identifier;
         context.report(
             identifier,
-            "\"{{name}}\" used outside of binding context.",
+            "'{{name}}' used outside of binding context.",
             {name: identifier.name});
     }
 
@@ -79,8 +52,6 @@ module.exports = function(context) {
         if (node.kind !== "var") {
             return;
         }
-
-        var isGlobal = context.getScope().type === "global";
 
         // Defines a predicate to check whether or not a given reference is outside of valid scope.
         var scopeRange = stack[stack.length - 1];
@@ -99,23 +70,16 @@ module.exports = function(context) {
         // Gets declared variables, and checks its references.
         var variables = context.getDeclaredVariables(node);
         for (var i = 0; i < variables.length; ++i) {
-            var variable = variables[i];
-            var references = variable.references;
-
-            // Global variables are not resolved.
-            // In this case, use unresolved references.
-            if (isGlobal && variable.name in unresolvedReferences) {
-                references = unresolvedReferences[variable.name];
-            }
-
             // Reports.
-            references.filter(isOutsideOfScope).forEach(report);
+            variables[i]
+                .references
+                .filter(isOutsideOfScope)
+                .forEach(report);
         }
     }
 
     return {
         "Program": function(node) {
-            unresolvedReferences = collectUnresolvedReferences(context);
             stack = [node.range];
         },
 

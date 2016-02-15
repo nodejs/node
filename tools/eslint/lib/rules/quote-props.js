@@ -24,10 +24,10 @@ module.exports = function(context) {
         CHECK_UNNECESSARY = !context.options[1] || context.options[1].unnecessary !== false,
         NUMBERS = context.options[1] && context.options[1].numbers,
 
-        MESSAGE_UNNECESSARY = "Unnecessarily quoted property `{{property}}` found.",
-        MESSAGE_UNQUOTED = "Unquoted property `{{property}}` found.",
-        MESSAGE_NUMERIC = "Unquoted number literal `{{property}}` used as key.",
-        MESSAGE_RESERVED = "Unquoted reserved word `{{property}}` used as key.";
+        MESSAGE_UNNECESSARY = "Unnecessarily quoted property '{{property}}' found.",
+        MESSAGE_UNQUOTED = "Unquoted property '{{property}}' found.",
+        MESSAGE_NUMERIC = "Unquoted number literal '{{property}}' used as key.",
+        MESSAGE_RESERVED = "Unquoted reserved word '{{property}}' used as key.";
 
 
     /**
@@ -143,13 +143,13 @@ module.exports = function(context) {
                 }
             } else if (KEYWORDS && checkQuotesRedundancy && key.type === "Identifier" && isKeyword(key.name)) {
                 necessaryQuotes = true;
-                context.report(node, "Properties should be quoted as `{{property}}` is a reserved word.", {property: key.name});
+                context.report(node, "Properties should be quoted as '{{property}}' is a reserved word.", {property: key.name});
             } else {
                 lackOfQuotes = true;
             }
 
             if (quotes && lackOfQuotes) {
-                context.report(node, "Inconsistently quoted property `{{key}}` found.", {
+                context.report(node, "Inconsistently quoted property '{{key}}' found.", {
                     key: key.name || key.value
                 });
             }
@@ -187,21 +187,15 @@ module.exports.schema = {
             "type": "array",
             "items": [
                 {
-                    "enum": [0, 1, 2]
-                },
-                {
                     "enum": ["always", "as-needed", "consistent", "consistent-as-needed"]
                 }
             ],
-            "minItems": 1,
-            "maxItems": 2
+            "minItems": 0,
+            "maxItems": 1
         },
         {
             "type": "array",
             "items": [
-                {
-                    "enum": [0, 1, 2]
-                },
                 {
                     "enum": ["always", "as-needed", "consistent", "consistent-as-needed"]
                 },
@@ -221,8 +215,8 @@ module.exports.schema = {
                     "additionalProperties": false
                 }
             ],
-            "minItems": 1,
-            "maxItems": 3
+            "minItems": 0,
+            "maxItems": 2
         }
     ]
 };

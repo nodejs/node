@@ -24,29 +24,16 @@ module.exports = function(context) {
         if (arrowBody.type === "BlockStatement") {
             var blockBody = arrowBody.body;
 
-            if (blockBody.length > 1) {
+            if (blockBody.length !== 1) {
                 return;
             }
 
-            if (blockBody.length === 0) {
-                var hasComments = context.getComments(arrowBody).trailing.length > 0;
-                if (hasComments) {
-                    return;
-                }
-
+            if (asNeeded && blockBody[0].type === "ReturnStatement") {
                 context.report({
                     node: node,
                     loc: arrowBody.loc.start,
-                    message: "Unexpected empty block in arrow body."
+                    message: "Unexpected block statement surrounding arrow body."
                 });
-            } else {
-                if (asNeeded && blockBody[0].type === "ReturnStatement") {
-                    context.report({
-                        node: node,
-                        loc: arrowBody.loc.start,
-                        message: "Unexpected block statement surrounding arrow body."
-                    });
-                }
             }
         } else {
             if (always) {

@@ -306,6 +306,12 @@ GlobSync.prototype._readdirError = function (f, er) {
     case 'ENOTSUP': // https://github.com/isaacs/node-glob/issues/205
     case 'ENOTDIR': // totally normal. means it *does* exist.
       this.cache[this._makeAbs(f)] = 'FILE'
+      if (f === this.cwd) {
+        var error = new Error(er.code + ' invalid cwd ' + f)
+        error.path = f
+        error.code = er.code
+        throw error
+      }
       break
 
     case 'ENOENT': // not terribly unusual

@@ -85,21 +85,15 @@ module.exports.schema = {
             "type": "array",
             "items": [
                 {
-                    "enum": [0, 1, 2]
-                },
-                {
                     "enum": ["always"]
                 }
             ],
-            "minItems": 1,
-            "maxItems": 2
+            "minItems": 0,
+            "maxItems": 1
         },
         {
             "type": "array",
             "items": [
-                {
-                    "enum": [0, 1, 2]
-                },
                 {
                     "enum": ["never"]
                 },
@@ -113,8 +107,8 @@ module.exports.schema = {
                     "additionalProperties": false
                 }
             ],
-            "minItems": 1,
-            "maxItems": 3
+            "minItems": 0,
+            "maxItems": 2
         }
     ]
 };

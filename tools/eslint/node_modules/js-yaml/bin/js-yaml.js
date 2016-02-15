@@ -101,42 +101,34 @@ readFile(options.file, 'utf8', function (error, input) {
   try {
     output = JSON.parse(input);
     isYaml = false;
-  } catch (error) {
-    if (error instanceof SyntaxError) {
+  } catch (err) {
+    if (err instanceof SyntaxError) {
       try {
         output = [];
         yaml.loadAll(input, function (doc) { output.push(doc); }, {});
         isYaml = true;
 
-        if (0 === output.length) {
-          output = null;
-        } else if (1 === output.length) {
-          output = output[0];
-        }
-      } catch (error) {
-        if (options.trace && error.stack) {
-          console.error(error.stack);
-        } else {
-          console.error(error.toString(options.compact));
-        }
+        if (output.length === 0) output = null;
+        else if (output.length === 1) output = output[0];
+
+      } catch (e) {
+        if (options.trace && err.stack) console.error(e.stack);
+        else console.error(e.toString(options.compact));
 
         process.exit(1);
       }
     } else {
       console.error(
-        options.trace && error.stack ||
-        error.message ||
-        String(error));
+        options.trace && err.stack ||
+        err.message ||
+        String(err));
 
       process.exit(1);
     }
   }
 
-  if (isYaml) {
-    console.log(JSON.stringify(output, null, '  '));
-  } else {
-    console.log(yaml.dump(output));
-  }
+  if (isYaml) console.log(JSON.stringify(output, null, '  '));
+  else console.log(yaml.dump(output));
 
   process.exit(0);
 });

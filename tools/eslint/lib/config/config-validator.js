@@ -2,6 +2,7 @@
  * @fileoverview Validates configs.
  * @author Brandon Mills
  * @copyright 2015 Brandon Mills
+ * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -11,7 +12,7 @@
 //------------------------------------------------------------------------------
 
 var rules = require("../rules"),
-    environments = require("../../conf/environments"),
+    Environments = require("./environments"),
     schemaValidator = require("is-my-json-valid");
 
 var validators = {
@@ -29,36 +30,28 @@ var validators = {
  */
 function getRuleOptionsSchema(id) {
     var rule = rules.get(id),
-        schema = rule && rule.schema;
-
-    if (!schema) {
-        return {
-            "type": "array",
-            "items": [
-                {
-                    "enum": [0, 1, 2]
-                }
-            ],
-            "minItems": 1
-        };
-    }
+        schema = rule && rule.schema || rule && rule.meta && rule.meta.schema;
 
     // Given a tuple of schemas, insert warning level at the beginning
     if (Array.isArray(schema)) {
-        return {
-            "type": "array",
-            "items": [
-                {
-                    "enum": [0, 1, 2]
-                }
-            ].concat(schema),
-            "minItems": 1,
-            "maxItems": schema.length + 1
-        };
+        if (schema.length) {
+            return {
+                "type": "array",
+                "items": schema,
+                "minItems": 0,
+                "maxItems": schema.length
+            };
+        } else {
+            return {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 0
+            };
+        }
     }
 
     // Given a full schema, leave it alone
-    return schema;
+    return schema || null;
 }
 
 /**
@@ -70,34 +63,50 @@ function getRuleOptionsSchema(id) {
  */
 function validateRuleOptions(id, options, source) {
     var validateRule = validators.rules[id],
-        message;
+        message,
+        severity,
+        localOptions,
+        schema = getRuleOptionsSchema(id),
+        validSeverity = true;
 
-    if (!validateRule) {
-        validateRule = schemaValidator(getRuleOptionsSchema(id), { verbose: true });
+    if (!validateRule && schema) {
+        validateRule = schemaValidator(schema, { verbose: true });
         validators.rules[id] = validateRule;
     }
 
-    if (typeof options === "number") {
-        options = [options];
+    // if it's not an array, it should be just a severity
+    if (Array.isArray(options)) {
+        localOptions = options.concat();    // clone
+        severity = localOptions.shift();
+    } else {
+        severity = options;
+        localOptions = [];
     }
 
-    validateRule(options);
+    validSeverity = (severity === 0 || severity === 1 || severity === 2);
 
-    if (validateRule.errors) {
+    if (validateRule) {
+        validateRule(localOptions);
+    }
+
+    if ((validateRule && validateRule.errors) || !validSeverity) {
         message = [
             source, ":\n",
             "\tConfiguration for rule \"", id, "\" is invalid:\n"
         ];
-        validateRule.errors.forEach(function(error) {
-            if (error.field === "data[\"0\"]") {  // better error for severity
-                message.push(
-                    "\tSeverity should be one of the following: 0 = off, 1 = warning, 2 = error (you passed \"", error.value, "\").\n");
-            } else {
+
+        if (!validSeverity) {
+            message.push(
+                "\tSeverity should be one of the following: 0 = off, 1 = warning, 2 = error (you passed \"", severity, "\").\n");
+        }
+
+        if (validateRule && validateRule.errors) {
+            validateRule.errors.forEach(function(error) {
                 message.push(
                     "\tValue \"", error.value, "\" ", error.message, ".\n"
                 );
-            }
-        });
+            });
+        }
 
         throw new Error(message.join(""));
     }
@@ -122,7 +131,7 @@ function validateEnvironment(environment, source) {
 
     if (typeof environment === "object") {
         Object.keys(environment).forEach(function(env) {
-            if (!environments[env]) {
+            if (!Environments.get(env)) {
                 var message = [
                     source, ":\n",
                     "\tEnvironment key \"", env, "\" is unknown\n"

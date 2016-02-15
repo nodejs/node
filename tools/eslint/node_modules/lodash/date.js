@@ -1,3 +1,3 @@
 module.exports = {
-  'now': require('./date/now')
+  'now': require('./now')
 };

@@ -135,8 +135,8 @@ Prompt.prototype.getCurrentValue = function () {
     return !!choice.checked && !choice.disabled;
   });
 
-  this.selection = _.pluck(choices, "short");
-  return _.pluck(choices, "value");
+  this.selection = _.map(choices, "short");
+  return _.map(choices, "value");
 };
 
 Prompt.prototype.onUpKey = function() {
