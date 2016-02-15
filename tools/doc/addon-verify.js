@@ -12,7 +12,6 @@ const contents = fs.readFileSync(doc).toString();
 
 const tokens = marked.lexer(contents, {});
 let files = null;
-let blockName;
 let id = 0;
 
 // Just to make sure that all examples will be processed
@@ -28,7 +27,7 @@ oldDirs = oldDirs.filter(function(dir) {
 for (var i = 0; i < tokens.length; i++) {
   var token = tokens[i];
   if (token.type === 'heading' && token.text) {
-    blockName = token.text;
+    const blockName = token.text;
     if (files && Object.keys(files).length !== 0) {
       verifyFiles(files,
                   blockName,
