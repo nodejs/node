@@ -40,6 +40,8 @@ Verifier.prototype.update = function (chunk) {
 Verifier.prototype.verify = function (signature, fmt) {
 	var sig;
 	if (Signature.isSignature(signature, [2, 0])) {
+		if (signature.type !== 'ed25519')
+			return (false);
 		sig = signature.toBuffer('raw');
 
 	} else if (typeof (signature) === 'string') {
