@@ -25,7 +25,9 @@ module.exports = function(context) {
         requireReturn = options.requireReturn !== false,
         requireParamDescription = options.requireParamDescription !== false,
         requireReturnDescription = options.requireReturnDescription !== false,
-        requireReturnType = options.requireReturnType !== false;
+        requireReturnType = options.requireReturnType !== false,
+        preferType = options.preferType || {},
+        checkPreferType = Object.keys(preferType).length !== 0;
 
     //--------------------------------------------------------------------------
     // Helpers
@@ -82,6 +84,92 @@ module.exports = function(context) {
     }
 
     /**
+     * Check if type should be validated based on some exceptions
+     * @param {Object} type JSDoc tag
+     * @returns {boolean} True if it can be validated
+     * @private
+     */
+    function canTypeBeValidated(type) {
+        return type !== "UndefinedLiteral" && // {undefined} as there is no name property available.
+               type !== "NullLiteral" && // {null}
+               type !== "NullableLiteral" && // {?}
+               type !== "FunctionType" && // {function(a)}
+               type !== "AllLiteral"; // {*}
+    }
+
+    /**
+     * Extract the current and expected type based on the input type object
+     * @param {Object} type JSDoc tag
+     * @returns {Object} current and expected type object
+     * @private
+     */
+    function getCurrentExpectedTypes(type) {
+        var currentType;
+        var expectedType;
+
+        if (!type.name) {
+            currentType = type.expression.name;
+        } else {
+            currentType = type.name;
+        }
+
+        expectedType = preferType[currentType];
+
+        return {
+            currentType: currentType,
+            expectedType: expectedType
+        };
+    }
+
+    /**
+     * Check if return tag type is void or undefined
+     * @param {Object} tag JSDoc tag
+     * @param {Object} jsdocNode JSDoc node
+     * @returns {void}
+     * @private
+     */
+    function validateTagType(tag, jsdocNode) {
+        if (!tag.type || !canTypeBeValidated(tag.type.type)) {
+            return;
+        }
+
+        var typesToCheck = [];
+        var elements = [];
+
+        if (tag.type.type === "TypeApplication") { // {Array.<String>}
+            elements = tag.type.applications;
+            typesToCheck.push(getCurrentExpectedTypes(tag.type));
+        } else if (tag.type.type === "RecordType") { // {{20:String}}
+            elements = tag.type.fields;
+        } else if (tag.type.type === "UnionType") { // {String|number|Test}
+            elements = tag.type.elements;
+        } else {
+            typesToCheck.push(getCurrentExpectedTypes(tag.type));
+        }
+
+        elements.forEach(function(type) {
+            type = type.value ? type.value : type; // we have to use type.value for RecordType
+            if (canTypeBeValidated(type.type)) {
+                typesToCheck.push(getCurrentExpectedTypes(type));
+            }
+        });
+
+        typesToCheck.forEach(function(type) {
+            if (type.expectedType &&
+                type.expectedType !== type.currentType) {
+                context.report({
+                    node: jsdocNode,
+                    message: "Use '{{expectedType}}' instead of '{{currentType}}'.",
+                    data: {
+                        currentType: type.currentType,
+                        expectedType: type.expectedType
+                    }
+                });
+            }
+        });
+    }
+
+    /**
      * Validate the JSDoc node and output warnings if anything is wrong.
      * @param {ASTNode} node The AST node to check.
      * @returns {void}
@@ -92,6 +180,7 @@ module.exports = function(context) {
             functionData = fns.pop(),
             hasReturns = false,
             hasConstructor = false,
+            isInterface = false,
             isOverride = false,
             params = Object.create(null),
             jsdoc;
@@ -118,7 +207,7 @@ module.exports = function(context) {
 
             jsdoc.tags.forEach(function(tag) {
 
-                switch (tag.title) {
+                switch (tag.title.toLowerCase()) {
 
                     case "param":
                     case "arg":
@@ -166,6 +255,10 @@ module.exports = function(context) {
                         isOverride = true;
                         break;
 
+                    case "interface":
+                        isInterface = true;
+                        break;
+
                     // no default
                 }
 
@@ -174,10 +267,16 @@ module.exports = function(context) {
                     context.report(jsdocNode, "Use @{{name}} instead.", { name: prefer[tag.title] });
                 }
 
+                // validate the types
+                if (checkPreferType) {
+                    validateTagType(tag, jsdocNode);
+                }
             });
 
             // check for functions missing @returns
-            if (!isOverride && !hasReturns && !hasConstructor && node.parent.kind !== "get" && !isTypeClass(node)) {
+            if (!isOverride && !hasReturns && !hasConstructor && !isInterface &&
+                node.parent.kind !== "get" && node.parent.kind !== "constructor" &&
+                node.parent.kind !== "set" && !isTypeClass(node)) {
                 if (requireReturn || functionData.returnPresent) {
                     context.report(jsdocNode, "Missing JSDoc @" + (prefer.returns || "returns") + " for function.");
                 }
@@ -243,6 +342,12 @@ module.exports.schema = [
         "type": "object",
         "properties": {
             "prefer": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "string"
+                }
+            },
+            "preferType": {
                 "type": "object",
                 "additionalProperties": {
                     "type": "string"

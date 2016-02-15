@@ -32,7 +32,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 var util = require("util");
-var assign = require("object-assign");
+var lodash = require("lodash");
 
 module.exports = function(context) {
 
@@ -70,7 +70,7 @@ module.exports = function(context) {
                     const: variableDeclaratorRules
                 };
             } else if (typeof variableDeclaratorRules === "object") {
-                assign(options.VariableDeclarator, variableDeclaratorRules);
+                lodash.assign(options.VariableDeclarator, variableDeclaratorRules);
             }
         }
     }
@@ -321,7 +321,7 @@ module.exports = function(context) {
             (calleeNode.parent.type === "Property" ||
             calleeNode.parent.type === "ArrayExpression")) {
             // If function is part of array or object, comma can be put at left
-            indent = getNodeIndent(calleeNode, false, true);
+            indent = getNodeIndent(calleeNode, false, false);
         } else {
             // If function is standalone, simple calculate indent
             indent = getNodeIndent(calleeNode);
@@ -429,9 +429,11 @@ module.exports = function(context) {
             nodeIndent = getNodeIndent(effectiveParent);
             if (parentVarNode && parentVarNode.loc.start.line !== node.loc.start.line) {
                 if (parent.type !== "VariableDeclarator" || parentVarNode === parentVarNode.parent.declarations[0]) {
-                    nodeIndent = nodeIndent + (indentSize * options.VariableDeclarator[parentVarNode.parent.kind]);
-                } else if (parent.loc.start.line !== node.loc.start.line && parentVarNode === parentVarNode.parent.declarations[0]) {
-                    nodeIndent = nodeIndent + indentSize;
+                    if (parentVarNode.loc.start.line === effectiveParent.loc.start.line) {
+                        nodeIndent = nodeIndent + (indentSize * options.VariableDeclarator[parentVarNode.parent.kind]);
+                    } else if (parent.type === "ObjectExpression" || parent.type === "ArrayExpression") {
+                        nodeIndent = nodeIndent + indentSize;
+                    }
                 }
             } else if (!parentVarNode && !isFirstArrayElementOnSameLine(parent) && effectiveParent.type !== "MemberExpression" && effectiveParent.type !== "ExpressionStatement" && effectiveParent.type !== "AssignmentExpression" && effectiveParent.type !== "Property") {
                 nodeIndent = nodeIndent + indentSize;
@@ -623,6 +625,8 @@ module.exports = function(context) {
             }
         },
 
+        "ClassBody": blockIndentationCheck,
+
         "BlockStatement": blockIndentationCheck,
 
         "WhileStatement": blockLessNodes,
@@ -684,7 +688,8 @@ module.exports.schema = [
                 "enum": ["tab"]
             },
             {
-                "type": "integer"
+                "type": "integer",
+                "minimum": 0
             }
         ]
     },
@@ -692,21 +697,33 @@ module.exports.schema = [
         "type": "object",
         "properties": {
             "SwitchCase": {
-                "type": "integer"
+                "type": "integer",
+                "minimum": 0
             },
             "VariableDeclarator": {
-                "type": ["integer", "object"],
-                "properties": {
-                    "var": {
-                        "type": "integer"
+                "oneOf": [
+                    {
+                        "type": "integer",
+                        "minimum": 0
                     },
-                    "let": {
-                        "type": "integer"
-                    },
-                    "const": {
-                        "type": "integer"
+                    {
+                        "type": "object",
+                        "properties": {
+                            "var": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "let": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "const": {
+                                "type": "integer",
+                                "minimum": 0
+                            }
+                        }
                     }
-                }
+                ]
             }
         },
         "additionalProperties": false

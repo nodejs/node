@@ -37,9 +37,10 @@
 
 module.exports = function(context) {
     var config = context.options[0] || {},
-        ignore = config.ignore || [0, 1, 2],
         detectObjects = !!config.detectObjects,
-        enforceConst = !!config.enforceConst;
+        enforceConst = !!config.enforceConst,
+        ignore = config.ignore || [],
+        ignoreArrayIndexes = !!config.ignoreArrayIndexes;
 
     /**
      * Returns whether the node is number literal
@@ -59,6 +60,28 @@ module.exports = function(context) {
         return ignore.indexOf(num) !== -1;
     }
 
+    /**
+     * Returns whether the number should be ignored when used as a radix within parseInt() or Number.parseInt()
+     * @param {ASTNode} parent - the non-"UnaryExpression" parent
+     * @param {ASTNode} node - the node literal being evaluated
+     * @returns {boolean} true if the number should be ignored
+     */
+    function shouldIgnoreParseInt(parent, node) {
+        return parent.type === "CallExpression" && node === parent.arguments[1] &&
+            (parent.callee.name === "parseInt" ||
+            parent.callee.type === "MemberExpression" &&
+            parent.callee.object.name === "Number" &&
+            parent.callee.property.name === "parseInt");
+    }
+
+    /**
+     * Returns whether the number should be ignored when used as an array index with enabled 'ignoreArrayIndexes' option.
+     * @param {ASTNode} parent - the non-"UnaryExpression" parent.
+     * @returns {boolean} true if the number should be ignored
+     */
+    function shouldIgnoreArrayIndexes(parent) {
+        return parent.type === "MemberExpression" && ignoreArrayIndexes;
+    }
 
     return {
         "Literal": function(node) {
@@ -71,6 +94,7 @@ module.exports = function(context) {
                 return;
             }
 
+            // For negative magic numbers: update the value and parent node
             if (parent.type === "UnaryExpression" && parent.operator === "-") {
                 node = parent;
                 parent = node.parent;
@@ -78,17 +102,9 @@ module.exports = function(context) {
                 raw = "-" + raw;
             }
 
-            if (shouldIgnoreNumber(value)) {
-                return;
-            }
-
-            // don't warn on parseInt() or Number.parseInt() radix
-            if (parent.type === "CallExpression" && node === parent.arguments[1] &&
-                    (parent.callee.name === "parseInt" ||
-                    parent.callee.type === "MemberExpression" &&
-                    parent.callee.object.name === "Number" &&
-                    parent.callee.property.name === "parseInt")
-            ) {
+            if (shouldIgnoreNumber(value) ||
+                shouldIgnoreParseInt(parent, node) ||
+                shouldIgnoreArrayIndexes(parent)) {
                 return;
             }
 
@@ -124,6 +140,9 @@ module.exports.schema = [{
                 "type": "number"
             },
             "uniqueItems": true
+        },
+        "ignoreArrayIndexes": {
+            "type": "boolean"
         }
     },
     "additionalProperties": false

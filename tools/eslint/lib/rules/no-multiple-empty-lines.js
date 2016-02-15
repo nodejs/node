@@ -14,7 +14,8 @@ module.exports = function(context) {
 
     // Use options.max or 2 as default
     var max = 2,
-        maxEOF;
+        maxEOF,
+        maxBOF;
 
     // store lines that appear empty but really aren't
     var notEmpty = [];
@@ -22,6 +23,7 @@ module.exports = function(context) {
     if (context.options.length) {
         max = context.options[0].max;
         maxEOF = context.options[0].maxEOF;
+        maxBOF = context.options[0].maxBOF;
     }
 
     //--------------------------------------------------------------------------
@@ -45,10 +47,18 @@ module.exports = function(context) {
                 lastLocation,
                 blankCounter = 0,
                 location,
-                trimmedLines = lines.map(function(str) {
-                    return str.trim();
-                }),
-                firstOfEndingBlankLines;
+                firstOfEndingBlankLines,
+                firstNonBlankLine = -1,
+                trimmedLines = [];
+
+            lines.forEach(function(str, i) {
+                var trimmed = str.trim();
+                if ((firstNonBlankLine === -1) && (trimmed !== "")) {
+                    firstNonBlankLine = i;
+                }
+
+                trimmedLines.push(trimmed);
+            });
 
             // add the notEmpty lines in there with a placeholder
             notEmpty.forEach(function(x, i) {
@@ -72,6 +82,11 @@ module.exports = function(context) {
             }
 
             // Aggregate and count blank lines
+            if (firstNonBlankLine > maxBOF) {
+                context.report(node, 0,
+                        "Too many blank lines at the beginning of file. Max of " + maxBOF + " allowed.");
+            }
+
             lastLocation = currentLocation;
             currentLocation = trimmedLines.indexOf("", currentLocation + 1);
             while (currentLocation !== -1) {
@@ -92,7 +107,7 @@ module.exports = function(context) {
                         }
                     } else {
                         // inside the last blank lines
-                        if (blankCounter >= maxEOF) {
+                        if (blankCounter > maxEOF) {
                             context.report(node, location,
                                     "Too many blank lines at the end of file. Max of " + maxEOF + " allowed.");
                         }
@@ -112,10 +127,16 @@ module.exports.schema = [
         "type": "object",
         "properties": {
             "max": {
-                "type": "integer"
+                "type": "integer",
+                "minimum": 0
             },
             "maxEOF": {
-                "type": "integer"
+                "type": "integer",
+                "minimum": 0
+            },
+            "maxBOF": {
+                "type": "integer",
+                "minimum": 0
             }
         },
         "required": ["max"],

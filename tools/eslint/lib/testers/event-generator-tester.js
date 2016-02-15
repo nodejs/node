@@ -25,7 +25,7 @@ module.exports = {
      * @param {function} method - A test logic.
      * @returns {any} The returned value with the test logic.
      */
-    describe: (typeof describe === "function") ? describe : function(text, method) {
+    describe: (typeof describe === "function") ? describe : /* istanbul ignore next */ function(text, method) {
         return method.apply(this);
     },
 
@@ -35,7 +35,7 @@ module.exports = {
      * @param {function} method - A test logic.
      * @returns {any} The returned value with the test logic.
      */
-    it: (typeof it === "function") ? it : function(text, method) {
+    it: (typeof it === "function") ? it : /* istanbul ignore next */ function(text, method) {
         return method.apply(this);
     },
 

@@ -33,7 +33,7 @@ debug = debug("eslint:glob-util");
  *
  * Also makes sure all path separators are POSIX style for `glob` compatibility.
  *
- * @param {string[]} [extensions] An array of accepted extensions
+ * @param {string[]} extensions An array of accepted extensions
  * @returns {Function} A function that takes a pathname and returns a glob that
  *                     matches all files with the provided extensions if
  *                     pathname is a directory.
@@ -41,12 +41,10 @@ debug = debug("eslint:glob-util");
 function processPath(extensions) {
     var suffix = "/**";
 
-    if (extensions) {
-        if (extensions.length === 1) {
-            suffix += "/*." + extensions[0];
-        } else {
-            suffix += "/*.{" + extensions.join(",") + "}";
-        }
+    if (extensions.length === 1) {
+        suffix += "/*." + extensions[0];
+    } else {
+        suffix += "/*.{" + extensions.join(",") + "}";
     }
 
     /**
@@ -84,7 +82,8 @@ function resolveFileGlobPatterns(patterns, extensions) {
         return ext.charAt(0) === "." ? ext.substr(1) : ext;
     });
 
-    return patterns.map(processPath(extensions));
+    var processPathExtensions = processPath(extensions);
+    return patterns.map(processPathExtensions);
 }
 
 /**
@@ -103,7 +102,8 @@ function listFilesToProcess(globPatterns, options) {
         ignoredPathsList,
         files = [],
         added = {},
-        globOptions;
+        globOptions,
+        rulesKey = "_rules";
 
     /**
      * Executes the linter on a file defined by the `filename`. Skips
@@ -123,9 +123,11 @@ function listFilesToProcess(globPatterns, options) {
         added[filename] = true;
     }
 
-    options = options || { ignore: true };
-    ignoredPaths = IgnoredPaths.load(options);
-    ignoredPathsList = ignoredPaths.patterns || [];
+    options = options || { ignore: true, dotfiles: true };
+    ignoredPaths = new IgnoredPaths(options);
+    ignoredPathsList = ignoredPaths.ig.custom[rulesKey].map(function(rule) {
+        return rule.pattern;
+    });
     globOptions = {
         nodir: true,
         ignore: ignoredPathsList

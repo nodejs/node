@@ -16,6 +16,9 @@ module.exports = function(context) {
     // Helpers
     //--------------------------------------------------------------------------
 
+    // contains reported nodes to avoid reporting twice on destructuring with shorthand notation
+    var reported = [];
+
     /**
      * Checks if a string contains an underscore and isn't all upper-case
      * @param {String} name The string to check.
@@ -35,7 +38,10 @@ module.exports = function(context) {
      * @private
      */
     function report(node) {
-        context.report(node, "Identifier '{{name}}' is not in camel case.", { name: node.name });
+        if (reported.indexOf(node) < 0) {
+            reported.push(node);
+            context.report(node, "Identifier '{{name}}' is not in camel case.", { name: node.name });
+        }
     }
 
     var options = context.options[0] || {},
@@ -48,7 +54,6 @@ module.exports = function(context) {
     return {
 
         "Identifier": function(node) {
-
             // Leading and trailing underscores are commonly used to flag private/protected identifiers, strip them
             var name = node.name.replace(/^_+|_+$/g, ""),
                 effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
@@ -78,9 +83,13 @@ module.exports = function(context) {
 
             // Properties have their own rules
             } else if (node.parent.type === "Property") {
-
                 // "never" check properties
                 if (properties === "never") {
+                    return;
+                }
+
+                if (node.parent.parent && node.parent.parent.type === "ObjectPattern" &&
+                        node.parent.key === node && node.parent.value !== node) {
                     return;
                 }
 

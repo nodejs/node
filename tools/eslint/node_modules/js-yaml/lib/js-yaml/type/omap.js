@@ -6,9 +6,7 @@ var _hasOwnProperty = Object.prototype.hasOwnProperty;
 var _toString       = Object.prototype.toString;
 
 function resolveYamlOmap(data) {
-  if (null === data) {
-    return true;
-  }
+  if (data === null) return true;
 
   var objectKeys = [], index, length, pair, pairKey, pairHasKey,
       object = data;
@@ -17,36 +15,26 @@ function resolveYamlOmap(data) {
     pair = object[index];
     pairHasKey = false;
 
-    if ('[object Object]' !== _toString.call(pair)) {
-      return false;
-    }
+    if (_toString.call(pair) !== '[object Object]') return false;
 
     for (pairKey in pair) {
       if (_hasOwnProperty.call(pair, pairKey)) {
-        if (!pairHasKey) {
-          pairHasKey = true;
-        } else {
-          return false;
-        }
+        if (!pairHasKey) pairHasKey = true;
+        else return false;
       }
     }
 
-    if (!pairHasKey) {
-      return false;
-    }
+    if (!pairHasKey) return false;
 
-    if (-1 === objectKeys.indexOf(pairKey)) {
-      objectKeys.push(pairKey);
-    } else {
-      return false;
-    }
+    if (objectKeys.indexOf(pairKey) === -1) objectKeys.push(pairKey);
+    else return false;
   }
 
   return true;
 }
 
 function constructYamlOmap(data) {
-  return null !== data ? data : [];
+  return data !== null ? data : [];
 }
 
 module.exports = new Type('tag:yaml.org,2002:omap', {

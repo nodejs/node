@@ -13,6 +13,8 @@
 module.exports = function(context) {
 
     var ALL_NODES = context.options[0] !== "functions";
+    var EXCEPT_COND_ASSIGN = ALL_NODES && context.options[1] && context.options[1].conditionalAssign === false;
+    var sourceCode = context.getSourceCode();
 
     /**
      * Determines if this rule should be enforced for a node given the current configuration.
@@ -73,6 +75,32 @@ module.exports = function(context) {
      */
     function hasDoubleExcessParens(node) {
         return ruleApplies(node) && isParenthesisedTwice(node);
+    }
+
+    /**
+     * Determines if a node test expression is allowed to have a parenthesised assignment
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the assignment can be parenthesised.
+     * @private
+     */
+    function isCondAssignException(node) {
+        return EXCEPT_COND_ASSIGN && node.test.type === "AssignmentExpression";
+    }
+
+    /**
+     * Determines if a node following a [no LineTerminator here] restriction is
+     * surrounded by (potentially) invalid extra parentheses.
+     * @param {Token} token - The token preceding the [no LineTerminator here] restriction.
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the node is incorrectly parenthesised.
+     * @private
+     */
+    function hasExcessParensNoLineTerminator(token, node) {
+        if (token.loc.end.line === node.loc.start.line) {
+            return hasExcessParens(node);
+        }
+
+        return hasDoubleExcessParens(node);
     }
 
     /**
@@ -300,7 +328,7 @@ module.exports = function(context) {
                     return;
                 }
 
-                // Object literals *must* be parenthesized
+                // Object literals *must* be parenthesised
                 if (node.body.type === "ObjectExpression" && hasDoubleExcessParens(node.body)) {
                     report(node.body);
                     return;
@@ -326,30 +354,26 @@ module.exports = function(context) {
             }
         },
         "DoWhileStatement": function(node) {
-            if (hasDoubleExcessParens(node.test)) {
+            if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                 report(node.test);
             }
         },
         "ExpressionStatement": function(node) {
-            var firstToken;
+            var firstToken, secondToken, firstTokens;
             if (hasExcessParens(node.expression)) {
-                firstToken = context.getFirstToken(node.expression);
+                firstTokens = context.getFirstTokens(node.expression, 2);
+                firstToken = firstTokens[0];
+                secondToken = firstTokens[1];
 
-                // Pure object literals ({}) do not need parentheses but
-                // member expressions do ({}.toString())
-                if ((
-                        firstToken.value !== "{" ||
-                        node.expression.type === "ObjectExpression"
-                    ) &&
-                    // For such as `(function(){}.foo.bar)`
+                if (
+                    !firstToken ||
+                    firstToken.value !== "{" &&
+                    firstToken.value !== "function" &&
+                    firstToken.value !== "class" &&
                     (
-                        firstToken.value !== "function" ||
-                        node.expression.type === "FunctionExpression"
-                    ) &&
-                    // For such as `(class{}.foo.bar)`
-                    (
-                        firstToken.value !== "class" ||
-                        node.expression.type === "ClassExpression"
+                        firstToken.value !== "let" ||
+                        !secondToken ||
+                        secondToken.value !== "["
                     )
                 ) {
                     report(node.expression);
@@ -371,7 +395,7 @@ module.exports = function(context) {
                 report(node.init);
             }
 
-            if (node.test && hasExcessParens(node.test)) {
+            if (node.test && hasExcessParens(node.test) && !isCondAssignException(node)) {
                 report(node.test);
             }
 
@@ -380,7 +404,7 @@ module.exports = function(context) {
             }
         },
         "IfStatement": function(node) {
-            if (hasDoubleExcessParens(node.test)) {
+            if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                 report(node.test);
             }
         },
@@ -422,7 +446,10 @@ module.exports = function(context) {
             });
         },
         "ReturnStatement": function(node) {
-            if (node.argument && hasExcessParens(node.argument) &&
+            var returnToken = sourceCode.getFirstToken(node);
+
+            if (node.argument &&
+                    hasExcessParensNoLineTerminator(returnToken, node.argument) &&
                     // RegExp literal is allowed to have parens (#1589)
                     !(node.argument.type === "Literal" && node.argument.regex)) {
                 report(node.argument);
@@ -446,7 +473,9 @@ module.exports = function(context) {
             }
         },
         "ThrowStatement": function(node) {
-            if (hasExcessParens(node.argument)) {
+            var throwToken = sourceCode.getFirstToken(node);
+
+            if (hasExcessParensNoLineTerminator(throwToken, node.argument)) {
                 report(node.argument);
             }
         },
@@ -461,7 +490,7 @@ module.exports = function(context) {
             }
         },
         "WhileStatement": function(node) {
-            if (hasDoubleExcessParens(node.test)) {
+            if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                 report(node.test);
             }
         },
@@ -469,13 +498,52 @@ module.exports = function(context) {
             if (hasDoubleExcessParens(node.object)) {
                 report(node.object);
             }
+        },
+        "YieldExpression": function(node) {
+            var yieldToken;
+
+            if (node.argument) {
+                yieldToken = sourceCode.getFirstToken(node);
+
+                if ((precedence(node.argument) >= precedence(node) &&
+                        hasExcessParensNoLineTerminator(yieldToken, node.argument)) ||
+                        hasDoubleExcessParens(node.argument)) {
+                    report(node.argument);
+                }
+            }
         }
     };
 
 };
 
-module.exports.schema = [
-    {
-        "enum": ["all", "functions"]
-    }
-];
+module.exports.schema = {
+    "anyOf": [
+        {
+            "type": "array",
+            "items": [
+                {
+                    "enum": ["functions"]
+                }
+            ],
+            "minItems": 0,
+            "maxItems": 1
+        },
+        {
+            "type": "array",
+            "items": [
+                {
+                    "enum": ["all"]
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "conditionalAssign": {"type": "boolean"}
+                    },
+                    "additionalProperties": false
+                }
+            ],
+            "minItems": 0,
+            "maxItems": 2
+        }
+    ]
+};

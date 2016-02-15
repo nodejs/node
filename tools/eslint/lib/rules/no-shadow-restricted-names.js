@@ -21,7 +21,7 @@ module.exports = function(context) {
      */
     function checkForViolation(id) {
         if (RESTRICTED.indexOf(id.name) > -1) {
-            context.report(id, "Shadowing of global property \"" + id.name + "\".");
+            context.report(id, "Shadowing of global property '" + id.name + "'.");
         }
     }
 
@@ -30,9 +30,6 @@ module.exports = function(context) {
             checkForViolation(node.id);
         },
         "ArrowFunctionExpression": function(node) {
-            if (node.id) {
-                checkForViolation(node.id);
-            }
             [].map.call(node.params, checkForViolation);
         },
         "FunctionExpression": function(node) {

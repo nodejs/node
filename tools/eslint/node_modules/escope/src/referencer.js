@@ -392,6 +392,10 @@ export default class Referencer extends esrecurse.Visitor {
             this.scopeManager.__nestModuleScope(node);
         }
 
+        if (this.scopeManager.isStrictModeSupported() && this.scopeManager.isImpliedStrict()) {
+            this.currentScope().isStrict = true;
+        }
+
         this.visitChildren(node);
         this.close(node);
     }
