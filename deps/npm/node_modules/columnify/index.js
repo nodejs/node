@@ -135,6 +135,8 @@ module.exports = function(items, options = {}) {
     column.width = items
     .map(item => item[columnName])
     .reduce((min, cur) => {
+      // if already at maxWidth don't bother testing
+      if (min >= column.maxWidth) return min
       return Math.max(min, Math.min(column.maxWidth, Math.max(column.minWidth, wcwidth(cur))))
     }, 0)
   })
@@ -171,9 +173,11 @@ module.exports = function(items, options = {}) {
     let column = columns[columnName]
     column.width = items.map(item => {
       return item[columnName].reduce((min, cur) => {
+        if (min >= column.maxWidth) return min
         return Math.max(min, Math.min(column.maxWidth, Math.max(column.minWidth, wcwidth(cur))))
       }, 0)
     }).reduce((min, cur) => {
+      if (min >= column.maxWidth) return min
       return Math.max(min, Math.min(column.maxWidth, Math.max(column.minWidth, cur)))
     }, 0)
   })

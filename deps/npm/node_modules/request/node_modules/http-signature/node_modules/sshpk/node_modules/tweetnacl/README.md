@@ -53,7 +53,7 @@ There are two versions, you can use either of them:
 Installation
 ------------
 
-You can install TweetNaCl.is via a package manager:
+You can install TweetNaCl.js via a package manager:
 
 [Bower](http://bower.io):
 

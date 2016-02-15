@@ -6,10 +6,8 @@ var path = require("path")
 var fs = require("fs")
 var glob = require("glob")
 
-var globOpts = {
+var defaultGlobOpts = {
   nosort: true,
-  nocomment: true,
-  nonegate: true,
   silent: true
 }
 
@@ -35,7 +33,11 @@ function defaults (options) {
 
   options.maxBusyTries = options.maxBusyTries || 3
   options.emfileWait = options.emfileWait || 1000
+  if (options.glob === false) {
+    options.disableGlob = true
+  }
   options.disableGlob = options.disableGlob || false
+  options.glob = options.glob || defaultGlobOpts
 }
 
 function rimraf (p, options, cb) {
@@ -63,7 +65,7 @@ function rimraf (p, options, cb) {
     if (!er)
       return afterGlob(null, [p])
 
-    glob(p, globOpts, afterGlob)
+    glob(p, options.glob, afterGlob)
   })
 
   function next (er) {
@@ -270,7 +272,7 @@ function rimrafSync (p, options) {
       fs.lstatSync(p)
       results = [p]
     } catch (er) {
-      results = glob.sync(p, globOpts)
+      results = glob.sync(p, options.glob)
     }
   }
 

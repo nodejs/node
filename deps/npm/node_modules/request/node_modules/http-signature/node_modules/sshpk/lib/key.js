@@ -175,8 +175,14 @@ Key.prototype.createVerify = function (hashAlgo) {
 	assert.ok(v, 'failed to create verifier');
 	var oldVerify = v.verify.bind(v);
 	var key = this.toBuffer('pkcs8');
+	var self = this;
 	v.verify = function (signature, fmt) {
 		if (Signature.isSignature(signature, [2, 0])) {
+			if (signature.type !== self.type)
+				return (false);
+			if (signature.hashAlgorithm &&
+			    signature.hashAlgorithm !== hashAlgo)
+				return (false);
 			return (oldVerify(key, signature.toBuffer('asn1')));
 
 		} else if (typeof (signature) === 'string' ||
