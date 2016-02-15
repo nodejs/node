@@ -438,7 +438,7 @@ enum http_host_state
  * character or %x80-FF
  **/
 #define IS_HEADER_CHAR(ch)                                                     \
-  (ch == CR || ch == LF || ch == 9 || (ch > 31 && ch != 127))
+  (ch == CR || ch == LF || ch == 9 || ((unsigned char)ch > 31 && ch != 127))
 
 #define start_state (parser->type == HTTP_REQUEST ? s_start_req : s_start_res)
 
