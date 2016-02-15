@@ -5,8 +5,8 @@ var cluster = require('cluster');
 var fork = cluster.fork;
 
 if (cluster.isMaster) {
-  fork();
-  fork();
+  fork(); // it is intentionally called `fork` instead of
+  fork(); // `cluster.fork` to test that `this` is not used
   cluster.disconnect(common.mustCall(function() {
     assert.deepEqual(Object.keys(cluster.workers), []);
   }));
