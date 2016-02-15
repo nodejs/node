@@ -316,12 +316,11 @@ joinTests.forEach(function(test) {
     test[1].forEach(function(test) {
       const actual = join.apply(null, test[0]);
       const expected = test[1];
-      let actualAlt;
       // For non-Windows specific tests with the Windows join(), we need to try
       // replacing the slashes since the non-Windows specific tests' `expected`
       // use forward slashes
-      if (join === path.win32.join)
-        actualAlt = actual.replace(/\\/g, '/');
+      const actualAlt = (join === path.win32.join) ?
+        actual.replace(/\\/g, '/') : undefined;
       const fn = 'path.' +
                  (join === path.win32.join ? 'win32' : 'posix') +
                  '.join(';
