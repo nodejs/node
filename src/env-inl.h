@@ -108,7 +108,6 @@ inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
 
 inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
   env_->makecallback_cntr_--;
-  CHECK_GE(env_->makecallback_cntr_, 0);
 }
 
 inline bool Environment::AsyncCallbackScope::in_makecallback() {
