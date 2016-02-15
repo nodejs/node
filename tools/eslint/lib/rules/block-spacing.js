@@ -82,7 +82,7 @@ module.exports = function(context) {
             context.report({
                 node: node,
                 loc: openBrace.loc.start,
-                message: message + " after \"{\".",
+                message: message + " after '{'.",
                 fix: function(fixer) {
                     if (always) {
                         return fixer.insertTextBefore(firstToken, " ");
@@ -96,7 +96,7 @@ module.exports = function(context) {
             context.report({
                 node: node,
                 loc: closeBrace.loc.start,
-                message: message + " before \"}\".",
+                message: message + " before '}'.",
                 fix: function(fixer) {
                     if (always) {
                         return fixer.insertTextAfter(lastToken, " ");

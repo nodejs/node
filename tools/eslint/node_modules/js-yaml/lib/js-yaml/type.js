@@ -22,7 +22,7 @@ var YAML_NODE_KINDS = [
 function compileStyleAliases(map) {
   var result = {};
 
-  if (null !== map) {
+  if (map !== null) {
     Object.keys(map).forEach(function (style) {
       map[style].forEach(function (alias) {
         result[String(alias)] = style;
@@ -37,7 +37,7 @@ function Type(tag, options) {
   options = options || {};
 
   Object.keys(options).forEach(function (name) {
-    if (-1 === TYPE_CONSTRUCTOR_OPTIONS.indexOf(name)) {
+    if (TYPE_CONSTRUCTOR_OPTIONS.indexOf(name) === -1) {
       throw new YAMLException('Unknown option "' + name + '" is met in definition of "' + tag + '" YAML type.');
     }
   });
@@ -53,7 +53,7 @@ function Type(tag, options) {
   this.defaultStyle = options['defaultStyle'] || null;
   this.styleAliases = compileStyleAliases(options['styleAliases'] || null);
 
-  if (-1 === YAML_NODE_KINDS.indexOf(this.kind)) {
+  if (YAML_NODE_KINDS.indexOf(this.kind) === -1) {
     throw new YAMLException('Unknown kind "' + this.kind + '" is specified for "' + tag + '" YAML type.');
   }
 }

@@ -13,9 +13,7 @@ var BASE64_MAP = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
 
 
 function resolveYamlBinary(data) {
-  if (null === data) {
-    return false;
-  }
+  if (data === null) return false;
 
   var code, idx, bitlen = 0, max = data.length, map = BASE64_MAP;
 
@@ -24,10 +22,10 @@ function resolveYamlBinary(data) {
     code = map.indexOf(data.charAt(idx));
 
     // Skip CR/LF
-    if (code > 64) { continue; }
+    if (code > 64) continue;
 
     // Fail on illegal characters
-    if (code < 0) { return false; }
+    if (code < 0) return false;
 
     bitlen += 6;
   }
@@ -72,9 +70,7 @@ function constructYamlBinary(data) {
   }
 
   // Wrap into Buffer for NodeJS and leave Array for browser
-  if (NodeBuffer) {
-    return new NodeBuffer(result);
-  }
+  if (NodeBuffer) return new NodeBuffer(result);
 
   return result;
 }

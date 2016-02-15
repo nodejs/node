@@ -132,7 +132,7 @@ module.exports = function(context) {
             ) {
                 context.report({
                     node: variable.identifiers[0],
-                    message: "\"{{name}}\" is already declared in the upper scope.",
+                    message: "'{{name}}' is already declared in the upper scope.",
                     data: variable
                 });
             }

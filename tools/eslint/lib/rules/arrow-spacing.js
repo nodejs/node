@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to require parens in arrow function arguments.
+ * @fileoverview Rule to define spacing before/after arrow function's arrow.
  * @author Jxck
  * @copyright 2015 Jxck. All rights reserved.
  */

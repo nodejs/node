@@ -16,24 +16,28 @@ module.exports = function(context) {
     var config = context.options[0],
         sourceCode = context.getSourceCode(),
         checkFunctions = true,
-        checkKeywords = true;
+        checkKeywords = true,
+        checkClasses = true;
 
     if (typeof config === "object") {
         checkFunctions = config.functions !== "never";
         checkKeywords = config.keywords !== "never";
+        checkClasses = config.classes !== "never";
     } else if (config === "never") {
         checkFunctions = false;
         checkKeywords = false;
+        checkClasses = false;
     }
 
     /**
-     * Checks whether or not a given token is an arrow operator (=>).
+     * Checks whether or not a given token is an arrow operator (=>) or a keyword
+     * in order to avoid to conflict with `arrow-spacing` and `keyword-spacing`.
      *
      * @param {Token} token - A token to check.
      * @returns {boolean} `true` if the token is an arrow operator.
      */
-    function isArrow(token) {
-        return token.type === "Punctuator" && token.value === "=>";
+    function isConflicted(token) {
+        return (token.type === "Punctuator" && token.value === "=>") || token.type === "Keyword";
     }
 
     /**
@@ -47,11 +51,13 @@ module.exports = function(context) {
             parent,
             requireSpace;
 
-        if (precedingToken && !isArrow(precedingToken) && astUtils.isTokenOnSameLine(precedingToken, node)) {
+        if (precedingToken && !isConflicted(precedingToken) && astUtils.isTokenOnSameLine(precedingToken, node)) {
             hasSpace = sourceCode.isSpaceBetweenTokens(precedingToken, node);
             parent = context.getAncestors().pop();
             if (parent.type === "FunctionExpression" || parent.type === "FunctionDeclaration") {
                 requireSpace = checkFunctions;
+            } else if (node.type === "ClassBody") {
+                requireSpace = checkClasses;
             } else {
                 requireSpace = checkKeywords;
             }
@@ -121,6 +127,9 @@ module.exports.schema = [
                         "enum": ["always", "never"]
                     },
                     "functions": {
+                        "enum": ["always", "never"]
+                    },
+                    "classes": {
                         "enum": ["always", "never"]
                     }
                 },

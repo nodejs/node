@@ -50,7 +50,7 @@ module.exports = function(context) {
             if (secondToken.range[0] === firstToken.range[1]) {
                 context.report({
                     node: node,
-                    message: "Unary word operator \"" + word + "\" must be followed by whitespace.",
+                    message: "Unary word operator '" + word + "' must be followed by whitespace.",
                     fix: function(fixer) {
                         return fixer.insertTextAfter(firstToken, " ");
                     }
@@ -62,7 +62,7 @@ module.exports = function(context) {
             if (secondToken.range[0] > firstToken.range[1]) {
                 context.report({
                     node: node,
-                    message: "Unexpected space after unary word operator \"" + word + "\".",
+                    message: "Unexpected space after unary word operator '" + word + "'.",
                     fix: function(fixer) {
                         return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
                     }
@@ -83,18 +83,18 @@ module.exports = function(context) {
 
         if ((node.type === "NewExpression" || node.prefix) && firstToken.type === "Keyword") {
             checkUnaryWordOperatorForSpaces(node, firstToken, secondToken);
-            return void 0;
+            return;
         }
 
         if (options.nonwords) {
             if (node.prefix) {
                 if (isFirstBangInBangBangExpression(node)) {
-                    return void 0;
+                    return;
                 }
                 if (firstToken.range[1] === secondToken.range[0]) {
                     context.report({
                         node: node,
-                        message: "Unary operator \"" + firstToken.value + "\" must be followed by whitespace.",
+                        message: "Unary operator '" + firstToken.value + "' must be followed by whitespace.",
                         fix: function(fixer) {
                             return fixer.insertTextAfter(firstToken, " ");
                         }
@@ -104,7 +104,7 @@ module.exports = function(context) {
                 if (firstToken.range[1] === secondToken.range[0]) {
                     context.report({
                         node: node,
-                        message: "Space is required before unary expressions \"" + secondToken.value + "\".",
+                        message: "Space is required before unary expressions '" + secondToken.value + "'.",
                         fix: function(fixer) {
                             return fixer.insertTextBefore(secondToken, " ");
                         }
@@ -116,7 +116,7 @@ module.exports = function(context) {
                 if (secondToken.range[0] > firstToken.range[1]) {
                     context.report({
                         node: node,
-                        message: "Unexpected space after unary operator \"" + firstToken.value + "\".",
+                        message: "Unexpected space after unary operator '" + firstToken.value + "'.",
                         fix: function(fixer) {
                             return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
                         }
@@ -126,7 +126,7 @@ module.exports = function(context) {
                 if (secondToken.range[0] > firstToken.range[1]) {
                     context.report({
                         node: node,
-                        message: "Unexpected space before unary operator \"" + secondToken.value + "\".",
+                        message: "Unexpected space before unary operator '" + secondToken.value + "'.",
                         fix: function(fixer) {
                             return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
                         }
@@ -148,16 +148,11 @@ module.exports = function(context) {
             var tokens = context.getFirstTokens(node, 3),
                 word = "yield";
 
-            if (!node.argument) {
+            if (!node.argument || node.delegate) {
                 return;
             }
 
-            if (node.delegate) {
-                word += "*";
-                checkUnaryWordOperatorForSpaces(node, tokens[1], tokens[2], word);
-            } else {
-                checkUnaryWordOperatorForSpaces(node, tokens[0], tokens[1], word);
-            }
+            checkUnaryWordOperatorForSpaces(node, tokens[0], tokens[1], word);
         }
     };
 

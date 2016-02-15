@@ -105,22 +105,52 @@ module.exports = function(context) {
 
             if (hasLeadingSpace(token)) {
                 if (!requireSpaceBefore) {
-                    context.report(node, location, "Unexpected whitespace before semicolon.");
+                    context.report({
+                        node: node,
+                        loc: location,
+                        message: "Unexpected whitespace before semicolon.",
+                        fix: function(fixer) {
+                            var tokenBefore = context.getTokenBefore(token);
+                            return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
+                        }
+                    });
                 }
             } else {
                 if (requireSpaceBefore) {
-                    context.report(node, location, "Missing whitespace before semicolon.");
+                    context.report({
+                        node: node,
+                        loc: location,
+                        message: "Missing whitespace before semicolon.",
+                        fix: function(fixer) {
+                            return fixer.insertTextBefore(token, " ");
+                        }
+                    });
                 }
             }
 
             if (!isFirstTokenInCurrentLine(token) && !isLastTokenInCurrentLine(token) && !isBeforeClosingParen(token)) {
                 if (hasTrailingSpace(token)) {
                     if (!requireSpaceAfter) {
-                        context.report(node, location, "Unexpected whitespace after semicolon.");
+                        context.report({
+                            node: node,
+                            loc: location,
+                            message: "Unexpected whitespace after semicolon.",
+                            fix: function(fixer) {
+                                var tokenAfter = context.getTokenAfter(token);
+                                return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
+                            }
+                        });
                     }
                 } else {
                     if (requireSpaceAfter) {
-                        context.report(node, location, "Missing whitespace after semicolon.");
+                        context.report({
+                            node: node,
+                            loc: location,
+                            message: "Missing whitespace after semicolon.",
+                            fix: function(fixer) {
+                                return fixer.insertTextAfter(token, " ");
+                            }
+                        });
                     }
                 }
             }

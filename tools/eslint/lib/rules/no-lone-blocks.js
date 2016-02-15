@@ -66,7 +66,7 @@ module.exports = function(context) {
     };
 
     // ES6: report blocks without block-level bindings
-    if (context.ecmaFeatures.blockBindings || context.ecmaFeatures.classes) {
+    if (context.parserOptions.ecmaVersion >= 6) {
         ruleDef = {
             "BlockStatement": function(node) {
                 if (isLoneBlock(node)) {
@@ -80,9 +80,7 @@ module.exports = function(context) {
                 }
             }
         };
-    }
 
-    if (context.ecmaFeatures.blockBindings) {
         ruleDef.VariableDeclaration = function(node) {
             if (node.kind === "let" || node.kind === "const") {
                 markLoneBlock(node);
@@ -94,9 +92,7 @@ module.exports = function(context) {
                 markLoneBlock(node);
             }
         };
-    }
 
-    if (context.ecmaFeatures.classes) {
         ruleDef.ClassDeclaration = markLoneBlock;
     }
 

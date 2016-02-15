@@ -11,7 +11,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var assign = require("object-assign");
+var lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -77,7 +77,7 @@ function calculateCapIsNewExceptions(config) {
 
 module.exports = function(context) {
 
-    var config = context.options[0] ? assign({}, context.options[0]) : {};
+    var config = context.options[0] ? lodash.assign({}, context.options[0]) : {};
     config.newIsCap = config.newIsCap !== false;
     config.capIsNew = config.capIsNew !== false;
     var skipProperties = config.properties === false;

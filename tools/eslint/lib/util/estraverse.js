@@ -33,6 +33,7 @@ var experimentalKeys = {
  */
 function installKeys(keys) {
     for (var key in keys) {
+        /* istanbul ignore else */
         if (keys.hasOwnProperty(key)) {
             estraverse.Syntax[key] = key;
             if (keys[key]) {
