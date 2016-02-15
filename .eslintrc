@@ -36,6 +36,7 @@ rules:
   comma-spacing: 2
   eol-last: 2
   indent: [2, 2, {SwitchCase: 1}]
+  keyword-spacing: 2
   max-len: [2, 80, 2]
   new-parens: 2
   no-mixed-spaces-and-tabs: 2
@@ -54,8 +55,8 @@ rules:
   arrow-parens: [2, "always"]
   arrow-spacing: [2, {"before": true, "after": true}]
   constructor-super: 2
-  no-arrow-condition: 2
   no-class-assign: 2
+  no-confusing-arrow: 2
   no-const-assign: 2
   no-dupe-class-members: 2
   no-this-before-super: 2
