@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-const args = [`--debug`, `--debug-port=${common.PORT}`, `--interactive`];
+const args = ['--debug', `--debug-port=${common.PORT}`, '--interactive'];
 const proc = spawn(process.execPath, args, { stdio: 'pipe' });
 proc.stdin.write(`
     util.inspect(Promise.resolve(42));
