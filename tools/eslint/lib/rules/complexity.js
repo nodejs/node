@@ -12,7 +12,7 @@
 
 module.exports = function(context) {
 
-    var THRESHOLD = context.options[0];
+    var THRESHOLD = (typeof context.options[0] !== "undefined") ? context.options[0] : 20;
 
     //--------------------------------------------------------------------------
     // Helpers
@@ -116,6 +116,7 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "type": "integer"
+        "type": "integer",
+        "minimum": 0
     }
 ];

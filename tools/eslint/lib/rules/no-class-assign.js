@@ -23,7 +23,7 @@ module.exports = function(context) {
         astUtils.getModifyingReferences(variable.references).forEach(function(reference) {
             context.report(
                 reference.identifier,
-                "`{{name}}` is a class.",
+                "'{{name}}' is a class.",
                 {name: reference.identifier.name});
 
         });

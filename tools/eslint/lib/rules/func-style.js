@@ -24,7 +24,7 @@ module.exports = function(context) {
         "FunctionDeclaration": function(node) {
             stack.push(false);
 
-            if (!enforceDeclarations) {
+            if (!enforceDeclarations && node.parent.type !== "ExportDefaultDeclaration") {
                 context.report(node, "Expected a function expression.");
             }
         },

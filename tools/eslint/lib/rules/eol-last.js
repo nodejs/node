@@ -22,9 +22,6 @@ module.exports = function(context) {
                 location = {column: 1},
                 linebreakStyle = context.options[0] || "unix",
                 linebreak = linebreakStyle === "unix" ? "\n" : "\r\n";
-            if (src.length === 0) {
-                return;
-            }
 
             if (src[src.length - 1] !== "\n") {
                 // file is not newline-terminated

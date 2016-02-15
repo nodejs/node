@@ -12,7 +12,7 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    var errorMessage = "All \"var\" declarations must be at the top of the function scope.";
+    var errorMessage = "All 'var' declarations must be at the top of the function scope.";
 
     //--------------------------------------------------------------------------
     // Helpers
@@ -61,6 +61,8 @@ module.exports = function(context) {
                 return true;
             }
         }
+
+        return false;
     }
 
     /**
