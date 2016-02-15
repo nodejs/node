@@ -90,7 +90,7 @@ function test_simple_relative_symlink(callback) {
   [
     [entry, '../' + common.tmpDirName + '/cycles/root.js']
   ].forEach(function(t) {
-    try {fs.unlinkSync(t[0]);}catch (e) {}
+    try {fs.unlinkSync(t[0]);} catch (e) {}
     console.log('fs.symlinkSync(%j, %j, %j)', t[1], t[0], 'file');
     fs.symlinkSync(t[1], t[0], 'file');
     unlink.push(t[0]);
