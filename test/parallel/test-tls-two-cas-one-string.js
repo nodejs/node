@@ -5,13 +5,13 @@ const tls = require('tls');
 const fs = require('fs');
 
 const ca1 =
-    fs.readFileSync(`${common.fixturesDir}/keys/ca1-cert.pem`, `utf8`);
+    fs.readFileSync(`${common.fixturesDir}/keys/ca1-cert.pem`, 'utf8');
 const ca2 =
-    fs.readFileSync(`${common.fixturesDir}/keys/ca2-cert.pem`, `utf8`);
+    fs.readFileSync(`${common.fixturesDir}/keys/ca2-cert.pem`, 'utf8');
 const cert =
-    fs.readFileSync(`${common.fixturesDir}/keys/agent3-cert.pem`, `utf8`);
+    fs.readFileSync(`${common.fixturesDir}/keys/agent3-cert.pem`, 'utf8');
 const key =
-    fs.readFileSync(`${common.fixturesDir}/keys/agent3-key.pem`, `utf8`);
+    fs.readFileSync(`${common.fixturesDir}/keys/agent3-key.pem`, 'utf8');
 
 function test(ca, next) {
   const server = tls.createServer({ ca, cert, key }, function(conn) {
