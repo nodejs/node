@@ -3251,7 +3251,7 @@ test_double_content_length_error (int req)
 
   parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
   if (parsed != buflen) {
-    assert(HTTP_PARSER_ERRNO(&parser) == HPE_MULTIPLE_CONTENT_LENGTH);
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_UNEXPECTED_CONTENT_LENGTH);
     return;
   }
 
