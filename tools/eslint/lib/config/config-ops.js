@@ -11,9 +11,9 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug"),
-    environments = require("../../conf/environments"),
-    assign = require("object-assign");
+var lodash = require("lodash"),
+    debug = require("debug"),
+    Environments = require("./environments");
 
 //------------------------------------------------------------------------------
 // Private
@@ -36,7 +36,7 @@ module.exports = {
             globals: {},
             env: {},
             rules: {},
-            ecmaFeatures: {}
+            parserOptions: {}
         };
     },
 
@@ -57,16 +57,16 @@ module.exports = {
             Object.keys(env).filter(function(name) {
                 return env[name];
             }).forEach(function(name) {
-                var environment = environments[name];
+                var environment = Environments.get(name);
 
                 if (environment) {
                     debug("Creating config for environment " + name);
                     if (environment.globals) {
-                        assign(envConfig.globals, environment.globals);
+                        lodash.assign(envConfig.globals, environment.globals);
                     }
 
-                    if (environment.ecmaFeatures) {
-                        assign(envConfig.ecmaFeatures, environment.ecmaFeatures);
+                    if (environment.parserOptions) {
+                        lodash.assign(envConfig.parserOptions, environment.parserOptions);
                     }
                 }
             });
@@ -167,14 +167,10 @@ module.exports = {
             Object.keys(src).forEach(function(key) {
                 if (Array.isArray(src[key]) || Array.isArray(target[key])) {
                     dst[key] = deepmerge(target[key], src[key], key === "plugins", isRule);
-                } else if (typeof src[key] !== "object" || !src[key]) {
+                } else if (typeof src[key] !== "object" || !src[key] || key === "exported" || key === "astGlobals") {
                     dst[key] = src[key];
                 } else {
-                    if (!target[key]) {
-                        dst[key] = src[key];
-                    } else {
-                        dst[key] = deepmerge(target[key], src[key], combine, key === "rules");
-                    }
+                    dst[key] = deepmerge(target[key] || {}, src[key], combine, key === "rules");
                 }
             });
         }

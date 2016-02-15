@@ -49,7 +49,6 @@ module.exports = function(context) {
      * @returns {boolean} Whether or not this is part of a callback expression
      */
     function isCallbackExpression(node, parentNode) {
-
         // ensure the parent node exists and is an expression
         if (!parentNode || parentNode.type !== "ExpressionStatement") {
             return false;
@@ -66,6 +65,8 @@ module.exports = function(context) {
                 return true;
             }
         }
+
+        return false;
     }
 
     //--------------------------------------------------------------------------

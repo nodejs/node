@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var xmlescape = require("xml-escape");
+var lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -25,8 +25,8 @@ module.exports = function(results) {
         messages.forEach(function(message) {
             output += "<issue line=\"" + message.line + "\" " +
                 "char=\"" + message.column + "\" " +
-                "evidence=\"" + xmlescape(message.source || "") + "\" " +
-                "reason=\"" + xmlescape(message.message || "") +
+                "evidence=\"" + lodash.escape(message.source || "") + "\" " +
+                "reason=\"" + lodash.escape(message.message || "") +
                 (message.ruleId ? " (" + message.ruleId + ")" : "") + "\" />";
         });
 

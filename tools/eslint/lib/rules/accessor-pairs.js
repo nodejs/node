@@ -66,80 +66,85 @@ function isPropertyDescriptor(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var config = context.options[0] || {};
-    var checkGetWithoutSet = config.getWithoutSet === true;
-    var checkSetWithoutGet = config.setWithoutGet !== false;
-
-    /**
-     * Checks a object expression to see if it has setter and getter both present or none.
-     * @param {ASTNode} node The node to check.
-     * @returns {void}
-     * @private
-     */
-    function checkLonelySetGet(node) {
-        var isSetPresent = false;
-        var isGetPresent = false;
-        var isDescriptor = isPropertyDescriptor(node);
-
-        for (var i = 0, end = node.properties.length; i < end; i++) {
-            var property = node.properties[i];
-
-            var propToCheck = "";
-            if (property.kind === "init") {
-                if (isDescriptor && !property.computed) {
-                    propToCheck = property.key.name;
-                }
-            } else {
-                propToCheck = property.kind;
-            }
-
-            switch (propToCheck) {
-                case "set":
-                    isSetPresent = true;
-                    break;
-
-                case "get":
-                    isGetPresent = true;
-                    break;
-
-                default:
-                    // Do nothing
-            }
-
-            if (isSetPresent && isGetPresent) {
-                break;
-            }
-        }
-
-        if (checkSetWithoutGet && isSetPresent && !isGetPresent) {
-            context.report(node, "Getter is not present");
-        } else if (checkGetWithoutSet && isGetPresent && !isSetPresent) {
-            context.report(node, "Setter is not present");
-        }
-    }
-
-    return {
-        "ObjectExpression": function(node) {
-            if (checkSetWithoutGet || checkGetWithoutSet) {
-                checkLonelySetGet(node);
-            }
-        }
-    };
-
-};
-
-module.exports.schema = [
-    {
-        "type": "object",
-        "properties": {
-            "getWithoutSet": {
-                "type": "boolean"
-            },
-            "setWithoutGet": {
-                "type": "boolean"
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "Enforces getter/setter pairs in objects",
+            category: "Best Practices",
+            recommended: false
         },
-        "additionalProperties": false
+        schema: [{
+            "type": "object",
+            "properties": {
+                "getWithoutSet": {
+                    "type": "boolean"
+                },
+                "setWithoutGet": {
+                    "type": "boolean"
+                }
+            },
+            "additionalProperties": false
+        }]
+    },
+    create: function(context) {
+        var config = context.options[0] || {};
+        var checkGetWithoutSet = config.getWithoutSet === true;
+        var checkSetWithoutGet = config.setWithoutGet !== false;
+
+        /**
+         * Checks a object expression to see if it has setter and getter both present or none.
+         * @param {ASTNode} node The node to check.
+         * @returns {void}
+         * @private
+         */
+        function checkLonelySetGet(node) {
+            var isSetPresent = false;
+            var isGetPresent = false;
+            var isDescriptor = isPropertyDescriptor(node);
+
+            for (var i = 0, end = node.properties.length; i < end; i++) {
+                var property = node.properties[i];
+
+                var propToCheck = "";
+                if (property.kind === "init") {
+                    if (isDescriptor && !property.computed) {
+                        propToCheck = property.key.name;
+                    }
+                } else {
+                    propToCheck = property.kind;
+                }
+
+                switch (propToCheck) {
+                    case "set":
+                        isSetPresent = true;
+                        break;
+
+                    case "get":
+                        isGetPresent = true;
+                        break;
+
+                    default:
+                        // Do nothing
+                }
+
+                if (isSetPresent && isGetPresent) {
+                    break;
+                }
+            }
+
+            if (checkSetWithoutGet && isSetPresent && !isGetPresent) {
+                context.report(node, "Getter is not present");
+            } else if (checkGetWithoutSet && isGetPresent && !isSetPresent) {
+                context.report(node, "Setter is not present");
+            }
+        }
+
+        return {
+            "ObjectExpression": function(node) {
+                if (checkSetWithoutGet || checkGetWithoutSet) {
+                    checkLonelySetGet(node);
+                }
+            }
+        };
     }
-];
+};

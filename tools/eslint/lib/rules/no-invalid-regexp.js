@@ -46,7 +46,7 @@ module.exports = function(context) {
             if (flags) {
 
                 try {
-                    espree.parse("/./" + flags, { ecmaFeatures: context.ecmaFeatures });
+                    espree.parse("/./" + flags, context.parserOptions);
                 } catch (ex) {
                     context.report(node, "Invalid flags supplied to RegExp constructor '" + flags + "'");
                 }

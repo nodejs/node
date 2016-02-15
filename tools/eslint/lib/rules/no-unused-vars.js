@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var escape = require("escape-string-regexp");
+var lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -17,7 +17,7 @@ var escape = require("escape-string-regexp");
 
 module.exports = function(context) {
 
-    var MESSAGE = "\"{{name}}\" is defined but never used";
+    var MESSAGE = "'{{name}}' is defined but never used";
 
     var config = {
         vars: "all",
@@ -109,7 +109,7 @@ module.exports = function(context) {
      * @param {Reference[]} references - The variable references to check.
      * @returns {boolean} True if the variable is used
      */
-    function isUsedVariable(variable, references) {
+    function isUsedVariable(variable) {
         var functionNodes = variable.defs.filter(function(def) {
                 return def.type === "FunctionName";
             }).map(function(def) {
@@ -117,48 +117,19 @@ module.exports = function(context) {
             }),
             isFunctionDefinition = functionNodes.length > 0;
 
-        return references.some(function(ref) {
+        return variable.references.some(function(ref) {
             return isReadRef(ref) && !(isFunctionDefinition && isSelfReference(ref, functionNodes));
         });
     }
 
     /**
-     * Gets unresolved references.
-     * They contains var's, function's, and explicit global variable's.
-     * If `config.vars` is not "all", returns empty map.
-     * @param {Scope} scope - the global scope.
-     * @returns {object} Unresolved references. Keys of the object is its variable name. Values of the object is an array of its references.
-     * @private
-     */
-    function collectUnresolvedReferences(scope) {
-        var unresolvedRefs = Object.create(null);
-
-        if (config.vars === "all") {
-            for (var i = 0, l = scope.through.length; i < l; ++i) {
-                var ref = scope.through[i];
-                var name = ref.identifier.name;
-
-                if (isReadRef(ref)) {
-                    if (!unresolvedRefs[name]) {
-                        unresolvedRefs[name] = [];
-                    }
-                    unresolvedRefs[name].push(ref);
-                }
-            }
-        }
-
-        return unresolvedRefs;
-    }
-
-    /**
      * Gets an array of variables without read references.
      * @param {Scope} scope - an escope Scope object.
-     * @param {object} unresolvedRefs - a map of each variable name and its references.
      * @param {Variable[]} unusedVars - an array that saving result.
      * @returns {Variable[]} unused variables of the scope and descendant scopes.
      * @private
      */
-    function collectUnusedVariables(scope, unresolvedRefs, unusedVars) {
+    function collectUnusedVariables(scope, unusedVars) {
         var variables = scope.variables;
         var childScopes = scope.childScopes;
         var i, l;
@@ -218,16 +189,14 @@ module.exports = function(context) {
                     }
                 }
 
-                // On global, variables without let/const/class are unresolved.
-                var references = (scope.type === "global" ? unresolvedRefs[variable.name] : null) || variable.references;
-                if (!isUsedVariable(variable, references) && !isExported(variable)) {
+                if (!isUsedVariable(variable) && !isExported(variable)) {
                     unusedVars.push(variable);
                 }
             }
         }
 
         for (i = 0, l = childScopes.length; i < l; ++i) {
-            collectUnusedVariables(childScopes[i], unresolvedRefs, unusedVars);
+            collectUnusedVariables(childScopes[i], unusedVars);
         }
 
         return unusedVars;
@@ -240,7 +209,7 @@ module.exports = function(context) {
      * @returns {number} The index of the variable name's location.
      */
     function getColumnInComment(variable, comment) {
-        var namePattern = new RegExp("[\\s,]" + escape(variable.name) + "(?:$|[\\s,:])", "g");
+        var namePattern = new RegExp("[\\s,]" + lodash.escapeRegExp(variable.name) + "(?:$|[\\s,:])", "g");
 
         // To ignore the first text "global".
         namePattern.lastIndex = comment.value.indexOf("global") + 6;
@@ -283,19 +252,24 @@ module.exports = function(context) {
 
     return {
         "Program:exit": function(programNode) {
-            var globalScope = context.getScope();
-            var unresolvedRefs = collectUnresolvedReferences(globalScope);
-            var unusedVars = collectUnusedVariables(globalScope, unresolvedRefs, []);
+            var unusedVars = collectUnusedVariables(context.getScope(), []);
 
             for (var i = 0, l = unusedVars.length; i < l; ++i) {
                 var unusedVar = unusedVars[i];
 
-                if (unusedVar.eslintUsed) {
-                    continue; // explicitly exported variables
-                } else if (unusedVar.eslintExplicitGlobal) {
-                    context.report(programNode, getLocation(unusedVar), MESSAGE, unusedVar);
+                if (unusedVar.eslintExplicitGlobal) {
+                    context.report({
+                        node: programNode,
+                        loc: getLocation(unusedVar),
+                        message: MESSAGE,
+                        data: unusedVar
+                    });
                 } else if (unusedVar.defs.length > 0) {
-                    context.report(unusedVar.identifiers[0], MESSAGE, unusedVar);
+                    context.report({
+                        node: unusedVar.identifiers[0],
+                        message: MESSAGE,
+                        data: unusedVar
+                    });
                 }
             }
         }

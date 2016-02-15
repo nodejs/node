@@ -86,7 +86,7 @@ module.exports = function(context) {
             if (isValidThisArg(expectedThis, thisArg, context)) {
                 context.report(
                     node,
-                    "unnecessary \".{{name}}()\".",
+                    "unnecessary '.{{name}}()'.",
                     {name: node.callee.property.name});
             }
         }

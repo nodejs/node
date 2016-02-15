@@ -34,3 +34,20 @@ var fs = require('graceful-fs')
 // now go and do stuff with it...
 fs.readFileSync('some-file-or-whatever')
 ```
+
+## Global Patching
+
+If you want to patch the global fs module (or any other fs-like
+module) you can do this:
+
+```javascript
+// Make sure to read the caveat below.
+var realFs = require('fs')
+var gracefulFs = require('graceful-fs')
+gracefulFs.gracefulify(realFs)
+```
+
+This should only ever be done at the top-level application layer, in
+order to delay on EMFILE errors from any fs-using dependencies.  You
+should **not** do this in a library, because it can cause unexpected
+delays in other parts of the program.

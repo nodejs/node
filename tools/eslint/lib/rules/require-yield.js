@@ -39,7 +39,7 @@ module.exports = function(context) {
         if (countYield === 0 && node.body.body.length > 0) {
             context.report(
                 node,
-                "This generator function does not have `yield`.");
+                "This generator function does not have 'yield'.");
         }
     }
 

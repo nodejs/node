@@ -11,7 +11,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var assign = require("object-assign");
+var lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -67,7 +67,7 @@ function contains(val, array) {
 
 module.exports = function(context) {
 
-    var options = context.options[0] ? assign({}, context.options[0]) : {};
+    var options = context.options[0] ? lodash.assign({}, context.options[0]) : {};
     options.beforeLineComment = options.beforeLineComment || false;
     options.afterLineComment = options.afterLineComment || false;
     options.beforeBlockComment = typeof options.beforeBlockComment !== "undefined" ? options.beforeBlockComment : true;

@@ -66,7 +66,10 @@ module.exports = function(results) {
                 // The first error will be logged as message key
                 // This is to adhere to TAP 13 loosely defined specification of having a message key
                 if ("message" in diagnostics) {
-                    diagnostics.messages = [diagnostic];
+                    if (typeof diagnostics.messages === "undefined") {
+                        diagnostics.messages = [];
+                    }
+                    diagnostics.messages.push(diagnostic);
                 } else {
                     diagnostics = diagnostic;
                 }
