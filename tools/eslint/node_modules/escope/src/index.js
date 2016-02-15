@@ -62,6 +62,7 @@ function defaultOptions() {
         optimistic: false,
         directive: false,
         nodejsScope: false,
+        impliedStrict: false,
         sourceType: 'script',  // one of ['script', 'module']
         ecmaVersion: 5
     };
@@ -103,6 +104,8 @@ function updateDeeply(target, override) {
  * @param {boolean} [providedOptions.nodejsScope=false]- whether the whole
  * script is executed under node.js environment. When enabled, escope adds
  * a function scope immediately following the global scope.
+ * @param {boolean} [providedOptions.impliedStrict=false]- implied strict mode
+ * (if ecmaVersion >= 5).
  * @param {string} [providedOptions.sourceType='script']- the source type of the script. one of 'script' and 'module'
  * @param {number} [providedOptions.ecmaVersion=5]- which ECMAScript version is considered
  * @return {ScopeManager}

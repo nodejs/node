@@ -1,7 +1,7 @@
 /**
  * @fileoverview Responsible for loading config files
  * @author Seth McLaughlin
- * @copyright 2014 Nicholas C. Zakas. All rights reserved.
+ * @copyright 2014-2016 Nicholas C. Zakas. All rights reserved.
  * @copyright 2014 Michael McLaughlin. All rights reserved.
  * @copyright 2013 Seth McLaughlin. All rights reserved.
  * See LICENSE in root directory for full license.
@@ -15,7 +15,7 @@
 var path = require("path"),
     ConfigOps = require("./config/config-ops"),
     ConfigFile = require("./config/config-file"),
-    util = require("./util"),
+    Plugins = require("./config/plugins"),
     FileFinder = require("./file-finder"),
     debug = require("debug"),
     userHome = require("user-home"),
@@ -26,14 +26,7 @@ var path = require("path"),
 // Constants
 //------------------------------------------------------------------------------
 
-var PACKAGE_CONFIG_FILENAME = "package.json",
-    PERSONAL_CONFIG_DIR = userHome || null;
-
-//------------------------------------------------------------------------------
-// Private
-//------------------------------------------------------------------------------
-
-var loadedPlugins = Object.create(null);
+var PERSONAL_CONFIG_DIR = userHome || null;
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -80,47 +73,6 @@ function loadConfig(configToLoad) {
 }
 
 /**
- * Load configuration for all plugins provided.
- * @param {string[]} pluginNames An array of plugin names which should be loaded.
- * @returns {Object} all plugin configurations merged together
- */
-function getPluginsConfig(pluginNames) {
-    var pluginConfig = {};
-
-    pluginNames.forEach(function(pluginName) {
-        var pluginNamespace = util.getNamespace(pluginName),
-            pluginNameWithoutNamespace = util.removeNameSpace(pluginName),
-            pluginNameWithoutPrefix = util.removePluginPrefix(pluginNameWithoutNamespace),
-            plugin = {},
-            rules = {};
-
-        if (!loadedPlugins[pluginNameWithoutPrefix]) {
-            try {
-                plugin = require(pluginNamespace + util.PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix);
-                loadedPlugins[pluginNameWithoutPrefix] = plugin;
-            } catch (err) {
-                debug("Failed to load plugin configuration for " + pluginNameWithoutPrefix + ". Proceeding without it.");
-                plugin = { rulesConfig: {}};
-            }
-        } else {
-            plugin = loadedPlugins[pluginNameWithoutPrefix];
-        }
-
-        if (!plugin.rulesConfig) {
-            plugin.rulesConfig = {};
-        }
-
-        Object.keys(plugin.rulesConfig).forEach(function(item) {
-            rules[pluginNameWithoutPrefix + "/" + item] = plugin.rulesConfig[item];
-        });
-
-        pluginConfig = ConfigOps.merge(pluginConfig, rules);
-    });
-
-    return {rules: pluginConfig};
-}
-
-/**
  * Get personal config object from ~/.eslintrc.
  * @returns {Object} the personal config object (empty object if there is no personal config)
  * @private
@@ -156,7 +108,7 @@ function getLocalConfig(thisConfig, directory) {
         localConfigFiles = thisConfig.findLocalConfigFiles(directory),
         numFiles = localConfigFiles.length,
         rootPath,
-        projectConfigPath = ConfigFile.getFilenameForDirectory(process.cwd());
+        projectConfigPath = ConfigFile.getFilenameForDirectory(thisConfig.options.cwd);
 
     for (i = 0; i < numFiles; i++) {
 
@@ -192,7 +144,7 @@ function getLocalConfig(thisConfig, directory) {
     }
 
     // Use the personal config file if there are no other local config files found.
-    return found ? config : ConfigOps.merge(config, getPersonalConfig());
+    return found || thisConfig.useSpecificConfig ? config : ConfigOps.merge(config, getPersonalConfig());
 }
 
 //------------------------------------------------------------------------------
@@ -204,7 +156,6 @@ function getLocalConfig(thisConfig, directory) {
  * @constructor
  * @class Config
  * @param {Object} options Options to be passed in
- * @param {string} [cwd] current working directory. Defaults to process.cwd()
  */
 function Config(options) {
     var useConfig;
@@ -240,7 +191,7 @@ function Config(options) {
         if (isResolvable(useConfig) || isResolvable("eslint-config-" + useConfig) || useConfig.charAt(0) === "@") {
             this.useSpecificConfig = loadConfig(useConfig);
         } else {
-            this.useSpecificConfig = loadConfig(path.resolve(process.cwd(), useConfig));
+            this.useSpecificConfig = loadConfig(path.resolve(this.options.cwd, useConfig));
         }
     }
 }
@@ -254,8 +205,7 @@ function Config(options) {
 Config.prototype.getConfig = function(filePath) {
     var config,
         userConfig,
-        directory = filePath ? path.dirname(filePath) : process.cwd(),
-        pluginConfig;
+        directory = filePath ? path.dirname(filePath) : this.options.cwd;
 
     debug("Constructing config for " + (filePath ? filePath : "text"));
 
@@ -266,7 +216,7 @@ Config.prototype.getConfig = function(filePath) {
         return config;
     }
 
-    // Step 1: Determine user-specified config from .eslintrc and package.json files
+    // Step 1: Determine user-specified config from .eslintrc.* and package.json files
     if (this.useEslintrc) {
         debug("Using .eslintrc and package.json files");
         userConfig = getLocalConfig(this, directory);
@@ -287,10 +237,9 @@ Config.prototype.getConfig = function(filePath) {
 
         config = ConfigOps.merge(config, this.useSpecificConfig);
     }
-
     // Step 5: Merge in command line environments
     debug("Merging command line environment settings");
-    config = ConfigOps.merge(config, ConfigOps.createEnvironmentConfig(this.env));
+    config = ConfigOps.merge(config, { env: this.env });
 
     // Step 6: Merge in command line rules
     if (this.options.rules) {
@@ -304,14 +253,13 @@ Config.prototype.getConfig = function(filePath) {
     // Step 8: Merge in command line plugins
     if (this.options.plugins) {
         debug("Merging command line plugins");
-        pluginConfig = getPluginsConfig(this.options.plugins);
+        Plugins.loadAll(this.options.plugins);
         config = ConfigOps.merge(config, { plugins: this.options.plugins });
     }
 
-    // Step 9: Merge in plugin specific rules in reverse
-    if (config.plugins) {
-        pluginConfig = getPluginsConfig(config.plugins);
-        config = ConfigOps.merge(pluginConfig, config);
+    // Step 9: Apply environments to the config if present
+    if (config.env) {
+        config = ConfigOps.applyEnvironments(config);
     }
 
     this.cache[directory] = config;
@@ -327,7 +275,7 @@ Config.prototype.getConfig = function(filePath) {
 Config.prototype.findLocalConfigFiles = function(directory) {
 
     if (!this.localConfigFinder) {
-        this.localConfigFinder = new FileFinder(ConfigFile.CONFIG_FILES, PACKAGE_CONFIG_FILENAME);
+        this.localConfigFinder = new FileFinder(ConfigFile.CONFIG_FILES, this.options.cwd);
     }
 
     return this.localConfigFinder.findAllInDirectoryAndParents(directory);

@@ -72,13 +72,43 @@ function isSingleLine(node) {
     return (node.loc.end.line === node.loc.start.line);
 }
 
+/** Sets option values from the configured options with defaults
+ * @param {Object} toOptions Object to be initialized
+ * @param {Object} fromOptions Object to be initialized from
+ * @returns {Object} The object with correctly initialized options and values
+ */
+function initOptions(toOptions, fromOptions) {
+    toOptions.mode = fromOptions.mode || "strict";
+
+    // Set align if exists -  multiLine case
+    if (typeof fromOptions.align !== "undefined") {
+        toOptions.align = fromOptions.align;
+    }
+
+    // Set value of beforeColon
+    if (typeof fromOptions.beforeColon !== "undefined") {
+        toOptions.beforeColon = +fromOptions.beforeColon;
+    } else {
+        toOptions.beforeColon = 0;
+    }
+
+    // Set value of afterColon
+    if (typeof fromOptions.afterColon !== "undefined") {
+        toOptions.afterColon = +fromOptions.afterColon;
+    } else {
+        toOptions.afterColon = 1;
+    }
+
+    return toOptions;
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 var messages = {
-    key: "{{error}} space after {{computed}}key \"{{key}}\".",
-    value: "{{error}} space before value for {{computed}}key \"{{key}}\"."
+    key: "{{error}} space after {{computed}}key '{{key}}'.",
+    value: "{{error}} space before value for {{computed}}key '{{key}}'."
 };
 
 module.exports = function(context) {
@@ -93,10 +123,22 @@ module.exports = function(context) {
      */
 
     var options = context.options[0] || {},
-        align = options.align,
-        mode = options.mode || "strict",
-        beforeColon = +!!options.beforeColon, // Defaults to false
-        afterColon = +!(options.afterColon === false); // Defaults to true
+        multiLineOptions = initOptions({}, (options.multiLine || options)),
+        singleLineOptions = initOptions({}, (options.singleLine || options));
+
+    /**
+     * Determines if the given property is key-value property.
+     * @param {ASTNode} property Property node to check.
+     * @returns {Boolean} Whether the property is a key-value property.
+     */
+    function isKeyValueProperty(property) {
+        return !(
+            property.method ||
+            property.shorthand ||
+            property.kind !== "init" ||
+            property.type !== "Property" // Could be "ExperimentalSpreadProperty" or "SpreadProperty"
+        );
+    }
 
     /**
      * Starting from the given a node (a property.key node here) looks forward
@@ -113,6 +155,21 @@ module.exports = function(context) {
         }
 
         return prevNode;
+    }
+
+    /**
+     * Starting from the given a node (a property.key node here) looks forward
+     * until it finds the colon punctuator and returns it.
+     * @param {ASTNode} node The node to start looking from.
+     * @returns {ASTNode} The colon punctuator.
+     */
+    function getNextColon(node) {
+
+        while (node && (node.type !== "Punctuator" || node.value !== ":")) {
+            node = context.getTokenAfter(node);
+        }
+
+        return node;
     }
 
     /**
@@ -137,15 +194,19 @@ module.exports = function(context) {
      * @param {string} side Side being verified - either "key" or "value".
      * @param {string} whitespace Actual whitespace string.
      * @param {int} expected Expected whitespace length.
+     * @param {string} mode Value of the mode as "strict" or "minimum"
      * @returns {void}
      */
-    function report(property, side, whitespace, expected) {
+    function report(property, side, whitespace, expected, mode) {
         var diff = whitespace.length - expected,
             key = property.key,
-            firstTokenAfterColon = context.getTokenAfter(key, 1),
+            firstTokenAfterColon = context.getTokenAfter(getNextColon(key)),
             location = side === "key" ? key.loc.start : firstTokenAfterColon.loc.start;
 
-        if ((diff && mode === "strict" || diff < 0 && mode === "minimum") &&
+        if ((
+            diff && mode === "strict" ||
+            diff < 0 && mode === "minimum" ||
+            diff > 0 && !expected && mode === "minimum") &&
             !(expected && containsLineTerminator(whitespace))
         ) {
             context.report(property[side], location, messages[side], {
@@ -164,11 +225,6 @@ module.exports = function(context) {
      */
     function getKeyWidth(property) {
         var startToken, endToken;
-
-        // Ignore shorthand methods and properties, as they have no colon
-        if (property.method || property.shorthand) {
-            return 0;
-        }
 
         startToken = context.getFirstToken(property);
         endToken = getLastTokenBeforeColon(property.key);
@@ -192,6 +248,7 @@ module.exports = function(context) {
                 afterColon: whitespace[2]
             };
         }
+        return null;
     }
 
     /**
@@ -215,7 +272,9 @@ module.exports = function(context) {
             }
 
             return groups;
-        }, [[]]);
+        }, [
+            []
+        ]);
     }
 
     /**
@@ -227,7 +286,11 @@ module.exports = function(context) {
         var length = properties.length,
             widths = properties.map(getKeyWidth), // Width of keys, including quotes
             targetWidth = Math.max.apply(null, widths),
-            i, property, whitespace, width;
+            i, property, whitespace, width,
+            align = multiLineOptions.align,
+            beforeColon = multiLineOptions.beforeColon,
+            afterColon = multiLineOptions.afterColon,
+            mode = multiLineOptions.mode;
 
         // Conditionally include one space before or after colon
         targetWidth += (align === "colon" ? beforeColon : afterColon);
@@ -235,19 +298,16 @@ module.exports = function(context) {
         for (i = 0; i < length; i++) {
             property = properties[i];
             whitespace = getPropertyWhitespace(property);
+            if (whitespace) { // Object literal getters/setters lack a colon
+                width = widths[i];
 
-            if (!whitespace) {
-                continue; // Object literal getters/setters lack a colon
-            }
-
-            width = widths[i];
-
-            if (align === "value") {
-                report(property, "key", whitespace.beforeColon, beforeColon);
-                report(property, "value", whitespace.afterColon, targetWidth - width);
-            } else { // align = "colon"
-                report(property, "key", whitespace.beforeColon, targetWidth - width);
-                report(property, "value", whitespace.afterColon, afterColon);
+                if (align === "value") {
+                    report(property, "key", whitespace.beforeColon, beforeColon, mode);
+                    report(property, "value", whitespace.afterColon, targetWidth - width, mode);
+                } else { // align = "colon"
+                    report(property, "key", whitespace.beforeColon, targetWidth - width, mode);
+                    report(property, "value", whitespace.afterColon, afterColon, mode);
+                }
             }
         }
     }
@@ -259,20 +319,21 @@ module.exports = function(context) {
      */
     function verifyAlignment(node) {
         createGroups(node).forEach(function(group) {
-            verifyGroupAlignment(group);
+            verifyGroupAlignment(group.filter(isKeyValueProperty));
         });
     }
 
     /**
      * Verifies spacing of property conforms to specified options.
      * @param  {ASTNode} node Property node being evaluated.
+     * @param {Object} lineOptions Configured singleLine or multiLine options
      * @returns {void}
      */
-    function verifySpacing(node) {
-        var whitespace = getPropertyWhitespace(node);
-        if (whitespace) { // Object literal getters/setters lack colons
-            report(node, "key", whitespace.beforeColon, beforeColon);
-            report(node, "value", whitespace.afterColon, afterColon);
+    function verifySpacing(node, lineOptions) {
+        var actual = getPropertyWhitespace(node);
+        if (actual) { // Object literal getters/setters lack colons
+            report(node, "key", actual.beforeColon, lineOptions.beforeColon, lineOptions.mode);
+            report(node, "value", actual.afterColon, lineOptions.afterColon, lineOptions.mode);
         }
     }
 
@@ -285,7 +346,7 @@ module.exports = function(context) {
         var length = properties.length;
 
         for (var i = 0; i < length; i++) {
-            verifySpacing(properties[i]);
+            verifySpacing(properties[i], singleLineOptions);
         }
     }
 
@@ -293,7 +354,7 @@ module.exports = function(context) {
     // Public API
     //--------------------------------------------------------------------------
 
-    if (align) { // Verify vertical alignment
+    if (multiLineOptions.align) { // Verify vertical alignment
 
         return {
             "ObjectExpression": function(node) {
@@ -305,11 +366,11 @@ module.exports = function(context) {
             }
         };
 
-    } else { // Strictly obey beforeColon and afterColon in each property
+    } else { // Obey beforeColon and afterColon in each property as configured
 
         return {
             "Property": function(node) {
-                verifySpacing(node);
+                verifySpacing(node, isSingleLine(node) ? singleLineOptions : multiLineOptions);
             }
         };
 
@@ -317,23 +378,64 @@ module.exports = function(context) {
 
 };
 
-module.exports.schema = [
-    {
-        "type": "object",
-        "properties": {
-            "align": {
-                "enum": ["colon", "value"]
+module.exports.schema = [{
+    "anyOf": [
+        {
+            "type": "object",
+            "properties": {
+                "align": {
+                    "enum": ["colon", "value"]
+                },
+                "mode": {
+                    "enum": ["strict", "minimum"]
+                },
+                "beforeColon": {
+                    "type": "boolean"
+                },
+                "afterColon": {
+                    "type": "boolean"
+                }
             },
-            "mode": {
-                "enum": ["strict", "minimum"]
-            },
-            "beforeColon": {
-                "type": "boolean"
-            },
-            "afterColon": {
-                "type": "boolean"
-            }
+            "additionalProperties": false
         },
-        "additionalProperties": false
-    }
-];
+        {
+            "type": "object",
+            "properties": {
+                "singleLine": {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "enum": ["strict", "minimum"]
+                        },
+                        "beforeColon": {
+                            "type": "boolean"
+                        },
+                        "afterColon": {
+                            "type": "boolean"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "multiLine": {
+                    "type": "object",
+                    "properties": {
+                        "align": {
+                            "enum": ["colon", "value"]
+                        },
+                        "mode": {
+                            "enum": ["strict", "minimum"]
+                        },
+                        "beforeColon": {
+                            "type": "boolean"
+                        },
+                        "afterColon": {
+                            "type": "boolean"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": false
+        }
+    ]
+}];

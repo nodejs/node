@@ -1,4 +1,5 @@
 module.exports = {
-  'inRange': require('./number/inRange'),
-  'random': require('./number/random')
+  'clamp': require('./clamp'),
+  'inRange': require('./inRange'),
+  'random': require('./random')
 };

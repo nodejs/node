@@ -11,6 +11,17 @@
 
 module.exports = function(context) {
 
+    var grouping = false,
+        allowCall = false,
+        options = context.options[0];
+
+    if (typeof options === "object") {
+        grouping = options.grouping;
+        allowCall = options.allowCall;
+    } else {
+        grouping = !!options;
+    }
+
     /**
      * Returns the list of built-in modules.
      *
@@ -56,6 +67,12 @@ module.exports = function(context) {
         ) {
             // "var x = require('util');"
             return DECL_REQUIRE;
+        } else if (allowCall &&
+            initExpression.type === "CallExpression" &&
+            initExpression.callee.type === "CallExpression"
+        ) {
+            // "var x = require('diagnose')('sub-module');"
+            return getDeclarationType(initExpression.callee);
         } else if (initExpression.type === "MemberExpression") {
             // "var x = require('glob').Glob;"
             return getDeclarationType(initExpression.object);
@@ -140,13 +157,6 @@ module.exports = function(context) {
     return {
 
         "VariableDeclaration": function(node) {
-            var grouping = false;
-
-            if (typeof context.options[0] === "object") {
-                grouping = context.options[0].grouping;
-            } else {
-                grouping = !!context.options[0];
-            }
 
             if (isMixed(node.declarations)) {
                 context.report(
@@ -174,6 +184,9 @@ module.exports.schema = [
                 "type": "object",
                 "properties": {
                     "grouping": {
+                        "type": "boolean"
+                    },
+                    "allowCall": {
                         "type": "boolean"
                     }
                 },

@@ -265,21 +265,15 @@ module.exports.schema = {
             "type": "array",
             "items": [
                 {
-                    "enum": [0, 1, 2]
-                },
-                {
                     "enum": ["all"]
                 }
             ],
-            "minItems": 1,
-            "maxItems": 2
+            "minItems": 0,
+            "maxItems": 1
         },
         {
             "type": "array",
             "items": [
-                {
-                    "enum": [0, 1, 2]
-                },
                 {
                     "enum": ["multi", "multi-line", "multi-or-nest"]
                 },
@@ -287,8 +281,8 @@ module.exports.schema = {
                     "enum": ["consistent"]
                 }
             ],
-            "minItems": 1,
-            "maxItems": 3
+            "minItems": 0,
+            "maxItems": 2
         }
     ]
 };
