@@ -128,7 +128,8 @@ Tracker
     events.  Defaults to undefined.
   * **todo** *(optional)* The amount of work todo (a number). Defaults to 0.
 
-Ordinarily these are constructed as a part of a tracker group (via `newItem`) but they c
+Ordinarily these are constructed as a part of a tracker group (via
+`newItem`).
 
 * var completed = tracker.completed()
 

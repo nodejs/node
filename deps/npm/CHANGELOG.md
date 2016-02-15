@@ -1,3 +1,60 @@
+### v2.14.18 (2016-02-04):
+
+Clearly our docs are perfect after all those wonderful PRs, 'cause this week's
+gonna be all about dependency updates. Note: There is a small security-related
+fix included here!
+
+#### SECURITY-RELATED DEPENDENCY UPDATE
+
+* [`5c095ef`](https://github.com/npm/npm/commit/5c095eff8dc006980d4d083f2007e4dacff23be3)
+  [#11341](https://github.com/npm/npm/pull/11341)
+  `request@2.69.0`: Includes security-related dependency updates involving
+  `hawk` and `is-my-json-valid`
+  ([@remy](https://github.com/remy) and [@simov](https://github.com/simov))
+
+#### OTHER DEPENDENCY UPDATES
+
+* [`f9c2668`](https://github.com/npm/npm/commit/f9c2668ca3e6e2602d91250ce61280e5e12d0a00)
+  `which@1.2.4`
+  ([@isaacs](https://github.com/isaacs))
+* [`2907c43`](https://github.com/npm/npm/commit/2907c43ad4ef87e5f730c2576f680d6837fcbad0)
+  `spdx-license-ids@1.2.0`
+  ([@shinnn](https://github.com/shinnn))
+* [`7734069`](https://github.com/npm/npm/commit/773406960bf7f4a87b2ecb6ebf593c62d0e9f95d)
+  `rimraf@2.5.1`
+  ([@isaacs](https://github.com/isaacs))
+* [`f4b39a7`](https://github.com/npm/npm/commit/f4b39a7dd5e1335d92aa22c46d99abb33f271b8b)
+  `retry@0.9.0`
+  ([@tim-kos](https://github.com/tim-kos))
+* [`ded1e7a`](https://github.com/npm/npm/commit/ded1e7a1c9c7bec29bb7c30a8f85546670e75b56)
+  Nest `retry@0.8.0` inside `npm-registry-client` to prevent invalid
+  dependency issue until the latter gets a dependency update.
+  ([@zkat](https://github.com/zkat))
+* [`ab9f867`](https://github.com/npm/npm/commit/ab9f8679f9687f91ad03adaab6211a897aeebbae)
+  `read-package-json@2.0.3`
+  ([@iarna](https://github.com/iarna))
+* [`b638c41`](https://github.com/npm/npm/commit/b638c41607bb936b9eaaceba2aeeda1d34e3a9b2)
+  `npmlog@2.0.2`
+  ([@iarna](https://github.com/iarna))
+* [`49f34af`](https://github.com/npm/npm/commit/49f34af463a674359269025d8438feb6a7c69960)
+  `init-package-json@1.9.3`
+  ([@iarna](https://github.com/iarna))
+* [`2305dab`](https://github.com/npm/npm/commit/2305dab4e7bff09bb7686cec653cf1e663dbf15d)
+  `graceful-fs@4.1.3`: Fixed `.close()` not being patched.
+  ([@isaacs](https://github.com/isaacs))
+* [`18496d9`](https://github.com/npm/npm/commit/18496d9a0fff94e3652655998e8333056aa52b15)
+  `fs-write-stream-atomic@1.0.8`
+  ([@iarna](https://github.com/iarna))
+* [`6637bc7`](https://github.com/npm/npm/commit/6637bc7a0e194d82554cd7c91e1794018fef5943)
+  `config-chain@1.1.10`
+  ([@dominictarr](https://github.com/dominictarr))
+* [`4222bad`](https://github.com/npm/npm/commit/4222badffed9e9edacea6a8a96a99a164d376158)
+  `columnify@1.5.4`
+  ([@timoxley](https://github.com/timoxley))
+* [`df9016f`](https://github.com/npm/npm/commit/df9016f327a2a9ce492ebc75b882b03069438e13)
+  `ansi@0.3.1`: Added a license file.
+  ([@TooTallNate](https://github.com/TooTallNate))
+
 ### v2.14.17 (2016-01-28):
 
 Another week, another small LTS release!

@@ -166,7 +166,7 @@ if (require.main === module) {
 			});
 		} else {
 			var kind = 'public';
-			if (PrivateKey.isPrivateKey(key))
+			if (sshpk.PrivateKey.isPrivateKey(key))
 				kind = 'private';
 			console.log('%s: a %d bit %s %s key', inFileName,
 			    key.size, key.type.toUpperCase(), kind);

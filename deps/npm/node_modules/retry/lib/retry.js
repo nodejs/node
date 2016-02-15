@@ -1,10 +1,11 @@
 var RetryOperation = require('./retry_operation');
 
 exports.operation = function(options) {
-  var retryForever = false;
-  if (options && options.forever === true) retryForever = true;
   var timeouts = exports.timeouts(options);
-  return new RetryOperation(timeouts, retryForever);
+  return new RetryOperation(timeouts, {
+      forever: options && options.forever,
+      unref: options && options.unref
+  });
 };
 
 exports.timeouts = function(options) {
