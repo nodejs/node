@@ -1026,15 +1026,14 @@ function SimpleProtocol(source, options) {
   // source is a readable stream, such as a socket or file
   this._source = source;
 
-  var self = this;
   source.on('end', () => {
-    self.push(null);
+    this.push(null);
   });
 
   // give it a kick whenever the source is readable
   // read(0) will not consume any bytes
   source.on('readable', () => {
-    self.read(0);
+    this.read(0);
   });
 
   this._rawHeader = [];
