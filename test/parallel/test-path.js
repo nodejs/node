@@ -22,6 +22,12 @@ assert.equal(path.win32.basename('\\basename.ext'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext\\'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext\\\\'), 'basename.ext');
+assert.equal(path.win32.basename('foo'), 'foo');
+assert.equal(path.win32.basename(null), 'null');
+assert.equal(path.win32.basename(true), 'true');
+assert.equal(path.win32.basename(1), '1');
+assert.equal(path.win32.basename(), 'undefined');
+assert.equal(path.win32.basename({}), '[object Object]');
 
 // On unix a backslash is just treated as any other character.
 assert.equal(path.posix.basename('\\dir\\basename.ext'), '\\dir\\basename.ext');
@@ -29,6 +35,12 @@ assert.equal(path.posix.basename('\\basename.ext'), '\\basename.ext');
 assert.equal(path.posix.basename('basename.ext'), 'basename.ext');
 assert.equal(path.posix.basename('basename.ext\\'), 'basename.ext\\');
 assert.equal(path.posix.basename('basename.ext\\\\'), 'basename.ext\\\\');
+assert.equal(path.posix.basename('foo'), 'foo');
+assert.equal(path.posix.basename(null), 'null');
+assert.equal(path.posix.basename(true), 'true');
+assert.equal(path.posix.basename(1), '1');
+assert.equal(path.posix.basename(), 'undefined');
+assert.equal(path.posix.basename({}), '[object Object]');
 
 // POSIX filenames may include control characters
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
@@ -47,6 +59,12 @@ assert.equal(path.posix.dirname('/a'), '/');
 assert.equal(path.posix.dirname(''), '.');
 assert.equal(path.posix.dirname('/'), '/');
 assert.equal(path.posix.dirname('////'), '/');
+assert.equal(path.posix.dirname('foo'), '.');
+assert.equal(path.posix.dirname(null), '.');
+assert.equal(path.posix.dirname(true), '.');
+assert.equal(path.posix.dirname(1), '.');
+assert.equal(path.posix.dirname(), '.');
+assert.equal(path.posix.dirname({}), '.');
 
 assert.equal(path.win32.dirname('c:\\'), 'c:\\');
 assert.equal(path.win32.dirname('c:\\foo'), 'c:\\');
@@ -81,6 +99,12 @@ assert.equal(path.win32.dirname('/a'), '/');
 assert.equal(path.win32.dirname(''), '.');
 assert.equal(path.win32.dirname('/'), '/');
 assert.equal(path.win32.dirname('////'), '/');
+assert.equal(path.win32.dirname('foo'), '.');
+assert.equal(path.win32.dirname(null), '.');
+assert.equal(path.win32.dirname(true), '.');
+assert.equal(path.win32.dirname(1), '.');
+assert.equal(path.win32.dirname(), '.');
+assert.equal(path.win32.dirname({}), '.');
 
 
 // path.extname tests
@@ -156,6 +180,11 @@ assert.equal(path.win32.extname('file\\'), '');
 assert.equal(path.win32.extname('file\\\\'), '');
 assert.equal(path.win32.extname('file.\\'), '.');
 assert.equal(path.win32.extname('file.\\\\'), '.');
+assert.equal(path.win32.extname(null), '');
+assert.equal(path.win32.extname(true), '');
+assert.equal(path.win32.extname(1), '');
+assert.equal(path.win32.extname(), '');
+assert.equal(path.win32.extname({}), '');
 
 // On *nix, backslash is a valid name component like any other character.
 assert.equal(path.posix.extname('.\\'), '');
@@ -166,6 +195,11 @@ assert.equal(path.posix.extname('file\\'), '');
 assert.equal(path.posix.extname('file\\\\'), '');
 assert.equal(path.posix.extname('file.\\'), '.\\');
 assert.equal(path.posix.extname('file.\\\\'), '.\\\\');
+assert.equal(path.posix.extname(null), '');
+assert.equal(path.posix.extname(true), '');
+assert.equal(path.posix.extname(1), '');
+assert.equal(path.posix.extname(), '');
+assert.equal(path.posix.extname({}), '');
 
 
 // path.join tests
@@ -486,8 +520,14 @@ assert.equal(path.posix.delimiter, ':');
 
 
 // path._makeLong tests
+const emptyObj = {};
 assert.equal(path.posix._makeLong('/foo/bar'), '/foo/bar');
 assert.equal(path.posix._makeLong('foo/bar'), 'foo/bar');
+assert.equal(path.posix._makeLong(null), null);
+assert.equal(path.posix._makeLong(true), true);
+assert.equal(path.posix._makeLong(1), 1);
+assert.equal(path.posix._makeLong(), undefined);
+assert.equal(path.posix._makeLong(emptyObj), emptyObj);
 if (common.isWindows) {
   // These tests cause resolve() to insert the cwd, so we cannot test them from
   // non-Windows platforms (easily)
@@ -505,6 +545,11 @@ assert.equal(path.win32._makeLong('C:/foo'), '\\\\?\\C:\\foo');
 assert.equal(path.win32._makeLong('\\\\foo\\bar'), '\\\\?\\UNC\\foo\\bar\\');
 assert.equal(path.win32._makeLong('//foo//bar'), '\\\\?\\UNC\\foo\\bar\\');
 assert.equal(path.win32._makeLong('\\\\?\\foo'), '\\\\?\\foo');
+assert.equal(path.win32._makeLong(null), null);
+assert.equal(path.win32._makeLong(true), true);
+assert.equal(path.win32._makeLong(1), 1);
+assert.equal(path.win32._makeLong(), undefined);
+assert.equal(path.win32._makeLong(emptyObj), emptyObj);
 
 
 if (common.isWindows)
