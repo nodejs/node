@@ -125,11 +125,10 @@ SlowStream.prototype.resume = function() {
 
 SlowStream.prototype.end = function(chunk) {
   // walk over the chunk in blocks.
-  var self = this;
-  self.chunk = chunk;
-  self.length = chunk.length;
-  self.resume();
-  return self.ended;
+  this.chunk = chunk;
+  this.length = chunk.length;
+  this.resume();
+  return this.ended;
 };
 
 
