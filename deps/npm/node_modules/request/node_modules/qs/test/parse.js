@@ -1,478 +1,393 @@
-/* eslint no-extend-native:0 */
-// Load modules
+'use strict';
 
-var Code = require('code');
-var Lab = require('lab');
-var Qs = require('../');
+var test = require('tape');
+var qs = require('../');
 
-
-// Declare internals
-
-var internals = {};
-
-
-// Test shortcuts
-
-var lab = exports.lab = Lab.script();
-var expect = Code.expect;
-var describe = lab.experiment;
-var it = lab.test;
-
-
-describe('parse()', function () {
-
-    it('parses a simple string', function (done) {
-
-        expect(Qs.parse('0=foo')).to.deep.equal({ '0': 'foo' });
-        expect(Qs.parse('foo=c++')).to.deep.equal({ foo: 'c  ' });
-        expect(Qs.parse('a[>=]=23')).to.deep.equal({ a: { '>=': '23' } });
-        expect(Qs.parse('a[<=>]==23')).to.deep.equal({ a: { '<=>': '=23' } });
-        expect(Qs.parse('a[==]=23')).to.deep.equal({ a: { '==': '23' } });
-        expect(Qs.parse('foo', { strictNullHandling: true })).to.deep.equal({ foo: null });
-        expect(Qs.parse('foo' )).to.deep.equal({ foo: '' });
-        expect(Qs.parse('foo=')).to.deep.equal({ foo: '' });
-        expect(Qs.parse('foo=bar')).to.deep.equal({ foo: 'bar' });
-        expect(Qs.parse(' foo = bar = baz ')).to.deep.equal({ ' foo ': ' bar = baz ' });
-        expect(Qs.parse('foo=bar=baz')).to.deep.equal({ foo: 'bar=baz' });
-        expect(Qs.parse('foo=bar&bar=baz')).to.deep.equal({ foo: 'bar', bar: 'baz' });
-        expect(Qs.parse('foo2=bar2&baz2=')).to.deep.equal({ foo2: 'bar2', baz2: '' });
-        expect(Qs.parse('foo=bar&baz', { strictNullHandling: true })).to.deep.equal({ foo: 'bar', baz: null });
-        expect(Qs.parse('foo=bar&baz')).to.deep.equal({ foo: 'bar', baz: '' });
-        expect(Qs.parse('cht=p3&chd=t:60,40&chs=250x100&chl=Hello|World')).to.deep.equal({
+test('parse()', function (t) {
+    t.test('parses a simple string', function (st) {
+        st.deepEqual(qs.parse('0=foo'), { '0': 'foo' });
+        st.deepEqual(qs.parse('foo=c++'), { foo: 'c  ' });
+        st.deepEqual(qs.parse('a[>=]=23'), { a: { '>=': '23' } });
+        st.deepEqual(qs.parse('a[<=>]==23'), { a: { '<=>': '=23' } });
+        st.deepEqual(qs.parse('a[==]=23'), { a: { '==': '23' } });
+        st.deepEqual(qs.parse('foo', { strictNullHandling: true }), { foo: null });
+        st.deepEqual(qs.parse('foo'), { foo: '' });
+        st.deepEqual(qs.parse('foo='), { foo: '' });
+        st.deepEqual(qs.parse('foo=bar'), { foo: 'bar' });
+        st.deepEqual(qs.parse(' foo = bar = baz '), { ' foo ': ' bar = baz ' });
+        st.deepEqual(qs.parse('foo=bar=baz'), { foo: 'bar=baz' });
+        st.deepEqual(qs.parse('foo=bar&bar=baz'), { foo: 'bar', bar: 'baz' });
+        st.deepEqual(qs.parse('foo2=bar2&baz2='), { foo2: 'bar2', baz2: '' });
+        st.deepEqual(qs.parse('foo=bar&baz', { strictNullHandling: true }), { foo: 'bar', baz: null });
+        st.deepEqual(qs.parse('foo=bar&baz'), { foo: 'bar', baz: '' });
+        st.deepEqual(qs.parse('cht=p3&chd=t:60,40&chs=250x100&chl=Hello|World'), {
             cht: 'p3',
             chd: 't:60,40',
             chs: '250x100',
             chl: 'Hello|World'
         });
-        done();
+        st.end();
     });
 
-    it('allows enabling dot notation', function (done) {
-
-        expect(Qs.parse('a.b=c')).to.deep.equal({ 'a.b': 'c' });
-        expect(Qs.parse('a.b=c', { allowDots: true })).to.deep.equal({ a: { b: 'c' } });
-        done();
+    t.test('allows enabling dot notation', function (st) {
+        st.deepEqual(qs.parse('a.b=c'), { 'a.b': 'c' });
+        st.deepEqual(qs.parse('a.b=c', { allowDots: true }), { a: { b: 'c' } });
+        st.end();
     });
 
-    it('parses a single nested string', function (done) {
+    t.deepEqual(qs.parse('a[b]=c'), { a: { b: 'c' } }, 'parses a single nested string');
+    t.deepEqual(qs.parse('a[b][c]=d'), { a: { b: { c: 'd' } } }, 'parses a double nested string');
+    t.deepEqual(
+        qs.parse('a[b][c][d][e][f][g][h]=i'),
+        { a: { b: { c: { d: { e: { f: { '[g][h]': 'i' } } } } } } },
+        'defaults to a depth of 5'
+    );
 
-        expect(Qs.parse('a[b]=c')).to.deep.equal({ a: { b: 'c' } });
-        done();
+    t.test('only parses one level when depth = 1', function (st) {
+        st.deepEqual(qs.parse('a[b][c]=d', { depth: 1 }), { a: { b: { '[c]': 'd' } } });
+        st.deepEqual(qs.parse('a[b][c][d]=e', { depth: 1 }), { a: { b: { '[c][d]': 'e' } } });
+        st.end();
     });
 
-    it('parses a double nested string', function (done) {
+    t.deepEqual(qs.parse('a=b&a=c'), { a: ['b', 'c'] }, 'parses a simple array');
 
-        expect(Qs.parse('a[b][c]=d')).to.deep.equal({ a: { b: { c: 'd' } } });
-        done();
+    t.test('parses an explicit array', function (st) {
+        st.deepEqual(qs.parse('a[]=b'), { a: ['b'] });
+        st.deepEqual(qs.parse('a[]=b&a[]=c'), { a: ['b', 'c'] });
+        st.deepEqual(qs.parse('a[]=b&a[]=c&a[]=d'), { a: ['b', 'c', 'd'] });
+        st.end();
     });
 
-    it('defaults to a depth of 5', function (done) {
-
-        expect(Qs.parse('a[b][c][d][e][f][g][h]=i')).to.deep.equal({ a: { b: { c: { d: { e: { f: { '[g][h]': 'i' } } } } } } });
-        done();
+    t.test('parses a mix of simple and explicit arrays', function (st) {
+        st.deepEqual(qs.parse('a=b&a[]=c'), { a: ['b', 'c'] });
+        st.deepEqual(qs.parse('a[]=b&a=c'), { a: ['b', 'c'] });
+        st.deepEqual(qs.parse('a[0]=b&a=c'), { a: ['b', 'c'] });
+        st.deepEqual(qs.parse('a=b&a[0]=c'), { a: ['b', 'c'] });
+        st.deepEqual(qs.parse('a[1]=b&a=c'), { a: ['b', 'c'] });
+        st.deepEqual(qs.parse('a=b&a[1]=c'), { a: ['b', 'c'] });
+        st.end();
     });
 
-    it('only parses one level when depth = 1', function (done) {
-
-        expect(Qs.parse('a[b][c]=d', { depth: 1 })).to.deep.equal({ a: { b: { '[c]': 'd' } } });
-        expect(Qs.parse('a[b][c][d]=e', { depth: 1 })).to.deep.equal({ a: { b: { '[c][d]': 'e' } } });
-        done();
+    t.test('parses a nested array', function (st) {
+        st.deepEqual(qs.parse('a[b][]=c&a[b][]=d'), { a: { b: ['c', 'd'] } });
+        st.deepEqual(qs.parse('a[>=]=25'), { a: { '>=': '25' } });
+        st.end();
     });
 
-    it('parses a simple array', function (done) {
-
-        expect(Qs.parse('a=b&a=c')).to.deep.equal({ a: ['b', 'c'] });
-        done();
+    t.test('allows to specify array indices', function (st) {
+        st.deepEqual(qs.parse('a[1]=c&a[0]=b&a[2]=d'), { a: ['b', 'c', 'd'] });
+        st.deepEqual(qs.parse('a[1]=c&a[0]=b'), { a: ['b', 'c'] });
+        st.deepEqual(qs.parse('a[1]=c'), { a: ['c'] });
+        st.end();
     });
 
-    it('parses an explicit array', function (done) {
-
-        expect(Qs.parse('a[]=b')).to.deep.equal({ a: ['b'] });
-        expect(Qs.parse('a[]=b&a[]=c')).to.deep.equal({ a: ['b', 'c'] });
-        expect(Qs.parse('a[]=b&a[]=c&a[]=d')).to.deep.equal({ a: ['b', 'c', 'd'] });
-        done();
+    t.test('limits specific array indices to 20', function (st) {
+        st.deepEqual(qs.parse('a[20]=a'), { a: ['a'] });
+        st.deepEqual(qs.parse('a[21]=a'), { a: { '21': 'a' } });
+        st.end();
     });
 
-    it('parses a mix of simple and explicit arrays', function (done) {
+    t.deepEqual(qs.parse('a[12b]=c'), { a: { '12b': 'c' } }, 'supports keys that begin with a number');
 
-        expect(Qs.parse('a=b&a[]=c')).to.deep.equal({ a: ['b', 'c'] });
-        expect(Qs.parse('a[]=b&a=c')).to.deep.equal({ a: ['b', 'c'] });
-        expect(Qs.parse('a[0]=b&a=c')).to.deep.equal({ a: ['b', 'c'] });
-        expect(Qs.parse('a=b&a[0]=c')).to.deep.equal({ a: ['b', 'c'] });
-        expect(Qs.parse('a[1]=b&a=c')).to.deep.equal({ a: ['b', 'c'] });
-        expect(Qs.parse('a=b&a[1]=c')).to.deep.equal({ a: ['b', 'c'] });
-        done();
+    t.test('supports encoded = signs', function (st) {
+        st.deepEqual(qs.parse('he%3Dllo=th%3Dere'), { 'he=llo': 'th=ere' });
+        st.end();
     });
 
-    it('parses a nested array', function (done) {
-
-        expect(Qs.parse('a[b][]=c&a[b][]=d')).to.deep.equal({ a: { b: ['c', 'd'] } });
-        expect(Qs.parse('a[>=]=25')).to.deep.equal({ a: { '>=': '25' } });
-        done();
+    t.test('is ok with url encoded strings', function (st) {
+        st.deepEqual(qs.parse('a[b%20c]=d'), { a: { 'b c': 'd' } });
+        st.deepEqual(qs.parse('a[b]=c%20d'), { a: { b: 'c d' } });
+        st.end();
     });
 
-    it('allows to specify array indices', function (done) {
-
-        expect(Qs.parse('a[1]=c&a[0]=b&a[2]=d')).to.deep.equal({ a: ['b', 'c', 'd'] });
-        expect(Qs.parse('a[1]=c&a[0]=b')).to.deep.equal({ a: ['b', 'c'] });
-        expect(Qs.parse('a[1]=c')).to.deep.equal({ a: ['c'] });
-        done();
+    t.test('allows brackets in the value', function (st) {
+        st.deepEqual(qs.parse('pets=["tobi"]'), { pets: '["tobi"]' });
+        st.deepEqual(qs.parse('operators=[">=", "<="]'), { operators: '[">=", "<="]' });
+        st.end();
     });
 
-    it('limits specific array indices to 20', function (done) {
-
-        expect(Qs.parse('a[20]=a')).to.deep.equal({ a: ['a'] });
-        expect(Qs.parse('a[21]=a')).to.deep.equal({ a: { '21': 'a' } });
-        done();
+    t.test('allows empty values', function (st) {
+        st.deepEqual(qs.parse(''), {});
+        st.deepEqual(qs.parse(null), {});
+        st.deepEqual(qs.parse(undefined), {});
+        st.end();
     });
 
-    it('supports keys that begin with a number', function (done) {
-
-        expect(Qs.parse('a[12b]=c')).to.deep.equal({ a: { '12b': 'c' } });
-        done();
+    t.test('transforms arrays to objects', function (st) {
+        st.deepEqual(qs.parse('foo[0]=bar&foo[bad]=baz'), { foo: { '0': 'bar', bad: 'baz' } });
+        st.deepEqual(qs.parse('foo[bad]=baz&foo[0]=bar'), { foo: { bad: 'baz', '0': 'bar' } });
+        st.deepEqual(qs.parse('foo[bad]=baz&foo[]=bar'), { foo: { bad: 'baz', '0': 'bar' } });
+        st.deepEqual(qs.parse('foo[]=bar&foo[bad]=baz'), { foo: { '0': 'bar', bad: 'baz' } });
+        st.deepEqual(qs.parse('foo[bad]=baz&foo[]=bar&foo[]=foo'), { foo: { bad: 'baz', '0': 'bar', '1': 'foo' } });
+        st.deepEqual(qs.parse('foo[0][a]=a&foo[0][b]=b&foo[1][a]=aa&foo[1][b]=bb'), { foo: [{ a: 'a', b: 'b' }, { a: 'aa', b: 'bb' }] });
+        st.deepEqual(qs.parse('a[]=b&a[t]=u&a[hasOwnProperty]=c'), { a: { '0': 'b', t: 'u', c: true } });
+        st.deepEqual(qs.parse('a[]=b&a[hasOwnProperty]=c&a[x]=y'), { a: { '0': 'b', '1': 'c', x: 'y' } });
+        st.end();
     });
 
-    it('supports encoded = signs', function (done) {
-
-        expect(Qs.parse('he%3Dllo=th%3Dere')).to.deep.equal({ 'he=llo': 'th=ere' });
-        done();
+    t.test('transforms arrays to objects (dot notation)', function (st) {
+        st.deepEqual(qs.parse('foo[0].baz=bar&fool.bad=baz', { allowDots: true }), { foo: [{ baz: 'bar' }], fool: { bad: 'baz' } });
+        st.deepEqual(qs.parse('foo[0].baz=bar&fool.bad.boo=baz', { allowDots: true }), { foo: [{ baz: 'bar' }], fool: { bad: { boo: 'baz' } } });
+        st.deepEqual(qs.parse('foo[0][0].baz=bar&fool.bad=baz', { allowDots: true }), { foo: [[{ baz: 'bar' }]], fool: { bad: 'baz' } });
+        st.deepEqual(qs.parse('foo[0].baz[0]=15&foo[0].bar=2', { allowDots: true }), { foo: [{ baz: ['15'], bar: '2' }] });
+        st.deepEqual(qs.parse('foo[0].baz[0]=15&foo[0].baz[1]=16&foo[0].bar=2', { allowDots: true }), { foo: [{ baz: ['15', '16'], bar: '2' }] });
+        st.deepEqual(qs.parse('foo.bad=baz&foo[0]=bar', { allowDots: true }), { foo: { bad: 'baz', '0': 'bar' } });
+        st.deepEqual(qs.parse('foo.bad=baz&foo[]=bar', { allowDots: true }), { foo: { bad: 'baz', '0': 'bar' } });
+        st.deepEqual(qs.parse('foo[]=bar&foo.bad=baz', { allowDots: true }), { foo: { '0': 'bar', bad: 'baz' } });
+        st.deepEqual(qs.parse('foo.bad=baz&foo[]=bar&foo[]=foo', { allowDots: true }), { foo: { bad: 'baz', '0': 'bar', '1': 'foo' } });
+        st.deepEqual(qs.parse('foo[0].a=a&foo[0].b=b&foo[1].a=aa&foo[1].b=bb', { allowDots: true }), { foo: [{ a: 'a', b: 'b' }, { a: 'aa', b: 'bb' }] });
+        st.end();
     });
 
-    it('is ok with url encoded strings', function (done) {
+    t.deepEqual(qs.parse('a[b]=c&a=d'), { a: { b: 'c', d: true } }, 'can add keys to objects');
 
-        expect(Qs.parse('a[b%20c]=d')).to.deep.equal({ a: { 'b c': 'd' } });
-        expect(Qs.parse('a[b]=c%20d')).to.deep.equal({ a: { b: 'c d' } });
-        done();
+    t.test('correctly prunes undefined values when converting an array to an object', function (st) {
+        st.deepEqual(qs.parse('a[2]=b&a[99999999]=c'), { a: { '2': 'b', '99999999': 'c' } });
+        st.end();
     });
 
-    it('allows brackets in the value', function (done) {
-
-        expect(Qs.parse('pets=["tobi"]')).to.deep.equal({ pets: '["tobi"]' });
-        expect(Qs.parse('operators=[">=", "<="]')).to.deep.equal({ operators: '[">=", "<="]' });
-        done();
+    t.test('supports malformed uri characters', function (st) {
+        st.deepEqual(qs.parse('{%:%}', { strictNullHandling: true }), { '{%:%}': null });
+        st.deepEqual(qs.parse('{%:%}='), { '{%:%}': '' });
+        st.deepEqual(qs.parse('foo=%:%}'), { foo: '%:%}' });
+        st.end();
     });
 
-    it('allows empty values', function (done) {
-
-        expect(Qs.parse('')).to.deep.equal({});
-        expect(Qs.parse(null)).to.deep.equal({});
-        expect(Qs.parse(undefined)).to.deep.equal({});
-        done();
+    t.test('doesn\'t produce empty keys', function (st) {
+        st.deepEqual(qs.parse('_r=1&'), { '_r': '1' });
+        st.end();
     });
 
-    it('transforms arrays to objects', function (done) {
-
-        expect(Qs.parse('foo[0]=bar&foo[bad]=baz')).to.deep.equal({ foo: { '0': 'bar', bad: 'baz' } });
-        expect(Qs.parse('foo[bad]=baz&foo[0]=bar')).to.deep.equal({ foo: { bad: 'baz', '0': 'bar' } });
-        expect(Qs.parse('foo[bad]=baz&foo[]=bar')).to.deep.equal({ foo: { bad: 'baz', '0': 'bar' } });
-        expect(Qs.parse('foo[]=bar&foo[bad]=baz')).to.deep.equal({ foo: { '0': 'bar', bad: 'baz' } });
-        expect(Qs.parse('foo[bad]=baz&foo[]=bar&foo[]=foo')).to.deep.equal({ foo: { bad: 'baz', '0': 'bar', '1': 'foo' } });
-        expect(Qs.parse('foo[0][a]=a&foo[0][b]=b&foo[1][a]=aa&foo[1][b]=bb')).to.deep.equal({ foo: [{ a: 'a', b: 'b' }, { a: 'aa', b: 'bb' }] });
-        expect(Qs.parse('a[]=b&a[t]=u&a[hasOwnProperty]=c')).to.deep.equal({ a: { '0': 'b', t: 'u', c: true } });
-        expect(Qs.parse('a[]=b&a[hasOwnProperty]=c&a[x]=y')).to.deep.equal({ a: { '0': 'b', '1': 'c', x: 'y' } });
-        done();
+    t.test('cannot access Object prototype', function (st) {
+        qs.parse('constructor[prototype][bad]=bad');
+        qs.parse('bad[constructor][prototype][bad]=bad');
+        st.equal(typeof Object.prototype.bad, 'undefined');
+        st.end();
     });
 
-    it('transforms arrays to objects (dot notation)', function (done) {
-
-        expect(Qs.parse('foo[0].baz=bar&fool.bad=baz', { allowDots: true })).to.deep.equal({ foo: [{ baz: 'bar' }], fool: { bad: 'baz' } });
-        expect(Qs.parse('foo[0].baz=bar&fool.bad.boo=baz', { allowDots: true })).to.deep.equal({ foo: [{ baz: 'bar' }], fool: { bad: { boo: 'baz' } } });
-        expect(Qs.parse('foo[0][0].baz=bar&fool.bad=baz', { allowDots: true })).to.deep.equal({ foo: [[{ baz: 'bar' }]], fool: { bad: 'baz' } });
-        expect(Qs.parse('foo[0].baz[0]=15&foo[0].bar=2', { allowDots: true })).to.deep.equal({ foo: [{ baz: ['15'], bar: '2' }] });
-        expect(Qs.parse('foo[0].baz[0]=15&foo[0].baz[1]=16&foo[0].bar=2', { allowDots: true })).to.deep.equal({ foo: [{ baz: ['15', '16'], bar: '2' }] });
-        expect(Qs.parse('foo.bad=baz&foo[0]=bar', { allowDots: true })).to.deep.equal({ foo: { bad: 'baz', '0': 'bar' } });
-        expect(Qs.parse('foo.bad=baz&foo[]=bar', { allowDots: true })).to.deep.equal({ foo: { bad: 'baz', '0': 'bar' } });
-        expect(Qs.parse('foo[]=bar&foo.bad=baz', { allowDots: true })).to.deep.equal({ foo: { '0': 'bar', bad: 'baz' } });
-        expect(Qs.parse('foo.bad=baz&foo[]=bar&foo[]=foo', { allowDots: true })).to.deep.equal({ foo: { bad: 'baz', '0': 'bar', '1': 'foo' } });
-        expect(Qs.parse('foo[0].a=a&foo[0].b=b&foo[1].a=aa&foo[1].b=bb', { allowDots: true })).to.deep.equal({ foo: [{ a: 'a', b: 'b' }, { a: 'aa', b: 'bb' }] });
-        done();
+    t.test('parses arrays of objects', function (st) {
+        st.deepEqual(qs.parse('a[][b]=c'), { a: [{ b: 'c' }] });
+        st.deepEqual(qs.parse('a[0][b]=c'), { a: [{ b: 'c' }] });
+        st.end();
     });
 
-    it('can add keys to objects', function (done) {
-
-        expect(Qs.parse('a[b]=c&a=d')).to.deep.equal({ a: { b: 'c', d: true } });
-        done();
+    t.test('allows for empty strings in arrays', function (st) {
+        st.deepEqual(qs.parse('a[]=b&a[]=&a[]=c'), { a: ['b', '', 'c'] });
+        st.deepEqual(qs.parse('a[0]=b&a[1]&a[2]=c&a[19]=', { strictNullHandling: true }), { a: ['b', null, 'c', ''] });
+        st.deepEqual(qs.parse('a[0]=b&a[1]=&a[2]=c&a[19]', { strictNullHandling: true }), { a: ['b', '', 'c', null] });
+        st.deepEqual(qs.parse('a[]=&a[]=b&a[]=c'), { a: ['', 'b', 'c'] });
+        st.end();
     });
 
-    it('correctly prunes undefined values when converting an array to an object', function (done) {
-
-        expect(Qs.parse('a[2]=b&a[99999999]=c')).to.deep.equal({ a: { '2': 'b', '99999999': 'c' } });
-        done();
+    t.test('compacts sparse arrays', function (st) {
+        st.deepEqual(qs.parse('a[10]=1&a[2]=2'), { a: ['2', '1'] });
+        st.end();
     });
 
-    it('supports malformed uri characters', function (done) {
-
-        expect(Qs.parse('{%:%}', { strictNullHandling: true })).to.deep.equal({ '{%:%}': null });
-        expect(Qs.parse('{%:%}=')).to.deep.equal({ '{%:%}': '' });
-        expect(Qs.parse('foo=%:%}')).to.deep.equal({ foo: '%:%}' });
-        done();
+    t.test('parses semi-parsed strings', function (st) {
+        st.deepEqual(qs.parse({ 'a[b]': 'c' }), { a: { b: 'c' } });
+        st.deepEqual(qs.parse({ 'a[b]': 'c', 'a[d]': 'e' }), { a: { b: 'c', d: 'e' } });
+        st.end();
     });
 
-    it('doesn\'t produce empty keys', function (done) {
-
-        expect(Qs.parse('_r=1&')).to.deep.equal({ '_r': '1' });
-        done();
-    });
-
-    it('cannot access Object prototype', function (done) {
-
-        Qs.parse('constructor[prototype][bad]=bad');
-        Qs.parse('bad[constructor][prototype][bad]=bad');
-        expect(typeof Object.prototype.bad).to.equal('undefined');
-        done();
-    });
-
-    it('parses arrays of objects', function (done) {
-
-        expect(Qs.parse('a[][b]=c')).to.deep.equal({ a: [{ b: 'c' }] });
-        expect(Qs.parse('a[0][b]=c')).to.deep.equal({ a: [{ b: 'c' }] });
-        done();
-    });
-
-    it('allows for empty strings in arrays', function (done) {
-
-        expect(Qs.parse('a[]=b&a[]=&a[]=c')).to.deep.equal({ a: ['b', '', 'c'] });
-        expect(Qs.parse('a[0]=b&a[1]&a[2]=c&a[19]=', { strictNullHandling: true })).to.deep.equal({ a: ['b', null, 'c', ''] });
-        expect(Qs.parse('a[0]=b&a[1]=&a[2]=c&a[19]', { strictNullHandling: true })).to.deep.equal({ a: ['b', '', 'c', null] });
-        expect(Qs.parse('a[]=&a[]=b&a[]=c')).to.deep.equal({ a: ['', 'b', 'c'] });
-        done();
-    });
-
-    it('compacts sparse arrays', function (done) {
-
-        expect(Qs.parse('a[10]=1&a[2]=2')).to.deep.equal({ a: ['2', '1'] });
-        done();
-    });
-
-    it('parses semi-parsed strings', function (done) {
-
-        expect(Qs.parse({ 'a[b]': 'c' })).to.deep.equal({ a: { b: 'c' } });
-        expect(Qs.parse({ 'a[b]': 'c', 'a[d]': 'e' })).to.deep.equal({ a: { b: 'c', d: 'e' } });
-        done();
-    });
-
-    it('parses buffers correctly', function (done) {
-
+    t.test('parses buffers correctly', function (st) {
         var b = new Buffer('test');
-        expect(Qs.parse({ a: b })).to.deep.equal({ a: b });
-        done();
+        st.deepEqual(qs.parse({ a: b }), { a: b });
+        st.end();
     });
 
-    it('continues parsing when no parent is found', function (done) {
-
-        expect(Qs.parse('[]=&a=b')).to.deep.equal({ '0': '', a: 'b' });
-        expect(Qs.parse('[]&a=b', { strictNullHandling: true })).to.deep.equal({ '0': null, a: 'b' });
-        expect(Qs.parse('[foo]=bar')).to.deep.equal({ foo: 'bar' });
-        done();
+    t.test('continues parsing when no parent is found', function (st) {
+        st.deepEqual(qs.parse('[]=&a=b'), { '0': '', a: 'b' });
+        st.deepEqual(qs.parse('[]&a=b', { strictNullHandling: true }), { '0': null, a: 'b' });
+        st.deepEqual(qs.parse('[foo]=bar'), { foo: 'bar' });
+        st.end();
     });
 
-    it('does not error when parsing a very long array', function (done) {
-
+    t.test('does not error when parsing a very long array', function (st) {
         var str = 'a[]=a';
         while (Buffer.byteLength(str) < 128 * 1024) {
-            str += '&' + str;
+            str = str + '&' + str;
         }
 
-        expect(function () {
+        st.doesNotThrow(function () { qs.parse(str); });
 
-            Qs.parse(str);
-        }).to.not.throw();
-
-        done();
+        st.end();
     });
 
-    it('should not throw when a native prototype has an enumerable property', { parallel: false }, function (done) {
-
+    t.test('should not throw when a native prototype has an enumerable property', { parallel: false }, function (st) {
         Object.prototype.crash = '';
         Array.prototype.crash = '';
-        expect(Qs.parse.bind(null, 'a=b')).to.not.throw();
-        expect(Qs.parse('a=b')).to.deep.equal({ a: 'b' });
-        expect(Qs.parse.bind(null, 'a[][b]=c')).to.not.throw();
-        expect(Qs.parse('a[][b]=c')).to.deep.equal({ a: [{ b: 'c' }] });
+        st.doesNotThrow(qs.parse.bind(null, 'a=b'));
+        st.deepEqual(qs.parse('a=b'), { a: 'b' });
+        st.doesNotThrow(qs.parse.bind(null, 'a[][b]=c'));
+        st.deepEqual(qs.parse('a[][b]=c'), { a: [{ b: 'c' }] });
         delete Object.prototype.crash;
         delete Array.prototype.crash;
-        done();
+        st.end();
     });
 
-    it('parses a string with an alternative string delimiter', function (done) {
-
-        expect(Qs.parse('a=b;c=d', { delimiter: ';' })).to.deep.equal({ a: 'b', c: 'd' });
-        done();
+    t.test('parses a string with an alternative string delimiter', function (st) {
+        st.deepEqual(qs.parse('a=b;c=d', { delimiter: ';' }), { a: 'b', c: 'd' });
+        st.end();
     });
 
-    it('parses a string with an alternative RegExp delimiter', function (done) {
-
-        expect(Qs.parse('a=b; c=d', { delimiter: /[;,] */ })).to.deep.equal({ a: 'b', c: 'd' });
-        done();
+    t.test('parses a string with an alternative RegExp delimiter', function (st) {
+        st.deepEqual(qs.parse('a=b; c=d', { delimiter: /[;,] */ }), { a: 'b', c: 'd' });
+        st.end();
     });
 
-    it('does not use non-splittable objects as delimiters', function (done) {
-
-        expect(Qs.parse('a=b&c=d', { delimiter: true })).to.deep.equal({ a: 'b', c: 'd' });
-        done();
+    t.test('does not use non-splittable objects as delimiters', function (st) {
+        st.deepEqual(qs.parse('a=b&c=d', { delimiter: true }), { a: 'b', c: 'd' });
+        st.end();
     });
 
-    it('allows overriding parameter limit', function (done) {
-
-        expect(Qs.parse('a=b&c=d', { parameterLimit: 1 })).to.deep.equal({ a: 'b' });
-        done();
+    t.test('allows overriding parameter limit', function (st) {
+        st.deepEqual(qs.parse('a=b&c=d', { parameterLimit: 1 }), { a: 'b' });
+        st.end();
     });
 
-    it('allows setting the parameter limit to Infinity', function (done) {
-
-        expect(Qs.parse('a=b&c=d', { parameterLimit: Infinity })).to.deep.equal({ a: 'b', c: 'd' });
-        done();
+    t.test('allows setting the parameter limit to Infinity', function (st) {
+        st.deepEqual(qs.parse('a=b&c=d', { parameterLimit: Infinity }), { a: 'b', c: 'd' });
+        st.end();
     });
 
-    it('allows overriding array limit', function (done) {
-
-        expect(Qs.parse('a[0]=b', { arrayLimit: -1 })).to.deep.equal({ a: { '0': 'b' } });
-        expect(Qs.parse('a[-1]=b', { arrayLimit: -1 })).to.deep.equal({ a: { '-1': 'b' } });
-        expect(Qs.parse('a[0]=b&a[1]=c', { arrayLimit: 0 })).to.deep.equal({ a: { '0': 'b', '1': 'c' } });
-        done();
+    t.test('allows overriding array limit', function (st) {
+        st.deepEqual(qs.parse('a[0]=b', { arrayLimit: -1 }), { a: { '0': 'b' } });
+        st.deepEqual(qs.parse('a[-1]=b', { arrayLimit: -1 }), { a: { '-1': 'b' } });
+        st.deepEqual(qs.parse('a[0]=b&a[1]=c', { arrayLimit: 0 }), { a: { '0': 'b', '1': 'c' } });
+        st.end();
     });
 
-    it('allows disabling array parsing', function (done) {
-
-        expect(Qs.parse('a[0]=b&a[1]=c', { parseArrays: false })).to.deep.equal({ a: { '0': 'b', '1': 'c' } });
-        done();
+    t.test('allows disabling array parsing', function (st) {
+        st.deepEqual(qs.parse('a[0]=b&a[1]=c', { parseArrays: false }), { a: { '0': 'b', '1': 'c' } });
+        st.end();
     });
 
-    it('parses an object', function (done) {
-
+    t.test('parses an object', function (st) {
         var input = {
             'user[name]': { 'pop[bob]': 3 },
             'user[email]': null
         };
 
         var expected = {
-            'user': {
-                'name': { 'pop[bob]': 3 },
-                'email': null
+            user: {
+                name: { 'pop[bob]': 3 },
+                email: null
             }
         };
 
-        var result = Qs.parse(input);
+        var result = qs.parse(input);
 
-        expect(result).to.deep.equal(expected);
-        done();
+        st.deepEqual(result, expected);
+        st.end();
     });
 
-    it('parses an object in dot notation', function (done) {
-
+    t.test('parses an object in dot notation', function (st) {
         var input = {
             'user.name': { 'pop[bob]': 3 },
             'user.email.': null
         };
 
         var expected = {
-            'user': {
-                'name': { 'pop[bob]': 3 },
-                'email': null
+            user: {
+                name: { 'pop[bob]': 3 },
+                email: null
             }
         };
 
-        var result = Qs.parse(input, { allowDots: true });
+        var result = qs.parse(input, { allowDots: true });
 
-        expect(result).to.deep.equal(expected);
-        done();
+        st.deepEqual(result, expected);
+        st.end();
     });
 
-    it('parses an object and not child values', function (done) {
-
+    t.test('parses an object and not child values', function (st) {
         var input = {
             'user[name]': { 'pop[bob]': { 'test': 3 } },
             'user[email]': null
         };
 
         var expected = {
-            'user': {
-                'name': { 'pop[bob]': { 'test': 3 } },
-                'email': null
+            user: {
+                name: { 'pop[bob]': { 'test': 3 } },
+                email: null
             }
         };
 
-        var result = Qs.parse(input);
+        var result = qs.parse(input);
 
-        expect(result).to.deep.equal(expected);
-        done();
+        st.deepEqual(result, expected);
+        st.end();
     });
 
-    it('does not blow up when Buffer global is missing', function (done) {
-
+    t.test('does not blow up when Buffer global is missing', function (st) {
         var tempBuffer = global.Buffer;
         delete global.Buffer;
-        var result = Qs.parse('a=b&c=d');
+        var result = qs.parse('a=b&c=d');
         global.Buffer = tempBuffer;
-        expect(result).to.deep.equal({ a: 'b', c: 'd' });
-        done();
+        st.deepEqual(result, { a: 'b', c: 'd' });
+        st.end();
     });
 
-    it('does not crash when parsing circular references', function (done) {
-
+    t.test('does not crash when parsing circular references', function (st) {
         var a = {};
         a.b = a;
 
         var parsed;
 
-        expect(function () {
+        st.doesNotThrow(function () {
+            parsed = qs.parse({ 'foo[bar]': 'baz', 'foo[baz]': a });
+        });
 
-            parsed = Qs.parse({ 'foo[bar]': 'baz', 'foo[baz]': a });
-        }).to.not.throw();
-
-        expect(parsed).to.contain('foo');
-        expect(parsed.foo).to.contain('bar', 'baz');
-        expect(parsed.foo.bar).to.equal('baz');
-        expect(parsed.foo.baz).to.deep.equal(a);
-        done();
+        st.equal('foo' in parsed, true, 'parsed has "foo" property');
+        st.equal('bar' in parsed.foo, true);
+        st.equal('baz' in parsed.foo, true);
+        st.equal(parsed.foo.bar, 'baz');
+        st.deepEqual(parsed.foo.baz, a);
+        st.end();
     });
 
-    it('parses plain objects correctly', function (done) {
-
+    t.test('parses plain objects correctly', function (st) {
         var a = Object.create(null);
         a.b = 'c';
 
-        expect(Qs.parse(a)).to.deep.equal({ b: 'c' });
-        var result = Qs.parse({ a: a });
-        expect(result).to.contain('a');
-        expect(result.a).to.deep.equal(a);
-        done();
+        st.deepEqual(qs.parse(a), { b: 'c' });
+        var result = qs.parse({ a: a });
+        st.equal('a' in result, true, 'result has "a" property');
+        st.deepEqual(result.a, a);
+        st.end();
     });
 
-    it('parses dates correctly', function (done) {
-
+    t.test('parses dates correctly', function (st) {
         var now = new Date();
-        expect(Qs.parse({ a: now })).to.deep.equal({ a: now });
-        done();
+        st.deepEqual(qs.parse({ a: now }), { a: now });
+        st.end();
     });
 
-    it('parses regular expressions correctly', function (done) {
-
+    t.test('parses regular expressions correctly', function (st) {
         var re = /^test$/;
-        expect(Qs.parse({ a: re })).to.deep.equal({ a: re });
-        done();
+        st.deepEqual(qs.parse({ a: re }), { a: re });
+        st.end();
     });
 
-    it('can allow overwriting prototype properties', function (done) {
-
-        expect(Qs.parse('a[hasOwnProperty]=b', { allowPrototypes: true })).to.deep.equal({ a: { hasOwnProperty: 'b' } }, { prototype: false });
-        expect(Qs.parse('hasOwnProperty=b', { allowPrototypes: true })).to.deep.equal({ hasOwnProperty: 'b' }, { prototype: false });
-        done();
+    t.test('can allow overwriting prototype properties', function (st) {
+        st.deepEqual(qs.parse('a[hasOwnProperty]=b', { allowPrototypes: true }), { a: { hasOwnProperty: 'b' } }, { prototype: false });
+        st.deepEqual(qs.parse('hasOwnProperty=b', { allowPrototypes: true }), { hasOwnProperty: 'b' }, { prototype: false });
+        st.end();
     });
 
-    it('can return plain objects', function (done) {
-
+    t.test('can return plain objects', function (st) {
         var expected = Object.create(null);
         expected.a = Object.create(null);
         expected.a.b = 'c';
         expected.a.hasOwnProperty = 'd';
-        expect(Qs.parse('a[b]=c&a[hasOwnProperty]=d', { plainObjects: true })).to.deep.equal(expected);
-        expect(Qs.parse(null, { plainObjects: true })).to.deep.equal(Object.create(null));
+        st.deepEqual(qs.parse('a[b]=c&a[hasOwnProperty]=d', { plainObjects: true }), expected);
+        st.deepEqual(qs.parse(null, { plainObjects: true }), Object.create(null));
         var expectedArray = Object.create(null);
         expectedArray.a = Object.create(null);
         expectedArray.a['0'] = 'b';
         expectedArray.a.c = 'd';
-        expect(Qs.parse('a[]=b&a[c]=d', { plainObjects: true })).to.deep.equal(expectedArray);
-        done();
+        st.deepEqual(qs.parse('a[]=b&a[c]=d', { plainObjects: true }), expectedArray);
+        st.end();
     });
 });

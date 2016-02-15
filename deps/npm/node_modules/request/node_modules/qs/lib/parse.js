@@ -1,9 +1,6 @@
-// Load modules
+'use strict';
 
 var Utils = require('./utils');
-
-
-// Declare internals
 
 var internals = {
     delimiter: '&',
@@ -16,13 +13,11 @@ var internals = {
     allowDots: false
 };
 
-
 internals.parseValues = function (str, options) {
-
     var obj = {};
     var parts = str.split(options.delimiter, options.parameterLimit === Infinity ? undefined : options.parameterLimit);
 
-    for (var i = 0, il = parts.length; i < il; ++i) {
+    for (var i = 0; i < parts.length; ++i) {
         var part = parts[i];
         var pos = part.indexOf(']=') === -1 ? part.indexOf('=') : part.indexOf(']=') + 1;
 
@@ -32,16 +27,14 @@ internals.parseValues = function (str, options) {
             if (options.strictNullHandling) {
                 obj[Utils.decode(part)] = null;
             }
-        }
-        else {
+        } else {
             var key = Utils.decode(part.slice(0, pos));
             var val = Utils.decode(part.slice(pos + 1));
 
-            if (!Object.prototype.hasOwnProperty.call(obj, key)) {
-                obj[key] = val;
-            }
-            else {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 obj[key] = [].concat(obj[key]).concat(val);
+            } else {
+                obj[key] = val;
             }
         }
     }
@@ -49,9 +42,7 @@ internals.parseValues = function (str, options) {
     return obj;
 };
 
-
 internals.parseObject = function (chain, val, options) {
-
     if (!chain.length) {
         return val;
     }
@@ -62,23 +53,20 @@ internals.parseObject = function (chain, val, options) {
     if (root === '[]') {
         obj = [];
         obj = obj.concat(internals.parseObject(chain, val, options));
-    }
-    else {
+    } else {
         obj = options.plainObjects ? Object.create(null) : {};
         var cleanRoot = root[0] === '[' && root[root.length - 1] === ']' ? root.slice(1, root.length - 1) : root;
         var index = parseInt(cleanRoot, 10);
-        var indexString = '' + index;
-        if (!isNaN(index) &&
+        if (
+            !isNaN(index) &&
             root !== cleanRoot &&
-            indexString === cleanRoot &&
+            String(index) === cleanRoot &&
             index >= 0 &&
-            (options.parseArrays &&
-             index <= options.arrayLimit)) {
-
+            (options.parseArrays && index <= options.arrayLimit)
+        ) {
             obj = [];
             obj[index] = internals.parseObject(chain, val, options);
-        }
-        else {
+        } else {
             obj[cleanRoot] = internals.parseObject(chain, val, options);
         }
     }
@@ -86,18 +74,13 @@ internals.parseObject = function (chain, val, options) {
     return obj;
 };
 
-
-internals.parseKeys = function (key, val, options) {
-
-    if (!key) {
+internals.parseKeys = function (givenKey, val, options) {
+    if (!givenKey) {
         return;
     }
 
     // Transform dot notation to bracket notation
-
-    if (options.allowDots) {
-        key = key.replace(/\.([^\.\[]+)/g, '[$1]');
-    }
+    var key = options.allowDots ? givenKey.replace(/\.([^\.\[]+)/g, '[$1]') : givenKey;
 
     // The regex chunks
 
@@ -114,9 +97,7 @@ internals.parseKeys = function (key, val, options) {
     if (segment[1]) {
         // If we aren't using plain objects, optionally prefix keys
         // that would overwrite object prototype properties
-        if (!options.plainObjects &&
-            Object.prototype.hasOwnProperty(segment[1])) {
-
+        if (!options.plainObjects && Object.prototype.hasOwnProperty(segment[1])) {
             if (!options.allowPrototypes) {
                 return;
             }
@@ -129,11 +110,8 @@ internals.parseKeys = function (key, val, options) {
 
     var i = 0;
     while ((segment = child.exec(key)) !== null && i < options.depth) {
-
-        ++i;
-        if (!options.plainObjects &&
-            Object.prototype.hasOwnProperty(segment[1].replace(/\[|\]/g, ''))) {
-
+        i += 1;
+        if (!options.plainObjects && Object.prototype.hasOwnProperty(segment[1].replace(/\[|\]/g, ''))) {
             if (!options.allowPrototypes) {
                 continue;
             }
@@ -150,10 +128,8 @@ internals.parseKeys = function (key, val, options) {
     return internals.parseObject(keys, val, options);
 };
 
-
-module.exports = function (str, options) {
-
-    options = options || {};
+module.exports = function (str, opts) {
+    var options = opts || {};
     options.delimiter = typeof options.delimiter === 'string' || Utils.isRegExp(options.delimiter) ? options.delimiter : internals.delimiter;
     options.depth = typeof options.depth === 'number' ? options.depth : internals.depth;
     options.arrayLimit = typeof options.arrayLimit === 'number' ? options.arrayLimit : internals.arrayLimit;
@@ -164,10 +140,11 @@ module.exports = function (str, options) {
     options.parameterLimit = typeof options.parameterLimit === 'number' ? options.parameterLimit : internals.parameterLimit;
     options.strictNullHandling = typeof options.strictNullHandling === 'boolean' ? options.strictNullHandling : internals.strictNullHandling;
 
-    if (str === '' ||
+    if (
+        str === '' ||
         str === null ||
-        typeof str === 'undefined') {
-
+        typeof str === 'undefined'
+    ) {
         return options.plainObjects ? Object.create(null) : {};
     }
 
@@ -177,7 +154,7 @@ module.exports = function (str, options) {
     // Iterate over the keys and setup the new object
 
     var keys = Object.keys(tempObj);
-    for (var i = 0, il = keys.length; i < il; ++i) {
+    for (var i = 0; i < keys.length; ++i) {
         var key = keys[i];
         var newObj = internals.parseKeys(key, tempObj[key], options);
         obj = Utils.merge(obj, newObj, options);

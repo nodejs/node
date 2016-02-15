@@ -1,28 +1,9 @@
-// Load modules
+'use strict';
 
-var Code = require('code');
-var Lab = require('lab');
-var Utils = require('../lib/utils');
+var test = require('tape');
+var utils = require('../lib/utils');
 
-
-// Declare internals
-
-var internals = {};
-
-
-// Test shortcuts
-
-var lab = exports.lab = Lab.script();
-var expect = Code.expect;
-var describe = lab.experiment;
-var it = lab.test;
-
-
-describe('merge()', function () {
-
-    it('can merge two objects with the same key', function (done) {
-
-        expect(Utils.merge({ a: 'b' }, { a: 'c' })).to.deep.equal({ a: ['b', 'c'] });
-        done();
-    });
+test('merge()', function (t) {
+    t.deepEqual(utils.merge({ a: 'b' }, { a: 'c' }), { a: ['b', 'c'] }, 'merges two objects with the same key');
+    t.end();
 });

@@ -7,7 +7,7 @@ test("Windows", function (t) {
   var hasUnicode = requireInject("../index.js", {
     os: { type: function () { return "Windows_NT" } }
   })
-  t.is(hasUnicode(), true, "Windows is assumed to be unicode aware")
+  t.is(hasUnicode(), false, "Windows is assumed NOT to be unicode aware")
 })
 test("Unix Env", function (t) {
   t.plan(3)

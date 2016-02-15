@@ -29,6 +29,14 @@ which('node', { path: someOtherPath }, function (er, resolved) {
 })
 ```
 
+## CLI USAGE
+
+Same as the BSD `which(1)` binary.
+
+```
+usage: which [-as] program ...
+```
+
 ## OPTIONS
 
 You may pass an options object as the second argument.

@@ -45,7 +45,8 @@ SSHBuffer.prototype.readBuffer = function () {
 	var len = this._buffer.readUInt32BE(this._offset);
 	this._offset += 4;
 	assert.ok(this._offset + len <= this._buffer.length,
-	    'length out of bounds at +0x' + this._offset.toString(16));
+	    'length out of bounds at +0x' + this._offset.toString(16) +
+	    ' (data truncated?)');
 	var buf = this._buffer.slice(this._offset, this._offset + len);
 	this._offset += len;
 	return (buf);
