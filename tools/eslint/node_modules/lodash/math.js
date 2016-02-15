@@ -1,9 +1,14 @@
 module.exports = {
-  'add': require('./math/add'),
-  'ceil': require('./math/ceil'),
-  'floor': require('./math/floor'),
-  'max': require('./math/max'),
-  'min': require('./math/min'),
-  'round': require('./math/round'),
-  'sum': require('./math/sum')
+  'add': require('./add'),
+  'ceil': require('./ceil'),
+  'floor': require('./floor'),
+  'max': require('./max'),
+  'maxBy': require('./maxBy'),
+  'mean': require('./mean'),
+  'min': require('./min'),
+  'minBy': require('./minBy'),
+  'round': require('./round'),
+  'subtract': require('./subtract'),
+  'sum': require('./sum'),
+  'sumBy': require('./sumBy')
 };

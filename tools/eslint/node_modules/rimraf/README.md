@@ -29,7 +29,7 @@ errors are handled for you:
 
 ## options
 
-* unlink, chmod, stat, lstat, rmdir, readdir
+* unlink, chmod, stat, lstat, rmdir, readdir,
   unlinkSync, chmodSync, statSync, lstatSync, rmdirSync, readdirSync
 
     In order to use a custom file system library, you can override

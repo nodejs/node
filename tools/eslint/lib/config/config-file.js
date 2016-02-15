@@ -16,8 +16,30 @@ var debug = require("debug"),
     path = require("path"),
     ConfigOps = require("./config-ops"),
     validator = require("./config-validator"),
+    Plugins = require("./plugins"),
+    resolveModule = require("resolve"),
+    pathIsInside = require("path-is-inside"),
     stripComments = require("strip-json-comments"),
+    stringify = require("json-stable-stringify"),
     isAbsolutePath = require("path-is-absolute");
+
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Determines sort order for object keys for json-stable-stringify
+ *
+ * see: https://github.com/substack/json-stable-stringify#cmp
+ *
+ * @param   {Object} a The first comparison object ({key: akey, value: avalue})
+ * @param   {Object} b The second comparison object ({key: bkey, value: bvalue})
+ * @returns {number}   1 or -1, used in stringify cmp method
+ */
+function sortByKey(a, b) {
+    return a.key > b.key ? 1 : -1;
+}
 
 //------------------------------------------------------------------------------
 // Private
@@ -28,7 +50,8 @@ var CONFIG_FILES = [
     ".eslintrc.yaml",
     ".eslintrc.yml",
     ".eslintrc.json",
-    ".eslintrc"
+    ".eslintrc",
+    "package.json"
 ];
 
 debug = debug("eslint:config-file");
@@ -111,7 +134,7 @@ function loadLegacyConfigFile(filePath) {
     var yaml = require("js-yaml");
 
     try {
-        return yaml.safeLoad(stripComments(readFile(filePath))) || {};
+        return yaml.safeLoad(stripComments(readFile(filePath))) || /* istanbul ignore next */ {};
     } catch (e) {
         debug("Error reading YAML file: " + filePath);
         e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
@@ -147,7 +170,7 @@ function loadJSConfigFile(filePath) {
 function loadPackageJSONConfigFile(filePath) {
     debug("Loading package.json config file: " + filePath);
     try {
-        return require(filePath).eslintConfig || null;
+        return loadJSONConfigFile(filePath).eslintConfig || null;
     } catch (e) {
         debug("Error reading package.json file: " + filePath);
         e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
@@ -156,60 +179,43 @@ function loadPackageJSONConfigFile(filePath) {
 }
 
 /**
- * Loads a JavaScript configuration from a package.
- * @param {string} filePath The package name to load.
- * @returns {Object} The configuration object from the package.
- * @throws {Error} If the package cannot be read.
- * @private
- */
-function loadPackage(filePath) {
-    debug("Loading config package: " + filePath);
-    try {
-        return require(filePath);
-    } catch (e) {
-        debug("Error reading package: " + filePath);
-        e.message = "Cannot read config package: " + filePath + "\nError: " + e.message;
-        throw e;
-    }
-}
-
-/**
  * Loads a configuration file regardless of the source. Inspects the file path
  * to determine the correctly way to load the config file.
- * @param {string} filePath The path to the configuration.
+ * @param {Object} file The path to the configuration.
  * @returns {Object} The configuration information.
  * @private
  */
-function loadConfigFile(filePath) {
+function loadConfigFile(file) {
     var config;
 
-    if (isFilePath(filePath)) {
-        switch (path.extname(filePath)) {
-            case ".js":
-                config = loadJSConfigFile(filePath);
-                break;
+    var filePath = file.filePath;
 
-            case ".json":
-                if (path.basename(filePath) === "package.json") {
-                    config = loadPackageJSONConfigFile(filePath);
-                    if (config === null) {
-                        return null;
-                    }
-                } else {
-                    config = loadJSONConfigFile(filePath);
+    switch (path.extname(filePath)) {
+        case ".js":
+            config = loadJSConfigFile(filePath);
+            if (file.configName) {
+                config = config.configs[file.configName];
+            }
+            break;
+
+        case ".json":
+            if (path.basename(filePath) === "package.json") {
+                config = loadPackageJSONConfigFile(filePath);
+                if (config === null) {
+                    return null;
                 }
-                break;
+            } else {
+                config = loadJSONConfigFile(filePath);
+            }
+            break;
 
-            case ".yaml":
-            case ".yml":
-                config = loadYAMLConfigFile(filePath);
-                break;
+        case ".yaml":
+        case ".yml":
+            config = loadYAMLConfigFile(filePath);
+            break;
 
-            default:
-                config = loadLegacyConfigFile(filePath);
-        }
-    } else {
-        config = loadPackage(filePath);
+        default:
+            config = loadLegacyConfigFile(filePath);
     }
 
     return ConfigOps.merge(ConfigOps.createEmptyConfig(), config);
@@ -225,7 +231,7 @@ function loadConfigFile(filePath) {
 function writeJSONConfigFile(config, filePath) {
     debug("Writing JSON config file: " + filePath);
 
-    var content = JSON.stringify(config, null, 4);
+    var content = stringify(config, {cmp: sortByKey, space: 4});
     fs.writeFileSync(filePath, content, "utf8");
 }
 
@@ -242,7 +248,7 @@ function writeYAMLConfigFile(config, filePath) {
     // lazy load YAML to improve performance when not used
     var yaml = require("js-yaml");
 
-    var content = yaml.safeDump(config);
+    var content = yaml.safeDump(config, {sortKeys: true});
     fs.writeFileSync(filePath, content, "utf8");
 }
 
@@ -256,7 +262,7 @@ function writeYAMLConfigFile(config, filePath) {
 function writeJSConfigFile(config, filePath) {
     debug("Writing JS config file: " + filePath);
 
-    var content = "module.exports = " + JSON.stringify(config, null, 4) + ";";
+    var content = "module.exports = " + stringify(config, {cmp: sortByKey, space: 4}) + ";";
     fs.writeFileSync(filePath, content, "utf8");
 }
 
@@ -286,6 +292,27 @@ function write(config, filePath) {
         default:
             throw new Error("Can't write to unknown file type.");
     }
+}
+
+/**
+ * Determines the lookup path for node packages referenced in a config file.
+ * If the config
+ * @param {string} configFilePath The config file referencing the file.
+ * @returns {string} The lookup path for the file path.
+ * @private
+ */
+function getLookupPath(configFilePath) {
+
+    // calculates the path of the project including ESLint as dependency
+    var projectPath = path.resolve(__dirname, "../../../");
+    if (configFilePath && pathIsInside(configFilePath, projectPath)) {
+        // be careful of https://github.com/substack/node-resolve/issues/78
+        return path.resolve(configFilePath);
+    }
+
+    // default to ESLint project path since it's unlikely that plugins will be
+    // in this directory
+    return projectPath;
 }
 
 /**
@@ -338,36 +365,58 @@ function applyExtends(config, filePath) {
 }
 
 /**
+ * Brings package name to correct format based on prefix
+ * @param {string} name The name of the package.
+ * @param {string} prefix Can be either "eslint-plugin" or "eslint-config
+ * @returns {string} Normalized name of the package
+ * @private
+ */
+function normalizePackageName(name, prefix) {
+    if (name.charAt(0) === "@") {
+        // it's a scoped package
+        // package name is "eslint-config", or just a username
+        var scopedPackageShortcutRegex = new RegExp("^(@[^\/]+)(?:\/(?:" + prefix + ")?)?$"),
+            scopedPackageNameRegex = new RegExp("^" + prefix + "(-|$)");
+        if (scopedPackageShortcutRegex.test(name)) {
+            name = name.replace(scopedPackageShortcutRegex, "$1/" + prefix);
+        } else if (!scopedPackageNameRegex.test(name.split("/")[1])) {
+            // for scoped packages, insert the eslint-config after the first / unless
+            // the path is already @scope/eslint or @scope/eslint-config-xxx
+            name = name.replace(/^@([^\/]+)\/(.*)$/, "@$1/" + prefix + "-$2");
+        }
+    } else if (name.indexOf(prefix + "-") !== 0) {
+        name = prefix + "-" + name;
+    }
+
+    return name;
+}
+
+/**
  * Resolves a configuration file path into the fully-formed path, whether filename
  * or package name.
  * @param {string} filePath The filepath to resolve.
- * @returns {string} A path that can be used directly to load the configuration.
+ * @param {string} [relativeTo] The path to resolve relative to.
+ * @returns {Object} A path that can be used directly to load the configuration.
  * @private
  */
-function resolve(filePath) {
+function resolve(filePath, relativeTo) {
 
     if (isFilePath(filePath)) {
-        return path.resolve(filePath);
+        return { filePath: path.resolve(relativeTo || "", filePath) };
     } else {
-
-        // it's a package
-
-        if (filePath.charAt(0) === "@") {
-            // it's a scoped package
-
-            // package name is "eslint-config", or just a username
-            var scopedPackageShortcutRegex = /^(@[^\/]+)(?:\/(?:eslint-config)?)?$/;
-            if (scopedPackageShortcutRegex.test(filePath)) {
-                filePath = filePath.replace(scopedPackageShortcutRegex, "$1/eslint-config");
-            } else if (filePath.split("/")[1].indexOf("eslint-config-") !== 0) {
-                // for scoped packages, insert the eslint-config after the first /
-                filePath = filePath.replace(/^@([^\/]+)\/(.*)$/, "@$1/eslint-config-$2");
-            }
-        } else if (filePath.indexOf("eslint-config-") !== 0) {
-            filePath = "eslint-config-" + filePath;
+        if (filePath.indexOf("plugin:") === 0) {
+            var packagePath = filePath.substr(7, filePath.lastIndexOf("/") - 7);
+            var configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
+            filePath = resolveModule.sync(normalizePackageName(packagePath, "eslint-plugin"), {
+                basedir: getLookupPath(relativeTo)
+            });
+            return { filePath: filePath, configName: configName };
+        } else {
+            filePath = resolveModule.sync(normalizePackageName(filePath, "eslint-config"), {
+                basedir: getLookupPath(relativeTo)
+            });
+            return { filePath: filePath };
         }
-
-        return filePath;
     }
 
 }
@@ -376,15 +425,28 @@ function resolve(filePath) {
  * Loads a configuration file from the given file path.
  * @param {string} filePath The filename or package name to load the configuration
  *      information from.
+ * @param {boolean} [applyEnvironments=false] Set to true to merge in environment settings.
  * @returns {Object} The configuration information.
  * @private
  */
-function load(filePath) {
+function load(filePath, applyEnvironments) {
 
     var resolvedPath = resolve(filePath),
         config = loadConfigFile(resolvedPath);
 
     if (config) {
+
+        // ensure plugins are properly loaded first
+        if (config.plugins) {
+            Plugins.loadAll(config.plugins);
+        }
+
+        // include full path of parser if present
+        if (config.parser) {
+            config.parser = resolveModule.sync(config.parser, {
+                basedir: getLookupPath(path.dirname(path.resolve(filePath)))
+            });
+        }
 
         // validate the configuration before continuing
         validator.validate(config, filePath);
@@ -395,8 +457,8 @@ function load(filePath) {
             config = applyExtends(config, filePath);
         }
 
-        if (config.env) {
-            // Merge in environment-specific globals and ecmaFeatures.
+        if (config.env && applyEnvironments) {
+            // Merge in environment-specific globals and parserOptions.
             config = ConfigOps.applyEnvironments(config);
         }
 
@@ -411,6 +473,7 @@ function load(filePath) {
 
 module.exports = {
 
+    getLookupPath: getLookupPath,
     load: load,
     resolve: resolve,
     write: write,

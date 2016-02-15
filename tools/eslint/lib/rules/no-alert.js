@@ -33,7 +33,7 @@ function report(context, node, identifierName) {
 /**
  * Returns the property name of a MemberExpression.
  * @param {ASTNode} memberExpressionNode The MemberExpression node.
- * @returns {string|undefined} Returns the property name if available, undefined else.
+ * @returns {string|null} Returns the property name if available, null else.
  */
 function getPropertyName(memberExpressionNode) {
     if (memberExpressionNode.computed) {
@@ -43,13 +43,14 @@ function getPropertyName(memberExpressionNode) {
     } else {
         return memberExpressionNode.property.name;
     }
+    return null;
 }
 
 /**
  * Finds the escope reference in the given scope.
  * @param {Object} scope The scope to search.
  * @param {ASTNode} node The identifier node.
- * @returns {Reference|undefined} Returns the found reference or undefined if none were found.
+ * @returns {Reference|null} Returns the found reference or null if none were found.
  */
 function findReference(scope, node) {
     var references = scope.references.filter(function(reference) {
@@ -60,17 +61,7 @@ function findReference(scope, node) {
     if (references.length === 1) {
         return references[0];
     }
-}
-
-/**
- * Checks if the given identifier name is shadowed in the given global scope.
- * @param {Object} globalScope The global scope.
- * @param {string} identifierName The identifier name to check
- * @returns {boolean} Whether or not the name is shadowed globally.
- */
-function isGloballyShadowed(globalScope, identifierName) {
-    var variable = globalScope.set.get(identifierName);
-    return Boolean(variable && variable.defs.length > 0);
+    return null;
 }
 
 /**
@@ -81,16 +72,8 @@ function isGloballyShadowed(globalScope, identifierName) {
  * @returns {boolean} Whether or not the name is shadowed.
  */
 function isShadowed(scope, globalScope, node) {
-    var reference = findReference(scope, node),
-        identifierName = node.name;
-
-    if (reference) {
-        if (reference.resolved || isGloballyShadowed(globalScope, identifierName)) {
-            return true;
-        }
-    }
-
-    return false;
+    var reference = findReference(scope, node);
+    return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
 
 /**

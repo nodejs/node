@@ -5,7 +5,7 @@
  */
 "use strict";
 
-var assign = require("object-assign");
+var lodash = require("lodash");
 
 module.exports = function(context) {
     var source = context.getSourceCode();
@@ -14,7 +14,7 @@ module.exports = function(context) {
         "MethodDefinition": false,
         "ClassDeclaration": false
     };
-    var options = assign(DEFAULT_OPTIONS, context.options[0] && context.options[0].require || {});
+    var options = lodash.assign(DEFAULT_OPTIONS, context.options[0] && context.options[0].require || {});
 
     /**
      * Report the error message

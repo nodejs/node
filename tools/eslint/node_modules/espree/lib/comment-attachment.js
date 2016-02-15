@@ -38,10 +38,10 @@ var astNodeTypes = require("./ast-node-types");
 //------------------------------------------------------------------------------
 
 var extra = {
-        trailingComments: [],
-        leadingComments: [],
-        bottomRightStack: []
-    };
+    trailingComments: [],
+    leadingComments: [],
+    bottomRightStack: []
+};
 
 //------------------------------------------------------------------------------
 // Public

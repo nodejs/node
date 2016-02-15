@@ -41,7 +41,8 @@ function xmlEscape(s) {
                 return "&quot;";
             case "'":
                 return "&apos;";
-            // no default
+            default:
+                throw new Error("unreachable");
         }
     });
 }
