@@ -750,10 +750,11 @@ console.log(`Spawned child pid: ${grep.pid}`);
 grep.stdin.end();
 ```
 
-### child.send(message[, sendHandle][, callback])
+### child.send(message[, sendHandle[, options]][, callback])
 
 * `message` {Object}
 * `sendHandle` {Handle}
+* `options` {Object}
 * `callback` {Function}
 * Return: {Boolean}
 
@@ -800,6 +801,9 @@ The optional `sendHandle` argument that may be passed to `child.send()` is for
 passing a TCP server or socket object to the child process. The child will
 receive the object as the second argument passed to the callback function
 registered on the `process.on('message')` event.
+
+The `options` argument, if present, is an object used to parameterize the
+sending of certain types of handles.
 
 The optional `callback` is a function that is invoked after the message is
 sent but before the child may have received it.  The function is called with a
