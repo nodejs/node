@@ -351,7 +351,7 @@ for (var i = 0; i < str.length ; i++) {
   buf[i] = str.charCodeAt(i);
 }
 
-console.log(buf);
+console.log(buf.toString());
   // Prints: Node.js
 ```
 
