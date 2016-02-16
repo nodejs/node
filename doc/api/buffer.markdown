@@ -468,7 +468,7 @@ additional performance that `Buffer.allocUnsafe(size)` provides.
 
 ### Class Method: Buffer.byteLength(string[, encoding])
 
-* `string` {String}
+* `string` {String | Buffer | TypedArray | DataView | ArrayBuffer}
 * `encoding` {String} Default: `'utf8'`
 * Return: {Number}
 
@@ -486,6 +486,11 @@ console.log(`${str}: ${str.length} characters, ` +
 
 // ½ + ¼ = ¾: 9 characters, 12 bytes
 ```
+
+When `string` is a `Buffer`/[`DataView`][]/[`TypedArray`][]/`ArrayBuffer`,
+returns the actual byte length.
+
+Otherwise, converts to `String` and returns the byte length of string.
 
 ### Class Method: Buffer.compare(buf1, buf2)
 
@@ -1765,3 +1770,5 @@ console.log(buf);
 [buffer_allocunsafe]: #buffer_class_method_buffer_allocraw_size
 [buffer_alloc]: #buffer_class_method_buffer_alloc_size_fill_encoding
 [`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
+[`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
