@@ -11,6 +11,7 @@ var s = new net.Stream();
 
 s.server = new net.Server();
 s.server.connections = 10;
+s._server = s.server;
 
 assert.equal(10, s.server.connections);
 s.destroy();
