@@ -619,7 +619,7 @@ modify the length of a Buffer should therefore treat `length` as read-only and
 use [`buf.slice()`][] to create a new Buffer.
 
 ```js
-const buf = new Buffer(10);
+var buf = new Buffer(10);
 buf.write('abcdefghj', 0, 'ascii');
 console.log(buf.length);
   // Prints: 10
