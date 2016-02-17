@@ -9,11 +9,11 @@ reduced test case (without any external dependencies)_.
 
 ### Affected node.js versions
 
-- [ ] v0.10
-- [ ] v0.12
-- [ ] v4.x
-- [ ] v5.x
 - [ ] master
+- [ ] v5.x
+- [ ] v4.x
+- [ ] v0.12
+- [ ] v0.10
 
 ### Affected platforms
 
