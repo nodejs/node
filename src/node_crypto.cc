@@ -3860,7 +3860,7 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
 
 #ifdef NODE_FIPS_MODE
   /* Validate DSA2 parameters from FIPS 186-4 */
-  if (FIPS_mode() && (EVP_PKEY_DSA == pkey->type)) {
+  if (FIPS_mode() && EVP_PKEY_DSA == pkey->type) {
     size_t L = BN_num_bits(pkey->pkey.dsa->p);
     size_t N = BN_num_bits(pkey->pkey.dsa->q);
     bool result = false;

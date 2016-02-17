@@ -3289,8 +3289,8 @@ static void PrintHelp() {
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
 #if NODE_FIPS_MODE
-         "  --disable-fips        force use of crypto without FIPS compliance"
-         "  --enable-fips         force use of crypto with FIPS compliance"
+         "  --enable-fips         enable FIPS compliant crypto on startup"
+         "  --force-fips          force FIPS compliant crypto (cannot disable)"
 #endif  /* NODE_FIPS_MODE */
 #endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)
