@@ -5748,7 +5748,7 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
-void HasFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   if (FIPS_mode()) {
     args.GetReturnValue().Set(1);
   } else {
@@ -5795,7 +5795,7 @@ void InitCrypto(Local<Object> target,
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
-  env->SetMethod(target, "hasFipsCrypto", HasFipsCrypto);
+  env->SetMethod(target, "getFipsCrypto", GetFipsCrypto);
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
   env->SetMethod(target, "PBKDF2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
