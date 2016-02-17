@@ -47,7 +47,7 @@ function testHelper(requiresFips, args, expectedOutput, cmd, env) {
       cmd + ' and args \'' + args + '\'');
   num_children_spawned++;
 
-  function response_handler(response, expectedOutput, expectedError) {
+  function responseHandler(response, expectedOutput, expectedError) {
     // We won't always have data on both stdout and stderr.
     if (response.length > 0) {
       if (EXIT_FAILURE === expectedOutput) {
@@ -61,38 +61,36 @@ function testHelper(requiresFips, args, expectedOutput, cmd, env) {
   }
 
   // Buffer all data received from children on stderr/stdout.
-  const buffer = { stderr: '', stdout: '' };
-  const response_buffer = function(stream, data) {
-    // Prompt and newline may occur in undefined order.
-    const response = data.toString().replace(/\n|>/g, '').trim();
-    if (response.length > 0) {
-      buffer[stream] += response;
-    }
-  };
+  var stderr = '';
+  var stdout = '';
+
+  function filter(data) {
+    return data.toString().replace(/\n|>/g, '').trim();
+  }
 
   child.stdout.on('data', function(data) {
-    response_buffer('stdout', data);
+    stdout += filter(data);
   });
 
   child.stderr.on('data', function(data) {
-    response_buffer('stderr', data);
+    stderr += filter(data);
   });
 
   // If using FIPS mode binary, or running a generic test.
   if (compiledWithFips() || !requiresFips) {
     child.stdout.on('end', function(data) {
-      response_handler(buffer['stdout'],
+      responseHandler(stdout,
           expectedOutput, FIPS_ERROR_STRING);
     });
   } else {
     // If using a non-FIPS binary expect a failure.
     child.stdout.on('end', function() {
-      response_handler(buffer['stdout'],
+      responseHandler(stdout,
           EXIT_FAILURE, FIPS_ERROR_STRING);
     });
     /* Failure to start Node executable is reported on stderr */
     child.stderr.on('end', function() {
-      response_handler(buffer['stderr'],
+      responseHandler(stderr,
           EXIT_FAILURE, OPTION_ERROR_STRING);
     });
   }
