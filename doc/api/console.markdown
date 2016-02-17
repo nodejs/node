@@ -169,6 +169,21 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 [`util.inspect()`][] is called on each argument and the resulting string
 values are concatenated.  See [`util.format()`][] for more information.
 
+### console.group([data][, ...])
+
+Starts a new logging group with an optional title. All console output that occurs 
+after calling this method and calling `console.groupEnd` has the same 
+indent level.
+
+### console.groupCollapsed([data][, ...])
+
+Same as `console.group`.
+
+### console.groupEnd()
+
+Closes the most recent logging group that was created with `console.group` or
+`console.groupCollapsed`.
+
 ### console.time(label)
 
 Starts a timer that can be used to compute the duration of an operation. Timers
