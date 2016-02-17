@@ -41,6 +41,10 @@
 #include "tree.h"
 #include "queue.h"
 
+#if !defined(snprintf) && defined(_MSC_VER) && _MSC_VER < 1900
+extern int snprintf(char*, size_t, const char*, ...);
+#endif
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 #define container_of(ptr, type, member) \
@@ -196,7 +200,7 @@ void uv__fs_scandir_cleanup(uv_fs_t* req);
   (((h)->flags & UV__HANDLE_REF) != 0)
 
 #if defined(_WIN32)
-# define uv__handle_platform_init(h)
+# define uv__handle_platform_init(h) ((h)->u.fd = -1)
 #else
 # define uv__handle_platform_init(h) ((h)->next_closing = NULL)
 #endif

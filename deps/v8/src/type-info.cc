@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/type-info.h"
 
 #include "src/ast.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/type-info.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -55,34 +55,16 @@ Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorSlot slot) {
       Handle<Object>::cast(isolate()->factory()->undefined_value());
   Object* obj = feedback_vector_->Get(slot);
 
-  // Slots do not embed direct pointers to functions. Instead a WeakCell is
-  // always used.
-  DCHECK(!obj->IsJSFunction());
+  // Slots do not embed direct pointers to maps, functions. Instead
+  // a WeakCell is always used.
   if (obj->IsWeakCell()) {
     WeakCell* cell = WeakCell::cast(obj);
     if (cell->cleared()) return undefined;
     obj = cell->value();
   }
 
-  return Handle<Object>(obj, isolate());
-}
-
-
-Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorICSlot slot) {
-  DCHECK(slot.ToInt() >= 0 && slot.ToInt() < feedback_vector_->length());
-  Handle<Object> undefined =
-      Handle<Object>::cast(isolate()->factory()->undefined_value());
-  Object* obj = feedback_vector_->Get(slot);
-
-  // Vector-based ICs do not embed direct pointers to maps, functions.
-  // Instead a WeakCell is always used.
-  if (obj->IsWeakCell()) {
-    WeakCell* cell = WeakCell::cast(obj);
-    if (cell->cleared()) return undefined;
-    obj = cell->value();
-  }
-
-  if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol()) {
+  if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol() ||
+      obj->IsSimd128Value()) {
     return Handle<Object>(obj, isolate());
   }
 
@@ -104,14 +86,16 @@ InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(TypeFeedbackId id) {
 
 
 InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(
-    FeedbackVectorICSlot slot) {
-  Code::Kind kind = feedback_vector_->GetKind(slot);
-  if (kind == Code::LOAD_IC) {
-    LoadICNexus nexus(feedback_vector_, slot);
-    return nexus.StateFromFeedback();
-  } else if (kind == Code::KEYED_LOAD_IC) {
-    KeyedLoadICNexus nexus(feedback_vector_, slot);
-    return nexus.StateFromFeedback();
+    FeedbackVectorSlot slot) {
+  if (!slot.IsInvalid()) {
+    FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
+    if (kind == FeedbackVectorSlotKind::LOAD_IC) {
+      LoadICNexus nexus(feedback_vector_, slot);
+      return nexus.StateFromFeedback();
+    } else if (kind == FeedbackVectorSlotKind::KEYED_LOAD_IC) {
+      KeyedLoadICNexus nexus(feedback_vector_, slot);
+      return nexus.StateFromFeedback();
+    }
   }
 
   // If we can't find an IC, assume we've seen *something*, but we don't know
@@ -128,7 +112,22 @@ bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
 }
 
 
-bool TypeFeedbackOracle::CallIsUninitialized(FeedbackVectorICSlot slot) {
+bool TypeFeedbackOracle::StoreIsUninitialized(FeedbackVectorSlot slot) {
+  if (!slot.IsInvalid()) {
+    FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
+    if (kind == FeedbackVectorSlotKind::STORE_IC) {
+      StoreICNexus nexus(feedback_vector_, slot);
+      return nexus.StateFromFeedback() == UNINITIALIZED;
+    } else if (kind == FeedbackVectorSlotKind::KEYED_STORE_IC) {
+      KeyedStoreICNexus nexus(feedback_vector_, slot);
+      return nexus.StateFromFeedback() == UNINITIALIZED;
+    }
+  }
+  return true;
+}
+
+
+bool TypeFeedbackOracle::CallIsUninitialized(FeedbackVectorSlot slot) {
   Handle<Object> value = GetInfo(slot);
   return value->IsUndefined() ||
          value.is_identical_to(
@@ -136,7 +135,7 @@ bool TypeFeedbackOracle::CallIsUninitialized(FeedbackVectorICSlot slot) {
 }
 
 
-bool TypeFeedbackOracle::CallIsMonomorphic(FeedbackVectorICSlot slot) {
+bool TypeFeedbackOracle::CallIsMonomorphic(FeedbackVectorSlot slot) {
   Handle<Object> value = GetInfo(slot);
   return value->IsAllocationSite() || value->IsJSFunction();
 }
@@ -144,9 +143,7 @@ bool TypeFeedbackOracle::CallIsMonomorphic(FeedbackVectorICSlot slot) {
 
 bool TypeFeedbackOracle::CallNewIsMonomorphic(FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
-  return FLAG_pretenuring_call_new
-      ? info->IsJSFunction()
-      : info->IsAllocationSite() || info->IsJSFunction();
+  return info->IsAllocationSite() || info->IsJSFunction();
 }
 
 
@@ -177,23 +174,23 @@ void TypeFeedbackOracle::GetStoreModeAndKeyType(
 }
 
 
-void TypeFeedbackOracle::GetLoadKeyType(
-    TypeFeedbackId ast_id, IcCheckType* key_type) {
-  Handle<Object> maybe_code = GetInfo(ast_id);
-  if (maybe_code->IsCode()) {
-    Handle<Code> code = Handle<Code>::cast(maybe_code);
-    if (code->kind() == Code::KEYED_LOAD_IC) {
-      ExtraICState extra_ic_state = code->extra_ic_state();
-      *key_type = KeyedLoadIC::GetKeyType(extra_ic_state);
-      return;
-    }
+void TypeFeedbackOracle::GetStoreModeAndKeyType(
+    FeedbackVectorSlot slot, KeyedAccessStoreMode* store_mode,
+    IcCheckType* key_type) {
+  if (!slot.IsInvalid() &&
+      feedback_vector_->GetKind(slot) ==
+          FeedbackVectorSlotKind::KEYED_STORE_IC) {
+    KeyedStoreICNexus nexus(feedback_vector_, slot);
+    *store_mode = nexus.GetKeyedAccessStoreMode();
+    *key_type = nexus.GetKeyType();
+  } else {
+    *store_mode = STANDARD_STORE;
+    *key_type = ELEMENT;
   }
-  *key_type = ELEMENT;
 }
 
 
-Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(
-    FeedbackVectorICSlot slot) {
+Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate()->native_context()->array_function());
@@ -206,7 +203,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(
 Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(
     FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
-  if (FLAG_pretenuring_call_new || info->IsJSFunction()) {
+  if (info->IsJSFunction()) {
     return Handle<JSFunction>::cast(info);
   }
 
@@ -216,7 +213,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(
 
 
 Handle<AllocationSite> TypeFeedbackOracle::GetCallAllocationSite(
-    FeedbackVectorICSlot slot) {
+    FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
     return Handle<AllocationSite>::cast(info);
@@ -228,7 +225,7 @@ Handle<AllocationSite> TypeFeedbackOracle::GetCallAllocationSite(
 Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(
     FeedbackVectorSlot slot) {
   Handle<Object> info = GetInfo(slot);
-  if (FLAG_pretenuring_call_new || info->IsAllocationSite()) {
+  if (info->IsAllocationSite()) {
     return Handle<AllocationSite>::cast(info);
   }
   return Handle<AllocationSite>::null();
@@ -317,15 +314,6 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
 }
 
 
-void TypeFeedbackOracle::PropertyReceiverTypes(TypeFeedbackId id,
-                                               Handle<Name> name,
-                                               SmallMapList* receiver_types) {
-  receiver_types->Clear();
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
-  CollectReceiverTypes(id, name, flags, receiver_types);
-}
-
-
 bool TypeFeedbackOracle::HasOnlyStringMaps(SmallMapList* receiver_types) {
   bool all_strings = receiver_types->length() > 0;
   for (int i = 0; i < receiver_types->length(); i++) {
@@ -335,36 +323,31 @@ bool TypeFeedbackOracle::HasOnlyStringMaps(SmallMapList* receiver_types) {
 }
 
 
-void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
-    TypeFeedbackId id,
-    SmallMapList* receiver_types,
-    bool* is_string,
-    IcCheckType* key_type) {
-  receiver_types->Clear();
-  CollectReceiverTypes(id, receiver_types);
-  *is_string = HasOnlyStringMaps(receiver_types);
-  GetLoadKeyType(id, key_type);
-}
-
-
-void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorICSlot slot,
+void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorSlot slot,
                                                Handle<Name> name,
                                                SmallMapList* receiver_types) {
   receiver_types->Clear();
-  LoadICNexus nexus(feedback_vector_, slot);
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
-  CollectReceiverTypes(&nexus, name, flags, receiver_types);
+  if (!slot.IsInvalid()) {
+    LoadICNexus nexus(feedback_vector_, slot);
+    Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
+    CollectReceiverTypes(&nexus, name, flags, receiver_types);
+  }
 }
 
 
 void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
-    FeedbackVectorICSlot slot, SmallMapList* receiver_types, bool* is_string,
+    FeedbackVectorSlot slot, SmallMapList* receiver_types, bool* is_string,
     IcCheckType* key_type) {
   receiver_types->Clear();
-  KeyedLoadICNexus nexus(feedback_vector_, slot);
-  CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
-  *is_string = HasOnlyStringMaps(receiver_types);
-  *key_type = nexus.FindFirstName() != NULL ? PROPERTY : ELEMENT;
+  if (slot.IsInvalid()) {
+    *is_string = false;
+    *key_type = ELEMENT;
+  } else {
+    KeyedLoadICNexus nexus(feedback_vector_, slot);
+    CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
+    *is_string = HasOnlyStringMaps(receiver_types);
+    *key_type = nexus.FindFirstName() != NULL ? PROPERTY : ELEMENT;
+  }
 }
 
 
@@ -377,6 +360,15 @@ void TypeFeedbackOracle::AssignmentReceiverTypes(TypeFeedbackId id,
 }
 
 
+void TypeFeedbackOracle::AssignmentReceiverTypes(FeedbackVectorSlot slot,
+                                                 Handle<Name> name,
+                                                 SmallMapList* receiver_types) {
+  receiver_types->Clear();
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
+  CollectReceiverTypes(slot, name, flags, receiver_types);
+}
+
+
 void TypeFeedbackOracle::KeyedAssignmentReceiverTypes(
     TypeFeedbackId id, SmallMapList* receiver_types,
     KeyedAccessStoreMode* store_mode, IcCheckType* key_type) {
@@ -386,10 +378,35 @@ void TypeFeedbackOracle::KeyedAssignmentReceiverTypes(
 }
 
 
+void TypeFeedbackOracle::KeyedAssignmentReceiverTypes(
+    FeedbackVectorSlot slot, SmallMapList* receiver_types,
+    KeyedAccessStoreMode* store_mode, IcCheckType* key_type) {
+  receiver_types->Clear();
+  CollectReceiverTypes(slot, receiver_types);
+  GetStoreModeAndKeyType(slot, store_mode, key_type);
+}
+
+
 void TypeFeedbackOracle::CountReceiverTypes(TypeFeedbackId id,
                                             SmallMapList* receiver_types) {
   receiver_types->Clear();
   CollectReceiverTypes(id, receiver_types);
+}
+
+
+void TypeFeedbackOracle::CountReceiverTypes(FeedbackVectorSlot slot,
+                                            SmallMapList* receiver_types) {
+  receiver_types->Clear();
+  if (!slot.IsInvalid()) CollectReceiverTypes(slot, receiver_types);
+}
+
+
+void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
+                                              Handle<Name> name,
+                                              Code::Flags flags,
+                                              SmallMapList* types) {
+  StoreICNexus nexus(feedback_vector_, slot);
+  CollectReceiverTypes<FeedbackNexus>(&nexus, name, flags, types);
 }
 
 
@@ -430,6 +447,20 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
 }
 
 
+void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
+                                              SmallMapList* types) {
+  FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
+  if (kind == FeedbackVectorSlotKind::STORE_IC) {
+    StoreICNexus nexus(feedback_vector_, slot);
+    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+  } else {
+    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, kind);
+    KeyedStoreICNexus nexus(feedback_vector_, slot);
+    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+  }
+}
+
+
 template <class T>
 void TypeFeedbackOracle::CollectReceiverTypes(T* obj, SmallMapList* types) {
   MapHandleList maps;
@@ -451,7 +482,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(T* obj, SmallMapList* types) {
 }
 
 
-byte TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId id) {
+uint16_t TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
   return object->IsCode() ? Handle<Code>::cast(object)->to_boolean_state() : 0;
 }
@@ -540,4 +571,5 @@ void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -5,6 +5,10 @@
 #ifndef V8_DIY_FP_H_
 #define V8_DIY_FP_H_
 
+#include <stdint.h>
+
+#include "src/base/logging.h"
+
 namespace v8 {
 namespace internal {
 
@@ -89,6 +93,7 @@ class DiyFp {
   int e_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DIY_FP_H_

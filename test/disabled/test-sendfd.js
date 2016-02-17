@@ -52,7 +52,7 @@ var logChild = function(d) {
 
   d.split('\n').forEach(function(l) {
     if (l.length > 0) {
-      common.debug('CHILD: ' + l);
+      console.error('CHILD: ' + l);
     }
   });
 };

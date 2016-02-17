@@ -642,6 +642,7 @@ static inline void PrintStats(const ConsStringGenerationData& data) {
 
 template<typename BuildString>
 void TestStringCharacterStream(BuildString build, int test_cases) {
+  FLAG_gc_global = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
@@ -1085,8 +1086,9 @@ TEST(CachedHashOverflow) {
     CHECK_EQ(results[i]->IsUndefined(), result->IsUndefined());
     CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
-      CHECK_EQ(Object::ToSmi(isolate, results[i]).ToHandleChecked()->value(),
-               result->ToInt32(CcTest::isolate())->Value());
+      int32_t value = 0;
+      CHECK(results[i]->ToInt32(&value));
+      CHECK_EQ(value, result->ToInt32(CcTest::isolate())->Value());
     }
   }
 }
@@ -1209,8 +1211,8 @@ TEST(SliceFromSlice) {
 UNINITIALIZED_TEST(OneByteArrayJoin) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  create_params.constraints.set_max_semi_space_size(1);
-  create_params.constraints.set_max_old_space_size(6);
+  create_params.constraints.set_max_semi_space_size(1 * Page::kPageSize / MB);
+  create_params.constraints.set_max_old_space_size(6 * Page::kPageSize / MB);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
@@ -1222,7 +1224,7 @@ UNINITIALIZED_TEST(OneByteArrayJoin) {
     // summing the lengths of the strings (as Smis) overflows and wraps.
     LocalContext context(isolate);
     v8::HandleScope scope(isolate);
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     CHECK(CompileRun(
               "var two_14 = Math.pow(2, 14);"
               "var two_17 = Math.pow(2, 17);"

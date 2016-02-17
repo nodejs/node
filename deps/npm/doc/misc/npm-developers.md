@@ -100,9 +100,11 @@ Use a `.npmignore` file to keep stuff out of your package.  If there's
 no `.npmignore` file, but there *is* a `.gitignore` file, then npm will
 ignore the stuff matched by the `.gitignore` file.  If you *want* to
 include something that is excluded by your `.gitignore` file, you can
-create an empty `.npmignore` file to override it.
+create an empty `.npmignore` file to override it. Like `git`, `npm` looks
+for `.npmignore` and `.gitignore` files in all subdirectories of your
+package, not only the root directory.
 
-`.npmignore` files follow the [same pattern rules](http://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files)
+`.npmignore` files follow the [same pattern rules](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files)
 as `.gitignore` files:
 
 * Blank lines or lines starting with `#` are ignored.
@@ -118,9 +120,11 @@ need to add them to `.npmignore` explicitly:
 * `.DS_Store`
 * `.git`
 * `.hg`
+* `.npmrc`
 * `.lock-wscript`
 * `.svn`
 * `.wafpickle-*`
+* `config.gypi`
 * `CVS`
 * `npm-debug.log`
 
@@ -132,7 +136,9 @@ The following paths and files are never ignored, so adding them to
 `.npmignore` is pointless:
 
 * `package.json`
-* `README.*`
+* `README` (and its variants)
+* `CHANGELOG` (and its variants)
+* `LICENSE` / `LICENCE`
 
 ## Link Packages
 
@@ -185,7 +191,7 @@ This is documented better in npm-adduser(1).
 
 ## Publish your package
 
-This part's easy.  IN the root of your folder, do this:
+This part's easy.  In the root of your folder, do this:
 
     npm publish
 

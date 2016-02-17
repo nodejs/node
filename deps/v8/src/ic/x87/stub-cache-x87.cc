@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X87
 
 #include "src/codegen.h"
@@ -18,15 +16,20 @@ namespace internal {
 
 
 static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
-                       Code::Kind ic_kind, Code::Flags flags, bool leave_frame,
+                       Code::Kind ic_kind, Code::Flags flags,
                        StubCache::Table table, Register name, Register receiver,
                        // Number of the cache entry pointer-size scaled.
                        Register offset, Register extra) {
   ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
   ExternalReference value_offset(isolate->stub_cache()->value_reference(table));
   ExternalReference map_offset(isolate->stub_cache()->map_reference(table));
+  ExternalReference virtual_register =
+      ExternalReference::virtual_handler_register(masm->isolate());
 
   Label miss;
+  bool is_vector_store =
+      IC::ICUseVector(ic_kind) &&
+      (ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC);
 
   // Multiply by 3 because there are 3 fields per entry (name, code, map).
   __ lea(offset, Operand(offset, offset, times_2, 0));
@@ -58,21 +61,29 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     }
 #endif
 
-    if (IC::ICUseVector(ic_kind)) {
-      // The vector and slot were pushed onto the stack before starting the
-      // probe, and need to be dropped before calling the handler.
-      __ pop(VectorLoadICDescriptor::VectorRegister());
-      __ pop(VectorLoadICDescriptor::SlotRegister());
+    // The vector and slot were pushed onto the stack before starting the
+    // probe, and need to be dropped before calling the handler.
+    if (is_vector_store) {
+      // The overlap here is rather embarrassing. One does what one must.
+      Register vector = VectorStoreICDescriptor::VectorRegister();
+      DCHECK(extra.is(VectorStoreICDescriptor::SlotRegister()));
+      __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      __ pop(vector);
+      __ mov(Operand::StaticVariable(virtual_register), extra);
+      __ pop(extra);  // Pop "slot".
+      // Jump to the first instruction in the code stub.
+      __ jmp(Operand::StaticVariable(virtual_register));
+    } else {
+      __ pop(LoadWithVectorDescriptor::VectorRegister());
+      __ pop(LoadDescriptor::SlotRegister());
+      __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      __ jmp(extra);
     }
-
-    if (leave_frame) __ leave();
-
-    // Jump to the first instruction in the code stub.
-    __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ jmp(extra);
 
     __ bind(&miss);
   } else {
+    DCHECK(ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC);
+
     // Save the offset on the stack.
     __ push(offset);
 
@@ -109,23 +120,21 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
     __ pop(offset);
     __ mov(offset, Operand::StaticArray(offset, times_1, value_offset));
 
-    if (IC::ICUseVector(ic_kind)) {
+    // Jump to the first instruction in the code stub.
+    if (is_vector_store) {
       // The vector and slot were pushed onto the stack before starting the
       // probe, and need to be dropped before calling the handler.
-      Register vector = VectorLoadICDescriptor::VectorRegister();
-      Register slot = VectorLoadICDescriptor::SlotRegister();
-      DCHECK(!offset.is(vector) && !offset.is(slot));
-
+      Register vector = VectorStoreICDescriptor::VectorRegister();
+      DCHECK(offset.is(VectorStoreICDescriptor::SlotRegister()));
+      __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      __ mov(Operand::StaticVariable(virtual_register), offset);
       __ pop(vector);
-      __ pop(slot);
+      __ pop(offset);  // Pop "slot".
+      __ jmp(Operand::StaticVariable(virtual_register));
+    } else {
+      __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      __ jmp(offset);
     }
-
-
-    if (leave_frame) __ leave();
-
-    // Jump to the first instruction in the code stub.
-    __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ jmp(offset);
 
     // Pop at miss.
     __ bind(&miss);
@@ -135,10 +144,9 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 
 
 void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
-                              Code::Flags flags, bool leave_frame,
-                              Register receiver, Register name,
-                              Register scratch, Register extra, Register extra2,
-                              Register extra3) {
+                              Code::Flags flags, Register receiver,
+                              Register name, Register scratch, Register extra,
+                              Register extra2, Register extra3) {
   Label miss;
 
   // Assert that code is valid.  The multiplying code relies on the entry size
@@ -181,8 +189,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   DCHECK(kCacheIndexShift == kPointerSizeLog2);
 
   // Probe the primary table.
-  ProbeTable(isolate(), masm, ic_kind, flags, leave_frame, kPrimary, name,
-             receiver, offset, extra);
+  ProbeTable(isolate(), masm, ic_kind, flags, kPrimary, name, receiver, offset,
+             extra);
 
   // Primary miss: Compute hash for secondary probe.
   __ mov(offset, FieldOperand(name, Name::kHashFieldOffset));
@@ -194,8 +202,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ and_(offset, (kSecondaryTableSize - 1) << kCacheIndexShift);
 
   // Probe the secondary table.
-  ProbeTable(isolate(), masm, ic_kind, flags, leave_frame, kSecondary, name,
-             receiver, offset, extra);
+  ProbeTable(isolate(), masm, ic_kind, flags, kSecondary, name, receiver,
+             offset, extra);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
@@ -205,7 +213,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
 
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X87

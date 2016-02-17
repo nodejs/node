@@ -5,6 +5,7 @@
 #include "src/compiler/common-node-cache.h"
 
 #include "src/assembler.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {

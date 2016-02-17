@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/runtime-profiler.h"
 
 #include "src/assembler.h"
@@ -12,9 +10,9 @@
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
-#include "src/full-codegen.h"
+#include "src/frames-inl.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
-#include "src/heap/mark-compact.h"
 #include "src/scopeinfo.h"
 
 namespace v8 {
@@ -88,8 +86,6 @@ static void GetICCounts(SharedFunctionInfo* shared,
 
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
-  DCHECK(function->IsOptimizable());
-
   if (FLAG_trace_opt && function->PassesFilter(FLAG_hydrogen_filter)) {
     PrintF("[marking ");
     function->ShortPrint();
@@ -112,12 +108,12 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
 void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
                                                 int loop_nesting_levels) {
   SharedFunctionInfo* shared = function->shared();
-  if (!FLAG_use_osr || function->IsBuiltin()) {
+  if (!FLAG_use_osr || function->shared()->IsBuiltin()) {
     return;
   }
 
   // If the code is not optimizable, don't try OSR.
-  if (!shared->code()->optimizable()) return;
+  if (shared->optimization_disabled()) return;
 
   // We are not prepared to do OSR for a function that already has an
   // allocated arguments object.  The optimized code would bypass it for
@@ -183,10 +179,12 @@ void RuntimeProfiler::OptimizeNow() {
       // Attempt OSR if we are still running unoptimized code even though the
       // the function has long been marked or even already been optimized.
       int ticks = shared_code->profiler_ticks();
-      int allowance = kOSRCodeSizeAllowanceBase +
-                      ticks * kOSRCodeSizeAllowancePerTick;
-      if (shared_code->CodeSize() > allowance) {
-        if (ticks < 255) shared_code->set_profiler_ticks(ticks + 1);
+      int64_t allowance =
+          kOSRCodeSizeAllowanceBase +
+          static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTick;
+      if (shared_code->CodeSize() > allowance &&
+          ticks < Code::ProfilerTicksField::kMax) {
+        shared_code->set_profiler_ticks(ticks + 1);
       } else {
         AttemptOnStackReplacement(function);
       }
@@ -217,7 +215,7 @@ void RuntimeProfiler::OptimizeNow() {
       }
       continue;
     }
-    if (!function->IsOptimizable()) continue;
+    if (function->IsOptimized()) continue;
 
     int ticks = shared_code->profiler_ticks();
 
@@ -262,4 +260,5 @@ void RuntimeProfiler::OptimizeNow() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

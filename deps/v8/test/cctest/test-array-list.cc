@@ -38,4 +38,5 @@ TEST(ArrayList) {
   CHECK_EQ(100, Smi::cast(array->Get(0))->value());
   CHECK_EQ(200, Smi::cast(array->Get(1))->value());
 }
-}
+
+}  // namespace

@@ -97,8 +97,9 @@ function TestCase(test_scenario, expected_output) {
         return;
       }
       var frame = FindCallFrame(exec_state, change_code);
-      // Throws if fails.
-      Debug.LiveEdit.RestartFrame(frame);
+      var error = frame.restart();
+      if (typeof error === 'string')
+          throw new Error(error);
     }
   }
 

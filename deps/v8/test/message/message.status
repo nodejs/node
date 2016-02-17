@@ -30,11 +30,4 @@
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 }],  # ALWAYS
-
-##############################################################################
-['arch == x87', {
-
-  # Crankshaft compiler did not generate required source position for it:
-  'overwritten-builtins': [SKIP],
-}],  # 'arch == x87'
 ]

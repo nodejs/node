@@ -34,7 +34,7 @@
 // modified significantly by Google Inc.
 // Copyright 2014 the V8 project authors. All rights reserved.
 
-#include "src/v8.h"
+#include "src/ppc/assembler-ppc.h"
 
 #if V8_TARGET_ARCH_PPC
 
@@ -128,16 +128,6 @@ Register ToRegister(int num) {
 }
 
 
-const char* DoubleRegister::AllocationIndexToString(int index) {
-  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-  const char* const names[] = {
-      "d1",  "d2",  "d3",  "d4",  "d5",  "d6",  "d7",  "d8",  "d9",  "d10",
-      "d11", "d12", "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22",
-      "d23", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"};
-  return names[index];
-}
-
-
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
@@ -148,13 +138,17 @@ const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE |
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially
   // coded.  Being specially coded on PPC means that it is a lis/ori
-  // instruction sequence, and these are always the case inside code
-  // objects.
+  // instruction sequence or is a constant pool entry, and these are
+  // always the case inside code objects.
   return true;
 }
 
 
 bool RelocInfo::IsInConstantPool() {
+  if (FLAG_enable_embedded_constant_pool) {
+    Address constant_pool = host_->constant_pool();
+    return (constant_pool && Assembler::IsConstantPoolLoadStart(pc_));
+  }
   return false;
 }
 
@@ -201,26 +195,28 @@ MemOperand::MemOperand(Register ra, Register rb) {
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
+      constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits),
       positions_recorder_(this) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   no_trampoline_pool_before_ = 0;
   trampoline_pool_blocked_nesting_ = 0;
-  // We leave space (kMaxBlockTrampolineSectionSize)
-  // for BlockTrampolinePoolScope buffer.
-  next_buffer_check_ =
-      FLAG_force_long_branches ? kMaxInt : kMaxCondBranchReach -
-                                               kMaxBlockTrampolineSectionSize;
+  constant_pool_entry_sharing_blocked_nesting_ = 0;
+  next_trampoline_check_ = kMaxInt;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
+  optimizable_cmpi_pos_ = -1;
   trampoline_emitted_ = FLAG_force_long_branches;
-  unbound_labels_count_ = 0;
+  tracked_branch_count_ = 0;
   ClearRecordedAstId();
   relocations_.reserve(128);
 }
 
 
 void Assembler::GetCode(CodeDesc* desc) {
+  // Emit constant pool if necessary.
+  int constant_pool_offset = EmitConstantPool();
+
   EmitRelocations();
 
   // Set up code descriptor.
@@ -228,16 +224,15 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->constant_pool_size =
+      (constant_pool_offset ? desc->instr_size - constant_pool_offset : 0);
   desc->origin = this;
 }
 
 
 void Assembler::Align(int m) {
-#if V8_TARGET_ARCH_PPC64
-  DCHECK(m >= 4 && base::bits::IsPowerOfTwo64(m));
-#else
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
-#endif
+  DCHECK((pc_offset() & (kInstrSize - 1)) == 0);
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -281,14 +276,14 @@ bool Assembler::IsBranch(Instr instr) { return ((instr & kOpcodeMask) == BCX); }
 
 Register Assembler::GetRA(Instr instr) {
   Register reg;
-  reg.code_ = Instruction::RAValue(instr);
+  reg.reg_code = Instruction::RAValue(instr);
   return reg;
 }
 
 
 Register Assembler::GetRB(Instr instr) {
   Register reg;
-  reg.code_ = Instruction::RBValue(instr);
+  reg.reg_code = Instruction::RBValue(instr);
   return reg;
 }
 
@@ -327,6 +322,9 @@ bool Assembler::IsCmpRegister(Instr instr) {
 bool Assembler::IsRlwinm(Instr instr) {
   return ((instr & kOpcodeMask) == RLWINMX);
 }
+
+
+bool Assembler::IsAndi(Instr instr) { return ((instr & kOpcodeMask) == ANDIx); }
 
 
 #if V8_TARGET_ARCH_PPC64
@@ -415,14 +413,18 @@ int Assembler::target_at(int pos) {
 }
 
 
-void Assembler::target_at_put(int pos, int target_pos) {
+void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
   Instr instr = instr_at(pos);
   int opcode = instr & kOpcodeMask;
+
+  if (is_branch != nullptr) {
+    *is_branch = (opcode == BX || opcode == BCX);
+  }
 
   switch (opcode) {
     case BX: {
       int imm26 = target_pos - pos;
-      DCHECK(is_int26(imm26) && (imm26 & (kAAMask | kLKMask)) == 0);
+      CHECK(is_int26(imm26) && (imm26 & (kAAMask | kLKMask)) == 0);
       if (imm26 == kInstrSize && !(instr & kLKMask)) {
         // Branch to next instr without link.
         instr = ORI;  // nop: ori, 0,0,0
@@ -435,7 +437,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     }
     case BCX: {
       int imm16 = target_pos - pos;
-      DCHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
+      CHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
       if (imm16 == kInstrSize && !(instr & kLKMask)) {
         // Branch to next instr without link.
         instr = ORI;  // nop: ori, 0,0,0
@@ -471,7 +473,8 @@ void Assembler::target_at_put(int pos, int target_pos) {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
-                          kMovInstructions, CodePatcher::DONT_FLUSH);
+                          kMovInstructionsNoConstantPool,
+                          CodePatcher::DONT_FLUSH);
       // Keep internal references relative until EmitRelocations.
       patcher.masm()->bitwise_mov(dst, target_pos);
       break;
@@ -480,7 +483,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
       CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
                           kPointerSize / kInstrSize, CodePatcher::DONT_FLUSH);
       // Keep internal references relative until EmitRelocations.
-      patcher.masm()->emit_ptr(target_pos);
+      patcher.masm()->dp(target_pos);
       break;
     }
     default:
@@ -515,11 +518,7 @@ int Assembler::max_reach_from(int pos) {
 void Assembler::bind_to(Label* L, int pos) {
   DCHECK(0 <= pos && pos <= pc_offset());  // must have a valid binding position
   int32_t trampoline_pos = kInvalidSlotPos;
-  if (L->is_linked() && !trampoline_emitted_) {
-    unbound_labels_count_--;
-    next_buffer_check_ += kTrampolineSlotsSize;
-  }
-
+  bool is_branch = false;
   while (L->is_linked()) {
     int fixup_pos = L->pos();
     int32_t offset = pos - fixup_pos;
@@ -533,10 +532,14 @@ void Assembler::bind_to(Label* L, int pos) {
       }
       target_at_put(fixup_pos, trampoline_pos);
     } else {
-      target_at_put(fixup_pos, pos);
+      target_at_put(fixup_pos, pos, &is_branch);
     }
   }
   L->bind_to(pos);
+
+  if (!trampoline_emitted_ && is_branch) {
+    UntrackBranch();
+  }
 
   // Keep track of the last bound label so we don't eliminate any instructions
   // before a bound label.
@@ -585,14 +588,14 @@ void Assembler::d_form(Instr instr, Register rt, Register ra,
     if (!is_int16(val)) {
       PrintF("val = %" V8PRIdPTR ", 0x%" V8PRIxPTR "\n", val, val);
     }
-    DCHECK(is_int16(val));
+    CHECK(is_int16(val));
   } else {
     if (!is_uint16(val)) {
       PrintF("val = %" V8PRIdPTR ", 0x%" V8PRIxPTR
              ", is_unsigned_imm16(val)=%d, kImm16Mask=0x%x\n",
              val, val, is_uint16(val), kImm16Mask);
     }
-    DCHECK(is_uint16(val));
+    CHECK(is_uint16(val));
   }
   emit(instr | rt.code() * B21 | ra.code() * B16 | (kImm16Mask & val));
 }
@@ -660,10 +663,6 @@ int Assembler::link(Label* L) {
       // should avoid most instances of branch offset overflow.  See
       // target_at() for where this is converted back to kEndOfChain.
       position = pc_offset();
-      if (!trampoline_emitted_) {
-        unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
-      }
     }
     L->link_to(pc_offset());
   }
@@ -675,35 +674,36 @@ int Assembler::link(Label* L) {
 // Branch instructions.
 
 
-void Assembler::bclr(BOfield bo, LKBit lk) {
+void Assembler::bclr(BOfield bo, int condition_bit, LKBit lk) {
   positions_recorder()->WriteRecordedPositions();
-  emit(EXT1 | bo | BCLRX | lk);
+  emit(EXT1 | bo | condition_bit * B16 | BCLRX | lk);
 }
 
 
-void Assembler::bcctr(BOfield bo, LKBit lk) {
+void Assembler::bcctr(BOfield bo, int condition_bit, LKBit lk) {
   positions_recorder()->WriteRecordedPositions();
-  emit(EXT1 | bo | BCCTRX | lk);
+  emit(EXT1 | bo | condition_bit * B16 | BCCTRX | lk);
 }
 
 
 // Pseudo op - branch to link register
-void Assembler::blr() { bclr(BA, LeaveLK); }
+void Assembler::blr() { bclr(BA, 0, LeaveLK); }
 
 
 // Pseudo op - branch to count register -- used for "jump"
-void Assembler::bctr() { bcctr(BA, LeaveLK); }
+void Assembler::bctr() { bcctr(BA, 0, LeaveLK); }
 
 
-void Assembler::bctrl() { bcctr(BA, SetLK); }
+void Assembler::bctrl() { bcctr(BA, 0, SetLK); }
 
 
 void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
   if (lk == SetLK) {
     positions_recorder()->WriteRecordedPositions();
   }
-  DCHECK(is_int16(branch_offset));
-  emit(BCX | bo | condition_bit * B16 | (kImm16Mask & branch_offset) | lk);
+  int imm16 = branch_offset;
+  CHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
+  emit(BCX | bo | condition_bit * B16 | (imm16 & kImm16Mask) | lk);
 }
 
 
@@ -711,10 +711,8 @@ void Assembler::b(int branch_offset, LKBit lk) {
   if (lk == SetLK) {
     positions_recorder()->WriteRecordedPositions();
   }
-  DCHECK((branch_offset & 3) == 0);
   int imm26 = branch_offset;
-  DCHECK(is_int26(imm26));
-  // todo add AA and LK bits
+  CHECK(is_int26(imm26) && (imm26 & (kAAMask | kLKMask)) == 0);
   emit(BX | (imm26 & kImm26Mask) | lk);
 }
 
@@ -736,6 +734,11 @@ void Assembler::xor_(Register dst, Register src1, Register src2, RCBit rc) {
 
 void Assembler::cntlzw_(Register ra, Register rs, RCBit rc) {
   x_form(EXT2 | CNTLZWX, ra, rs, r0, rc);
+}
+
+
+void Assembler::popcntw(Register ra, Register rs) {
+  emit(EXT2 | POPCNTW | rs.code() * B21 | ra.code() * B16);
 }
 
 
@@ -1018,9 +1021,17 @@ void Assembler::cmpl(Register src1, Register src2, CRegister cr) {
 void Assembler::cmpwi(Register src1, const Operand& src2, CRegister cr) {
   intptr_t imm16 = src2.imm_;
   int L = 0;
+  int pos = pc_offset();
   DCHECK(is_int16(imm16));
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
   imm16 &= kImm16Mask;
+
+  // For cmpwi against 0, save postition and cr for later examination
+  // of potential optimization.
+  if (imm16 == 0 && pos > 0 && last_bound_pos_ != pos) {
+    optimizable_cmpi_pos_ = pos;
+    cmpi_cr_ = cr;
+  }
   emit(CMPI | cr.code() * B23 | L * B21 | src1.code() * B16 | imm16);
 }
 
@@ -1171,7 +1182,7 @@ void Assembler::lwa(Register dst, const MemOperand& src) {
 #if V8_TARGET_ARCH_PPC64
   int offset = src.offset();
   DCHECK(!src.ra_.is(r0));
-  DCHECK(!(offset & 3) && is_int16(offset));
+  CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(LD | dst.code() * B21 | src.ra().code() * B16 | offset | 2);
 #else
@@ -1305,7 +1316,7 @@ void Assembler::andc(Register dst, Register src1, Register src2, RCBit rc) {
 void Assembler::ld(Register rd, const MemOperand& src) {
   int offset = src.offset();
   DCHECK(!src.ra_.is(r0));
-  DCHECK(!(offset & 3) && is_int16(offset));
+  CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(LD | rd.code() * B21 | src.ra().code() * B16 | offset);
 }
@@ -1322,7 +1333,7 @@ void Assembler::ldx(Register rd, const MemOperand& src) {
 void Assembler::ldu(Register rd, const MemOperand& src) {
   int offset = src.offset();
   DCHECK(!src.ra_.is(r0));
-  DCHECK(!(offset & 3) && is_int16(offset));
+  CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(LD | rd.code() * B21 | src.ra().code() * B16 | offset | 1);
 }
@@ -1339,7 +1350,7 @@ void Assembler::ldux(Register rd, const MemOperand& src) {
 void Assembler::std(Register rs, const MemOperand& src) {
   int offset = src.offset();
   DCHECK(!src.ra_.is(r0));
-  DCHECK(!(offset & 3) && is_int16(offset));
+  CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(STD | rs.code() * B21 | src.ra().code() * B16 | offset);
 }
@@ -1356,7 +1367,7 @@ void Assembler::stdx(Register rs, const MemOperand& src) {
 void Assembler::stdu(Register rs, const MemOperand& src) {
   int offset = src.offset();
   DCHECK(!src.ra_.is(r0));
-  DCHECK(!(offset & 3) && is_int16(offset));
+  CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(STD | rs.code() * B21 | src.ra().code() * B16 | offset | 1);
 }
@@ -1465,6 +1476,11 @@ void Assembler::cntlzd_(Register ra, Register rs, RCBit rc) {
 }
 
 
+void Assembler::popcntd(Register ra, Register rs) {
+  emit(EXT2 | POPCNTD | rs.code() * B21 | ra.code() * B16);
+}
+
+
 void Assembler::mulld(Register dst, Register src1, Register src2, OEBit o,
                       RCBit r) {
   xo_form(EXT2 | MULLD, dst, src1, src2, o, r);
@@ -1492,10 +1508,53 @@ void Assembler::function_descriptor() {
   Label instructions;
   DCHECK(pc_offset() == 0);
   emit_label_addr(&instructions);
-  emit_ptr(0);
-  emit_ptr(0);
+  dp(0);
+  dp(0);
   bind(&instructions);
 #endif
+}
+
+
+int Assembler::instructions_required_for_mov(Register dst,
+                                             const Operand& src) const {
+  bool canOptimize =
+      !(src.must_output_reloc_info(this) || is_trampoline_pool_blocked());
+  if (use_constant_pool_for_mov(dst, src, canOptimize)) {
+    if (ConstantPoolAccessIsInOverflow()) {
+      return kMovInstructionsConstantPool + 1;
+    }
+    return kMovInstructionsConstantPool;
+  }
+  DCHECK(!canOptimize);
+  return kMovInstructionsNoConstantPool;
+}
+
+
+bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
+                                          bool canOptimize) const {
+  if (!FLAG_enable_embedded_constant_pool || !is_constant_pool_available()) {
+    // If there is no constant pool available, we must use a mov
+    // immediate sequence.
+    return false;
+  }
+
+  intptr_t value = src.immediate();
+#if V8_TARGET_ARCH_PPC64
+  bool allowOverflow = !((canOptimize && is_int32(value)) || dst.is(r0));
+#else
+  bool allowOverflow = !(canOptimize || dst.is(r0));
+#endif
+  if (canOptimize && is_int16(value)) {
+    // Prefer a single-instruction load-immediate.
+    return false;
+  }
+  if (!allowOverflow && ConstantPoolAccessIsInOverflow()) {
+    // Prefer non-relocatable two-instruction bitwise-mov32 over
+    // overflow sequence.
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -1530,6 +1589,30 @@ void Assembler::mov(Register dst, const Operand& src) {
 
   canOptimize =
       !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
+
+  if (use_constant_pool_for_mov(dst, src, canOptimize)) {
+    DCHECK(is_constant_pool_available());
+    if (relocatable) {
+      RecordRelocInfo(src.rmode_);
+    }
+    ConstantPoolEntry::Access access = ConstantPoolAddEntry(src.rmode_, value);
+#if V8_TARGET_ARCH_PPC64
+    if (access == ConstantPoolEntry::OVERFLOWED) {
+      addis(dst, kConstantPoolRegister, Operand::Zero());
+      ld(dst, MemOperand(dst, 0));
+    } else {
+      ld(dst, MemOperand(kConstantPoolRegister, 0));
+    }
+#else
+    if (access == ConstantPoolEntry::OVERFLOWED) {
+      addis(dst, kConstantPoolRegister, Operand::Zero());
+      lwz(dst, MemOperand(dst, 0));
+    } else {
+      lwz(dst, MemOperand(kConstantPoolRegister, 0));
+    }
+#endif
+    return;
+  }
 
   if (canOptimize) {
     if (is_int16(value)) {
@@ -1696,8 +1779,8 @@ void Assembler::mov_label_addr(Register dst, Label* label) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
     emit(dst.code());
-    DCHECK(kMovInstructions >= 2);
-    for (int i = 0; i < kMovInstructions - 2; i++) nop();
+    DCHECK(kMovInstructionsNoConstantPool >= 2);
+    for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
   }
 }
 
@@ -1708,7 +1791,7 @@ void Assembler::emit_label_addr(Label* label) {
   int position = link(label);
   if (label->is_bound()) {
     // Keep internal references relative until EmitRelocations.
-    emit_ptr(position);
+    dp(position);
   } else {
     // Encode internal reference to unbound label. We use a dummy opcode
     // such that it won't collide with any opcode that might appear in the
@@ -1839,7 +1922,8 @@ void Assembler::isync() { emit(EXT1 | ISYNC); }
 void Assembler::lfd(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(is_int16(offset));
+  DCHECK(!ra.is(r0));
+  CHECK(is_int16(offset));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
   emit(LFD | frt.code() * B21 | ra.code() * B16 | imm16);
@@ -1849,7 +1933,8 @@ void Assembler::lfd(const DoubleRegister frt, const MemOperand& src) {
 void Assembler::lfdu(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(is_int16(offset));
+  DCHECK(!ra.is(r0));
+  CHECK(is_int16(offset));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
   emit(LFDU | frt.code() * B21 | ra.code() * B16 | imm16);
@@ -1877,7 +1962,7 @@ void Assembler::lfdux(const DoubleRegister frt, const MemOperand& src) {
 void Assembler::lfs(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(is_int16(offset));
+  CHECK(is_int16(offset));
   DCHECK(!ra.is(r0));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -1888,7 +1973,7 @@ void Assembler::lfs(const DoubleRegister frt, const MemOperand& src) {
 void Assembler::lfsu(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(is_int16(offset));
+  CHECK(is_int16(offset));
   DCHECK(!ra.is(r0));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -1917,7 +2002,7 @@ void Assembler::lfsux(const DoubleRegister frt, const MemOperand& src) {
 void Assembler::stfd(const DoubleRegister frs, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(is_int16(offset));
+  CHECK(is_int16(offset));
   DCHECK(!ra.is(r0));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -1928,7 +2013,7 @@ void Assembler::stfd(const DoubleRegister frs, const MemOperand& src) {
 void Assembler::stfdu(const DoubleRegister frs, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(is_int16(offset));
+  CHECK(is_int16(offset));
   DCHECK(!ra.is(r0));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -1957,7 +2042,7 @@ void Assembler::stfdux(const DoubleRegister frs, const MemOperand& src) {
 void Assembler::stfs(const DoubleRegister frs, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(is_int16(offset));
+  CHECK(is_int16(offset));
   DCHECK(!ra.is(r0));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -1968,7 +2053,7 @@ void Assembler::stfs(const DoubleRegister frs, const MemOperand& src) {
 void Assembler::stfsu(const DoubleRegister frs, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
-  DCHECK(is_int16(offset));
+  CHECK(is_int16(offset));
   DCHECK(!ra.is(r0));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -2075,6 +2160,12 @@ void Assembler::frsp(const DoubleRegister frt, const DoubleRegister frb,
 void Assembler::fcfid(const DoubleRegister frt, const DoubleRegister frb,
                       RCBit rc) {
   emit(EXT4 | FCFID | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
+void Assembler::fcfids(const DoubleRegister frt, const DoubleRegister frb,
+                       RCBit rc) {
+  emit(EXT3 | FCFID | frt.code() * B21 | frb.code() * B11 | rc);
 }
 
 
@@ -2248,51 +2339,33 @@ void Assembler::dd(uint32_t data) {
 }
 
 
-void Assembler::emit_ptr(intptr_t data) {
+void Assembler::dq(uint64_t value) {
   CheckBuffer();
-  *reinterpret_cast<intptr_t*>(pc_) = data;
-  pc_ += sizeof(intptr_t);
+  *reinterpret_cast<uint64_t*>(pc_) = value;
+  pc_ += sizeof(uint64_t);
 }
 
 
-void Assembler::emit_double(double value) {
+void Assembler::dp(uintptr_t data) {
   CheckBuffer();
-  *reinterpret_cast<double*>(pc_) = value;
-  pc_ += sizeof(double);
+  *reinterpret_cast<uintptr_t*>(pc_) = data;
+  pc_ += sizeof(uintptr_t);
 }
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  if (RelocInfo::IsNone(rmode) ||
+      // Don't record external references unless the heap will be serialized.
+      (rmode == RelocInfo::EXTERNAL_REFERENCE && !serializer_enabled() &&
+       !emit_debug_code())) {
+    return;
+  }
+  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
+    data = RecordedAstId().ToInt();
+    ClearRecordedAstId();
+  }
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);
-  RecordRelocInfo(rinfo);
-}
-
-
-void Assembler::RecordRelocInfo(const DeferredRelocInfo& rinfo) {
-  if (rinfo.rmode() >= RelocInfo::JS_RETURN &&
-      rinfo.rmode() <= RelocInfo::DEBUG_BREAK_SLOT) {
-    // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDebugBreakSlot(rinfo.rmode()) ||
-           RelocInfo::IsJSReturn(rinfo.rmode()) ||
-           RelocInfo::IsComment(rinfo.rmode()) ||
-           RelocInfo::IsPosition(rinfo.rmode()));
-  }
-  if (!RelocInfo::IsNone(rinfo.rmode())) {
-    // Don't record external references unless the heap will be serialized.
-    if (rinfo.rmode() == RelocInfo::EXTERNAL_REFERENCE) {
-      if (!serializer_enabled() && !emit_debug_code()) {
-        return;
-      }
-    }
-    if (rinfo.rmode() == RelocInfo::CODE_TARGET_WITH_ID) {
-      DeferredRelocInfo reloc_info_with_ast_id(rinfo.position(), rinfo.rmode(),
-                                               RecordedAstId().ToInt());
-      ClearRecordedAstId();
-      relocations_.push_back(reloc_info_with_ast_id);
-    } else {
-      relocations_.push_back(rinfo);
-    }
-  }
+  relocations_.push_back(rinfo);
 }
 
 
@@ -2335,59 +2408,33 @@ void Assembler::CheckTrampolinePool() {
   // either trampoline_pool_blocked_nesting_ or no_trampoline_pool_before_,
   // which are both checked here. Also, recursive calls to CheckTrampolinePool
   // are blocked by trampoline_pool_blocked_nesting_.
-  if ((trampoline_pool_blocked_nesting_ > 0) ||
-      (pc_offset() < no_trampoline_pool_before_)) {
-    // Emission is currently blocked; make sure we try again as soon as
-    // possible.
-    if (trampoline_pool_blocked_nesting_ > 0) {
-      next_buffer_check_ = pc_offset() + kInstrSize;
-    } else {
-      next_buffer_check_ = no_trampoline_pool_before_;
-    }
+  if (trampoline_pool_blocked_nesting_ > 0) return;
+  if (pc_offset() < no_trampoline_pool_before_) {
+    next_trampoline_check_ = no_trampoline_pool_before_;
     return;
   }
 
   DCHECK(!trampoline_emitted_);
-  DCHECK(unbound_labels_count_ >= 0);
-  if (unbound_labels_count_ > 0) {
+  if (tracked_branch_count_ > 0) {
+    int size = tracked_branch_count_ * kInstrSize;
+
+    // As we are only going to emit trampoline once, we need to prevent any
+    // further emission.
+    trampoline_emitted_ = true;
+    next_trampoline_check_ = kMaxInt;
+
     // First we emit jump, then we emit trampoline pool.
-    {
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      Label after_pool;
-      b(&after_pool);
-
-      int pool_start = pc_offset();
-      for (int i = 0; i < unbound_labels_count_; i++) {
-        b(&after_pool);
-      }
-      bind(&after_pool);
-      trampoline_ = Trampoline(pool_start, unbound_labels_count_);
-
-      trampoline_emitted_ = true;
-      // As we are only going to emit trampoline once, we need to prevent any
-      // further emission.
-      next_buffer_check_ = kMaxInt;
+    b(size + kInstrSize, LeaveLK);
+    for (int i = size; i > 0; i -= kInstrSize) {
+      b(i, LeaveLK);
     }
-  } else {
-    // Number of branches to unbound label at this point is zero, so we can
-    // move next buffer check to maximum.
-    next_buffer_check_ =
-        pc_offset() + kMaxCondBranchReach - kMaxBlockTrampolineSectionSize;
+
+    trampoline_ = Trampoline(pc_offset() - size, tracked_branch_count_);
   }
-  return;
 }
 
 
-Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return isolate->factory()->empty_constant_pool_array();
-}
-
-
-void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  DCHECK(!FLAG_enable_ool_constant_pool);
-}
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_PPC

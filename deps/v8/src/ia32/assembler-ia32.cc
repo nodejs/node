@@ -168,9 +168,9 @@ void Displacement::init(Label* L, Type type) {
 
 
 const int RelocInfo::kApplyMask =
-  RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
-    1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE |
-    1 << RelocInfo::DEBUG_BREAK_SLOT | 1 << RelocInfo::CODE_AGE_SEQUENCE;
+    RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
+    1 << RelocInfo::INTERNAL_REFERENCE | 1 << RelocInfo::CODE_AGE_SEQUENCE |
+    RelocInfo::kDebugBreakSlotMask;
 
 
 bool RelocInfo::IsCodedSpecially() {
@@ -1307,6 +1307,14 @@ void Assembler::bsr(Register dst, const Operand& src) {
 }
 
 
+void Assembler::bsf(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xBC);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::hlt() {
   EnsureSpace ensure_space(this);
   EMIT(0xF4);
@@ -1587,12 +1595,12 @@ void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::j(Condition cc, Handle<Code> code) {
+void Assembler::j(Condition cc, Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   // 0000 1111 1000 tttn #32-bit disp
   EMIT(0x0F);
   EMIT(0x80 | cc);
-  emit(code, RelocInfo::CODE_TARGET);
+  emit(code, rmode);
 }
 
 
@@ -2325,26 +2333,6 @@ void Assembler::movdqu(XMMRegister dst, const Operand& src) {
 }
 
 
-void Assembler::movntdqa(XMMRegister dst, const Operand& src) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x38);
-  EMIT(0x2A);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::movntdq(const Operand& dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0xE7);
-  emit_sse_operand(src, dst);
-}
-
-
 void Assembler::prefetch(const Operand& src, int level) {
   DCHECK(is_uint2(level));
   EnsureSpace ensure_space(this);
@@ -2921,6 +2909,12 @@ void Assembler::dd(uint32_t data) {
 }
 
 
+void Assembler::dq(uint64_t data) {
+  EnsureSpace ensure_space(this);
+  emit_q(data);
+}
+
+
 void Assembler::dd(Label* label) {
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
@@ -2937,20 +2931,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
-}
-
-
-Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
-  // No out-of-line constant pool support.
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return isolate->factory()->empty_constant_pool_array();
-}
-
-
-void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  // No out-of-line constant pool support.
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return;
 }
 
 
@@ -2979,6 +2959,7 @@ void LogGeneratedCodeCoverage(const char* file_line) {
 
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_IA32

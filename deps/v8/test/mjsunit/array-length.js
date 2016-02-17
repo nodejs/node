@@ -105,10 +105,17 @@ var a = new Array();
 assertEquals(Object(12), a.length = new Number(12));
 assertEquals(12, a.length);
 
+Number.prototype.valueOf = function() { return 10; }
+var n = new Number(100);
+assertEquals(n, a.length = n);
+assertEquals(10, a.length);
+n.valueOf = function() { return 20; }
+assertEquals(n, a.length = n);
+assertEquals(20, a.length);
 
 var o = { length: -23 };
 Array.prototype.pop.apply(o);
-assertEquals(4294967272, o.length);
+assertEquals(0, o.length);
 
 // Check case of compiled stubs.
 var a = [];
@@ -119,3 +126,9 @@ for (var i = 0; i < 7; i++) {
   t = a.length = 7;
   assertEquals(7, t);
 }
+
+(function () {
+  "use strict";
+  var frozen_object = Object.freeze({__proto__:[]});
+  assertThrows(function () { frozen_object.length = 10 });
+})();

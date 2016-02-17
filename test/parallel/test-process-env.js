@@ -4,7 +4,7 @@
 // first things first, set the timezone; see tzset(3)
 process.env.TZ = 'Europe/Amsterdam';
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 
@@ -31,12 +31,12 @@ if (process.argv[2] == 'you-are-the-child') {
   assert.equal(42, process.env.NODE_PROCESS_ENV);
   assert.equal('asdf', process.env.hasOwnProperty);
   var hasOwnProperty = Object.prototype.hasOwnProperty;
-  var has = hasOwnProperty.call(process.env, 'hasOwnProperty');
+  const has = hasOwnProperty.call(process.env, 'hasOwnProperty');
   assert.equal(true, has);
   process.exit(0);
 } else {
   assert.equal(Object.prototype.hasOwnProperty, process.env.hasOwnProperty);
-  var has = process.env.hasOwnProperty('hasOwnProperty');
+  const has = process.env.hasOwnProperty('hasOwnProperty');
   assert.equal(false, has);
 
   process.env.hasOwnProperty = 'asdf';

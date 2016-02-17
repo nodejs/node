@@ -31,7 +31,6 @@ server.listen(common.PORT, function() {
     res.on('data', function(chunk) {
       response += chunk;
     });
-    common.error('Got /hello response');
   });
 });
 

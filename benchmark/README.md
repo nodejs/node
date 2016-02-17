@@ -23,8 +23,8 @@ There are three ways to run benchmark tests:
 
 For example, buffers:
 
-```sh
-iojs benchmark/common.js buffers
+```bash
+node benchmark/common.js buffers
 ```
 
 The above command will find all scripts under `buffers` directory and require
@@ -87,8 +87,8 @@ The last number is the rate of operations. Higher is better.
 
 For example, buffer-slice.js:
 
-```sh
-iojs benchmark/buffers/buffer-read.js
+```bash
+node benchmark/buffers/buffer-read.js
 ```
 The output:
 ```
@@ -104,8 +104,8 @@ This example will run only the first type of url test, with one iteration.
 (Note: benchmarks require __many__ iterations to be statistically accurate.)
 
 
-```sh
-iojs benchmark/url/url-parse.js type=one n=1
+```bash
+node benchmark/url/url-parse.js type=one n=1
 ```
 Output:
 ```

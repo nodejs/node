@@ -691,4 +691,5 @@ CPU::CPU()
 #endif  // V8_HOST_ARCH_PPC
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

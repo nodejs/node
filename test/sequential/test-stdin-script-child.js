@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var spawn = require('child_process').spawn;
 var child = spawn(process.execPath, [], {
-  env: {
+  env: Object.assign(process.env, {
     NODE_DEBUG: process.argv[2]
-  }
+  })
 });
 var wanted = child.pid + '\n';
 var found = '';

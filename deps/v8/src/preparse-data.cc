@@ -29,7 +29,7 @@ CompleteParserRecorder::CompleteParserRecorder() {
 
 
 void CompleteParserRecorder::LogMessage(int start_pos, int end_pos,
-                                        const char* message,
+                                        MessageTemplate::Template message,
                                         const char* arg_opt,
                                         ParseErrorType error_type) {
   if (HasError()) return;
@@ -43,8 +43,9 @@ void CompleteParserRecorder::LogMessage(int start_pos, int end_pos,
   function_store_.Add((arg_opt == NULL) ? 0 : 1);
   STATIC_ASSERT(PreparseDataConstants::kParseErrorTypePos == 3);
   function_store_.Add(error_type);
-  STATIC_ASSERT(PreparseDataConstants::kMessageTextPos == 4);
-  WriteString(CStrVector(message));
+  STATIC_ASSERT(PreparseDataConstants::kMessageTemplatePos == 4);
+  function_store_.Add(static_cast<unsigned>(message));
+  STATIC_ASSERT(PreparseDataConstants::kMessageArgPos == 5);
   if (arg_opt != NULL) WriteString(CStrVector(arg_opt));
 }
 
@@ -75,4 +76,5 @@ ScriptData* CompleteParserRecorder::GetScriptData() {
 }
 
 
-} }  // namespace v8::internal.
+}  // namespace internal
+}  // namespace v8.

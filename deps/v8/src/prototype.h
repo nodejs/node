@@ -39,6 +39,7 @@ class PrototypeIterator {
       Advance();
     }
   }
+
   PrototypeIterator(Isolate* isolate, Object* receiver,
                     WhereToStart where_to_start = START_AT_PROTOTYPE)
       : did_jump_to_prototype_chain_(false),
@@ -48,25 +49,32 @@ class PrototypeIterator {
       Advance();
     }
   }
+
   explicit PrototypeIterator(Map* receiver_map)
       : did_jump_to_prototype_chain_(true),
         object_(receiver_map->prototype()),
         isolate_(receiver_map->GetIsolate()) {}
+
   explicit PrototypeIterator(Handle<Map> receiver_map)
       : did_jump_to_prototype_chain_(true),
         object_(NULL),
         handle_(handle(receiver_map->prototype(), receiver_map->GetIsolate())),
         isolate_(receiver_map->GetIsolate()) {}
+
   ~PrototypeIterator() {}
 
-  Object* GetCurrent() const {
+  template <typename T = Object>
+  T* GetCurrent() const {
     DCHECK(handle_.is_null());
-    return object_;
+    return T::cast(object_);
   }
-  static Handle<Object> GetCurrent(const PrototypeIterator& iterator) {
+
+  template <typename T = Object>
+  static Handle<T> GetCurrent(const PrototypeIterator& iterator) {
     DCHECK(!iterator.handle_.is_null());
-    return iterator.handle_;
+    return Handle<T>::cast(iterator.handle_);
   }
+
   void Advance() {
     if (handle_.is_null() && object_->IsJSProxy()) {
       did_jump_to_prototype_chain_ = true;
@@ -79,6 +87,7 @@ class PrototypeIterator {
     }
     AdvanceIgnoringProxies();
   }
+
   void AdvanceIgnoringProxies() {
     if (!did_jump_to_prototype_chain_) {
       did_jump_to_prototype_chain_ = true;
@@ -96,6 +105,7 @@ class PrototypeIterator {
       }
     }
   }
+
   bool IsAtEnd(WhereToEnd where_to_end = END_AT_NULL) const {
     if (handle_.is_null()) {
       return object_->IsNull() ||
@@ -109,10 +119,12 @@ class PrototypeIterator {
               !Handle<HeapObject>::cast(handle_)->map()->is_hidden_prototype());
     }
   }
+
   bool IsAtEnd(Object* final_object) {
     DCHECK(handle_.is_null());
     return object_->IsNull() || object_ == final_object;
   }
+
   bool IsAtEnd(Handle<Object> final_object) {
     DCHECK(!handle_.is_null());
     return handle_->IsNull() || *handle_ == *final_object;

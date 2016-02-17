@@ -2,6 +2,7 @@
  * @fileoverview Disallow parenthesising higher precedence subexpressions.
  * @author Michael Ficarra
  * @copyright 2014 Michael Ficarra. All rights reserved.
+ * See LICENSE file in root directory for full license.
  */
 "use strict";
 
@@ -74,6 +75,74 @@ module.exports = function(context) {
         return ruleApplies(node) && isParenthesisedTwice(node);
     }
 
+    /**
+     * Checks whether or not a given node is located at the head of ExpressionStatement.
+     * @param {ASTNode} node - A node to check.
+     * @returns {boolean} `true` if the node is located at the head of ExpressionStatement.
+     */
+    function isHeadOfExpressionStatement(node) {
+        var parent = node.parent;
+        while (parent) {
+            switch (parent.type) {
+                case "SequenceExpression":
+                    if (parent.expressions[0] !== node || isParenthesised(node)) {
+                        return false;
+                    }
+                    break;
+
+                case "UnaryExpression":
+                case "UpdateExpression":
+                    if (parent.prefix || isParenthesised(node)) {
+                        return false;
+                    }
+                    break;
+
+                case "BinaryExpression":
+                case "LogicalExpression":
+                    if (parent.left !== node || isParenthesised(node)) {
+                        return false;
+                    }
+                    break;
+
+                case "ConditionalExpression":
+                    if (parent.test !== node || isParenthesised(node)) {
+                        return false;
+                    }
+                    break;
+
+                case "CallExpression":
+                    if (parent.callee !== node || isParenthesised(node)) {
+                        return false;
+                    }
+                    break;
+
+                case "MemberExpression":
+                    if (parent.object !== node || isParenthesised(node)) {
+                        return false;
+                    }
+                    break;
+
+                case "ExpressionStatement":
+                    return true;
+
+                default:
+                    return false;
+            }
+
+            node = parent;
+            parent = parent.parent;
+        }
+
+        /* istanbul ignore next */
+        throw new Error("unreachable");
+    }
+
+    /**
+     * Get the precedence level based on the node type
+     * @param {ASTNode} node node to evaluate
+     * @returns {int} precedence level
+     * @private
+     */
     function precedence(node) {
 
         switch (node.type) {
@@ -149,17 +218,35 @@ module.exports = function(context) {
         return 18;
     }
 
+    /**
+     * Report the node
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function report(node) {
         var previousToken = context.getTokenBefore(node);
         context.report(node, previousToken.loc.start, "Gratuitous parentheses around expression.");
     }
 
+    /**
+     * Evaluate Unary update
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function dryUnaryUpdate(node) {
         if (hasExcessParens(node.argument) && precedence(node.argument) >= precedence(node)) {
             report(node.argument);
         }
     }
 
+    /**
+     * Evaluate a new call
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function dryCallNew(node) {
         if (hasExcessParens(node.callee) && precedence(node.callee) >= precedence(node) && !(
             node.type === "CallExpression" &&
@@ -182,6 +269,12 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Evaluate binary logicals
+     * @param {ASTNode} node node to evaluate
+     * @returns {void}
+     * @private
+     */
     function dryBinaryLogical(node) {
         var prec = precedence(node);
         if (hasExcessParens(node.left) && precedence(node.left) >= prec) {
@@ -239,11 +332,26 @@ module.exports = function(context) {
         },
         "ExpressionStatement": function(node) {
             var firstToken;
-            if (hasExcessParens(node.expression) && node.expression.type !== "CallExpression") {
+            if (hasExcessParens(node.expression)) {
                 firstToken = context.getFirstToken(node.expression);
+
                 // Pure object literals ({}) do not need parentheses but
                 // member expressions do ({}.toString())
-                if (firstToken.value !== "{" || node.expression.type === "ObjectExpression") {
+                if ((
+                        firstToken.value !== "{" ||
+                        node.expression.type === "ObjectExpression"
+                    ) &&
+                    // For such as `(function(){}.foo.bar)`
+                    (
+                        firstToken.value !== "function" ||
+                        node.expression.type === "FunctionExpression"
+                    ) &&
+                    // For such as `(class{}.foo.bar)`
+                    (
+                        firstToken.value !== "class" ||
+                        node.expression.type === "ClassExpression"
+                    )
+                ) {
                     report(node.expression);
                 }
             }
@@ -291,6 +399,11 @@ module.exports = function(context) {
                         // RegExp literal is allowed to have parens (#1589)
                         (node.object.type === "Literal" && node.object.regex)
                     )
+                ) &&
+                !(
+                    (node.object.type === "FunctionExpression" || node.object.type === "ClassExpression") &&
+                    isHeadOfExpressionStatement(node) &&
+                    !hasDoubleExcessParens(node.object)
                 )
             ) {
                 report(node.object);

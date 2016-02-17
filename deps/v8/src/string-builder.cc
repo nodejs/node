@@ -4,6 +4,9 @@
 
 #include "src/string-builder.h"
 
+#include "src/isolate-inl.h"
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -49,31 +52,29 @@ IncrementalStringBuilder::IncrementalStringBuilder(Isolate* isolate)
       part_length_(kInitialPartLength),
       current_index_(0) {
   // Create an accumulator handle starting with the empty string.
-  accumulator_ = Handle<String>(isolate->heap()->empty_string(), isolate);
+  accumulator_ = Handle<String>::New(isolate->heap()->empty_string(), isolate);
   current_part_ =
       factory()->NewRawOneByteString(part_length_).ToHandleChecked();
 }
 
 
-void IncrementalStringBuilder::Accumulate() {
-  // Only accumulate fully written strings. Shrink first if necessary.
-  DCHECK_EQ(current_index_, current_part()->length());
+void IncrementalStringBuilder::Accumulate(Handle<String> new_part) {
   Handle<String> new_accumulator;
-  if (accumulator()->length() + current_part()->length() > String::kMaxLength) {
+  if (accumulator()->length() + new_part->length() > String::kMaxLength) {
     // Set the flag and carry on. Delay throwing the exception till the end.
     new_accumulator = factory()->empty_string();
     overflowed_ = true;
   } else {
-    new_accumulator = factory()
-                          ->NewConsString(accumulator(), current_part())
-                          .ToHandleChecked();
+    new_accumulator =
+        factory()->NewConsString(accumulator(), new_part).ToHandleChecked();
   }
   set_accumulator(new_accumulator);
 }
 
 
 void IncrementalStringBuilder::Extend() {
-  Accumulate();
+  DCHECK_EQ(current_index_, current_part()->length());
+  Accumulate(current_part());
   if (part_length_ <= kMaxPartLength / kPartLengthGrowthFactor) {
     part_length_ *= kPartLengthGrowthFactor;
   }
@@ -91,7 +92,7 @@ void IncrementalStringBuilder::Extend() {
 
 MaybeHandle<String> IncrementalStringBuilder::Finish() {
   ShrinkCurrentPart();
-  Accumulate();
+  Accumulate(current_part());
   if (overflowed_) {
     THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), String);
   }
@@ -103,9 +104,7 @@ void IncrementalStringBuilder::AppendString(Handle<String> string) {
   ShrinkCurrentPart();
   part_length_ = kInitialPartLength;  // Allocate conservatively.
   Extend();  // Attach current part and allocate new part.
-  Handle<String> concat =
-      factory()->NewConsString(accumulator(), string).ToHandleChecked();
-  set_accumulator(concat);
+  Accumulate(string);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

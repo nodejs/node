@@ -69,24 +69,21 @@ const SharedOperator kSharedOperators[] = {
   }
     SHARED(Equal, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
     SHARED(NotEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(StrictEqual, Operator::kPure, 2, 0, 0, 0, 1, 0, 0),
-    SHARED(StrictNotEqual, Operator::kPure, 2, 0, 0, 0, 1, 0, 0),
-    SHARED(UnaryNot, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
-    SHARED(ToBoolean, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
+    SHARED(StrictEqual, Operator::kNoThrow, 2, 0, 1, 1, 1, 1, 0),
+    SHARED(StrictNotEqual, Operator::kNoThrow, 2, 0, 1, 1, 1, 1, 0),
+    SHARED(UnaryNot, Operator::kEliminatable, 1, 0, 1, 0, 1, 1, 0),
+    SHARED(ToBoolean, Operator::kEliminatable, 1, 0, 1, 0, 1, 1, 0),
     SHARED(ToNumber, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
-    SHARED(ToString, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
+    SHARED(ToString, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
     SHARED(ToName, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
     SHARED(ToObject, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
     SHARED(Yield, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
     SHARED(Create, Operator::kEliminatable, 0, 0, 1, 0, 1, 1, 0),
     SHARED(HasProperty, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(TypeOf, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
+    SHARED(TypeOf, Operator::kEliminatable, 1, 0, 1, 0, 1, 1, 0),
     SHARED(InstanceOf, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(CreateFunctionContext, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
     SHARED(CreateWithContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(CreateBlockContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
     SHARED(CreateModuleContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
-    SHARED(CreateScriptContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2)
 #undef SHARED
 };
 
@@ -186,10 +183,10 @@ const SharedOperatorWithLanguageMode kSharedOperatorsWithLanguageMode[] = {
         control_input_count, value_output_count, effect_output_count,        \
         control_output_count                                                 \
   }
-    SHARED(LessThan, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(GreaterThan, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(LessThanOrEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(GreaterThanOrEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(LessThan, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(GreaterThan, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(LessThanOrEqual, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(GreaterThanOrEqual, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(BitwiseOr, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(BitwiseXor, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(BitwiseAnd, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
@@ -201,7 +198,6 @@ const SharedOperatorWithLanguageMode kSharedOperatorsWithLanguageMode[] = {
     SHARED(Multiply, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(Divide, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(Modulus, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(StoreProperty, Operator::kNoProperties, 3, 2, 1, 1, 0, 1, 2),
 #undef SHARED
 };
 

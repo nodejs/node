@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/codegen.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -26,14 +22,22 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- a0                 : number of arguments excluding receiver
-  //  -- a1                 : called function (only guaranteed when
-  //  --                      extra_args requires it)
-  //  -- cp                 : context
+  //                          (only guaranteed when the called function
+  //                           is not marked as DontAdaptArguments)
+  //  -- a1                 : called function
   //  -- sp[0]              : last argument
   //  -- ...
   //  -- sp[8 * (argc - 1)] : first argument
   //  -- sp[8 * agrc]       : receiver
   // -----------------------------------
+  __ AssertFunction(a1);
+
+  // Make sure we operate in the context of the called function (for example
+  // ConstructStubs implemented in C++ will be run in the context of the caller
+  // instead of the callee, due to the way that [[Construct]] is defined for
+  // ordinary functions).
+  // TODO(bmeurer): Can we make this more robust?
+  __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   // Insert extra arguments.
   int num_extra_args = 0;
@@ -45,8 +49,21 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   }
 
   // JumpToExternalReference expects a0 to contain the number of arguments
-  // including the receiver and the extra arguments.
+  // including the receiver and the extra arguments.  But a0 is only valid
+  // if the called function is marked as DontAdaptArguments, otherwise we
+  // need to load the argument count from the SharedFunctionInfo.
+  Label argc, done_argc;
+  __ ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(a2,
+        FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Branch(&argc, eq, a2,
+            Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ Daddu(a0, a2, num_extra_args + 1);
+  __ jmp(&done_argc);
+  __ bind(&argc);
   __ Daddu(a0, a0, num_extra_args + 1);
+  __ bind(&done_argc);
+
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
@@ -58,8 +75,7 @@ static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
 
   __ ld(result,
         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ld(result,
-        FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ ld(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   // Load the InternalArray function from the native context.
   __ ld(result,
          MemOperand(result,
@@ -74,8 +90,7 @@ static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
 
   __ ld(result,
         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ld(result,
-        FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ ld(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   // Load the Array function from the native context.
   __ ld(result,
         MemOperand(result,
@@ -144,7 +159,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
+// static
+void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0                     : number of arguments
   //  -- a1                     : constructor function
@@ -152,121 +168,151 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
   //  -- sp[argc * 8]           : receiver
   // -----------------------------------
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->string_ctor_calls(), 1, a2, a3);
 
-  Register function = a1;
-  if (FLAG_debug_code) {
-    __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, a2);
-    __ Assert(eq, kUnexpectedStringFunction, function, Operand(a2));
+  // 1. Load the first argument into a0 and get rid of the rest (including the
+  // receiver).
+  Label no_arguments;
+  {
+    __ Branch(USE_DELAY_SLOT, &no_arguments, eq, a0, Operand(zero_reg));
+    __ Dsubu(a0, a0, Operand(1));
+    __ dsll(a0, a0, kPointerSizeLog2);
+    __ Daddu(sp, a0, sp);
+    __ ld(a0, MemOperand(sp));
+    __ Drop(2);
   }
 
-  // Load the first arguments in a0 and get rid of the rest.
-  Label no_arguments;
-  __ Branch(&no_arguments, eq, a0, Operand(zero_reg));
-  // First args = sp[(argc - 1) * 8].
-  __ Dsubu(a0, a0, Operand(1));
-  __ dsll(a0, a0, kPointerSizeLog2);
-  __ Daddu(sp, a0, sp);
-  __ ld(a0, MemOperand(sp));
-  // sp now point to args[0], drop args[0] + receiver.
-  __ Drop(2);
+  // 2a. At least one argument, return a0 if it's a string, otherwise
+  // dispatch to appropriate conversion.
+  Label to_string, symbol_descriptive_string;
+  {
+    __ JumpIfSmi(a0, &to_string);
+    __ GetObjectType(a0, a1, a1);
+    STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
+    __ Subu(a1, a1, Operand(FIRST_NONSTRING_TYPE));
+    __ Branch(&symbol_descriptive_string, eq, a1, Operand(zero_reg));
+    __ Branch(&to_string, gt, a1, Operand(zero_reg));
+    __ Ret(USE_DELAY_SLOT);
+    __ mov(v0, a0);
+  }
 
-  Register argument = a2;
-  Label not_cached, argument_is_string;
-  __ LookupNumberStringCache(a0,        // Input.
-                             argument,  // Result.
-                             a3,        // Scratch.
-                             a4,        // Scratch.
-                             a5,        // Scratch.
-                             &not_cached);
-  __ IncrementCounter(counters->string_ctor_cached_number(), 1, a3, a4);
-  __ bind(&argument_is_string);
+  // 2b. No arguments, return the empty string (and pop the receiver).
+  __ bind(&no_arguments);
+  {
+    __ LoadRoot(v0, Heap::kempty_stringRootIndex);
+    __ DropAndRet(1);
+  }
 
+  // 3a. Convert a0 to a string.
+  __ bind(&to_string);
+  {
+    ToStringStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  }
+
+  // 3b. Convert symbol in a0 to a string.
+  __ bind(&symbol_descriptive_string);
+  {
+    __ Push(a0);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1, 1);
+  }
+}
+
+
+void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- a2     : argument converted to string
-  //  -- a1     : constructor function
-  //  -- ra     : return address
+  //  -- a0                     : number of arguments
+  //  -- a1                     : constructor function
+  //  -- a3                     : original constructor
+  //  -- ra                     : return address
+  //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
+  //  -- sp[argc * 8]           : receiver
   // -----------------------------------
 
-  Label gc_required;
-  __ Allocate(JSValue::kSize,
-              v0,  // Result.
-              a3,  // Scratch.
-              a4,  // Scratch.
-              &gc_required,
-              TAG_OBJECT);
-
-  // Initialising the String Object.
-  Register map = a3;
-  __ LoadGlobalFunctionInitialMap(function, map, a4);
-  if (FLAG_debug_code) {
-    __ lbu(a4, FieldMemOperand(map, Map::kInstanceSizeOffset));
-    __ Assert(eq, kUnexpectedStringWrapperInstanceSize,
-        a4, Operand(JSValue::kSize >> kPointerSizeLog2));
-    __ lbu(a4, FieldMemOperand(map, Map::kUnusedPropertyFieldsOffset));
-    __ Assert(eq, kUnexpectedUnusedPropertiesOfStringWrapper,
-        a4, Operand(zero_reg));
-  }
-  __ sd(map, FieldMemOperand(v0, HeapObject::kMapOffset));
-
-  __ LoadRoot(a3, Heap::kEmptyFixedArrayRootIndex);
-  __ sd(a3, FieldMemOperand(v0, JSObject::kPropertiesOffset));
-  __ sd(a3, FieldMemOperand(v0, JSObject::kElementsOffset));
-
-  __ sd(argument, FieldMemOperand(v0, JSValue::kValueOffset));
-
-  // Ensure the object is fully initialized.
-  STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
-
-  __ Ret();
-
-  // The argument was not found in the number to string cache. Check
-  // if it's a string already before calling the conversion builtin.
-  Label convert_argument;
-  __ bind(&not_cached);
-  __ JumpIfSmi(a0, &convert_argument);
-
-  // Is it a String?
-  __ ld(a2, FieldMemOperand(a0, HeapObject::kMapOffset));
-  __ lbu(a3, FieldMemOperand(a2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kNotStringTag != 0);
-  __ And(a4, a3, Operand(kIsNotStringMask));
-  __ Branch(&convert_argument, ne, a4, Operand(zero_reg));
-  __ mov(argument, a0);
-  __ IncrementCounter(counters->string_ctor_conversions(), 1, a3, a4);
-  __ Branch(&argument_is_string);
-
-  // Invoke the conversion builtin and put the result into a2.
-  __ bind(&convert_argument);
-  __ push(function);  // Preserve the function.
-  __ IncrementCounter(counters->string_ctor_conversions(), 1, a3, a4);
+  // 1. Load the first argument into a0 and get rid of the rest (including the
+  // receiver).
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(a0);
-    __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
+    Label no_arguments, done;
+    __ Branch(USE_DELAY_SLOT, &no_arguments, eq, a0, Operand(zero_reg));
+    __ Dsubu(a0, a0, Operand(1));
+    __ dsll(a0, a0, kPointerSizeLog2);
+    __ Daddu(sp, a0, sp);
+    __ ld(a0, MemOperand(sp));
+    __ Drop(2);
+    __ jmp(&done);
+    __ bind(&no_arguments);
+    __ LoadRoot(a0, Heap::kempty_stringRootIndex);
+    __ Drop(1);
+    __ bind(&done);
   }
-  __ pop(function);
-  __ mov(argument, v0);
-  __ Branch(&argument_is_string);
 
-  // Load the empty string into a2, remove the receiver from the
-  // stack, and jump back to the case where the argument is a string.
-  __ bind(&no_arguments);
-  __ LoadRoot(argument, Heap::kempty_stringRootIndex);
-  __ Drop(1);
-  __ Branch(&argument_is_string);
-
-  // At this point the argument is already a string. Call runtime to
-  // create a string wrapper.
-  __ bind(&gc_required);
-  __ IncrementCounter(counters->string_ctor_gc_required(), 1, a3, a4);
+  // 2. Make sure a0 is a string.
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(argument);
-    __ CallRuntime(Runtime::kNewStringWrapper, 1);
+    Label convert, done_convert;
+    __ JumpIfSmi(a0, &convert);
+    __ GetObjectType(a0, a2, a2);
+    __ And(t0, a2, Operand(kIsNotStringMask));
+    __ Branch(&done_convert, eq, t0, Operand(zero_reg));
+    __ bind(&convert);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      ToStringStub stub(masm->isolate());
+      __ Push(a1, a3);
+      __ CallStub(&stub);
+      __ Move(a0, v0);
+      __ Pop(a1, a3);
+    }
+    __ bind(&done_convert);
   }
-  __ Ret();
+
+  // 3. Allocate a JSValue wrapper for the string.
+  {
+    // ----------- S t a t e -------------
+    //  -- a0 : the first argument
+    //  -- a1 : constructor function
+    //  -- a3 : original constructor
+    //  -- ra : return address
+    // -----------------------------------
+
+    Label allocate, done_allocate, rt_call;
+
+    // Fall back to runtime if the original constructor and function differ.
+    __ Branch(&rt_call, ne, a1, Operand(a3));
+
+    __ Allocate(JSValue::kSize, v0, a2, a3, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Initialize the JSValue in eax.
+    __ LoadGlobalFunctionInitialMap(a1, a2, a3);
+    __ sd(a2, FieldMemOperand(v0, HeapObject::kMapOffset));
+    __ LoadRoot(a3, Heap::kEmptyFixedArrayRootIndex);
+    __ sd(a3, FieldMemOperand(v0, JSObject::kPropertiesOffset));
+    __ sd(a3, FieldMemOperand(v0, JSObject::kElementsOffset));
+    __ sd(a0, FieldMemOperand(v0, JSValue::kValueOffset));
+    STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
+    __ Ret();
+
+    // Fallback to the runtime to allocate in new space.
+    __ bind(&allocate);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Move(a2, Smi::FromInt(JSValue::kSize));
+      __ Push(a0, a1, a2);
+      __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+      __ Pop(a0, a1);
+    }
+    __ jmp(&done_allocate);
+
+    // Fallback to the runtime to create new object.
+    __ bind(&rt_call);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(a0, a1, a1, a3);  // constructor function, original constructor
+      __ CallRuntime(Runtime::kNewObject, 2);
+      __ Pop(a0, a1);
+    }
+    __ sd(a0, FieldMemOperand(v0, JSValue::kValueOffset));
+    __ Ret();
+  }
 }
 
 
@@ -315,39 +361,8 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
-static void Generate_Runtime_NewObject(MacroAssembler* masm,
-                                       bool create_memento,
-                                       Register original_constructor,
-                                       Label* count_incremented,
-                                       Label* allocated) {
-  if (create_memento) {
-    // Get the cell or allocation site.
-    __ ld(a2, MemOperand(sp, 2 * kPointerSize));
-    __ push(a2);
-  }
-
-  __ push(a1);                    // argument for Runtime_NewObject
-  __ push(original_constructor);  // original constructor
-  if (create_memento) {
-    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
-  } else {
-    __ CallRuntime(Runtime::kNewObject, 2);
-  }
-  __ mov(t0, v0);
-
-  // Runtime_NewObjectWithAllocationSite increments allocation count.
-  // Skip the increment.
-  if (create_memento) {
-    __ jmp(count_incremented);
-  } else {
-    __ jmp(allocated);
-  }
-}
-
-
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function,
-                                           bool create_memento) {
+                                           bool is_api_function) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
@@ -357,64 +372,50 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  // Should never create mementos for api functions.
-  DCHECK(!is_api_function || !create_memento);
-
   Isolate* isolate = masm->isolate();
-
-  // ----------- S t a t e -------------
-  //  -- a0     : number of arguments
-  //  -- a1     : constructor function
-  //  -- ra     : return address
-  //  -- sp[...]: constructor arguments
-  // -----------------------------------
 
   // Enter a construct frame.
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
-    if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(a2, t0);
-      __ push(a2);
-    }
-
-    // Preserve the two incoming parameters on the stack.
-    // Tag arguments count.
-    __ dsll32(a0, a0, 0);
-    __ MultiPushReversed(a0.bit() | a1.bit());
-
-    Label rt_call, allocated, normal_new, count_incremented;
-    __ Branch(&normal_new, eq, a1, Operand(a3));
-
-    // Original constructor and function are different.
-    Generate_Runtime_NewObject(masm, create_memento, a3, &count_incremented,
-                               &allocated);
-    __ bind(&normal_new);
+    // Preserve the incoming parameters on the stack.
+    __ AssertUndefinedOrAllocationSite(a2, t0);
+    __ SmiTag(a0);
+    __ Push(a2, a0, a1, a3);
 
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
+    Label rt_call, allocated;
     if (FLAG_inline_new) {
-      Label undo_allocation;
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(isolate);
       __ li(a2, Operand(debug_step_in_fp));
       __ ld(a2, MemOperand(a2));
       __ Branch(&rt_call, ne, a2, Operand(zero_reg));
 
+      // Verify that the original constructor is a JSFunction.
+      __ GetObjectType(a3, a5, a4);
+      __ Branch(&rt_call, ne, a4, Operand(JS_FUNCTION_TYPE));
+
       // Load the initial map and verify that it is in fact a map.
-      // a1: constructor function
-      __ ld(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
+      // a3: original constructor
+      __ ld(a2, FieldMemOperand(a3, JSFunction::kPrototypeOrInitialMapOffset));
       __ JumpIfSmi(a2, &rt_call);
-      __ GetObjectType(a2, a3, t0);
+      __ GetObjectType(a2, t1, t0);
       __ Branch(&rt_call, ne, t0, Operand(MAP_TYPE));
+
+      // Fall back to runtime if the expected base constructor and base
+      // constructor differ.
+      __ ld(a5, FieldMemOperand(a2, Map::kConstructorOrBackPointerOffset));
+      __ Branch(&rt_call, ne, a1, Operand(a5));
 
       // Check that the constructor is not constructing a JSFunction (see
       // comments in Runtime_NewObject in runtime.cc). In which case the
       // initial map's instance type would be JS_FUNCTION_TYPE.
       // a1: constructor function
       // a2: initial map
-      __ lbu(a3, FieldMemOperand(a2, Map::kInstanceTypeOffset));
-      __ Branch(&rt_call, eq, a3, Operand(JS_FUNCTION_TYPE));
+      __ lbu(t1, FieldMemOperand(a2, Map::kInstanceTypeOffset));
+      __ Branch(&rt_call, eq, t1, Operand(JS_FUNCTION_TYPE));
 
       if (!is_api_function) {
         Label allocate;
@@ -430,7 +431,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                   Operand(Map::kSlackTrackingCounterEnd));
         __ sw(a4, bit_field3);  // In delay slot.
 
-        __ Push(a1, a2, a1);  // a1 = Constructor.
+        __ Push(a1, a2, a2);  // a2 = Initial map.
         __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
 
         __ Pop(a1, a2);
@@ -442,18 +443,16 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Now allocate the JSObject on the heap.
       // a1: constructor function
       // a2: initial map
+      Label rt_call_reload_new_target;
       __ lbu(a3, FieldMemOperand(a2, Map::kInstanceSizeOffset));
-      if (create_memento) {
-        __ Daddu(a3, a3, Operand(AllocationMemento::kSize / kPointerSize));
-      }
 
-      __ Allocate(a3, t0, t1, t2, &rt_call, SIZE_IN_WORDS);
+      __ Allocate(a3, t0, t1, t2, &rt_call_reload_new_target, SIZE_IN_WORDS);
 
       // Allocated the JSObject, now initialize the fields. Map is set to
       // initial map and properties and elements are set to empty fixed array.
       // a1: constructor function
       // a2: initial map
-      // a3: object size (not including memento if create_memento)
+      // a3: object size
       // t0: JSObject (not tagged)
       __ LoadRoot(t2, Heap::kEmptyFixedArrayRootIndex);
       __ mov(t1, t0);
@@ -468,7 +467,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Fill all the in-object properties with appropriate filler.
       // a1: constructor function
       // a2: initial map
-      // a3: object size (in words, including memento if create_memento)
+      // a3: object size (in words)
       // t0: JSObject (not tagged)
       // t1: First in-object property of JSObject (not tagged)
       // a6: slack tracking counter (non-API function case)
@@ -485,9 +484,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                   Operand(static_cast<int64_t>(Map::kSlackTrackingCounterEnd)));
 
         // Allocate object with a slack.
-        __ lwu(a0, FieldMemOperand(a2, Map::kInstanceSizesOffset));
-        __ Ext(a0, a0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
-                kBitsPerByte);
+        __ lbu(
+            a0,
+            FieldMemOperand(
+                a2, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset));
+        __ lbu(a2, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
+        __ dsubu(a0, a0, a2);
         __ dsll(at, a0, kPointerSizeLog2);
         __ daddu(a0, t1, at);
         // a0: offset of first field after pre-allocated fields
@@ -505,172 +507,47 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ bind(&no_inobject_slack_tracking);
       }
 
-      if (create_memento) {
-        __ Dsubu(a0, a3, Operand(AllocationMemento::kSize / kPointerSize));
-        __ dsll(a0, a0, kPointerSizeLog2);
-        __ Daddu(a0, t0, Operand(a0));  // End of object.
-        __ InitializeFieldsWithFiller(t1, a0, t3);
-
-        // Fill in memento fields.
-        // t1: points to the allocated but uninitialized memento.
-        __ LoadRoot(t3, Heap::kAllocationMementoMapRootIndex);
-        DCHECK_EQ(0 * kPointerSize, AllocationMemento::kMapOffset);
-        __ sd(t3, MemOperand(t1));
-        __ Daddu(t1, t1, kPointerSize);
-        // Load the AllocationSite.
-        __ ld(t3, MemOperand(sp, 2 * kPointerSize));
-        DCHECK_EQ(1 * kPointerSize, AllocationMemento::kAllocationSiteOffset);
-        __ sd(t3, MemOperand(t1));
-        __ Daddu(t1, t1, kPointerSize);
-      } else {
-        __ dsll(at, a3, kPointerSizeLog2);
-        __ Daddu(a0, t0, Operand(at));  // End of object.
-        __ InitializeFieldsWithFiller(t1, a0, t3);
-      }
+      __ dsll(at, a3, kPointerSizeLog2);
+      __ Daddu(a0, t0, Operand(at));  // End of object.
+      __ InitializeFieldsWithFiller(t1, a0, t3);
 
       // Add the object tag to make the JSObject real, so that we can continue
-      // and jump into the continuation code at any time from now on. Any
-      // failures need to undo the allocation, so that the heap is in a
-      // consistent state and verifiable.
+      // and jump into the continuation code at any time from now on.
       __ Daddu(t0, t0, Operand(kHeapObjectTag));
 
-      // Check if a non-empty properties array is needed. Continue with
-      // allocated object if not fall through to runtime call if it is.
-      // a1: constructor function
-      // t0: JSObject
-      // t1: start of next object (not tagged)
-      __ lbu(a3, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
-      // The field instance sizes contains both pre-allocated property fields
-      // and in-object properties.
-      __ lw(a0, FieldMemOperand(a2, Map::kInstanceSizesOffset));
-      __ Ext(t2, a0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
-             kBitsPerByte);
-      __ Daddu(a3, a3, Operand(t2));
-      __ Ext(t2, a0, Map::kInObjectPropertiesByte * kBitsPerByte,
-              kBitsPerByte);
-      __ dsubu(a3, a3, t2);
-
-      // Done if no extra properties are to be allocated.
-      __ Branch(&allocated, eq, a3, Operand(zero_reg));
-      __ Assert(greater_equal, kPropertyAllocationCountFailed,
-          a3, Operand(zero_reg));
-
-      // Scale the number of elements by pointer size and add the header for
-      // FixedArrays to the start of the next object calculation from above.
-      // a1: constructor
-      // a3: number of elements in properties array
-      // t0: JSObject
-      // t1: start of next object
-      __ Daddu(a0, a3, Operand(FixedArray::kHeaderSize / kPointerSize));
-      __ Allocate(
-          a0,
-          t1,
-          t2,
-          a2,
-          &undo_allocation,
-          static_cast<AllocationFlags>(RESULT_CONTAINS_TOP | SIZE_IN_WORDS));
-
-      // Initialize the FixedArray.
-      // a1: constructor
-      // a3: number of elements in properties array (untagged)
-      // t0: JSObject
-      // t1: start of next object
-      __ LoadRoot(t2, Heap::kFixedArrayMapRootIndex);
-      __ mov(a2, t1);
-      __ sd(t2, MemOperand(a2, JSObject::kMapOffset));
-      // Tag number of elements.
-      __ dsll32(a0, a3, 0);
-      __ sd(a0, MemOperand(a2, FixedArray::kLengthOffset));
-      __ Daddu(a2, a2, Operand(2 * kPointerSize));
-
-      DCHECK_EQ(0 * kPointerSize, JSObject::kMapOffset);
-      DCHECK_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
-
-      // Initialize the fields to undefined.
-      // a1: constructor
-      // a2: First element of FixedArray (not tagged)
-      // a3: number of elements in properties array
-      // t0: JSObject
-      // t1: FixedArray (not tagged)
-      __ dsll(a7, a3, kPointerSizeLog2);
-      __ daddu(t2, a2, a7);  // End of object.
-      DCHECK_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
-      { Label loop, entry;
-        if (!is_api_function || create_memento) {
-          __ LoadRoot(t3, Heap::kUndefinedValueRootIndex);
-        } else if (FLAG_debug_code) {
-          __ LoadRoot(a6, Heap::kUndefinedValueRootIndex);
-          __ Assert(eq, kUndefinedValueNotLoaded, t3, Operand(a6));
-        }
-        __ jmp(&entry);
-        __ bind(&loop);
-        __ sd(t3, MemOperand(a2));
-        __ daddiu(a2, a2, kPointerSize);
-        __ bind(&entry);
-        __ Branch(&loop, less, a2, Operand(t2));
-      }
-
-      // Store the initialized FixedArray into the properties field of
-      // the JSObject.
-      // a1: constructor function
-      // t0: JSObject
-      // t1: FixedArray (not tagged)
-      __ Daddu(t1, t1, Operand(kHeapObjectTag));  // Add the heap tag.
-      __ sd(t1, FieldMemOperand(t0, JSObject::kPropertiesOffset));
-
       // Continue with JSObject being successfully allocated.
-      // a1: constructor function
       // a4: JSObject
       __ jmp(&allocated);
 
-      // Undo the setting of the new top so that the heap is verifiable. For
-      // example, the map's unused properties potentially do not match the
-      // allocated objects unused properties.
-      // t0: JSObject (previous new top)
-      __ bind(&undo_allocation);
-      __ UndoAllocationInNewSpace(t0, t1);
+      // Reload the original constructor and fall-through.
+      __ bind(&rt_call_reload_new_target);
+      __ ld(a3, MemOperand(sp, 0 * kPointerSize));
     }
 
     // Allocate the new receiver object using the runtime call.
     // a1: constructor function
+    // a3: original constructor
     __ bind(&rt_call);
-    Generate_Runtime_NewObject(masm, create_memento, a1, &count_incremented,
-                               &allocated);
 
+    __ Push(a1, a3);  // constructor function, original constructor
+    __ CallRuntime(Runtime::kNewObject, 2);
+    __ mov(t0, v0);
 
     // Receiver for constructor call allocated.
     // t0: JSObject
     __ bind(&allocated);
 
-    if (create_memento) {
-      __ ld(a2, MemOperand(sp, kPointerSize * 2));
-      __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);
-      __ Branch(&count_incremented, eq, a2, Operand(t1));
-      // a2 is an AllocationSite. We are creating a memento from it, so we
-      // need to increment the memento create count.
-      __ ld(a3, FieldMemOperand(a2,
-                                AllocationSite::kPretenureCreateCountOffset));
-      __ Daddu(a3, a3, Operand(Smi::FromInt(1)));
-      __ sd(a3, FieldMemOperand(a2,
-                                AllocationSite::kPretenureCreateCountOffset));
-      __ bind(&count_incremented);
-    }
+    // Restore the parameters.
+    __ Pop(a3);  // new.target
+    __ Pop(a1);
 
-    __ Push(t0, t0);
+    __ ld(a0, MemOperand(sp));
+    __ SmiUntag(a0);
 
-    // Reload the number of arguments from the stack.
-    // sp[0]: receiver
-    // sp[1]: receiver
-    // sp[2]: constructor function
-    // sp[3]: number of arguments (smi-tagged)
-    __ ld(a1, MemOperand(sp, 2 * kPointerSize));
-    __ ld(a3, MemOperand(sp, 3 * kPointerSize));
+    __ Push(a3, t0, t0);
 
     // Set up pointer to last argument.
     __ Daddu(a2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
-
-    // Set up number of arguments for function call below.
-    __ SmiUntag(a0, a3);
 
     // Copy arguments and receiver to the expression stack.
     // a0: number of arguments
@@ -679,10 +556,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // a3: number of arguments (smi-tagged)
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: constructor function
+    // sp[2]: new.target
     // sp[3]: number of arguments (smi-tagged)
     Label loop, entry;
-    __ SmiUntag(a3);
+    __ mov(a3, a0);
     __ jmp(&entry);
     __ bind(&loop);
     __ dsll(a4, a3, kPointerSizeLog2);
@@ -722,7 +599,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // If the result is a smi, it is *not* an object in the ECMA sense.
     // v0: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: constructor function
+    // sp[1]: new.target
     // sp[2]: number of arguments (smi-tagged)
     __ JumpIfSmi(v0, &use_receiver);
 
@@ -741,7 +618,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&exit);
     // v0: result
     // sp[0]: receiver (newly allocated object)
-    // sp[1]: constructor function
+    // sp[1]: new.target (original constructor)
     // sp[2]: number of arguments (smi-tagged)
     __ ld(a1, MemOperand(sp, 2 * kPointerSize));
 
@@ -757,12 +634,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true);
 }
 
 
@@ -776,11 +653,11 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  // TODO(dslomov): support pretenuring
-  CHECK(!FLAG_pretenuring_call_new);
-
   {
     FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    __ AssertUndefinedOrAllocationSite(a2, t0);
+    __ push(a2);
 
     __ mov(a4, a0);
     __ SmiTag(a4);
@@ -816,8 +693,6 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     __ Daddu(a4, a4, Operand(-1));
     __ Branch(&loop, ge, a4, Operand(zero_reg));
 
-    __ Daddu(a0, a0, Operand(1));
-
     // Handle step in.
     Label skip_step_in;
     ExternalReference debug_step_in_fp =
@@ -841,9 +716,10 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
 
     // Restore context from the frame.
     // v0: result
-    // sp[0]: number of arguments (smi-tagged)
+    // sp[0]: new.target
+    // sp[1]: number of arguments (smi-tagged)
     __ ld(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    __ ld(a1, MemOperand(sp, 0));
+    __ ld(a1, MemOperand(sp, kPointerSize));
 
     // Leave construct frame.
   }
@@ -859,8 +735,7 @@ enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
 
 
 // Clobbers a2; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        const int calleeOffset, Register argc,
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
                                         IsTagged argc_is_tagged) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
@@ -880,12 +755,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
   __ Branch(&okay, gt, a2, Operand(a7));  // Signed comparison.
 
   // Out of stack space.
-  __ ld(a1, MemOperand(fp, calleeOffset));
-  if (argc_is_tagged == kArgcIsUntaggedInt) {
-    __ SmiTag(argc);
-  }
-  __ Push(a1, argc);
-  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+  __ CallRuntime(Runtime::kThrowStackOverflow, 0);
 
   __ bind(&okay);
 }
@@ -896,7 +766,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Called from JSEntryStub::GenerateBody
 
   // ----------- S t a t e -------------
-  //  -- a0: code entry
+  //  -- a0: new.target
   //  -- a1: function
   //  -- a2: receiver_pointer
   //  -- a3: argc
@@ -910,19 +780,21 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Set up the context from the function argument.
-    __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+    // Setup the context (we need to use the caller context from the isolate).
+    ExternalReference context_address(Isolate::kContextAddress,
+                                      masm->isolate());
+    __ li(cp, Operand(context_address));
+    __ ld(cp, MemOperand(cp));
 
     // Push the function and the receiver onto the stack.
     __ Push(a1, a2);
 
     // Check if we have enough stack space to push all arguments.
-    // The function is the first thing that was pushed above after entering
-    // the internal frame.
-    const int kFunctionOffset =
-        InternalFrameConstants::kCodeOffset - kPointerSize;
     // Clobbers a2.
-    Generate_CheckStackOverflow(masm, kFunctionOffset, a3, kArgcIsUntaggedInt);
+    Generate_CheckStackOverflow(masm, a3, kArgcIsUntaggedInt);
+
+    // Remember new.target.
+    __ mov(a5, a0);
 
     // Copy arguments to the stack in a loop.
     // a3: argc
@@ -941,6 +813,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ bind(&entry);
     __ Branch(&loop, ne, s0, Operand(a6));
 
+    // Setup new.target and argc.
+    __ mov(a0, a3);
+    __ mov(a3, a5);
+
     // Initialize all JavaScript callee-saved registers, since they will be seen
     // by the garbage collector as part of handlers.
     __ LoadRoot(a4, Heap::kUndefinedValueRootIndex);
@@ -952,17 +828,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // s6 holds the root address. Do not clobber.
     // s7 is cp. Do not init.
 
-    // Invoke the code and pass argc as a0.
-    __ mov(a0, a3);
-    if (is_construct) {
-      // No type feedback cell is available
-      __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-      CallConstructStub stub(masm->isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
-      __ CallStub(&stub);
-    } else {
-      ParameterCount actual(a0);
-      __ InvokeFunction(a1, actual, CALL_FUNCTION, NullCallWrapper());
-    }
+    // Invoke the code.
+    Handle<Code> builtin = is_construct
+                               ? masm->isolate()->builtins()->Construct()
+                               : masm->isolate()->builtins()->Call();
+    __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Leave internal frame.
   }
@@ -977,6 +847,200 @@ void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+
+// Generate code for entering a JS function with the interpreter.
+// On entry to the function the receiver and arguments have been pushed on the
+// stack left to right.  The actual argument count matches the formal parameter
+// count expected by the function.
+//
+// The live registers are:
+//   o a1: the JS function object being called.
+//   o cp: our context
+//   o fp: the caller's frame pointer
+//   o sp: stack pointer
+//   o ra: return address
+//
+// The function builds a JS frame. Please see JavaScriptFrameConstants in
+// frames-mips.h for its layout.
+// TODO(rmcilroy): We will need to include the current bytecode pointer in the
+// frame.
+void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+
+  __ Push(ra, fp, cp, a1);
+  __ Daddu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+
+  // Get the bytecode array from the function object and load the pointer to the
+  // first entry into kInterpreterBytecodeRegister.
+  __ ld(a0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ ld(kInterpreterBytecodeArrayRegister,
+        FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
+
+  if (FLAG_debug_code) {
+    // Check function data field is actually a BytecodeArray object.
+    __ SmiTst(kInterpreterBytecodeArrayRegister, a4);
+    __ Assert(ne, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry, a4,
+              Operand(zero_reg));
+    __ GetObjectType(kInterpreterBytecodeArrayRegister, a4, a4);
+    __ Assert(eq, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry, a4,
+              Operand(BYTECODE_ARRAY_TYPE));
+  }
+
+  // Allocate the local and temporary register file on the stack.
+  {
+    // Load frame size (word) from the BytecodeArray object.
+    __ lw(a4, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                              BytecodeArray::kFrameSizeOffset));
+
+    // Do a stack check to ensure we don't go over the limit.
+    Label ok;
+    __ Dsubu(a5, sp, Operand(a4));
+    __ LoadRoot(a2, Heap::kRealStackLimitRootIndex);
+    __ Branch(&ok, hs, a5, Operand(a2));
+    __ CallRuntime(Runtime::kThrowStackOverflow, 0);
+    __ bind(&ok);
+
+    // If ok, push undefined as the initial value for all register file entries.
+    Label loop_header;
+    Label loop_check;
+    __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
+    __ Branch(&loop_check);
+    __ bind(&loop_header);
+    // TODO(rmcilroy): Consider doing more than one push per loop iteration.
+    __ push(a5);
+    // Continue loop if not done.
+    __ bind(&loop_check);
+    __ Dsubu(a4, a4, Operand(kPointerSize));
+    __ Branch(&loop_header, ge, a4, Operand(zero_reg));
+  }
+
+  // TODO(rmcilroy): List of things not currently dealt with here but done in
+  // fullcodegen's prologue:
+  //  - Support profiler (specifically profiling_counter).
+  //  - Call ProfileEntryHookStub when isolate has a function_entry_hook.
+  //  - Allow simulator stop operations if FLAG_stop_at is set.
+  //  - Code aging of the BytecodeArray object.
+
+  // Perform stack guard check.
+  {
+    Label ok;
+    __ LoadRoot(at, Heap::kStackLimitRootIndex);
+    __ Branch(&ok, hs, sp, Operand(at));
+    __ push(kInterpreterBytecodeArrayRegister);
+    __ CallRuntime(Runtime::kStackGuard, 0);
+    __ pop(kInterpreterBytecodeArrayRegister);
+    __ bind(&ok);
+  }
+
+  // Load bytecode offset and dispatch table into registers.
+  __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
+  __ Dsubu(
+      kInterpreterRegisterFileRegister, fp,
+      Operand(kPointerSize + StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ li(kInterpreterBytecodeOffsetRegister,
+        Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(kInterpreterDispatchTableRegister,
+              Heap::kInterpreterTableRootIndex);
+  __ Daddu(kInterpreterDispatchTableRegister, kInterpreterDispatchTableRegister,
+           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+
+  // Dispatch to the first bytecode handler for the function.
+  __ Daddu(a0, kInterpreterBytecodeArrayRegister,
+           kInterpreterBytecodeOffsetRegister);
+  __ lbu(a0, MemOperand(a0));
+  __ dsll(at, a0, kPointerSizeLog2);
+  __ Daddu(at, kInterpreterDispatchTableRegister, at);
+  __ ld(at, MemOperand(at));
+  // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
+  // and header removal.
+  __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Call(at);
+}
+
+
+void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
+  // TODO(rmcilroy): List of things not currently dealt with here but done in
+  // fullcodegen's EmitReturnSequence.
+  //  - Supporting FLAG_trace for Runtime::TraceExit.
+  //  - Support profiler (specifically decrementing profiling_counter
+  //    appropriately and calling out to HandleInterrupts if necessary).
+
+  // The return value is in accumulator, which is already in v0.
+
+  // Leave the frame (also dropping the register file).
+  __ LeaveFrame(StackFrame::JAVA_SCRIPT);
+
+  // Drop receiver + arguments and return.
+  __ lw(at, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                            BytecodeArray::kParameterSizeOffset));
+  __ Daddu(sp, sp, at);
+  __ Jump(ra);
+}
+
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a2 : the address of the first argument to be pushed. Subsequent
+  //          arguments should be consecutive above this, in the same order as
+  //          they are to be pushed onto the stack.
+  //  -- a1 : the target to call (can be any Object).
+  // -----------------------------------
+
+  // Find the address of the last argument.
+  __ Daddu(a3, a0, Operand(1));  // Add one for receiver.
+  __ dsll(a3, a3, kPointerSizeLog2);
+  __ Dsubu(a3, a2, Operand(a3));
+
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ Branch(&loop_check);
+  __ bind(&loop_header);
+  __ ld(t0, MemOperand(a2));
+  __ Daddu(a2, a2, Operand(-kPointerSize));
+  __ push(t0);
+  __ bind(&loop_check);
+  __ Branch(&loop_header, gt, a2, Operand(a3));
+
+  // Call the target.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+}
+
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- a0 : argument count (not including receiver)
+  // -- a3 : original constructor
+  // -- a1 : constructor to call
+  // -- a2 : address of the first argument
+  // -----------------------------------
+
+  // Find the address of the last argument.
+  __ dsll(t0, a0, kPointerSizeLog2);
+  __ Dsubu(t0, a2, Operand(t0));
+
+  // Push a slot for the receiver.
+  __ push(zero_reg);
+
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ Branch(&loop_check);
+  __ bind(&loop_header);
+  __ ld(t1, MemOperand(a2));
+  __ Daddu(a2, a2, Operand(-kPointerSize));
+  __ push(t1);
+  __ bind(&loop_check);
+  __ Branch(&loop_header, gt, a2, Operand(t0));
+
+  // Call the constructor with a0, a1, and a3 unmodified.
+  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
 }
 
 
@@ -1227,126 +1291,31 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 }
 
 
+// static
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 1. Make sure we have at least one argument.
   // a0: actual number of arguments
-  { Label done;
+  {
+    Label done;
     __ Branch(&done, ne, a0, Operand(zero_reg));
-    __ LoadRoot(a6, Heap::kUndefinedValueRootIndex);
-    __ push(a6);
+    __ PushRoot(Heap::kUndefinedValueRootIndex);
     __ Daddu(a0, a0, Operand(1));
     __ bind(&done);
   }
 
-  // 2. Get the function to call (passed as receiver) from the stack, check
-  //    if it is a function.
+  // 2. Get the function to call (passed as receiver) from the stack.
   // a0: actual number of arguments
-  Label slow, non_function;
   __ dsll(at, a0, kPointerSizeLog2);
   __ daddu(at, sp, at);
   __ ld(a1, MemOperand(at));
-  __ JumpIfSmi(a1, &non_function);
-  __ GetObjectType(a1, a2, a2);
-  __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
 
-  // 3a. Patch the first argument if necessary when calling a function.
-  // a0: actual number of arguments
-  // a1: function
-  Label shift_arguments;
-  __ li(a4, Operand(0, RelocInfo::NONE32));  // Indicate regular JS_FUNCTION.
-  { Label convert_to_object, use_global_proxy, patch_receiver;
-    // Change context eagerly in case we need the global receiver.
-    __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-
-    // Do not transform the receiver for strict mode functions.
-    __ ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-    __ lbu(a3, FieldMemOperand(a2, SharedFunctionInfo::kStrictModeByteOffset));
-    __ And(a7, a3, Operand(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
-    __ Branch(&shift_arguments, ne, a7, Operand(zero_reg));
-
-    // Do not transform the receiver for native (Compilerhints already in a3).
-    __ lbu(a3, FieldMemOperand(a2, SharedFunctionInfo::kNativeByteOffset));
-    __ And(a7, a3, Operand(1 << SharedFunctionInfo::kNativeBitWithinByte));
-    __ Branch(&shift_arguments, ne, a7, Operand(zero_reg));
-
-    // Compute the receiver in sloppy mode.
-    // Load first argument in a2. a2 = -kPointerSize(sp + n_args << 2).
-    __ dsll(at, a0, kPointerSizeLog2);
-    __ daddu(a2, sp, at);
-    __ ld(a2, MemOperand(a2, -kPointerSize));
-    // a0: actual number of arguments
-    // a1: function
-    // a2: first argument
-    __ JumpIfSmi(a2, &convert_to_object, a6);
-
-    __ LoadRoot(a3, Heap::kUndefinedValueRootIndex);
-    __ Branch(&use_global_proxy, eq, a2, Operand(a3));
-    __ LoadRoot(a3, Heap::kNullValueRootIndex);
-    __ Branch(&use_global_proxy, eq, a2, Operand(a3));
-
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ GetObjectType(a2, a3, a3);
-    __ Branch(&shift_arguments, ge, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
-
-    __ bind(&convert_to_object);
-    // Enter an internal frame in order to preserve argument count.
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(a0);
-      __ Push(a0, a2);
-      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-      __ mov(a2, v0);
-
-      __ pop(a0);
-      __ SmiUntag(a0);
-      // Leave internal frame.
-    }
-    // Restore the function to a1, and the flag to a4.
-    __ dsll(at, a0, kPointerSizeLog2);
-    __ daddu(at, sp, at);
-    __ ld(a1, MemOperand(at));
-    __ Branch(USE_DELAY_SLOT, &patch_receiver);
-    __ li(a4, Operand(0, RelocInfo::NONE32));
-
-    __ bind(&use_global_proxy);
-    __ ld(a2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-    __ ld(a2, FieldMemOperand(a2, GlobalObject::kGlobalProxyOffset));
-
-    __ bind(&patch_receiver);
-    __ dsll(at, a0, kPointerSizeLog2);
-    __ daddu(a3, sp, at);
-    __ sd(a2, MemOperand(a3, -kPointerSize));
-
-    __ Branch(&shift_arguments);
-  }
-
-  // 3b. Check for function proxy.
-  __ bind(&slow);
-  __ li(a4, Operand(1, RelocInfo::NONE32));  // Indicate function proxy.
-  __ Branch(&shift_arguments, eq, a2, Operand(JS_FUNCTION_PROXY_TYPE));
-
-  __ bind(&non_function);
-  __ li(a4, Operand(2, RelocInfo::NONE32));  // Indicate non-function.
-
-  // 3c. Patch the first argument when calling a non-function.  The
-  //     CALL_NON_FUNCTION builtin expects the non-function callee as
-  //     receiver, so overwrite the first argument which will ultimately
-  //     become the receiver.
-  // a0: actual number of arguments
-  // a1: function
-  // a4: call type (0: JS function, 1: function proxy, 2: non-function)
-  __ dsll(at, a0, kPointerSizeLog2);
-  __ daddu(a2, sp, at);
-  __ sd(a1, MemOperand(a2, -kPointerSize));
-
-  // 4. Shift arguments and return address one slot down on the stack
+  // 3. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
   //    the original first argument the new receiver.
   // a0: actual number of arguments
   // a1: function
-  // a4: call type (0: JS function, 1: function proxy, 2: non-function)
-  __ bind(&shift_arguments);
-  { Label loop;
+  {
+    Label loop;
     // Calculate the copy start address (destination). Copy end address is sp.
     __ dsll(at, a0, kPointerSizeLog2);
     __ daddu(a2, sp, at);
@@ -1362,57 +1331,21 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ Pop();
   }
 
-  // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin,
-  //     or a function proxy via CALL_FUNCTION_PROXY.
-  // a0: actual number of arguments
-  // a1: function
-  // a4: call type (0: JS function, 1: function proxy, 2: non-function)
-  { Label function, non_proxy;
-    __ Branch(&function, eq, a4, Operand(zero_reg));
-    // Expected number of arguments is 0 for CALL_NON_FUNCTION.
-    __ mov(a2, zero_reg);
-    __ Branch(&non_proxy, ne, a4, Operand(1));
-
-    __ push(a1);  // Re-add proxy object as additional argument.
-    __ Daddu(a0, a0, Operand(1));
-    __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY);
-    __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-            RelocInfo::CODE_TARGET);
-
-    __ bind(&non_proxy);
-    __ GetBuiltinFunction(a1, Builtins::CALL_NON_FUNCTION);
-    __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-            RelocInfo::CODE_TARGET);
-    __ bind(&function);
-  }
-
-  // 5b. Get the code to call from the function and check that the number of
-  //     expected arguments matches what we're providing.  If so, jump
-  //     (tail-call) to the code in register edx without checking arguments.
-  // a0: actual number of arguments
-  // a1: function
-  __ ld(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  // The argument count is stored as int32_t on 64-bit platforms.
-  // TODO(plind): Smi on 32-bit platforms.
-  __ lw(a2,
-         FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
-  // Check formal and actual parameter counts.
-  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET, ne, a2, Operand(a0));
-
-  __ ld(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  ParameterCount expected(0);
-  __ InvokeCode(a3, expected, expected, JUMP_FUNCTION, NullCallWrapper());
+  // 4. Call the callable.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 
 static void Generate_PushAppliedArguments(MacroAssembler* masm,
+                                          const int vectorOffset,
                                           const int argumentsOffset,
                                           const int indexOffset,
                                           const int limitOffset) {
   Label entry, loop;
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register key = LoadDescriptor::NameRegister();
+  Register slot = LoadDescriptor::SlotRegister();
+  Register vector = LoadWithVectorDescriptor::VectorRegister();
 
   __ ld(key, MemOperand(fp, indexOffset));
   __ Branch(&entry);
@@ -1422,7 +1355,11 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   __ ld(receiver, MemOperand(fp, argumentsOffset));
 
   // Use inline caching to speed up access to arguments.
-  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Megamorphic();
+  int slot_index = TypeFeedbackVector::PushAppliedArgumentsIndex();
+  __ li(slot, Operand(Smi::FromInt(slot_index)));
+  __ ld(vector, MemOperand(fp, vectorOffset));
+  Handle<Code> ic =
+      KeyedLoadICStub(masm->isolate(), LoadICState(kNoExtraICState)).GetCode();
   __ Call(ic, RelocInfo::CODE_TARGET);
 
   __ push(v0);
@@ -1454,111 +1391,45 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
     const int kArgumentsOffset = kFPOnStackSize + kPCOnStackSize;
     const int kReceiverOffset = kArgumentsOffset + kPointerSize;
     const int kFunctionOffset = kReceiverOffset + kPointerSize;
+    const int kVectorOffset =
+        InternalFrameConstants::kCodeOffset - 1 * kPointerSize;
+
+    // Push the vector.
+    __ ld(a1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+    __ ld(a1, FieldMemOperand(a1, SharedFunctionInfo::kFeedbackVectorOffset));
+    __ Push(a1);
 
     __ ld(a0, MemOperand(fp, kFunctionOffset));  // Get the function.
-    __ push(a0);
-    __ ld(a0, MemOperand(fp, kArgumentsOffset));  // Get the args array.
-    __ push(a0);
+    __ ld(a1, MemOperand(fp, kArgumentsOffset));  // Get the args array.
+    __ Push(a0, a1);
 
     // Returns (in v0) number of arguments to copy to stack as Smi.
     if (targetIsArgument) {
-      __ InvokeBuiltin(Builtins::REFLECT_APPLY_PREPARE, CALL_FUNCTION);
+      __ InvokeBuiltin(Context::REFLECT_APPLY_PREPARE_BUILTIN_INDEX,
+                       CALL_FUNCTION);
     } else {
-      __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+      __ InvokeBuiltin(Context::APPLY_PREPARE_BUILTIN_INDEX, CALL_FUNCTION);
     }
 
     // Returns the result in v0.
-    Generate_CheckStackOverflow(masm, kFunctionOffset, v0, kArgcIsSmiTagged);
+    Generate_CheckStackOverflow(masm, v0, kArgcIsSmiTagged);
 
     // Push current limit and index.
-    const int kIndexOffset =
-        StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
-    const int kLimitOffset =
-        StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
+    const int kIndexOffset = kVectorOffset - (2 * kPointerSize);
+    const int kLimitOffset = kVectorOffset - (1 * kPointerSize);
     __ mov(a1, zero_reg);
-    __ Push(v0, a1);  // Limit and initial index.
-
-    // Get the receiver.
-    __ ld(a0, MemOperand(fp, kReceiverOffset));
-
-    // Check that the function is a JS function (otherwise it must be a proxy).
-    Label push_receiver;
-    __ ld(a1, MemOperand(fp, kFunctionOffset));
-    __ GetObjectType(a1, a2, a2);
-    __ Branch(&push_receiver, ne, a2, Operand(JS_FUNCTION_TYPE));
-
-    // Change context eagerly to get the right global object if necessary.
-    __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-    // Load the shared function info while the function is still in a1.
-    __ ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-
-    // Compute the receiver.
-    // Do not transform the receiver for strict mode functions.
-    Label call_to_object, use_global_proxy;
-    __ lbu(a7, FieldMemOperand(a2, SharedFunctionInfo::kStrictModeByteOffset));
-    __ And(a7, a7, Operand(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
-    __ Branch(&push_receiver, ne, a7, Operand(zero_reg));
-
-    // Do not transform the receiver for native (Compilerhints already in a2).
-    __ lbu(a7, FieldMemOperand(a2, SharedFunctionInfo::kNativeByteOffset));
-    __ And(a7, a7, Operand(1 << SharedFunctionInfo::kNativeBitWithinByte));
-    __ Branch(&push_receiver, ne, a7, Operand(zero_reg));
-
-    // Compute the receiver in sloppy mode.
-    __ JumpIfSmi(a0, &call_to_object);
-    __ LoadRoot(a1, Heap::kNullValueRootIndex);
-    __ Branch(&use_global_proxy, eq, a0, Operand(a1));
-    __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-    __ Branch(&use_global_proxy, eq, a0, Operand(a2));
-
-    // Check if the receiver is already a JavaScript object.
-    // a0: receiver
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ GetObjectType(a0, a1, a1);
-    __ Branch(&push_receiver, ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
-
-    // Convert the receiver to a regular object.
-    // a0: receiver
-    __ bind(&call_to_object);
-    __ push(a0);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ mov(a0, v0);  // Put object in a0 to match other paths to push_receiver.
-    __ Branch(&push_receiver);
-
-    __ bind(&use_global_proxy);
-    __ ld(a0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-    __ ld(a0, FieldMemOperand(a0, GlobalObject::kGlobalProxyOffset));
-
-    // Push the receiver.
-    // a0: receiver
-    __ bind(&push_receiver);
-    __ push(a0);
+    __ ld(a2, MemOperand(fp, kReceiverOffset));
+    __ Push(v0, a1, a2);  // limit, initial index and receiver.
 
     // Copy all arguments from the array to the stack.
-    Generate_PushAppliedArguments(
-        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+    Generate_PushAppliedArguments(masm, kVectorOffset, kArgumentsOffset,
+                                  kIndexOffset, kLimitOffset);
 
-    // Call the function.
-    Label call_proxy;
-    ParameterCount actual(a0);
+    // Call the callable.
+    // TODO(bmeurer): This should be a tail call according to ES6.
     __ ld(a1, MemOperand(fp, kFunctionOffset));
-    __ GetObjectType(a1, a2, a2);
-    __ Branch(&call_proxy, ne, a2, Operand(JS_FUNCTION_TYPE));
+    __ Call(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 
-    __ InvokeFunction(a1, actual, CALL_FUNCTION, NullCallWrapper());
-
-    frame_scope.GenerateLeaveFrame();
-    __ Ret(USE_DELAY_SLOT);
-    __ Daddu(sp, sp, Operand(kStackSize * kPointerSize));  // In delay slot.
-
-    // Call the function proxy.
-    __ bind(&call_proxy);
-    __ push(a1);  // Add function proxy as last argument.
-    __ Daddu(a0, a0, Operand(1));
-    __ li(a2, Operand(0, RelocInfo::NONE32));
-    __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY);
-    __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-            RelocInfo::CODE_TARGET);
     // Tear down the internal frame and remove function, receiver and args.
   }
 
@@ -1576,6 +1447,13 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
     const int kArgumentsOffset = kNewTargetOffset + kPointerSize;
     const int kFunctionOffset = kArgumentsOffset + kPointerSize;
+    const int kVectorOffset =
+        InternalFrameConstants::kCodeOffset - 1 * kPointerSize;
+
+    // Push the vector.
+    __ ld(a1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+    __ ld(a1, FieldMemOperand(a1, SharedFunctionInfo::kFeedbackVectorOffset));
+    __ Push(a1);
 
     // If newTarget is not supplied, set it to constructor
     Label validate_arguments;
@@ -1594,38 +1472,34 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ ld(a0, MemOperand(fp, kNewTargetOffset));  // get the new.target
     __ push(a0);
     // Returns argument count in v0.
-    __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
+    __ InvokeBuiltin(Context::REFLECT_CONSTRUCT_PREPARE_BUILTIN_INDEX,
+                     CALL_FUNCTION);
 
     // Returns result in v0.
-    Generate_CheckStackOverflow(masm, kFunctionOffset, v0, kArgcIsSmiTagged);
+    Generate_CheckStackOverflow(masm, v0, kArgcIsSmiTagged);
 
     // Push current limit and index.
-    const int kIndexOffset =
-        StandardFrameConstants::kExpressionsOffset - (2 * kPointerSize);
-    const int kLimitOffset =
-        StandardFrameConstants::kExpressionsOffset - (1 * kPointerSize);
+    const int kIndexOffset = kVectorOffset - (2 * kPointerSize);
+    const int kLimitOffset = kVectorOffset - (1 * kPointerSize);
     __ push(v0);  // limit
     __ mov(a1, zero_reg);  // initial index
     __ push(a1);
-    // Push newTarget and callee functions
-    __ ld(a0, MemOperand(fp, kNewTargetOffset));
-    __ push(a0);
+    // Push the constructor function as callee.
     __ ld(a0, MemOperand(fp, kFunctionOffset));
     __ push(a0);
 
     // Copy all arguments from the array to the stack.
-    Generate_PushAppliedArguments(
-        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+    Generate_PushAppliedArguments(masm, kVectorOffset, kArgumentsOffset,
+                                  kIndexOffset, kLimitOffset);
 
     // Use undefined feedback vector
     __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
     __ ld(a1, MemOperand(fp, kFunctionOffset));
+    __ ld(a4, MemOperand(fp, kNewTargetOffset));
 
     // Call the function.
     CallConstructStub stub(masm->isolate(), SUPER_CONSTRUCTOR_CALL);
     __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
-
-    __ Drop(1);
 
     // Leave internal frame.
   }
@@ -1697,6 +1571,246 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 }
 
 
+// static
+void Builtins::Generate_CallFunction(MacroAssembler* masm,
+                                     ConvertReceiverMode mode) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : the function to call (checked to be a JSFunction)
+  // -----------------------------------
+  __ AssertFunction(a1);
+
+  // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
+  // Check that function is not a "classConstructor".
+  Label class_constructor;
+  __ ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lbu(a3, FieldMemOperand(a2, SharedFunctionInfo::kFunctionKindByteOffset));
+  __ And(at, a3, Operand(SharedFunctionInfo::kClassConstructorBitsWithinByte));
+  __ Branch(&class_constructor, ne, at, Operand(zero_reg));
+
+  // Enter the context of the function; ToObject has to run in the function
+  // context, and we also need to take the global proxy from the function
+  // context in case of conversion.
+  STATIC_ASSERT(SharedFunctionInfo::kNativeByteOffset ==
+                SharedFunctionInfo::kStrictModeByteOffset);
+  __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+  // We need to convert the receiver for non-native sloppy mode functions.
+  Label done_convert;
+  __ lbu(a3, FieldMemOperand(a2, SharedFunctionInfo::kNativeByteOffset));
+  __ And(at, a3, Operand((1 << SharedFunctionInfo::kNativeBitWithinByte) |
+                         (1 << SharedFunctionInfo::kStrictModeBitWithinByte)));
+  __ Branch(&done_convert, ne, at, Operand(zero_reg));
+  {
+    // ----------- S t a t e -------------
+    //  -- a0 : the number of arguments (not including the receiver)
+    //  -- a1 : the function to call (checked to be a JSFunction)
+    //  -- a2 : the shared function info.
+    //  -- cp : the function context.
+    // -----------------------------------
+
+    if (mode == ConvertReceiverMode::kNullOrUndefined) {
+      // Patch receiver to global proxy.
+      __ LoadGlobalProxy(a3);
+    } else {
+      Label convert_to_object, convert_receiver;
+      __ dsll(at, a0, kPointerSizeLog2);
+      __ daddu(at, sp, at);
+      __ ld(a3, MemOperand(at));
+      __ JumpIfSmi(a3, &convert_to_object);
+      STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+      __ GetObjectType(a3, a4, a4);
+      __ Branch(&done_convert, hs, a4, Operand(FIRST_JS_RECEIVER_TYPE));
+      if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
+        Label convert_global_proxy;
+        __ JumpIfRoot(a3, Heap::kUndefinedValueRootIndex,
+                      &convert_global_proxy);
+        __ JumpIfNotRoot(a3, Heap::kNullValueRootIndex, &convert_to_object);
+        __ bind(&convert_global_proxy);
+        {
+          // Patch receiver to global proxy.
+          __ LoadGlobalProxy(a3);
+        }
+        __ Branch(&convert_receiver);
+      }
+      __ bind(&convert_to_object);
+      {
+        // Convert receiver using ToObject.
+        // TODO(bmeurer): Inline the allocation here to avoid building the frame
+        // in the fast case? (fall back to AllocateInNewSpace?)
+        FrameScope scope(masm, StackFrame::INTERNAL);
+        __ SmiTag(a0);
+        __ Push(a0, a1);
+        __ mov(a0, a3);
+        ToObjectStub stub(masm->isolate());
+        __ CallStub(&stub);
+        __ mov(a3, v0);
+        __ Pop(a0, a1);
+        __ SmiUntag(a0);
+      }
+      __ ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+      __ bind(&convert_receiver);
+    }
+    __ dsll(at, a0, kPointerSizeLog2);
+    __ daddu(at, sp, at);
+    __ sd(a3, MemOperand(at));
+  }
+  __ bind(&done_convert);
+
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : the function to call (checked to be a JSFunction)
+  //  -- a2 : the shared function info.
+  //  -- cp : the function context.
+  // -----------------------------------
+
+  __ lw(a2,
+        FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ ld(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+  ParameterCount actual(a0);
+  ParameterCount expected(a2);
+  __ InvokeCode(a3, expected, actual, JUMP_FUNCTION, NullCallWrapper());
+
+  // The function is a "classConstructor", need to raise an exception.
+  __ bind(&class_constructor);
+  {
+    FrameScope frame(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 0);
+  }
+}
+
+
+// static
+void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : the target to call (can be any Object).
+  // -----------------------------------
+
+  Label non_callable, non_function, non_smi;
+  __ JumpIfSmi(a1, &non_callable);
+  __ bind(&non_smi);
+  __ GetObjectType(a1, t1, t2);
+  __ Jump(masm->isolate()->builtins()->CallFunction(mode),
+          RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
+  __ Branch(&non_function, ne, t2, Operand(JS_FUNCTION_PROXY_TYPE));
+
+  // 1. Call to function proxy.
+  // TODO(neis): This doesn't match the ES6 spec for [[Call]] on proxies.
+  __ ld(a1, FieldMemOperand(a1, JSFunctionProxy::kCallTrapOffset));
+  __ AssertNotSmi(a1);
+  __ Branch(&non_smi);
+
+  // 2. Call to something else, which might have a [[Call]] internal method (if
+  // not we raise an exception).
+  __ bind(&non_function);
+  // Check if target has a [[Call]] internal method.
+  __ lbu(t1, FieldMemOperand(t1, Map::kBitFieldOffset));
+  __ And(t1, t1, Operand(1 << Map::kIsCallable));
+  __ Branch(&non_callable, eq, t1, Operand(zero_reg));
+  // Overwrite the original receiver with the (original) target.
+  __ dsll(at, a0, kPointerSizeLog2);
+  __ daddu(at, sp, at);
+  __ sd(a1, MemOperand(at));
+  // Let the "call_as_function_delegate" take care of the rest.
+  __ LoadGlobalFunction(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, a1);
+  __ Jump(masm->isolate()->builtins()->CallFunction(
+              ConvertReceiverMode::kNotNullOrUndefined),
+          RelocInfo::CODE_TARGET);
+
+  // 3. Call to something that is not callable.
+  __ bind(&non_callable);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(a1);
+    __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
+  }
+}
+
+
+void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : the constructor to call (checked to be a JSFunction)
+  //  -- a3 : the original constructor (checked to be a JSFunction)
+  // -----------------------------------
+  __ AssertFunction(a1);
+  __ AssertFunction(a3);
+
+  // Calling convention for function specific ConstructStubs require
+  // a2 to contain either an AllocationSite or undefined.
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
+
+  // Tail call to the function-specific construct stub (still in the caller
+  // context at this point).
+  __ ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ ld(a4, FieldMemOperand(a4, SharedFunctionInfo::kConstructStubOffset));
+  __ Daddu(at, a4, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(at);
+}
+
+
+// static
+void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : the constructor to call (checked to be a JSFunctionProxy)
+  //  -- a3 : the original constructor (either the same as the constructor or
+  //          the JSFunction on which new was invoked initially)
+  // -----------------------------------
+
+  // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
+  __ ld(a1, FieldMemOperand(a1, JSFunctionProxy::kConstructTrapOffset));
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+}
+
+
+// static
+void Builtins::Generate_Construct(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0 : the number of arguments (not including the receiver)
+  //  -- a1 : the constructor to call (can be any Object)
+  //  -- a3 : the original constructor (either the same as the constructor or
+  //          the JSFunction on which new was invoked initially)
+  // -----------------------------------
+
+  // Check if target has a [[Construct]] internal method.
+  Label non_constructor;
+  __ JumpIfSmi(a1, &non_constructor);
+  __ ld(t1, FieldMemOperand(a1, HeapObject::kMapOffset));
+  __ lbu(t2, FieldMemOperand(t1, Map::kBitFieldOffset));
+  __ And(t2, t2, Operand(1 << Map::kIsCallable));
+  __ Branch(&non_constructor, eq, t2, Operand(zero_reg));
+
+  // Dispatch based on instance type.
+  __ lbu(t2, FieldMemOperand(t1, Map::kInstanceTypeOffset));
+  __ Jump(masm->isolate()->builtins()->ConstructFunction(),
+          RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
+  __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
+          eq, t2, Operand(JS_FUNCTION_PROXY_TYPE));
+
+  // Called Construct on an exotic Object with a [[Construct]] internal method.
+  {
+    // Overwrite the original receiver with the (original) target.
+    __ dsll(at, a0, kPointerSizeLog2);
+    __ daddu(at, sp, at);
+    __ sd(a1, MemOperand(at));
+    // Let the "call_as_constructor_delegate" take care of the rest.
+    __ LoadGlobalFunction(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, a1);
+    __ Jump(masm->isolate()->builtins()->CallFunction(),
+            RelocInfo::CODE_TARGET);
+  }
+
+  // Called Construct on an Object that doesn't have a [[Construct]] internal
+  // method.
+  __ bind(&non_constructor);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(a1);
+    __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
+  }
+}
+
+
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // State setup as expected by MacroAssembler::InvokePrologue.
   // ----------- S t a t e -------------
@@ -1724,26 +1838,27 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
 
-    // Calculate copy start address into a0 and copy end address into a2.
+    // Calculate copy start address into a0 and copy end address into a4.
     __ SmiScale(a0, a0, kPointerSizeLog2);
     __ Daddu(a0, fp, a0);
     // Adjust for return address and receiver.
     __ Daddu(a0, a0, Operand(2 * kPointerSize));
     // Compute copy end address.
-    __ dsll(a2, a2, kPointerSizeLog2);
-    __ dsubu(a2, a0, a2);
+    __ dsll(a4, a2, kPointerSizeLog2);
+    __ dsubu(a4, a0, a4);
 
     // Copy the arguments (including the receiver) to the new stack frame.
     // a0: copy start address
     // a1: function
-    // a2: copy end address
+    // a2: expected number of arguments
     // a3: code entry to call
+    // a4: copy end address
 
     Label copy;
     __ bind(&copy);
-    __ ld(a4, MemOperand(a0));
-    __ push(a4);
-    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(a2));
+    __ ld(a5, MemOperand(a0));
+    __ push(a5);
+    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(a4));
     __ daddiu(a0, a0, -kPointerSize);  // In delay slot.
 
     __ jmp(&invoke);
@@ -1751,9 +1866,30 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   {  // Too few parameters: Actual < expected.
     __ bind(&too_few);
+
+    // If the function is strong we need to throw an error.
+    Label no_strong_error;
+    __ ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+    __ lbu(a5, FieldMemOperand(a4, SharedFunctionInfo::kStrongModeByteOffset));
+    __ And(a5, a5, Operand(1 << SharedFunctionInfo::kStrongModeBitWithinByte));
+    __ Branch(&no_strong_error, eq, a5, Operand(zero_reg));
+
+    // What we really care about is the required number of arguments.
+    DCHECK_EQ(kPointerSize, kInt64Size);
+    __ lw(a5, FieldMemOperand(a4, SharedFunctionInfo::kLengthOffset));
+    __ srl(a5, a5, 1);
+    __ Branch(&no_strong_error, ge, a0, Operand(a5));
+
+    {
+      FrameScope frame(masm, StackFrame::MANUAL);
+      EnterArgumentsAdaptorFrame(masm);
+      __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments, 0);
+    }
+
+    __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
-    // Calculate copy start address into a0 and copy end address is fp.
+    // Calculate copy start address into a0 and copy end address into a7.
     // a0: actual number of arguments as a smi
     // a1: function
     // a2: expected number of arguments
@@ -1783,23 +1919,25 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a1: function
     // a2: expected number of arguments
     // a3: code entry to call
-    __ LoadRoot(a4, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
     __ dsll(a6, a2, kPointerSizeLog2);
-    __ Dsubu(a2, fp, Operand(a6));
+    __ Dsubu(a4, fp, Operand(a6));
     // Adjust for frame.
-    __ Dsubu(a2, a2, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
-                            2 * kPointerSize));
+    __ Dsubu(a4, a4, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
+                             2 * kPointerSize));
 
     Label fill;
     __ bind(&fill);
     __ Dsubu(sp, sp, kPointerSize);
-    __ Branch(USE_DELAY_SLOT, &fill, ne, sp, Operand(a2));
-    __ sd(a4, MemOperand(sp));
+    __ Branch(USE_DELAY_SLOT, &fill, ne, sp, Operand(a4));
+    __ sd(a5, MemOperand(sp));
   }
 
   // Call the entry point.
   __ bind(&invoke);
-
+  __ mov(a0, a2);
+  // a0 : expected number of arguments
+  // a1 : function (passed through to callee)
   __ Call(a3);
 
   // Store offset of return address for deoptimizer.
@@ -1820,7 +1958,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {
     FrameScope frame(masm, StackFrame::MANUAL);
     EnterArgumentsAdaptorFrame(masm);
-    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ CallRuntime(Runtime::kThrowStackOverflow, 0);
     __ break_(0xCC);
   }
 }
@@ -1828,6 +1966,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS64

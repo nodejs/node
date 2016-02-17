@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var punycode = require('punycode');
 var assert = require('assert');
 

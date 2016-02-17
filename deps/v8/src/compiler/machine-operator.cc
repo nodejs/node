@@ -12,10 +12,32 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+std::ostream& operator<<(std::ostream& os, TruncationMode mode) {
+  switch (mode) {
+    case TruncationMode::kJavaScript:
+      return os << "JavaScript";
+    case TruncationMode::kRoundToZero:
+      return os << "RoundToZero";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
+TruncationMode TruncationModeOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kTruncateFloat64ToInt32, op->opcode());
+  return OpParameter<TruncationMode>(op);
+}
+
+
 std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
   switch (kind) {
     case kNoWriteBarrier:
       return os << "NoWriteBarrier";
+    case kMapWriteBarrier:
+      return os << "MapWriteBarrier";
+    case kPointerWriteBarrier:
+      return os << "PointerWriteBarrier";
     case kFullWriteBarrier:
       return os << "FullWriteBarrier";
   }
@@ -81,6 +103,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Word64Shr, Operator::kNoProperties, 2, 0, 1)                              \
   V(Word64Sar, Operator::kNoProperties, 2, 0, 1)                              \
   V(Word64Ror, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                              \
   V(Word64Equal, Operator::kCommutative, 2, 0, 1)                             \
   V(Int32Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
   V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative, 2, \
@@ -101,39 +124,42 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
   V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(Int64Mul, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
-  V(Int64Div, Operator::kNoProperties, 2, 0, 1)                               \
-  V(Int64Mod, Operator::kNoProperties, 2, 0, 1)                               \
+  V(Int64Div, Operator::kNoProperties, 2, 1, 1)                               \
+  V(Int64Mod, Operator::kNoProperties, 2, 1, 1)                               \
   V(Int64LessThan, Operator::kNoProperties, 2, 0, 1)                          \
   V(Int64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                   \
-  V(Uint64Div, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Uint64Div, Operator::kNoProperties, 2, 1, 1)                              \
+  V(Uint64Mod, Operator::kNoProperties, 2, 1, 1)                              \
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Uint64Mod, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                  \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
   V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
+  V(RoundInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                    \
   V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                     \
   V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)                  \
   V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                   \
   V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)               \
-  V(TruncateFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
   V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
+  V(BitcastFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                  \
+  V(BitcastFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                  \
+  V(BitcastInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                  \
+  V(BitcastInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                  \
+  V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                             \
   V(Float32Add, Operator::kCommutative, 2, 0, 1)                              \
   V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float32Mul, Operator::kCommutative, 2, 0, 1)                              \
   V(Float32Div, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                             \
   V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                             \
   V(Float64Add, Operator::kCommutative, 2, 0, 1)                              \
   V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Mul, Operator::kCommutative, 2, 0, 1)                              \
   V(Float64Div, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                             \
   V(Float64Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64RoundDown, Operator::kNoProperties, 1, 0, 1)                       \
-  V(Float64RoundTruncate, Operator::kNoProperties, 1, 0, 1)                   \
-  V(Float64RoundTiesAway, Operator::kNoProperties, 1, 0, 1)                   \
   V(Float32Equal, Operator::kCommutative, 2, 0, 1)                            \
   V(Float32LessThan, Operator::kNoProperties, 2, 0, 1)                        \
   V(Float32LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
@@ -144,11 +170,21 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)               \
   V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
-  V(Float32Max, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float32Min, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float64Max, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float64Min, Operator::kNoProperties, 2, 0, 1)                             \
-  V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)
+  V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                       \
+  V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)
+
+#define PURE_OPTIONAL_OP_LIST(V)                            \
+  V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
+  V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
+  V(Word32Popcnt, Operator::kNoProperties, 1, 0, 1)         \
+  V(Word64Popcnt, Operator::kNoProperties, 1, 0, 1)         \
+  V(Float32Max, Operator::kNoProperties, 2, 0, 1)           \
+  V(Float32Min, Operator::kNoProperties, 2, 0, 1)           \
+  V(Float64Max, Operator::kNoProperties, 2, 0, 1)           \
+  V(Float64Min, Operator::kNoProperties, 2, 0, 1)           \
+  V(Float64RoundDown, Operator::kNoProperties, 1, 0, 1)     \
+  V(Float64RoundTruncate, Operator::kNoProperties, 1, 0, 1) \
+  V(Float64RoundTiesAway, Operator::kNoProperties, 1, 0, 1)
 
 
 #define MACHINE_TYPE_LIST(V) \
@@ -162,15 +198,8 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(MachUint32)              \
   V(MachInt64)               \
   V(MachUint64)              \
-  V(MachAnyTagged)           \
-  V(RepBit)                  \
-  V(RepWord8)                \
-  V(RepWord16)               \
-  V(RepWord32)               \
-  V(RepWord64)               \
-  V(RepFloat32)              \
-  V(RepFloat64)              \
-  V(RepTagged)
+  V(MachPtr)                 \
+  V(MachAnyTagged)
 
 
 struct MachineOperatorGlobalCache {
@@ -184,7 +213,21 @@ struct MachineOperatorGlobalCache {
   };                                                                           \
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
+  PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
+
+  template <TruncationMode kMode>
+  struct TruncateFloat64ToInt32Operator final
+      : public Operator1<TruncationMode> {
+    TruncateFloat64ToInt32Operator()
+        : Operator1<TruncationMode>(IrOpcode::kTruncateFloat64ToInt32,
+                                    Operator::kPure, "TruncateFloat64ToInt32",
+                                    1, 0, 0, 1, 0, 0, kMode) {}
+  };
+  TruncateFloat64ToInt32Operator<TruncationMode::kJavaScript>
+      kTruncateFloat64ToInt32JavaScript;
+  TruncateFloat64ToInt32Operator<TruncationMode::kRoundToZero>
+      kTruncateFloat64ToInt32RoundToZero;
 
 #define LOAD(Type)                                                             \
   struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
@@ -218,6 +261,16 @@ struct MachineOperatorGlobalCache {
     Store##Type##NoWriteBarrier##Operator()                                    \
         : Store##Type##Operator(kNoWriteBarrier) {}                            \
   };                                                                           \
+  struct Store##Type##MapWriteBarrier##Operator final                          \
+      : public Store##Type##Operator {                                         \
+    Store##Type##MapWriteBarrier##Operator()                                   \
+        : Store##Type##Operator(kMapWriteBarrier) {}                           \
+  };                                                                           \
+  struct Store##Type##PointerWriteBarrier##Operator final                      \
+      : public Store##Type##Operator {                                         \
+    Store##Type##PointerWriteBarrier##Operator()                               \
+        : Store##Type##Operator(kPointerWriteBarrier) {}                       \
+  };                                                                           \
   struct Store##Type##FullWriteBarrier##Operator final                         \
       : public Store##Type##Operator {                                         \
     Store##Type##FullWriteBarrier##Operator()                                  \
@@ -231,6 +284,9 @@ struct MachineOperatorGlobalCache {
               "CheckedStore", 4, 1, 1, 0, 1, 0, k##Type) {}                    \
   };                                                                           \
   Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;          \
+  Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;        \
+  Store##Type##PointerWriteBarrier##Operator                                   \
+      kStore##Type##PointerWriteBarrier;                                       \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
   CheckedStore##Type##Operator kCheckedStore##Type;
   MACHINE_TYPE_LIST(STORE)
@@ -244,7 +300,7 @@ static base::LazyInstance<MachineOperatorGlobalCache>::type kCache =
 
 MachineOperatorBuilder::MachineOperatorBuilder(Zone* zone, MachineType word,
                                                Flags flags)
-    : zone_(zone), cache_(kCache.Get()), word_(word), flags_(flags) {
+    : cache_(kCache.Get()), word_(word), flags_(flags) {
   DCHECK(word == kRepWord32 || word == kRepWord64);
 }
 
@@ -254,6 +310,27 @@ MachineOperatorBuilder::MachineOperatorBuilder(Zone* zone, MachineType word,
   const Operator* MachineOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(PURE)
 #undef PURE
+
+#define PURE(Name, properties, value_input_count, control_input_count,     \
+             output_count)                                                 \
+  const OptionalOperator MachineOperatorBuilder::Name() {                  \
+    return OptionalOperator(flags_ & k##Name ? &cache_.k##Name : nullptr); \
+  }
+PURE_OPTIONAL_OP_LIST(PURE)
+#undef PURE
+
+
+const Operator* MachineOperatorBuilder::TruncateFloat64ToInt32(
+    TruncationMode mode) {
+  switch (mode) {
+    case TruncationMode::kJavaScript:
+      return &cache_.kTruncateFloat64ToInt32JavaScript;
+    case TruncationMode::kRoundToZero:
+      return &cache_.kTruncateFloat64ToInt32RoundToZero;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
@@ -266,23 +343,25 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
     default:
       break;
   }
-  // Uncached.
-  return new (zone_) Operator1<LoadRepresentation>(  // --
-      IrOpcode::kLoad, Operator::kNoThrow | Operator::kNoWrite, "Load", 2, 1, 1,
-      1, 1, 0, rep);
+  UNREACHABLE();
+  return nullptr;
 }
 
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
   switch (rep.machine_type()) {
-#define STORE(Type)                                      \
-  case k##Type:                                          \
-    switch (rep.write_barrier_kind()) {                  \
-      case kNoWriteBarrier:                              \
-        return &cache_.k##Store##Type##NoWriteBarrier;   \
-      case kFullWriteBarrier:                            \
-        return &cache_.k##Store##Type##FullWriteBarrier; \
-    }                                                    \
+#define STORE(Type)                                         \
+  case k##Type:                                             \
+    switch (rep.write_barrier_kind()) {                     \
+      case kNoWriteBarrier:                                 \
+        return &cache_.k##Store##Type##NoWriteBarrier;      \
+      case kMapWriteBarrier:                                \
+        return &cache_.k##Store##Type##MapWriteBarrier;     \
+      case kPointerWriteBarrier:                            \
+        return &cache_.k##Store##Type##PointerWriteBarrier; \
+      case kFullWriteBarrier:                               \
+        return &cache_.k##Store##Type##FullWriteBarrier;    \
+    }                                                       \
     break;
     MACHINE_TYPE_LIST(STORE)
 #undef STORE
@@ -290,10 +369,8 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
     default:
       break;
   }
-  // Uncached.
-  return new (zone_) Operator1<StoreRepresentation>(  // --
-      IrOpcode::kStore, Operator::kNoRead | Operator::kNoThrow, "Store", 3, 1,
-      1, 0, 1, 0, rep);
+  UNREACHABLE();
+  return nullptr;
 }
 
 
@@ -308,10 +385,8 @@ const Operator* MachineOperatorBuilder::CheckedLoad(
     default:
       break;
   }
-  // Uncached.
-  return new (zone_) Operator1<CheckedLoadRepresentation>(
-      IrOpcode::kCheckedLoad, Operator::kNoThrow | Operator::kNoWrite,
-      "CheckedLoad", 3, 1, 1, 1, 1, 0, rep);
+  UNREACHABLE();
+  return nullptr;
 }
 
 
@@ -326,10 +401,8 @@ const Operator* MachineOperatorBuilder::CheckedStore(
     default:
       break;
   }
-  // Uncached.
-  return new (zone_) Operator1<CheckedStoreRepresentation>(
-      IrOpcode::kCheckedStore, Operator::kNoRead | Operator::kNoThrow,
-      "CheckedStore", 4, 1, 1, 0, 1, 0, rep);
+  UNREACHABLE();
+  return nullptr;
 }
 
 }  // namespace compiler

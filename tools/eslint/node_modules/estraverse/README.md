@@ -66,7 +66,7 @@ var tree = {
 estraverse.traverse(tree, {
     enter: function (node) { },
 
-    // Extending the exising traversing rules.
+    // Extending the existing traversing rules.
     keys: {
         // TargetNodeName: [ 'keys', 'containing', 'the', 'other', '**node**' ]
         TestExpression: ['argument']

@@ -10,8 +10,8 @@ try {
   new Function({toString:0,valueOf:0});
 } catch (e) {
   threw = true;
-  // Ensure that the receiver during "new Function" is the global proxy.
-  assertEquals(this, e.stack[0].getThis());
+  // Ensure that the receiver during "new Function" is the undefined value.
+  assertEquals(undefined, e.stack[0].getThis());
 }
 
 assertTrue(threw);

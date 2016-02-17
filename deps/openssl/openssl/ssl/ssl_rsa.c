@@ -160,7 +160,10 @@ int SSL_use_RSAPrivateKey(SSL *ssl, RSA *rsa)
     }
 
     RSA_up_ref(rsa);
-    EVP_PKEY_assign_RSA(pkey, rsa);
+    if (EVP_PKEY_assign_RSA(pkey, rsa) <= 0) {
+        RSA_free(rsa);
+        return 0;
+    }
 
     ret = ssl_set_pkey(ssl->cert, pkey);
     EVP_PKEY_free(pkey);
@@ -195,6 +198,15 @@ static int ssl_set_pkey(CERT *c, EVP_PKEY *pkey)
     if (c->pkeys[i].x509 != NULL) {
         EVP_PKEY *pktmp;
         pktmp = X509_get_pubkey(c->pkeys[i].x509);
+        if (pktmp == NULL) {
+            SSLerr(SSL_F_SSL_SET_PKEY, ERR_R_MALLOC_FAILURE);
+            EVP_PKEY_free(pktmp);
+            return 0;
+        }
+        /*
+         * The return code from EVP_PKEY_copy_parameters is deliberately
+         * ignored. Some EVP_PKEY types cannot do this.
+         */
         EVP_PKEY_copy_parameters(pktmp, pkey);
         EVP_PKEY_free(pktmp);
         ERR_clear_error();
@@ -396,6 +408,10 @@ static int ssl_set_cert(CERT *c, X509 *x)
     }
 
     if (c->pkeys[i].privatekey != NULL) {
+        /*
+         * The return code from EVP_PKEY_copy_parameters is deliberately
+         * ignored. Some EVP_PKEY types cannot do this.
+         */
         EVP_PKEY_copy_parameters(pkey, c->pkeys[i].privatekey);
         ERR_clear_error();
 
@@ -516,7 +532,10 @@ int SSL_CTX_use_RSAPrivateKey(SSL_CTX *ctx, RSA *rsa)
     }
 
     RSA_up_ref(rsa);
-    EVP_PKEY_assign_RSA(pkey, rsa);
+    if (EVP_PKEY_assign_RSA(pkey, rsa) <= 0) {
+        RSA_free(rsa);
+        return 0;
+    }
 
     ret = ssl_set_pkey(ctx->cert, pkey);
     EVP_PKEY_free(pkey);
@@ -750,31 +769,31 @@ static int serverinfo_find_extension(const unsigned char *serverinfo,
     *extension_data = NULL;
     *extension_length = 0;
     if (serverinfo == NULL || serverinfo_length == 0)
-        return 0;
+        return -1;
     for (;;) {
         unsigned int type = 0;
         size_t len = 0;
 
         /* end of serverinfo */
         if (serverinfo_length == 0)
-            return -1;          /* Extension not found */
+            return 0;           /* Extension not found */
 
         /* read 2-byte type field */
         if (serverinfo_length < 2)
-            return 0;           /* Error */
+            return -1;          /* Error */
         type = (serverinfo[0] << 8) + serverinfo[1];
         serverinfo += 2;
         serverinfo_length -= 2;
 
         /* read 2-byte len field */
         if (serverinfo_length < 2)
-            return 0;           /* Error */
+            return -1;          /* Error */
         len = (serverinfo[0] << 8) + serverinfo[1];
         serverinfo += 2;
         serverinfo_length -= 2;
 
         if (len > serverinfo_length)
-            return 0;           /* Error */
+            return -1;          /* Error */
 
         if (type == extension_type) {
             *extension_data = serverinfo;
@@ -814,10 +833,12 @@ static int serverinfo_srv_add_cb(SSL *s, unsigned int ext_type,
         /* Find the relevant extension from the serverinfo */
         int retval = serverinfo_find_extension(serverinfo, serverinfo_length,
                                                ext_type, out, outlen);
+        if (retval == -1) {
+            *al = SSL_AD_DECODE_ERROR;
+            return -1;          /* Error */
+        }
         if (retval == 0)
-            return 0;           /* Error */
-        if (retval == -1)
-            return -1;          /* No extension found, don't send extension */
+            return 0;           /* No extension found, don't send extension */
         return 1;               /* Send extension */
     }
     return -1;                  /* No serverinfo data found, don't send

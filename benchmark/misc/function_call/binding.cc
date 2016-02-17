@@ -9,7 +9,7 @@ void Hello(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(c++);
 }
 
-extern "C" void init (Handle<Object> target) {
+extern "C" void init (Local<Object> target) {
   HandleScope scope(Isolate::GetCurrent());
   NODE_SET_METHOD(target, "hello", Hello);
 }

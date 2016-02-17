@@ -59,9 +59,14 @@ if (cluster.isWorker) {
     assert.equal(code, 0);
 
     // check worker process status
+    var timeout = 200;
+    if (common.isAix) {
+      // AIX needs more time due to default exit performance
+      timeout = 1000;
+    }
     setTimeout(function() {
       alive = isAlive(pid);
-    }, 200);
+    }, timeout);
   });
 
   process.once('exit', function() {

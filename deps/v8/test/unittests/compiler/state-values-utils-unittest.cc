@@ -95,7 +95,8 @@ TEST_F(StateValuesIteratorTest, TreeFromVector) {
   TRACED_FOREACH(int, count, sizes) {
     JSOperatorBuilder javascript(zone());
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), &javascript, &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
+                    &machine);
 
     // Generate the input vector.
     NodeVector inputs(zone());
@@ -124,7 +125,8 @@ TEST_F(StateValuesIteratorTest, BuildTreeIdentical) {
   TRACED_FOREACH(int, count, sizes) {
     JSOperatorBuilder javascript(zone());
     MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), &javascript, &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
+                    &machine);
 
     // Generate the input vector.
     NodeVector inputs(zone());

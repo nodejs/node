@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 var assert = require('assert');
 
 process.on('beforeExit', function() {

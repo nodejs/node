@@ -2,22 +2,11 @@
   "name": "npm-test-shrinkwrap",
   "version": "0.0.0",
   "dependencies": {
-    "npm-test-single-file": {
-      "version": "1.2.3",
-      "resolved": "https://gist.github.com/isaacs/1837112/raw/9ef57a59fc22aeb1d1ca346b68826dcb638b8416/index.js"
-    },
     "glob": {
       "version": "3.1.5",
+      "from": "git://github.com/isaacs/node-glob.git#npm-test",
       "resolved": "git://github.com/isaacs/node-glob.git#67bda227fd7a559cca5620307c7d30a6732a792f",
       "dependencies": {
-        "minimatch": {
-          "version": "0.2.1",
-          "dependencies": {
-            "lru-cache": {
-              "version": "1.0.5"
-            }
-          }
-        },
         "graceful-fs": {
           "version": "1.1.5",
           "resolved": "https://registry.npmjs.org/graceful-fs/-/graceful-fs-1.1.5.tgz",
@@ -31,6 +20,14 @@
         "inherits": {
           "version": "1.0.0",
           "resolved": "https://registry.npmjs.org/inherits/-/inherits-1.0.0.tgz"
+        },
+        "minimatch": {
+          "version": "0.2.1",
+          "dependencies": {
+            "lru-cache": {
+              "version": "1.0.5"
+            }
+          }
         }
       }
     },
@@ -43,6 +40,10 @@
           "resolved": "https://registry.npmjs.org/lru-cache/-/lru-cache-1.0.5.tgz"
         }
       }
+    },
+    "npm-test-single-file": {
+      "version": "1.2.3",
+      "resolved": "https://gist.github.com/isaacs/1837112/raw/9ef57a59fc22aeb1d1ca346b68826dcb638b8416/index.js"
     }
   }
 }

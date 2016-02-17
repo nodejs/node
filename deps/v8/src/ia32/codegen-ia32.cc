@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/ia32/codegen-ia32.h"
 
 #if V8_TARGET_ARCH_IA32
 
@@ -65,7 +65,7 @@ UnaryMathFunction CreateExpFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
@@ -94,7 +94,7 @@ UnaryMathFunction CreateSqrtFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
@@ -505,7 +505,7 @@ MemMoveFunction CreateMemMoveFunction() {
   CodeDesc desc;
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event
   // with the PROFILE / GDBJIT system.
@@ -1032,7 +1032,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
   uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
     isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
-    CpuFeatures::FlushICache(sequence, young_length);
+    Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);
     CodePatcher patcher(sequence, young_length);
@@ -1041,6 +1041,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_IA32

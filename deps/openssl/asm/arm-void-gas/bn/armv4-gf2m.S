@@ -98,7 +98,7 @@ bn_GF2m_mul_2x2:
 	mov	r12,#7<<2
 	sub	sp,sp,#32		@ allocate tab[8]
 
-	bl	mul_1x1_ialu		@ a1·b1
+	bl	mul_1x1_ialu		@ a1Â·b1
 	str	r5,[r10,#8]
 	str	r4,[r10,#12]
 
@@ -108,13 +108,13 @@ bn_GF2m_mul_2x2:
 	 eor	r2,r2,r1
 	eor	r0,r0,r3
 	 eor	r1,r1,r2
-	bl	mul_1x1_ialu		@ a0·b0
+	bl	mul_1x1_ialu		@ a0Â·b0
 	str	r5,[r10]
 	str	r4,[r10,#4]
 
 	eor	r1,r1,r2
 	eor	r0,r0,r3
-	bl	mul_1x1_ialu		@ (a1+a0)·(b1+b0)
+	bl	mul_1x1_ialu		@ (a1+a0)Â·(b1+b0)
 	ldmia	r10,{r6-r9}
 	eor	r5,r5,r4
 	eor	r4,r4,r7

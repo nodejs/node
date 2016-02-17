@@ -1,5 +1,5 @@
 var zlib = require('zlib')
-var tap = require('tap')
+var test = require('tap').test
 
 var server = require('./lib/server.js')
 var common = require('./lib/common.js')
@@ -20,7 +20,7 @@ var pkg = {
 }
 
 zlib.gzip(JSON.stringify(pkg), function (err, pkgGzip) {
-  tap.test('request gzip package content', function (t) {
+  test('request gzip package content', function (t) {
     t.ifError(err, 'example package compressed')
 
     server.expect('GET', '/some-package-gzip/1.2.3', function (req, res) {
@@ -37,7 +37,7 @@ zlib.gzip(JSON.stringify(pkg), function (err, pkgGzip) {
     })
   })
 
-  tap.test('request wrong gzip package content', function (t) {
+  test('request wrong gzip package content', function (t) {
     // will retry 3 times
     for (var i = 0; i < 3; i++) {
       server.expect('GET', '/some-package-gzip/1.2.3', function (req, res) {
@@ -52,5 +52,10 @@ zlib.gzip(JSON.stringify(pkg), function (err, pkgGzip) {
       t.ok(er, 'ungzip error')
       t.end()
     })
+  })
+
+  test('cleanup', function (t) {
+    server.close()
+    t.end()
   })
 })

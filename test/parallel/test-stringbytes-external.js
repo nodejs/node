@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 // minimum string size to overflow into external string space
 var EXTERN_APEX = 0xFBEE9;
@@ -22,9 +22,9 @@ write_str = Array(size).join(write_str);
 ucs2_control = Array(size).join(ucs2_control);
 
 // check resultant buffer and output string
-var b = new Buffer(write_str, 'ucs2');
+b = new Buffer(write_str, 'ucs2');
 // check fist Buffer created from write string
-for (var i = 0; i < b.length; i += 2) {
+for (let i = 0; i < b.length; i += 2) {
   assert.equal(b[i], 0x61);
   assert.equal(b[i + 1], 0);
 }
@@ -39,9 +39,8 @@ var c_ucs = new Buffer(b_ucs, 'ucs2');
 // make sure they're the same length
 assert.equal(c_bin.length, c_ucs.length);
 // make sure Buffers from externals are the same
-for (var i = 0; i < c_bin.length; i++) {
-  assert.equal(c_bin[i], c_ucs[i], c_bin[i] + ' == ' + c_ucs[i] +
-               ' : index ' + i);
+for (let i = 0; i < c_bin.length; i++) {
+  assert.equal(c_bin[i], c_ucs[i]);
 }
 // check resultant strings
 assert.equal(c_bin.toString('ucs2'), c_ucs.toString('ucs2'));
@@ -63,19 +62,14 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
     var pumped_string2 = slice2.toString('hex');
     var decoded = new Buffer(pumped_string, 'hex');
 
-    var metadata = '\nEXTERN_APEX=1031913 - pumped_string.length=';
-    metadata += pumped_string.length + '\n';
-
     // the string are the same?
     for (var k = 0; k < pumped_string.length; ++k) {
-      assert.equal(pumped_string[k], pumped_string2[k],
-                   metadata + 'chars should be the same at ' + k);
+      assert.equal(pumped_string[k], pumped_string2[k]);
     }
 
     // the recoded buffer is the same?
     for (var i = 0; i < decoded.length; ++i) {
-      assert.equal(datum[i], decoded[i],
-                   metadata + 'bytes should be the same at ' + i);
+      assert.equal(datum[i], decoded[i]);
     }
   }
 })();
@@ -89,20 +83,14 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
     var pumped_string2 = slice2.toString('base64');
     var decoded = new Buffer(pumped_string, 'base64');
 
-    var metadata = '\nEXTERN_APEX=1031913 - data=" + slice.length';
-    metadata += ' pumped_string.length=' + pumped_string.length + '\n';
-
     // the string are the same?
     for (var k = 0; k < pumped_string.length - 3; ++k) {
-      assert.equal(pumped_string[k], pumped_string2[k],
-                   metadata + 'chars should be the same for two slices at '
-                   + k + ' ' + pumped_string[k] + ' ' + pumped_string2[k]);
+      assert.equal(pumped_string[k], pumped_string2[k]);
     }
 
     // the recoded buffer is the same?
     for (var i = 0; i < decoded.length; ++i) {
-      assert.equal(datum[i], decoded[i],
-                   metadata + 'bytes should be the same at ' + i);
+      assert.equal(datum[i], decoded[i]);
     }
   }
 })();

@@ -5,5 +5,5 @@ var http = require('http');
 
 assert.throws(function() {
   // Path with spaces in it should throw.
-  http.get({ path: 'bad path' }, assert.fail);
+  http.get({ path: 'bad path' }, common.fail);
 }, /contains unescaped characters/);

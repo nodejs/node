@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 var assert = require('assert');
 var readline = require('readline');
 var EventEmitter = require('events').EventEmitter;
@@ -221,7 +222,7 @@ function isWarned(emitter) {
     });
   }, function(err) {
     if (err instanceof TypeError) {
-      if (/Argument \'completer\' must be a function/.test(err)) {
+      if (/Argument "completer" must be a function/.test(err)) {
         return true;
       }
     }
@@ -258,7 +259,7 @@ function isWarned(emitter) {
   });
   try {
     fi.emit('data', 'fooX');
-  } catch(e) { }
+  } catch (e) { }
   fi.emit('data', 'bar');
   assert.equal(keys.join(''), 'fooXbar');
   rli.close();
@@ -295,7 +296,7 @@ function isWarned(emitter) {
     rli.question(expectedLines.join('\n'), function() {
       rli.close();
     });
-    var cursorPos = rli._getCursorPos();
+    cursorPos = rli._getCursorPos();
     assert.equal(cursorPos.rows, expectedLines.length - 1);
     assert.equal(cursorPos.cols, expectedLines.slice(-1)[0].length);
     rli.close();
@@ -379,4 +380,3 @@ function isWarned(emitter) {
   });
 
 });
-

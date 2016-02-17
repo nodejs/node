@@ -104,7 +104,6 @@ int BIO_dump_indent_cb(int (*cb) (const void *data, size_t len, void *u),
     if ((rows * dump_width) < len)
         rows++;
     for (i = 0; i < rows; i++) {
-        buf[0] = '\0';          /* start with empty string */
         BUF_strlcpy(buf, str, sizeof buf);
         BIO_snprintf(tmp, sizeof tmp, "%04x - ", i * dump_width);
         BUF_strlcat(buf, tmp, sizeof buf);

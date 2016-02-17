@@ -42,7 +42,7 @@ int uv_udp_getsockname(const uv_udp_t* handle,
                        int* namelen) {
   int result;
 
-  if (!(handle->flags & UV_HANDLE_BOUND)) {
+  if (handle->socket == INVALID_SOCKET) {
     return UV_EINVAL;
   }
 
@@ -61,7 +61,8 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle, SOCKET socket,
   WSAPROTOCOL_INFOW info;
   int opt_len;
 
-  assert(handle->socket == INVALID_SOCKET);
+  if (handle->socket != INVALID_SOCKET)
+    return UV_EBUSY;
 
   /* Set the socket to nonblocking mode */
   if (ioctlsocket(socket, FIONBIO, &yes) == SOCKET_ERROR) {
@@ -122,9 +123,18 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle, SOCKET socket,
 }
 
 
-int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
-  uv__handle_init(loop, (uv_handle_t*) handle, UV_UDP);
+int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
+  int domain;
 
+  /* Use the lower 8 bits for the domain */
+  domain = flags & 0xFF;
+  if (domain != AF_INET && domain != AF_INET6 && domain != AF_UNSPEC)
+    return UV_EINVAL;
+
+  if (flags & ~0xFF)
+    return UV_EINVAL;
+
+  uv__handle_init(loop, (uv_handle_t*) handle, UV_UDP);
   handle->socket = INVALID_SOCKET;
   handle->reqs_pending = 0;
   handle->activecnt = 0;
@@ -132,12 +142,39 @@ int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
   handle->func_wsarecvfrom = WSARecvFrom;
   handle->send_queue_size = 0;
   handle->send_queue_count = 0;
-
   uv_req_init(loop, (uv_req_t*) &(handle->recv_req));
   handle->recv_req.type = UV_UDP_RECV;
   handle->recv_req.data = handle;
 
+  /* If anything fails beyond this point we need to remove the handle from
+   * the handle queue, since it was added by uv__handle_init.
+   */
+
+  if (domain != AF_UNSPEC) {
+    SOCKET sock;
+    DWORD err;
+
+    sock = socket(domain, SOCK_DGRAM, 0);
+    if (sock == INVALID_SOCKET) {
+      err = WSAGetLastError();
+      QUEUE_REMOVE(&handle->handle_queue);
+      return uv_translate_sys_error(err);
+    }
+
+    err = uv_udp_set_socket(handle->loop, handle, sock, domain);
+    if (err) {
+      closesocket(sock);
+      QUEUE_REMOVE(&handle->handle_queue);
+      return uv_translate_sys_error(err);
+    }
+  }
+
   return 0;
+}
+
+
+int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
+  return uv_udp_init_ex(loop, handle, AF_UNSPEC);
 }
 
 
@@ -190,24 +227,23 @@ static int uv_udp_maybe_bind(uv_udp_t* handle,
       closesocket(sock);
       return err;
     }
-
-    if (flags & UV_UDP_REUSEADDR) {
-      DWORD yes = 1;
-      /* Set SO_REUSEADDR on the socket. */
-      if (setsockopt(sock,
-                     SOL_SOCKET,
-                     SO_REUSEADDR,
-                     (char*) &yes,
-                     sizeof yes) == SOCKET_ERROR) {
-        err = WSAGetLastError();
-        closesocket(sock);
-        return err;
-      }
-    }
-
-    if (addr->sa_family == AF_INET6)
-      handle->flags |= UV_HANDLE_IPV6;
   }
+
+  if (flags & UV_UDP_REUSEADDR) {
+    DWORD yes = 1;
+    /* Set SO_REUSEADDR on the socket. */
+    if (setsockopt(handle->socket,
+                   SOL_SOCKET,
+                   SO_REUSEADDR,
+                   (char*) &yes,
+                   sizeof yes) == SOCKET_ERROR) {
+      err = WSAGetLastError();
+      return err;
+    }
+  }
+
+  if (addr->sa_family == AF_INET6)
+    handle->flags |= UV_HANDLE_IPV6;
 
   if (addr->sa_family == AF_INET6 && !(flags & UV_UDP_IPV6ONLY)) {
     /* On windows IPV6ONLY is on by default. */

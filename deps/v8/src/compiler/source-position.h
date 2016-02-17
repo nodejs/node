@@ -20,16 +20,12 @@ class SourcePosition final {
 
   static SourcePosition Unknown() { return SourcePosition(kUnknownPosition); }
   bool IsUnknown() const { return raw() == kUnknownPosition; }
-
-  static SourcePosition Invalid() { return SourcePosition(kInvalidPosition); }
-  bool IsInvalid() const { return raw() == kInvalidPosition; }
+  bool IsKnown() const { return raw() != kUnknownPosition; }
 
   int raw() const { return raw_; }
 
  private:
-  static const int kInvalidPosition = -2;
   static const int kUnknownPosition = RelocInfo::kNoPosition;
-  STATIC_ASSERT(kInvalidPosition != kUnknownPosition);
   int raw_;
 };
 
@@ -61,9 +57,7 @@ class SourcePositionTable final {
 
    private:
     void Init(SourcePosition position) {
-      if (!position.IsUnknown() || prev_position_.IsInvalid()) {
-        source_positions_->current_position_ = position;
-      }
+      if (position.IsKnown()) source_positions_->current_position_ = position;
     }
 
     SourcePositionTable* const source_positions_;

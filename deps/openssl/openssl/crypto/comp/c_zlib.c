@@ -404,8 +404,9 @@ COMP_METHOD *COMP_zlib(void)
 void COMP_zlib_cleanup(void)
 {
 #ifdef ZLIB_SHARED
-    if (zlib_dso)
+    if (zlib_dso != NULL)
         DSO_free(zlib_dso);
+    zlib_dso = NULL;
 #endif
 }
 

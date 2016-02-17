@@ -94,11 +94,11 @@ static int int_x509_param_set_hosts(X509_VERIFY_PARAM_ID *id, int mode,
      * Refuse names with embedded NUL bytes, except perhaps as final byte.
      * XXX: Do we need to push an error onto the error stack?
      */
-    if (namelen == 0)
+    if (namelen == 0 || name == NULL)
         namelen = name ? strlen(name) : 0;
     else if (name && memchr(name, '\0', namelen > 1 ? namelen - 1 : namelen))
         return 0;
-    if (name && name[namelen - 1] == '\0')
+    if (namelen > 0 && name[namelen - 1] == '\0')
         --namelen;
 
     if (mode == SET_HOST && id->hosts) {
@@ -155,6 +155,7 @@ static void x509_verify_param_zero(X509_VERIFY_PARAM *param)
     }
     if (paramid->peername)
         OPENSSL_free(paramid->peername);
+    paramid->peername = NULL;
     if (paramid->email) {
         OPENSSL_free(paramid->email);
         paramid->email = NULL;
@@ -165,7 +166,6 @@ static void x509_verify_param_zero(X509_VERIFY_PARAM *param)
         paramid->ip = NULL;
         paramid->iplen = 0;
     }
-
 }
 
 X509_VERIFY_PARAM *X509_VERIFY_PARAM_new(void)
@@ -176,13 +176,20 @@ X509_VERIFY_PARAM *X509_VERIFY_PARAM_new(void)
     param = OPENSSL_malloc(sizeof *param);
     if (!param)
         return NULL;
-    paramid = OPENSSL_malloc(sizeof *paramid);
+    memset(param, 0, sizeof(*param));
+
+    paramid = OPENSSL_malloc(sizeof(*paramid));
     if (!paramid) {
         OPENSSL_free(param);
         return NULL;
     }
-    memset(param, 0, sizeof *param);
-    memset(paramid, 0, sizeof *paramid);
+    memset(paramid, 0, sizeof(*paramid));
+    /* Exotic platforms may have non-zero bit representation of NULL */
+    paramid->hosts = NULL;
+    paramid->peername = NULL;
+    paramid->email = NULL;
+    paramid->ip = NULL;
+
     param->id = paramid;
     x509_verify_param_zero(param);
     return param;

@@ -131,7 +131,7 @@ class OptimizingCompileDispatcher {
   // is not safe to access them directly.
   int recompilation_delay_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_OPTIMIZING_COMPILE_DISPATCHER_H_

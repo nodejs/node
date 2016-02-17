@@ -8,14 +8,19 @@
 #include <cmath>
 
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/heap/heap.h"
+#include "src/heap/incremental-marking-inl.h"
+#include "src/heap/mark-compact.h"
+#include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap/store-buffer-inl.h"
-#include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
+#include "src/log.h"
 #include "src/msan.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
+#include "src/type-feedback-vector-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -40,6 +45,45 @@ void PromotionQueue::insert(HeapObject* target, int size) {
                               reinterpret_cast<Address>(rear_));
 #endif
 }
+
+
+#define ROOT_ACCESSOR(type, name, camel_name) \
+  type* Heap::name() { return type::cast(roots_[k##camel_name##RootIndex]); }
+ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name) \
+  Map* Heap::name##_map() { return Map::cast(roots_[k##Name##MapRootIndex]); }
+STRUCT_LIST(STRUCT_MAP_ACCESSOR)
+#undef STRUCT_MAP_ACCESSOR
+
+#define STRING_ACCESSOR(name, str) \
+  String* Heap::name() { return String::cast(roots_[k##name##RootIndex]); }
+INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
+#undef STRING_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name) \
+  Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
+PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name, description) \
+  Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
+PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
+WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+#define ROOT_ACCESSOR(type, name, camel_name)                                 \
+  void Heap::set_##name(type* value) {                                        \
+    /* The deserializer makes use of the fact that these common roots are */  \
+    /* never in new space and never on a page that is being compacted.    */  \
+    DCHECK(!deserialization_complete() ||                                     \
+           RootCanBeWrittenAfterInitialization(k##camel_name##RootIndex));    \
+    DCHECK(k##camel_name##RootIndex >= kOldSpaceRoots || !InNewSpace(value)); \
+    roots_[k##camel_name##RootIndex] = value;                                 \
+  }
+ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
 
 template <>
@@ -81,12 +125,11 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
   // Compute map and object size.
   Map* map = one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
-  AllocationSpace space = SelectSpace(size, TENURED);
 
   // Allocate string.
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -113,12 +156,11 @@ AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   // Compute map and object size.
   Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
-  AllocationSpace space = SelectSpace(size, TENURED);
 
   // Allocate string.
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_SPACE);
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -149,20 +191,13 @@ AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
 }
 
 
-AllocationResult Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
-  if (src->length() == 0) return src;
-  return CopyConstantPoolArrayWithMap(src, src->map());
-}
-
-
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
-                                   AllocationSpace retry_space,
-                                   Alignment alignment) {
+                                   AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(gc_state_ == NOT_IN_GC);
 #ifdef DEBUG
-  if (FLAG_gc_interval >= 0 && AllowAllocationFailure::IsAllowed(isolate_) &&
+  if (FLAG_gc_interval >= 0 && !always_allocate() &&
       Heap::allocation_timeout_-- <= 0) {
     return AllocationResult::Retry(space);
   }
@@ -170,21 +205,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
 
-  HeapObject* object;
+  bool large_object = size_in_bytes > Page::kMaxRegularHeapObjectSize;
+  HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
-#ifndef V8_HOST_ARCH_64_BIT
-    if (alignment == kDoubleAligned) {
-      allocation = new_space_.AllocateRawDoubleAligned(size_in_bytes);
+    if (large_object) {
+      space = LO_SPACE;
     } else {
-      allocation = new_space_.AllocateRaw(size_in_bytes);
-    }
-#else
-    allocation = new_space_.AllocateRaw(size_in_bytes);
-#endif
-    if (always_allocate() && allocation.IsRetry() && retry_space != NEW_SPACE) {
-      space = retry_space;
-    } else {
+      allocation = new_space_.AllocateRaw(size_in_bytes, alignment);
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
@@ -192,28 +220,27 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     }
   }
 
+  // Here we only allocate in the old generation.
   if (OLD_SPACE == space) {
-#ifndef V8_HOST_ARCH_64_BIT
-    if (alignment == kDoubleAligned) {
-      allocation = old_space_->AllocateRawDoubleAligned(size_in_bytes);
+    if (large_object) {
+      allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
     } else {
-      allocation = old_space_->AllocateRaw(size_in_bytes);
+      allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
     }
-#else
-    allocation = old_space_->AllocateRaw(size_in_bytes);
-#endif
   } else if (CODE_SPACE == space) {
     if (size_in_bytes <= code_space()->AreaSize()) {
-      allocation = code_space_->AllocateRaw(size_in_bytes);
+      allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
-      // Large code objects are allocated in large object space.
       allocation = lo_space_->AllocateRaw(size_in_bytes, EXECUTABLE);
     }
   } else if (LO_SPACE == space) {
+    DCHECK(large_object);
     allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+  } else if (MAP_SPACE == space) {
+    allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
   } else {
-    DCHECK(MAP_SPACE == space);
-    allocation = map_space_->AllocateRaw(size_in_bytes);
+    // NEW_SPACE is not allowed here.
+    UNREACHABLE();
   }
   if (allocation.To(&object)) {
     OnAllocationEvent(object, size_in_bytes);
@@ -303,9 +330,8 @@ void Heap::UpdateAllocationsHash(uint32_t value) {
 }
 
 
-void Heap::PrintAlloctionsHash() {
-  uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
-  PrintF("\n### Allocations = %u, hash = 0x%08x\n", allocations_count_, hash);
+void Heap::RegisterExternalString(String* string) {
+  external_string_table_.AddString(string);
 }
 
 
@@ -441,9 +467,6 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
 }
 
 
-void Heap::ScavengePointer(HeapObject** p) { ScavengeObject(p, *p); }
-
-
 AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   // Check if there is potentially a memento behind the object. If
   // the last word of the memento is on another page we return
@@ -474,7 +497,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   Address top = NewSpaceTop();
   DCHECK(memento_address == top ||
          memento_address + HeapObject::kHeaderSize <= top ||
-         !NewSpacePage::OnSamePage(memento_address, top));
+         !NewSpacePage::OnSamePage(memento_address, top - 1));
   if (memento_address == top) return NULL;
 
   AllocationMemento* memento = AllocationMemento::cast(candidate);
@@ -501,33 +524,6 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
 }
 
 
-void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  DCHECK(object->GetIsolate()->heap()->InFromSpace(object));
-
-  // We use the first word (where the map pointer usually is) of a heap
-  // object to record the forwarding pointer.  A forwarding pointer can
-  // point to an old space, the code space, or the to space of the new
-  // generation.
-  MapWord first_word = object->map_word();
-
-  // If the first word is a forwarding address, the object has already been
-  // copied.
-  if (first_word.IsForwardingAddress()) {
-    HeapObject* dest = first_word.ToForwardingAddress();
-    DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
-    *p = dest;
-    return;
-  }
-
-  UpdateAllocationSiteFeedback(object, IGNORE_SCRATCHPAD_SLOT);
-
-  // AllocationMementos are unrooted and shouldn't survive a scavenge
-  DCHECK(object->map() != object->GetHeap()->allocation_memento_map());
-  // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object);
-}
-
-
 bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason,
                           const v8::GCCallbackFlags callbackFlags) {
   const char* collector_reason = NULL;
@@ -543,58 +539,7 @@ Isolate* Heap::isolate() {
 }
 
 
-// Calls the FUNCTION_CALL function and retries it up to three times
-// to guarantee that any allocations performed during the call will
-// succeed if there's enough memory.
-
-// Warning: Do not use the identifiers __object__, __maybe_object__ or
-// __scope__ in a call to this macro.
-
-#define RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE) \
-  if (__allocation__.To(&__object__)) {                   \
-    DCHECK(__object__ != (ISOLATE)->heap()->exception()); \
-    RETURN_VALUE;                                         \
-  }
-
-#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)    \
-  do {                                                                        \
-    AllocationResult __allocation__ = FUNCTION_CALL;                          \
-    Object* __object__ = NULL;                                                \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
-    /* Two GCs before panicking.  In newspace will almost always succeed. */  \
-    for (int __i__ = 0; __i__ < 2; __i__++) {                                 \
-      (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),          \
-                                        "allocation failure");                \
-      __allocation__ = FUNCTION_CALL;                                         \
-      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                       \
-    }                                                                         \
-    (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();        \
-    (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");          \
-    {                                                                         \
-      AlwaysAllocateScope __scope__(ISOLATE);                                 \
-      __allocation__ = FUNCTION_CALL;                                         \
-    }                                                                         \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
-    /* TODO(1181417): Fix this. */                                            \
-    v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true); \
-    RETURN_EMPTY;                                                             \
-  } while (false)
-
-#define CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL, RETURN_VALUE, \
-                              RETURN_EMPTY)                         \
-  CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)
-
-#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
-  CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL,                               \
-                        return Handle<TYPE>(TYPE::cast(__object__), ISOLATE), \
-                        return Handle<TYPE>())
-
-
-#define CALL_HEAP_FUNCTION_VOID(ISOLATE, FUNCTION_CALL) \
-  CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL, return, return)
-
-
-void ExternalStringTable::AddString(String* string) {
+void Heap::ExternalStringTable::AddString(String* string) {
   DCHECK(string->IsExternalString());
   if (heap_->InNewSpace(string)) {
     new_space_strings_.Add(string);
@@ -604,7 +549,7 @@ void ExternalStringTable::AddString(String* string) {
 }
 
 
-void ExternalStringTable::Iterate(ObjectVisitor* v) {
+void Heap::ExternalStringTable::Iterate(ObjectVisitor* v) {
   if (!new_space_strings_.is_empty()) {
     Object** start = &new_space_strings_[0];
     v->VisitPointers(start, start + new_space_strings_.length());
@@ -618,7 +563,7 @@ void ExternalStringTable::Iterate(ObjectVisitor* v) {
 
 // Verify() is inline to avoid ifdef-s around its calls in release
 // mode.
-void ExternalStringTable::Verify() {
+void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     Object* obj = Object::cast(new_space_strings_[i]);
@@ -634,20 +579,41 @@ void ExternalStringTable::Verify() {
 }
 
 
-void ExternalStringTable::AddOldString(String* string) {
+void Heap::ExternalStringTable::AddOldString(String* string) {
   DCHECK(string->IsExternalString());
   DCHECK(!heap_->InNewSpace(string));
   old_space_strings_.Add(string);
 }
 
 
-void ExternalStringTable::ShrinkNewStrings(int position) {
+void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
   new_space_strings_.Rewind(position);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
 #endif
+}
+
+
+int DescriptorLookupCache::Lookup(Map* source, Name* name) {
+  if (!name->IsUniqueName()) return kAbsent;
+  int index = Hash(source, name);
+  Key& key = keys_[index];
+  if ((key.source == source) && (key.name == name)) return results_[index];
+  return kAbsent;
+}
+
+
+void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
+  DCHECK(result != kAbsent);
+  if (name->IsUniqueName()) {
+    int index = Hash(source, name);
+    Key& key = keys_[index];
+    key.source = source;
+    key.name = name;
+    results_[index] = result;
+  }
 }
 
 
@@ -667,27 +633,57 @@ void Heap::CompletelyClearInstanceofCache() {
 }
 
 
+uint32_t Heap::HashSeed() {
+  uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
+  DCHECK(FLAG_randomize_hashes || seed == 0);
+  return seed;
+}
+
+
+int Heap::NextScriptId() {
+  int last_id = last_script_id()->value();
+  if (last_id == Smi::kMaxValue) {
+    last_id = 1;
+  } else {
+    last_id++;
+  }
+  set_last_script_id(Smi::FromInt(last_id));
+  return last_id;
+}
+
+
+void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
+  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+  set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+
+void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+
+void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
+  DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+
+void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
+  DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
-    : heap_(isolate->heap()), daf_(isolate) {
-  heap_->always_allocate_scope_depth_++;
+    : heap_(isolate->heap()) {
+  heap_->always_allocate_scope_count_.Increment(1);
 }
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
-  heap_->always_allocate_scope_depth_--;
-}
-
-
-GCCallbacksScope::GCCallbacksScope(Heap* heap) : heap_(heap) {
-  heap_->gc_callbacks_depth_++;
-}
-
-
-GCCallbacksScope::~GCCallbacksScope() { heap_->gc_callbacks_depth_--; }
-
-
-bool GCCallbacksScope::CheckReenter() {
-  return heap_->gc_callbacks_depth_ == 1;
+  heap_->always_allocate_scope_count_.Increment(-1);
 }
 
 
@@ -707,7 +703,7 @@ void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
     CHECK((*current)->IsSmi());
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_HEAP_INL_H_

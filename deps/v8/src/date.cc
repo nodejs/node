@@ -4,8 +4,6 @@
 
 #include "src/date.h"
 
-#include "src/v8.h"
-
 #include "src/objects.h"
 #include "src/objects-inl.h"
 
@@ -359,4 +357,5 @@ DateCache::DST* DateCache::LeastRecentlyUsedDST(DST* skip) {
   return result;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

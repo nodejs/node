@@ -2,27 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(Throw) {
-  i::FLAG_turbo_exceptions = true;
   FunctionTester T("(function(a,b) { if (a) { throw b; } else { return b; }})");
 
-// TODO(mstarzinger)
-#if 0
   T.CheckThrows(T.true_value(), T.NewObject("new Error"));
-#endif
   T.CheckCall(T.Val(23), T.false_value(), T.Val(23));
 }
 
 
 TEST(ThrowMessagePosition) {
-  i::FLAG_turbo_exceptions = true;
   static const char* src =
       "(function(a, b) {        \n"
       "  if (a == 1) throw 1;   \n"
@@ -31,44 +28,43 @@ TEST(ThrowMessagePosition) {
       "  throw 4;               \n"
       "})                       ";
   FunctionTester T(src);
-  v8::Handle<v8::Message> message;
+  v8::Local<v8::Message> message;
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
   message = T.CheckThrowsReturnMessage(T.Val(1), T.undefined());
-  CHECK_EQ(2, message->GetLineNumber());
+  CHECK_EQ(2, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(40, message->GetStartPosition());
 
   message = T.CheckThrowsReturnMessage(T.Val(2), T.undefined());
-  CHECK_EQ(3, message->GetLineNumber());
+  CHECK_EQ(3, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(67, message->GetStartPosition());
 
   message = T.CheckThrowsReturnMessage(T.Val(3), T.undefined());
-  CHECK_EQ(4, message->GetLineNumber());
+  CHECK_EQ(4, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(95, message->GetStartPosition());
 }
 
 
 TEST(ThrowMessageDirectly) {
-  i::FLAG_turbo_exceptions = true;
   static const char* src =
       "(function(a, b) {"
       "  if (a) { throw b; } else { throw new Error(b); }"
       "})";
   FunctionTester T(src);
-  v8::Handle<v8::Message> message;
+  v8::Local<v8::Message> message;
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Maybe<bool> t = v8::Just(true);
 
-// TODO(mstarzinger)
-#if 0
   message = T.CheckThrowsReturnMessage(T.false_value(), T.Val("Wat?"));
-  CHECK(message->Get()->Equals(v8_str("Uncaught Error: Wat?")));
+  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Error: Wat?")));
 
   message = T.CheckThrowsReturnMessage(T.true_value(), T.Val("Kaboom!"));
-  CHECK(message->Get()->Equals(v8_str("Uncaught Kaboom!")));
-#endif
+  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Kaboom!")));
 }
 
 
 TEST(ThrowMessageIndirectly) {
-  i::FLAG_turbo_exceptions = true;
+  i::FLAG_turbo_try_finally = true;
   static const char* src =
       "(function(a, b) {"
       "  try {"
@@ -78,25 +74,19 @@ TEST(ThrowMessageIndirectly) {
       "  }"
       "})";
   FunctionTester T(src);
-  v8::Handle<v8::Message> message;
+  v8::Local<v8::Message> message;
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Maybe<bool> t = v8::Just(true);
 
-// TODO(mstarzinger)
-#if 0
   message = T.CheckThrowsReturnMessage(T.false_value(), T.Val("Wat?"));
-  CHECK(message->Get()->Equals(v8_str("Uncaught Error: Wat?")));
+  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Error: Wat?")));
 
   message = T.CheckThrowsReturnMessage(T.true_value(), T.Val("Kaboom!"));
-  CHECK(message->Get()->Equals(v8_str("Uncaught Kaboom!")));
-#endif
+  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Kaboom!")));
 }
 
 
-// TODO(mstarzinger): Increase test coverage by having similar tests within the
-// mjsunit suite to also test integration with other components (e.g. OSR).
-
-
 TEST(Catch) {
-  i::FLAG_turbo_exceptions = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -115,7 +105,6 @@ TEST(Catch) {
 
 
 TEST(CatchNested) {
-  i::FLAG_turbo_exceptions = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -139,7 +128,6 @@ TEST(CatchNested) {
 
 
 TEST(CatchBreak) {
-  i::FLAG_turbo_exceptions = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -164,7 +152,6 @@ TEST(CatchBreak) {
 
 
 TEST(CatchCall) {
-  i::FLAG_turbo_exceptions = true;
   const char* src =
       "(function(fun) {"
       "  var r = '-';"
@@ -186,7 +173,7 @@ TEST(CatchCall) {
 
 
 TEST(Finally) {
-  i::FLAG_turbo_exceptions = true;
+  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -204,7 +191,7 @@ TEST(Finally) {
 
 
 TEST(FinallyBreak) {
-  i::FLAG_turbo_exceptions = true;
+  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -228,8 +215,6 @@ TEST(FinallyBreak) {
 
 
 TEST(DeoptTry) {
-  i::FLAG_turbo_exceptions = true;
-  i::FLAG_turbo_deoptimization = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -246,8 +231,6 @@ TEST(DeoptTry) {
 
 
 TEST(DeoptCatch) {
-  i::FLAG_turbo_exceptions = true;
-  i::FLAG_turbo_deoptimization = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -264,8 +247,7 @@ TEST(DeoptCatch) {
 
 
 TEST(DeoptFinallyReturn) {
-  i::FLAG_turbo_exceptions = true;
-  i::FLAG_turbo_deoptimization = true;
+  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -282,8 +264,7 @@ TEST(DeoptFinallyReturn) {
 
 
 TEST(DeoptFinallyReThrow) {
-  i::FLAG_turbo_exceptions = true;
-  i::FLAG_turbo_deoptimization = true;
+  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -298,3 +279,7 @@ TEST(DeoptFinallyReThrow) {
   T.CheckThrows(T.NewObject("new Error"), T.Val(1));
 #endif
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

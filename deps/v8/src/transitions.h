@@ -41,6 +41,14 @@ class TransitionArray: public FixedArray {
 
   static Map* SearchTransition(Map* map, PropertyKind kind, Name* name,
                                PropertyAttributes attributes);
+  static MaybeHandle<Map> SearchTransition(Handle<Map> map, PropertyKind kind,
+                                           Handle<Name> name,
+                                           PropertyAttributes attributes) {
+    if (Map* transition = SearchTransition(*map, kind, *name, attributes)) {
+      return handle(transition);
+    }
+    return MaybeHandle<Map>();
+  }
 
   static Map* SearchSpecial(Map* map, Symbol* name);
 
@@ -92,9 +100,8 @@ class TransitionArray: public FixedArray {
   //    0: finger - index of the first free cell in the cache
   //    1 + i: target map
   static const int kMaxCachedPrototypeTransitions = 256;
-  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
-                                            Handle<Object> prototype,
-                                            Handle<Map> target_map);
+  static void PutPrototypeTransition(Handle<Map> map, Handle<Object> prototype,
+                                     Handle<Map> target_map);
 
   static Handle<Map> GetPrototypeTransition(Handle<Map> map,
                                             Handle<Object> prototype);
@@ -303,6 +310,7 @@ class TransitionArray: public FixedArray {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TRANSITIONS_H_

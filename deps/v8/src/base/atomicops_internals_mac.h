@@ -210,6 +210,7 @@ inline Atomic64 Release_Load(volatile const Atomic64* ptr) {
 #endif  // defined(__LP64__)
 
 #undef ATOMICOPS_COMPILER_BARRIER
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_ATOMICOPS_INTERNALS_MAC_H_

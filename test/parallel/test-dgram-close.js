@@ -2,9 +2,9 @@
 // Ensure that if a dgram socket is closed before the DNS lookup completes, it
 // won't crash.
 
-var assert = require('assert'),
-    common = require('../common'),
-    dgram = require('dgram');
+const assert = require('assert');
+const common = require('../common');
+const dgram = require('dgram');
 
 var buf = new Buffer(1024);
 buf.fill(42);

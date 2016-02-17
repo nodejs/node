@@ -1,12 +1,13 @@
-.TH "NPM\-VIEW" "1" "July 2015" "" ""
+.TH "NPM\-VIEW" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-view\fR \- View registry info
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm view [@<scope>/]<name>[@<version>] [<field>[\.<subfield>]\.\.\.]
-npm v [@<scope>/]<name>[@<version>] [<field>[\.<subfield>]\.\.\.]
+npm view [<@scope>/]<name>[@<version>] [<field>[\.<subfield>]\.\.\.]
+
+aliases: info, show, v
 .fi
 .RE
 .SH DESCRIPTION
@@ -76,7 +77,7 @@ npm view express contributors[0]\.email
 .RE
 .P
 Multiple fields may be specified, and will be printed one after another\.
-For exampls, to get all the contributor names and email addresses, you
+For example, to get all the contributor names and email addresses, you
 can do this:
 .P
 .RS 2

@@ -105,15 +105,6 @@ If a bindings.gyp file exists, and there is not already a
 `scripts.install` field, then the `scripts.install` field will be set to
 `node-gyp rebuild`.
 
-### `wscript`
-
-If a wscript file exists, and there is not already a `scripts.install`
-field, then the `scripts.install` field will be set to `node-waf clean ;
-node-waf configure build`.
-
-Note that the `bindings.gyp` file supercedes this, since node-waf has
-been deprecated in favor of node-gyp.
-
 ### `index.js`
 
 If the json file does not exist, but there is a `index.js` file

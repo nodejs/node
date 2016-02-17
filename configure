@@ -25,10 +25,12 @@ import nodedownload
 # parse our options
 parser = optparse.OptionParser()
 
-valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux', 'android')
+valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
+            'android', 'aix')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'ppc', 'ppc64', 'x32',
               'x64', 'x86')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
+valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
@@ -82,13 +84,28 @@ parser.add_option("--fully-static",
     action="store_true",
     dest="fully_static",
     help="Generate an executable without external dynamic libraries. This "
-         "will not work on OSX when using default compilation environment")
+         "will not work on OSX when using the default compilation environment")
+
+parser.add_option("--partly-static",
+    action="store_true",
+    dest="partly_static",
+    help="Generate an executable with libgcc and libstdc++ libraries. This "
+         "will not work on OSX when using the default compilation environment")
+
+parser.add_option("--enable-vtune-profiling",
+    action="store_true",
+    dest="enable_vtune_profiling",
+    help="Enable profiling support for Intel VTune profiler to profile"
+         "JavaScript code executed in nodejs. This feature is only available "
+         "for x32, x86 and x64 architectures.")
+
 
 parser.add_option("--link-module",
     action="append",
     dest="linked_module",
     help="Path to a JS file to be bundled in the binary as a builtin."
-         "This module will be referenced by basename without extension."
+         "This module will be referenced by path without extension."
+         "e.g. /root/x/y.js will be referenced via require('root/x/y')."
          "Can be used multiple times")
 
 parser.add_option("--openssl-no-asm",
@@ -187,12 +204,10 @@ shared_optgroup.add_option('--shared-zlib-libpath',
 
 parser.add_option_group(shared_optgroup)
 
-# TODO document when we've decided on what the tracing API and its options will
-# look like
 parser.add_option('--systemtap-includes',
     action='store',
     dest='systemtap_includes',
-    help=optparse.SUPPRESS_HELP)
+    help='directory containing systemtap header files')
 
 parser.add_option('--tag',
     action='store',
@@ -204,7 +219,7 @@ parser.add_option('--release-urlbase',
     dest='release_urlbase',
     help='Provide a custom URL prefix for the `process.release` properties '
          '`sourceUrl` and `headersUrl`. When compiling a release build, this '
-         'will default to https://iojs.org/download/release/')
+         'will default to https://nodejs.org/download/release/')
 
 parser.add_option('--v8-options',
     action='store',
@@ -217,6 +232,13 @@ parser.add_option('--with-arm-float-abi',
     choices=valid_arm_float_abi,
     help='specifies which floating-point ABI to use ({0}).'.format(
         ', '.join(valid_arm_float_abi)))
+
+parser.add_option('--with-arm-fpu',
+    action='store',
+    dest='arm_fpu',
+    choices=valid_arm_fpu,
+    help='ARM FPU mode ({0}) [default: %default]'.format(
+        ', '.join(valid_arm_fpu)))
 
 parser.add_option('--with-mips-arch-variant',
     action='store',
@@ -287,6 +309,12 @@ intl_optgroup.add_option('--download',
     dest='download_list',
     help=nodedownload.help())
 
+intl_optgroup.add_option('--download-path',
+    action='store',
+    dest='download_path',
+    default=os.path.join(root_dir, 'deps'),
+    help='Download directory [default: %default]')
+
 parser.add_option_group(intl_optgroup)
 
 parser.add_option('--with-perfctr',
@@ -334,6 +362,11 @@ parser.add_option('--xcode',
     action='store_true',
     dest='use_xcode',
     help='generate build files for use with xcode')
+
+parser.add_option('--enable-asan',
+    action='store_true',
+    dest='enable_asan',
+    help='build with asan')
 
 parser.add_option('--enable-static',
     action='store_true',
@@ -405,7 +438,7 @@ def try_check_compiler(cc, lang):
 #
 # The version of asm compiler is needed for building openssl asm files.
 # See deps/openssl/openssl.gypi for detail.
-# Commands and reglar expressions to obtain its version number is taken from
+# Commands and regular expressions to obtain its version number are taken from
 # https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
 #
 def get_llvm_version(cc):
@@ -477,7 +510,7 @@ def check_compiler(o):
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
-    # Need llvm_version or gas_version when openssl asm files are compiled
+  # Need llvm_version or gas_version when openssl asm files are compiled
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
     return
 
@@ -487,11 +520,11 @@ def check_compiler(o):
     o['variables']['gas_version'] = get_gas_version(CC)
 
 
-def cc_macros():
-  """Checks predefined macros using the CC command."""
+def cc_macros(cc=None):
+  """Checks predefined macros using the C compiler command."""
 
   try:
-    p = subprocess.Popen(shlex.split(CC) + ['-dM', '-E', '-'],
+    p = subprocess.Popen(shlex.split(cc or CC) + ['-dM', '-E', '-'],
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
@@ -522,18 +555,13 @@ def cc_macros():
 def is_arch_armv7():
   """Check for ARMv7 instructions"""
   cc_macros_cache = cc_macros()
-  return ('__ARM_ARCH_7__' in cc_macros_cache or
-          '__ARM_ARCH_7A__' in cc_macros_cache or
-          '__ARM_ARCH_7R__' in cc_macros_cache or
-          '__ARM_ARCH_7M__' in cc_macros_cache or
-          '__ARM_ARCH_7S__' in cc_macros_cache)
+  return cc_macros_cache.get('__ARM_ARCH') == '7'
 
 
 def is_arch_armv6():
   """Check for ARMv6 instructions"""
   cc_macros_cache = cc_macros()
-  return ('__ARM_ARCH_6__' in cc_macros_cache or
-          '__ARM_ARCH_6M__' in cc_macros_cache)
+  return cc_macros_cache.get('__ARM_ARCH') == '6'
 
 
 def is_arm_hard_float_abi():
@@ -549,12 +577,18 @@ def is_arm_hard_float_abi():
 def host_arch_cc():
   """Host architecture check using the CC command."""
 
-  k = cc_macros()
+  if sys.platform.startswith('aix'):
+    # we only support gcc at this point and the default on AIX
+    # would be xlc so hard code gcc
+    k = cc_macros('gcc')
+  else:
+    k = cc_macros(os.environ.get('CC_host'))
 
   matchup = {
     '__aarch64__' : 'arm64',
     '__arm__'     : 'arm',
     '__i386__'    : 'ia32',
+    '__MIPSEL__'  : 'mipsel',
     '__mips__'    : 'mips',
     '__PPC64__'   : 'ppc64',
     '__PPC__'     : 'ppc',
@@ -595,19 +629,22 @@ def configure_arm(o):
   else:
     arm_float_abi = 'default'
 
+  arm_fpu = 'vfp'
+
   if is_arch_armv7():
-    o['variables']['arm_fpu'] = 'vfpv3'
+    arm_fpu = 'vfpv3'
     o['variables']['arm_version'] = '7'
   else:
-    o['variables']['arm_fpu'] = 'vfpv2'
     o['variables']['arm_version'] = '6' if is_arch_armv6() else 'default'
 
   o['variables']['arm_thumb'] = 0      # -marm
   o['variables']['arm_float_abi'] = arm_float_abi
 
   if options.dest_os == 'android':
-    o['variables']['arm_fpu'] = 'vfpv3'
+    arm_fpu = 'vfpv3'
     o['variables']['arm_version'] = '7'
+
+  o['variables']['arm_fpu'] = options.arm_fpu or arm_fpu
 
 
 def configure_mips(o):
@@ -644,6 +681,19 @@ def configure_node(o):
     configure_arm(o)
   elif target_arch in ('mips', 'mipsel'):
     configure_mips(o)
+
+  if flavor == 'aix':
+    o['variables']['node_core_target_name'] = 'node_base'
+    o['variables']['node_target_type'] = 'static_library'
+
+  if target_arch in ('x86', 'x64', 'ia32', 'x32'):
+    o['variables']['node_enable_v8_vtunejit'] = b(options.enable_vtune_profiling)
+  elif options.enable_vtune_profiling:
+    raise Exception(
+       'The VTune profiler for JavaScript is only supported on x32, x86 and x64 '
+       'architectures.')
+  else:
+    o['variables']['node_enable_v8_vtunejit'] = 'false'
 
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace
@@ -707,6 +757,7 @@ def configure_node(o):
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module
 
+  o['variables']['asan'] = int(options.enable_asan or 0)
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
@@ -718,11 +769,15 @@ def configure_library(lib, output):
     if pkg_cflags:
       output['include_dirs'] += (
           filter(None, map(str.strip, pkg_cflags.split('-I'))))
+    elif options.__dict__[shared_lib + '_includes']:
+      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
 
     # libpath needs to be provided ahead libraries
     if pkg_libpath:
-      output['libraries'] += (
-          filter(None, map(str.strip, pkg_cflags.split('-L'))))
+      output['libraries'] += [pkg_libpath]
+    elif options.__dict__[shared_lib + '_libpath']:
+      output['libraries'] += [
+          '-L%s' % options.__dict__[shared_lib + '_libpath']]
 
     default_libs = getattr(options, shared_lib + '_libname')
     default_libs = map('-l{0}'.format, default_libs.split(','))
@@ -738,7 +793,7 @@ def configure_v8(o):
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
-  o['variables']['v8_use_snapshot'] = 0 if options.without_snapshot else 1
+  o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
 
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
@@ -748,7 +803,7 @@ def configure_openssl(o):
     o['variables']['openssl_fips'] = options.openssl_fips
     fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
     fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
-    o['make_global_settings'] = [
+    o['make_fips_settings'] = [
       ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
     ]
   else:
@@ -760,12 +815,19 @@ def configure_openssl(o):
   configure_library('openssl', o)
 
 
-def configure_fullystatic(o):
-  if options.fully_static:
-    o['libraries'] += ['-static']
+def configure_static(o):
+  if options.fully_static or options.partly_static:
     if flavor == 'mac':
       print("Generation of static executable will not work on OSX "
-            "when using default compilation environment")
+            "when using the default compilation environment")
+      return
+
+    if options.fully_static:
+      o['libraries'] += ['-static']
+    elif options.partly_static:
+      o['libraries'] += ['-static-libgcc', '-static-libstdc++']
+      if options.enable_asan:
+        o['libraries'] += ['-static-libasan']
 
 
 def configure_winsdk(o):
@@ -813,18 +875,21 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'http://download.icu-project.org/files/icu4c/55.1/icu4c-55_1-src.zip',
-      # from https://ssl.icu-project.org/files/icu4c/55.1/icu4c-src-55_1.md5:
-      'md5': '4cddf1e1d47622fdd9de2cd7bb5001fd',
+      'url': 'https://ssl.icu-project.org/files/icu4c/56.1/icu4c-56_1-src.zip',
+      'md5': '61d71888f14bf00cc3e8a6f2c087d367',
     },
   ]
   def icu_download(path):
     # download ICU, if needed
+    if not os.access(options.download_path, os.W_OK):
+      print 'Error: cannot write to desired download path. ' \
+            'Either create it or verify permissions.'
+      sys.exit(1)
     for icu in icus:
       url = icu['url']
       md5 = icu['md5']
       local = url.split('/')[-1]
-      targetfile = os.path.join(root_dir, 'deps', local)
+      targetfile = os.path.join(options.download_path, local)
       if not os.path.isfile(targetfile):
         if nodedownload.candownload(auto_downloads, "icu"):
           nodedownload.retrievefile(url, targetfile)
@@ -983,7 +1048,7 @@ def configure_intl(o):
   if not icu_ver_major:
     print ' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h
     sys.exit(1)
-  icu_endianness = sys.byteorder[0];  # TODO(srl295): EBCDIC should be 'e'
+  icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
   icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')
@@ -1035,7 +1100,7 @@ def configure_intl(o):
   return  # end of configure_intl
 
 output = {
-  'variables': { 'python': sys.executable },
+  'variables': {},
   'include_dirs': [],
   'libraries': [],
   'defines': [],
@@ -1060,12 +1125,21 @@ configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
 configure_intl(output)
-configure_fullystatic(output)
+configure_static(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults
 variables = output['variables']
 del output['variables']
+
+# make_global_settings for special FIPS linking
+# should not be used to compile modules in node-gyp
+config_fips = { 'make_global_settings' : [] }
+if 'make_fips_settings' in output:
+  config_fips['make_global_settings'] = output['make_fips_settings']
+  del output['make_fips_settings']
+  write('config_fips.gypi', do_not_edit +
+        pprint.pformat(config_fips, indent=2) + '\n')
 
 # make_global_settings should be a root level element too
 if 'make_global_settings' in output:

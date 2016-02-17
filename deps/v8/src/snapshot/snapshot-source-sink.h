@@ -101,7 +101,7 @@ class SnapshotByteSink {
   List<byte> data_;
 };
 
-}  // namespace v8::internal
+}  // namespace internal
 }  // namespace v8
 
 #endif  // V8_SNAPSHOT_SNAPSHOT_SOURCE_SINK_H_

@@ -45,8 +45,6 @@ PASS myFunctionWithApply.aliasedApply(myObject, ['arg1']) is [myObject, "myFunct
 PASS myFunctionWithApply.apply(myObject, arg1Array) is [myFunctionWithApply, "myFunctionWithApply.apply", myObject]
 PASS forwarder(myFunctionWithApply, myObject, arg1Array) is [myFunctionWithApply, "myFunctionWithApply.apply", myObject]
 PASS myFunctionWithApply.aliasedApply(myObject, arg1Array) is [myObject, "myFunctionWithApply", "arg1"]
-PASS myFunction.apply(null, new Array(5000000)) threw exception RangeError: Maximum call stack size exceeded.
-PASS myFunction.apply(null, new Array(1 << 30)) threw exception RangeError: Maximum call stack size exceeded.
 PASS recurseArguments.apply(null, new Array(50000)) threw exception RangeError: Maximum call stack size exceeded.
 PASS successfullyParsed is true
 

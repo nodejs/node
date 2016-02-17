@@ -30,13 +30,15 @@ class StoreBuffer {
 
   static void StoreBufferOverflow(Isolate* isolate);
 
-  inline Address TopAddress();
-
   void SetUp();
   void TearDown();
 
-  // This is used by the mutator to enter addresses into the store buffer.
+  // This is used to add addresses to the store buffer non-concurrently.
   inline void Mark(Address addr);
+
+  // This is used to add addresses to the store buffer when multiple threads
+  // may operate on the store buffer.
+  inline void MarkSynchronized(Address addr);
 
   // This is used by the heap traversal to enter the addresses into the store
   // buffer that should still be in the store buffer after GC.  It enters
@@ -131,6 +133,9 @@ class StoreBuffer {
   uintptr_t* hash_set_2_;
   bool hash_sets_are_empty_;
 
+  // Used for synchronization of concurrent store buffer access.
+  base::Mutex mutex_;
+
   void ClearFilteringHashSets();
 
   bool SpaceAvailable(intptr_t space_needed);
@@ -159,6 +164,26 @@ class StoreBuffer {
 
   friend class StoreBufferRebuildScope;
   friend class DontMoveStoreBufferEntriesScope;
+};
+
+
+class StoreBufferRebuilder {
+ public:
+  explicit StoreBufferRebuilder(StoreBuffer* store_buffer)
+      : store_buffer_(store_buffer) {}
+
+  void Callback(MemoryChunk* page, StoreBufferEvent event);
+
+ private:
+  StoreBuffer* store_buffer_;
+
+  // We record in this variable how full the store buffer was when we started
+  // iterating over the current page, finding pointers to new space.  If the
+  // store buffer overflows again we can exempt the page from the store buffer
+  // by rewinding to this point instead of having to search the store buffer.
+  Object*** start_of_current_page_;
+  // The current page we are scanning in the store buffer iterator.
+  MemoryChunk* current_page_;
 };
 
 
@@ -202,7 +227,7 @@ class DontMoveStoreBufferEntriesScope {
   StoreBuffer* store_buffer_;
   bool stored_state_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STORE_BUFFER_H_

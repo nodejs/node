@@ -22,8 +22,8 @@ if (cluster.isMaster) {
   }));
 }
 else {
-  var s = net.createServer(assert.fail);
-  s.listen(42, assert.fail.bind(null, 'listen should have failed'));
+  var s = net.createServer(common.fail);
+  s.listen(42, common.fail.bind(null, 'listen should have failed'));
   s.on('error', common.mustCall(function(err) {
     assert.equal(err.code, 'EACCES');
     process.disconnect();

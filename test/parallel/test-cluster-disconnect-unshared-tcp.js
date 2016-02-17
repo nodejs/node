@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 process.env.NODE_CLUSTER_SCHED_POLICY = 'none';
 
 var cluster = require('cluster');

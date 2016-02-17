@@ -40,11 +40,48 @@
 #include <deque>
 
 #include "src/assembler.h"
-#include "src/compiler.h"
 #include "src/isolate.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+#define GENERAL_REGISTERS(V) \
+  V(eax)                     \
+  V(ecx)                     \
+  V(edx)                     \
+  V(ebx)                     \
+  V(esp)                     \
+  V(ebp)                     \
+  V(esi)                     \
+  V(edi)
+
+#define ALLOCATABLE_GENERAL_REGISTERS(V) \
+  V(eax)                                 \
+  V(ecx)                                 \
+  V(edx)                                 \
+  V(ebx)                                 \
+  V(esi)                                 \
+  V(edi)
+
+#define DOUBLE_REGISTERS(V) \
+  V(xmm0)                   \
+  V(xmm1)                   \
+  V(xmm2)                   \
+  V(xmm3)                   \
+  V(xmm4)                   \
+  V(xmm5)                   \
+  V(xmm6)                   \
+  V(xmm7)
+
+#define ALLOCATABLE_DOUBLE_REGISTERS(V) \
+  V(xmm1)                               \
+  V(xmm2)                               \
+  V(xmm3)                               \
+  V(xmm4)                               \
+  V(xmm5)                               \
+  V(xmm6)                               \
+  V(xmm7)
 
 // CPU Registers.
 //
@@ -68,151 +105,86 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  static const int kMaxNumAllocatableRegisters = 6;
-  static int NumAllocatableRegisters() {
-    return kMaxNumAllocatableRegisters;
-  }
-  static const int kNumRegisters = 8;
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    GENERAL_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
 
-  static inline const char* AllocationIndexToString(int index);
-
-  static inline int ToAllocationIndex(Register reg);
-
-  static inline Register FromAllocationIndex(int index);
+  static const int kNumRegisters = Code::kAfterLast;
 
   static Register from_code(int code) {
     DCHECK(code >= 0);
     DCHECK(code < kNumRegisters);
-    Register r = { code };
+    Register r = {code};
     return r;
   }
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
-  bool is(Register reg) const { return code_ == reg.code_; }
-  // eax, ebx, ecx and edx are byte registers, the rest are not.
-  bool is_byte_register() const { return code_ <= 3; }
+  const char* ToString();
+  bool IsAllocatable() const;
+  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
+  bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
     DCHECK(is_valid());
-    return code_;
+    return reg_code;
   }
   int bit() const {
     DCHECK(is_valid());
-    return 1 << code_;
+    return 1 << reg_code;
   }
+
+  bool is_byte_register() const { return reg_code <= 3; }
 
   // Unfortunately we can't make this private in a struct.
-  int code_;
+  int reg_code;
 };
 
-const int kRegister_eax_Code = 0;
-const int kRegister_ecx_Code = 1;
-const int kRegister_edx_Code = 2;
-const int kRegister_ebx_Code = 3;
-const int kRegister_esp_Code = 4;
-const int kRegister_ebp_Code = 5;
-const int kRegister_esi_Code = 6;
-const int kRegister_edi_Code = 7;
-const int kRegister_no_reg_Code = -1;
 
-const Register eax = { kRegister_eax_Code };
-const Register ecx = { kRegister_ecx_Code };
-const Register edx = { kRegister_edx_Code };
-const Register ebx = { kRegister_ebx_Code };
-const Register esp = { kRegister_esp_Code };
-const Register ebp = { kRegister_ebp_Code };
-const Register esi = { kRegister_esi_Code };
-const Register edi = { kRegister_edi_Code };
-const Register no_reg = { kRegister_no_reg_Code };
+#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
+GENERAL_REGISTERS(DECLARE_REGISTER)
+#undef DECLARE_REGISTER
+const Register no_reg = {Register::kCode_no_reg};
 
 
-inline const char* Register::AllocationIndexToString(int index) {
-  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-  // This is the mapping of allocation indices to registers.
-  const char* const kNames[] = { "eax", "ecx", "edx", "ebx", "esi", "edi" };
-  return kNames[index];
-}
+struct DoubleRegister {
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    DOUBLE_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
 
+  static const int kMaxNumRegisters = Code::kAfterLast;
 
-inline int Register::ToAllocationIndex(Register reg) {
-  DCHECK(reg.is_valid() && !reg.is(esp) && !reg.is(ebp));
-  return (reg.code() >= 6) ? reg.code() - 2 : reg.code();
-}
-
-
-inline Register Register::FromAllocationIndex(int index)  {
-  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-  return (index >= 4) ? from_code(index + 2) : from_code(index);
-}
-
-
-struct XMMRegister {
-  static const int kMaxNumAllocatableRegisters = 7;
-  static const int kMaxNumRegisters = 8;
-  static int NumAllocatableRegisters() {
-    return kMaxNumAllocatableRegisters;
-  }
-
-  // TODO(turbofan): Proper support for float32.
-  static int NumAllocatableAliasedRegisters() {
-    return NumAllocatableRegisters();
-  }
-
-  static int ToAllocationIndex(XMMRegister reg) {
-    DCHECK(reg.code() != 0);
-    return reg.code() - 1;
-  }
-
-  static XMMRegister FromAllocationIndex(int index) {
-    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-    return from_code(index + 1);
-  }
-
-  static XMMRegister from_code(int code) {
-    XMMRegister result = { code };
+  static DoubleRegister from_code(int code) {
+    DoubleRegister result = {code};
     return result;
   }
 
-  bool is_valid() const {
-    return 0 <= code_ && code_ < kMaxNumRegisters;
-  }
+  bool IsAllocatable() const;
+  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
 
   int code() const {
     DCHECK(is_valid());
-    return code_;
+    return reg_code;
   }
 
-  bool is(XMMRegister reg) const { return code_ == reg.code_; }
+  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
 
-  static const char* AllocationIndexToString(int index) {
-    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-    const char* const names[] = {
-      "xmm1",
-      "xmm2",
-      "xmm3",
-      "xmm4",
-      "xmm5",
-      "xmm6",
-      "xmm7"
-    };
-    return names[index];
-  }
+  const char* ToString();
 
-  int code_;
+  int reg_code;
 };
 
+#define DECLARE_REGISTER(R) \
+  const DoubleRegister R = {DoubleRegister::kCode_##R};
+DOUBLE_REGISTERS(DECLARE_REGISTER)
+#undef DECLARE_REGISTER
+const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
 
-typedef XMMRegister DoubleRegister;
-
-
-const XMMRegister xmm0 = { 0 };
-const XMMRegister xmm1 = { 1 };
-const XMMRegister xmm2 = { 2 };
-const XMMRegister xmm3 = { 3 };
-const XMMRegister xmm4 = { 4 };
-const XMMRegister xmm5 = { 5 };
-const XMMRegister xmm6 = { 6 };
-const XMMRegister xmm7 = { 7 };
-const XMMRegister no_xmm_reg = { -1 };
-
+typedef DoubleRegister XMMRegister;
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -512,15 +484,12 @@ class Assembler : public AssemblerBase {
   void GetCode(CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc,
-                                          ConstantPoolArray* constant_pool);
-  inline static void set_target_address_at(Address pc,
-                                           ConstantPoolArray* constant_pool,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED);
+  inline static Address target_address_at(Address pc, Address constant_pool);
+  inline static void set_target_address_at(
+      Address pc, Address constant_pool, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   static inline Address target_address_at(Address pc, Code* code) {
-    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    Address constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
   static inline void set_target_address_at(Address pc,
@@ -528,16 +497,13 @@ class Assembler : public AssemblerBase {
                                            Address target,
                                            ICacheFlushMode icache_flush_mode =
                                                FLUSH_ICACHE_IF_NEEDED) {
-    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    Address constant_pool = code ? code->constant_pool() : NULL;
     set_target_address_at(pc, constant_pool, target);
   }
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
-
-  // Return the code target address of the patch debug break slot
-  inline static Address break_address_from_return_address(Address pc);
 
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
@@ -556,20 +522,15 @@ class Assembler : public AssemblerBase {
   // Distance between the address of the code target in the call instruction
   // and the return address
   static const int kCallTargetAddressOffset = kPointerSize;
-  // Distance between start of patched return sequence and the emitted address
-  // to jump to.
-  static const int kPatchReturnSequenceAddressOffset = 1;  // JMP imm32.
+
+  static const int kCallInstructionLength = 5;
+
+  // The debug break slot must be able to contain a call instruction.
+  static const int kDebugBreakSlotLength = kCallInstructionLength;
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
   static const int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
-
-  static const int kCallInstructionLength = 5;
-  static const int kPatchDebugBreakSlotReturnOffset = kPointerSize;
-  static const int kJSReturnSequenceLength = 6;
-
-  // The debug break slot must be able to contain a call instruction.
-  static const int kDebugBreakSlotLength = kCallInstructionLength;
 
   // One byte opcode for test al, 0xXX.
   static const byte kTestAlByte = 0xA8;
@@ -610,6 +571,9 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2.
   void Align(int m);
+  // Insert the smallest number of zero bytes possible to align the pc offset
+  // to a mulitple of m. m must be a power of 2 (>= 2).
+  void DataAlign(int m);
   void Nop(int bytes = 1);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
@@ -815,6 +779,8 @@ class Assembler : public AssemblerBase {
   void bts(const Operand& dst, Register src);
   void bsr(Register dst, Register src) { bsr(dst, Operand(src)); }
   void bsr(Register dst, const Operand& src);
+  void bsf(Register dst, Register src) { bsf(dst, Operand(src)); }
+  void bsf(Register dst, const Operand& src);
 
   // Miscellaneous
   void hlt();
@@ -864,7 +830,8 @@ class Assembler : public AssemblerBase {
          Label* L,
          Label::Distance distance = Label::kFar);
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
-  void j(Condition cc, Handle<Code> code);
+  void j(Condition cc, Handle<Code> code,
+         RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // Floating-point operations
   void fld(int i);
@@ -1084,10 +1051,6 @@ class Assembler : public AssemblerBase {
     pinsrd(dst, Operand(src), offset);
   }
   void pinsrd(XMMRegister dst, const Operand& src, int8_t offset);
-
-  // Parallel XMM operations.
-  void movntdqa(XMMRegister dst, const Operand& src);
-  void movntdq(const Operand& dst, XMMRegister src);
 
   // AVX instructions
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
@@ -1433,11 +1396,11 @@ class Assembler : public AssemblerBase {
     return pc_offset() - label->pos();
   }
 
-  // Mark address of the ExitJSFrame code.
-  void RecordJSReturn();
+  // Mark generator continuation.
+  void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot();
+  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
@@ -1451,6 +1414,8 @@ class Assembler : public AssemblerBase {
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
   void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dd(data); }
   void dd(Label* label);
 
   // Check if there is less than kGap bytes available in the buffer.
@@ -1477,11 +1442,12 @@ class Assembler : public AssemblerBase {
   byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
-  // Allocate a constant pool of the correct size for the generated code.
-  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
-
-  // Generate the constant pool for the generated code.
-  void PopulateConstantPool(ConstantPoolArray* constant_pool);
+  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
+                                          ConstantPoolEntry::Access access,
+                                          ConstantPoolEntry::Type type) {
+    // No embedded constant pool support.
+    UNREACHABLE();
+  }
 
  protected:
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
@@ -1512,6 +1478,7 @@ class Assembler : public AssemblerBase {
                    TypeFeedbackId id = TypeFeedbackId::None());
   inline void emit(const Immediate& x);
   inline void emit_w(const Immediate& x);
+  inline void emit_q(uint64_t x);
 
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);
@@ -1602,6 +1569,7 @@ class EnsureSpace BASE_EMBEDDED {
 #endif
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_ASSEMBLER_IA32_H_

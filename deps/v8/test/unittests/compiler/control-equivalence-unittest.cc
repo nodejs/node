@@ -27,7 +27,7 @@ class ControlEquivalenceTest : public GraphTest {
 
  protected:
   void ComputeEquivalence(Node* node) {
-    graph()->SetEnd(graph()->NewNode(common()->End(), node));
+    graph()->SetEnd(graph()->NewNode(common()->End(1), node));
     if (FLAG_trace_turbo) {
       OFStream os(stdout);
       os << AsDOT(*graph());
@@ -41,7 +41,7 @@ class ControlEquivalenceTest : public GraphTest {
   }
 
   bool IsEquivalenceClass(size_t length, Node** nodes) {
-    BitVector in_class(graph()->NodeCount(), zone());
+    BitVector in_class(static_cast<int>(graph()->NodeCount()), zone());
     size_t expected_class = classes_[nodes[0]->id()];
     for (size_t i = 0; i < length; ++i) {
       in_class.Add(nodes[i]->id());
@@ -70,6 +70,10 @@ class ControlEquivalenceTest : public GraphTest {
     return Store(graph()->NewNode(common()->IfFalse(), control));
   }
 
+  Node* Merge1(Node* control) {
+    return Store(graph()->NewNode(common()->Merge(1), control));
+  }
+
   Node* Merge2(Node* control1, Node* control2) {
     return Store(graph()->NewNode(common()->Merge(2), control1, control2));
   }
@@ -79,7 +83,7 @@ class ControlEquivalenceTest : public GraphTest {
   }
 
   Node* End(Node* control) {
-    return Store(graph()->NewNode(common()->End(), control));
+    return Store(graph()->NewNode(common()->End(1), control));
   }
 
  private:
@@ -107,10 +111,10 @@ TEST_F(ControlEquivalenceTest, Empty1) {
 
 TEST_F(ControlEquivalenceTest, Empty2) {
   Node* start = graph()->start();
-  Node* end = End(start);
-  ComputeEquivalence(end);
+  Node* merge1 = Merge1(start);
+  ComputeEquivalence(merge1);
 
-  ASSERT_EQUIVALENCE(start, end);
+  ASSERT_EQUIVALENCE(start, merge1);
 }
 
 

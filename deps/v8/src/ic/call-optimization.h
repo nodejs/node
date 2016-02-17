@@ -61,7 +61,7 @@ class CallOptimization BASE_EMBEDDED {
   Handle<FunctionTemplateInfo> expected_receiver_type_;
   Handle<CallHandlerInfo> api_call_info_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_CALL_OPTIMIZATION_H_

@@ -42,6 +42,8 @@ namespace compiler {
   V(MipsModS)                      \
   V(MipsAbsS)                      \
   V(MipsSqrtS)                     \
+  V(MipsMaxS)                      \
+  V(MipsMinS)                      \
   V(MipsCmpD)                      \
   V(MipsAddD)                      \
   V(MipsSubD)                      \
@@ -50,6 +52,8 @@ namespace compiler {
   V(MipsModD)                      \
   V(MipsAbsD)                      \
   V(MipsSqrtD)                     \
+  V(MipsMaxD)                      \
+  V(MipsMinD)                      \
   V(MipsFloat64RoundDown)          \
   V(MipsFloat64RoundTruncate)      \
   V(MipsFloat64RoundUp)            \
@@ -75,10 +79,13 @@ namespace compiler {
   V(MipsFloat64ExtractHighWord32)  \
   V(MipsFloat64InsertLowWord32)    \
   V(MipsFloat64InsertHighWord32)   \
+  V(MipsFloat64Max)                \
+  V(MipsFloat64Min)                \
+  V(MipsFloat32Max)                \
+  V(MipsFloat32Min)                \
   V(MipsPush)                      \
   V(MipsStoreToStackSlot)          \
-  V(MipsStackClaim)                \
-  V(MipsStoreWriteBarrier)
+  V(MipsStackClaim)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.

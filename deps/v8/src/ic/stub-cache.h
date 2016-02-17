@@ -53,9 +53,9 @@ class StubCache {
   // registers. Set to no_reg if not needed.
   // If leave_frame is true, then exit a frame before the tail call.
   void GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
-                     Code::Flags flags, bool leave_frame, Register receiver,
-                     Register name, Register scratch, Register extra,
-                     Register extra2 = no_reg, Register extra3 = no_reg);
+                     Code::Flags flags, Register receiver, Register name,
+                     Register scratch, Register extra, Register extra2 = no_reg,
+                     Register extra3 = no_reg);
 
   enum Table { kPrimary, kSecondary };
 
@@ -165,7 +165,7 @@ class StubCache {
 
   DISALLOW_COPY_AND_ASSIGN(StubCache);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STUB_CACHE_H_

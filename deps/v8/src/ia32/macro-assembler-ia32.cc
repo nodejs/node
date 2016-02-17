@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_IA32
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
-#include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
+#include "src/ia32/frames-ia32.h"
+#include "src/ia32/macro-assembler-ia32.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -25,9 +24,8 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
       generating_stub_(false),
       has_frame_(false) {
   if (isolate() != NULL) {
-    // TODO(titzer): should we just use a null handle here instead?
-    code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
-                                  isolate());
+    code_object_ =
+        Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
   }
 }
 
@@ -67,8 +65,7 @@ void MacroAssembler::Store(Register src, const Operand& dst, Representation r) {
 
 void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(index)) {
-    Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
-    mov(destination, value);
+    mov(destination, isolate()->heap()->root_handle(index));
     return;
   }
   ExternalReference roots_array_start =
@@ -106,16 +103,20 @@ void MacroAssembler::CompareRoot(Register with,
 
 void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
-  Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
-  cmp(with, value);
+  cmp(with, isolate()->heap()->root_handle(index));
 }
 
 
 void MacroAssembler::CompareRoot(const Operand& with,
                                  Heap::RootListIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
-  Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
-  cmp(with, value);
+  cmp(with, isolate()->heap()->root_handle(index));
+}
+
+
+void MacroAssembler::PushRoot(Heap::RootListIndex index) {
+  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
+  Push(isolate()->heap()->root_handle(index));
 }
 
 
@@ -572,9 +573,10 @@ void MacroAssembler::RecordWrite(
 
 void MacroAssembler::DebugBreak() {
   Move(eax, Immediate(0));
-  mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak, isolate())));
+  mov(ebx, Immediate(ExternalReference(Runtime::kHandleDebuggerStatement,
+                                       isolate())));
   CEntryStub ces(isolate(), 1);
-  call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
+  call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
 
@@ -754,26 +756,6 @@ Condition MacroAssembler::IsObjectNameType(Register heap_object,
 }
 
 
-void MacroAssembler::IsObjectJSObjectType(Register heap_object,
-                                          Register map,
-                                          Register scratch,
-                                          Label* fail) {
-  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
-  IsInstanceJSObjectType(map, scratch, fail);
-}
-
-
-void MacroAssembler::IsInstanceJSObjectType(Register map,
-                                            Register scratch,
-                                            Label* fail) {
-  movzx_b(scratch, FieldOperand(map, Map::kInstanceTypeOffset));
-  sub(scratch, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  cmp(scratch,
-      LAST_NONCALLABLE_SPEC_OBJECT_TYPE - FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-  j(above, fail);
-}
-
-
 void MacroAssembler::FCmp() {
   fucomip();
   fstp(0);
@@ -826,6 +808,18 @@ void MacroAssembler::AssertName(Register object) {
 }
 
 
+void MacroAssembler::AssertFunction(Register object) {
+  if (emit_debug_code()) {
+    test(object, Immediate(kSmiTagMask));
+    Check(not_equal, kOperandIsASmiAndNotAFunction);
+    Push(object);
+    CmpObjectType(object, JS_FUNCTION_TYPE, object);
+    Pop(object);
+    Check(equal, kOperandIsNotAFunction);
+  }
+}
+
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   if (emit_debug_code()) {
     Label done_checking;
@@ -870,6 +864,13 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
     push(esi);  // Callee's context.
     push(edi);  // Callee's JS function.
   }
+}
+
+
+void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+  mov(vector, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  mov(vector, FieldOperand(vector, JSFunction::kSharedFunctionInfoOffset));
+  mov(vector, FieldOperand(vector, SharedFunctionInfo::kFeedbackVectorOffset));
 }
 
 
@@ -972,7 +973,7 @@ void MacroAssembler::EnterApiExitFrame(int argc) {
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles) {
+void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
   // Optionally restore all XMM registers.
   if (save_doubles) {
     const int offset = -2 * kPointerSize;
@@ -982,15 +983,20 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
     }
   }
 
-  // Get the return address from the stack and restore the frame pointer.
-  mov(ecx, Operand(ebp, 1 * kPointerSize));
-  mov(ebp, Operand(ebp, 0 * kPointerSize));
+  if (pop_arguments) {
+    // Get the return address from the stack and restore the frame pointer.
+    mov(ecx, Operand(ebp, 1 * kPointerSize));
+    mov(ebp, Operand(ebp, 0 * kPointerSize));
 
-  // Pop the arguments and the receiver from the caller stack.
-  lea(esp, Operand(esi, 1 * kPointerSize));
+    // Pop the arguments and the receiver from the caller stack.
+    lea(esp, Operand(esi, 1 * kPointerSize));
 
-  // Push the return address to get ready to return.
-  push(ecx);
+    // Push the return address to get ready to return.
+    push(ecx);
+  } else {
+    // Otherwise just leave the exit frame.
+    leave();
+  }
 
   LeaveExitFrameEpilogue(true);
 }
@@ -1065,7 +1071,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   int offset =
       Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
   mov(scratch1, FieldOperand(scratch1, offset));
-  mov(scratch1, FieldOperand(scratch1, GlobalObject::kNativeContextOffset));
+  mov(scratch1, FieldOperand(scratch1, JSGlobalObject::kNativeContextOffset));
 
   // Check the context is a native context.
   if (emit_debug_code()) {
@@ -1150,6 +1156,7 @@ void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   mov(scratch, r0);
   shr(scratch, 16);
   xor_(r0, scratch);
+  and_(r0, 0x3fffffff);
 }
 
 
@@ -1493,20 +1500,6 @@ void MacroAssembler::Allocate(Register object_size,
 }
 
 
-void MacroAssembler::UndoAllocationInNewSpace(Register object) {
-  ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address(isolate());
-
-  // Make sure the object has no tag before resetting top.
-  and_(object, Immediate(~kHeapObjectTagMask));
-#ifdef DEBUG
-  cmp(object, Operand::StaticVariable(new_space_allocation_top));
-  Check(below, kUndoAllocationOfNonAllocatedMemory);
-#endif
-  mov(Operand::StaticVariable(new_space_allocation_top), object);
-}
-
-
 void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
@@ -1750,7 +1743,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   add(start_offset, Immediate(kPointerSize));
   bind(&entry);
   cmp(start_offset, end_offset);
-  j(less, &loop);
+  j(below, &loop);
 }
 
 
@@ -1799,42 +1792,17 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   Label done, loop;
   mov(result, FieldOperand(map, Map::kConstructorOrBackPointerOffset));
   bind(&loop);
-  JumpIfSmi(result, &done);
+  JumpIfSmi(result, &done, Label::kNear);
   CmpObjectType(result, MAP_TYPE, temp);
-  j(not_equal, &done);
+  j(not_equal, &done, Label::kNear);
   mov(result, FieldOperand(result, Map::kConstructorOrBackPointerOffset));
   jmp(&loop);
   bind(&done);
 }
 
 
-void MacroAssembler::TryGetFunctionPrototype(Register function,
-                                             Register result,
-                                             Register scratch,
-                                             Label* miss,
-                                             bool miss_on_bound_function) {
-  Label non_instance;
-  if (miss_on_bound_function) {
-    // Check that the receiver isn't a smi.
-    JumpIfSmi(function, miss);
-
-    // Check that the function really is a function.
-    CmpObjectType(function, JS_FUNCTION_TYPE, result);
-    j(not_equal, miss);
-
-    // If a bound function, go to miss label.
-    mov(scratch,
-        FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    BooleanBitTest(scratch, SharedFunctionInfo::kCompilerHintsOffset,
-                   SharedFunctionInfo::kBoundFunction);
-    j(not_zero, miss);
-
-    // Make sure that the function has an instance prototype.
-    movzx_b(scratch, FieldOperand(result, Map::kBitFieldOffset));
-    test(scratch, Immediate(1 << Map::kHasNonInstancePrototype));
-    j(not_zero, &non_instance);
-  }
-
+void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
+                                             Register scratch, Label* miss) {
   // Get the prototype or initial map from the function.
   mov(result,
       FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
@@ -1848,19 +1816,10 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // If the function does not have an initial map, we're done.
   Label done;
   CmpObjectType(result, MAP_TYPE, scratch);
-  j(not_equal, &done);
+  j(not_equal, &done, Label::kNear);
 
   // Get the prototype from the initial map.
   mov(result, FieldOperand(result, Map::kPrototypeOffset));
-
-  if (miss_on_bound_function) {
-    jmp(&done);
-
-    // Non-instance prototype: Fetch prototype from constructor field
-    // in initial map.
-    bind(&non_instance);
-    GetMapConstructor(result, result, scratch);
-  }
 
   // All done.
   bind(&done);
@@ -1974,10 +1933,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   Label invoke;
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
+    mov(eax, actual.immediate());
     if (expected.immediate() == actual.immediate()) {
       definitely_matches = true;
     } else {
-      mov(eax, actual.immediate());
       const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
       if (expected.immediate() == sentinel) {
         // Don't worry about adapting arguments for builtins that
@@ -1995,10 +1954,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       // Expected is in register, actual is immediate. This is the
       // case when we invoke function values without going through the
       // IC mechanism.
+      mov(eax, actual.immediate());
       cmp(expected.reg(), actual.immediate());
       j(equal, &invoke);
       DCHECK(expected.reg().is(ebx));
-      mov(eax, actual.immediate());
     } else if (!expected.reg().is(actual.reg())) {
       // Both expected and actual are in (different) registers. This
       // is the case when we invoke functions using call and apply.
@@ -2006,6 +1965,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       j(equal, &invoke);
       DCHECK(actual.reg().is(eax));
       DCHECK(expected.reg().is(ebx));
+    } else {
+      Move(eax, actual.reg());
     }
   }
 
@@ -2106,8 +2067,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
 }
 
 
-void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
-                                   InvokeFlag flag,
+void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
                                    const CallWrapper& call_wrapper) {
   // You can't call a builtin without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
@@ -2116,26 +2076,26 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  GetBuiltinFunction(edi, id);
+  GetBuiltinFunction(edi, native_context_index);
   InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
              expected, expected, flag, call_wrapper);
 }
 
 
 void MacroAssembler::GetBuiltinFunction(Register target,
-                                        Builtins::JavaScript id) {
+                                        int native_context_index) {
   // Load the JavaScript builtin function from the builtins object.
-  mov(target, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  mov(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
-  mov(target, FieldOperand(target,
-                           JSBuiltinsObject::OffsetOfFunctionWithId(id)));
+  mov(target, GlobalObjectOperand());
+  mov(target, FieldOperand(target, JSGlobalObject::kNativeContextOffset));
+  mov(target, ContextOperand(target, native_context_index));
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+void MacroAssembler::GetBuiltinEntry(Register target,
+                                     int native_context_index) {
   DCHECK(!target.is(edi));
   // Load the JavaScript builtin function from the builtins object.
-  GetBuiltinFunction(edi, id);
+  GetBuiltinFunction(edi, native_context_index);
   // Load the code entry point from the function into the target register.
   mov(target, FieldOperand(edi, JSFunction::kCodeEntryOffset));
 }
@@ -2167,6 +2127,12 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
+void MacroAssembler::LoadGlobalProxy(Register dst) {
+  mov(dst, GlobalObjectOperand());
+  mov(dst, FieldOperand(dst, JSGlobalObject::kGlobalProxyOffset));
+}
+
+
 void MacroAssembler::LoadTransitionedArrayMapConditional(
     ElementsKind expected_kind,
     ElementsKind transitioned_kind,
@@ -2175,7 +2141,7 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Label* no_map_match) {
   // Load the global or builtins object from the current context.
   mov(scratch, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  mov(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
+  mov(scratch, FieldOperand(scratch, JSGlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
   mov(scratch, Operand(scratch,
@@ -2198,8 +2164,7 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   mov(function,
       Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   // Load the native context from the global or builtins object.
-  mov(function,
-      FieldOperand(function, GlobalObject::kNativeContextOffset));
+  mov(function, FieldOperand(function, JSGlobalObject::kNativeContextOffset));
   // Load the function from the native context.
   mov(function, Operand(function, Context::SlotOffset(index)));
 }
@@ -2463,6 +2428,30 @@ void MacroAssembler::Lzcnt(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Tzcnt(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(BMI1)) {
+    CpuFeatureScope scope(this, BMI1);
+    tzcnt(dst, src);
+    return;
+  }
+  Label not_zero_src;
+  bsf(dst, src);
+  j(not_zero, &not_zero_src, Label::kNear);
+  Move(dst, Immediate(32));  // The result of tzcnt is 32 if src = 0.
+  bind(&not_zero_src);
+}
+
+
+void MacroAssembler::Popcnt(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(POPCNT)) {
+    CpuFeatureScope scope(this, POPCNT);
+    popcnt(dst, src);
+    return;
+  }
+  UNREACHABLE();
+}
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     mov(Operand::StaticVariable(ExternalReference(counter)), Immediate(value));
@@ -2635,81 +2624,6 @@ void MacroAssembler::LoadPowerOf2(XMMRegister dst,
   mov(scratch, Immediate(power + HeapNumber::kExponentBias));
   movd(dst, scratch);
   psllq(dst, HeapNumber::kMantissaBits);
-}
-
-
-void MacroAssembler::LookupNumberStringCache(Register object,
-                                             Register result,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* not_found) {
-  // Use of registers. Register result is used as a temporary.
-  Register number_string_cache = result;
-  Register mask = scratch1;
-  Register scratch = scratch2;
-
-  // Load the number string cache.
-  LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
-  // Make the hash mask from the length of the number string cache. It
-  // contains two elements (number and string) for each cache entry.
-  mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
-  shr(mask, kSmiTagSize + 1);  // Untag length and divide it by two.
-  sub(mask, Immediate(1));  // Make mask.
-
-  // Calculate the entry in the number string cache. The hash value in the
-  // number string cache for smis is just the smi value, and the hash for
-  // doubles is the xor of the upper and lower words. See
-  // Heap::GetNumberStringCache.
-  Label smi_hash_calculated;
-  Label load_result_from_cache;
-  Label not_smi;
-  STATIC_ASSERT(kSmiTag == 0);
-  JumpIfNotSmi(object, &not_smi, Label::kNear);
-  mov(scratch, object);
-  SmiUntag(scratch);
-  jmp(&smi_hash_calculated, Label::kNear);
-  bind(&not_smi);
-  cmp(FieldOperand(object, HeapObject::kMapOffset),
-      isolate()->factory()->heap_number_map());
-  j(not_equal, not_found);
-  STATIC_ASSERT(8 == kDoubleSize);
-  mov(scratch, FieldOperand(object, HeapNumber::kValueOffset));
-  xor_(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
-  // Object is heap number and hash is now in scratch. Calculate cache index.
-  and_(scratch, mask);
-  Register index = scratch;
-  Register probe = mask;
-  mov(probe,
-      FieldOperand(number_string_cache,
-                   index,
-                   times_twice_pointer_size,
-                   FixedArray::kHeaderSize));
-  JumpIfSmi(probe, not_found);
-  movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
-  ucomisd(xmm0, FieldOperand(probe, HeapNumber::kValueOffset));
-  j(parity_even, not_found);  // Bail out if NaN is involved.
-  j(not_equal, not_found);  // The cache did not contain this value.
-  jmp(&load_result_from_cache, Label::kNear);
-
-  bind(&smi_hash_calculated);
-  // Object is smi and hash is now in scratch. Calculate cache index.
-  and_(scratch, mask);
-  // Check if the entry is the smi we are looking for.
-  cmp(object,
-      FieldOperand(number_string_cache,
-                   index,
-                   times_twice_pointer_size,
-                   FixedArray::kHeaderSize));
-  j(not_equal, not_found);
-
-  // Get the result from the cache.
-  bind(&load_result_from_cache);
-  mov(result,
-      FieldOperand(number_string_cache,
-                   index,
-                   times_twice_pointer_size,
-                   FixedArray::kHeaderSize + kPointerSize));
-  IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
 }
 
 
@@ -2889,7 +2803,7 @@ CodePatcher::CodePatcher(byte* address, int size)
 
 CodePatcher::~CodePatcher() {
   // Indicate that code has changed.
-  CpuFeatures::FlushICache(address_, size_);
+  Assembler::FlushICacheWithoutIsolate(address_, size_);
 
   // Check that the code was patched as expected.
   DCHECK(masm_.pc_ == address_ + size_);
@@ -3191,14 +3105,22 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   DCHECK(!scratch1.is(scratch0));
   Factory* factory = isolate()->factory();
   Register current = scratch0;
-  Label loop_again;
+  Label loop_again, end;
 
   // scratch contained elements pointer.
   mov(current, object);
+  mov(current, FieldOperand(current, HeapObject::kMapOffset));
+  mov(current, FieldOperand(current, Map::kPrototypeOffset));
+  cmp(current, Immediate(factory->null_value()));
+  j(equal, &end);
 
   // Loop based on the map going up the prototype chain.
   bind(&loop_again);
   mov(current, FieldOperand(current, HeapObject::kMapOffset));
+  STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
+  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
+  CmpInstanceType(current, JS_OBJECT_TYPE);
+  j(below, found);
   mov(scratch1, FieldOperand(current, Map::kBitField2Offset));
   DecodeField<Map::ElementsKindBits>(scratch1);
   cmp(scratch1, Immediate(DICTIONARY_ELEMENTS));
@@ -3206,6 +3128,8 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   mov(current, FieldOperand(current, Map::kPrototypeOffset));
   cmp(current, Immediate(factory->null_value()));
   j(not_equal, &loop_again);
+
+  bind(&end);
 }
 
 
@@ -3226,6 +3150,7 @@ void MacroAssembler::TruncatingDiv(Register dividend, int32_t divisor) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_IA32

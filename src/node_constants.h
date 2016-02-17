@@ -34,7 +34,7 @@ namespace node {
 extern const char* default_cipher_list;
 #endif
 
-void DefineConstants(v8::Handle<v8::Object> target);
+void DefineConstants(v8::Local<v8::Object> target);
 }  // namespace node
 
 #endif  // SRC_NODE_CONSTANTS_H_

@@ -252,15 +252,20 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
+  // Pop the vector and slot into appropriate registers, moving the map in
+  // the process. (This is an accomodation for register pressure on ia32).
+  void RearrangeVectorAndSlot(Register current_map, Register destination_map);
+
  private:
   void GenerateRestoreName(Handle<Name> name);
-  void GenerateRestoreMap(Handle<Map> transition, Register scratch,
-                          Label* miss);
+  void GenerateRestoreMap(Handle<Map> transition, Register map_reg,
+                          Register scratch, Label* miss);
 
   void GenerateConstantCheck(Register map_reg, int descriptor,
                              Register value_reg, Register scratch,
                              Label* miss_label);
 
+  bool RequiresFieldTypeChecks(HeapType* field_type) const;
   void GenerateFieldTypeChecks(HeapType* field_type, Register value_reg,
                                Label* miss_label);
 
@@ -290,11 +295,12 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
   virtual ~ElementHandlerCompiler() {}
 
   void CompileElementHandlers(MapHandleList* receiver_maps,
-                              CodeHandleList* handlers);
+                              CodeHandleList* handlers,
+                              LanguageMode language_mode);
 
   static void GenerateStoreSlow(MacroAssembler* masm);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_HANDLER_COMPILER_H_

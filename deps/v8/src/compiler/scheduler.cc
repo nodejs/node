@@ -1394,6 +1394,8 @@ class ScheduleLateNodeVisitor {
     // Schedule the node or a floating control structure.
     if (IrOpcode::IsMergeOpcode(node->opcode())) {
       ScheduleFloatingControl(block, node);
+    } else if (node->opcode() == IrOpcode::kFinishRegion) {
+      ScheduleRegion(block, node);
     } else {
       ScheduleNode(block, node);
     }
@@ -1572,6 +1574,34 @@ class ScheduleLateNodeVisitor {
     scheduler_->FuseFloatingControl(block, node);
   }
 
+  void ScheduleRegion(BasicBlock* block, Node* region_end) {
+    // We only allow regions of instructions connected into a linear
+    // effect chain. The only value allowed to be produced by a node
+    // in the chain must be the value consumed by the FinishRegion node.
+
+    // We schedule back to front; we first schedule FinishRegion.
+    CHECK_EQ(IrOpcode::kFinishRegion, region_end->opcode());
+    ScheduleNode(block, region_end);
+
+    // Schedule the chain.
+    Node* node = NodeProperties::GetEffectInput(region_end);
+    while (node->opcode() != IrOpcode::kBeginRegion) {
+      DCHECK_EQ(0, scheduler_->GetData(node)->unscheduled_count_);
+      DCHECK_EQ(1, node->op()->EffectInputCount());
+      DCHECK_EQ(1, node->op()->EffectOutputCount());
+      DCHECK_EQ(0, node->op()->ControlOutputCount());
+      // The value output (if there is any) must be consumed
+      // by the EndRegion node.
+      DCHECK(node->op()->ValueOutputCount() == 0 ||
+             node == region_end->InputAt(0));
+      ScheduleNode(block, node);
+      node = NodeProperties::GetEffectInput(node);
+    }
+    // Schedule the BeginRegion node.
+    DCHECK_EQ(0, scheduler_->GetData(node)->unscheduled_count_);
+    ScheduleNode(block, node);
+  }
+
   void ScheduleNode(BasicBlock* block, Node* node) {
     schedule_->PlanNode(block, node);
     scheduler_->scheduled_nodes_[block->id().ToSize()].push_back(node);
@@ -1580,13 +1610,11 @@ class ScheduleLateNodeVisitor {
 
   Node* CloneNode(Node* node) {
     int const input_count = node->InputCount();
-    Node** const inputs = scheduler_->zone_->NewArray<Node*>(input_count);
     for (int index = 0; index < input_count; ++index) {
       Node* const input = node->InputAt(index);
       scheduler_->IncrementUnscheduledUseCount(input, index, node);
-      inputs[index] = input;
     }
-    Node* copy = scheduler_->graph_->NewNode(node->op(), input_count, inputs);
+    Node* const copy = scheduler_->graph_->CloneNode(node);
     TRACE(("clone #%d:%s -> #%d\n"), node->id(), node->op()->mnemonic(),
           copy->id());
     scheduler_->node_data_.resize(copy->id() + 1,

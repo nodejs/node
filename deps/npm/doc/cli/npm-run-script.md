@@ -3,8 +3,9 @@ npm-run-script(1) -- Run arbitrary package scripts
 
 ## SYNOPSIS
 
-    npm run-script [command] [-- <args>]
-    npm run [command] [-- <args>]
+    npm run-script <command> [-- <args>...]
+
+    alias: npm run
 
 ## DESCRIPTION
 
@@ -38,6 +39,9 @@ you should write:
     "scripts": {"test": "tap test/\*.js"}
 
 instead of `"scripts": {"test": "node_modules/.bin/tap test/\*.js"}` to run your tests.
+
+If you try to run a script without having a `node_modules` directory and it fails,
+you will be given a warning to run `npm install`, just in case you've forgotten.
 
 ## SEE ALSO
 

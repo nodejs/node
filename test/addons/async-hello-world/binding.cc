@@ -1,7 +1,13 @@
-#include <unistd.h>
 #include <node.h>
 #include <v8.h>
 #include <uv.h>
+
+#if defined _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 
 struct async_req {
   uv_work_t req;
@@ -13,7 +19,12 @@ struct async_req {
 
 void DoAsync(uv_work_t* r) {
   async_req* req = reinterpret_cast<async_req*>(r->data);
-  sleep(1);  // Simulate CPU intensive process...
+  // Simulate CPU intensive process...
+#if defined _WIN32
+  Sleep(1000);
+#else
+  sleep(1);
+#endif
   req->output = req->input * 2;
 }
 
@@ -22,7 +33,7 @@ void AfterAsync(uv_work_t* r) {
   v8::Isolate* isolate = req->isolate;
   v8::HandleScope scope(isolate);
 
-  v8::Handle<v8::Value> argv[2] = {
+  v8::Local<v8::Value> argv[2] = {
     v8::Null(isolate),
     v8::Integer::New(isolate, req->output)
   };
@@ -62,7 +73,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
                 (uv_after_work_cb)AfterAsync);
 }
 
-void init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
+void init(v8::Local<v8::Object> exports, v8::Local<v8::Object> module) {
   NODE_SET_METHOD(module, "exports", Method);
 }
 

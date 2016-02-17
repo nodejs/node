@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
@@ -9,7 +8,6 @@ if (!common.hasCrypto) {
 var https = require('https');
 
 var fs = require('fs');
-var exec = require('child_process').exec;
 
 var http = require('http');
 

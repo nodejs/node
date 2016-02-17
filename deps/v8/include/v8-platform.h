@@ -19,6 +19,20 @@ class Task {
   virtual void Run() = 0;
 };
 
+
+/**
+* An IdleTask represents a unit of work to be performed in idle time.
+* The Run method is invoked with an argument that specifies the deadline in
+* seconds returned by MonotonicallyIncreasingTime().
+* The idle task is expected to complete by this deadline.
+*/
+class IdleTask {
+ public:
+  virtual ~IdleTask() {}
+  virtual void Run(double deadline_in_seconds) = 0;
+};
+
+
 /**
  * V8 Platform abstraction layer.
  *
@@ -55,6 +69,35 @@ class Platform {
    * scheduling. The definition of "foreground" is opaque to V8.
    */
   virtual void CallOnForegroundThread(Isolate* isolate, Task* task) = 0;
+
+  /**
+   * Schedules a task to be invoked on a foreground thread wrt a specific
+   * |isolate| after the given number of seconds |delay_in_seconds|.
+   * Tasks posted for the same isolate should be execute in order of
+   * scheduling. The definition of "foreground" is opaque to V8.
+   */
+  virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+                                             double delay_in_seconds) = 0;
+
+  /**
+   * Schedules a task to be invoked on a foreground thread wrt a specific
+   * |isolate| when the embedder is idle.
+   * Requires that SupportsIdleTasks(isolate) is true.
+   * Idle tasks may be reordered relative to other task types and may be
+   * starved for an arbitrarily long time if no idle time is available.
+   * The definition of "foreground" is opaque to V8.
+   */
+  virtual void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) {
+    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
+  }
+
+  /**
+   * Returns true if idle tasks are enabled for the given |isolate|.
+   */
+  virtual bool IdleTasksEnabled(Isolate* isolate) {
+    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
+    return false;
+  }
 
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in

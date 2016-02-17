@@ -4,10 +4,12 @@
 
 #include "test/unittests/test-utils.h"
 
+#include "include/libplatform/libplatform.h"
 #include "src/base/platform/time.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/flags.h"
 #include "src/isolate.h"
+#include "src/v8.h"
 
 namespace v8 {
 
@@ -51,6 +53,9 @@ void TestWithIsolate::SetUpTestCase() {
 // static
 void TestWithIsolate::TearDownTestCase() {
   ASSERT_TRUE(isolate_ != NULL);
+  v8::Platform* platform = internal::V8::GetCurrentPlatform();
+  ASSERT_TRUE(platform != NULL);
+  while (platform::PumpMessageLoop(platform, isolate_)) continue;
   isolate_->Dispose();
   isolate_ = NULL;
   delete array_buffer_allocator_;
@@ -75,7 +80,7 @@ inline int64_t GetRandomSeedFromFlag(int random_seed) {
 }  // namespace
 
 TestWithRandomNumberGenerator::TestWithRandomNumberGenerator()
-    : rng_(GetRandomSeedFromFlag(internal::FLAG_random_seed)) {}
+    : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
 
 
 TestWithRandomNumberGenerator::~TestWithRandomNumberGenerator() {}

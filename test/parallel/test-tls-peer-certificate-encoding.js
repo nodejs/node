@@ -11,7 +11,6 @@ var tls = require('tls');
 var fs = require('fs');
 var util = require('util');
 var join = require('path').join;
-var spawn = require('child_process').spawn;
 
 var options = {
   key: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent5-key.pem')),
@@ -30,7 +29,7 @@ server.listen(common.PORT, function() {
   }, function() {
     var peerCert = socket.getPeerCertificate();
 
-    common.debug(util.inspect(peerCert));
+    console.error(util.inspect(peerCert));
     assert.equal(peerCert.subject.CN, 'Ádám Lippai');
     verified = true;
     server.close();

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "src/code-stubs.h"
 #include "src/compiler.h"
@@ -19,10 +20,9 @@
 #include "src/compiler/schedule.h"
 #include "test/cctest/cctest.h"
 
-#if V8_TURBOFAN_TARGET
-
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
                                "dummy", 0, 0, 0, 0, 0, 0);
@@ -34,8 +34,8 @@ static Handle<JSFunction> Compile(const char* source) {
                                    ->NewStringFromUtf8(CStrVector(source))
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared_function = Compiler::CompileScript(
-      source_code, Handle<String>(), 0, 0, false, false, Handle<Object>(),
-      Handle<Context>(isolate->native_context()), NULL, NULL,
+      source_code, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
+      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL, NULL,
       v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE, false);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());
@@ -58,8 +58,9 @@ TEST(TestLinkageJSFunctionIncoming) {
 
   for (int i = 0; i < 3; i++) {
     HandleAndZoneScope handles;
-    Handle<JSFunction> function = v8::Utils::OpenHandle(
-        *v8::Handle<v8::Function>::Cast(CompileRun(sources[i])));
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+            *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
     ParseInfo parse_info(handles.main_zone(), function);
     CompilationInfo info(&parse_info);
     CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
@@ -80,7 +81,7 @@ TEST(TestLinkageCodeStubIncoming) {
   CompilationInfo info(&stub, isolate, &zone);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(&zone, &info);
   CHECK(descriptor);
-  CHECK_EQ(1, static_cast<int>(descriptor->JSParameterCount()));
+  CHECK_EQ(0, static_cast<int>(descriptor->StackParameterCount()));
   CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, descriptor->properties());
   CHECK_EQ(false, descriptor->IsJSFunctionCall());
@@ -114,5 +115,6 @@ TEST(TestLinkageStubCall) {
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
 
-
-#endif  // V8_TURBOFAN_TARGET
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

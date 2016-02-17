@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X64
 
 #include "src/codegen.h"
@@ -18,7 +16,7 @@ namespace internal {
 
 
 static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
-                       Code::Kind ic_kind, Code::Flags flags, bool leave_frame,
+                       Code::Kind ic_kind, Code::Flags flags,
                        StubCache::Table table, Register receiver, Register name,
                        // The offset is scaled by 4, based on
                        // kCacheIndexShift, which is two bits
@@ -74,8 +72,6 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   }
 #endif
 
-  if (leave_frame) __ leave();
-
   // Jump to the first instruction in the code stub.
   __ addp(kScratchRegister, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(kScratchRegister);
@@ -85,10 +81,9 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 
 
 void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
-                              Code::Flags flags, bool leave_frame,
-                              Register receiver, Register name,
-                              Register scratch, Register extra, Register extra2,
-                              Register extra3) {
+                              Code::Flags flags, Register receiver,
+                              Register name, Register scratch, Register extra,
+                              Register extra2, Register extra3) {
   Isolate* isolate = masm->isolate();
   Label miss;
   USE(extra);   // The register extra is not used on the X64 platform.
@@ -115,9 +110,16 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // the vector and slot registers, which need to be preserved for a handler
   // call or miss.
   if (IC::ICUseVector(ic_kind)) {
-    Register vector = VectorLoadICDescriptor::VectorRegister();
-    Register slot = VectorLoadICDescriptor::SlotRegister();
-    DCHECK(!AreAliased(vector, slot, scratch));
+    if (ic_kind == Code::LOAD_IC || ic_kind == Code::KEYED_LOAD_IC) {
+      Register vector = LoadWithVectorDescriptor::VectorRegister();
+      Register slot = LoadDescriptor::SlotRegister();
+      DCHECK(!AreAliased(vector, slot, scratch));
+    } else {
+      DCHECK(ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC);
+      Register vector = VectorStoreICDescriptor::VectorRegister();
+      Register slot = VectorStoreICDescriptor::SlotRegister();
+      DCHECK(!AreAliased(vector, slot, scratch));
+    }
   }
 #endif
 
@@ -137,8 +139,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, ic_kind, flags, leave_frame, kPrimary, receiver,
-             name, scratch);
+  ProbeTable(isolate, masm, ic_kind, flags, kPrimary, receiver, name, scratch);
 
   // Primary miss: Compute hash for secondary probe.
   __ movl(scratch, FieldOperand(name, Name::kHashFieldOffset));
@@ -150,8 +151,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ andp(scratch, Immediate((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, ic_kind, flags, leave_frame, kSecondary, receiver,
-             name, scratch);
+  ProbeTable(isolate, masm, ic_kind, flags, kSecondary, receiver, name,
+             scratch);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
@@ -161,7 +162,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
 
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X64

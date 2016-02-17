@@ -38,7 +38,7 @@ namespace base {
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
+  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
   if (NULL == t) return "";
   return tzname[0];  // The location of the timezone string on Solaris.
 }
@@ -208,4 +208,5 @@ bool VirtualMemory::HasLazyCommits() {
   return false;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

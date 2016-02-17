@@ -27,6 +27,7 @@ tap.test('get fails with 403', function (t) {
         'got error message'
       )
 
+      server.close()
       t.end()
     }
   )

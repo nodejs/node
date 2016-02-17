@@ -11,7 +11,6 @@ var tls = require('tls');
 var fs = require('fs');
 var util = require('util');
 var join = require('path').join;
-var spawn = require('child_process').spawn;
 
 var options = {
   key: fs.readFileSync(join(common.fixturesDir, 'agent.key')),
@@ -28,7 +27,7 @@ server.listen(common.PORT, function() {
     rejectUnauthorized: false
   }, function() {
     var peerCert = socket.getPeerCertificate();
-    common.debug(util.inspect(peerCert));
+    console.error(util.inspect(peerCert));
     assert.deepEqual(peerCert.subject.OU,
                      ['Information Technology', 'Engineering', 'Marketing']);
     verified = true;

@@ -2,6 +2,7 @@
 // See https://github.com/nodejs/node/issues/1376
 // and https://code.google.com/p/v8/issues/detail?id=4019
 
+require('../common');
 Math.abs(-0.5);
 Math.acos(-0.5);
 Math.acosh(-0.5);

@@ -1,6 +1,5 @@
 'use strict';
 var assert = require('assert');
-var util = require('util');
 var join = require('path').join;
 var fs = require('fs');
 var common = require('../common');
@@ -9,24 +8,9 @@ common.refreshTmpDir();
 
 var repl = require('repl');
 
-// A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function(data) {
-    var self = this;
-    data.forEach(function(line) {
-      self.emit('data', line + '\n');
-    });
-  };
-}
-util.inherits(ArrayStream, require('stream').Stream);
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function() {};
-ArrayStream.prototype.write = function() {};
-
 var works = [['inner.one'], 'inner.o'];
 
-var putIn = new ArrayStream();
+const putIn = new common.ArrayStream();
 var testMe = repl.start('', putIn);
 
 
@@ -72,6 +56,14 @@ putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
   assert.equal(data, 'Failed to load:' + loadFile + '\n');
   // eat me to avoid work
+  putIn.write = function() {};
+};
+putIn.run(['.load ' + loadFile]);
+
+// throw error on loading directory
+loadFile = common.tmpDir;
+putIn.write = function(data) {
+  assert.equal(data, 'Failed to load:' + loadFile + ' is not a valid file\n');
   putIn.write = function() {};
 };
 putIn.run(['.load ' + loadFile]);

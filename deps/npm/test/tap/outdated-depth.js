@@ -40,7 +40,8 @@ test('outdated depth zero', function (t) {
     '1.3.1',
     '1.3.1',
     '1.5.1',
-    '1.3.1'
+    '1.3.1',
+    null
   ]
 
   mr({ port: common.port }, function (er, s) {

@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var events = require('events');
 
-var e = new events.EventEmitter(),
-    num_args_emited = [];
+const e = new events.EventEmitter();
+const num_args_emited = [];
 
 e.on('numArgs', function() {
   var numArgs = arguments.length;

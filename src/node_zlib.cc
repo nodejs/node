@@ -22,7 +22,6 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -43,7 +42,7 @@ enum node_zlib_mode {
 };
 
 
-void InitZlib(v8::Handle<v8::Object> target);
+void InitZlib(v8::Local<v8::Object> target);
 
 
 /**
@@ -142,6 +141,7 @@ class ZCtx : public AsyncWrap {
     Bytef *in;
     Bytef *out;
     size_t in_off, in_len, out_off, out_len;
+    Environment* env = ctx->env();
 
     if (args[1]->IsNull()) {
       // just a flush
@@ -152,7 +152,7 @@ class ZCtx : public AsyncWrap {
     } else {
       CHECK(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
-      in_buf = args[1]->ToObject(args.GetIsolate());
+      in_buf = args[1]->ToObject(env->isolate());
       in_off = args[2]->Uint32Value();
       in_len = args[3]->Uint32Value();
 
@@ -161,7 +161,7 @@ class ZCtx : public AsyncWrap {
     }
 
     CHECK(Buffer::HasInstance(args[4]));
-    Local<Object> out_buf = args[4]->ToObject(args.GetIsolate());
+    Local<Object> out_buf = args[4]->ToObject(env->isolate());
     out_off = args[5]->Uint32Value();
     out_len = args[6]->Uint32Value();
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
@@ -199,7 +199,7 @@ class ZCtx : public AsyncWrap {
 
 
   static void AfterSync(ZCtx* ctx, const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
+    Environment* env = ctx->env();
     Local<Integer> avail_out = Integer::New(env->isolate(),
                                             ctx->strm_.avail_out);
     Local<Integer> avail_in = Integer::New(env->isolate(),
@@ -271,8 +271,12 @@ class ZCtx : public AsyncWrap {
     // Acceptable error states depend on the type of zlib stream.
     switch (ctx->err_) {
     case Z_OK:
-    case Z_STREAM_END:
     case Z_BUF_ERROR:
+      if (ctx->strm_.avail_out != 0 && ctx->flush_ == Z_FINISH) {
+        ZCtx::Error(ctx, "unexpected end of file");
+        return false;
+      }
+    case Z_STREAM_END:
       // normal statuses, not fatal
       break;
     case Z_NEED_DICT:
@@ -573,9 +577,9 @@ class ZCtx : public AsyncWrap {
 };
 
 
-void InitZlib(Handle<Object> target,
-              Handle<Value> unused,
-              Handle<Context> context,
+void InitZlib(Local<Object> target,
+              Local<Value> unused,
+              Local<Context> context,
               void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> z = env->NewFunctionTemplate(ZCtx::New);

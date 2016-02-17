@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "control-builders.h"
+#include "src/compiler/control-builders.h"
 
 namespace v8 {
 namespace internal {
@@ -143,6 +143,26 @@ void BlockBuilder::Break() {
 }
 
 
+void BlockBuilder::BreakWhen(Node* condition, BranchHint hint) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition, hint);
+  control_if.Then();
+  Break();
+  control_if.Else();
+  control_if.End();
+}
+
+
+void BlockBuilder::BreakUnless(Node* condition, BranchHint hint) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition, hint);
+  control_if.Then();
+  control_if.Else();
+  Break();
+  control_if.End();
+}
+
+
 void BlockBuilder::EndBlock() {
   break_environment_->Merge(environment());
   set_environment(break_environment_);
@@ -150,6 +170,7 @@ void BlockBuilder::EndBlock() {
 
 
 void TryCatchBuilder::BeginTry() {
+  exit_environment_ = environment()->CopyAsUnreachable();
   catch_environment_ = environment()->CopyAsUnreachable();
   catch_environment_->Push(the_hole());
 }
@@ -164,7 +185,7 @@ void TryCatchBuilder::Throw(Node* exception) {
 
 
 void TryCatchBuilder::EndTry() {
-  exit_environment_ = environment();
+  exit_environment_->Merge(environment());
   exception_node_ = catch_environment_->Pop();
   set_environment(catch_environment_);
 }

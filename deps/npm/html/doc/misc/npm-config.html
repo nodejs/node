@@ -30,13 +30,13 @@ same.</p>
 <ul>
 <li>per-project config file (/path/to/my/project/.npmrc)</li>
 <li>per-user config file (~/.npmrc)</li>
-<li>global config file ($PREFIX/npmrc)</li>
+<li>global config file ($PREFIX/etc/npmrc)</li>
 <li>npm builtin config file (/path/to/npm/npmrc)</li>
 </ul>
-<p>See <a href="../files/npmrc.html"><a href="../files/npmrc.html">npmrc(5)</a></a> for more details.</p>
+<p>See <a href="../files/npmrc.html">npmrc(5)</a> for more details.</p>
 <h3 id="default-configs">Default Configs</h3>
-<p>A set of configuration parameters that are internal to npm, and are
-defaults if nothing else is specified.</p>
+<p>Run <code>npm config ls -l</code> to see a set of configuration parameters that are
+internal to npm, and are defaults if nothing else is specified.</p>
 <h2 id="shorthands-and-other-cli-niceties">Shorthands and Other CLI Niceties</h2>
 <p>The following shorthands are parsed on the command-line:</p>
 <ul>
@@ -78,7 +78,7 @@ example:</p>
 # same as:
 npm ls --global --parseable --long --loglevel info
 </code></pre><h2 id="per-package-config-settings">Per-Package Config Settings</h2>
-<p>When running scripts (see <code><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></code>) the package.json &quot;config&quot;
+<p>When running scripts (see <code><a href="../misc/npm-scripts.html">npm-scripts(7)</a></code>) the package.json &quot;config&quot;
 keys are overwritten in the environment if there is a config param of
 <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example, if the package.json has
 this:</p>
@@ -89,7 +89,7 @@ this:</p>
 <pre><code>http.createServer(...).listen(process.env.npm_package_config_port)
 </code></pre><p>then the user could change the behavior by doing:</p>
 <pre><code>npm config set foo:port 80
-</code></pre><p>See <a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a> for more information.</p>
+</code></pre><p>See <a href="../files/package.json.html">package.json(5)</a> for more information.</p>
 <h2 id="config-settings">Config Settings</h2>
 <h3 id="access">access</h3>
 <ul>
@@ -107,6 +107,13 @@ you want your scoped package to be publicly viewable (and installable) set
 </ul>
 <p>Force npm to always require authentication when accessing the registry,
 even for <code>GET</code> requests.</p>
+<h3 id="also">also</h3>
+<ul>
+<li>Default: null</li>
+<li>Type: String</li>
+</ul>
+<p>When &quot;dev&quot; or &quot;development&quot; and running local <code>npm shrinkwrap</code>,
+<code>npm outdated</code>, or <code>npm update</code>, is an alias for <code>--dev</code>.</p>
 <h3 id="bin-links">bin-links</h3>
 <ul>
 <li>Default: <code>true</code></li>
@@ -151,7 +158,7 @@ well as for the CA information to be stored in a file on disk.</p>
 <li>Default: Windows: <code>%AppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
 <li>Type: path</li>
 </ul>
-<p>The location of npm&#39;s cache directory.  See <code><a href="../cli/npm-cache.html"><a href="../cli/npm-cache.html">npm-cache(1)</a></a></code></p>
+<p>The location of npm&#39;s cache directory.  See <code><a href="../cli/npm-cache.html">npm-cache(1)</a></code></p>
 <h3 id="cache-lock-stale">cache-lock-stale</h3>
 <ul>
 <li>Default: 60000 (1 minute)</li>
@@ -196,7 +203,7 @@ explicitly used, and that only GET requests use the cache.</p>
 <p>A client certificate to pass when accessing the registry.</p>
 <h3 id="color">color</h3>
 <ul>
-<li>Default: true on Posix, false on Windows</li>
+<li>Default: true</li>
 <li>Type: Boolean or <code>&quot;always&quot;</code></li>
 </ul>
 <p>If false, never shows colors.  If <code>&quot;always&quot;</code> then always shows colors.
@@ -226,6 +233,16 @@ e.g., <code>npm outdated --depth 9999</code></p>
 <p>Install <code>dev-dependencies</code> along with packages.</p>
 <p>Note that <code>dev-dependencies</code> are also installed if the <code>npat</code> flag is
 set.</p>
+<h3 id="dry-run">dry-run</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don&#39;t want npm to make any changes and that it should
+only report what it would have done.  This can be passed into any of the
+commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
+<code>dedupe</code>, <code>uninstall</code>.  This is NOT currently honored by network related
+commands, eg <code>dist-tags</code>, <code>owner</code>, <code>publish</code>, etc.</p>
 <h3 id="editor">editor</h3>
 <ul>
 <li>Default: <code>EDITOR</code> environment variable if set, or <code>&quot;vi&quot;</code> on Posix,
@@ -302,7 +319,7 @@ the git binary.</p>
 </ul>
 <p>Operates in &quot;global&quot; mode, so that packages are installed into the
 <code>prefix</code> folder instead of the current working directory.  See
-<code><a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></code> for more on the differences in behavior.</p>
+<code><a href="../files/npm-folders.html">npm-folders(5)</a></code> for more on the differences in behavior.</p>
 <ul>
 <li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead of the
 current working directory.</li>
@@ -315,6 +332,17 @@ current working directory.</li>
 <li>Type: path</li>
 </ul>
 <p>The config file to read for global config options.</p>
+<h3 id="global-style">global-style</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package into your local <code>node_modules</code> folder with
+the same layout it uses with the global <code>node_modules</code> folder.  Only your
+direct dependencies will show in <code>node_modules</code> and everything they depend
+on will be flattened in their <code>node_modules</code> folders.  This obviously will
+elminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code> will be
+preferred.</p>
 <h3 id="group">group</h3>
 <ul>
 <li>Default: GID of the current process</li>
@@ -360,7 +388,7 @@ scripts that may only apply for some builds in an otherwise generic CI setup.</p
 <p>A module that will be loaded by the <code>npm init</code> command.  See the
 documentation for the
 <a href="https://github.com/isaacs/init-package-json">init-package-json</a> module
-for more information, or <a href="../cli/npm-init.html"><a href="../cli/npm-init.html">npm-init(1)</a></a>.</p>
+for more information, or <a href="../cli/npm-init.html">npm-init(1)</a>.</p>
 <h3 id="init-author-name">init-author-name</h3>
 <ul>
 <li>Default: &quot;&quot;</li>
@@ -407,6 +435,15 @@ change.  Only the output from <code>npm ls --json</code> is currently valid.</p>
 <li>Type: String</li>
 </ul>
 <p>A client key to pass when accessing the registry.</p>
+<h3 id="legacy-bundling">legacy-bundling</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package such that versions of npm prior to 1.4,
+such as the one included with node 0.8, can install the package.  This
+eliminates all automatic deduping. If used with <code>global-style</code> this option
+will be preferred.</p>
 <h3 id="link">link</h3>
 <ul>
 <li>Default: false</li>
@@ -483,6 +520,20 @@ colored output if it is a TTY.</p>
 </ul>
 <p>A node module to <code>require()</code> when npm loads.  Useful for programmatic
 usage.</p>
+<h3 id="only">only</h3>
+<ul>
+<li>Default: null</li>
+<li>Type: String</li>
+</ul>
+<p>When &quot;dev&quot; or &quot;development&quot; and running local <code>npm install</code> without any
+arguments, only devDependencies (and their dependencies) are installed.</p>
+<p>When &quot;dev&quot; or &quot;development&quot; and running local <code>npm ls</code>, <code>npm outdated</code>, or
+<code>npm update</code>, is an alias for <code>--dev</code>.</p>
+<p>When &quot;prod&quot; or &quot;production&quot; and running local <code>npm install</code> without any
+arguments, only non-devDependencies (and their dependencies) are
+installed.</p>
+<p>When &quot;prod&quot; or &quot;production&quot; and running local <code>npm ls</code>, <code>npm outdated</code>, or
+<code>npm update</code>, is an alias for <code>--production</code>.</p>
 <h3 id="optional">optional</h3>
 <ul>
 <li>Default: true</li>
@@ -500,7 +551,7 @@ process is not aborted.</p>
 standard output.</p>
 <h3 id="prefix">prefix</h3>
 <ul>
-<li>Default: see <a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></li>
+<li>Default: see <a href="../files/npm-folders.html">npm-folders(5)</a></li>
 <li>Type: path</li>
 </ul>
 <p>The location to install global items.  If set on the command line, then
@@ -516,6 +567,14 @@ it forces non-global commands to run in the specified folder.</p>
 local <code>npm install</code> without any arguments.</li>
 <li>Set the NODE_ENV=&quot;production&quot; for lifecycle scripts.</li>
 </ol>
+<h3 id="progress">progress</h3>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set to <code>true</code>, npm will display a progress bar during time intensive
+operations, if <code>process.stderr</code> is a TTY.</p>
+<p>Set to <code>false</code> to suppress the progress bar.</p>
 <h3 id="proprietary-attribs">proprietary-attribs</h3>
 <ul>
 <li>Default: true</li>
@@ -663,15 +722,6 @@ installing.</p>
 using <code>-s</code> to add a signature.</p>
 <p>Note that git requires you to have set up GPG keys in your git configs
 for this to work properly.</p>
-<h3 id="spin">spin</h3>
-<ul>
-<li>Default: true</li>
-<li>Type: Boolean or <code>&quot;always&quot;</code></li>
-</ul>
-<p>When set to <code>true</code>, npm will display an ascii spinner while it is doing
-things, if <code>process.stderr</code> is a TTY.</p>
-<p>Set to <code>false</code> to suppress the spinner, or set to <code>always</code> to output
-the spinner even for non-TTY outputs.</p>
 <h3 id="strict-ssl">strict-ssl</h3>
 <ul>
 <li>Default: true</li>
@@ -709,7 +759,7 @@ particular, use care when overriding this setting for public packages.</p>
 on success, but left behind on failure for forensic purposes.</p>
 <h3 id="unicode">unicode</h3>
 <ul>
-<li>Default: true</li>
+<li>Default: false on windows, true on mac/unix systems with a unicode locale</li>
 <li>Type: Boolean</li>
 </ul>
 <p>When set to true, npm uses unicode characters in the tree output.  When
@@ -728,7 +778,7 @@ will fail.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Set to show short usage output (like the -H output)
-instead of complete help when doing <code><a href="../cli/npm-help.html"><a href="../cli/npm-help.html">npm-help(1)</a></a></code>.</p>
+instead of complete help when doing <code><a href="../cli/npm-help.html">npm-help(1)</a></code>.</p>
 <h3 id="user">user</h3>
 <ul>
 <li>Default: &quot;nobody&quot;</li>
@@ -781,11 +831,11 @@ exit successfully.</p>
 <p>Set to <code>&quot;browser&quot;</code> to view html help content in the default web browser.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../cli/npm-config.html"><a href="../cli/npm-config.html">npm-config(1)</a></a></li>
-<li><a href="../files/npmrc.html"><a href="../files/npmrc.html">npmrc(5)</a></a></li>
-<li><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></li>
-<li><a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></li>
-<li><a href="../cli/npm.html"><a href="../cli/npm.html">npm(1)</a></a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+<li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
+<li><a href="../files/npm-folders.html">npm-folders(5)</a></li>
+<li><a href="../cli/npm.html">npm(1)</a></li>
 </ul>
 
 </div>
@@ -799,5 +849,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@2.13.3</p>
+<p id="footer">npm-config &mdash; npm@3.6.0</p>
 

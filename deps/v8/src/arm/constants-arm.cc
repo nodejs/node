@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/constants-arm.h"
@@ -51,17 +49,6 @@ const Registers::RegisterAlias Registers::aliases_[] = {
   {15, "r15"},
   {kNoRegister, NULL}
 };
-
-
-const char* Registers::Name(int reg) {
-  const char* result;
-  if ((0 <= reg) && (reg < kNumRegisters)) {
-    result = names_[reg];
-  } else {
-    result = "noreg";
-  }
-  return result;
-}
 
 
 // Support for VFP registers s0 to s31 (d0 to d15) and d16-d31.
@@ -126,6 +113,7 @@ int Registers::Number(const char* name) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM

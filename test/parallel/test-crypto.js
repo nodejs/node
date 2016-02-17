@@ -67,7 +67,6 @@ assert.equal(-1, crypto.getCiphers().indexOf('AES-128-CBC'));
 assertSorted(crypto.getCiphers());
 
 // Assume that we have at least AES256-SHA.
-var tls = require('tls');
 assert.notEqual(0, tls.getCiphers().length);
 assert.notEqual(-1, tls.getCiphers().indexOf('aes256-sha'));
 assert.equal(-1, tls.getCiphers().indexOf('AES256-SHA'));
@@ -93,11 +92,11 @@ assertSorted(crypto.getCurves());
 // throw, not assert in C++ land.
 assert.throws(function() {
   crypto.createCipher('aes192', 'test').update('0', 'hex');
-}, /Bad input string/);
+}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/);
 
 assert.throws(function() {
   crypto.createDecipher('aes192', 'test').update('0', 'hex');
-}, /Bad input string/);
+}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/);
 
 assert.throws(function() {
   crypto.createHash('sha1').update('0', 'hex');
@@ -122,7 +121,7 @@ assert.throws(function() {
     ''
   ].join('\n');
   crypto.createSign('RSA-SHA256').update('test').sign(priv);
-}, /RSA_sign:digest too big for rsa key/);
+}, /digest too big for rsa key/);
 
 assert.throws(function() {
   // The correct header inside `test_bad_rsa_privkey.pem` should have been

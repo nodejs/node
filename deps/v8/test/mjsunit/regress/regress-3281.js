@@ -5,8 +5,10 @@
 // Flags: --expose-natives-as=builtins
 // Should not crash or raise an exception.
 
+var SetIterator = builtins.ImportNow("SetIterator");
 var s = new Set();
-var setIterator = new builtins.SetIterator(s, 2);
+var setIterator = new SetIterator(s, 2);
 
+var MapIterator = builtins.ImportNow("MapIterator");
 var m = new Map();
-var mapIterator = new builtins.MapIterator(m, 2);
+var mapIterator = new MapIterator(m, 2);

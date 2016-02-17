@@ -3,8 +3,7 @@ npm-prune(1) -- Remove extraneous packages
 
 ## SYNOPSIS
 
-    npm prune [<name> [<name ...]]
-    npm prune [<name> [<name ...]] [--production]
+    npm prune [[<@scope>/]<pkg>...] [--production]
 
 ## DESCRIPTION
 
@@ -22,6 +21,6 @@ negate `NODE_ENV` being set to `production`.
 
 ## SEE ALSO
 
-* npm-rm(1)
+* npm-uninstall(1)
 * npm-folders(5)
 * npm-ls(1)

@@ -6,12 +6,9 @@
 #include <signal.h>
 #include <stdio.h>
 
-#include "src/v8.h"
-
 #include "include/libplatform/libplatform.h"
 #include "src/assembler.h"
 #include "src/base/platform/platform.h"
-#include "src/bootstrapper.h"
 #include "src/flags.h"
 #include "src/list.h"
 #include "src/snapshot/natives.h"
@@ -22,13 +19,15 @@ using namespace v8;
 
 class SnapshotWriter {
  public:
-  explicit SnapshotWriter(const char* snapshot_file)
-      : fp_(GetFileDescriptorOrDie(snapshot_file)),
-        startup_blob_file_(NULL) {}
+  SnapshotWriter() : fp_(NULL), startup_blob_file_(NULL) {}
 
   ~SnapshotWriter() {
-    fclose(fp_);
+    if (fp_) fclose(fp_);
     if (startup_blob_file_) fclose(startup_blob_file_);
+  }
+
+  void SetSnapshotFile(const char* snapshot_file) {
+    if (snapshot_file != NULL) fp_ = GetFileDescriptorOrDie(snapshot_file);
   }
 
   void SetStartupBlobFile(const char* startup_blob_file) {
@@ -39,7 +38,7 @@ class SnapshotWriter {
   void WriteSnapshot(v8::StartupData blob) const {
     i::Vector<const i::byte> blob_vector(
         reinterpret_cast<const i::byte*>(blob.data), blob.raw_size);
-    WriteSnapshotFile(blob_vector);
+    MaybeWriteSnapshotFile(blob_vector);
     MaybeWriteStartupBlob(blob_vector);
   }
 
@@ -54,7 +53,9 @@ class SnapshotWriter {
     }
   }
 
-  void WriteSnapshotFile(const i::Vector<const i::byte>& blob) const {
+  void MaybeWriteSnapshotFile(const i::Vector<const i::byte>& blob) const {
+    if (!fp_) return;
+
     WriteFilePrefix();
     WriteData(blob);
     WriteFileSuffix();
@@ -143,8 +144,9 @@ int main(int argc, char** argv) {
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
-  if (result > 0 || (argc != 2 && argc != 3) || i::FLAG_help) {
-    ::printf("Usage: %s [flag] ... outfile\n", argv[0]);
+  if (result > 0 || (argc != 1 && argc != 2) || i::FLAG_help) {
+    ::printf("Usage: %s --startup_src=... --startup_blob=... [extras]\n",
+             argv[0]);
     i::FlagList::PrintHelp();
     return !i::FLAG_help;
   }
@@ -156,9 +158,10 @@ int main(int argc, char** argv) {
   v8::V8::Initialize();
 
   {
-    SnapshotWriter writer(argv[1]);
+    SnapshotWriter writer;
+    if (i::FLAG_startup_src) writer.SetSnapshotFile(i::FLAG_startup_src);
     if (i::FLAG_startup_blob) writer.SetStartupBlobFile(i::FLAG_startup_blob);
-    char* extra_code = GetExtraCode(argc == 3 ? argv[2] : NULL);
+    char* extra_code = GetExtraCode(argc == 2 ? argv[1] : NULL);
     StartupData blob = v8::V8::CreateSnapshotDataBlob(extra_code);
     CHECK(blob.data);
     writer.WriteSnapshot(blob);

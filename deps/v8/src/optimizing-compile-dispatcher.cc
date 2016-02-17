@@ -4,12 +4,10 @@
 
 #include "src/optimizing-compile-dispatcher.h"
 
-#include "src/v8.h"
-
 #include "src/base/atomicops.h"
-#include "src/full-codegen.h"
-#include "src/hydrogen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/isolate.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -356,5 +354,5 @@ void OptimizingCompileDispatcher::AddToOsrBuffer(OptimizedCompileJob* job) {
   osr_buffer_[osr_buffer_cursor_] = job;
   osr_buffer_cursor_ = (osr_buffer_cursor_ + 1) % osr_buffer_capacity_;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

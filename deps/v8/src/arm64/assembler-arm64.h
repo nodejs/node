@@ -12,7 +12,6 @@
 
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
-#include "src/compiler.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
@@ -23,12 +22,36 @@ namespace internal {
 
 // -----------------------------------------------------------------------------
 // Registers.
-#define REGISTER_CODE_LIST(R)                                                  \
-R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \
-R(8)  R(9)  R(10) R(11) R(12) R(13) R(14) R(15)                                \
-R(16) R(17) R(18) R(19) R(20) R(21) R(22) R(23)                                \
-R(24) R(25) R(26) R(27) R(28) R(29) R(30) R(31)
+// clang-format off
+#define GENERAL_REGISTER_CODE_LIST(R)                     \
+  R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)          \
+  R(8)  R(9)  R(10) R(11) R(12) R(13) R(14) R(15)         \
+  R(16) R(17) R(18) R(19) R(20) R(21) R(22) R(23)         \
+  R(24) R(25) R(26) R(27) R(28) R(29) R(30) R(31)
 
+#define GENERAL_REGISTERS(R)                              \
+  R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
+  R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
+  R(x16) R(x17) R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) \
+  R(x24) R(x25) R(x26) R(x27) R(x28) R(x29) R(x30) R(x31)
+
+#define ALLOCATABLE_GENERAL_REGISTERS(R)                  \
+  R(x0)  R(x1)  R(x2)  R(x3)  R(x4)  R(x5)  R(x6)  R(x7)  \
+  R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
+  R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x27)
+
+#define DOUBLE_REGISTERS(R)                               \
+  R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \
+  R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d15) \
+  R(d16) R(d17) R(d18) R(d19) R(d20) R(d21) R(d22) R(d23) \
+  R(d24) R(d25) R(d26) R(d27) R(d28) R(d29) R(d30) R(d31)
+
+#define ALLOCATABLE_DOUBLE_REGISTERS(R)                   \
+  R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \
+  R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d16) \
+  R(d17) R(d18) R(d19) R(d20) R(d21) R(d22) R(d23) R(d24) \
+  R(d25) R(d26) R(d27) R(d28)
+// clang-format on
 
 static const int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 
@@ -40,6 +63,14 @@ struct FPRegister;
 
 
 struct CPURegister {
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    GENERAL_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
+
   enum RegisterType {
     // The kInvalid value is used to detect uninitialized static instances,
     // which are always zero-initialized before any constructors are called.
@@ -49,15 +80,15 @@ struct CPURegister {
     kNoRegister
   };
 
-  static CPURegister Create(unsigned code, unsigned size, RegisterType type) {
+  static CPURegister Create(int code, int size, RegisterType type) {
     CPURegister r = {code, size, type};
     return r;
   }
 
-  unsigned code() const;
+  int code() const;
   RegisterType type() const;
   RegList Bit() const;
-  unsigned SizeInBits() const;
+  int SizeInBits() const;
   int SizeInBytes() const;
   bool Is32Bits() const;
   bool Is64Bits() const;
@@ -86,14 +117,14 @@ struct CPURegister {
   bool is(const CPURegister& other) const { return Is(other); }
   bool is_valid() const { return IsValid(); }
 
-  unsigned reg_code;
-  unsigned reg_size;
+  int reg_code;
+  int reg_size;
   RegisterType reg_type;
 };
 
 
 struct Register : public CPURegister {
-  static Register Create(unsigned code, unsigned size) {
+  static Register Create(int code, int size) {
     return Register(CPURegister::Create(code, size, CPURegister::kRegister));
   }
 
@@ -117,6 +148,8 @@ struct Register : public CPURegister {
     DCHECK(IsValidOrNone());
   }
 
+  const char* ToString();
+  bool IsAllocatable() const;
   bool IsValid() const {
     DCHECK(IsRegister() || IsNone());
     return IsValidRegister();
@@ -130,6 +163,7 @@ struct Register : public CPURegister {
   // A few of them may be unused for now.
 
   static const int kNumRegisters = kNumberOfRegisters;
+  STATIC_ASSERT(kNumRegisters == Code::kAfterLast);
   static int NumRegisters() { return kNumRegisters; }
 
   // We allow crankshaft to use the following registers:
@@ -146,70 +180,6 @@ struct Register : public CPURegister {
   //   - "low range"
   //   - "high range"
   //   - "context"
-  static const unsigned kAllocatableLowRangeBegin = 0;
-  static const unsigned kAllocatableLowRangeEnd = 15;
-  static const unsigned kAllocatableHighRangeBegin = 18;
-  static const unsigned kAllocatableHighRangeEnd = 24;
-  static const unsigned kAllocatableContext = 27;
-
-  // Gap between low and high ranges.
-  static const int kAllocatableRangeGapSize =
-      (kAllocatableHighRangeBegin - kAllocatableLowRangeEnd) - 1;
-
-  static const int kMaxNumAllocatableRegisters =
-      (kAllocatableLowRangeEnd - kAllocatableLowRangeBegin + 1) +
-      (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1) + 1;  // cp
-  static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
-
-  // Return true if the register is one that crankshaft can allocate.
-  bool IsAllocatable() const {
-    return ((reg_code == kAllocatableContext) ||
-            (reg_code <= kAllocatableLowRangeEnd) ||
-            ((reg_code >= kAllocatableHighRangeBegin) &&
-             (reg_code <= kAllocatableHighRangeEnd)));
-  }
-
-  static Register FromAllocationIndex(unsigned index) {
-    DCHECK(index < static_cast<unsigned>(NumAllocatableRegisters()));
-    // cp is the last allocatable register.
-    if (index == (static_cast<unsigned>(NumAllocatableRegisters() - 1))) {
-      return from_code(kAllocatableContext);
-    }
-
-    // Handle low and high ranges.
-    return (index <= kAllocatableLowRangeEnd)
-        ? from_code(index)
-        : from_code(index + kAllocatableRangeGapSize);
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    DCHECK((index >= 0) && (index < NumAllocatableRegisters()));
-    DCHECK((kAllocatableLowRangeBegin == 0) &&
-           (kAllocatableLowRangeEnd == 15) &&
-           (kAllocatableHighRangeBegin == 18) &&
-           (kAllocatableHighRangeEnd == 24) &&
-           (kAllocatableContext == 27));
-    const char* const names[] = {
-      "x0", "x1", "x2", "x3", "x4",
-      "x5", "x6", "x7", "x8", "x9",
-      "x10", "x11", "x12", "x13", "x14",
-      "x15", "x18", "x19", "x20", "x21",
-      "x22", "x23", "x24", "x27",
-    };
-    return names[index];
-  }
-
-  static int ToAllocationIndex(Register reg) {
-    DCHECK(reg.IsAllocatable());
-    unsigned code = reg.code();
-    if (code == kAllocatableContext) {
-      return NumAllocatableRegisters() - 1;
-    }
-
-    return (code <= kAllocatableLowRangeEnd)
-        ? code
-        : code - kAllocatableRangeGapSize;
-  }
 
   static Register from_code(int code) {
     // Always return an X register.
@@ -221,7 +191,15 @@ struct Register : public CPURegister {
 
 
 struct FPRegister : public CPURegister {
-  static FPRegister Create(unsigned code, unsigned size) {
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    DOUBLE_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
+
+  static FPRegister Create(int code, int size) {
     return FPRegister(
         CPURegister::Create(code, size, CPURegister::kFPRegister));
   }
@@ -246,6 +224,8 @@ struct FPRegister : public CPURegister {
     DCHECK(IsValidOrNone());
   }
 
+  const char* ToString();
+  bool IsAllocatable() const;
   bool IsValid() const {
     DCHECK(IsFPRegister() || IsNone());
     return IsValidFPRegister();
@@ -256,69 +236,12 @@ struct FPRegister : public CPURegister {
 
   // Start of V8 compatibility section ---------------------
   static const int kMaxNumRegisters = kNumberOfFPRegisters;
+  STATIC_ASSERT(kMaxNumRegisters == Code::kAfterLast);
 
   // Crankshaft can use all the FP registers except:
   //   - d15 which is used to keep the 0 double value
   //   - d30 which is used in crankshaft as a double scratch register
   //   - d31 which is used in the MacroAssembler as a double scratch register
-  static const unsigned kAllocatableLowRangeBegin = 0;
-  static const unsigned kAllocatableLowRangeEnd = 14;
-  static const unsigned kAllocatableHighRangeBegin = 16;
-  static const unsigned kAllocatableHighRangeEnd = 28;
-
-  static const RegList kAllocatableFPRegisters = 0x1fff7fff;
-
-  // Gap between low and high ranges.
-  static const int kAllocatableRangeGapSize =
-      (kAllocatableHighRangeBegin - kAllocatableLowRangeEnd) - 1;
-
-  static const int kMaxNumAllocatableRegisters =
-      (kAllocatableLowRangeEnd - kAllocatableLowRangeBegin + 1) +
-      (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1);
-  static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
-
-  // TODO(turbofan): Proper float32 support.
-  static int NumAllocatableAliasedRegisters() {
-    return NumAllocatableRegisters();
-  }
-
-  // Return true if the register is one that crankshaft can allocate.
-  bool IsAllocatable() const {
-    return (Bit() & kAllocatableFPRegisters) != 0;
-  }
-
-  static FPRegister FromAllocationIndex(unsigned int index) {
-    DCHECK(index < static_cast<unsigned>(NumAllocatableRegisters()));
-
-    return (index <= kAllocatableLowRangeEnd)
-        ? from_code(index)
-        : from_code(index + kAllocatableRangeGapSize);
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    DCHECK((index >= 0) && (index < NumAllocatableRegisters()));
-    DCHECK((kAllocatableLowRangeBegin == 0) &&
-           (kAllocatableLowRangeEnd == 14) &&
-           (kAllocatableHighRangeBegin == 16) &&
-           (kAllocatableHighRangeEnd == 28));
-    const char* const names[] = {
-      "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
-      "d8", "d9", "d10", "d11", "d12", "d13", "d14",
-      "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
-      "d24", "d25", "d26", "d27", "d28"
-    };
-    return names[index];
-  }
-
-  static int ToAllocationIndex(FPRegister reg) {
-    DCHECK(reg.IsAllocatable());
-    unsigned code = reg.code();
-
-    return (code <= kAllocatableLowRangeEnd)
-        ? code
-        : code - kAllocatableRangeGapSize;
-  }
-
   static FPRegister from_code(int code) {
     // Always return a D register.
     return FPRegister::Create(code, kDRegSizeInBits);
@@ -361,7 +284,7 @@ INITIALIZE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
                       kWRegSizeInBits, CPURegister::kRegister);              \
   INITIALIZE_REGISTER(Register, x##N, N,                                     \
                       kXRegSizeInBits, CPURegister::kRegister);
-REGISTER_CODE_LIST(DEFINE_REGISTERS)
+GENERAL_REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
 INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
@@ -374,7 +297,7 @@ INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
                       kSRegSizeInBits, CPURegister::kFPRegister);              \
   INITIALIZE_REGISTER(FPRegister, d##N, N,                                     \
                       kDRegSizeInBits, CPURegister::kFPRegister);
-REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
+GENERAL_REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
 #undef INITIALIZE_REGISTER
@@ -461,13 +384,13 @@ class CPURegList {
     DCHECK(IsValid());
   }
 
-  CPURegList(CPURegister::RegisterType type, unsigned size, RegList list)
+  CPURegList(CPURegister::RegisterType type, int size, RegList list)
       : list_(list), size_(size), type_(type) {
     DCHECK(IsValid());
   }
 
-  CPURegList(CPURegister::RegisterType type, unsigned size,
-             unsigned first_reg, unsigned last_reg)
+  CPURegList(CPURegister::RegisterType type, int size, int first_reg,
+             int last_reg)
       : size_(size), type_(type) {
     DCHECK(((type == CPURegister::kRegister) &&
             (last_reg < kNumberOfRegisters)) ||
@@ -524,12 +447,12 @@ class CPURegList {
   CPURegister PopHighestIndex();
 
   // AAPCS64 callee-saved registers.
-  static CPURegList GetCalleeSaved(unsigned size = kXRegSizeInBits);
-  static CPURegList GetCalleeSavedFP(unsigned size = kDRegSizeInBits);
+  static CPURegList GetCalleeSaved(int size = kXRegSizeInBits);
+  static CPURegList GetCalleeSavedFP(int size = kDRegSizeInBits);
 
   // AAPCS64 caller-saved registers. Note that this includes lr.
-  static CPURegList GetCallerSaved(unsigned size = kXRegSizeInBits);
-  static CPURegList GetCallerSavedFP(unsigned size = kDRegSizeInBits);
+  static CPURegList GetCallerSaved(int size = kXRegSizeInBits);
+  static CPURegList GetCallerSavedFP(int size = kDRegSizeInBits);
 
   // Registers saved as safepoints.
   static CPURegList GetSafepointSavedRegisters();
@@ -557,25 +480,25 @@ class CPURegList {
     return CountSetBits(list_, kRegListSizeInBits);
   }
 
-  unsigned RegisterSizeInBits() const {
+  int RegisterSizeInBits() const {
     DCHECK(IsValid());
     return size_;
   }
 
-  unsigned RegisterSizeInBytes() const {
+  int RegisterSizeInBytes() const {
     int size_in_bits = RegisterSizeInBits();
     DCHECK((size_in_bits % kBitsPerByte) == 0);
     return size_in_bits / kBitsPerByte;
   }
 
-  unsigned TotalSizeInBytes() const {
+  int TotalSizeInBytes() const {
     DCHECK(IsValid());
     return RegisterSizeInBytes() * Count();
   }
 
  private:
   RegList list_;
-  unsigned size_;
+  int size_;
   CPURegister::RegisterType type_;
 
   bool IsValid() const {
@@ -764,7 +687,7 @@ class ConstPool {
         shared_entries_count(0) {}
   void RecordEntry(intptr_t data, RelocInfo::Mode mode);
   int EntryCount() const {
-    return shared_entries_count + unique_entries_.size();
+    return shared_entries_count + static_cast<int>(unique_entries_.size());
   }
   bool IsEmpty() const {
     return shared_entries_.empty() && unique_entries_.empty();
@@ -851,6 +774,9 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
+  // Insert the smallest number of zero bytes possible to align the pc offset
+  // to a mulitple of m. m must be a power of 2 (>= 2).
+  void DataAlign(int m);
 
   inline void Unreachable();
 
@@ -871,13 +797,10 @@ class Assembler : public AssemblerBase {
   inline static Address target_pointer_address_at(Address pc);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc,
-                                          ConstantPoolArray* constant_pool);
-  inline static void set_target_address_at(Address pc,
-                                           ConstantPoolArray* constant_pool,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED);
+  inline static Address target_address_at(Address pc, Address constant_pool);
+  inline static void set_target_address_at(
+      Address pc, Address constant_pool, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   static inline Address target_address_at(Address pc, Code* code);
   static inline void set_target_address_at(Address pc,
                                            Code* code,
@@ -892,9 +815,6 @@ class Assembler : public AssemblerBase {
   // Given the address of the beginning of a call, return the address in the
   // instruction stream that call will return from.
   inline static Address return_address_from_call_start(Address pc);
-
-  // Return the code target address of the patch debug break slot
-  inline static Address break_address_from_return_address(Address pc);
 
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
@@ -951,28 +871,16 @@ class Assembler : public AssemblerBase {
 
   // Return the number of instructions generated from label to the
   // current position.
-  int InstructionsGeneratedSince(const Label* label) {
+  uint64_t InstructionsGeneratedSince(const Label* label) {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
-  // Number of instructions generated for the return sequence in
-  // FullCodeGenerator::EmitReturnSequence.
-  static const int kJSReturnSequenceInstructions = 7;
-  static const int kJSReturnSequenceLength =
-      kJSReturnSequenceInstructions * kInstructionSize;
-  // Distance between start of patched return sequence and the emitted address
-  // to jump to.
-  static const int kPatchReturnSequenceAddressOffset =  0;
   static const int kPatchDebugBreakSlotAddressOffset =  0;
 
   // Number of instructions necessary to be able to later patch it to a call.
-  // See DebugCodegen::GenerateSlot() and
-  // BreakLocation::SetDebugBreakAtSlot().
-  static const int kDebugBreakSlotInstructions = 4;
+  static const int kDebugBreakSlotInstructions = 5;
   static const int kDebugBreakSlotLength =
     kDebugBreakSlotInstructions * kInstructionSize;
-
-  static const int kPatchDebugBreakSlotReturnOffset = 2 * kInstructionSize;
 
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
@@ -1022,11 +930,11 @@ class Assembler : public AssemblerBase {
 
   int buffer_space() const;
 
-  // Mark address of the ExitJSFrame code.
-  void RecordJSReturn();
+  // Mark generator continuation.
+  void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot();
+  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
 
   // Record the emission of a constant pool.
   //
@@ -1212,39 +1120,24 @@ class Assembler : public AssemblerBase {
 
   // Bitfield instructions.
   // Bitfield move.
-  void bfm(const Register& rd,
-           const Register& rn,
-           unsigned immr,
-           unsigned imms);
+  void bfm(const Register& rd, const Register& rn, int immr, int imms);
 
   // Signed bitfield move.
-  void sbfm(const Register& rd,
-            const Register& rn,
-            unsigned immr,
-            unsigned imms);
+  void sbfm(const Register& rd, const Register& rn, int immr, int imms);
 
   // Unsigned bitfield move.
-  void ubfm(const Register& rd,
-            const Register& rn,
-            unsigned immr,
-            unsigned imms);
+  void ubfm(const Register& rd, const Register& rn, int immr, int imms);
 
   // Bfm aliases.
   // Bitfield insert.
-  void bfi(const Register& rd,
-           const Register& rn,
-           unsigned lsb,
-           unsigned width) {
+  void bfi(const Register& rd, const Register& rn, int lsb, int width) {
     DCHECK(width >= 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Bitfield extract and insert low.
-  void bfxil(const Register& rd,
-             const Register& rn,
-             unsigned lsb,
-             unsigned width) {
+  void bfxil(const Register& rd, const Register& rn, int lsb, int width) {
     DCHECK(width >= 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, lsb, lsb + width - 1);
@@ -1252,26 +1145,20 @@ class Assembler : public AssemblerBase {
 
   // Sbfm aliases.
   // Arithmetic shift right.
-  void asr(const Register& rd, const Register& rn, unsigned shift) {
+  void asr(const Register& rd, const Register& rn, int shift) {
     DCHECK(shift < rd.SizeInBits());
     sbfm(rd, rn, shift, rd.SizeInBits() - 1);
   }
 
   // Signed bitfield insert in zero.
-  void sbfiz(const Register& rd,
-             const Register& rn,
-             unsigned lsb,
-             unsigned width) {
+  void sbfiz(const Register& rd, const Register& rn, int lsb, int width) {
     DCHECK(width >= 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Signed bitfield extract.
-  void sbfx(const Register& rd,
-            const Register& rn,
-            unsigned lsb,
-            unsigned width) {
+  void sbfx(const Register& rd, const Register& rn, int lsb, int width) {
     DCHECK(width >= 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, lsb, lsb + width - 1);
@@ -1294,33 +1181,27 @@ class Assembler : public AssemblerBase {
 
   // Ubfm aliases.
   // Logical shift left.
-  void lsl(const Register& rd, const Register& rn, unsigned shift) {
-    unsigned reg_size = rd.SizeInBits();
+  void lsl(const Register& rd, const Register& rn, int shift) {
+    int reg_size = rd.SizeInBits();
     DCHECK(shift < reg_size);
     ubfm(rd, rn, (reg_size - shift) % reg_size, reg_size - shift - 1);
   }
 
   // Logical shift right.
-  void lsr(const Register& rd, const Register& rn, unsigned shift) {
+  void lsr(const Register& rd, const Register& rn, int shift) {
     DCHECK(shift < rd.SizeInBits());
     ubfm(rd, rn, shift, rd.SizeInBits() - 1);
   }
 
   // Unsigned bitfield insert in zero.
-  void ubfiz(const Register& rd,
-             const Register& rn,
-             unsigned lsb,
-             unsigned width) {
+  void ubfiz(const Register& rd, const Register& rn, int lsb, int width) {
     DCHECK(width >= 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Unsigned bitfield extract.
-  void ubfx(const Register& rd,
-            const Register& rn,
-            unsigned lsb,
-            unsigned width) {
+  void ubfx(const Register& rd, const Register& rn, int lsb, int width) {
     DCHECK(width >= 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, lsb, lsb + width - 1);
@@ -1342,10 +1223,8 @@ class Assembler : public AssemblerBase {
   }
 
   // Extract.
-  void extr(const Register& rd,
-            const Register& rn,
-            const Register& rm,
-            unsigned lsb);
+  void extr(const Register& rd, const Register& rn, const Register& rm,
+            int lsb);
 
   // Conditional select: rd = cond ? rn : rm.
   void csel(const Register& rd,
@@ -1506,14 +1385,6 @@ class Assembler : public AssemblerBase {
 
   // Load word pair with sign extension.
   void ldpsw(const Register& rt, const Register& rt2, const MemOperand& src);
-
-  // Load integer or FP register pair, non-temporal.
-  void ldnp(const CPURegister& rt, const CPURegister& rt2,
-            const MemOperand& src);
-
-  // Store integer or FP register pair, non-temporal.
-  void stnp(const CPURegister& rt, const CPURegister& rt2,
-            const MemOperand& dst);
 
   // Load literal to register from a pc relative address.
   void ldr_pcrel(const CPURegister& rt, int imm19);
@@ -1767,6 +1638,8 @@ class Assembler : public AssemblerBase {
   // Required by V8.
   void dd(uint32_t data) { dc32(data); }
   void db(uint8_t data) { dc8(data); }
+  void dq(uint64_t data) { dc64(data); }
+  void dp(uintptr_t data) { dc64(data); }
 
   // Code generation helpers --------------------------------------------------
 
@@ -1774,7 +1647,7 @@ class Assembler : public AssemblerBase {
 
   Instruction* pc() const { return Instruction::Cast(pc_); }
 
-  Instruction* InstructionAt(int offset) const {
+  Instruction* InstructionAt(ptrdiff_t offset) const {
     return reinterpret_cast<Instruction*>(buffer_ + offset);
   }
 
@@ -1841,7 +1714,7 @@ class Assembler : public AssemblerBase {
 
   // Data Processing encoding.
   inline static Instr SF(Register rd);
-  inline static Instr ImmAddSub(int64_t imm);
+  inline static Instr ImmAddSub(int imm);
   inline static Instr ImmS(unsigned imms, unsigned reg_size);
   inline static Instr ImmR(unsigned immr, unsigned reg_size);
   inline static Instr ImmSetBits(unsigned imms, unsigned reg_size);
@@ -1876,10 +1749,11 @@ class Assembler : public AssemblerBase {
 
   static bool IsImmLSUnscaled(int64_t offset);
   static bool IsImmLSScaled(int64_t offset, LSDataSize size);
+  static bool IsImmLLiteral(int64_t offset);
 
   // Move immediates encoding.
-  inline static Instr ImmMoveWide(uint64_t imm);
-  inline static Instr ShiftMoveWide(int64_t shift);
+  inline static Instr ImmMoveWide(int imm);
+  inline static Instr ShiftMoveWide(int shift);
 
   // FP Immediates.
   static Instr ImmFP32(float imm);
@@ -1908,11 +1782,12 @@ class Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
-  // Allocate a constant pool of the correct size for the generated code.
-  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
-
-  // Generate the constant pool for the generated code.
-  void PopulateConstantPool(ConstantPoolArray* constant_pool);
+  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
+                                          ConstantPoolEntry::Access access,
+                                          ConstantPoolEntry::Type type) {
+    // No embedded constant pool support.
+    UNREACHABLE();
+  }
 
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.
@@ -2018,10 +1893,6 @@ class Assembler : public AssemblerBase {
   static inline LoadStoreOp StoreOpFor(const CPURegister& rt);
   static inline LoadStorePairOp StorePairOpFor(const CPURegister& rt,
                                                const CPURegister& rt2);
-  static inline LoadStorePairNonTemporalOp LoadPairNonTemporalOpFor(
-    const CPURegister& rt, const CPURegister& rt2);
-  static inline LoadStorePairNonTemporalOp StorePairNonTemporalOpFor(
-    const CPURegister& rt, const CPURegister& rt2);
   static inline LoadLiteralOp LoadLiteralOpFor(const CPURegister& rt);
 
   // Remove the specified branch from the unbound label link chain.
@@ -2047,10 +1918,6 @@ class Assembler : public AssemblerBase {
                                 const Operand& operand,
                                 FlagsUpdate S,
                                 Instr op);
-  void LoadStorePairNonTemporal(const CPURegister& rt,
-                                const CPURegister& rt2,
-                                const MemOperand& addr,
-                                LoadStorePairNonTemporalOp op);
   void ConditionalSelect(const Register& rd,
                          const Register& rn,
                          const Register& rm,
@@ -2306,7 +2173,7 @@ class PatchingAssembler : public Assembler {
     DCHECK(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
-    CpuFeatures::FlushICache(buffer_, length);
+    Assembler::FlushICacheWithoutIsolate(buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.
@@ -2323,6 +2190,7 @@ class EnsureSpace BASE_EMBEDDED {
   }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_ASSEMBLER_ARM64_H_

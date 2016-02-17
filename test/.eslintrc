@@ -5,6 +5,8 @@ rules:
   no-undef: 0
   ## allow global Buffer usage
   require-buffer: 0
+  ## common module is mandatory in tests
+  required-modules: [2, "common"]
 
 globals:
   gc: false

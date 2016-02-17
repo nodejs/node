@@ -46,7 +46,7 @@ var timeToQuit = Date.now() + 8e3; //Test during no more than this seconds.
     }
   }
   else {
-    throw Error("Buffer GC'ed test -> FAIL");
+    throw new Error("Buffer GC'ed test -> FAIL");
   }
 
   if (Date.now() < timeToQuit) {

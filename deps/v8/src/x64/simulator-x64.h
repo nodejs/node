@@ -41,6 +41,7 @@ class SimulatorStack : public v8::internal::AllStatic {
   static inline void UnregisterCTryCatch() { }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_SIMULATOR_X64_H_

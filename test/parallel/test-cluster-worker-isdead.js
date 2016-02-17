@@ -1,7 +1,7 @@
 'use strict';
+require('../common');
 var cluster = require('cluster');
 var assert = require('assert');
-var net = require('net');
 
 if (cluster.isMaster) {
   var worker = cluster.fork();
@@ -10,7 +10,7 @@ if (cluster.isMaster) {
             'created.');
 
   worker.on('exit', function() {
-    assert.ok(!worker.isConnected(),
+    assert.ok(worker.isDead(),
               'After an event has been emitted, ' +
               'isDead should return true');
   });

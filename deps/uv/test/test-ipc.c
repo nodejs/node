@@ -52,6 +52,7 @@ typedef struct {
 } tcp_conn;
 
 #define CONN_COUNT 100
+#define BACKLOG 128
 
 
 static void close_server_conn_cb(uv_handle_t* handle) {
@@ -179,7 +180,7 @@ static void on_read(uv_stream_t* handle,
     r = uv_accept((uv_stream_t*)pipe, (uv_stream_t*)&tcp_server);
     ASSERT(r == 0);
 
-    r = uv_listen((uv_stream_t*)&tcp_server, 12, on_connection);
+    r = uv_listen((uv_stream_t*)&tcp_server, BACKLOG, on_connection);
     ASSERT(r == 0);
 
     tcp_server_listening = 1;
@@ -242,22 +243,22 @@ static void on_read_listen_after_bound_twice(uv_stream_t* handle,
     ASSERT(pending == UV_TCP);
     r = uv_tcp_init(uv_default_loop(), &tcp_server);
     ASSERT(r == 0);
-    
+
     r = uv_accept((uv_stream_t*)pipe, (uv_stream_t*)&tcp_server);
     ASSERT(r == 0);
-    
-    r = uv_listen((uv_stream_t*)&tcp_server, 12, on_connection);
-    ASSERT(r == 0); 
+
+    r = uv_listen((uv_stream_t*)&tcp_server, BACKLOG, on_connection);
+    ASSERT(r == 0);
   } else if (read_cb_called == 2) {
     /* Accept the second TCP server, and start listening on it. */
     ASSERT(pending == UV_TCP);
     r = uv_tcp_init(uv_default_loop(), &tcp_server2);
     ASSERT(r == 0);
-    
+
     r = uv_accept((uv_stream_t*)pipe, (uv_stream_t*)&tcp_server2);
     ASSERT(r == 0);
-    
-    r = uv_listen((uv_stream_t*)&tcp_server2, 12, on_connection);
+
+    r = uv_listen((uv_stream_t*)&tcp_server2, BACKLOG, on_connection);
     ASSERT(r == UV_EADDRINUSE);
 
     uv_close((uv_handle_t*)&tcp_server, NULL);
@@ -652,7 +653,7 @@ int ipc_helper(int listen_after_write) {
   ASSERT(r == 0);
 
   if (!listen_after_write) {
-    r = uv_listen((uv_stream_t*)&tcp_server, 12, ipc_on_connection);
+    r = uv_listen((uv_stream_t*)&tcp_server, BACKLOG, ipc_on_connection);
     ASSERT(r == 0);
   }
 
@@ -662,7 +663,7 @@ int ipc_helper(int listen_after_write) {
   ASSERT(r == 0);
 
   if (listen_after_write) {
-    r = uv_listen((uv_stream_t*)&tcp_server, 12, ipc_on_connection);
+    r = uv_listen((uv_stream_t*)&tcp_server, BACKLOG, ipc_on_connection);
     ASSERT(r == 0);
   }
 
@@ -703,7 +704,7 @@ int ipc_helper_tcp_connection(void) {
   r = uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
-  r = uv_listen((uv_stream_t*)&tcp_server, 12, ipc_on_connection_tcp_conn);
+  r = uv_listen((uv_stream_t*)&tcp_server, BACKLOG, ipc_on_connection_tcp_conn);
   ASSERT(r == 0);
 
   /* Make a connection to the server */
@@ -772,7 +773,7 @@ int ipc_helper_bind_twice(void) {
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
-  
+
   MAKE_VALGRIND_HAPPY();
   return 0;
 }

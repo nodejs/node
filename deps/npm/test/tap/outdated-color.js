@@ -50,10 +50,10 @@ test('does not use ansi styling', function (t) {
   t.plan(4)
   mr({ port: common.port }, function (er, s) { // create mock registry.
     common.npm(
-    [
-      '--registry', common.registry,
-      'outdated', 'underscore'
-    ],
+      [
+        '--registry', common.registry,
+        'outdated', 'underscore'
+      ],
     EXEC_OPTS,
     function (err, code, stdout) {
       t.ifError(err)

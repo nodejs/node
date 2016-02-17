@@ -28,4 +28,5 @@ void WorkerThread::Run() {
   }
 }
 
-} }  // namespace v8::platform
+}  // namespace platform
+}  // namespace v8

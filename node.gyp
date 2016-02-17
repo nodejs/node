@@ -12,12 +12,13 @@
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
+    'node_enable_v8_vtunejit%': 'false',
     'node_target_type%': 'executable',
+    'node_core_target_name%': 'node',
     'library_files': [
       'src/node.js',
       'lib/_debug_agent.js',
       'lib/_debugger.js',
-      'lib/_linklist.js',
       'lib/assert.js',
       'lib/buffer.js',
       'lib/child_process.js',
@@ -29,7 +30,6 @@
       'lib/dns.js',
       'lib/domain.js',
       'lib/events.js',
-      'lib/freelist.js',
       'lib/fs.js',
       'lib/http.js',
       'lib/_http_agent.js',
@@ -39,6 +39,7 @@
       'lib/_http_outgoing.js',
       'lib/_http_server.js',
       'lib/https.js',
+      'lib/_linklist.js',
       'lib/module.js',
       'lib/net.js',
       'lib/os.js',
@@ -69,16 +70,34 @@
       'lib/vm.js',
       'lib/zlib.js',
       'lib/internal/child_process.js',
+      'lib/internal/cluster.js',
       'lib/internal/freelist.js',
-      'lib/internal/socket_list.js',
+      'lib/internal/linkedlist.js',
+      'lib/internal/net.js',
+      'lib/internal/module.js',
+      'lib/internal/readline.js',
       'lib/internal/repl.js',
+      'lib/internal/socket_list.js',
       'lib/internal/util.js',
+      'lib/internal/v8_prof_polyfill.js',
+      'lib/internal/v8_prof_processor.js',
+      'lib/internal/streams/lazy_transform.js',
+      'deps/v8/tools/splaytree.js',
+      'deps/v8/tools/codemap.js',
+      'deps/v8/tools/consarray.js',
+      'deps/v8/tools/csvparser.js',
+      'deps/v8/tools/profile.js',
+      'deps/v8/tools/profile_view.js',
+      'deps/v8/tools/logreader.js',
+      'deps/v8/tools/tickprocessor.js',
+      'deps/v8/tools/SourceMap.js',
+      'deps/v8/tools/tickprocessor-driver.js',
     ],
   },
 
   'targets': [
     {
-      'target_name': 'node',
+      'target_name': '<(node_core_target_name)',
       'type': '<(node_target_type)',
 
       'dependencies': [
@@ -113,6 +132,8 @@
         'src/node_javascript.cc',
         'src/node_main.cc',
         'src/node_os.cc',
+        'src/node_revert.cc',
+        'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_stat_watcher.cc',
         'src/node_watchdog.cc',
@@ -151,6 +172,7 @@
         'src/node_version.h',
         'src/node_watchdog.h',
         'src/node_wrap.h',
+        'src/node_revert.h',
         'src/node_i18n.h',
         'src/pipe_wrap.h',
         'src/tty_wrap.h',
@@ -166,6 +188,7 @@
         'src/util.h',
         'src/util-inl.h',
         'src/util.cc',
+        'src/string_search.cc',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',
@@ -180,6 +203,8 @@
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
         'NODE_WANT_INTERNALS=1',
+        # Warn when using deprecated V8 APIs.
+        'V8_DEPRECATION_WARNINGS=1',
       ],
 
 
@@ -212,6 +237,13 @@
               'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
           }]],
         }],
+        [ 'node_enable_v8_vtunejit=="true" and (target_arch=="x64" or \
+           target_arch=="ia32" or target_arch=="x32")', {
+          'defines': [ 'NODE_ENABLE_VTUNE_PROFILING' ],
+          'dependencies': [
+            'deps/v8/src/third_party/vtune/v8vtune.gyp:v8_vtune'
+          ],
+        }],
         [ 'node_use_openssl=="true"', {
           'defines': [ 'HAVE_OPENSSL=1' ],
           'sources': [
@@ -225,6 +257,9 @@
             'src/tls_wrap.h'
           ],
           'conditions': [
+            ['openssl_fips != ""', {
+              'defines': [ 'NODE_FIPS_MODE' ],
+            }],
             [ 'node_shared_openssl=="false"', {
               'dependencies': [
                 './deps/openssl/openssl.gyp:openssl',
@@ -387,6 +422,11 @@
             '-lkvm',
           ],
         }],
+        [ 'OS=="aix"', {
+          'defines': [
+            '_LINUX_SOURCE_COMPAT',
+          ],
+        }],
         [ 'OS=="solaris"', {
           'libraries': [
             '-lkstat',
@@ -488,7 +528,7 @@
             }]
           ],
           'action': [
-            '<(python)',
+            'python',
             'tools/js2c.py',
             '<@(_outputs)',
             '<@(_inputs)',
@@ -658,5 +698,53 @@
         'test/cctest/util.cc',
       ],
     }
-  ] # end targets
+  ], # end targets
+
+  'conditions': [
+    ['OS=="aix"', {
+      'targets': [
+        {
+          'target_name': 'node',
+          'type': 'executable',
+          'dependencies': ['<(node_core_target_name)', 'node_exp'],
+
+          'include_dirs': [
+            'src',
+            'deps/v8/include',
+          ],
+
+          'sources': [
+            'src/node_main.cc',
+            '<@(library_files)',
+            # node.gyp is added to the project by default.
+            'common.gypi',
+          ],
+
+          'ldflags': ['-Wl,-bbigtoc,-bE:<(PRODUCT_DIR)/node.exp'],
+        },
+        {
+          'target_name': 'node_exp',
+          'type': 'none',
+          'dependencies': [
+            '<(node_core_target_name)',
+          ],
+          'actions': [
+            {
+              'action_name': 'expfile',
+              'inputs': [
+                '<(OBJ_DIR)'
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/node.exp'
+              ],
+              'action': [
+                'sh', 'tools/create_expfile.sh',
+                      '<@(_inputs)', '<@(_outputs)'
+              ],
+            }
+          ]
+        }
+      ], # end targets
+    }], # end aix section
+  ], # end conditions block
 }

@@ -12,6 +12,8 @@ namespace internal {
 namespace compiler {
 
 class Graph;
+class Edge;
+class Node;
 class Schedule;
 
 // Verifies properties of a graph, such as the well-formedness of inputs to
@@ -21,6 +23,28 @@ class Verifier {
   enum Typing { TYPED, UNTYPED };
 
   static void Run(Graph* graph, Typing typing = TYPED);
+
+#ifdef DEBUG
+  // Verifies consistency of node inputs and uses:
+  // - node inputs should agree with the input count computed from
+  //   the node's operator.
+  // - effect inputs should have effect outputs.
+  // - control inputs should have control outputs.
+  // - frame state inputs should be frame states.
+  // - if the node has control uses, it should produce control.
+  // - if the node has effect uses, it should produce effect.
+  // - if the node has frame state uses, it must be a frame state.
+  static void VerifyNode(Node* node);
+
+  // Verify that {replacement} has the required outputs
+  // (effect, control or frame state) to be used as an input for {edge}.
+  static void VerifyEdgeInputReplacement(const Edge& edge,
+                                         const Node* replacement);
+#else
+  static void VerifyNode(Node* node) {}
+  static void VerifyEdgeInputReplacement(const Edge& edge,
+                                         const Node* replacement) {}
+#endif  // DEBUG
 
  private:
   class Visitor;
@@ -32,8 +56,8 @@ class ScheduleVerifier {
  public:
   static void Run(Schedule* schedule);
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_VERIFIER_H_

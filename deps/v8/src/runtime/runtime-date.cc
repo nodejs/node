@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/conversions-inl.h"
 #include "src/date.h"
 #include "src/dateparser-inl.h"
-#include "src/runtime/runtime-utils.h"
+#include "src/factory.h"
+#include "src/isolate-inl.h"
+#include "src/messages.h"
 
 namespace v8 {
 namespace internal {
@@ -36,7 +39,6 @@ RUNTIME_FUNCTION(Runtime_DateSetValue) {
   DateCache* date_cache = isolate->date_cache();
 
   Handle<Object> value;
-  ;
   bool is_value_nan = false;
   if (std::isnan(time)) {
     value = isolate->factory()->nan_value();
@@ -59,11 +61,19 @@ RUNTIME_FUNCTION(Runtime_DateSetValue) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_IsDate) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSDate());
+}
+
+
 RUNTIME_FUNCTION(Runtime_ThrowNotDateError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError("not_date_object", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(MessageTemplate::kNotDateObject));
 }
 
 
@@ -89,8 +99,8 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
 
 RUNTIME_FUNCTION(Runtime_DateParseString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, output, 1);
 
   RUNTIME_ASSERT(output->HasFastElements());
@@ -98,6 +108,10 @@ RUNTIME_FUNCTION(Runtime_DateParseString) {
   RUNTIME_ASSERT(output->HasFastObjectElements());
   Handle<FixedArray> output_array(FixedArray::cast(output->elements()));
   RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
+
+  Handle<String> str;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
+                                     Object::ToString(isolate, input));
 
   str = String::Flatten(str);
   DisallowHeapAllocation no_gc;
@@ -173,18 +187,13 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
 
 RUNTIME_FUNCTION(Runtime_DateField) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(JSDate, date, 0);
   CONVERT_SMI_ARG_CHECKED(index, 1);
-  if (!obj->IsJSDate()) {
-    HandleScope scope(isolate);
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError("not_date_object", HandleVector<Object>(NULL, 0)));
-  }
-  JSDate* date = JSDate::cast(obj);
+  DCHECK_LE(0, index);
   if (index == 0) return date->value();
   return JSDate::GetField(date, Smi::FromInt(index));
 }
-}
-}  // namespace v8::internal
+
+}  // namespace internal
+}  // namespace v8

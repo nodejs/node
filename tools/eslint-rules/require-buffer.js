@@ -8,9 +8,9 @@ module.exports = function(context) {
     'Program:exit': function() {
       context.getScope().through.forEach(function(ref) {
         if (ref.identifier.name === 'Buffer') {
-            context.report(ref.identifier, msg);
+          context.report(ref.identifier, msg);
         }
       });
     }
-  }
-}
+  };
+};

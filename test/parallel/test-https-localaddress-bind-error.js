@@ -28,14 +28,14 @@ var server = https.createServer(options, function(req, res) {
 });
 
 server.listen(common.PORT, '127.0.0.1', function() {
-  var req = https.request({
+  https.request({
     host: 'localhost',
     port: common.PORT,
     path: '/',
     method: 'GET',
     localAddress: invalidLocalAddress
   }, function(res) {
-    assert.fail('unexpectedly got response from server');
+    assert.fail(null, null, 'unexpectedly got response from server');
   }).on('error', function(e) {
     console.log('client got error: ' + e.message);
     gotError = true;

@@ -16,17 +16,27 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // TypeImpl
 
-template <class Config>
+template<class Config>
 typename TypeImpl<Config>::bitset TypeImpl<Config>::BitsetType::SignedSmall() {
   return i::SmiValuesAre31Bits() ? kSigned31 : kSigned32;
 }
 
 
-template <class Config>
+template<class Config>
 typename TypeImpl<Config>::bitset
 TypeImpl<Config>::BitsetType::UnsignedSmall() {
   return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
 }
+
+
+#define CONSTRUCT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
+template<class Config> \
+typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Name( \
+    Isolate* isolate, Region* region) { \
+  return Class(i::handle(isolate->heap()->name##_map()), region); \
+}
+SIMD128_TYPES(CONSTRUCT_SIMD_TYPE)
+#undef CONSTRUCT_SIMD_TYPE
 
 
 template<class Config>
@@ -66,13 +76,6 @@ bool TypeImpl<Config>::NowContains(i::Object* value) {
 
 // -----------------------------------------------------------------------------
 // ZoneTypeConfig
-
-// static
-template<class T>
-T* ZoneTypeConfig::null_handle() {
-  return NULL;
-}
-
 
 // static
 template<class T>
@@ -283,13 +286,6 @@ void ZoneTypeConfig::range_set_double(ZoneTypeConfig::Range* range, int index,
 
 // static
 template<class T>
-i::Handle<T> HeapTypeConfig::null_handle() {
-  return i::Handle<T>();
-}
-
-
-// static
-template<class T>
 i::Handle<T> HeapTypeConfig::handle(T* type) {
   return i::handle(type, i::HeapObject::cast(type)->GetIsolate());
 }
@@ -485,6 +481,7 @@ void HeapTypeConfig::range_set_double(i::Handle<HeapTypeConfig::Range> range,
   i::Handle<Object> number = isolate->factory()->NewNumber(value);
   range->set(index + 2, *number);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPES_INL_H_

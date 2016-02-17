@@ -31,9 +31,7 @@ OUTDIR ?= out
 TESTJOBS ?=
 GYPFLAGS ?=
 TESTFLAGS ?=
-ANDROID_NDK_ROOT ?=
 ANDROID_NDK_HOST_ARCH ?=
-ANDROID_TOOLCHAIN ?=
 ANDROID_V8 ?= /data/local/tmp/v8
 NACL_SDK_ROOT ?=
 
@@ -45,10 +43,6 @@ ifeq ($(library), shared)
 endif
 ifdef component
   GYPFLAGS += -Dcomponent=$(component)
-endif
-# console=readline
-ifdef console
-  GYPFLAGS += -Dconsole=$(console)
 endif
 # disassembler=on
 ifeq ($(disassembler), on)
@@ -145,9 +139,17 @@ ifeq ($(i18nsupport), off)
   GYPFLAGS += -Dv8_enable_i18n_support=0
   TESTFLAGS += --noi18n
 endif
-# deprecation_warnings=on
+# deprecationwarnings=on
 ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
+endif
+# vectorstores=on
+ifeq ($(vectorstores), on)
+  GYPFLAGS += -Dv8_vector_stores=1
+endif
+# imminentdeprecationwarnings=on
+ifeq ($(imminentdeprecationwarnings), on)
+  GYPFLAGS += -Dv8_imminent_deprecation_warnings=1
 endif
 # asan=on
 ifeq ($(asan), on)
@@ -160,7 +162,9 @@ endif
 ifdef embedscript
   GYPFLAGS += -Dembed_script=$(embedscript)
 endif
-
+ifeq ($(goma), on)
+  GYPFLAGS += -Duse_goma=1
+endif
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)
@@ -216,6 +220,12 @@ ifeq ($(arm_test_noprobe), on)
   GYPFLAGS += -Darm_test_noprobe=on
 endif
 
+# Optionally enable wasm prototype.
+# Assume you've placed a link to v8-native-prototype in third_party/wasm.
+ifeq ($(wasm), on)
+  GYPFLAGS += -Dv8_wasm=1
+endif
+
 # ----------------- available targets: --------------------
 # - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
@@ -234,7 +244,7 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64el x87 ppc ppc64
+ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64 mips64el x87 ppc ppc64
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
@@ -246,7 +256,7 @@ NACL_ARCHES = nacl_ia32 nacl_x64
 GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
 	   build/shim_headers.gypi build/features.gypi build/standalone.gypi \
 	   build/toolchain.gypi build/all.gyp build/mac/asan.gyp \
-	   build/android.gypi test/cctest/cctest.gyp \
+	   test/cctest/cctest.gyp \
 	   test/unittests/unittests.gyp tools/gyp/v8.gyp \
 	   tools/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
 	   buildtools/third_party/libc++abi/libc++abi.gyp \
@@ -277,7 +287,6 @@ ENVFILE = $(OUTDIR)/environment
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
         $(ANDROID_ARCHES) $(ANDROID_BUILDS) $(ANDROID_CHECKS) \
-        must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN \
         $(NACL_ARCHES) $(NACL_BUILDS) $(NACL_CHECKS) \
         must-set-NACL_SDK_ROOT
 
@@ -311,8 +320,7 @@ native: $(OUTDIR)/Makefile.native
 
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
-$(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
-                   must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android
+$(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) Makefile.android
 	@$(MAKE) -f Makefile.android $@ \
 	        ARCH="$(basename $@)" \
 	        MODE="$(subst .,,$(suffix $@))" \
@@ -447,13 +455,6 @@ $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
-
-must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN:
-ifndef ANDROID_NDK_ROOT
-ifndef ANDROID_TOOLCHAIN
-	  $(error ANDROID_NDK_ROOT or ANDROID_TOOLCHAIN must be set))
-endif
-endif
 
 # Note that NACL_SDK_ROOT must be set to point to an appropriate
 # Native Client SDK before using this makefile. You can download

@@ -76,4 +76,5 @@ bool AllocationSiteUsageContext::ShouldCreateMemento(Handle<JSObject> object) {
   return false;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

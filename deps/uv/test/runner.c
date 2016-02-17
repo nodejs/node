@@ -210,6 +210,8 @@ int run_test(const char* test,
 #ifndef _WIN32
   /* Clean up stale socket from previous run. */
   remove(TEST_PIPENAME);
+  remove(TEST_PIPENAME_2);
+  remove(TEST_PIPENAME_3);
 #endif
 
   /* If it's a helper the user asks for, start it directly. */

@@ -64,6 +64,7 @@ test('whoami', function (t) {
     t.ifError(error, 'no errors')
     t.equal(wombat, WHOIAM, 'im a wombat')
 
+    server.close()
     t.end()
   })
 })

@@ -15,7 +15,7 @@
  * it 100%.
  */
 
-var assert = require('assert');
+require('../common');
 
 var TIMEOUT_DELAY = 1.1;
 var NB_TIMEOUTS_FIRED = 50;

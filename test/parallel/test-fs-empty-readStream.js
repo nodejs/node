@@ -15,15 +15,7 @@ fs.open(emptyFile, 'r', function(error, fd) {
     throw new Error('data event should not emit');
   });
 
-  var readEmit = false;
-  read.once('end', function() {
-    readEmit = true;
-    console.error('end event 1');
-  });
-
-  setTimeout(function() {
-    assert.equal(readEmit, true);
-  }, common.platformTimeout(50));
+  read.once('end', common.mustCall(function endEvent1() {}));
 });
 
 fs.open(emptyFile, 'r', function(error, fd) {
@@ -36,13 +28,11 @@ fs.open(emptyFile, 'r', function(error, fd) {
     throw new Error('data event should not emit');
   });
 
-  var readEmit = false;
-  read.once('end', function() {
-    readEmit = true;
-    console.error('end event 2');
+  read.once('end', function endEvent2() {
+    throw new Error('end event should not emit');
   });
 
   setTimeout(function() {
-    assert.equal(readEmit, false);
+    assert.equal(read.isPaused(), true);
   }, common.platformTimeout(50));
 });

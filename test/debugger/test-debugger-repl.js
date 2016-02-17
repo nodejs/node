@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 var repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
@@ -50,8 +51,18 @@ addTest('sb("setInterval()", "!(setInterval.flag++)")', [
 
 // Continue
 addTest('c', [
-  /break in node.js:\d+/,
+  /break in timers.js:\d+/,
   /\d/, /\d/, /\d/, /\d/, /\d/
+]);
+
+// Execute
+addTest('exec process.title', [
+  /node/
+]);
+
+// Execute
+addTest('exec exec process.title', [
+  /SyntaxError: Unexpected identifier/
 ]);
 
 // REPL and process.env regression

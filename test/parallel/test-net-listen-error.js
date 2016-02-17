@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var gotError = false;
@@ -10,7 +10,7 @@ server.listen(1, '1.1.1.1', function() { // EACCESS or EADDRNOTAVAIL
   assert(false);
 });
 server.on('error', function(error) {
-  common.debug(error);
+  console.error(error);
   gotError = true;
 });
 

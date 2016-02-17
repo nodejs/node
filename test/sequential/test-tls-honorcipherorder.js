@@ -10,9 +10,10 @@ var tls = require('tls');
 
 var fs = require('fs');
 var nconns = 0;
-// test only in TLSv1 to use DES which is no longer supported TLSv1.2
-// to be safe when the default method is updated in the future
-var SSL_Method = 'TLSv1_method';
+
+// We explicitly set TLS version to 1.2 so as to be safe when the
+// default method is updated in the future
+var SSL_Method = 'TLSv1_2_method';
 var localhost = '127.0.0.1';
 
 process.on('exit', function() {
@@ -24,7 +25,8 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     secureProtocol: SSL_Method,
     key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
     cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-    ciphers: 'DES-CBC-SHA:AES256-SHA:RC4-SHA:ECDHE-RSA-AES256-SHA',
+    ciphers: 'AES256-SHA256:AES128-GCM-SHA256:AES128-SHA256:' +
+             'ECDHE-RSA-AES128-GCM-SHA256',
     honorCipherOrder: !!honorCipherOrder
   };
 
@@ -57,37 +59,40 @@ test1();
 
 function test1() {
   // Client has the preference of cipher suites by default
-  test(false, 'AES256-SHA:DES-CBC-SHA:RC4-SHA', 'AES256-SHA', test2);
+  test(false, 'AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256',
+       'AES128-GCM-SHA256', test2);
 }
 
 function test2() {
-  // Server has the preference of cipher suites where DES-CBC-SHA is in
-  // the first.
-  test(true, 'AES256-SHA:DES-CBC-SHA:RC4-SHA', 'DES-CBC-SHA', test3);
+  // Server has the preference of cipher suites, and AES256-SHA256 is
+  // the server's top choice.
+  test(true, 'AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256',
+       'AES256-SHA256', test3);
 }
 
 function test3() {
-  // Server has the preference of cipher suites. RC4-SHA is given
-  // higher priority over DES-CBC-SHA among client cipher suites.
-  test(true, 'RC4-SHA:AES256-SHA', 'AES256-SHA', test4);
+  // Server has the preference of cipher suites. AES128-GCM-SHA256 is given
+  // higher priority over AES128-SHA256 among client cipher suites.
+  test(true, 'AES128-SHA256:AES128-GCM-SHA256', 'AES128-GCM-SHA256', test4);
+
 }
 
 function test4() {
-  // As client has only one cipher, server has no choice in regardless
+  // As client has only one cipher, server has no choice, irrespective
   // of honorCipherOrder.
-  test(true, 'RC4-SHA', 'RC4-SHA', test5);
+  test(true, 'AES128-SHA256', 'AES128-SHA256', test5);
 }
 
 function test5() {
-  // Client did not explicitly set ciphers. Ensure that client defaults to
-  // sane ciphers. Even though server gives top priority to DES-CBC-SHA
-  // it should not be negotiated because it's not in default client ciphers.
-  test(true, null, 'AES256-SHA', test6);
+  // Client did not explicitly set ciphers and client offers
+  // tls.DEFAULT_CIPHERS. All ciphers of the server are included in the
+  // default list so the negotiated cipher is selected according to the
+  // server's top preference of AES256-SHA256.
+  test(true, null, 'AES256-SHA256', test6);
 }
 
 function test6() {
   // Ensure that `tls.DEFAULT_CIPHERS` is used
-  SSL_Method = 'TLSv1_2_method';
-  tls.DEFAULT_CIPHERS = 'ECDHE-RSA-AES256-SHA';
-  test(true, null, 'ECDHE-RSA-AES256-SHA');
+  tls.DEFAULT_CIPHERS = 'ECDHE-RSA-AES128-GCM-SHA256';
+  test(true, null, 'ECDHE-RSA-AES128-GCM-SHA256');
 }

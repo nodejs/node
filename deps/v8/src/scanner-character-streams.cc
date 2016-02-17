@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/scanner-character-streams.h"
 
 #include "include/v8.h"
+#include "src/globals.h"
 #include "src/handles.h"
+#include "src/list-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/objects.h"
 #include "src/unicode-inl.h"
 
 namespace v8 {
@@ -346,6 +347,7 @@ size_t ExternalStreamingStream::FillBuffer(size_t position) {
       current_data_length_ = source_stream_->GetMoreData(&current_data_);
       current_data_offset_ = 0;
       bool data_ends = current_data_length_ == 0;
+      bookmark_data_is_from_current_data_ = false;
 
       // A caveat: a data chunk might end with bytes from an incomplete UTF-8
       // character (the rest of the bytes will be in the next chunk).
@@ -356,10 +358,7 @@ size_t ExternalStreamingStream::FillBuffer(size_t position) {
           // chunk. This will only happen when the chunk was really small. We
           // don't handle the case where a UTF-8 character is split over several
           // chunks; in that case V8 won't crash, but it will be a parse error.
-          delete[] current_data_;
-          current_data_ = NULL;
-          current_data_length_ = 0;
-          current_data_offset_ = 0;
+          FlushCurrent();
           continue;  // Request a new chunk.
         }
       }
@@ -383,14 +382,113 @@ size_t ExternalStreamingStream::FillBuffer(size_t position) {
 
     // Did we use all the data in the data chunk?
     if (current_data_offset_ == current_data_length_) {
-      delete[] current_data_;
-      current_data_ = NULL;
-      current_data_length_ = 0;
-      current_data_offset_ = 0;
+      FlushCurrent();
     }
   }
   return data_in_buffer;
 }
+
+
+bool ExternalStreamingStream::SetBookmark() {
+  // Bookmarking for this stream is a bit more complex than expected, since
+  // the stream state is distributed over several places:
+  // - pos_ (inherited from Utf16CharacterStream)
+  // - buffer_cursor_ and buffer_end_ (also from Utf16CharacterStream)
+  // - buffer_ (from BufferedUtf16CharacterStream)
+  // - current_data_ (+ .._offset_ and .._length) (this class)
+  // - utf8_split_char_buffer_* (a partial utf8 symbol at the block boundary)
+  //
+  // The underlying source_stream_ instance likely could re-construct this
+  // local data for us, but with the given interfaces we have no way of
+  // accomplishing this. Thus, we'll have to save all data locally.
+  //
+  // What gets saved where:
+  // - pos_  =>  bookmark_
+  // - buffer_[buffer_cursor_ .. buffer_end_]  =>  bookmark_buffer_
+  // - current_data_[.._offset_ .. .._length_]  =>  bookmark_data_
+  // - utf8_split_char_buffer_* => bookmark_utf8_split...
+  //
+  // To make sure we don't unnecessarily copy data, we also maintain
+  // whether bookmark_data_ contains a copy of the current current_data_
+  // block. This is done with:
+  // - bookmark_data_is_from_current_data_
+  // - bookmark_data_offset_: offset into bookmark_data_
+  //
+  // Note that bookmark_data_is_from_current_data_ must be maintained
+  // whenever current_data_ is updated.
+
+  bookmark_ = pos_;
+
+  size_t buffer_length = buffer_end_ - buffer_cursor_;
+  bookmark_buffer_.Dispose();
+  bookmark_buffer_ = Vector<uint16_t>::New(static_cast<int>(buffer_length));
+  CopyCharsUnsigned(bookmark_buffer_.start(), buffer_cursor_, buffer_length);
+
+  size_t data_length = current_data_length_ - current_data_offset_;
+  size_t bookmark_data_length = static_cast<size_t>(bookmark_data_.length());
+  if (bookmark_data_is_from_current_data_ &&
+      data_length < bookmark_data_length) {
+    // Fast case: bookmark_data_ was previously copied from the current
+    //            data block, and we have enough data for this bookmark.
+    bookmark_data_offset_ = bookmark_data_length - data_length;
+  } else {
+    // Slow case: We need to copy current_data_.
+    bookmark_data_.Dispose();
+    bookmark_data_ = Vector<uint8_t>::New(static_cast<int>(data_length));
+    CopyBytes(bookmark_data_.start(), current_data_ + current_data_offset_,
+              data_length);
+    bookmark_data_is_from_current_data_ = true;
+    bookmark_data_offset_ = 0;
+  }
+
+  bookmark_utf8_split_char_buffer_length_ = utf8_split_char_buffer_length_;
+  for (size_t i = 0; i < utf8_split_char_buffer_length_; i++) {
+    bookmark_utf8_split_char_buffer_[i] = utf8_split_char_buffer_[i];
+  }
+
+  return source_stream_->SetBookmark();
+}
+
+
+void ExternalStreamingStream::ResetToBookmark() {
+  source_stream_->ResetToBookmark();
+  FlushCurrent();
+
+  pos_ = bookmark_;
+
+  // bookmark_data_* => current_data_*
+  // (current_data_ assumes ownership of its memory.)
+  current_data_offset_ = 0;
+  current_data_length_ = bookmark_data_.length() - bookmark_data_offset_;
+  uint8_t* data = new uint8_t[current_data_length_];
+  CopyCharsUnsigned(data, bookmark_data_.begin() + bookmark_data_offset_,
+                    current_data_length_);
+  delete[] current_data_;
+  current_data_ = data;
+  bookmark_data_is_from_current_data_ = true;
+
+  // bookmark_buffer_ needs to be copied to buffer_.
+  CopyCharsUnsigned(buffer_, bookmark_buffer_.begin(),
+                    bookmark_buffer_.length());
+  buffer_cursor_ = buffer_;
+  buffer_end_ = buffer_ + bookmark_buffer_.length();
+
+  // utf8 split char buffer
+  utf8_split_char_buffer_length_ = bookmark_utf8_split_char_buffer_length_;
+  for (size_t i = 0; i < bookmark_utf8_split_char_buffer_length_; i++) {
+    utf8_split_char_buffer_[i] = bookmark_utf8_split_char_buffer_[i];
+  }
+}
+
+
+void ExternalStreamingStream::FlushCurrent() {
+  delete[] current_data_;
+  current_data_ = NULL;
+  current_data_length_ = 0;
+  current_data_offset_ = 0;
+  bookmark_data_is_from_current_data_ = false;
+}
+
 
 void ExternalStreamingStream::HandleUtf8SplitCharacters(
     size_t* data_in_buffer) {
@@ -486,4 +584,5 @@ void ExternalTwoByteStringUtf16CharacterStream::ResetToBookmark() {
   pos_ = bookmark_;
   buffer_cursor_ = raw_data_ + bookmark_;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -8,6 +8,7 @@
 #include "src/base/macros.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/messages.h"
 
 namespace v8 {
 namespace internal {
@@ -24,13 +25,14 @@ class PendingCompilationErrorHandler {
       : has_pending_error_(false),
         start_position_(-1),
         end_position_(-1),
-        message_(nullptr),
+        message_(MessageTemplate::kNone),
         arg_(nullptr),
         char_arg_(nullptr),
         error_type_(kSyntaxError) {}
 
   void ReportMessageAt(int start_position, int end_position,
-                       const char* message, const char* arg = nullptr,
+                       MessageTemplate::Template message,
+                       const char* arg = nullptr,
                        ParseErrorType error_type = kSyntaxError) {
     if (has_pending_error_) return;
     has_pending_error_ = true;
@@ -43,7 +45,8 @@ class PendingCompilationErrorHandler {
   }
 
   void ReportMessageAt(int start_position, int end_position,
-                       const char* message, const AstRawString* arg,
+                       MessageTemplate::Template message,
+                       const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError) {
     if (has_pending_error_) return;
     has_pending_error_ = true;
@@ -56,7 +59,7 @@ class PendingCompilationErrorHandler {
   }
 
   void ReportMessageAt(int start_position, int end_position,
-                       const char* message, Handle<String> arg,
+                       MessageTemplate::Template message, Handle<String> arg,
                        ParseErrorType error_type = kSyntaxError) {
     if (has_pending_error_) return;
     has_pending_error_ = true;
@@ -77,7 +80,7 @@ class PendingCompilationErrorHandler {
   bool has_pending_error_;
   int start_position_;
   int end_position_;
-  const char* message_;
+  MessageTemplate::Template message_;
   const AstRawString* arg_;
   const char* char_arg_;
   Handle<String> handle_arg_;

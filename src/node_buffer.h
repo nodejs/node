@@ -12,12 +12,12 @@ static const unsigned int kMaxLength =
 
 NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
 
-NODE_EXTERN bool HasInstance(v8::Handle<v8::Value> val);
-NODE_EXTERN bool HasInstance(v8::Handle<v8::Object> val);
-NODE_EXTERN char* Data(v8::Handle<v8::Value> val);
-NODE_EXTERN char* Data(v8::Handle<v8::Object> val);
-NODE_EXTERN size_t Length(v8::Handle<v8::Value> val);
-NODE_EXTERN size_t Length(v8::Handle<v8::Object> val);
+NODE_EXTERN bool HasInstance(v8::Local<v8::Value> val);
+NODE_EXTERN bool HasInstance(v8::Local<v8::Object> val);
+NODE_EXTERN char* Data(v8::Local<v8::Value> val);
+NODE_EXTERN char* Data(v8::Local<v8::Object> val);
+NODE_EXTERN size_t Length(v8::Local<v8::Value> val);
+NODE_EXTERN size_t Length(v8::Local<v8::Object> val);
 
 // public constructor - data is copied
 NODE_EXTERN v8::MaybeLocal<v8::Object> Copy(v8::Isolate* isolate,
@@ -29,7 +29,7 @@ NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate, size_t length);
 
 // public constructor from string
 NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
-                                           v8::Handle<v8::String> string,
+                                           v8::Local<v8::String> string,
                                            enum encoding enc = UTF8);
 
 // public constructor - data is used, callback is passed data on object gc

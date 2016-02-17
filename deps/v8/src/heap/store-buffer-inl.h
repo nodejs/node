@@ -5,27 +5,30 @@
 #ifndef V8_STORE_BUFFER_INL_H_
 #define V8_STORE_BUFFER_INL_H_
 
+#include "src/heap/heap.h"
+#include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
 
 namespace v8 {
 namespace internal {
 
-Address StoreBuffer::TopAddress() {
-  return reinterpret_cast<Address>(heap_->store_buffer_top_address());
-}
-
-
 void StoreBuffer::Mark(Address addr) {
   DCHECK(!heap_->code_space()->Contains(addr));
   Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
   *top++ = addr;
-  heap_->public_set_store_buffer_top(top);
+  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(top));
   if ((reinterpret_cast<uintptr_t>(top) & kStoreBufferOverflowBit) != 0) {
     DCHECK(top == limit_);
     Compact();
   } else {
     DCHECK(top < limit_);
   }
+}
+
+
+inline void StoreBuffer::MarkSynchronized(Address addr) {
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  Mark(addr);
 }
 
 
@@ -45,7 +48,7 @@ void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
     }
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STORE_BUFFER_INL_H_

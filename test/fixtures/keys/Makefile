@@ -1,4 +1,4 @@
-all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem agent5-cert.pem ca2-crl.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem rsa_private_1024.pem rsa_private_2048.pem rsa_private_4096.pem rsa_public_1024.pem rsa_public_2048.pem rsa_public_4096.pem
+all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem agent5-cert.pem ca2-crl.pem ec-cert.pem dh512.pem dh1024.pem dh2048.pem dsa1025.pem dsa_private_1025.pem dsa_public_1025.pem rsa_private_1024.pem rsa_private_2048.pem rsa_private_4096.pem rsa_public_1024.pem rsa_public_2048.pem rsa_public_4096.pem
 
 
 #
@@ -78,6 +78,15 @@ agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 		-CAkey ca1-key.pem \
 		-CAcreateserial \
 		-out agent1-cert.pem
+
+agent1-pfx.pem: agent1-cert.pem agent1-key.pem ca1-cert.pem
+	openssl pkcs12 -export \
+		-descert \
+		-in agent1-cert.pem \
+		-inkey agent1-key.pem \
+		-certfile ca1-cert.pem \
+		-out agent1-pfx.pem \
+		-password pass:sample
 
 agent1-verify: agent1-cert.pem ca1-cert.pem
 	openssl verify -CAfile ca1-cert.pem agent1-cert.pem
@@ -266,6 +275,15 @@ dh1024.pem:
 
 dh2048.pem:
 	openssl dhparam -out dh2048.pem 2048
+
+dsa1025.pem:
+	openssl dsaparam -out dsa1025.pem 1025
+
+dsa_private_1025.pem:
+	openssl gendsa -out dsa_private_1025.pem dsa1025.pem
+
+dsa_public_1025.pem:
+	openssl dsa -in dsa_private_1025.pem -pubout -out dsa_public_1025.pem
 
 rsa_private_1024.pem:
 	openssl genrsa -out rsa_private_1024.pem 1024

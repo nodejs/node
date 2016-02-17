@@ -13,7 +13,6 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -22,9 +21,9 @@ using v8::Value;
 
 class SignalWrap : public HandleWrap {
  public:
-  static void Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+  static void Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
@@ -52,7 +51,7 @@ class SignalWrap : public HandleWrap {
     new SignalWrap(env, args.This());
   }
 
-  SignalWrap(Environment* env, Handle<Object> object)
+  SignalWrap(Environment* env, Local<Object> object)
       : HandleWrap(env,
                    object,
                    reinterpret_cast<uv_handle_t*>(&handle_),

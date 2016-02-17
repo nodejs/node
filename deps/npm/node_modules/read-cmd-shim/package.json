@@ -1,0 +1,54 @@
+{
+  "name": "read-cmd-shim",
+  "version": "1.0.1",
+  "description": "Figure out what a cmd-shim is pointing at. This acts as the equivalent of fs.readlink.",
+  "main": "index.js",
+  "dependencies": {
+    "graceful-fs": "^4.1.2"
+  },
+  "devDependencies": {
+    "cmd-shim": "^2.0.1",
+    "rimraf": "^2.4.3",
+    "standard": "^5.2.2",
+    "tap": "^1.4.1"
+  },
+  "scripts": {
+    "test": "standard && tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/read-cmd-shim.git"
+  },
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/read-cmd-shim/issues"
+  },
+  "homepage": "https://github.com/npm/read-cmd-shim#readme",
+  "gitHead": "7c50879bf49743a1c69f9d7f0ba1638fc46bb40c",
+  "_id": "read-cmd-shim@1.0.1",
+  "_shasum": "2d5d157786a37c055d22077c32c53f8329e91c7b",
+  "_from": "read-cmd-shim@>=1.0.1 <1.1.0",
+  "_npmVersion": "3.3.0",
+  "_nodeVersion": "3.1.0",
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "dist": {
+    "shasum": "2d5d157786a37c055d22077c32c53f8329e91c7b",
+    "tarball": "http://registry.npmjs.org/read-cmd-shim/-/read-cmd-shim-1.0.1.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/read-cmd-shim/-/read-cmd-shim-1.0.1.tgz"
+}

@@ -2,14 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 namespace {
 const int kBufferSize = 1024;
@@ -36,7 +40,7 @@ struct TestHelper : public HandleAndZoneScope {
     CHECK(Rewriter::Rewrite(&parse_info));
     CHECK(Scope::Analyze(&parse_info));
 
-    Scope* scope = info.function()->scope();
+    Scope* scope = info.literal()->scope();
     AstValueFactory* factory = parse_info.ast_value_factory();
     CHECK(scope);
 
@@ -51,7 +55,7 @@ struct TestHelper : public HandleAndZoneScope {
     i::Variable* var = scope->Lookup(name);
     CHECK(var);
 
-    if (var->location() == Variable::UNALLOCATED) {
+    if (var->location() == VariableLocation::UNALLOCATED) {
       CHECK_EQ(0, expected);
     } else {
       CHECK(var->IsStackAllocated());
@@ -59,7 +63,7 @@ struct TestHelper : public HandleAndZoneScope {
     }
   }
 };
-}
+}  // namespace
 
 
 TEST(SimpleLoop1) {
@@ -293,3 +297,7 @@ TEST(NestedLoops3c) {
   f.CheckLoopAssignedCount(5, "z");
   f.CheckLoopAssignedCount(0, "w");
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

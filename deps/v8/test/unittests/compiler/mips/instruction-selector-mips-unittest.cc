@@ -497,8 +497,8 @@ static const MemoryAccess kMemoryAccesses[] = {
     {kMachInt16, kMipsLh, kMipsSh},
     {kMachUint16, kMipsLhu, kMipsSh},
     {kMachInt32, kMipsLw, kMipsSw},
-    {kRepFloat32, kMipsLwc1, kMipsSwc1},
-    {kRepFloat64, kMipsLdc1, kMipsSdc1}};
+    {kMachFloat32, kMipsLwc1, kMipsSwc1},
+    {kMachFloat64, kMipsLdc1, kMipsSdc1}};
 
 
 struct MemoryAccessImm {
@@ -646,7 +646,7 @@ TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
 TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
   StreamBuilder m(this, kMachInt32, kMachPtr, kMachInt32, memacc.type);
-  m.Store(memacc.type, m.Parameter(0), m.Parameter(1));
+  m.Store(memacc.type, m.Parameter(0), m.Parameter(1), kNoWriteBarrier);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -696,8 +696,8 @@ TEST_P(InstructionSelectorMemoryAccessImmTest, StoreWithImmediateIndex) {
   const MemoryAccessImm memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, kMachInt32, kMachPtr, memacc.type);
-    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index),
-            m.Parameter(1));
+    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index), m.Parameter(1),
+            kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -748,8 +748,8 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
   const MemoryAccessImm1 memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, kMachInt32, kMachPtr, memacc.type);
-    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index),
-            m.Parameter(1));
+    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index), m.Parameter(1),
+            kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
@@ -844,6 +844,71 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
+
+
+TEST_F(InstructionSelectorTest, Float32Max) {
+  StreamBuilder m(this, kMachFloat32, kMachFloat32, kMachFloat32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n = m.Float32Max(p0, p1);
+  m.Return(n);
+  Stream s = m.Build();
+  // Float32Max is `(b < a) ? a : b`.
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kMipsFloat32Max, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+
+TEST_F(InstructionSelectorTest, Float32Min) {
+  StreamBuilder m(this, kMachFloat32, kMachFloat32, kMachFloat32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n = m.Float32Min(p0, p1);
+  m.Return(n);
+  Stream s = m.Build();
+  // Float32Min is `(a < b) ? a : b`.
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kMipsFloat32Min, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+
+TEST_F(InstructionSelectorTest, Float64Max) {
+  StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n = m.Float64Max(p0, p1);
+  m.Return(n);
+  Stream s = m.Build();
+  // Float64Max is `(b < a) ? a : b`.
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kMipsFloat64Max, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+
+TEST_F(InstructionSelectorTest, Float64Min) {
+  StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n = m.Float64Min(p0, p1);
+  m.Return(n);
+  Stream s = m.Build();
+  // Float64Min is `(a < b) ? a : b`.
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kMipsFloat64Min, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
 
 }  // namespace compiler
 }  // namespace internal

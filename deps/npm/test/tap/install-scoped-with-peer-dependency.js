@@ -27,13 +27,12 @@ test('setup', function (t) {
 })
 
 test('it should install peerDependencies in same tree level as the parent package', function (t) {
-  common.npm(['install', './package'], EXEC_OPTS, function (err, code, stdout, stderr) {
+  common.npm(['install', '--loglevel=warn', './package'], EXEC_OPTS, function (err, code, stdout, stderr) {
     t.ifError(err, 'install local package successful')
     t.equal(code, 0, 'npm install exited with code')
-    t.notOk(stderr, 'npm install exited without any error output')
+    t.match(stderr, /npm WARN @scope[/]package@0[.]0[.]0 requires a peer of underscore@[*] but none was installed[.]\n/,
+      'npm install warned about unresolved peer dep')
 
-    var p = path.resolve(pkg, 'node_modules/underscore/package.json')
-    t.ok(JSON.parse(fs.readFileSync(p, 'utf8')))
     t.end()
   })
 })

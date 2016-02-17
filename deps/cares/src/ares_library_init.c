@@ -34,6 +34,11 @@ fpGetAdaptersAddresses_t ares_fpGetAdaptersAddresses = ZERO_NULL;
 static unsigned int ares_initialized;
 static int          ares_init_flags;
 
+/* library-private global vars with visibility across the whole library */
+void *(*ares_malloc)(size_t size) = malloc;
+void *(*ares_realloc)(void *ptr, size_t size) = realloc;
+void (*ares_free)(void *ptr) = free;
+
 #ifdef USE_WINSOCK
 static HMODULE hnd_iphlpapi;
 static HMODULE hnd_advapi32;
@@ -111,12 +116,26 @@ int ares_library_init(int flags)
     {
       res = ares_win32_init();
       if (res != ARES_SUCCESS)
-        return res;
+        return res;  /* LCOV_EXCL_LINE: can't test Win32 init failure */
     }
 
   ares_init_flags = flags;
 
   return ARES_SUCCESS;
+}
+
+int ares_library_init_mem(int flags,
+                          void *(*amalloc)(size_t size),
+                          void (*afree)(void *ptr),
+                          void *(*arealloc)(void *ptr, size_t size))
+{
+  if (amalloc)
+    ares_malloc = amalloc;
+  if (arealloc)
+    ares_realloc = arealloc;
+  if (afree)
+    ares_free = afree;
+  return ares_library_init(flags);
 }
 
 
@@ -132,6 +151,8 @@ void ares_library_cleanup(void)
     ares_win32_cleanup();
 
   ares_init_flags = ARES_LIB_INIT_NONE;
+  ares_malloc = malloc;
+  ares_free = free;
 }
 
 

@@ -4,12 +4,15 @@
 
 
 #ifdef V8_I18N_SUPPORT
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
+#include "src/api.h"
 #include "src/api-natives.h"
 #include "src/arguments.h"
+#include "src/factory.h"
 #include "src/i18n.h"
-#include "src/runtime/runtime-utils.h"
+#include "src/isolate-inl.h"
+#include "src/messages.h"
 
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
@@ -234,7 +237,7 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSObject::GetDataProperty(obj, marker);
+  Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
   return isolate->heap()->ToBoolean(!tag->IsUndefined());
 }
 
@@ -251,7 +254,7 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSObject::GetDataProperty(obj, marker);
+  Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
   return isolate->heap()->ToBoolean(tag->IsString() &&
                                     String::cast(*tag)->Equals(*expected_type));
 }
@@ -281,23 +284,21 @@ RUNTIME_FUNCTION(Runtime_GetImplFromInitializedIntlObject) {
 
   DCHECK(args.length() == 1);
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
 
   if (!input->IsJSObject()) {
-    Vector<Handle<Object> > arguments = HandleVector(&input, 1);
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                   NewTypeError("not_intl_object", arguments));
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotIntlObject, input));
   }
 
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
   Handle<Symbol> marker = isolate->factory()->intl_impl_object_symbol();
 
-  Handle<Object> impl = JSObject::GetDataProperty(obj, marker);
+  Handle<Object> impl = JSReceiver::GetDataProperty(obj, marker);
   if (impl->IsTheHole()) {
-    Vector<Handle<Object> > arguments = HandleVector(&obj, 1);
-    THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                   NewTypeError("not_intl_object", arguments));
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotIntlObject, obj));
   }
   return *impl;
 }
@@ -351,8 +352,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
 
   Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     Execution::ToNumber(isolate, date));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(date));
 
   icu::SimpleDateFormat* date_format =
       DateFormat::UnpackDateFormat(isolate, date_format_holder);
@@ -445,8 +445,7 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
   CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
 
   Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     Execution::ToNumber(isolate, number));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(number));
 
   icu::DecimalFormat* number_format =
       NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
@@ -627,7 +626,7 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(break_iterator));
   // Make sure that the pointer to adopted text is NULL.
-  local_object->SetInternalField(1, reinterpret_cast<Smi*>(NULL));
+  local_object->SetInternalField(1, static_cast<Smi*>(nullptr));
 
   Factory* factory = isolate->factory();
   Handle<String> key = factory->NewStringFromStaticChars("breakIterator");
@@ -746,7 +745,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
     return *isolate->factory()->NewStringFromStaticChars("unknown");
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_I18N_SUPPORT

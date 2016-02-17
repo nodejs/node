@@ -49,13 +49,9 @@
         'compiler/codegen-tester.h',
         'compiler/function-tester.h',
         'compiler/graph-builder-tester.h',
-        'compiler/simplified-graph-builder.cc',
-        'compiler/simplified-graph-builder.h',
         'compiler/test-basic-block-profiler.cc',
         'compiler/test-branch-combine.cc',
         'compiler/test-changes-lowering.cc',
-        'compiler/test-codegen-deopt.cc',
-        'compiler/test-control-reducer.cc',
         'compiler/test-gap-resolver.cc',
         'compiler/test-graph-visualizer.cc',
         'compiler/test-instruction.cc',
@@ -67,37 +63,51 @@
         'compiler/test-loop-assignment-analysis.cc',
         'compiler/test-loop-analysis.cc',
         'compiler/test-machine-operator-reducer.cc',
+        'compiler/test-multiple-return.cc',
         'compiler/test-node.cc',
         'compiler/test-operator.cc',
         'compiler/test-osr.cc',
         'compiler/test-pipeline.cc',
         'compiler/test-representation-change.cc',
+        'compiler/test-run-bytecode-graph-builder.cc',
         'compiler/test-run-deopt.cc',
         'compiler/test-run-inlining.cc',
         'compiler/test-run-intrinsics.cc',
         'compiler/test-run-jsbranches.cc',
         'compiler/test-run-jscalls.cc',
         'compiler/test-run-jsexceptions.cc',
+        'compiler/test-run-jsobjects.cc',
         'compiler/test-run-jsops.cc',
         'compiler/test-run-machops.cc',
+        'compiler/test-run-native-calls.cc',
         'compiler/test-run-properties.cc',
         'compiler/test-run-stackcheck.cc',
         'compiler/test-run-stubs.cc',
         'compiler/test-run-variables.cc',
         'compiler/test-simplified-lowering.cc',
         'cctest.cc',
+        'expression-type-collector.cc',
+        'expression-type-collector.h',
+        'interpreter/test-bytecode-generator.cc',
+        'interpreter/test-interpreter.cc',
         'gay-fixed.cc',
         'gay-precision.cc',
         'gay-shortest.cc',
+        'heap-tester.h',
         'print-extension.cc',
         'profiler-extension.cc',
         'test-accessors.cc',
         'test-alloc.cc',
         'test-api.cc',
         'test-api.h',
+        # TODO(epertoso): re-enable the following test after the API change is
+        # checked in.
+        # 'test-api-accessors.cc',
         'test-api-interceptors.cc',
         'test-array-list.cc',
         'test-ast.cc',
+        'test-ast-expression-visitor.cc',
+        'test-asm-validator.cc',
         'test-atomicops.cc',
         'test-bignum.cc',
         'test-bignum-dtoa.cc',
@@ -115,8 +125,10 @@
         'test-diy-fp.cc',
         'test-double.cc',
         'test-dtoa.cc',
+        'test-elements-kind.cc',
         'test-fast-dtoa.cc',
         'test-feedback-vector.cc',
+        'test-field-type-tracking.cc',
         'test-fixed-dtoa.cc',
         'test-flags.cc',
         'test-func-name-inference.cc',
@@ -129,6 +141,7 @@
         'test-heap-profiler.cc',
         'test-hydrogen-types.cc',
         'test-identity-map.cc',
+        'test-incremental-marking.cc',
         'test-list.cc',
         'test-liveedit.cc',
         'test-lockers.cc',
@@ -136,7 +149,6 @@
         'test-microtask-delivery.cc',
         'test-mark-compact.cc',
         'test-mementos.cc',
-        'test-migrations.cc',
         'test-object-observe.cc',
         'test-parsing.cc',
         'test-platform.cc',
@@ -147,6 +159,8 @@
         'test-representation.cc',
         'test-sampler-api.cc',
         'test-serialize.cc',
+        'test-simd.cc',
+        'test-slots-buffer.cc',
         'test-spaces.cc',
         'test-strings.cc',
         'test-symbols.cc',
@@ -156,6 +170,7 @@
         'test-transitions.cc',
         'test-typedarrays.cc',
         'test-types.cc',
+        'test-typing-reset.cc',
         'test-unbound-queue.cc',
         'test-unboxed-doubles.cc',
         'test-unique.cc',
@@ -165,8 +180,6 @@
         'test-weakmaps.cc',
         'test-weaksets.cc',
         'trace-extension.cc',
-        '../../src/startup-data-util.h',
-        '../../src/startup-data-util.cc'
       ],
       'conditions': [
         ['v8_target_arch=="ia32"', {
@@ -268,6 +281,11 @@
             },
           },
         }],
+        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+          # disable fmadd/fmsub so that expected results match generated code in
+          # RunFloat64MulAndFloat64Add1 and friends.
+          'cflags': ['-ffp-contract=off'],
+        }],
         ['OS=="aix"', {
           'ldflags': [ '-Wl,-bbigtoc' ],
         }],
@@ -277,6 +295,11 @@
           'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
         }, {
           'dependencies': ['../../tools/gyp/v8.gyp:v8'],
+        }],
+        ['v8_wasm!=0', {
+          'dependencies': [
+            '../../third_party/wasm/test/cctest/wasm/wasm.gyp:wasm_cctest'
+          ],
         }],
       ],
     },
@@ -315,5 +338,24 @@
         }
       ],
     },
+  ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'cctest_run',
+          'type': 'none',
+          'dependencies': [
+            'cctest',
+          ],
+          'includes': [
+            '../../build/isolate.gypi',
+          ],
+          'sources': [
+            'cctest.isolate',
+          ],
+        },
+      ],
+    }],
   ],
 }

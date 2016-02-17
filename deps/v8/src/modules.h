@@ -115,6 +115,7 @@ class ModuleDescriptor : public ZoneObject {
   int index_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MODULES_H_

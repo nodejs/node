@@ -22,7 +22,12 @@
       'include_dirs': [
         '../..',
       ],
+      'defines': [
+        # TODO(jochen): Remove again after this is globally turned on.
+        'V8_IMMINENT_DEPRECATION_WARNINGS',
+      ],
       'sources': [  ### gcmole(all) ###
+        'atomic-utils-unittest.cc',
         'base/bits-unittest.cc',
         'base/cpu-unittest.cc',
         'base/division-by-constant-unittest.cc',
@@ -38,28 +43,37 @@
         'base/sys-info-unittest.cc',
         'base/utils/random-number-generator-unittest.cc',
         'char-predicates-unittest.cc',
+        'compiler/binary-operator-reducer-unittest.cc',
+        'compiler/branch-elimination-unittest.cc',
+        'compiler/bytecode-graph-builder-unittest.cc',
         'compiler/change-lowering-unittest.cc',
+        'compiler/coalesced-live-ranges-unittest.cc',
         'compiler/common-operator-reducer-unittest.cc',
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
         'compiler/control-equivalence-unittest.cc',
         'compiler/control-flow-optimizer-unittest.cc',
-        'compiler/control-reducer-unittest.cc',
+        'compiler/dead-code-elimination-unittest.cc',
         'compiler/diamond-unittest.cc',
         'compiler/graph-reducer-unittest.cc',
         'compiler/graph-reducer-unittest.h',
+        'compiler/graph-trimmer-unittest.cc',
         'compiler/graph-unittest.cc',
         'compiler/graph-unittest.h',
         'compiler/instruction-selector-unittest.cc',
         'compiler/instruction-selector-unittest.h',
         'compiler/instruction-sequence-unittest.cc',
         'compiler/instruction-sequence-unittest.h',
+        'compiler/interpreter-assembler-unittest.cc',
+        'compiler/interpreter-assembler-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
+        'compiler/js-context-relaxation-unittest.cc',
         'compiler/js-intrinsic-lowering-unittest.cc',
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
-        'compiler/js-type-feedback-unittest.cc',
+        'compiler/linkage-tail-call-unittest.cc',
         'compiler/liveness-analyzer-unittest.cc',
+        'compiler/live-range-unittest.cc',
         'compiler/load-elimination-unittest.cc',
         'compiler/loop-peeling-unittest.cc',
         'compiler/machine-operator-reducer-unittest.cc',
@@ -84,15 +98,21 @@
         'compiler/value-numbering-reducer-unittest.cc',
         'compiler/zone-pool-unittest.cc',
         'counters-unittest.cc',
+        'interpreter/bytecodes-unittest.cc',
+        'interpreter/bytecode-array-builder-unittest.cc',
+        'interpreter/bytecode-array-iterator-unittest.cc',
         'libplatform/default-platform-unittest.cc',
         'libplatform/task-queue-unittest.cc',
         'libplatform/worker-thread-unittest.cc',
+        'heap/bitmap-unittest.cc',
         'heap/gc-idle-time-handler-unittest.cc',
+        'heap/memory-reducer-unittest.cc',
+        'heap/heap-unittest.cc',
+        'heap/scavenge-job-unittest.cc',
         'run-all-unittests.cc',
+        'runtime/runtime-interpreter-unittest.cc',
         'test-utils.h',
         'test-utils.cc',
-        '../../src/startup-data-util.h',
-        '../../src/startup-data-util.cc'
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {
@@ -152,7 +172,31 @@
             ],
           },
         }],
+        ['v8_wasm!=0', {
+          'dependencies': [
+            '../../third_party/wasm/test/unittests/wasm/wasm.gyp:wasm_unittests',
+          ],
+        }],
       ],
     },
+  ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'unittests',
+          ],
+          'includes': [
+            '../../build/isolate.gypi',
+          ],
+          'sources': [
+            'unittests.isolate',
+          ],
+        },
+      ],
+    }],
   ],
 }

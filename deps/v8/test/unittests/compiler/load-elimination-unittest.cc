@@ -19,7 +19,9 @@ class LoadEliminationTest : public GraphTest {
 
  protected:
   Reduction Reduce(Node* node) {
-    LoadElimination reducer;
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(zone(), graph());
+    LoadElimination reducer(&graph_reducer);
     return reducer.Reduce(node);
   }
 

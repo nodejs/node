@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/transitions.h"
 
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/transitions-inl.h"
 #include "src/utils.h"
 
@@ -223,6 +223,7 @@ Handle<String> TransitionArray::ExpectedTransitionKey(Handle<Map> map) {
 
 // static
 bool TransitionArray::CanHaveMoreTransitions(Handle<Map> map) {
+  if (map->is_dictionary_map()) return false;
   Object* raw_transitions = map->raw_transitions();
   if (IsFullTransitionArray(raw_transitions)) {
     TransitionArray* transitions = TransitionArray::cast(raw_transitions);
@@ -233,16 +234,18 @@ bool TransitionArray::CanHaveMoreTransitions(Handle<Map> map) {
 
 
 // static
-Handle<Map> TransitionArray::PutPrototypeTransition(Handle<Map> map,
-                                                    Handle<Object> prototype,
-                                                    Handle<Map> target_map) {
+void TransitionArray::PutPrototypeTransition(Handle<Map> map,
+                                             Handle<Object> prototype,
+                                             Handle<Map> target_map) {
   DCHECK(HeapObject::cast(*prototype)->map()->IsMap());
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
-  if (map->is_prototype_map()) return map;
-  if (map->is_dictionary_map() || !FLAG_cache_prototype_transitions) return map;
+  if (map->is_prototype_map()) return;
+  if (map->is_dictionary_map() || !FLAG_cache_prototype_transitions) return;
 
   const int header = kProtoTransitionHeaderSize;
+
+  Handle<WeakCell> target_cell = Map::WeakCellForMap(target_map);
 
   Handle<FixedArray> cache(GetPrototypeTransitions(*map));
   int capacity = cache->length() - header;
@@ -251,9 +254,11 @@ Handle<Map> TransitionArray::PutPrototypeTransition(Handle<Map> map,
   if (transitions > capacity) {
     // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
     int new_capacity = Min(kMaxCachedPrototypeTransitions, transitions * 2);
-    if (new_capacity == capacity) return map;
+    if (new_capacity == capacity) return;
+    int grow_by = new_capacity - capacity;
 
-    cache = FixedArray::CopySize(cache, header + new_capacity);
+    Isolate* isolate = map->GetIsolate();
+    cache = isolate->factory()->CopyFixedArrayAndGrow(cache, grow_by);
     if (capacity < 0) {
       // There was no prototype transitions array before, so the size
       // couldn't be copied. Initialize it explicitly.
@@ -267,10 +272,8 @@ Handle<Map> TransitionArray::PutPrototypeTransition(Handle<Map> map,
   int last = NumberOfPrototypeTransitions(*cache);
   int entry = header + last;
 
-  cache->set(entry, *target_map);
+  cache->set(entry, *target_cell);
   SetNumberOfPrototypeTransitions(*cache, last + 1);
-
-  return map;
 }
 
 
@@ -281,8 +284,12 @@ Handle<Map> TransitionArray::GetPrototypeTransition(Handle<Map> map,
   FixedArray* cache = GetPrototypeTransitions(*map);
   int number_of_transitions = NumberOfPrototypeTransitions(cache);
   for (int i = 0; i < number_of_transitions; i++) {
-    Map* target = Map::cast(cache->get(kProtoTransitionHeaderSize + i));
-    if (target->prototype() == *prototype) return handle(target);
+    WeakCell* target_cell =
+        WeakCell::cast(cache->get(kProtoTransitionHeaderSize + i));
+    if (!target_cell->cleared() &&
+        Map::cast(target_cell->value())->prototype() == *prototype) {
+      return handle(Map::cast(target_cell->value()));
+    }
   }
   return Handle<Map>();
 }
@@ -436,8 +443,9 @@ void TransitionArray::TraverseTransitionTreeInternal(Map* map,
       FixedArray* proto_trans = transitions->GetPrototypeTransitions();
       for (int i = 0; i < NumberOfPrototypeTransitions(proto_trans); ++i) {
         int index = TransitionArray::kProtoTransitionHeaderSize + i;
-        TraverseTransitionTreeInternal(Map::cast(proto_trans->get(index)),
-                                       callback, data);
+        WeakCell* cell = WeakCell::cast(proto_trans->get(index));
+        TraverseTransitionTreeInternal(Map::cast(cell->value()), callback,
+                                       data);
       }
     }
     for (int i = 0; i < transitions->number_of_transitions(); ++i) {
@@ -513,4 +521,5 @@ int TransitionArray::Search(PropertyKind kind, Name* name,
   }
   return SearchDetails(transition, kind, attributes, out_insertion_index);
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

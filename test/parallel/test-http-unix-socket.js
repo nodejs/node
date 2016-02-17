@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-var fs = require('fs');
 var http = require('http');
 
 var status_ok = false; // status code == 200?
@@ -17,6 +16,8 @@ var server = http.createServer(function(req, res) {
   res.write('world\n');
   res.end();
 });
+
+common.refreshTmpDir();
 
 server.listen(common.PIPE, function() {
 

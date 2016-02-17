@@ -11,7 +11,6 @@ var tls = require('tls');
 var fs = require('fs');
 var util = require('util');
 var join = require('path').join;
-var spawn = require('child_process').spawn;
 
 var options = {
   key: fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-key.pem')),
@@ -35,10 +34,12 @@ server.listen(common.PORT, function() {
     peerCert = socket.getPeerCertificate(true);
     assert.ok(peerCert.issuerCertificate);
 
-    common.debug(util.inspect(peerCert));
+    console.error(util.inspect(peerCert));
     assert.equal(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
     assert.equal(peerCert.serialNumber, '9A84ABCFB8A72AC0');
     assert.equal(peerCert.exponent, '0x10001');
+    assert.equal(peerCert.fingerprint,
+                 '8D:06:3A:B3:E5:8B:85:29:72:4F:7D:1B:54:CD:95:19:3C:EF:6F:AA');
     assert.deepEqual(peerCert.infoAccess['OCSP - URI'],
                      [ 'http://ocsp.nodejs.org/' ]);
 

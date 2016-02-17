@@ -21,15 +21,15 @@ namespace crypto {
   class SecureContext;
 }
 
-class TLSWrap : public crypto::SSLWrap<TLSWrap>,
-                public StreamBase,
-                public AsyncWrap {
+class TLSWrap : public AsyncWrap,
+                public crypto::SSLWrap<TLSWrap>,
+                public StreamBase {
  public:
   ~TLSWrap() override;
 
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
 
   void* Cast() override;
   int GetFD() override;
@@ -89,7 +89,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   bool ClearIn();
   void ClearOut();
   void MakePending();
-  bool InvokeQueued(int status);
+  bool InvokeQueued(int status, const char* error_str = nullptr);
 
   inline void Cycle() {
     // Prevent recursion

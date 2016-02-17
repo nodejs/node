@@ -5,9 +5,9 @@ if (!process.features.tls_sni) {
   return;
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
@@ -73,8 +73,8 @@ var clientsOptions = [{
   rejectUnauthorized: false
 }];
 
-var serverResults = [],
-    clientResults = [];
+const serverResults = [];
+const clientResults = [];
 
 var server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.servername);
@@ -103,7 +103,7 @@ function startTest() {
       // Continue
       start();
     });
-  };
+  }
 
   start();
 }

@@ -11,7 +11,7 @@ var getResolved = null
  * Note: This is here because `normalizeGitUrl` is usually called
  * before getResolved is, and receives *that* URL.
  */
-function tryGetResolved(uri, treeish) {
+function tryGetResolved (uri, treeish) {
   return getResolved(normalizeGitUrl(uri).url, treeish)
 }
 
@@ -83,7 +83,6 @@ test('add-remote-git#get-resolved HTTPS', function (t) {
 })
 
 test('add-remote-git#get-resolved edge cases', function (t) {
-
   t.equal(
     tryGetResolved('git+ssh://user@bananaboat.com:galbi/blah.git', 'decadacefadabade'),
     'git+ssh://user@bananaboat.com:galbi/blah.git#decadacefadabade',

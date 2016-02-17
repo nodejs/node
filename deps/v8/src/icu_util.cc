@@ -86,4 +86,5 @@ bool InitializeICU(const char* icu_data_file) {
 #endif
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

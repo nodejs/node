@@ -66,7 +66,7 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   Callable callable = CodeFactory::AllocateHeapNumber(isolate());
   Node* target = jsgraph()->HeapConstant(callable.code());
   Node* context = jsgraph()->NoContextConstant();
-  Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
+  Node* effect = graph()->NewNode(common()->BeginRegion(), graph()->start());
   if (!allocate_heap_number_operator_.is_set()) {
     CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
         isolate(), jsgraph()->zone(), callable.descriptor(), 0,
@@ -78,7 +78,7 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   Node* store = graph()->NewNode(
       machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
       heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);
-  return graph()->NewNode(common()->Finish(1), heap_number, store);
+  return graph()->NewNode(common()->FinishRegion(), heap_number, store);
 }
 
 
@@ -151,13 +151,84 @@ Reduction ChangeLowering::ChangeBoolToBit(Node* value) {
 
 
 Reduction ChangeLowering::ChangeFloat64ToTagged(Node* value, Node* control) {
-  return Replace(AllocateHeapNumberWithValue(value, control));
+  Type* const value_type = NodeProperties::GetType(value);
+  Node* const value32 = graph()->NewNode(
+      machine()->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
+  // TODO(bmeurer): This fast case must be disabled until we kill the asm.js
+  // support in the generic JavaScript pipeline, because LoadBuffer is lying
+  // about its result.
+  // if (value_type->Is(Type::Signed32())) {
+  //   return ChangeInt32ToTagged(value32, control);
+  // }
+  Node* check_same = graph()->NewNode(
+      machine()->Float64Equal(), value,
+      graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));
+  Node* branch_same = graph()->NewNode(common()->Branch(), check_same, control);
+
+  Node* if_smi = graph()->NewNode(common()->IfTrue(), branch_same);
+  Node* vsmi;
+  Node* if_box = graph()->NewNode(common()->IfFalse(), branch_same);
+  Node* vbox;
+
+  // We only need to check for -0 if the {value} can potentially contain -0.
+  if (value_type->Maybe(Type::MinusZero())) {
+    Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
+                                        jsgraph()->Int32Constant(0));
+    Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check_zero, if_smi);
+
+    Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
+    Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
+
+    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+    Node* check_negative = graph()->NewNode(
+        machine()->Int32LessThan(),
+        graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
+        jsgraph()->Int32Constant(0));
+    Node* branch_negative = graph()->NewNode(
+        common()->Branch(BranchHint::kFalse), check_negative, if_zero);
+
+    Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
+    Node* if_notnegative =
+        graph()->NewNode(common()->IfFalse(), branch_negative);
+
+    // We need to create a box for negative 0.
+    if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
+    if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
+  }
+
+  // On 64-bit machines we can just wrap the 32-bit integer in a smi, for 32-bit
+  // machines we need to deal with potential overflow and fallback to boxing.
+  if (machine()->Is64() || value_type->Is(Type::SignedSmall())) {
+    vsmi = ChangeInt32ToSmi(value32);
+  } else {
+    Node* smi_tag =
+        graph()->NewNode(machine()->Int32AddWithOverflow(), value32, value32);
+
+    Node* check_ovf = graph()->NewNode(common()->Projection(1), smi_tag);
+    Node* branch_ovf = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                        check_ovf, if_smi);
+
+    Node* if_ovf = graph()->NewNode(common()->IfTrue(), branch_ovf);
+    if_box = graph()->NewNode(common()->Merge(2), if_ovf, if_box);
+
+    if_smi = graph()->NewNode(common()->IfFalse(), branch_ovf);
+    vsmi = graph()->NewNode(common()->Projection(0), smi_tag);
+  }
+
+  // Allocate the box for the {value}.
+  vbox = AllocateHeapNumberWithValue(value, if_box);
+
+  control = graph()->NewNode(common()->Merge(2), if_smi, if_box);
+  value =
+      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vsmi, vbox, control);
+  return Replace(value);
 }
 
 
 Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
   if (machine()->Is64() ||
-      NodeProperties::GetBounds(value).upper->Is(Type::SignedSmall())) {
+      NodeProperties::GetType(value)->Is(Type::SignedSmall())) {
     return Replace(ChangeInt32ToSmi(value));
   }
 
@@ -184,7 +255,7 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
 
 Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
                                              Signedness signedness) {
-  if (NodeProperties::GetBounds(value).upper->Is(Type::TaggedSigned())) {
+  if (NodeProperties::GetType(value)->Is(Type::TaggedSigned())) {
     return Replace(ChangeSmiToInt32(value));
   }
 
@@ -193,7 +264,7 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
                            ? machine()->ChangeFloat64ToInt32()
                            : machine()->ChangeFloat64ToUint32();
 
-  if (NodeProperties::GetBounds(value).upper->Is(Type::TaggedPointer())) {
+  if (NodeProperties::GetType(value)->Is(Type::TaggedPointer())) {
     return Replace(graph()->NewNode(op, LoadHeapNumberValue(value, control)));
   }
 
@@ -257,19 +328,18 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     Node* vtrue1 = graph()->NewNode(value->op(), object, context, frame_state,
                                     effect, if_true1);
     Node* etrue1 = vtrue1;
-    {
-      Node* check2 = TestNotSmi(vtrue1);
-      Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_true1);
 
-      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-      Node* vtrue2 = LoadHeapNumberValue(vtrue1, if_true2);
+    Node* check2 = TestNotSmi(vtrue1);
+    Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_true1);
 
-      Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-      Node* vfalse2 = ChangeSmiToFloat64(vtrue1);
+    Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+    Node* vtrue2 = LoadHeapNumberValue(vtrue1, if_true2);
 
-      if_true1 = graph()->NewNode(merge_op, if_true2, if_false2);
-      vtrue1 = graph()->NewNode(phi_op, vtrue2, vfalse2, if_true1);
-    }
+    Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+    Node* vfalse2 = ChangeSmiToFloat64(vtrue1);
+
+    if_true1 = graph()->NewNode(merge_op, if_true2, if_false2);
+    vtrue1 = graph()->NewNode(phi_op, vtrue2, vfalse2, if_true1);
 
     Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
     Node* vfalse1 = ChangeSmiToFloat64(object);
@@ -279,7 +349,18 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     Node* ephi1 = graph()->NewNode(ephi_op, etrue1, efalse1, merge1);
     Node* phi1 = graph()->NewNode(phi_op, vtrue1, vfalse1, merge1);
 
-    NodeProperties::ReplaceWithValue(value, phi1, ephi1, merge1);
+    // Wire the new diamond into the graph, {JSToNumber} can still throw.
+    NodeProperties::ReplaceUses(value, phi1, ephi1, etrue1, etrue1);
+
+    // TODO(mstarzinger): This iteration cuts out the IfSuccess projection from
+    // the node and places it inside the diamond. Come up with a helper method!
+    for (Node* use : etrue1->uses()) {
+      if (use->opcode() == IrOpcode::kIfSuccess) {
+        use->ReplaceUses(merge1);
+        NodeProperties::ReplaceControlInput(branch2, use);
+      }
+    }
+
     return Replace(phi1);
   }
 
@@ -302,7 +383,7 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
 
 
 Reduction ChangeLowering::ChangeUint32ToTagged(Node* value, Node* control) {
-  if (NodeProperties::GetBounds(value).upper->Is(Type::UnsignedSmall())) {
+  if (NodeProperties::GetType(value)->Is(Type::UnsignedSmall())) {
     return Replace(ChangeUint32ToSmi(value));
   }
 

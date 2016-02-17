@@ -36,6 +36,35 @@ function makeConnection(index) {
     if (index + 1 < N) {
       makeConnection(index + 1);
     }
+
+    c.on('close', function() {
+      console.error('closed %d', index);
+      closes++;
+
+      if (closes < N / 2) {
+        assert.ok(server.maxConnections <= index,
+                  index +
+                  ' was one of the first closed connections ' +
+                  'but shouldnt have been');
+      }
+
+      if (closes === N / 2) {
+        var cb;
+        console.error('calling wait callback.');
+        while (cb = waits.shift()) {
+          cb();
+        }
+        server.close();
+      }
+
+      if (index < server.maxConnections) {
+        assert.equal(true, gotData,
+                     index + ' didn\'t get data, but should have');
+      } else {
+        assert.equal(false, gotData,
+                     index + ' got data, but shouldn\'t have');
+      }
+    });
   });
 
   c.on('end', function() { c.end(); });
@@ -46,36 +75,12 @@ function makeConnection(index) {
   });
 
   c.on('error', function(e) {
+    // Retry if SmartOS and ECONNREFUSED. See
+    // https://github.com/nodejs/node/issues/2663.
+    if (common.isSunOS && (e.code === 'ECONNREFUSED')) {
+      c.connect(common.PORT);
+    }
     console.error('error %d: %s', index, e);
-  });
-
-  c.on('close', function() {
-    console.error('closed %d', index);
-    closes++;
-
-    if (closes < N / 2) {
-      assert.ok(server.maxConnections <= index,
-                index +
-                ' was one of the first closed connections ' +
-                'but shouldnt have been');
-    }
-
-    if (closes === N / 2) {
-      var cb;
-      console.error('calling wait callback.');
-      while (cb = waits.shift()) {
-        cb();
-      }
-      server.close();
-    }
-
-    if (index < server.maxConnections) {
-      assert.equal(true, gotData,
-                   index + ' didn\'t get data, but should have');
-    } else {
-      assert.equal(false, gotData,
-                   index + ' got data, but shouldn\'t have');
-    }
   });
 }
 

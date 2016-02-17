@@ -131,7 +131,7 @@ void check(uint32_t key) {
 #endif
 
   uint32_t runtime_hash = ComputeIntegerHash(key, isolate->heap()->HashSeed());
-  CHECK(runtime_hash == codegen_hash);
+  CHECK_EQ(runtime_hash, codegen_hash);
 }
 
 

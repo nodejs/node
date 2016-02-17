@@ -33,7 +33,7 @@ typedef struct {
 
 namespace node {
 
-void InitLTTNG(Environment* env, v8::Handle<v8::Object> target);
+void InitLTTNG(Environment* env, v8::Local<v8::Object> target);
 
 }  // namespace node
 

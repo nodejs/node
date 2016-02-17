@@ -48,7 +48,7 @@ var connectError = null;
 
 var server = tls.createServer({ ca: ca, cert: cert, key: key }, function(conn) {
   throw 'unreachable';
-}).on('clientError', function(err, conn) {
+}).on('tlsClientError', function(err, conn) {
   assert(!clientError && conn);
   clientError = err;
 }).listen(common.PORT, function() {

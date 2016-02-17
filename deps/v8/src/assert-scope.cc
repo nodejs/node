@@ -6,7 +6,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/utils.h"
 
@@ -145,8 +145,6 @@ template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
-template class PerIsolateAssertScope<ALLOCATION_FAILURE_ASSERT, false>;
-template class PerIsolateAssertScope<ALLOCATION_FAILURE_ASSERT, true>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;

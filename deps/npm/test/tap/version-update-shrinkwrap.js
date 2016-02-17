@@ -48,7 +48,7 @@ test('npm version <semver> updates git works with no shrinkwrap', function (t) {
     var shrinkwrap = require(path.resolve(pkg, 'npm-shrinkwrap.json'))
     t.equal(shrinkwrap.version, '0.0.1', 'got expected version')
 
-    var opts = { cwd: pkg, env: { PATH: process.env.PATH }}
+    var opts = { cwd: pkg, env: { PATH: process.env.PATH } }
     var git = require('../../lib/utils/git.js')
     git.whichAndExec(
       ['show', 'HEAD', '--name-only'],
@@ -91,7 +91,7 @@ test('npm version <semver> updates shrinkwrap and updates git', function (t) {
     t.equal(shrinkwrap.version, '0.0.1', 'got expected version')
 
     var git = require('../../lib/utils/git.js')
-    var opts = { cwd: pkg, env: { PATH: process.env.PATH }}
+    var opts = { cwd: pkg, env: { PATH: process.env.PATH } }
     git.whichAndExec(
       ['show', 'HEAD', '--name-only'],
       opts,

@@ -33,7 +33,7 @@ server.on('listening', function() {
 
   c.on('end', function() {
     c.end();
-    assert.ok(! /x-foo/.test(res_buffer), 'Trailer in HTTP/1.0 response.');
+    assert.ok(!/x-foo/.test(res_buffer), 'Trailer in HTTP/1.0 response.');
     outstanding_reqs--;
     if (outstanding_reqs == 0) {
       server.close();
@@ -53,7 +53,7 @@ server.on('listening', function() {
   c.on('connect', function() {
     outstanding_reqs++;
     c.write('GET / HTTP/1.1\r\n\r\n');
-    tid = setTimeout(assert.fail, 2000, 'Couldn\'t find last chunk.');
+    tid = setTimeout(common.fail, 2000, 'Couldn\'t find last chunk.');
   });
 
   c.on('data', function(chunk) {

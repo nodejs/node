@@ -1,7 +1,7 @@
 #ifndef SRC_STRING_BYTES_H_
 #define SRC_STRING_BYTES_H_
 
-// Decodes a v8::Handle<v8::String> or Buffer to a raw char*
+// Decodes a v8::Local<v8::String> or Buffer to a raw char*
 
 #include "v8.h"
 #include "node.h"
@@ -24,8 +24,8 @@ class StringBytes {
     }
 
     inline bool Decode(Environment* env,
-                       v8::Handle<v8::String> string,
-                       v8::Handle<v8::Value> encoding,
+                       v8::Local<v8::String> string,
+                       v8::Local<v8::Value> encoding,
                        enum encoding _default) {
       enum encoding enc = ParseEncoding(env->isolate(), encoding, _default);
       if (!StringBytes::IsValidString(env->isolate(), string, enc)) {
@@ -61,25 +61,25 @@ class StringBytes {
   // Example: a HEX string must have a length that's a multiple of two.
   // FIXME(bnoordhuis) IsMaybeValidString()? Naming things is hard...
   static bool IsValidString(v8::Isolate* isolate,
-                            v8::Handle<v8::String> string,
+                            v8::Local<v8::String> string,
                             enum encoding enc);
 
   // Fast, but can be 2 bytes oversized for Base64, and
   // as much as triple UTF-8 strings <= 65536 chars in length
   static size_t StorageSize(v8::Isolate* isolate,
-                            v8::Handle<v8::Value> val,
+                            v8::Local<v8::Value> val,
                             enum encoding enc);
 
   // Precise byte count, but slightly slower for Base64 and
   // very much slower for UTF-8
   static size_t Size(v8::Isolate* isolate,
-                     v8::Handle<v8::Value> val,
+                     v8::Local<v8::Value> val,
                      enum encoding enc);
 
   // If the string is external then assign external properties to data and len,
   // then return true. If not return false.
   static bool GetExternalParts(v8::Isolate* isolate,
-                               v8::Handle<v8::Value> val,
+                               v8::Local<v8::Value> val,
                                const char** data,
                                size_t* len);
 
@@ -90,7 +90,7 @@ class StringBytes {
   static size_t Write(v8::Isolate* isolate,
                       char* buf,
                       size_t buflen,
-                      v8::Handle<v8::Value> val,
+                      v8::Local<v8::Value> val,
                       enum encoding enc,
                       int* chars_written = nullptr);
 
@@ -110,25 +110,25 @@ class StringBytes {
 
   NODE_DEPRECATED("Use IsValidString(isolate, ...)",
                   static inline bool IsValidString(
-      v8::Handle<v8::String> string,
+      v8::Local<v8::String> string,
       enum encoding enc) {
     return IsValidString(v8::Isolate::GetCurrent(), string, enc);
   })
 
   NODE_DEPRECATED("Use StorageSize(isolate, ...)",
-                  static inline size_t StorageSize(v8::Handle<v8::Value> val,
+                  static inline size_t StorageSize(v8::Local<v8::Value> val,
                                                   enum encoding enc) {
     return StorageSize(v8::Isolate::GetCurrent(), val, enc);
   })
 
   NODE_DEPRECATED("Use Size(isolate, ...)",
-                  static inline size_t Size(v8::Handle<v8::Value> val,
+                  static inline size_t Size(v8::Local<v8::Value> val,
                                             enum encoding enc) {
     return Size(v8::Isolate::GetCurrent(), val, enc);
   })
 
   NODE_DEPRECATED("Use GetExternalParts(isolate, ...)",
-                  static inline bool GetExternalParts(v8::Handle<v8::Value> val,
+                  static inline bool GetExternalParts(v8::Local<v8::Value> val,
                                                       const char** data,
                                                       size_t* len) {
     return GetExternalParts(v8::Isolate::GetCurrent(), val, data, len);
@@ -137,7 +137,7 @@ class StringBytes {
   NODE_DEPRECATED("Use Write(isolate, ...)",
                   static inline size_t Write(char* buf,
                                              size_t buflen,
-                                             v8::Handle<v8::Value> val,
+                                             v8::Local<v8::Value> val,
                                              enum encoding enc,
                                              int* chars_written = nullptr) {
     v8::Isolate* isolate = v8::Isolate::GetCurrent();

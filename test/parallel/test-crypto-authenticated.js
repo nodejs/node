@@ -93,32 +93,44 @@ for (var i in TEST_CASES) {
 
   (function() {
     if (!test.password) return;
-    var encrypt = crypto.createCipher(test.algo, test.password);
-    if (test.aad)
-      encrypt.setAAD(new Buffer(test.aad, 'hex'));
-    var hex = encrypt.update(test.plain, 'ascii', 'hex');
-    hex += encrypt.final('hex');
-    var auth_tag = encrypt.getAuthTag();
-    // only test basic encryption run if output is marked as tampered.
-    if (!test.tampered) {
-      assert.equal(hex.toUpperCase(), test.ct);
-      assert.equal(auth_tag.toString('hex').toUpperCase(), test.tag);
+    if (common.hasFipsCrypto) {
+      assert.throws(function()
+                    { crypto.createCipher(test.algo, test.password); },
+                    /not supported in FIPS mode/);
+    } else {
+      var encrypt = crypto.createCipher(test.algo, test.password);
+      if (test.aad)
+        encrypt.setAAD(new Buffer(test.aad, 'hex'));
+      var hex = encrypt.update(test.plain, 'ascii', 'hex');
+      hex += encrypt.final('hex');
+      var auth_tag = encrypt.getAuthTag();
+      // only test basic encryption run if output is marked as tampered.
+      if (!test.tampered) {
+        assert.equal(hex.toUpperCase(), test.ct);
+        assert.equal(auth_tag.toString('hex').toUpperCase(), test.tag);
+      }
     }
   })();
 
   (function() {
     if (!test.password) return;
-    var decrypt = crypto.createDecipher(test.algo, test.password);
-    decrypt.setAuthTag(new Buffer(test.tag, 'hex'));
-    if (test.aad)
-      decrypt.setAAD(new Buffer(test.aad, 'hex'));
-    var msg = decrypt.update(test.ct, 'hex', 'ascii');
-    if (!test.tampered) {
-      msg += decrypt.final('ascii');
-      assert.equal(msg, test.plain);
+    if (common.hasFipsCrypto) {
+      assert.throws(function()
+                    { crypto.createDecipher(test.algo, test.password); },
+                    /not supported in FIPS mode/);
     } else {
-      // assert that final throws if input data could not be verified!
-      assert.throws(function() { decrypt.final('ascii'); }, / auth/);
+      var decrypt = crypto.createDecipher(test.algo, test.password);
+      decrypt.setAuthTag(new Buffer(test.tag, 'hex'));
+      if (test.aad)
+        decrypt.setAAD(new Buffer(test.aad, 'hex'));
+      var msg = decrypt.update(test.ct, 'hex', 'ascii');
+      if (!test.tampered) {
+        msg += decrypt.final('ascii');
+        assert.equal(msg, test.plain);
+      } else {
+        // assert that final throws if input data could not be verified!
+        assert.throws(function() { decrypt.final('ascii'); }, / auth/);
+      }
     }
   })();
 

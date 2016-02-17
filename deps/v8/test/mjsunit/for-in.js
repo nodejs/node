@@ -119,3 +119,15 @@ for (i=0 ; i < 3; ++i) {
   assertEquals("undefined", typeof y[2], "y[2]");
   assertEquals("undefined", typeof y[0], "y[0]");
 }
+
+(function() {
+  var large_key = 2147483650;
+  var o = {__proto__: {}};
+  o[large_key] = 1;
+  o.__proto__[large_key] = 1;
+  var keys = [];
+  for (var k in o) {
+    keys.push(k);
+  }
+  assertEquals(["2147483650"], keys);
+})();

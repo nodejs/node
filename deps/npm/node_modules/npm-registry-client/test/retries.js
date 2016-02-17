@@ -46,6 +46,7 @@ tap.test('create new user account', function (t) {
   client.get('http://localhost:1337/some-package/1.2.3', {}, function (er, data) {
     if (er) throw er
     t.deepEqual(data, pkg)
+    server.close()
     t.end()
   })
 })

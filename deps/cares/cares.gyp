@@ -9,6 +9,10 @@
           '_GNU_SOURCE'
         ]
       }],
+      [ 'OS=="aix"', {
+        'include_dirs': [ 'config/aix' ],
+        'sources': [ 'config/aix/ares_config.h' ],
+      }],
       ['OS=="solaris"', {
         'defines': [
           '__EXTENSIONS__',

@@ -21,16 +21,16 @@ namespace compiler {
 // Eagerly folds any representation changes for constants.
 class RepresentationChanger {
  public:
-  RepresentationChanger(JSGraph* jsgraph, SimplifiedOperatorBuilder* simplified,
-                        Isolate* isolate)
+  RepresentationChanger(JSGraph* jsgraph, Isolate* isolate)
       : jsgraph_(jsgraph),
-        simplified_(simplified),
         isolate_(isolate),
         testing_type_errors_(false),
         type_error_(false) {}
 
   // TODO(titzer): should Word64 also be implicitly convertable to others?
-  static const MachineTypeUnion rWord = kRepWord8 | kRepWord16 | kRepWord32;
+  static bool IsWord(MachineTypeUnion type) {
+    return (type & (kRepWord8 | kRepWord16 | kRepWord32)) != 0;
+  }
 
   Node* GetRepresentationFor(Node* node, MachineTypeUnion output_type,
                              MachineTypeUnion use_type) {
@@ -42,7 +42,7 @@ class RepresentationChanger {
       // Representations are the same. That's a no-op.
       return node;
     }
-    if ((use_type & rWord) && (output_type & rWord)) {
+    if (IsWord(use_type) && IsWord(output_type)) {
       // Both are words less than or equal to 32-bits.
       // Since loads of integers from memory implicitly sign or zero extend the
       // value to the full machine word size and stores implicitly truncate,
@@ -57,7 +57,7 @@ class RepresentationChanger {
       return GetFloat64RepresentationFor(node, output_type);
     } else if (use_type & kRepBit) {
       return GetBitRepresentationFor(node, output_type);
-    } else if (use_type & rWord) {
+    } else if (IsWord(use_type)) {
       return GetWord32RepresentationFor(node, output_type,
                                         use_type & kTypeUint32);
     } else if (use_type & kRepWord64) {
@@ -75,7 +75,7 @@ class RepresentationChanger {
         return node;  // No change necessary.
       case IrOpcode::kInt32Constant:
         if (output_type & kTypeUint32) {
-          uint32_t value = OpParameter<uint32_t>(node);
+          uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
           return jsgraph()->Constant(static_cast<double>(value));
         } else if (output_type & kTypeInt32) {
           int32_t value = OpParameter<int32_t>(node);
@@ -97,7 +97,7 @@ class RepresentationChanger {
     const Operator* op;
     if (output_type & kRepBit) {
       op = simplified()->ChangeBitToBool();
-    } else if (output_type & rWord) {
+    } else if (IsWord(output_type)) {
       if (output_type & kTypeUint32) {
         op = simplified()->ChangeUint32ToTagged();
       } else if (output_type & kTypeInt32) {
@@ -125,7 +125,7 @@ class RepresentationChanger {
             DoubleToFloat32(OpParameter<double>(node)));
       case IrOpcode::kInt32Constant:
         if (output_type & kTypeUint32) {
-          uint32_t value = OpParameter<uint32_t>(node);
+          uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
           return jsgraph()->Float32Constant(static_cast<float>(value));
         } else {
           int32_t value = OpParameter<int32_t>(node);
@@ -140,7 +140,7 @@ class RepresentationChanger {
     const Operator* op;
     if (output_type & kRepBit) {
       return TypeError(node, output_type, kRepFloat32);
-    } else if (output_type & rWord) {
+    } else if (IsWord(output_type)) {
       if (output_type & kTypeUint32) {
         op = machine()->ChangeUint32ToFloat64();
       } else {
@@ -169,7 +169,7 @@ class RepresentationChanger {
         return jsgraph()->Float64Constant(OpParameter<double>(node));
       case IrOpcode::kInt32Constant:
         if (output_type & kTypeUint32) {
-          uint32_t value = OpParameter<uint32_t>(node);
+          uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
           return jsgraph()->Float64Constant(static_cast<double>(value));
         } else {
           int32_t value = OpParameter<int32_t>(node);
@@ -186,7 +186,7 @@ class RepresentationChanger {
     const Operator* op;
     if (output_type & kRepBit) {
       return TypeError(node, output_type, kRepFloat64);
-    } else if (output_type & rWord) {
+    } else if (IsWord(output_type)) {
       if (output_type & kTypeUint32) {
         op = machine()->ChangeUint32ToFloat64();
       } else {
@@ -232,13 +232,13 @@ class RepresentationChanger {
     // Select the correct X -> Word32 truncation operator.
     const Operator* op = NULL;
     if (output_type & kRepFloat64) {
-      op = machine()->TruncateFloat64ToInt32();
+      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
     } else if (output_type & kRepFloat32) {
       node = InsertChangeFloat32ToFloat64(node);
-      op = machine()->TruncateFloat64ToInt32();
+      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
     } else if (output_type & kRepTagged) {
       node = InsertChangeTaggedToFloat64(node);
-      op = machine()->TruncateFloat64ToInt32();
+      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
     } else {
       return TypeError(node, output_type, kRepWord32);
     }
@@ -292,7 +292,7 @@ class RepresentationChanger {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
       case IrOpcode::kHeapConstant: {
-        Handle<Object> value = OpParameter<Unique<Object> >(node).handle();
+        Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
         DCHECK(value.is_identical_to(factory()->true_value()) ||
                value.is_identical_to(factory()->false_value()));
         return jsgraph()->Int32Constant(
@@ -331,6 +331,12 @@ class RepresentationChanger {
         return machine()->Int32Div();
       case IrOpcode::kNumberModulus:
         return machine()->Int32Mod();
+      case IrOpcode::kNumberBitwiseOr:
+        return machine()->Word32Or();
+      case IrOpcode::kNumberBitwiseXor:
+        return machine()->Word32Xor();
+      case IrOpcode::kNumberBitwiseAnd:
+        return machine()->Word32And();
       case IrOpcode::kNumberEqual:
         return machine()->Word32Equal();
       case IrOpcode::kNumberLessThan:
@@ -411,7 +417,6 @@ class RepresentationChanger {
 
  private:
   JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder* simplified_;
   Isolate* isolate_;
 
   friend class RepresentationChangerTester;  // accesses the below fields.
@@ -451,7 +456,7 @@ class RepresentationChanger {
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const { return isolate_; }
   Factory* factory() const { return isolate()->factory(); }
-  SimplifiedOperatorBuilder* simplified() { return simplified_; }
+  SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
 };
 

@@ -39,5 +39,5 @@ fs.read = function() {
 };
 
 stream.on('data', function(buf) {
-  stream.on('data', assert.fail);  // no more 'data' events should follow
+  stream.on('data', common.fail);  // no more 'data' events should follow
 });

@@ -40,4 +40,5 @@ const v8::StartupData* Snapshot::DefaultSnapshotBlob() {
       external_startup_data_mutex.Pointer());
   return &external_startup_blob;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

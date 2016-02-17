@@ -35,7 +35,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <limits.h> /* INT_MAX, PATH_MAX */
+#include <limits.h> /* INT_MAX, PATH_MAX, IOV_MAX */
 #include <sys/uio.h> /* writev */
 #include <sys/resource.h> /* getrusage */
 #include <pwd.h>
@@ -55,13 +55,13 @@
 # include <sys/ioctl.h>
 #endif
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__DragonFly__)
 # include <sys/sysctl.h>
 # include <sys/filio.h>
 # include <sys/ioctl.h>
 # include <sys/wait.h>
 # define UV__O_CLOEXEC O_CLOEXEC
-# if __FreeBSD__ >= 10
+# if defined(__FreeBSD__) && __FreeBSD__ >= 10
 #  define uv__accept4 accept4
 #  define UV__SOCK_NONBLOCK SOCK_NONBLOCK
 #  define UV__SOCK_CLOEXEC  SOCK_CLOEXEC
@@ -73,6 +73,10 @@
 
 #ifdef _AIX
 #include <sys/ioctl.h>
+#endif
+
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
+# include <dlfcn.h>  /* for dlsym */
 #endif
 
 static int uv__run_pending(uv_loop_t* loop);
@@ -197,6 +201,25 @@ void uv__make_close_pending(uv_handle_t* handle) {
   assert(!(handle->flags & UV_CLOSED));
   handle->next_closing = handle->loop->closing_handles;
   handle->loop->closing_handles = handle;
+}
+
+int uv__getiovmax(void) {
+#if defined(IOV_MAX)
+  return IOV_MAX;
+#elif defined(_SC_IOV_MAX)
+  static int iovmax = -1;
+  if (iovmax == -1) {
+    iovmax = sysconf(_SC_IOV_MAX);
+    /* On some embedded devices (arm-linux-uclibc based ip camera),
+     * sysconf(_SC_IOV_MAX) can not get the correct value. The return
+     * value is -1 and the errno is EINPROGRESS. Degrade the value to 1.
+     */
+    if (iovmax == -1) iovmax = 1;
+  }
+  return iovmax;
+#else
+  return 1024;
+#endif
 }
 
 
@@ -477,7 +500,7 @@ int uv__close(int fd) {
 
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
-    defined(_AIX)
+    defined(_AIX) || defined(__DragonFly__)
 
 int uv__nonblock(int fd, int set) {
   int r;
@@ -506,7 +529,8 @@ int uv__cloexec(int fd, int set) {
   return 0;
 }
 
-#else /* !(defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)) */
+#else /* !(defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
+	   defined(_AIX) || defined(__DragonFly__)) */
 
 int uv__nonblock(int fd, int set) {
   int flags;
@@ -569,7 +593,8 @@ int uv__cloexec(int fd, int set) {
   return 0;
 }
 
-#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) */
+#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
+	  defined(_AIX) || defined(__DragonFly__) */
 
 
 /* This function is not execve-safe, there is a race window
@@ -706,9 +731,7 @@ static int uv__run_pending(uv_loop_t* loop) {
   if (QUEUE_EMPTY(&loop->pending_queue))
     return 0;
 
-  QUEUE_INIT(&pq);
-  q = QUEUE_HEAD(&loop->pending_queue);
-  QUEUE_SPLIT(&loop->pending_queue, q, &pq);
+  QUEUE_MOVE(&loop->pending_queue, &pq);
 
   while (!QUEUE_EMPTY(&pq)) {
     q = QUEUE_HEAD(&pq);
@@ -907,7 +930,8 @@ int uv__open_cloexec(const char* path, int flags) {
   int err;
   int fd;
 
-#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD__ >= 9)
+#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD__ >= 9) || \
+    defined(__DragonFly__)
   static int no_cloexec;
 
   if (!no_cloexec) {
@@ -940,16 +964,12 @@ int uv__open_cloexec(const char* path, int flags) {
 int uv__dup2_cloexec(int oldfd, int newfd) {
   int r;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 10
-  do
-    r = dup3(oldfd, newfd, O_CLOEXEC);
-  while (r == -1 && errno == EINTR);
+  r = dup3(oldfd, newfd, O_CLOEXEC);
   if (r == -1)
     return -errno;
   return r;
 #elif defined(__FreeBSD__) && defined(F_DUP2FD_CLOEXEC)
-  do
-    r = fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd);
-  while (r == -1 && errno == EINTR);
+  r = fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd);
   if (r != -1)
     return r;
   if (errno != EINVAL)
@@ -960,7 +980,7 @@ int uv__dup2_cloexec(int oldfd, int newfd) {
   if (!no_dup3) {
     do
       r = uv__dup3(oldfd, newfd, UV__O_CLOEXEC);
-    while (r == -1 && (errno == EINTR || errno == EBUSY));
+    while (r == -1 && errno == EBUSY);
     if (r != -1)
       return r;
     if (errno != ENOSYS)
@@ -974,9 +994,9 @@ int uv__dup2_cloexec(int oldfd, int newfd) {
     do
       r = dup2(oldfd, newfd);
 #if defined(__linux__)
-    while (r == -1 && (errno == EINTR || errno == EBUSY));
+    while (r == -1 && errno == EBUSY);
 #else
-    while (r == -1 && errno == EINTR);
+    while (0);  /* Never retry. */
 #endif
 
     if (r == -1)
@@ -1002,6 +1022,9 @@ int uv_os_homedir(char* buffer, size_t* size) {
   size_t len;
   long initsize;
   int r;
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
+  int (*getpwuid_r)(uid_t, struct passwd*, char*, size_t, struct passwd**);
+#endif
 
   if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
@@ -1022,6 +1045,12 @@ int uv_os_homedir(char* buffer, size_t* size) {
 
     return 0;
   }
+
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
+  getpwuid_r = dlsym(RTLD_DEFAULT, "getpwuid_r");
+  if (getpwuid_r == NULL)
+    return -ENOSYS;
+#endif
 
   /* HOME is not set, so call getpwuid() */
   initsize = sysconf(_SC_GETPW_R_SIZE_MAX);

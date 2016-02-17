@@ -841,7 +841,8 @@ static const unsigned char *valid_star(const unsigned char *p, size_t len,
             state = LABEL_START;
             ++dots;
         } else if (p[i] == '-') {
-            if ((state & LABEL_HYPHEN) != 0)
+            /* no domain/subdomain starts with '-' */
+            if ((state & LABEL_START) != 0)
                 return NULL;
             state |= LABEL_HYPHEN;
         } else
@@ -926,7 +927,7 @@ static int do_x509_check(X509 *x, const char *chk, size_t chklen,
     GENERAL_NAMES *gens = NULL;
     X509_NAME *name = NULL;
     int i;
-    int cnid;
+    int cnid = NID_undef;
     int alt_type;
     int san_present = 0;
     int rv = 0;
@@ -949,7 +950,6 @@ static int do_x509_check(X509 *x, const char *chk, size_t chklen,
         else
             equal = equal_wildcard;
     } else {
-        cnid = 0;
         alt_type = V_ASN1_OCTET_STRING;
         equal = equal_case;
     }
@@ -980,11 +980,16 @@ static int do_x509_check(X509 *x, const char *chk, size_t chklen,
         GENERAL_NAMES_free(gens);
         if (rv != 0)
             return rv;
-        if (!cnid
+        if (cnid == NID_undef
             || (san_present
                 && !(flags & X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT)))
             return 0;
     }
+
+    /* We're done if CN-ID is not pertinent */
+    if (cnid == NID_undef)
+        return 0;
+
     i = -1;
     name = X509_get_subject_name(x);
     while ((i = X509_NAME_get_index_by_NID(name, cnid, i)) >= 0) {

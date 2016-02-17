@@ -1,8 +1,9 @@
 'use strict';
+require('../common');
 var assert = require('assert');
 
-var immediateThis, intervalThis, timeoutThis,
-    immediateArgsThis, intervalArgsThis, timeoutArgsThis;
+let immediateThis, intervalThis, timeoutThis;
+let immediateArgsThis, intervalArgsThis, timeoutArgsThis;
 
 var immediateHandler = setImmediate(function() {
   immediateThis = this;

@@ -23,6 +23,7 @@ tap.test('get returns 403', function (t) {
       t.equal(er.statusCode, 403, 'status code was attached to error as expected')
       t.equal(er.code, 'E403', 'error code was formatted as expected')
 
+      server.close()
       t.end()
     }
   )

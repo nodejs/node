@@ -27,7 +27,7 @@
 # referred below, which improves ECDH and ECDSA verify benchmarks
 # by 18-40%.
 #
-# Câmara, D.; Gouvêa, C. P. L.; López, J. & Dahab, R.: Fast Software
+# CÃ¢mara, D.; GouvÃªa, C. P. L.; LÃ³pez, J. & Dahab, R.: Fast Software
 # Polynomial Multiplication on ARM Processors using the NEON Engine.
 # 
 # http://conradoplg.cryptoland.net/files/2010/12/mocrysen13.pdf
@@ -136,7 +136,7 @@ ___
 ################
 # void	bn_GF2m_mul_2x2(BN_ULONG *r,
 #	BN_ULONG a1,BN_ULONG a0,
-#	BN_ULONG b1,BN_ULONG b0);	# r[3..0]=a1a0·b1b0
+#	BN_ULONG b1,BN_ULONG b0);	# r[3..0]=a1a0Â·b1b0
 {
 $code.=<<___;
 .global	bn_GF2m_mul_2x2
@@ -159,7 +159,7 @@ $code.=<<___;
 	mov	$mask,#7<<2
 	sub	sp,sp,#32		@ allocate tab[8]
 
-	bl	mul_1x1_ialu		@ a1·b1
+	bl	mul_1x1_ialu		@ a1Â·b1
 	str	$lo,[$ret,#8]
 	str	$hi,[$ret,#12]
 
@@ -169,13 +169,13 @@ $code.=<<___;
 	 eor	r2,r2,$a
 	eor	$b,$b,r3
 	 eor	$a,$a,r2
-	bl	mul_1x1_ialu		@ a0·b0
+	bl	mul_1x1_ialu		@ a0Â·b0
 	str	$lo,[$ret]
 	str	$hi,[$ret,#4]
 
 	eor	$a,$a,r2
 	eor	$b,$b,r3
-	bl	mul_1x1_ialu		@ (a1+a0)·(b1+b0)
+	bl	mul_1x1_ialu		@ (a1+a0)Â·(b1+b0)
 ___
 @r=map("r$_",(6..9));
 $code.=<<___;

@@ -78,18 +78,26 @@ static int uv__tcp_keepalive(uv_tcp_t* handle, SOCKET socket, int enable, unsign
 }
 
 
-static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
-    SOCKET socket, int family, int imported) {
+static int uv_tcp_set_socket(uv_loop_t* loop,
+                             uv_tcp_t* handle,
+                             SOCKET socket,
+                             int family,
+                             int imported) {
   DWORD yes = 1;
   int non_ifs_lsp;
   int err;
 
-  assert(handle->socket == INVALID_SOCKET);
+  if (handle->socket != INVALID_SOCKET)
+    return UV_EBUSY;
 
   /* Set the socket to nonblocking mode */
   if (ioctlsocket(socket, FIONBIO, &yes) == SOCKET_ERROR) {
     return WSAGetLastError();
   }
+
+  /* Make the socket non-inheritable */
+  if (!SetHandleInformation((HANDLE) socket, HANDLE_FLAG_INHERIT, 0))
+    return GetLastError();
 
   /* Associate it with the I/O completion port. */
   /* Use uv_handle_t pointer as completion key. */
@@ -146,9 +154,18 @@ static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
 }
 
 
-int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle) {
-  uv_stream_init(loop, (uv_stream_t*) handle, UV_TCP);
+int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* handle, unsigned int flags) {
+  int domain;
 
+  /* Use the lower 8 bits for the domain */
+  domain = flags & 0xFF;
+  if (domain != AF_INET && domain != AF_INET6 && domain != AF_UNSPEC)
+    return UV_EINVAL;
+
+  if (flags & ~0xFF)
+    return UV_EINVAL;
+
+  uv_stream_init(loop, (uv_stream_t*) handle, UV_TCP);
   handle->tcp.serv.accept_reqs = NULL;
   handle->tcp.serv.pending_accepts = NULL;
   handle->socket = INVALID_SOCKET;
@@ -158,7 +175,36 @@ int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle) {
   handle->tcp.serv.processed_accepts = 0;
   handle->delayed_error = 0;
 
+  /* If anything fails beyond this point we need to remove the handle from
+   * the handle queue, since it was added by uv__handle_init in uv_stream_init.
+   */
+
+  if (domain != AF_UNSPEC) {
+    SOCKET sock;
+    DWORD err;
+
+    sock = socket(domain, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET) {
+      err = WSAGetLastError();
+      QUEUE_REMOVE(&handle->handle_queue);
+      return uv_translate_sys_error(err);
+    }
+
+    err = uv_tcp_set_socket(handle->loop, handle, sock, domain, 0);
+    if (err) {
+      closesocket(sock);
+      QUEUE_REMOVE(&handle->handle_queue);
+      return uv_translate_sys_error(err);
+    }
+
+  }
+
   return 0;
+}
+
+
+int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle) {
+  return uv_tcp_init_ex(loop, handle, AF_UNSPEC);
 }
 
 
@@ -265,13 +311,6 @@ static int uv_tcp_try_bind(uv_tcp_t* handle,
     sock = socket(addr->sa_family, SOCK_STREAM, 0);
     if (sock == INVALID_SOCKET) {
       return WSAGetLastError();
-    }
-
-    /* Make the socket non-inheritable */
-    if (!SetHandleInformation((HANDLE) sock, HANDLE_FLAG_INHERIT, 0)) {
-      err = GetLastError();
-      closesocket(sock);
-      return err;
     }
 
     err = uv_tcp_set_socket(handle->loop, handle, sock, addr->sa_family, 0);
@@ -774,7 +813,7 @@ int uv_tcp_getsockname(const uv_tcp_t* handle,
                        int* namelen) {
   int result;
 
-  if (!(handle->flags & UV_HANDLE_BOUND)) {
+  if (handle->socket == INVALID_SOCKET) {
     return UV_EINVAL;
   }
 
@@ -796,7 +835,7 @@ int uv_tcp_getpeername(const uv_tcp_t* handle,
                        int* namelen) {
   int result;
 
-  if (!(handle->flags & UV_HANDLE_BOUND)) {
+  if (handle->socket == INVALID_SOCKET) {
     return UV_EINVAL;
   }
 
@@ -1165,12 +1204,6 @@ int uv_tcp_import(uv_tcp_t* tcp, uv__ipc_socket_info_ex* socket_info_ex,
     return WSAGetLastError();
   }
 
-  if (!SetHandleInformation((HANDLE) socket, HANDLE_FLAG_INHERIT, 0)) {
-    err = GetLastError();
-    closesocket(socket);
-    return err;
-  }
-
   err = uv_tcp_set_socket(tcp->loop,
                           tcp,
                           socket,
@@ -1423,11 +1456,6 @@ int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
                  SO_PROTOCOL_INFOW,
                  (char*) &protocol_info,
                  &opt_len) == SOCKET_ERROR) {
-    return uv_translate_sys_error(GetLastError());
-  }
-
-  /* Make the socket non-inheritable */
-  if (!SetHandleInformation((HANDLE) sock, HANDLE_FLAG_INHERIT, 0)) {
     return uv_translate_sys_error(GetLastError());
   }
 

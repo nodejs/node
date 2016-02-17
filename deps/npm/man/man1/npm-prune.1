@@ -1,12 +1,11 @@
-.TH "NPM\-PRUNE" "1" "July 2015" "" ""
+.TH "NPM\-PRUNE" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-prune\fR \- Remove extraneous packages
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm prune [<name> [<name \.\.\.]]
-npm prune [<name> [<name \.\.\.]] [\-\-production]
+npm prune [[<@scope>/]<pkg>\.\.\.] [\-\-production]
 .fi
 .RE
 .SH DESCRIPTION
@@ -25,7 +24,7 @@ negate \fBNODE_ENV\fP being set to \fBproduction\fP\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
-npm help rm
+npm help uninstall
 .IP \(bu 2
 npm help 5 folders
 .IP \(bu 2

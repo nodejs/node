@@ -29,8 +29,7 @@
 // test enters an infinite recursion which goes through the runtime and we
 // overflow the system stack before the simulator stack.
 
-// Flags: --harmony-proxies --sim-stack-size=500 --turbo-deoptimization
-// Flags: --allow-natives-syntax
+// Flags: --harmony-proxies --sim-stack-size=500 --allow-natives-syntax
 
 
 // Helper.
@@ -383,6 +382,10 @@ function TestSet2(create, handler) {
   assertEquals(46, (function(n) { return p[n] = 46 })(99))
   assertEquals("99", key)
   assertEquals(46, val)
+
+  assertEquals(47, p["0"] = 47)
+  assertEquals("0", key)
+  assertEquals(47, val)
 }
 
 TestSet({
@@ -1307,7 +1310,7 @@ function TestDescriptorGetOrder(handler) {
   TestDescriptorGetOrder2(function(n) { return p[n] }, "vV")
   TestDescriptorGetOrder2(function(n) { return n in p }, "")
   TestDescriptorGetOrder2(function(n) { return o[n] }, "vV")
-  TestDescriptorGetOrder2(function(n) { return n in o }, "eEcCvVwWgs")
+  TestDescriptorGetOrder2(function(n) { return n in o }, "")
 }
 
 function TestDescriptorGetOrder2(f, access) {

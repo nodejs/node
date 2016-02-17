@@ -30,16 +30,28 @@ class FuncNameInferrer : public ZoneObject {
  public:
   FuncNameInferrer(AstValueFactory* ast_value_factory, Zone* zone);
 
+  // To enter function name inference state, put a FuncNameInferrer::State
+  // on the stack.
+  class State {
+   public:
+    explicit State(FuncNameInferrer* fni) : fni_(fni) {
+      if (fni_ != nullptr) fni_->Enter();
+    }
+    ~State() {
+      if (fni_ != nullptr) fni_->Leave();
+    }
+
+   private:
+    FuncNameInferrer* fni_;
+
+    DISALLOW_COPY_AND_ASSIGN(State);
+  };
+
   // Returns whether we have entered name collection state.
   bool IsOpen() const { return !entries_stack_.is_empty(); }
 
   // Pushes an enclosing the name of enclosing function onto names stack.
   void PushEnclosingName(const AstRawString* name);
-
-  // Enters name collection state.
-  void Enter() {
-    entries_stack_.Add(names_stack_.length(), zone());
-  }
 
   // Pushes an encountered name onto names stack when in collection state.
   void PushLiteralName(const AstRawString* name);
@@ -67,14 +79,6 @@ class FuncNameInferrer : public ZoneObject {
     }
   }
 
-  // Leaves names collection state.
-  void Leave() {
-    DCHECK(IsOpen());
-    names_stack_.Rewind(entries_stack_.RemoveLast());
-    if (entries_stack_.is_empty())
-      funcs_to_infer_.Clear();
-  }
-
  private:
   enum NameType {
     kEnclosingConstructorName,
@@ -86,6 +90,14 @@ class FuncNameInferrer : public ZoneObject {
     const AstRawString* name;
     NameType type;
   };
+
+  void Enter() { entries_stack_.Add(names_stack_.length(), zone()); }
+
+  void Leave() {
+    DCHECK(IsOpen());
+    names_stack_.Rewind(entries_stack_.RemoveLast());
+    if (entries_stack_.is_empty()) funcs_to_infer_.Clear();
+  }
 
   Zone* zone() const { return zone_; }
 
@@ -109,6 +121,7 @@ class FuncNameInferrer : public ZoneObject {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FUNC_NAME_INFERRER_H_

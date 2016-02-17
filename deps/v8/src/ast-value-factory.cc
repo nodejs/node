@@ -29,6 +29,7 @@
 
 #include "src/api.h"
 #include "src/objects.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -49,7 +50,7 @@ class OneByteStringStream {
   int pos_;
 };
 
-}
+}  // namespace
 
 class AstRawStringInternalizationKey : public HashTableKey {
  public:
@@ -140,6 +141,7 @@ bool AstValue::BooleanValue() const {
     case SYMBOL:
       UNREACHABLE();
       break;
+    case NUMBER_WITH_DOT:
     case NUMBER:
       return DoubleToBoolean(number_);
     case SMI:
@@ -167,9 +169,15 @@ void AstValue::Internalize(Isolate* isolate) {
       DCHECK(!string_->string().is_null());
       break;
     case SYMBOL:
-      DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
-      value_ = isolate->factory()->iterator_symbol();
+      if (symbol_name_[0] == 'i') {
+        DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
+        value_ = isolate->factory()->iterator_symbol();
+      } else {
+        DCHECK_EQ(0, strcmp(symbol_name_, "home_object_symbol"));
+        value_ = isolate->factory()->home_object_symbol();
+      }
       break;
+    case NUMBER_WITH_DOT:
     case NUMBER:
       value_ = isolate->factory()->NewNumber(number_, TENURED);
       break;
@@ -285,8 +293,8 @@ const AstValue* AstValueFactory::NewSymbol(const char* name) {
 }
 
 
-const AstValue* AstValueFactory::NewNumber(double number) {
-  AstValue* value = new (zone_) AstValue(number);
+const AstValue* AstValueFactory::NewNumber(double number, bool with_dot) {
+  AstValue* value = new (zone_) AstValue(number, with_dot);
   if (isolate_) {
     value->Internalize(isolate_);
   }
@@ -372,10 +380,32 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
 bool AstValueFactory::AstRawStringCompare(void* a, void* b) {
   const AstRawString* lhs = static_cast<AstRawString*>(a);
   const AstRawString* rhs = static_cast<AstRawString*>(b);
-  if (lhs->is_one_byte() != rhs->is_one_byte()) return false;
+  if (lhs->length() != rhs->length()) return false;
   if (lhs->hash() != rhs->hash()) return false;
-  int len = lhs->byte_length();
-  if (rhs->byte_length() != len) return false;
-  return memcmp(lhs->raw_data(), rhs->raw_data(), len) == 0;
+  const unsigned char* l = lhs->raw_data();
+  const unsigned char* r = rhs->raw_data();
+  size_t length = rhs->length();
+  if (lhs->is_one_byte()) {
+    if (rhs->is_one_byte()) {
+      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(l),
+                                  reinterpret_cast<const uint8_t*>(r),
+                                  length) == 0;
+    } else {
+      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(l),
+                                  reinterpret_cast<const uint16_t*>(r),
+                                  length) == 0;
+    }
+  } else {
+    if (rhs->is_one_byte()) {
+      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(l),
+                                  reinterpret_cast<const uint8_t*>(r),
+                                  length) == 0;
+    } else {
+      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(l),
+                                  reinterpret_cast<const uint16_t*>(r),
+                                  length) == 0;
+    }
+  }
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

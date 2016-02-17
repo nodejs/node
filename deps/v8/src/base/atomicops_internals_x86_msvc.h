@@ -197,6 +197,7 @@ inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
 
 #endif  // defined(_WIN64)
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_

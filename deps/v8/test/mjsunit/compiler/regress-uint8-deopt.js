@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-asm --turbo-deoptimization --allow-natives-syntax
+// Flags: --turbo-asm --turbo-asm-deoptimization --allow-natives-syntax
 
 function Module(heap) {
   "use asm";

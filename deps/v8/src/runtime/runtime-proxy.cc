@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/runtime/runtime-utils.h"
+#include "src/factory.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -24,7 +25,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSFunctionProxy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, call_trap, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, call_trap, 1);
   RUNTIME_ASSERT(call_trap->IsJSFunction() || call_trap->IsJSFunctionProxy());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, construct_trap, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 3);
@@ -81,5 +82,5 @@ RUNTIME_FUNCTION(Runtime_Fix) {
   JSProxy::Fix(proxy);
   return isolate->heap()->undefined_value();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

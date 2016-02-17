@@ -54,6 +54,24 @@ test('npm ls --dev', function (t) {
   })
 })
 
+test('npm ls --only=development', function (t) {
+  common.npm(['ls', '--only=development'], EXEC_OPTS, function (er, code, stdout) {
+    t.ifError(er, 'ls --only=development ran without issue')
+    t.equal(code, 0)
+    t.has(stdout, /(empty)/, 'output contains (empty)')
+    t.end()
+  })
+})
+
+test('npm ls --only=dev', function (t) {
+  common.npm(['ls', '--only=dev'], EXEC_OPTS, function (er, code, stdout) {
+    t.ifError(er, 'ls --only=dev ran without issue')
+    t.equal(code, 0)
+    t.has(stdout, /(empty)/, 'output contains (empty)')
+    t.end()
+  })
+})
+
 test('npm ls --production', function (t) {
   common.npm(['ls', '--production'], EXEC_OPTS, function (er, code, stdout) {
     t.ifError(er, 'ls --production ran without issue')
@@ -70,6 +88,32 @@ test('npm ls --production', function (t) {
 test('npm ls --prod', function (t) {
   common.npm(['ls', '--prod'], EXEC_OPTS, function (er, code, stdout) {
     t.ifError(er, 'ls --prod ran without issue')
+    t.notOk(code, 'npm exited ok')
+    t.has(
+      stdout,
+      /test-package-with-one-dep@0\.0\.0/,
+      'output contains test-package-with-one-dep@0.0.0'
+    )
+    t.end()
+  })
+})
+
+test('npm ls --only=production', function (t) {
+  common.npm(['ls', '--only=production'], EXEC_OPTS, function (er, code, stdout) {
+    t.ifError(er, 'ls --only=production ran without issue')
+    t.notOk(code, 'npm exited ok')
+    t.has(
+      stdout,
+      /test-package-with-one-dep@0\.0\.0/,
+      'output contains test-package-with-one-dep@0.0.0'
+    )
+    t.end()
+  })
+})
+
+test('npm ls --only=prod', function (t) {
+  common.npm(['ls', '--only=prod'], EXEC_OPTS, function (er, code, stdout) {
+    t.ifError(er, 'ls --only=prod ran without issue')
     t.notOk(code, 'npm exited ok')
     t.has(
       stdout,

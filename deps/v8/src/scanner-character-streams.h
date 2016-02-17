@@ -5,10 +5,15 @@
 #ifndef V8_SCANNER_CHARACTER_STREAMS_H_
 #define V8_SCANNER_CHARACTER_STREAMS_H_
 
+#include "src/handles.h"
 #include "src/scanner.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ExternalTwoByteString;
 
 // A buffered character stream based on a random access character
 // source (ReadBlock can be called with pos_ pointing to any position,
@@ -16,16 +21,16 @@ namespace internal {
 class BufferedUtf16CharacterStream: public Utf16CharacterStream {
  public:
   BufferedUtf16CharacterStream();
-  virtual ~BufferedUtf16CharacterStream();
+  ~BufferedUtf16CharacterStream() override;
 
-  virtual void PushBack(uc32 character);
+  void PushBack(uc32 character) override;
 
  protected:
   static const size_t kBufferSize = 512;
   static const size_t kPushBackStepSize = 16;
 
-  virtual size_t SlowSeekForward(size_t delta);
-  virtual bool ReadBlock();
+  size_t SlowSeekForward(size_t delta) override;
+  bool ReadBlock() override;
   virtual void SlowPushBack(uc16 character);
 
   virtual size_t BufferSeekForward(size_t delta) = 0;
@@ -41,16 +46,16 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
  public:
   GenericStringUtf16CharacterStream(Handle<String> data, size_t start_position,
                                     size_t end_position);
-  virtual ~GenericStringUtf16CharacterStream();
+  ~GenericStringUtf16CharacterStream() override;
 
-  virtual bool SetBookmark();
-  virtual void ResetToBookmark();
+  bool SetBookmark() override;
+  void ResetToBookmark() override;
 
  protected:
   static const size_t kNoBookmark = -1;
 
-  virtual size_t BufferSeekForward(size_t delta);
-  virtual size_t FillBuffer(size_t position);
+  size_t BufferSeekForward(size_t delta) override;
+  size_t FillBuffer(size_t position) override;
 
   Handle<String> string_;
   size_t length_;
@@ -62,14 +67,14 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
 class Utf8ToUtf16CharacterStream: public BufferedUtf16CharacterStream {
  public:
   Utf8ToUtf16CharacterStream(const byte* data, size_t length);
-  virtual ~Utf8ToUtf16CharacterStream();
+  ~Utf8ToUtf16CharacterStream() override;
 
   static size_t CopyChars(uint16_t* dest, size_t length, const byte* src,
                           size_t* src_pos, size_t src_length);
 
  protected:
-  virtual size_t BufferSeekForward(size_t delta);
-  virtual size_t FillBuffer(size_t char_position);
+  size_t BufferSeekForward(size_t delta) override;
+  size_t FillBuffer(size_t char_position) override;
   void SetRawPosition(size_t char_position);
 
   const byte* raw_data_;
@@ -92,9 +97,17 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
         current_data_(NULL),
         current_data_offset_(0),
         current_data_length_(0),
-        utf8_split_char_buffer_length_(0) {}
+        utf8_split_char_buffer_length_(0),
+        bookmark_(0),
+        bookmark_data_is_from_current_data_(false),
+        bookmark_data_offset_(0),
+        bookmark_utf8_split_char_buffer_length_(0) {}
 
-  virtual ~ExternalStreamingStream() { delete[] current_data_; }
+  ~ExternalStreamingStream() override {
+    delete[] current_data_;
+    bookmark_buffer_.Dispose();
+    bookmark_data_.Dispose();
+  }
 
   size_t BufferSeekForward(size_t delta) override {
     // We never need to seek forward when streaming scripts. We only seek
@@ -107,8 +120,12 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
 
   size_t FillBuffer(size_t position) override;
 
+  bool SetBookmark() override;
+  void ResetToBookmark() override;
+
  private:
   void HandleUtf8SplitCharacters(size_t* data_in_buffer);
+  void FlushCurrent();
 
   ScriptCompiler::ExternalSourceStream* source_stream_;
   v8::ScriptCompiler::StreamedSource::Encoding encoding_;
@@ -118,6 +135,16 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
   // For converting UTF-8 characters which are split across two data chunks.
   uint8_t utf8_split_char_buffer_[4];
   size_t utf8_split_char_buffer_length_;
+
+  // Bookmark support. See comments in ExternalStreamingStream::SetBookmark
+  // for additional details.
+  size_t bookmark_;
+  Vector<uint16_t> bookmark_buffer_;
+  Vector<uint8_t> bookmark_data_;
+  bool bookmark_data_is_from_current_data_;
+  size_t bookmark_data_offset_;
+  uint8_t bookmark_utf8_split_char_buffer_[4];
+  size_t bookmark_utf8_split_char_buffer_length_;
 };
 
 
@@ -127,23 +154,23 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   ExternalTwoByteStringUtf16CharacterStream(Handle<ExternalTwoByteString> data,
                                             int start_position,
                                             int end_position);
-  virtual ~ExternalTwoByteStringUtf16CharacterStream();
+  ~ExternalTwoByteStringUtf16CharacterStream() override;
 
-  virtual void PushBack(uc32 character) {
+  void PushBack(uc32 character) override {
     DCHECK(buffer_cursor_ > raw_data_);
     buffer_cursor_--;
     pos_--;
   }
 
-  virtual bool SetBookmark();
-  virtual void ResetToBookmark();
+  bool SetBookmark() override;
+  void ResetToBookmark() override;
 
  protected:
-  virtual size_t SlowSeekForward(size_t delta) {
+  size_t SlowSeekForward(size_t delta) override {
     // Fast case always handles seeking.
     return 0;
   }
-  virtual bool ReadBlock() {
+  bool ReadBlock() override {
     // Entire string is read at start.
     return false;
   }
@@ -156,6 +183,7 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   size_t bookmark_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SCANNER_CHARACTER_STREAMS_H_

@@ -2,7 +2,6 @@
 // see https://github.com/joyent/node/issues/3257
 
 var common = require('../common');
-var assert = require('assert');
 var http = require('http');
 
 var server = http.createServer(function(req, res) {
@@ -13,6 +12,8 @@ var server = http.createServer(function(req, res) {
     server.close();
   });
 });
+
+common.refreshTmpDir();
 
 server.listen(common.PIPE, function() {
   var req = http.request({

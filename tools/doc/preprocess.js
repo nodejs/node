@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = preprocess;
 
 var path = require('path');
@@ -8,7 +10,7 @@ var includeData = {};
 
 function preprocess(inputFile, input, cb) {
   input = stripComments(input);
-  processIncludes(inputFile, input, function (err, data) {
+  processIncludes(inputFile, input, function(err, data) {
     if (err) return cb(err);
 
     cb(null, data);
@@ -47,7 +49,7 @@ function processIncludes(inputFile, input, cb) {
         if (er) return cb(errState = er);
         incCount--;
         includeData[fname] = inc;
-        input = input.split(include+'\n').join(includeData[fname]+'\n');
+        input = input.split(include + '\n').join(includeData[fname] + '\n');
         if (incCount === 0) {
           return cb(null, input);
         }

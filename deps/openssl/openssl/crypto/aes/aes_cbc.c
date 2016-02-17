@@ -1,4 +1,4 @@
-/* crypto/aes/aes_cbc.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/aes/aes_cbc.c */
 /* ====================================================================
  * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
  *

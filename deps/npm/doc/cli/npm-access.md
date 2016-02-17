@@ -6,10 +6,11 @@ npm-access(1) -- Set access level on published packages
     npm access public [<package>]
     npm access restricted [<package>]
 
-    npm access add <read-only|read-write> <entity> [<package>]
-    npm access rm <entity> [<package>]
+    npm access grant <read-only|read-write> <scope:team> [<package>]
+    npm access revoke <scope:team> [<package>]
 
-    npm access ls [<package>]
+    npm access ls-packages [<user>|<scope>|<scope:team>]
+    npm access ls-collaborators [<package> [<user>]]
     npm access edit [<package>]
 
 ## DESCRIPTION
@@ -23,13 +24,20 @@ subcommand.
 * public / restricted:
   Set a package to be either publicly accessible or restricted.
 
-* add / rm:
+* grant / revoke:
   Add or remove the ability of users and teams to have read-only or read-write
   access to a package.
 
-* ls:
+* ls-packages:
+
+  Show all of the packages a user or a team is able to access, along with the
+  access level, except for read-only public packages (it won't print the whole
+  registry listing)
+
+* ls-collaborators:
   Show all of the access privileges for a package. Will only show permissions
-  for packages to which you have at least read access.
+  for packages to which you have at least read access. If `<user>` is passed in,
+  the list is filtered only to teams _that_ user happens to belong to.
 
 * edit:
   Set the access privileges for a package at once using `$EDITOR`.
@@ -56,8 +64,11 @@ If your account is not paid, then attempts to publish scoped packages will fail
 with an HTTP 402 status code (logically enough), unless you use
 `--access=public`.
 
+Management of teams and team memberships is done with the `npm team` command.
+
 ## SEE ALSO
 
+* npm-team(1)
 * npm-publish(1)
 * npm-config(7)
 * npm-registry(7)

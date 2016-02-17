@@ -422,36 +422,36 @@ PASS Valid:   "for (a() in b) break"
 PASS Valid:   "function f() { for (a() in b) break }"
 PASS Valid:   "for (a().l[4] in b) break"
 PASS Valid:   "function f() { for (a().l[4] in b) break }"
-PASS Valid:   "for (new a in b in c in d) break"
-PASS Valid:   "function f() { for (new a in b in c in d) break }"
-PASS Valid:   "for (new new new a in b) break"
-PASS Valid:   "function f() { for (new new new a in b) break }"
-FAIL Invalid: "for (delete new a() in b) break" should throw undefined
-FAIL Invalid: "function f() { for (delete new a() in b) break }" should throw undefined
-FAIL Invalid: "for (a * a in b) break" should throw undefined
-FAIL Invalid: "function f() { for (a * a in b) break }" should throw undefined
-PASS Valid:   "for ((a * a) in b) break"
-PASS Valid:   "function f() { for ((a * a) in b) break }"
-FAIL Invalid: "for (a++ in b) break" should throw undefined
-FAIL Invalid: "function f() { for (a++ in b) break }" should throw undefined
-PASS Valid:   "for ((a++) in b) break"
-PASS Valid:   "function f() { for ((a++) in b) break }"
-FAIL Invalid: "for (++a in b) break" should throw undefined
-FAIL Invalid: "function f() { for (++a in b) break }" should throw undefined
-PASS Valid:   "for ((++a) in b) break"
-PASS Valid:   "function f() { for ((++a) in b) break }"
-FAIL Invalid: "for (a, b in c) break" should throw undefined
-FAIL Invalid: "function f() { for (a, b in c) break }" should throw undefined
-FAIL Invalid: "for (a,b in c ;;) break" should throw undefined
-FAIL Invalid: "function f() { for (a,b in c ;;) break }" should throw undefined
+PASS Invalid: "for (new a in b in c in d) break"
+PASS Invalid: "function f() { for (new a in b in c in d) break }"
+PASS Invalid: "for (new new new a in b) break"
+PASS Invalid: "function f() { for (new new new a in b) break }"
+PASS Invalid: "for (delete new a() in b) break"
+PASS Invalid: "function f() { for (delete new a() in b) break }"
+PASS Invalid: "for (a * a in b) break"
+PASS Invalid: "function f() { for (a * a in b) break }"
+PASS Invalid: "for ((a * a) in b) break"
+PASS Invalid: "function f() { for ((a * a) in b) break }"
+PASS Invalid: "for (a++ in b) break"
+PASS Invalid: "function f() { for (a++ in b) break }"
+PASS Invalid: "for ((a++) in b) break"
+PASS Invalid: "function f() { for ((a++) in b) break }"
+PASS Invalid: "for (++a in b) break"
+PASS Invalid: "function f() { for (++a in b) break }"
+PASS Invalid: "for ((++a) in b) break"
+PASS Invalid: "function f() { for ((++a) in b) break }"
+PASS Invalid: "for (a, b in c) break"
+PASS Invalid: "function f() { for (a, b in c) break }"
+PASS Invalid: "for (a,b in c ;;) break"
+PASS Invalid: "function f() { for (a,b in c ;;) break }"
 PASS Valid:   "for (a,(b in c) ;;) break"
 PASS Valid:   "function f() { for (a,(b in c) ;;) break }"
-PASS Valid:   "for ((a, b) in c) break"
-PASS Valid:   "function f() { for ((a, b) in c) break }"
-FAIL Invalid: "for (a ? b : c in c) break" should throw undefined
-FAIL Invalid: "function f() { for (a ? b : c in c) break }" should throw undefined
-PASS Valid:   "for ((a ? b : c) in c) break"
-PASS Valid:   "function f() { for ((a ? b : c) in c) break }"
+PASS Invalid: "for ((a, b) in c) break"
+PASS Invalid: "function f() { for ((a, b) in c) break }"
+PASS Invalid: "for (a ? b : c in c) break"
+PASS Invalid: "function f() { for (a ? b : c in c) break }"
+PASS Invalid: "for ((a ? b : c) in c) break"
+PASS Invalid: "function f() { for ((a ? b : c) in c) break }"
 PASS Valid:   "for (var a in b in c) break"
 PASS Valid:   "function f() { for (var a in b in c) break }"
 PASS Valid:   "for (var a = 5 += 6 in b) break"

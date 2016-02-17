@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-// Test that setting break point is works correctly when the debugger is
+// Test that setting break point works correctly when the debugger is
 // activated late, which leads to duplicate shared function infos.
 
 (function() {

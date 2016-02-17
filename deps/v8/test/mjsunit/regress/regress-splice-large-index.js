@@ -30,6 +30,7 @@ a[0xfffffffe] = 10;
 assertThrows("a.unshift(1);", RangeError);
 assertEquals(0xffffffff, a.length);
 assertEquals(10, a[0xffffffff]);
+assertEquals(0xffffffff, a.length);
 assertEquals(undefined, a[0xfffffffe]);
 
 a = [1,2,3];

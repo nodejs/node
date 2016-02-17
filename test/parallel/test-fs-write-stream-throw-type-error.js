@@ -20,16 +20,16 @@ assert.doesNotThrow(function() {
 
 assert.throws(function() {
   fs.createWriteStream(example, null);
-}, /options must be a string or an object/);
+}, /"options" argument must be a string or an object/);
 assert.throws(function() {
   fs.createWriteStream(example, 123);
-}, /options must be a string or an object/);
+}, /"options" argument must be a string or an object/);
 assert.throws(function() {
   fs.createWriteStream(example, 0);
-}, /options must be a string or an object/);
+}, /"options" argument must be a string or an object/);
 assert.throws(function() {
   fs.createWriteStream(example, true);
-}, /options must be a string or an object/);
+}, /"options" argument must be a string or an object/);
 assert.throws(function() {
   fs.createWriteStream(example, false);
-}, /options must be a string or an object/);
+}, /"options" argument must be a string or an object/);

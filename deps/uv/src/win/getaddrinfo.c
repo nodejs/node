@@ -109,10 +109,8 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   req = container_of(w, uv_getaddrinfo_t, work_req);
 
   /* release input parameter memory */
-  if (req->alloc != NULL) {
-    uv__free(req->alloc);
-    req->alloc = NULL;
-  }
+  uv__free(req->alloc);
+  req->alloc = NULL;
 
   if (status == UV_ECANCELED) {
     assert(req->retcode == 0);
@@ -219,9 +217,7 @@ void uv_freeaddrinfo(struct addrinfo* ai) {
   char* alloc_ptr = (char*)ai;
 
   /* release copied result memory */
-  if (alloc_ptr != NULL) {
-    uv__free(alloc_ptr);
-  }
+  uv__free(alloc_ptr);
 }
 
 
@@ -354,8 +350,9 @@ int uv_getaddrinfo(uv_loop_t* loop,
   }
 
 error:
-  if (req != NULL && req->alloc != NULL) {
+  if (req != NULL) {
     uv__free(req->alloc);
+    req->alloc = NULL;
   }
   return uv_translate_sys_error(err);
 }

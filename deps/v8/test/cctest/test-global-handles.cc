@@ -75,7 +75,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
 class TestObjectVisitor : public ObjectVisitor {
  public:
-  virtual void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** o = start; o != end; ++o)
       visited.Add(*o);
   }
@@ -379,4 +379,21 @@ TEST(EternalHandles) {
   }
 
   CHECK_EQ(2*kArrayLength + 1, eternal_handles->NumberOfHandles());
+}
+
+
+TEST(PersistentBaseGetLocal) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> o = v8::Object::New(isolate);
+  CHECK(!o.IsEmpty());
+  v8::Persistent<v8::Object> p(isolate, o);
+  CHECK(o == p.Get(isolate));
+  CHECK(v8::Local<v8::Object>::New(isolate, p) == p.Get(isolate));
+
+  v8::Global<v8::Object> g(isolate, o);
+  CHECK(o == g.Get(isolate));
+  CHECK(v8::Local<v8::Object>::New(isolate, g) == g.Get(isolate));
 }

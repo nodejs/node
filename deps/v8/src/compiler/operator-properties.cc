@@ -26,7 +26,7 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
       return 1;
     case IrOpcode::kJSCallRuntime: {
       const CallRuntimeParameters& p = CallRuntimeParametersOf(op);
-      return Linkage::NeedsFrameState(p.id());
+      return Linkage::FrameStateInputCount(p.id());
     }
 
     // Strict equality cannot lazily deoptimize.
@@ -34,47 +34,52 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSStrictNotEqual:
       return 0;
 
-    // Calls
+    // We record the frame state immediately before and immediately after every
+    // function call.
     case IrOpcode::kJSCallFunction:
+      return 2;
+
+    // Construct calls
     case IrOpcode::kJSCallConstruct:
 
     // Compare operations
     case IrOpcode::kJSEqual:
-    case IrOpcode::kJSGreaterThan:
-    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSNotEqual:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSInstanceOf:
-    case IrOpcode::kJSLessThan:
-    case IrOpcode::kJSLessThanOrEqual:
-    case IrOpcode::kJSNotEqual:
 
     // Object operations
+    case IrOpcode::kJSCreateArguments:
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
 
     // Context operations
+    case IrOpcode::kJSLoadDynamic:
     case IrOpcode::kJSCreateScriptContext:
     case IrOpcode::kJSCreateWithContext:
 
     // Conversions
-    case IrOpcode::kJSToObject:
-    case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToName:
+    case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToObject:
+    case IrOpcode::kJSToString:
 
     // Misc operations
+    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSForInNext:
+    case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
-
-    // Properties
-    case IrOpcode::kJSLoadNamed:
-    case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSDeleteProperty:
       return 1;
 
-    // StoreProperty provides a second frame state just before
-    // the operation. This is used to lazy-deoptimize a to-number
-    // conversion for typed arrays.
+    // We record the frame state immediately before and immediately after
+    // every property or global variable access.
+    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSLoadGlobal:
+    case IrOpcode::kJSStoreGlobal:
       return 2;
 
     // Binary operators that can deopt in the middle the operation (e.g.,
@@ -91,6 +96,15 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSShiftRight:
     case IrOpcode::kJSShiftRightLogical:
     case IrOpcode::kJSSubtract:
+      return 2;
+
+    // Compare operators that can deopt in the middle the operation (e.g.,
+    // as a result of lazy deopt in ToNumber conversion) need a second frame
+    // state so that we can resume before the operation.
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
       return 2;
 
     default:

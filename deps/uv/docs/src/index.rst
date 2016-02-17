@@ -68,6 +68,7 @@ Documentation
 
    design
    errors
+   version
    loop
    handle
    request

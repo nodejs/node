@@ -1,8 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-var util = require('util');
-var os = require('os');
 
 var execSync = require('child_process').execSync;
 var execFileSync = require('child_process').execFileSync;
@@ -13,10 +11,9 @@ var SLEEP = 2000;
 var start = Date.now();
 var err;
 var caught = false;
-try
-{
-  var cmd = util.format('"%s" -e "setTimeout(function(){}, %d);"',
-                        process.execPath, SLEEP);
+
+try {
+  var cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
   var ret = execSync(cmd, {timeout: TIMER});
 } catch (e) {
   caught = true;
@@ -38,9 +35,10 @@ var msg = 'foobar';
 var msgBuf = new Buffer(msg + '\n');
 
 // console.log ends every line with just '\n', even on Windows.
-cmd = util.format('"%s" -e "console.log(\'%s\');"', process.execPath, msg);
 
-var ret = execSync(cmd);
+cmd = `"${process.execPath}" -e "console.log(\'${msg}\');"`;
+
+ret = execSync(cmd);
 
 assert.strictEqual(ret.length, msgBuf.length);
 assert.deepEqual(ret, msgBuf, 'execSync result buffer should match');
@@ -51,7 +49,7 @@ assert.strictEqual(ret, msg + '\n', 'execSync encoding result should match');
 
 var args = [
   '-e',
-  util.format('console.log("%s");', msg)
+  `console.log("${msg}");`
 ];
 ret = execFileSync(process.execPath, args);
 

@@ -55,7 +55,7 @@ file.on('close', function() {
 var file3 = fs.createReadStream(fn, {encoding: 'utf8'});
 file3.length = 0;
 file3.on('data', function(data) {
-  assert.equal('string', typeof(data));
+  assert.equal('string', typeof data);
   file3.length += data.length;
 
   for (var i = 0; i < data.length; i++) {
@@ -107,7 +107,7 @@ file6.on('end', function() {
 
 assert.throws(function() {
   fs.createReadStream(rangeFile, {start: 10, end: 2});
-}, /start must be <= end/);
+}, /"start" option must be <= "end" option/);
 
 var stream = fs.createReadStream(rangeFile, { start: 0, end: 0 });
 stream.data = '';

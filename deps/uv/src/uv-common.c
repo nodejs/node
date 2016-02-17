@@ -29,7 +29,9 @@
 #include <stdlib.h> /* malloc */
 #include <string.h> /* memset */
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+# include <malloc.h> /* malloc */
+#else
 # include <net/if.h> /* if_nametoindex */
 #endif
 
@@ -135,14 +137,23 @@ uv_buf_t uv_buf_init(char* base, unsigned int len) {
 }
 
 
+static const char* uv__unknown_err_code(int err) {
+  char buf[32];
+  char* copy;
+
+  snprintf(buf, sizeof(buf), "Unknown system error %d", err);
+  copy = uv__strdup(buf);
+
+  return copy != NULL ? copy : "Unknown system error";
+}
+
+
 #define UV_ERR_NAME_GEN(name, _) case UV_ ## name: return #name;
 const char* uv_err_name(int err) {
   switch (err) {
     UV_ERRNO_MAP(UV_ERR_NAME_GEN)
-    default:
-      assert(0);
-      return NULL;
   }
+  return uv__unknown_err_code(err);
 }
 #undef UV_ERR_NAME_GEN
 
@@ -151,9 +162,8 @@ const char* uv_err_name(int err) {
 const char* uv_strerror(int err) {
   switch (err) {
     UV_ERRNO_MAP(UV_STRERROR_GEN)
-    default:
-      return "Unknown system error";
   }
+  return uv__unknown_err_code(err);
 }
 #undef UV_STRERROR_GEN
 
@@ -327,19 +337,25 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 
 
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
+  QUEUE queue;
   QUEUE* q;
   uv_handle_t* h;
 
-  QUEUE_FOREACH(q, &loop->handle_queue) {
+  QUEUE_MOVE(&loop->handle_queue, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
     h = QUEUE_DATA(q, uv_handle_t, handle_queue);
+
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->handle_queue, q);
+
     if (h->flags & UV__HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
   }
 }
 
 
-#ifndef NDEBUG
-static void uv__print_handles(uv_loop_t* loop, int only_active) {
+static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
   const char* type;
   QUEUE* q;
   uv_handle_t* h;
@@ -360,7 +376,7 @@ static void uv__print_handles(uv_loop_t* loop, int only_active) {
       default: type = "<unknown>";
     }
 
-    fprintf(stderr,
+    fprintf(stream,
             "[%c%c%c] %-8s %p\n",
             "R-"[!(h->flags & UV__HANDLE_REF)],
             "A-"[!(h->flags & UV__HANDLE_ACTIVE)],
@@ -371,15 +387,14 @@ static void uv__print_handles(uv_loop_t* loop, int only_active) {
 }
 
 
-void uv_print_all_handles(uv_loop_t* loop) {
-  uv__print_handles(loop, 0);
+void uv_print_all_handles(uv_loop_t* loop, FILE* stream) {
+  uv__print_handles(loop, 0, stream);
 }
 
 
-void uv_print_active_handles(uv_loop_t* loop) {
-  uv__print_handles(loop, 1);
+void uv_print_active_handles(uv_loop_t* loop, FILE* stream) {
+  uv__print_handles(loop, 1, stream);
 }
-#endif
 
 
 void uv_ref(uv_handle_t* handle) {

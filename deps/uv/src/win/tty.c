@@ -55,6 +55,7 @@
 #define MAX_INPUT_BUFFER_LENGTH 8192
 
 
+static void uv_tty_capture_initial_style(CONSOLE_SCREEN_BUFFER_INFO* info);
 static void uv_tty_update_virtual_window(CONSOLE_SCREEN_BUFFER_INFO* info);
 
 
@@ -96,6 +97,15 @@ static CRITICAL_SECTION uv_tty_output_lock;
 
 static HANDLE uv_tty_output_handle = INVALID_HANDLE_VALUE;
 
+static WORD uv_tty_default_text_attributes =
+    FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+
+static char uv_tty_default_fg_color = 7;
+static char uv_tty_default_bg_color = 0;
+static char uv_tty_default_fg_bright = 0;
+static char uv_tty_default_bg_bright = 0;
+static char uv_tty_default_inverse = 0;
+
 
 void uv_console_init() {
   InitializeCriticalSection(&uv_tty_output_lock);
@@ -106,9 +116,26 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   HANDLE handle;
   CONSOLE_SCREEN_BUFFER_INFO screen_buffer_info;
 
-  handle = (HANDLE) _get_osfhandle(fd);
-  if (handle == INVALID_HANDLE_VALUE) {
+  handle = (HANDLE) uv__get_osfhandle(fd);
+  if (handle == INVALID_HANDLE_VALUE)
     return UV_EBADF;
+
+  if (fd <= 2) {
+    /* In order to avoid closing a stdio file descriptor 0-2, duplicate the
+     * underlying OS handle and forget about the original fd.
+     * We could also opt to use the original OS handle and just never close it,
+     * but then there would be no reliable way to cancel pending read operations
+     * upon close.
+     */
+    if (!DuplicateHandle(INVALID_HANDLE_VALUE,
+                         handle,
+                         INVALID_HANDLE_VALUE,
+                         &handle,
+                         0,
+                         FALSE,
+                         DUPLICATE_SAME_ACCESS))
+      return uv_translate_sys_error(GetLastError());
+    fd = -1;
   }
 
   if (!readable) {
@@ -126,6 +153,9 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
     /* is received. */
     uv_tty_output_handle = handle;
 
+    /* Remember the original console text attributes. */
+    uv_tty_capture_initial_style(&screen_buffer_info);
+
     uv_tty_update_virtual_window(&screen_buffer_info);
 
     LeaveCriticalSection(&uv_tty_output_lock);
@@ -136,6 +166,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   uv_connection_init((uv_stream_t*) tty);
 
   tty->handle = handle;
+  tty->u.fd = fd;
   tty->reqs_pending = 0;
   tty->flags |= UV_HANDLE_BOUND;
 
@@ -167,6 +198,62 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   }
 
   return 0;
+}
+
+
+/* Set the default console text attributes based on how the console was
+ * configured when libuv started.
+ */
+static void uv_tty_capture_initial_style(CONSOLE_SCREEN_BUFFER_INFO* info) {
+  static int style_captured = 0;
+
+  /* Only do this once.
+     Assumption: Caller has acquired uv_tty_output_lock. */
+  if (style_captured)
+    return;
+
+  /* Save raw win32 attributes. */
+  uv_tty_default_text_attributes = info->wAttributes;
+
+  /* Convert black text on black background to use white text. */
+  if (uv_tty_default_text_attributes == 0)
+    uv_tty_default_text_attributes = 7;
+
+  /* Convert Win32 attributes to ANSI colors. */
+  uv_tty_default_fg_color = 0;
+  uv_tty_default_bg_color = 0;
+  uv_tty_default_fg_bright = 0;
+  uv_tty_default_bg_bright = 0;
+  uv_tty_default_inverse = 0;
+
+  if (uv_tty_default_text_attributes & FOREGROUND_RED)
+    uv_tty_default_fg_color |= 1;
+
+  if (uv_tty_default_text_attributes & FOREGROUND_GREEN)
+    uv_tty_default_fg_color |= 2;
+
+  if (uv_tty_default_text_attributes & FOREGROUND_BLUE)
+    uv_tty_default_fg_color |= 4;
+
+  if (uv_tty_default_text_attributes & BACKGROUND_RED)
+    uv_tty_default_bg_color |= 1;
+
+  if (uv_tty_default_text_attributes & BACKGROUND_GREEN)
+    uv_tty_default_bg_color |= 2;
+
+  if (uv_tty_default_text_attributes & BACKGROUND_BLUE)
+    uv_tty_default_bg_color |= 4;
+
+  if (uv_tty_default_text_attributes & FOREGROUND_INTENSITY)
+    uv_tty_default_fg_bright = 1;
+
+  if (uv_tty_default_text_attributes & BACKGROUND_INTENSITY)
+    uv_tty_default_bg_bright = 1;
+
+  if (uv_tty_default_text_attributes & COMMON_LVB_REVERSE_VIDEO)
+    uv_tty_default_inverse = 1;
+
+  style_captured = 1;
 }
 
 
@@ -1004,7 +1091,7 @@ static int uv_tty_move_caret(uv_tty_t* handle, int x, unsigned char x_relative,
 
 static int uv_tty_reset(uv_tty_t* handle, DWORD* error) {
   const COORD origin = {0, 0};
-  const WORD char_attrs = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+  const WORD char_attrs = uv_tty_default_text_attributes;
   CONSOLE_SCREEN_BUFFER_INFO info;
   DWORD count, written;
 
@@ -1160,11 +1247,11 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
 
   if (argc == 0) {
     /* Reset mode */
-    fg_color = 7;
-    bg_color = 0;
-    fg_bright = 0;
-    bg_bright = 0;
-    inverse = 0;
+    fg_color = uv_tty_default_fg_color;
+    bg_color = uv_tty_default_bg_color;
+    fg_bright = uv_tty_default_fg_bright;
+    bg_bright = uv_tty_default_bg_bright;
+    inverse = uv_tty_default_inverse;
   }
 
   for (i = 0; i < argc; i++) {
@@ -1172,11 +1259,11 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
 
     if (arg == 0) {
       /* Reset mode */
-      fg_color = 7;
-      bg_color = 0;
-      fg_bright = 0;
-      bg_bright = 0;
-      inverse = 0;
+      fg_color = uv_tty_default_fg_color;
+      bg_color = uv_tty_default_bg_color;
+      fg_bright = uv_tty_default_fg_bright;
+      bg_bright = uv_tty_default_bg_bright;
+      inverse = uv_tty_default_inverse;
 
     } else if (arg == 1) {
       /* Foreground bright on */
@@ -1213,8 +1300,8 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
 
     } else if (arg == 39) {
       /* Default text color */
-      fg_color = 7;
-      fg_bright = 0;
+      fg_color = uv_tty_default_fg_color;
+      fg_bright = uv_tty_default_fg_bright;
 
     } else if (arg >= 40 && arg <= 47) {
       /* Set background color */
@@ -1222,8 +1309,8 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
 
     } else if (arg ==  49) {
       /* Default background color */
-      bg_color = 0;
-      bg_bright = 0;
+      bg_color = uv_tty_default_bg_color;
+      bg_bright = uv_tty_default_bg_bright;
 
     } else if (arg >= 90 && arg <= 97) {
       /* Set bold foreground color */
@@ -1410,6 +1497,11 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
       utf16_buf_used = 0;                                           \
     }                                                               \
   } while (0)
+
+#define ENSURE_BUFFER_SPACE(wchars_needed)                          \
+  if (wchars_needed > ARRAY_SIZE(utf16_buf) - utf16_buf_used) {     \
+    FLUSH_TEXT();                                                   \
+  }
 
   /* Cache for fast access */
   unsigned char utf8_bytes_left = handle->tty.wr.utf8_bytes_left;
@@ -1794,32 +1886,29 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
       }
 
       if (utf8_codepoint == 0x0a || utf8_codepoint == 0x0d) {
-        /* EOL conversion - emit \r\n, when we see either \r or \n. */
-        /* If a \n immediately follows a \r or vice versa, ignore it. */
-        if (previous_eol == 0 || utf8_codepoint == previous_eol) {
-          /* If there's no room in the utf16 buf, flush it first. */
-          if (2 > ARRAY_SIZE(utf16_buf) - utf16_buf_used) {
-            uv_tty_emit_text(handle, utf16_buf, utf16_buf_used, error);
-            utf16_buf_used = 0;
-          }
+        /* EOL conversion - emit \r\n when we see \n. */
 
+        if (utf8_codepoint == 0x0a && previous_eol != 0x0d) {
+          /* \n was not preceded by \r; print \r\n. */
+          ENSURE_BUFFER_SPACE(2);
           utf16_buf[utf16_buf_used++] = L'\r';
           utf16_buf[utf16_buf_used++] = L'\n';
-          previous_eol = (char) utf8_codepoint;
+        } else if (utf8_codepoint == 0x0d && previous_eol == 0x0a) {
+          /* \n was followed by \r; do not print the \r, since */
+          /* the source was either \r\n\r (so the second \r is */
+          /* redundant) or was \n\r (so the \n was processed */
+          /* by the last case and an \r automatically inserted). */
         } else {
-          /* Ignore this newline, but don't ignore later ones. */
-          previous_eol = 0;
+          /* \r without \n; print \r as-is. */
+          ENSURE_BUFFER_SPACE(1);
+          utf16_buf[utf16_buf_used++] = (WCHAR) utf8_codepoint;
         }
+
+        previous_eol = (char) utf8_codepoint;
 
       } else if (utf8_codepoint <= 0xffff) {
         /* Encode character into utf-16 buffer. */
-
-        /* If there's no room in the utf16 buf, flush it first. */
-        if (1 > ARRAY_SIZE(utf16_buf) - utf16_buf_used) {
-          uv_tty_emit_text(handle, utf16_buf, utf16_buf_used, error);
-          utf16_buf_used = 0;
-        }
-
+        ENSURE_BUFFER_SPACE(1);
         utf16_buf[utf16_buf_used++] = (WCHAR) utf8_codepoint;
         previous_eol = 0;
       }
@@ -1916,11 +2005,16 @@ void uv_process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
 
 
 void uv_tty_close(uv_tty_t* handle) {
-  CloseHandle(handle->handle);
+  assert(handle->u.fd == -1 || handle->u.fd > 2);
+  if (handle->u.fd == -1)
+    CloseHandle(handle->handle);
+  else
+    close(handle->u.fd);
 
   if (handle->flags & UV_HANDLE_READING)
     uv_tty_read_stop(handle);
 
+  handle->u.fd = -1;
   handle->handle = INVALID_HANDLE_VALUE;
   handle->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   uv__handle_closing(handle);

@@ -30,16 +30,21 @@ if __name__ == '__main__':
     args.append(os.path.join(node_root, 'node.gyp'))
     common_fn  = os.path.join(node_root, 'common.gypi')
     options_fn = os.path.join(node_root, 'config.gypi')
+    options_fips_fn = os.path.join(node_root, 'config_fips.gypi')
   else:
     args.append(os.path.join(os.path.abspath(node_root), 'node.gyp'))
     common_fn  = os.path.join(os.path.abspath(node_root), 'common.gypi')
     options_fn = os.path.join(os.path.abspath(node_root), 'config.gypi')
+    options_fips_fn = os.path.join(os.path.abspath(node_root), 'config_fips.gypi')
 
   if os.path.exists(common_fn):
     args.extend(['-I', common_fn])
 
   if os.path.exists(options_fn):
     args.extend(['-I', options_fn])
+
+  if os.path.exists(options_fips_fn):
+    args.extend(['-I', options_fips_fn])
 
   args.append('--depth=' + node_root)
 

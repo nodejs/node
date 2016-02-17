@@ -1,1 +1,1 @@
-require('util').p('This is deprecated');
+require('util').debug('This is deprecated');

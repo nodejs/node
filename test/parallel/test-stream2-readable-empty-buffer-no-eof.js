@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var Readable = require('stream').Readable;
+const Readable = require('stream').Readable;
 
 test1();
 test2();
 
 function test1() {
-  var r = new Readable();
+  const r = new Readable();
 
   // should not end when we get a Buffer(0) or '' as the _read result
   // that just means that there is *temporarily* no data, but to go
@@ -20,9 +20,9 @@ function test1() {
   // r.read(0) again later, otherwise there is no more work being done
   // and the process just exits.
 
-  var buf = new Buffer(5);
-  buf.fill('x');
-  var reads = 5;
+  const buf = Buffer(5).fill('x');
+  let reads = 5;
+  const timeout = common.platformTimeout(50);
   r._read = function(n) {
     switch (reads--) {
       case 0:
@@ -30,15 +30,15 @@ function test1() {
       case 1:
         return r.push(buf);
       case 2:
-        setTimeout(r.read.bind(r, 0), 50);
+        setTimeout(r.read.bind(r, 0), timeout);
         return r.push(new Buffer(0)); // Not-EOF!
       case 3:
-        setTimeout(r.read.bind(r, 0), 50);
+        setTimeout(r.read.bind(r, 0), timeout);
         return process.nextTick(function() {
           return r.push(new Buffer(0));
         });
       case 4:
-        setTimeout(r.read.bind(r, 0), 50);
+        setTimeout(r.read.bind(r, 0), timeout);
         return setTimeout(function() {
           return r.push(new Buffer(0));
         });
@@ -51,9 +51,9 @@ function test1() {
     }
   };
 
-  var results = [];
+  const results = [];
   function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = r.read()))
       results.push(chunk + '');
   }

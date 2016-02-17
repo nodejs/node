@@ -18,19 +18,19 @@ function stat_resource(resource) {
 }
 
 function check_mtime(resource, mtime) {
-  var mtime = fs._toUnixTimestamp(mtime);
+  mtime = fs._toUnixTimestamp(mtime);
   var stats = stat_resource(resource);
   var real_mtime = fs._toUnixTimestamp(stats.mtime);
   // check up to single-second precision
   // sub-second precision is OS and fs dependant
-  return Math.floor(mtime) == Math.floor(real_mtime);
+  return mtime - real_mtime < 2;
 }
 
 function expect_errno(syscall, resource, err, errno) {
   if (err && (err.code === errno || err.code === 'ENOSYS')) {
     tests_ok++;
   } else {
-    console.log('FAILED:', arguments.callee.name, util.inspect(arguments));
+    console.log('FAILED:', 'expect_errno', util.inspect(arguments));
   }
 }
 
@@ -39,7 +39,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
       err && err.code === 'ENOSYS') {
     tests_ok++;
   } else {
-    console.log('FAILED:', arguments.callee.name, util.inspect(arguments));
+    console.log('FAILED:', 'expect_ok', util.inspect(arguments));
   }
 }
 
@@ -48,7 +48,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
 // would be even better though (node doesn't have such functionality yet)
 function runTest(atime, mtime, callback) {
 
-  var fd, err;
+  var fd;
   //
   // test synchronized code paths, these functions throw on failure
   //
@@ -122,15 +122,21 @@ function runTest(atime, mtime, callback) {
 
 var stats = fs.statSync(__filename);
 
+// run tests
 runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTest(new Date(), new Date(), function() {
     runTest(123456.789, 123456.789, function() {
       runTest(stats.mtime, stats.mtime, function() {
-        // done
+        runTest(NaN, Infinity, function() {
+          runTest('123456', -1, function() {
+            // done
+          });
+        });
       });
     });
   });
 });
+
 
 process.on('exit', function() {
   console.log('Tests run / ok:', tests_run, '/', tests_ok);

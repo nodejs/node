@@ -3,7 +3,7 @@ npm-logout(1) -- Log out of the registry
 
 ## SYNOPSIS
 
-    npm logout [--registry=url] [--scope=@orgname]
+    npm logout [--registry=<url>] [--scope=<@scope>]
 
 ## DESCRIPTION
 
@@ -22,7 +22,7 @@ connected to that scope, if set.
 
 ### registry
 
-Default: http://registry.npmjs.org/
+Default: https://registry.npmjs.org/
 
 The base URL of the npm package registry. If `scope` is also specified,
 it takes precedence.

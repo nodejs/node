@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --strong-mode
-// Flags: --harmony-classes --harmony-arrow-functions
 
 'use strong';
 

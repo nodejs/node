@@ -12,6 +12,20 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {Register::kCode_v0};
+const Register kReturnRegister1 = {Register::kCode_v1};
+const Register kJSFunctionRegister = {Register::kCode_a1};
+const Register kContextRegister = {Register::kCpRegister};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_a7};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t0};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_t1};
+const Register kInterpreterDispatchTableRegister = {Register::kCode_t2};
+const Register kJavaScriptCallArgCountRegister = {Register::kCode_a0};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_a1};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_a0};
+
 // Forward declaration.
 class JumpTarget;
 
@@ -103,6 +117,13 @@ bool AreAliased(Register reg1,
 // -----------------------------------------------------------------------------
 // Static helper functions.
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+#define SmiWordOffset(offset) (offset + kPointerSize / 2)
+#else
+#define SmiWordOffset(offset) offset
+#endif
+
+
 inline MemOperand ContextOperand(Register context, int index) {
   return MemOperand(context, Context::SlotOffset(index));
 }
@@ -120,9 +141,9 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
 
 
 inline MemOperand UntagSmiMemOperand(Register rm, int offset) {
-  // Assumes that Smis are shifted by 32 bits and little endianness.
+  // Assumes that Smis are shifted by 32 bits.
   STATIC_ASSERT(kSmiShift == 32);
-  return MemOperand(rm, offset + (kSmiShift / kBitsPerByte));
+  return MemOperand(rm, SmiWordOffset(offset));
 }
 
 
@@ -241,6 +262,8 @@ class MacroAssembler: public Assembler {
 
   void Call(Label* target);
 
+  void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
+
   inline void Move(Register dst, Register src) {
     if (!dst.is(src)) {
       mov(dst, src);
@@ -299,6 +322,24 @@ class MacroAssembler: public Assembler {
 
   void Load(Register dst, const MemOperand& src, Representation r);
   void Store(Register src, const MemOperand& dst, Representation r);
+
+  void PushRoot(Heap::RootListIndex index) {
+    LoadRoot(at, index);
+    Push(at);
+  }
+
+  // Compare the object in a register to a value and jump if they are equal.
+  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal) {
+    LoadRoot(at, index);
+    Branch(if_equal, eq, with, Operand(at));
+  }
+
+  // Compare the object in a register to a value and jump if they are not equal.
+  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
+                     Label* if_not_equal) {
+    LoadRoot(at, index);
+    Branch(if_not_equal, ne, with, Operand(at));
+  }
 
   // Load an object from the root table.
   void LoadRoot(Register destination,
@@ -530,13 +571,6 @@ class MacroAssembler: public Assembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. The caller must make sure that no pointers
-  // are left to the object(s) no longer allocated as they would be invalid when
-  // allocation is undone.
-  void UndoAllocationInNewSpace(Register object, Register scratch);
-
-
   void AllocateTwoByteString(Register result,
                              Register length,
                              Register scratch1,
@@ -656,6 +690,9 @@ class MacroAssembler: public Assembler {
   void Uld(Register rd, const MemOperand& rs, Register scratch = at);
   void Usd(Register rd, const MemOperand& rs, Register scratch = at);
 
+  void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = at);
+  void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = at);
+
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
@@ -704,6 +741,17 @@ class MacroAssembler: public Assembler {
     sd(src2, MemOperand(sp, 2 * kPointerSize));
     sd(src3, MemOperand(sp, 1 * kPointerSize));
     sd(src4, MemOperand(sp, 0 * kPointerSize));
+  }
+
+  // Push five registers. Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3, Register src4,
+            Register src5) {
+    Dsubu(sp, sp, Operand(5 * kPointerSize));
+    sd(src1, MemOperand(sp, 4 * kPointerSize));
+    sd(src2, MemOperand(sp, 3 * kPointerSize));
+    sd(src3, MemOperand(sp, 2 * kPointerSize));
+    sd(src4, MemOperand(sp, 1 * kPointerSize));
+    sd(src5, MemOperand(sp, 0 * kPointerSize));
   }
 
   void Push(Register src, Condition cond, Register tst1, Register tst2) {
@@ -760,11 +808,6 @@ class MacroAssembler: public Assembler {
   // Load the value of the src register from its safepoint stack slot
   // into register dst.
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
-
-  // Flush the I-cache from asm code. You should use CpuFeatures::FlushICache
-  // from C.
-  // Does not handle errors.
-  void FlushICache(Register address, unsigned instructions);
 
   // MIPS64 R2 instruction macro.
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
@@ -936,6 +979,9 @@ class MacroAssembler: public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
+  // Load the global proxy from the current context.
+  void LoadGlobalProxy(Register dst);
+
   // Conditionally load the cached Array transitioned map of type
   // transitioned_kind from the native context if the map in register
   // map_in_out is the cached Array map in the native context of
@@ -991,15 +1037,6 @@ class MacroAssembler: public Assembler {
                       const CallWrapper& call_wrapper);
 
 
-  void IsObjectJSObjectType(Register heap_object,
-                            Register map,
-                            Register scratch,
-                            Label* fail);
-
-  void IsInstanceJSObjectType(Register map,
-                              Register scratch,
-                              Label* fail);
-
   void IsObjectJSStringType(Register object,
                             Register scratch,
                             Label* fail);
@@ -1054,11 +1091,8 @@ class MacroAssembler: public Assembler {
   // function and jumps to the miss label if the fast checks fail. The
   // function register will be untouched; the other registers may be
   // clobbered.
-  void TryGetFunctionPrototype(Register function,
-                               Register result,
-                               Register scratch,
-                               Label* miss,
-                               bool miss_on_bound_function = false);
+  void TryGetFunctionPrototype(Register function, Register result,
+                               Register scratch, Label* miss);
 
   void GetObjectType(Register function,
                      Register map,
@@ -1203,7 +1237,7 @@ class MacroAssembler: public Assembler {
 
   void AdduAndCheckForOverflow(Register dst, Register left,
                                const Operand& right, Register overflow_dst,
-                               Register scratch = at);
+                               Register scratch);
 
   void SubuAndCheckForOverflow(Register dst,
                                Register left,
@@ -1213,7 +1247,21 @@ class MacroAssembler: public Assembler {
 
   void SubuAndCheckForOverflow(Register dst, Register left,
                                const Operand& right, Register overflow_dst,
-                               Register scratch = at);
+                               Register scratch);
+
+  void DadduAndCheckForOverflow(Register dst, Register left, Register right,
+                                Register overflow_dst, Register scratch = at);
+
+  void DadduAndCheckForOverflow(Register dst, Register left,
+                                const Operand& right, Register overflow_dst,
+                                Register scratch);
+
+  void DsubuAndCheckForOverflow(Register dst, Register left, Register right,
+                                Register overflow_dst, Register scratch = at);
+
+  void DsubuAndCheckForOverflow(Register dst, Register left,
+                                const Operand& right, Register overflow_dst,
+                                Register scratch);
 
   void BranchOnOverflow(Label* label,
                         Register overflow_check,
@@ -1261,19 +1309,19 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void CallJSExitStub(CodeStub* stub);
 
   // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f,
-                   int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  void CallRuntime(const Runtime::Function* f, int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
+                   BranchDelaySlot bd = PROTECT);
   void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
     const Runtime::Function* function = Runtime::FunctionForId(id);
     CallRuntime(function, function->nargs, kSaveFPRegs);
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id,
-                   int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
+  void CallRuntime(Runtime::FunctionId id, int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs,
+                   BranchDelaySlot bd = PROTECT) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles, bd);
   }
 
   // Convenience function: call an external reference.
@@ -1343,18 +1391,16 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void JumpToExternalReference(const ExternalReference& builtin,
                                BranchDelaySlot bd = PROTECT);
 
-  // Invoke specified builtin JavaScript function. Adds an entry to
-  // the unresolved list if the name does not resolve.
-  void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeFlag flag,
+  // Invoke specified builtin JavaScript function.
+  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the code object for the given builtin in the target register and
   // setup the function in a1.
-  void GetBuiltinEntry(Register target, Builtins::JavaScript id);
+  void GetBuiltinEntry(Register target, int native_context_index);
 
   // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
+  void GetBuiltinFunction(Register target, int native_context_index);
 
   struct Unresolved {
     int pc;
@@ -1540,6 +1586,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
+  // Abort execution if argument is not a JSFunction, enabled via --debug-code.
+  void AssertFunction(Register object);
+
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
@@ -1558,18 +1607,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // -------------------------------------------------------------------------
   // String utilities.
-
-  // Generate code to do a lookup in the number string cache. If the number in
-  // the register object is found in the cache the generated code falls through
-  // with the result in the result register. The object and the result register
-  // can be the same. If the number is not found in the cache the code jumps to
-  // the label not_found with only the content of register object unchanged.
-  void LookupNumberStringCache(Register object,
-                               Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Register scratch3,
-                               Label* not_found);
 
   // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
@@ -1645,19 +1682,13 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void StubPrologue();
   void Prologue(bool code_pre_aging);
 
+  // Load the type feedback vector from a JavaScript frame.
+  void EmitLoadTypeFeedbackVector(Register vector);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
-
-  // Patch the relocated value (lui/ori pair).
-  void PatchRelocatedValue(Register li_location,
-                           Register scratch,
-                           Register new_value);
-  // Get the relocatad value (loaded data) from the lui/ori pair.
-  void GetRelocatedValue(Register li_location,
-                         Register value,
-                         Register scratch);
 
   // Expects object in a0 and returns map with validated enum cache
   // in a0.  Assumes that any other register can be used as a scratch.
@@ -1689,6 +1720,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
                                         Register scratch1, Label* found);
 
+  bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,
@@ -1702,6 +1735,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void BranchAndLinkShort(Label* L, Condition cond, Register rs,
                           const Operand& rt,
                           BranchDelaySlot bdslot = PROTECT);
+  void J(Label* L, BranchDelaySlot bdslot);
+  void Jal(Label* L, BranchDelaySlot bdslot);
   void Jr(Label* L, BranchDelaySlot bdslot);
   void Jalr(Label* L, BranchDelaySlot bdslot);
 
@@ -1724,10 +1759,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                       bool* definitely_mismatches,
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper);
-
-  // Get the code for the given builtin. Returns if able to resolve
-  // the function in the 'resolved' flag.
-  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
 
   void InitializeNewString(Register string,
                            Register length,
@@ -1780,7 +1811,7 @@ class CodePatcher {
   CodePatcher(byte* address,
               int instructions,
               FlushICache flush_cache = FLUSH);
-  virtual ~CodePatcher();
+  ~CodePatcher();
 
   // Macro assembler to emit code.
   MacroAssembler* masm() { return &masm_; }
@@ -1813,6 +1844,7 @@ class CodePatcher {
 #define ACCESS_MASM(masm) masm->
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MIPS_MACRO_ASSEMBLER_MIPS_H_

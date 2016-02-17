@@ -38,7 +38,8 @@ void CheckBaseWithIndexAndDisplacement(Matcher* matcher, Node* index, int scale,
   EXPECT_EQ(base, matcher->base());
   EXPECT_EQ(displacement, matcher->displacement());
 }
-};
+
+}  // namespace
 
 
 TEST_F(NodeMatcherTest, ScaledWithOffset32Matcher) {

@@ -12,7 +12,7 @@
 module.exports = function(context) {
 
     return {
-        "UnaryExpression": function (node) {
+        "UnaryExpression": function(node) {
             var ancestors = context.getAncestors(),
                 parent = ancestors.pop(),
                 grandparent = ancestors.pop();

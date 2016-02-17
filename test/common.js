@@ -1,9 +1,15 @@
+/* eslint-disable required-modules */
 'use strict';
 var path = require('path');
 var fs = require('fs');
 var assert = require('assert');
 var os = require('os');
 var child_process = require('child_process');
+const stream = require('stream');
+const util = require('util');
+
+const testRoot = path.resolve(process.env.NODE_TEST_DIR ||
+                              path.dirname(__filename));
 
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
@@ -11,6 +17,14 @@ exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
+exports.isAix = process.platform === 'aix';
+exports.isLinuxPPCBE = (process.platform === 'linux') &&
+                       (process.arch === 'ppc64') &&
+                       (os.endianness() === 'BE');
+exports.isSunOS = process.platform === 'sunos';
+exports.isFreeBSD = process.platform === 'freebsd';
+
+exports.enoughTestMem = os.totalmem() > 0x20000000; /* 512MB */
 
 function rimrafSync(p) {
   try {
@@ -29,7 +43,7 @@ function rimrafSync(p) {
     if (e.code === 'ENOENT')
       return;
     if (e.code === 'EPERM')
-      return rmdirSync(p, er);
+      return rmdirSync(p, e);
     if (e.code !== 'EISDIR')
       throw e;
     rmdirSync(p, e);
@@ -57,17 +71,27 @@ exports.refreshTmpDir = function() {
 };
 
 if (process.env.TEST_THREAD_ID) {
-  // Distribute ports in parallel tests
-  if (!process.env.NODE_COMMON_PORT)
-    exports.PORT += +process.env.TEST_THREAD_ID * 100;
-
+  exports.PORT += process.env.TEST_THREAD_ID * 100;
   exports.tmpDirName += '.' + process.env.TEST_THREAD_ID;
 }
-exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
+exports.tmpDir = path.join(testRoot, exports.tmpDirName);
 
 var opensslCli = null;
 var inFreeBSDJail = null;
 var localhostIPv4 = null;
+
+exports.localIPv6Hosts = [
+  // Debian/Ubuntu
+  'ip6-localhost',
+  'ip6-loopback',
+
+  // SUSE
+  'ipv6-localhost',
+  'ipv6-loopback',
+
+  // Typically universal
+  'localhost',
+];
 
 Object.defineProperty(exports, 'inFreeBSDJail', {
   get: function() {
@@ -129,25 +153,25 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
   return opensslCli;
 }, enumerable: true });
 
-Object.defineProperty(exports, 'hasCrypto', {get: function() {
-  return process.versions.openssl ? true : false;
-}});
+Object.defineProperty(exports, 'hasCrypto', {
+  get: function() {
+    return process.versions.openssl ? true : false;
+  }
+});
+
+Object.defineProperty(exports, 'hasFipsCrypto', {
+  get: function() {
+    return process.config.variables.openssl_fips ? true : false;
+  }
+});
 
 if (exports.isWindows) {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
+  if (process.env.TEST_THREAD_ID) {
+    exports.PIPE += '.' + process.env.TEST_THREAD_ID;
+  }
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
-}
-
-if (process.env.NODE_COMMON_PIPE) {
-  exports.PIPE = process.env.NODE_COMMON_PIPE;
-  // Remove manually, the test runner won't do it
-  // for us like it does for files in test/tmp.
-  try {
-    fs.unlinkSync(exports.PIPE);
-  } catch (e) {
-    // Ignore.
-  }
 }
 
 if (exports.isWindows) {
@@ -163,23 +187,6 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
     return info.family === 'IPv6';
   });
 });
-
-var util = require('util');
-for (var i in util) exports[i] = util[i];
-//for (var i in exports) global[i] = exports[i];
-
-function protoCtrChain(o) {
-  var result = [];
-  for (; o; o = o.__proto__) { result.push(o.constructor); }
-  return result.join();
-}
-
-exports.indirectInstanceOf = function(obj, cls) {
-  if (obj instanceof cls) { return true; }
-  var clsChain = protoCtrChain(cls.prototype);
-  var objChain = protoCtrChain(obj);
-  return objChain.slice(-clsChain.length) === clsChain;
-};
 
 
 exports.ddCommand = function(filename, kilobytes) {
@@ -226,13 +233,21 @@ exports.spawnPwd = function(options) {
 };
 
 exports.platformTimeout = function(ms) {
+  if (process.config.target_defaults.default_configuration === 'Debug')
+    ms = 2 * ms;
+
   if (process.arch !== 'arm')
     return ms;
 
-  if (process.config.variables.arm_version === '6')
+  const armv = process.config.variables.arm_version;
+
+  if (armv === '6')
     return 7 * ms;  // ARMv6
 
-  return 2 * ms;  // ARMv7 and up.
+  if (armv === '7')
+    return 2 * ms;  // ARMv7
+
+  return ms; // ARMv8+
 };
 
 var knownGlobals = [setTimeout,
@@ -309,7 +324,7 @@ function leakedGlobals() {
       leaked.push(val);
 
   return leaked;
-};
+}
 exports.leakedGlobals = leakedGlobals;
 
 // Turn this off if the test should not check for global leaks.
@@ -368,11 +383,6 @@ exports.mustCall = function(fn, expected) {
   };
 };
 
-exports.checkSpawnSyncRet = function(ret) {
-  assert.strictEqual(ret.status, 0);
-  assert.strictEqual(ret.error, undefined);
-};
-
 var etcServicesFileName = path.join('/etc', 'services');
 if (exports.isWindows) {
   etcServicesFileName = path.join(process.env.SystemRoot, 'System32', 'drivers',
@@ -405,22 +415,16 @@ exports.getServiceName = function getServiceName(port, protocol) {
   var serviceName = port.toString();
 
   try {
-    /*
-     * I'm not a big fan of readFileSync, but reading /etc/services
-     * asynchronously here would require implementing a simple line parser,
-     * which seems overkill for a simple utility function that is not running
-     * concurrently with any other one.
-     */
     var servicesContent = fs.readFileSync(etcServicesFileName,
       { encoding: 'utf8'});
-    var regexp = util.format('^(\\w+)\\s+\\s%d/%s\\s', port, protocol);
+    var regexp = `^(\\w+)\\s+\\s${port}/${protocol}\\s`;
     var re = new RegExp(regexp, 'm');
 
     var matches = re.exec(servicesContent);
     if (matches && matches.length > 1) {
       serviceName = matches[1];
     }
-  } catch(e) {
+  } catch (e) {
     console.error('Cannot read file: ', etcServicesFileName);
     return undefined;
   }
@@ -436,20 +440,67 @@ exports.hasMultiLocalhost = function hasMultiLocalhost() {
   return ret === 0;
 };
 
-exports.isValidHostname = function(str) {
-  // See http://stackoverflow.com/a/3824105
-  var re = new RegExp(
-    '^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])' +
-    '(\\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9]))*$');
-
-  return !!str.match(re) && str.length <= 255;
-};
-
 exports.fileExists = function(pathname) {
   try {
     fs.accessSync(pathname);
     return true;
   } catch (err) {
     return false;
+  }
+};
+
+exports.fail = function(msg) {
+  assert.fail(null, null, msg);
+};
+
+
+// A stream to push an array into a REPL
+function ArrayStream() {
+  this.run = function(data) {
+    data.forEach((line) => {
+      this.emit('data', line + '\n');
+    });
+  };
+}
+
+util.inherits(ArrayStream, stream.Stream);
+exports.ArrayStream = ArrayStream;
+ArrayStream.prototype.readable = true;
+ArrayStream.prototype.writable = true;
+ArrayStream.prototype.pause = function() {};
+ArrayStream.prototype.resume = function() {};
+ArrayStream.prototype.write = function() {};
+
+// Returns true if the exit code "exitCode" and/or signal name "signal"
+// represent the exit code and/or signal name of a node process that aborted,
+// false otherwise.
+exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
+  // Depending on the compiler used, node will exit with either
+  // exit code 132 (SIGILL), 133 (SIGTRAP) or 134 (SIGABRT).
+  var expectedExitCodes = [132, 133, 134];
+
+  // On platforms using KSH as the default shell (like SmartOS),
+  // when a process aborts, KSH exits with an exit code that is
+  // greater than 256, and thus the exit code emitted with the 'exit'
+  // event is null and the signal is set to either SIGILL, SIGTRAP,
+  // or SIGABRT (depending on the compiler).
+  const expectedSignals = ['SIGILL', 'SIGTRAP', 'SIGABRT'];
+
+  // On Windows, v8's base::OS::Abort triggers an access violation,
+  // which corresponds to exit code 3221225477 (0xC0000005)
+  if (process.platform === 'win32')
+    expectedExitCodes = [3221225477];
+
+  // When using --abort-on-uncaught-exception, V8 will use
+  // base::OS::Abort to terminate the process.
+  // Depending on the compiler used, the shell or other aspects of
+  // the platform used to build the node binary, this will actually
+  // make V8 exit by aborting or by raising a signal. In any case,
+  // one of them (exit code or signal) needs to be set to one of
+  // the expected exit codes or signals.
+  if (signal !== null) {
+    return expectedSignals.indexOf(signal) > -1;
+  } else {
+    return expectedExitCodes.indexOf(exitCode) > -1;
   }
 };

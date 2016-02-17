@@ -61,7 +61,7 @@ Don't use them except in four situations:
 * `for (;;)` loops.  They're actually required.
 * null loops like: `while (something) ;` (But you'd better have a good
   reason for doing that.)
-* `case "foo": doSomething(); break`
+* `case 'foo': doSomething(); break`
 * In front of a leading `(` or `[` at the start of the line.
   This prevents the expression from being interpreted
   as a function call or property access, respectively.
@@ -72,9 +72,9 @@ Some examples of good semicolon usage:
     ;[a, b, c].forEach(doSomething)
     for (var i = 0; i < 10; i ++) {
       switch (state) {
-        case "begin": start(); continue
-        case "end": finish(); break
-        default: throw new Error("unknown state")
+        case 'begin': start(); continue
+        case 'end': finish(); break
+        default: throw new Error('unknown state')
       }
       end()
     }
@@ -89,17 +89,29 @@ across multiple lines, put the comma at the start of the next
 line, directly below the token that starts the list.  Put the
 final token in the list on a line by itself.  For example:
 
-    var magicWords = [ "abracadabra"
-                     , "gesundheit"
-                     , "ventrilo"
+    var magicWords = [ 'abracadabra'
+                     , 'gesundheit'
+                     , 'ventrilo'
                      ]
-      , spells = { "fireball" : function () { setOnFire() }
-                 , "water" : function () { putOut() }
+      , spells = { 'fireball' : function () { setOnFire() }
+                 , 'water' : function () { putOut() }
                  }
       , a = 1
-      , b = "abc"
+      , b = 'abc'
       , etc
       , somethingElse
+
+## Quotes
+Use single quotes for strings except to avoid escaping.
+
+Bad:
+
+    var notOk = "Just double quotes"
+
+Good:
+
+    var ok = 'String contains "double" quotes'
+    var alsoOk = "String contains 'single' quotes or apostrophe"
 
 ## Whitespace
 

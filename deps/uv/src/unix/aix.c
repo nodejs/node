@@ -43,6 +43,7 @@
 
 #include <sys/protosw.h>
 #include <libperfstat.h>
+#include <procinfo.h>
 #include <sys/proc.h>
 #include <sys/procfs.h>
 
@@ -288,182 +289,80 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
  * and use it in conjunction with PATH environment variable to craft one.
  */
 int uv_exepath(char* buffer, size_t* size) {
-  ssize_t res;
-  char cwd[PATH_MAX], cwdl[PATH_MAX];
-  char symlink[PATH_MAX], temp_buffer[PATH_MAX];
-  char pp[64];
-  struct psinfo ps;
-  int fd;
-  char **argv;
+  int res;
+  char args[PATH_MAX];
+  char abspath[PATH_MAX];
+  size_t abspath_size;
+  struct procsinfo pi;
 
   if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
-  snprintf(pp, sizeof(pp), "/proc/%lu/psinfo", (unsigned long) getpid());
-
-  fd = open(pp, O_RDONLY);
-  if (fd < 0)
-    return fd;
-
-  res = read(fd, &ps, sizeof(ps));
-  uv__close(fd);
-  if (res < 0)
-    return res;
-
-  if (ps.pr_argv == 0)
-    return -EINVAL;
-
-  argv = (char **) *((char ***) (intptr_t) ps.pr_argv);
-
-  if ((argv == NULL) || (argv[0] == NULL))
+  pi.pi_pid = getpid();
+  res = getargs(&pi, sizeof(pi), args, sizeof(args));
+  if (res < 0) 
     return -EINVAL;
 
   /*
-   * Three possibilities for argv[0]:
+   * Possibilities for args:
    * i) an absolute path such as: /home/user/myprojects/nodejs/node
-   * ii) a relative path such as: ./node or ./myprojects/nodejs/node
+   * ii) a relative path such as: ./node or ../myprojects/nodejs/node
    * iii) a bare filename such as "node", after exporting PATH variable 
    *     to its location.
    */
 
-  /* case #1, absolute path. */
-  if (argv[0][0] == '/') {
-    snprintf(symlink, PATH_MAX-1, "%s", argv[0]);
-
-    /* This could or could not be a symlink. */
-    res = readlink(symlink, temp_buffer, PATH_MAX-1);
-
-    /* if readlink fails, it is a normal file just copy symlink to the 
-     * output buffer.
-     */
-    if (res < 0) {
-      assert(*size > strlen(symlink));
-      strcpy(buffer, symlink);
-
-    /* If it is a link, the resolved filename is again a relative path,
-     * make it absolute. 
-     */
-    } else {
-      assert(*size > (strlen(symlink) + 1 + strlen(temp_buffer)));
-      snprintf(buffer, *size-1, "%s/%s", dirname(symlink), temp_buffer);
-    }
-    *size = strlen(buffer);
-    return 0;
-
-  /* case #2, relative path with usage of '.' */
-  } else if (argv[0][0] == '.') {
-    char *relative = strchr(argv[0], '/');
-    if (relative == NULL)
-      return -EINVAL;
-
-    /* Get the current working directory to resolve the relative path. */
-    snprintf(cwd, PATH_MAX-1, "/proc/%lu/cwd", (unsigned long) getpid());
-
-    /* This is always a symlink, resolve it. */
-    res = readlink(cwd, cwdl, sizeof(cwdl) - 1);
-    if (res < 0)
+  /* Case i) and ii) absolute or relative paths */
+  if (strchr(args, '/') != NULL) {
+    if (realpath(args, abspath) != abspath) 
       return -errno;
 
-    snprintf(symlink, PATH_MAX-1, "%s%s", cwdl, relative + 1);
+    abspath_size = strlen(abspath);
 
-    res = readlink(symlink, temp_buffer, PATH_MAX-1);
-    if (res < 0) {
-      assert(*size > strlen(symlink));
-      strcpy(buffer, symlink);
-    } else {
-      assert(*size > (strlen(symlink) + 1 + strlen(temp_buffer)));
-      snprintf(buffer, *size-1, "%s/%s", dirname(symlink), temp_buffer);
-    }
-    *size = strlen(buffer);
+    *size -= 1;
+    if (*size > abspath_size)
+      *size = abspath_size;
+
+    memcpy(buffer, abspath, *size);
+    buffer[*size] = '\0';
+
     return 0;
-
-  /* case #3, relative path without usage of '.', such as invocations in Node test suite. */
-  } else if (strchr(argv[0], '/') != NULL) {
-    /* Get the current working directory to resolve the relative path. */
-    snprintf(cwd, PATH_MAX-1, "/proc/%lu/cwd", (unsigned long) getpid());
-
-    /* This is always a symlink, resolve it. */
-    res = readlink(cwd, cwdl, sizeof(cwdl) - 1);
-    if (res < 0)
-      return -errno;
-
-    snprintf(symlink, PATH_MAX-1, "%s%s", cwdl, argv[0]);
-
-    res = readlink(symlink, temp_buffer, PATH_MAX-1);
-    if (res < 0) {
-      assert(*size > strlen(symlink));
-      strcpy(buffer, symlink);
-    } else {
-      assert(*size > (strlen(symlink) + 1 + strlen(temp_buffer)));
-      snprintf(buffer, *size-1, "%s/%s", dirname(symlink), temp_buffer);
-    }
-    *size = strlen(buffer);
-    return 0;
-  /* Usage of absolute filename with location exported in PATH */
   } else {
-    char clonedpath[8192];  /* assume 8k buffer will fit PATH */
+  /* Case iii). Search PATH environment variable */ 
+    char trypath[PATH_MAX];
+    char *clonedpath = NULL;
     char *token = NULL;
-    struct stat statstruct;
-
-    /* Get the paths. */
     char *path = getenv("PATH");
-    if(sizeof(clonedpath) <= strlen(path))
+
+    if (path == NULL)
       return -EINVAL;
 
-    /* Get a local copy. */
-    strcpy(clonedpath, path);
+    clonedpath = uv__strdup(path);
+    if (clonedpath == NULL)
+      return -ENOMEM;
 
-    /* Tokenize. */
     token = strtok(clonedpath, ":");
+    while (token != NULL) {
+      snprintf(trypath, sizeof(trypath) - 1, "%s/%s", token, args);
+      if (realpath(trypath, abspath) == abspath) { 
+        /* Check the match is executable */
+        if (access(abspath, X_OK) == 0) {
+          abspath_size = strlen(abspath);
 
-    /* Get current working directory. (may be required in the loop). */
-    snprintf(cwd, PATH_MAX-1, "/proc/%lu/cwd", (unsigned long) getpid());
-    res = readlink(cwd, cwdl, sizeof(cwdl) - 1);
-    if (res < 0)
-      return -errno;
-    /* Run through the tokens, append our executable file name with each,
-     * and see which one succeeds. Exit on first match. */
-    while(token != NULL) {
-      if (token[0] == '.') {
-        /* Path contains a token relative to current directory. */
-        char *relative = strchr(token, '/');
-        if (relative != NULL)
-          /* A path which is not current directory. */
-          snprintf(symlink, PATH_MAX-1, "%s%s/%s", cwdl, relative+1, ps.pr_fname);
-        else
-          snprintf(symlink, PATH_MAX-1, "%s%s", cwdl, ps.pr_fname);
-        if (stat(symlink, &statstruct) != -1) {
-          /* File exists. Resolve if it is a link. */
-          res = readlink(symlink, temp_buffer, PATH_MAX-1);
-          if (res < 0) {
-            assert(*size > strlen(symlink));
-            strcpy(buffer, symlink);
-          } else {
-            assert(*size > (strlen(symlink) + 1 + strlen(temp_buffer)));
-            snprintf(buffer, *size-1, "%s/%s", dirname(symlink), temp_buffer);
-          }
-          *size = strlen(buffer);
-          return 0;
-        }
+          *size -= 1;
+          if (*size > abspath_size)
+            *size = abspath_size;
 
-        /* Absolute path names. */
-      } else {
-        snprintf(symlink, PATH_MAX-1, "%s/%s", token, ps.pr_fname);
-        if (stat(symlink, &statstruct) != -1) {
-          res = readlink(symlink, temp_buffer, PATH_MAX-1);
-          if (res < 0) {
-            assert(*size > strlen(symlink));
-            strcpy(buffer, symlink);
-          } else {
-            assert(*size > (strlen(symlink) + 1 + strlen(temp_buffer)));
-            snprintf(buffer, *size-1, "%s/%s", dirname(symlink), temp_buffer);
-          }
-          *size = strlen(buffer);
+          memcpy(buffer, abspath, *size);
+          buffer[*size] = '\0';
+
+          uv__free(clonedpath);
           return 0;
         }
       }
       token = strtok(NULL, ":");
     }
+    uv__free(clonedpath);
+
     /* Out of tokens (path entries), and no match found */
     return -EINVAL;
   }

@@ -13,6 +13,22 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {Register::kCode_eax};
+const Register kReturnRegister1 = {Register::kCode_edx};
+const Register kJSFunctionRegister = {Register::kCode_edi};
+const Register kContextRegister = {Register::kCode_esi};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_eax};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_edx};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_ecx};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_edi};
+const Register kJavaScriptCallArgCountRegister = {Register::kCode_eax};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_ebx};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_eax};
+
+// Spill slots used by interpreter dispatch calling convention.
+const int kInterpreterDispatchTableSpillSlot = -1;
+
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
@@ -55,6 +71,16 @@ class MacroAssembler: public Assembler {
   void Load(Register dst, const Operand& src, Representation r);
   void Store(Register src, const Operand& dst, Representation r);
 
+  // Load a register with a long value as efficiently as possible.
+  void Set(Register dst, int32_t x) {
+    if (x == 0) {
+      xor_(dst, dst);
+    } else {
+      mov(dst, Immediate(x));
+    }
+  }
+  void Set(const Operand& dst, int32_t x) { mov(dst, Immediate(x)); }
+
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, Heap::RootListIndex index);
   void StoreRoot(Register source, Register scratch, Heap::RootListIndex index);
@@ -63,6 +89,22 @@ class MacroAssembler: public Assembler {
   // and not in new space).
   void CompareRoot(Register with, Heap::RootListIndex index);
   void CompareRoot(const Operand& with, Heap::RootListIndex index);
+  void PushRoot(Heap::RootListIndex index);
+
+  // Compare the object in a register to a value and jump if they are equal.
+  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal,
+                  Label::Distance if_equal_distance = Label::kNear) {
+    CompareRoot(with, index);
+    j(equal, if_equal, if_equal_distance);
+  }
+
+  // Compare the object in a register to a value and jump if they are not equal.
+  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
+                     Label* if_not_equal,
+                     Label::Distance if_not_equal_distance = Label::kNear) {
+    CompareRoot(with, index);
+    j(not_equal, if_not_equal, if_not_equal_distance);
+  }
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -236,8 +278,8 @@ class MacroAssembler: public Assembler {
 
   // Leave the current exit frame. Expects the return value in
   // register eax:edx (untouched) and the pointer to the first
-  // argument in register esi.
-  void LeaveExitFrame(bool save_doubles);
+  // argument in register esi (if pop_arguments == true).
+  void LeaveExitFrame(bool save_doubles, bool pop_arguments = true);
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).
@@ -245,6 +287,9 @@ class MacroAssembler: public Assembler {
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
+
+  // Load the global proxy from the current context.
+  void LoadGlobalProxy(Register dst);
 
   // Conditionally load the cached Array transitioned map of type
   // transitioned_kind from the native context if the map in register
@@ -341,17 +386,15 @@ class MacroAssembler: public Assembler {
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
-  // Invoke specified builtin JavaScript function. Adds an entry to
-  // the unresolved list if the name does not resolve.
-  void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeFlag flag,
+  // Invoke specified builtin JavaScript function.
+  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
+  void GetBuiltinFunction(Register target, int native_context_index);
 
   // Store the code object for the given builtin in the target register.
-  void GetBuiltinEntry(Register target, Builtins::JavaScript id);
+  void GetBuiltinEntry(Register target, int native_context_index);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
@@ -437,18 +480,6 @@ class MacroAssembler: public Assembler {
   Condition IsObjectNameType(Register heap_object,
                              Register map,
                              Register instance_type);
-
-  // Check if a heap object's type is in the JSObject range, not including
-  // JSFunction.  The object's map will be loaded in the map register.
-  // Any or all of the three registers may be the same.
-  // The contents of the scratch register will always be overwritten.
-  void IsObjectJSObjectType(Register heap_object,
-                            Register map,
-                            Register scratch,
-                            Label* fail);
-
-  // The contents of the scratch register will be overwritten.
-  void IsInstanceJSObjectType(Register map, Register scratch, Label* fail);
 
   // FCmp is similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
@@ -563,6 +594,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
+  // Abort execution if argument is not a JSFunction, enabled via --debug-code.
+  void AssertFunction(Register object);
+
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object);
@@ -634,12 +668,6 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Label* gc_required,
                 AllocationFlags flags);
-
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. Make sure that no pointers are left to the
-  // object(s) no longer allocated as they would be invalid when allocation is
-  // un-done.
-  void UndoAllocationInNewSpace(Register object);
 
   // Allocate a heap number in new space with undefined value. The
   // register scratch2 can be passed as no_reg; the others must be
@@ -721,11 +749,8 @@ class MacroAssembler: public Assembler {
   // function and jumps to the miss label if the fast checks fail. The
   // function register will be untouched; the other registers may be
   // clobbered.
-  void TryGetFunctionPrototype(Register function,
-                               Register result,
-                               Register scratch,
-                               Label* miss,
-                               bool miss_on_bound_function = false);
+  void TryGetFunctionPrototype(Register function, Register result,
+                               Register scratch, Label* miss);
 
   // Picks out an array index from the hash field.
   // Register use:
@@ -810,8 +835,14 @@ class MacroAssembler: public Assembler {
   void Drop(int element_count);
 
   void Call(Label* target) { call(target); }
+  void Call(Handle<Code> target, RelocInfo::Mode rmode) { call(target, rmode); }
+  void Jump(Handle<Code> target, RelocInfo::Mode rmode) { jmp(target, rmode); }
   void Push(Register src) { push(src); }
+  void Push(const Operand& src) { push(src); }
+  void Push(Immediate value) { push(value); }
   void Pop(Register dst) { pop(dst); }
+  void PushReturnAddressFrom(Register src) { push(src); }
+  void PopReturnAddressTo(Register dst) { pop(dst); }
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
@@ -822,6 +853,12 @@ class MacroAssembler: public Assembler {
 
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
   void Lzcnt(Register dst, const Operand& src);
+
+  void Tzcnt(Register dst, Register src) { Tzcnt(dst, Operand(src)); }
+  void Tzcnt(Register dst, const Operand& src);
+
+  void Popcnt(Register dst, Register src) { Popcnt(dst, Operand(src)); }
+  void Popcnt(Register dst, const Operand& src);
 
   // Emit call to the code we are currently generating.
   void CallSelf() {
@@ -892,17 +929,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // String utilities.
 
-  // Generate code to do a lookup in the number string cache. If the number in
-  // the register object is found in the cache the generated code falls through
-  // with the result in the result register. The object and the result register
-  // can be the same. If the number is not found in the cache the code jumps to
-  // the label not_found with only the content of register object unchanged.
-  void LookupNumberStringCache(Register object,
-                               Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* not_found);
-
   // Check whether the instance type represents a flat one-byte string. Jump to
   // the label if not. If the instance type can be scratched specify same
   // register for both instance type and scratch.
@@ -933,6 +959,9 @@ class MacroAssembler: public Assembler {
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
   }
+
+  // Load the type feedback vector from a JavaScript frame.
+  void EmitLoadTypeFeedbackVector(Register vector);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -1031,7 +1060,7 @@ class MacroAssembler: public Assembler {
 class CodePatcher {
  public:
   CodePatcher(byte* address, int size);
-  virtual ~CodePatcher();
+  ~CodePatcher();
 
   // Macro assembler to emit code.
   MacroAssembler* masm() { return &masm_; }
@@ -1074,6 +1103,11 @@ inline Operand ContextOperand(Register context, int index) {
 }
 
 
+inline Operand ContextOperand(Register context, Register index) {
+  return Operand(context, index, times_pointer_size, Context::SlotOffset(0));
+}
+
+
 inline Operand GlobalObjectOperand() {
   return ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX);
 }
@@ -1101,6 +1135,7 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 #endif
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_MACRO_ASSEMBLER_IA32_H_

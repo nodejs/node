@@ -29,11 +29,6 @@ function handler (req, res) {
   var fn = server._expect[k].shift()
   if (!fn) throw Error('unexpected request: ' + req.method + ' ' + req.url)
 
-  var remain = (Object.keys(server._expect).reduce(function (s, k) {
-    return s + server._expect[k].length
-  }, 0))
-  if (remain === 0) server.close()
-  else this.log.info('fake-registry', 'TEST SERVER: %d reqs remain', remain)
   this.log.info('fake-registry', Object.keys(server._expect).map(function (k) {
     return [k, server._expect[k].length]
   }).reduce(function (acc, kv) {

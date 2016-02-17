@@ -70,6 +70,7 @@ test('ping', function (t) {
       username: DEP_USER
     }
     t.same(found, wanted)
+    server.close()
     t.end()
   })
 })

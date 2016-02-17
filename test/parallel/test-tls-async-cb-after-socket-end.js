@@ -2,7 +2,6 @@
 
 var common = require('../common');
 
-var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 var constants = require('constants');
@@ -36,9 +35,9 @@ server.on('resumeSession', function(id, cb) {
   next();
 });
 
-server.listen(1443, function() {
+server.listen(common.PORT, function() {
   var clientOpts = {
-    port: 1443,
+    port: common.PORT,
     rejectUnauthorized: false,
     session: false
   };

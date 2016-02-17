@@ -15,14 +15,13 @@ using v8::Context;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Local;
 using v8::Object;
 using v8::Value;
 
 
-JSStream::JSStream(Environment* env, Handle<Object> obj, AsyncWrap* parent)
+JSStream::JSStream(Environment* env, Local<Object> obj, AsyncWrap* parent)
     : StreamBase(env),
       AsyncWrap(env, obj, AsyncWrap::PROVIDER_JSSTREAM, parent) {
   node::Wrap(obj, this);
@@ -45,7 +44,10 @@ AsyncWrap* JSStream::GetAsyncWrap() {
 
 
 bool JSStream::IsAlive() {
-  return MakeCallback(env()->isalive_string(), 0, nullptr)->IsTrue();
+  v8::Local<v8::Value> fn = object()->Get(env()->isalive_string());
+  if (!fn->IsFunction())
+    return false;
+  return MakeCallback(fn.As<v8::Function>(), 0, nullptr)->IsTrue();
 }
 
 
@@ -201,9 +203,9 @@ void JSStream::EmitEOF(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void JSStream::Initialize(Handle<Object> target,
-                          Handle<Value> unused,
-                          Handle<Context> context) {
+void JSStream::Initialize(Local<Object> target,
+                          Local<Value> unused,
+                          Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);

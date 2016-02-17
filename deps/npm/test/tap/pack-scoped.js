@@ -1,29 +1,29 @@
 // verify that prepublish runs on pack and publish
-var test = require("tap").test
-var common = require("../common-tap")
-var fs = require("graceful-fs")
-var join = require("path").join
-var mkdirp = require("mkdirp")
-var rimraf = require("rimraf")
+var test = require('tap').test
+var common = require('../common-tap')
+var fs = require('graceful-fs')
+var join = require('path').join
+var mkdirp = require('mkdirp')
+var rimraf = require('rimraf')
 
-var pkg      = join(__dirname, "scoped_package")
-var manifest = join(pkg, "package.json")
-var tmp      = join(pkg, "tmp")
-var cache    = join(pkg, "cache")
+var pkg = join(__dirname, 'scoped_package')
+var manifest = join(pkg, 'package.json')
+var tmp = join(pkg, 'tmp')
+var cache = join(pkg, 'cache')
 
 var data = {
-  name    : "@scope/generic-package",
-  version : "90000.100001.5"
+  name: '@scope/generic-package',
+  version: '90000.100001.5'
 }
 
-test("setup", function (t) {
+test('setup', function (t) {
   var n = 0
 
   rimraf.sync(pkg)
 
-  mkdirp(pkg,   then())
+  mkdirp(pkg, then())
   mkdirp(cache, then())
-  mkdirp(tmp,   then())
+  mkdirp(tmp, then())
 
   function then () {
     n++
@@ -34,23 +34,23 @@ test("setup", function (t) {
   }
 
   function next () {
-    fs.writeFile(manifest, JSON.stringify(data), "ascii", done)
+    fs.writeFile(manifest, JSON.stringify(data), 'ascii', done)
   }
 
   function done (er) {
     t.ifError(er)
 
-    t.pass("setup done")
+    t.pass('setup done')
     t.end()
   }
 })
 
-test("test", function (t) {
+test('test', function (t) {
   var env = {
-    "npm_config_cache"  : cache,
-    "npm_config_tmp"    : tmp,
-    "npm_config_prefix" : pkg,
-    "npm_config_global" : "false"
+    'npm_config_cache': cache,
+    'npm_config_tmp': tmp,
+    'npm_config_prefix': pkg,
+    'npm_config_global': 'false'
   }
 
   for (var i in process.env) {
@@ -58,24 +58,24 @@ test("test", function (t) {
   }
 
   common.npm([
-    "pack",
-    "--loglevel", "warn"
+    'pack',
+    '--loglevel', 'warn'
   ], {
     cwd: pkg,
     env: env
-  }, function(err, code, stdout, stderr) {
-    t.ifErr(err, "npm pack finished without error")
-    t.equal(code, 0, "npm pack exited ok")
-    t.notOk(stderr, "got stderr data: " + JSON.stringify("" + stderr))
+  }, function (err, code, stdout, stderr) {
+    t.ifErr(err, 'npm pack finished without error')
+    t.equal(code, 0, 'npm pack exited ok')
+    t.notOk(stderr, 'got stderr data: ' + JSON.stringify('' + stderr))
     stdout = stdout.trim()
-    var regex = new RegExp("scope-generic-package-90000.100001.5.tgz", "ig")
-    t.ok(stdout.match(regex), "found package")
+    var regex = new RegExp('scope-generic-package-90000.100001.5.tgz', 'ig')
+    t.ok(stdout.match(regex), 'found package')
     t.end()
   })
 })
 
-test("cleanup", function (t) {
+test('cleanup', function (t) {
   rimraf.sync(pkg)
-  t.pass("cleaned up")
+  t.pass('cleaned up')
   t.end()
 })

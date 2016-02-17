@@ -26,7 +26,7 @@ class TaskQueueThread final : public base::Thread {
   explicit TaskQueueThread(TaskQueue* queue)
       : Thread(Options("libplatform TaskQueueThread")), queue_(queue) {}
 
-  virtual void Run() override { EXPECT_THAT(queue_->GetNext(), IsNull()); }
+  void Run() override { EXPECT_THAT(queue_->GetNext(), IsNull()); }
 
  private:
   TaskQueue* queue_;

@@ -53,4 +53,5 @@ void TaskQueue::Terminate() {
   process_queue_semaphore_.Signal();
 }
 
-} }  // namespace v8::platform
+}  // namespace platform
+}  // namespace v8

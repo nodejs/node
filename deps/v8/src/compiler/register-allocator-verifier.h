@@ -35,6 +35,7 @@ class RegisterAllocatorVerifier final : public ZoneObject {
     kFixedSlot,
     kNone,
     kNoneDouble,
+    kExplicit,
     kSameAsFirst
   };
 

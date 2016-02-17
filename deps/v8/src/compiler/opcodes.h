@@ -5,10 +5,11 @@
 #ifndef V8_COMPILER_OPCODES_H_
 #define V8_COMPILER_OPCODES_H_
 
+#include <iosfwd>
+
 // Opcodes for control operators.
 #define CONTROL_OP_LIST(V) \
   V(Start)                 \
-  V(Dead)                  \
   V(Loop)                  \
   V(Branch)                \
   V(Switch)                \
@@ -43,8 +44,9 @@
   V(Phi)                 \
   V(EffectSet)           \
   V(EffectPhi)           \
-  V(ValueEffect)         \
-  V(Finish)              \
+  V(Guard)               \
+  V(BeginRegion)         \
+  V(FinishRegion)        \
   V(FrameState)          \
   V(StateValues)         \
   V(TypedStateValues)    \
@@ -55,7 +57,8 @@
 
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \
-  INNER_OP_LIST(V)
+  INNER_OP_LIST(V)        \
+  V(Dead)
 
 // Opcodes for JavaScript operators.
 #define JS_COMPARE_BINOP_LIST(V) \
@@ -107,13 +110,16 @@
 
 #define JS_OBJECT_OP_LIST(V) \
   V(JSCreate)                \
+  V(JSCreateArguments)       \
   V(JSCreateClosure)         \
   V(JSCreateLiteralArray)    \
   V(JSCreateLiteralObject)   \
   V(JSLoadProperty)          \
   V(JSLoadNamed)             \
+  V(JSLoadGlobal)            \
   V(JSStoreProperty)         \
   V(JSStoreNamed)            \
+  V(JSStoreGlobal)           \
   V(JSDeleteProperty)        \
   V(JSHasProperty)           \
   V(JSInstanceOf)
@@ -121,6 +127,7 @@
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSLoadContext)            \
   V(JSStoreContext)           \
+  V(JSLoadDynamic)            \
   V(JSCreateFunctionContext)  \
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \
@@ -132,6 +139,13 @@
   V(JSCallConstruct)        \
   V(JSCallFunction)         \
   V(JSCallRuntime)          \
+  V(JSConvertReceiver)      \
+  V(JSForInDone)            \
+  V(JSForInNext)            \
+  V(JSForInPrepare)         \
+  V(JSForInStep)            \
+  V(JSLoadMessage)          \
+  V(JSStoreMessage)         \
   V(JSYield)                \
   V(JSStackCheck)
 
@@ -161,10 +175,15 @@
   V(NumberMultiply)                \
   V(NumberDivide)                  \
   V(NumberModulus)                 \
+  V(NumberBitwiseOr)               \
+  V(NumberBitwiseXor)              \
+  V(NumberBitwiseAnd)              \
+  V(NumberShiftLeft)               \
+  V(NumberShiftRight)              \
+  V(NumberShiftRightLogical)       \
   V(NumberToInt32)                 \
   V(NumberToUint32)                \
   V(PlainPrimitiveToNumber)        \
-  V(StringAdd)                     \
   V(ChangeTaggedToInt32)           \
   V(ChangeTaggedToUint32)          \
   V(ChangeTaggedToFloat64)         \
@@ -180,8 +199,8 @@
   V(StoreField)                    \
   V(StoreBuffer)                   \
   V(StoreElement)                  \
-  V(ObjectIsSmi)                   \
-  V(ObjectIsNonNegativeSmi)
+  V(ObjectIsNumber)                \
+  V(ObjectIsSmi)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \
@@ -194,6 +213,7 @@
   V(Int64LessThan)                    \
   V(Int64LessThanOrEqual)             \
   V(Uint64LessThan)                   \
+  V(Uint64LessThanOrEqual)            \
   V(Float32Equal)                     \
   V(Float32LessThan)                  \
   V(Float32LessThanOrEqual)           \
@@ -213,6 +233,9 @@
   V(Word32Sar)                  \
   V(Word32Ror)                  \
   V(Word32Clz)                  \
+  V(Word32Ctz)                  \
+  V(Word32Popcnt)               \
+  V(Word64Popcnt)               \
   V(Word64And)                  \
   V(Word64Or)                   \
   V(Word64Xor)                  \
@@ -220,6 +243,8 @@
   V(Word64Shr)                  \
   V(Word64Sar)                  \
   V(Word64Ror)                  \
+  V(Word64Clz)                  \
+  V(Word64Ctz)                  \
   V(Int32Add)                   \
   V(Int32AddWithOverflow)       \
   V(Int32Sub)                   \
@@ -248,6 +273,12 @@
   V(TruncateFloat64ToFloat32)   \
   V(TruncateFloat64ToInt32)     \
   V(TruncateInt64ToInt32)       \
+  V(RoundInt64ToFloat64)        \
+  V(RoundInt64ToFloat32)        \
+  V(BitcastFloat32ToInt32)      \
+  V(BitcastFloat64ToInt64)      \
+  V(BitcastInt32ToFloat32)      \
+  V(BitcastInt64ToFloat64)      \
   V(Float32Add)                 \
   V(Float32Sub)                 \
   V(Float32Mul)                 \
@@ -273,6 +304,7 @@
   V(Float64InsertLowWord32)     \
   V(Float64InsertHighWord32)    \
   V(LoadStackPointer)           \
+  V(LoadFramePointer)           \
   V(CheckedLoad)                \
   V(CheckedStore)
 
@@ -310,7 +342,7 @@ class IrOpcode {
 
   // Returns true if opcode for common operator.
   static bool IsCommonOpcode(Value value) {
-    return kStart <= value && value <= kProjection;
+    return kStart <= value && value <= kDead;
   }
 
   // Returns true if opcode for control operator.
@@ -347,6 +379,8 @@ class IrOpcode {
            (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
   }
 };
+
+std::ostream& operator<<(std::ostream&, IrOpcode::Value);
 
 }  // namespace compiler
 }  // namespace internal

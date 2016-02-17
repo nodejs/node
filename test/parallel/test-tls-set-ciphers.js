@@ -19,7 +19,7 @@ var fs = require('fs');
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-  ciphers: 'RC4-MD5'
+  ciphers: 'DES-CBC3-SHA'
 };
 
 var reply = 'I AM THE WALRUS'; // something recognizable

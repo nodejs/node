@@ -82,4 +82,5 @@ std::ostream& operator<<(std::ostream& os, const Descriptor& d) {
   return os;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

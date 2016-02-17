@@ -39,7 +39,7 @@ function MjsUnitAssertionError(message) {
 
 
 MjsUnitAssertionError.prototype.toString = function () {
-  return this.message;
+  return this.message + "\n\nStack: " + this.stack;
 };
 
 
@@ -131,6 +131,7 @@ var assertUnoptimized;
       case "boolean":
       case "undefined":
       case "function":
+      case "symbol":
         return String(value);
       case "object":
         if (value === null) return "null";

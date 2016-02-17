@@ -21,7 +21,7 @@ var connectCount = 0;
 var server = tls.createServer(options, function(socket) {
   ++connectCount;
   socket.on('data', function(data) {
-    common.debug(data.toString());
+    console.error(data.toString());
     assert.equal(data, 'ok');
   });
 }).listen(common.PORT, function() {
@@ -51,7 +51,7 @@ function rejectUnauthorized() {
     assert(false);
   });
   socket.on('error', function(err) {
-    common.debug(err);
+    console.error(err);
     authorized();
   });
   socket.write('ng');

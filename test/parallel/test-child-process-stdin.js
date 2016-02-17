@@ -18,30 +18,20 @@ var response = '';
 var exitStatus = -1;
 var closed = false;
 
-var gotStdoutEOF = false;
-
 cat.stdout.setEncoding('utf8');
 cat.stdout.on('data', function(chunk) {
   console.log('stdout: ' + chunk);
   response += chunk;
 });
 
-cat.stdout.on('end', function() {
-  gotStdoutEOF = true;
-});
-
-
-var gotStderrEOF = false;
+cat.stdout.on('end', common.mustCall(function() {}));
 
 cat.stderr.on('data', function(chunk) {
   // shouldn't get any stderr output
   assert.ok(false);
 });
 
-cat.stderr.on('end', function(chunk) {
-  gotStderrEOF = true;
-});
-
+cat.stderr.on('end', common.mustCall(function() {}));
 
 cat.on('exit', function(status) {
   console.log('exit event');

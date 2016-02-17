@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var dns = require('dns');
@@ -145,3 +145,35 @@ assert.doesNotThrow(function() {
     hints: dns.ADDRCONFIG | dns.V4MAPPED
   }, noop);
 });
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0');
+}, /Invalid arguments/);
+
+assert.throws(function() {
+  dns.lookupService('fasdfdsaf', 0, noop);
+}, /"host" argument needs to be a valid IP address/);
+
+assert.doesNotThrow(function() {
+  dns.lookupService('0.0.0.0', '0', noop);
+});
+
+assert.doesNotThrow(function() {
+  dns.lookupService('0.0.0.0', 0, noop);
+});
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', null, noop);
+}, /"port" should be >= 0 and < 65536, got "null"/);
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', undefined, noop);
+}, /"port" should be >= 0 and < 65536, got "undefined"/);
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', 65538, noop);
+}, /"port" should be >= 0 and < 65536, got "65538"/);
+
+assert.throws(function() {
+  dns.lookupService('0.0.0.0', 'test', noop);
+}, /"port" should be >= 0 and < 65536, got "test"/);

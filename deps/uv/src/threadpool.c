@@ -44,6 +44,7 @@ static void uv__req_init(uv_loop_t* loop,
 static uv_once_t once = UV_ONCE_INIT;
 static uv_cond_t cond;
 static uv_mutex_t mutex;
+static unsigned int idle_threads;
 static unsigned int nthreads;
 static uv_thread_t* threads;
 static uv_thread_t default_threads[4];
@@ -69,8 +70,11 @@ static void worker(void* arg) {
   for (;;) {
     uv_mutex_lock(&mutex);
 
-    while (QUEUE_EMPTY(&wq))
+    while (QUEUE_EMPTY(&wq)) {
+      idle_threads += 1;
       uv_cond_wait(&cond, &mutex);
+      idle_threads -= 1;
+    }
 
     q = QUEUE_HEAD(&wq);
 
@@ -103,7 +107,8 @@ static void worker(void* arg) {
 static void post(QUEUE* q) {
   uv_mutex_lock(&mutex);
   QUEUE_INSERT_TAIL(&wq, q);
-  uv_cond_signal(&cond);
+  if (idle_threads > 0)
+    uv_cond_signal(&cond);
   uv_mutex_unlock(&mutex);
 }
 
@@ -218,13 +223,8 @@ void uv__work_done(uv_async_t* handle) {
   int err;
 
   loop = container_of(handle, uv_loop_t, wq_async);
-  QUEUE_INIT(&wq);
-
   uv_mutex_lock(&loop->wq_mutex);
-  if (!QUEUE_EMPTY(&loop->wq)) {
-    q = QUEUE_HEAD(&loop->wq);
-    QUEUE_SPLIT(&loop->wq, q, &wq);
-  }
+  QUEUE_MOVE(&loop->wq, &wq);
   uv_mutex_unlock(&loop->wq_mutex);
 
   while (!QUEUE_EMPTY(&wq)) {

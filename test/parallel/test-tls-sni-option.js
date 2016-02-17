@@ -5,9 +5,9 @@ if (!process.features.tls_sni) {
   return;
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
@@ -26,6 +26,8 @@ function loadPEM(n) {
 var serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
+  requestCert: true,
+  rejectUnauthorized: false,
   SNICallback: function(servername, callback) {
     var context = SNIContexts[servername];
 
@@ -46,7 +48,8 @@ var serverOptions = {
 var SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
-    cert: loadPEM('agent1-cert')
+    cert: loadPEM('agent1-cert'),
+    ca: [ loadPEM('ca2-cert') ]
   },
   'b.example.com': {
     key: loadPEM('agent3-key'),
@@ -63,6 +66,13 @@ var clientsOptions = [{
   port: serverPort,
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
+  ca: [loadPEM('ca1-cert')],
+  servername: 'a.example.com',
+  rejectUnauthorized: false
+}, {
+  port: serverPort,
+  key: loadPEM('agent4-key'),
+  cert: loadPEM('agent4-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
@@ -89,18 +99,18 @@ var clientsOptions = [{
   rejectUnauthorized: false
 }];
 
-var serverResults = [],
-    clientResults = [],
-    serverErrors = [],
-    clientErrors = [],
-    serverError,
-    clientError;
+const serverResults = [];
+const clientResults = [];
+const serverErrors = [];
+const clientErrors = [];
+let serverError;
+let clientError;
 
 var server = tls.createServer(serverOptions, function(c) {
-  serverResults.push(c.servername);
+  serverResults.push({ sni: c.servername, authorized: c.authorized });
 });
 
-server.on('clientError', function(err) {
+server.on('tlsClientError', function(err) {
   serverResults.push(null);
   serverError = err.message;
 });
@@ -136,7 +146,7 @@ function startTest() {
       else
         connectClient(i + 1, callback);
     }
-  };
+  }
 
   connectClient(0, function() {
     server.close();
@@ -144,9 +154,16 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, ['a.example.com', 'b.example.com',
-                                   'c.wrong.com', null]);
-  assert.deepEqual(clientResults, [true, true, false, false]);
-  assert.deepEqual(clientErrors, [null, null, null, 'socket hang up']);
-  assert.deepEqual(serverErrors, [null, null, null, 'Invalid SNI context']);
+  assert.deepEqual(serverResults, [
+    { sni: 'a.example.com', authorized: false },
+    { sni: 'a.example.com', authorized: true },
+    { sni: 'b.example.com', authorized: false },
+    { sni: 'c.wrong.com', authorized: false },
+    null
+  ]);
+  assert.deepEqual(clientResults, [true, true, true, false, false]);
+  assert.deepEqual(clientErrors, [null, null, null, null, 'socket hang up']);
+  assert.deepEqual(serverErrors, [
+    null, null, null, null, 'Invalid SNI context'
+  ]);
 });

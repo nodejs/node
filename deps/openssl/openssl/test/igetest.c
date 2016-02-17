@@ -1,4 +1,4 @@
-/* test/igetest.c -*- mode:C; c-file-style: "eay" -*- */
+/* test/igetest.c */
 /* ====================================================================
  * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
  *

@@ -102,7 +102,11 @@ Parse.prototype._process = function (c) {
 
   if (this._entry) {
     var entry = this._entry
-    entry.write(c)
+    if(!entry._abort) entry.write(c)
+    else {
+      entry._remaining -= c.length
+      if(entry._remaining < 0) entry._remaining = 0
+    }
     if (entry._remaining === 0) {
       entry.end()
       this._entry = null

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X87
 
 #include "src/ic/ic.h"
@@ -69,7 +67,7 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(MapHandleList* maps,
   // Polymorphic keyed stores may use the map register
   Register map_reg = scratch1();
   DCHECK(kind() != Code::KEYED_STORE_IC ||
-         map_reg.is(ElementTransitionAndStoreDescriptor::MapRegister()));
+         map_reg.is(StoreTransitionDescriptor::MapRegister()));
   __ mov(map_reg, FieldOperand(receiver(), HeapObject::kMapOffset));
   int receiver_count = maps->length();
   int number_of_handled_maps = 0;
@@ -114,7 +112,10 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
       Label next_map;
       __ j(not_equal, &next_map, Label::kNear);
       Handle<WeakCell> cell = Map::WeakCellForMap(transitioned_maps->at(i));
-      __ LoadWeakValue(transition_map(), cell, &miss);
+      Register transition_map = scratch1();
+      DCHECK(!FLAG_vector_stores &&
+             transition_map.is(StoreTransitionDescriptor::MapRegister()));
+      __ LoadWeakValue(transition_map, cell, &miss);
       __ jmp(handler_stubs->at(i), RelocInfo::CODE_TARGET);
       __ bind(&next_map);
     }
@@ -128,7 +129,7 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
 
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X87

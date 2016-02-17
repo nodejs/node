@@ -4,4 +4,9 @@
 
 // Flags: --gc-interval=33 --expose-gc --allow-natives-syntax
 
+var Debug = %GetDebugContext().Debug;
+Debug.setListener(function(){});
+
 %DebugGetLoadedScripts();
+
+Debug.setListener(null);

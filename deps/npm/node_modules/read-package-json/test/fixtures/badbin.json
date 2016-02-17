@@ -7,5 +7,6 @@
   },
   "version": "0.0.1",
   "readme": "hello world",
-  "bin": "./bin/typo"
+  "bin": "./bin/typo",
+  "license": "ISC"
 }

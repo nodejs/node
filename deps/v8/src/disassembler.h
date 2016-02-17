@@ -20,6 +20,7 @@ class Disassembler : public AllStatic {
                     Code* code = NULL);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DISASSEMBLER_H_

@@ -29,10 +29,7 @@ namespace node {
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::GCCallbackFlags;
-using v8::GCEpilogueCallback;
-using v8::GCPrologueCallback;
 using v8::GCType;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -234,7 +231,7 @@ void lttng_gc_done(Isolate* isolate, GCType type, GCCallbackFlags flags) {
   NODE_GC_DONE(type, flags, isolate);
 }
 
-void InitLTTNG(Environment* env, Handle<Object> target) {
+void InitLTTNG(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   static struct {

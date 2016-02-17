@@ -1,19 +1,21 @@
-.TH "NPM\-INSTALL" "1" "July 2015" "" ""
+.TH "NPM\-INSTALL" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm install (with no args in a package dir)
+npm install (with no args, in package dir)
+npm install [<@scope>/]<name>
+npm install [<@scope>/]<name>@<tag>
+npm install [<@scope>/]<name>@<version>
+npm install [<@scope>/]<name>@<version range>
 npm install <tarball file>
 npm install <tarball url>
 npm install <folder>
-npm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional] [\-\-save\-exact]
-npm install [@<scope>/]<name>@<tag>
-npm install [@<scope>/]<name>@<version>
-npm install [@<scope>/]<name>@<version range>
-npm i (with any of the previous argument usage)
+
+alias: npm i
+common options: [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional] [\-E|\-\-save\-exact] [\-\-dry\-run]
 .fi
 .RE
 .SH DESCRIPTION
@@ -25,7 +27,7 @@ by that\. See npm help shrinkwrap\.
 A \fBpackage\fP is:
 .RS 0
 .IP \(bu 2
-a) a folder containing a program described by a package\.json file
+a) a folder containing a program described by a npm help 5 \fBpackage\.json\fP file
 .IP \(bu 2
 b) a gzipped tarball containing (a)
 .IP \(bu 2
@@ -33,11 +35,11 @@ c) a url that resolves to (b)
 .IP \(bu 2
 d) a \fB<name>@<version>\fP that is published on the registry (see npm help 7 \fBnpm\-registry\fP) with (c)
 .IP \(bu 2
-e) a \fB<name>@<tag>\fP that points to (d)
+e) a \fB<name>@<tag>\fP (see npm help \fBnpm\-dist\-tag\fP) that points to (d)
 .IP \(bu 2
 f) a \fB<name>\fP that has a "latest" tag satisfying (e)
 .IP \(bu 2
-g) a \fB<git remote url>\fP that resolves to (b)
+g) a \fB<git remote url>\fP that resolves to (a)
 
 .RE
 .P
@@ -52,7 +54,8 @@ after packing it up into a tarball (b)\.
   In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
   it installs the current package context (ie, the current working
   directory) as a global package\.
-  By default, \fBnpm install\fP will install all modules listed as dependencies\.
+  By default, \fBnpm install\fP will install all modules listed as dependencies
+  in npm help 5 \fBpackage\.json\fP\|\.
   With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment variable
   is set to \fBproduction\fP), npm will not install modules listed in
   \fBdevDependencies\fP\|\.
@@ -83,9 +86,9 @@ after packing it up into a tarball (b)\.
 .fi
 .RE
 .IP \(bu 2
-\fBnpm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional]\fP:
+\fBnpm install [<@scope>/]<name> [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional]\fP:
   Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
-  npm help 7 \fBnpm\-config\fP\|\.)
+  npm help 7 \fBnpm\-config\fP\|\. The config's default value is \fBlatest\fP\|\.)
   In most cases, this will install the latest version
   of the module published on npm\.
   Example:
@@ -99,17 +102,19 @@ after packing it up into a tarball (b)\.
   the package version in your main package\.json:
 .RS 0
 .IP \(bu 2
-\fB\-\-save\fP: Package will appear in your \fBdependencies\fP\|\.
+\fB\-S, \-\-save\fP: Package will appear in your \fBdependencies\fP\|\.
 .IP \(bu 2
-\fB\-\-save\-dev\fP: Package will appear in your \fBdevDependencies\fP\|\.
+\fB\-D, \-\-save\-dev\fP: Package will appear in your \fBdevDependencies\fP\|\.
 .IP \(bu 2
-\fB\-\-save\-optional\fP: Package will appear in your \fBoptionalDependencies\fP\|\.
+\fB\-O, \-\-save\-optional\fP: Package will appear in your \fBoptionalDependencies\fP\|\.
 When using any of the above options to save dependencies to your
 package\.json, there is an additional, optional flag:
 .IP \(bu 2
-\fB\-\-save\-exact\fP: Saved dependencies will be configured with an
+\fB\-E, \-\-save\-exact\fP: Saved dependencies will be configured with an
 exact version rather than using npm's default semver range
 operator\.
+Further, if you have an \fBnpm\-shrinkwrap\.json\fP then it will be updated as
+well\.
 \fB<scope>\fP is optional\. The package will be downloaded from the registry
 associated with the specified scope\. If no registry is associated with
 the given scope the default registry is assumed\. See npm help 7 \fBnpm\-scope\fP\|\.
@@ -142,7 +147,7 @@ fetch the package by name if it is not valid\.
 .RE
 .RS 0
 .IP \(bu 2
-\fBnpm install [@<scope>/]<name>@<tag>\fP:
+\fBnpm install [<@scope>/]<name>@<tag>\fP:
   Install the version of the package that is referenced by the specified tag\.
   If the tag does not exist in the registry data for that package, then this
   will fail\.
@@ -155,7 +160,7 @@ fetch the package by name if it is not valid\.
 .fi
 .RE
 .IP \(bu 2
-\fBnpm install [@<scope>/]<name>@<version>\fP:
+\fBnpm install [<@scope>/]<name>@<version>\fP:
   Install the specified version of the package\.  This will fail if the
   version has not been published to the registry\.
   Example:
@@ -167,7 +172,7 @@ fetch the package by name if it is not valid\.
 .fi
 .RE
 .IP \(bu 2
-\fBnpm install [@<scope>/]<name>@<version range>\fP:
+\fBnpm install [<@scope>/]<name>@<version range>\fP:
   Install a version of the package matching the specified version range\.  This
   will follow the same rules for resolving dependencies described in npm help 5 \fBpackage\.json\fP\|\.
   Note that most version ranges must be put in quotes so that your shell will
@@ -182,12 +187,12 @@ fetch the package by name if it is not valid\.
 .RE
 .IP \(bu 2
 \fBnpm install <git remote url>\fP:
-  Install a package by cloning a git remote url\.  The format of the git
-  url is:
+  Installs the package from the hosted git provider, cloning it with
+  \fBgit\fP\|\. First it tries via the https (git with github) and if that fails, via ssh\.
 .P
 .RS 2
 .nf
-    <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:/]<path>[#<commit\-ish>]
+    <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit\-ish>]
 .fi
 .RE
   \fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, or
@@ -240,7 +245,7 @@ GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\
 \fBnpm install gist:[<githubname>/]<gistID>[#<commit\-ish>]\fP:
   Install the package at \fBhttps://gist\.github\.com/gistID\fP by attempting to
   clone it using \fBgit\fP\|\. The GitHub username associated with the gist is
-  optional and will not be saved in \fBpackage\.json\fP if \fB\-\-save\fP is used\.
+  optional and will not be saved in \fBpackage\.json\fP if \fB\-S\fP or \fB\-\-save\fP is used\.
   If you don't specify a \fIcommit\-ish\fR then \fBmaster\fP will be used\.
   Example:
 .P
@@ -289,7 +294,10 @@ The \fB\-\-tag\fP argument will apply to all of the specified install targets\. 
 tag with the given name exists, the tagged version is preferred over newer
 versions\.
 .P
-The \fB\-\-force\fP argument will force npm to fetch remote resources even if a
+The \fB\-\-dry\-run\fP argument will report in the usual way what the install would
+have done without actually installing anything\.
+.P
+The \fB\-f\fP or \fB\-\-force\fP argument will force npm to fetch remote resources even if a
 local copy exists on disk\.
 .P
 .RS 2
@@ -298,8 +306,18 @@ npm install sax \-\-force
 .fi
 .RE
 .P
-The \fB\-\-global\fP argument will cause npm to install the package globally
+The \fB\-g\fP or \fB\-\-global\fP argument will cause npm to install the package globally
 rather than locally\.  See npm help 5 \fBnpm\-folders\fP\|\.
+.P
+The \fB\-\-global\-style\fP argument will cause npm to install the package into
+your local \fBnode_modules\fP folder with the same layout it uses with the
+global \fBnode_modules\fP folder\. Only your direct dependencies will show in
+\fBnode_modules\fP and everything they depend on will be flattened in their
+\fBnode_modules\fP folders\. This obviously will elminate some deduping\.
+.P
+The \fB\-\-legacy\-bundling\fP argument will cause npm to install the package such
+that versions of npm prior to 1\.4, such as the one included with node 0\.8,
+can install the package\. This eliminates all automatic deduping\.
 .P
 The \fB\-\-link\fP argument will cause npm to link global installs into the
 local space in some cases\.
@@ -316,6 +334,9 @@ shrinkwrap file and use the package\.json instead\.
 The \fB\-\-nodedir=/path/to/node/source\fP argument will allow npm to find the
 node source code so that npm can compile native modules\.
 .P
+The \fB\-\-only={prod[uction]|dev[elopment]}\fP argument will cause either only
+\fBdevDependencies\fP or only non\-\fBdevDependencies\fP to be installed regardless of the \fBNODE_ENV\fP\|\.
+.P
 See npm help 7 \fBnpm\-config\fP\|\.  Many of the configuration params have some
 effect on installation, since that's most of what npm does\.
 .SH ALGORITHM
@@ -324,15 +345,16 @@ To install a package, npm uses the following algorithm:
 .P
 .RS 2
 .nf
-install(where, what, family, ancestors)
-fetch what, unpack to <where>/node_modules/<what>
-for each dep in what\.dependencies
-  resolve dep to precise version
-for each dep@version in what\.dependencies
-    not in <where>/node_modules/<what>/node_modules/*
-    and not in <family>
-  add precise version deps to <family>
-  install(<where>/node_modules/<what>, dep, family)
+load the existing node_modules tree from disk
+clone the tree
+fetch the package\.json and assorted metadata and add it to the clone
+walk the clone and add any missing dependencies
+  dependencies will be added as close to the top as is possible
+  without breaking any other modules
+compare the original tree with the cloned tree and make a list of
+actions to take to convert one to the other
+execute all of the actions, deepest first
+  kinds of actions are install, update, remove and move
 .fi
 .RE
 .P
@@ -343,13 +365,29 @@ this algorithm produces:
 .nf
 A
 +\-\- B
-`\-\- C
-    `\-\- D
++\-\- C
++\-\- D
 .fi
 .RE
 .P
 That is, the dependency from B to C is satisfied by the fact that A
-already caused C to be installed at a higher level\.
+already caused C to be installed at a higher level\. D is still installed
+at the top level because nothing conflicts with it\.
+.P
+For \fBA{B,C}, B{C,D@1}, C{D@2}\fP, this algorithm produces:
+.P
+.RS 2
+.nf
+A
++\-\- B
++\-\- C
+   `\-\- D@2
++\-\- D@1
+.fi
+.RE
+.P
+Because B's D@1 will be installed in the top level, C now has to install D@2
+privately for itself\.
 .P
 See npm help 5 folders for a more detailed description of the specific
 folder structures that npm creates\.
@@ -402,9 +440,11 @@ npm help 7 registry
 .IP \(bu 2
 npm help tag
 .IP \(bu 2
-npm help rm
+npm help uninstall
 .IP \(bu 2
 npm help shrinkwrap
+.IP \(bu 2
+npm help 5 package\.json
 
 .RE
 

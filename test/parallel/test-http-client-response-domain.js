@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    http = require('http'),
-    domain = require('domain');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const domain = require('domain');
 
 var gotDomainError = false;
 var d;
@@ -10,6 +10,8 @@ var d;
 process.on('exit', function() {
   assert(gotDomainError);
 });
+
+common.refreshTmpDir();
 
 // first fire up a simple HTTP server
 var server = http.createServer(function(req, res) {

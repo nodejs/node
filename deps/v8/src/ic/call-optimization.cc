@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/ic/call-optimization.h"
 
 
@@ -111,5 +109,5 @@ void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
 
   is_simple_api_call_ = true;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -1,12 +1,22 @@
+'use strict';
+
 var fs = require('fs');
 var marked = require('marked');
 var path = require('path');
 var preprocess = require('./preprocess.js');
+var typeParser = require('./type-parser.js');
 
 module.exports = toHTML;
 
 // TODO(chrisdickinson): never stop vomitting / fix this.
-var gtocPath = path.resolve(path.join(__dirname, '..', '..', 'doc', 'api', '_toc.markdown'));
+var gtocPath = path.resolve(path.join(
+  __dirname,
+    '..',
+    '..',
+    'doc',
+    'api',
+    '_toc.markdown'
+));
 var gtocLoading = null;
 var gtocData = null;
 
@@ -55,7 +65,10 @@ function loadGtoc(cb) {
 }
 
 function toID(filename) {
-  return filename.replace('.html', '').replace(/[^\w\-]/g, '-').replace(/-+/g, '-');
+  return filename
+    .replace('.html', '')
+    .replace(/[^\w\-]/g, '-')
+    .replace(/-+/g, '-');
 }
 
 function render(lexed, filename, template, cb) {
@@ -85,7 +98,7 @@ function render(lexed, filename, template, cb) {
 
     // content has to be the last thing we do with
     // the lexed tokens, because it's destructive.
-    content = marked.parser(lexed);
+    const content = marked.parser(lexed);
     template = template.replace(/__CONTENT__/g, content);
 
     cb(null, template);
@@ -106,7 +119,8 @@ function parseLists(input) {
       output.push({ type: 'html', text: tok.text });
       return;
     }
-    if (state === null) {
+    if (state === null ||
+      (state === 'AFTERHEADING' && tok.type === 'heading')) {
       if (tok.type === 'heading') {
         state = 'AFTERHEADING';
       }
@@ -156,9 +170,15 @@ function parseLists(input) {
 function parseListItem(text) {
   var parts = text.split('`');
   var i;
+  var typeMatches;
 
   for (i = 0; i < parts.length; i += 2) {
-    parts[i] = parts[i].replace(/\{([^\}]+)\}/, '<span class="type">$1</span>');
+    typeMatches = parts[i].match(/\{([^\}]+)\}/g);
+    if (typeMatches) {
+      typeMatches.forEach(function(typeMatch) {
+        parts[i] = parts[i].replace(typeMatch, typeParser.toLink(typeMatch));
+      });
+    }
   }
 
   //XXX maybe put more stuff here?
@@ -166,14 +186,15 @@ function parseListItem(text) {
 }
 
 function parseAPIHeader(text) {
-  text = text.replace(/(.*:)\s(\d)([\s\S]*)/,
-                      '<pre class="api_stability_$2">$1 $2$3</pre>');
+  text = text.replace(
+    /(.*:)\s(\d)([\s\S]*)/,
+    '<pre class="api_stability api_stability_$2">$1 $2$3</pre>'
+  );
   return text;
 }
 
 // section is just the first heading
 function getSection(lexed) {
-  var section = '';
   for (var i = 0, l = lexed.length; i < l; i++) {
     var tok = lexed[i];
     if (tok.type === 'heading') return tok.text;
@@ -183,7 +204,6 @@ function getSection(lexed) {
 
 
 function buildToc(lexed, filename, cb) {
-  var indent = 0;
   var toc = [];
   var depth = 0;
   lexed.forEach(function(tok) {
@@ -219,4 +239,3 @@ function getId(text) {
   }
   return text;
 }
-

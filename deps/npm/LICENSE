@@ -1,11 +1,29 @@
+The npm application
 Copyright (c) npm, Inc. and Contributors
-All rights reserved.
+Licensed on the terms of The Artistic License 2.0
 
-npm is released under the Artistic License 2.0, subject to additional terms
-that are listed below.
+Node package dependencies of the npm application
+Copyright (c) their respective copyright owners
+Licensed on their respective license terms
 
-The text of the npm License follows and the text of the additional terms
-follows the Artistic License 2.0 terms:
+The npm public registry at https://registry.npmjs.org
+and the npm website at https://www.npmjs.com
+Operated by npm, Inc.
+Use governed by terms published on https://www.npmjs.com
+
+"Node.js"
+Trademark Joyent, Inc., https://joyent.com
+Neither npm nor npm, Inc. are affiliated with Joyent, Inc.
+
+The Node.js application
+Project of Node Foundation, https://nodejs.org
+
+The npm Logo
+Copyright (c) Mathias Pettersson and Brian Hammond
+
+"Gubblebum Blocky" typeface
+Copyright (c) Tjarda Koster, https://jelloween.deviantart.com
+Used with permission
 
 
 --------
@@ -215,49 +233,3 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 --------
-
-
-The following additional terms shall apply to use of the npm software, the npm
-website, the npm repository and any other services or products offered by npm,
-Inc.:
-
-"Node.js" trademark Joyent, Inc.  npm is not officially part of the Node.js
-project, and is neither owned by nor affiliated with Joyent, Inc.
-
-"npm" and "The npm Registry" are owned by npm, Inc. All rights reserved.
-
-Modules published on the npm registry are not officially endorsed by npm, Inc.
-or the Node.js project.
-
-Data published to the npm registry is not part of npm itself, and is the sole
-property of the publisher. While every effort is made to ensure accountability,
-there is absolutely no guarantee, warrantee, or assertion expressed or implied
-as to the quality, fitness for a specific purpose, or lack of malice in any
-given npm package.  Packages downloaded through the npm registry are
-independently licensed and are not covered by this license.
-
-Additional policies relating to, and restrictions on use of, npm products and
-services are available on the npm website.  All such policies and restrictions,
-as updated from time to time, are hereby incorporated into this license
-agreement.  By using npm, you acknowledge your agreement to all such policies
-and restrictions.
-
-If you have a complaint about a package in the public npm registry, and cannot
-resolve it with the package owner, please email support@npmjs.com and explain
-the situation.  See the [npm Dispute Resolution
-policy](https://github.com/npm/policies/blob/master/disputes.md) for more
-details.
-
-Any data published to The npm Registry (including user account information) may
-be removed or modified at the sole discretion of the npm server administrators.
-
-"npm Logo" created by Mathias Pettersson and Brian Hammond,
-used with permission.
-
-"Gubblebum Blocky" font
-Copyright (c) by Tjarda Koster, http://jelloween.deviantart.com
-included for use in the npm website and documentation,
-used with permission.
-
-This program uses several Node modules contained in the node_modules/
-subdirectory, according to the terms of their respective licenses.

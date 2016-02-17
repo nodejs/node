@@ -1,8 +1,8 @@
-var common = require("../common-tap")
-var test = require("tap").test
-var rimraf = require("rimraf")
+var common = require('../common-tap')
+var test = require('tap').test
+var rimraf = require('rimraf')
 
-test("cleanup", function (t) {
+test('cleanup', function (t) {
   rimraf.sync(common.npm_config_cache)
   t.end()
 })

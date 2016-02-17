@@ -41,15 +41,6 @@ var assert = require('assert');
 (function() {
 var TIMEOUT = 1000;
 
-function PostMicrotask(fn) {
-  var o = {};
-  Object.observe(o, function() {
-    fn();
-  });
-  // Change something to enqueue a microtask.
-  o.x = 'hello';
-}
-
 var context = {
   beingDescribed: undefined,
   currentSuiteIndex: 0,
@@ -162,7 +153,7 @@ TestCase.prototype.Run = function(suite, postAction) {
         if (this.isRegular) {
           print('PASS: ' + suite.description + '#' + this.name);
         }
-        PostMicrotask(postAction);
+        %EnqueueMicrotask(postAction);
       }.bind(this));
     }.bind(this));
   }.bind(this));
@@ -194,14 +185,14 @@ function TestSuite(described) {
 TestSuite.prototype.Run = function() {
   this.hasRun = this.currentIndex === this.cases.length;
   if (this.hasRun) {
-    PostMicrotask(Run);
+    %EnqueueMicrotask(Run);
     return;
   }
 
   // TestCase.prototype.Run cannot throw an exception.
   this.cases[this.currentIndex].Run(this, function() {
     ++this.currentIndex;
-    PostMicrotask(Run);
+    %EnqueueMicrotask(Run);
   }.bind(this));
 };
 
@@ -224,7 +215,7 @@ TestSuite.prototype.ReportError = function(testCase, e) {
   print('FAIL: ' + this.description + '#' + testCase.name + ': ' +
         e.name  + ' (' + e.message + ')');
   ++this.currentIndex;
-  PostMicrotask(Run);
+  %EnqueueMicrotask(Run);
 };
 
 describe = function(description, fn) {

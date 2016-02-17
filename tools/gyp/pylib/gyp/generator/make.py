@@ -211,10 +211,10 @@ cmd_solink_module_host = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(T
 
 LINK_COMMANDS_AIX = """\
 quiet_cmd_alink = AR($(TOOLSET)) $@
-cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
+cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) -X32_64 crs $@ $(filter %.o,$^)
 
 quiet_cmd_alink_thin = AR($(TOOLSET)) $@
-cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
+cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) -X32_64 crs $@ $(filter %.o,$^)
 
 quiet_cmd_link = LINK($(TOOLSET)) $@
 cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
@@ -273,9 +273,9 @@ all_deps :=
 %(make_global_settings)s
 
 CC.target ?= %(CC.target)s
-CFLAGS.target ?= $(CFLAGS)
+CFLAGS.target ?= $(CPPFLAGS) $(CFLAGS)
 CXX.target ?= %(CXX.target)s
-CXXFLAGS.target ?= $(CXXFLAGS)
+CXXFLAGS.target ?= $(CPPFLAGS) $(CXXFLAGS)
 LINK.target ?= %(LINK.target)s
 LDFLAGS.target ?= $(LDFLAGS)
 AR.target ?= $(AR)
@@ -286,9 +286,9 @@ LINK ?= $(CXX.target)
 # TODO(evan): move all cross-compilation logic to gyp-time so we don't need
 # to replicate this environment fallback in make as well.
 CC.host ?= %(CC.host)s
-CFLAGS.host ?=
+CFLAGS.host ?= $(CPPFLAGS_host) $(CFLAGS_host)
 CXX.host ?= %(CXX.host)s
-CXXFLAGS.host ?=
+CXXFLAGS.host ?= $(CPPFLAGS_host) $(CXXFLAGS_host)
 LINK.host ?= %(LINK.host)s
 LDFLAGS.host ?=
 AR.host ?= %(AR.host)s
@@ -365,7 +365,7 @@ cmd_touch = touch $@
 
 quiet_cmd_copy = COPY $@
 # send stderr to /dev/null to ignore messages when linking directories.
-cmd_copy = ln -f "$<" "$@" 2>/dev/null || (rm -rf "$@" && cp -af "$<" "$@")
+cmd_copy = ln -f "$<" "$@" 2>/dev/null || (rm -rf "$@" && cp %(copy_archive_args)s "$<" "$@")
 
 %(link_commands)s
 """
@@ -2010,6 +2010,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     srcdir_prefix = '$(srcdir)/'
 
   flock_command= 'flock'
+  copy_archive_arguments = '-af'
   header_params = {
       'default_target': default_target,
       'builddir': builddir_name,
@@ -2019,6 +2020,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
       'link_commands': LINK_COMMANDS_LINUX,
       'extra_commands': '',
       'srcdir': srcdir,
+      'copy_archive_args': copy_archive_arguments,
     }
   if flavor == 'mac':
     flock_command = './gyp-mac-tool flock'
@@ -2043,7 +2045,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
         'flock': 'lockf',
     })
   elif flavor == 'aix':
+    copy_archive_arguments = '-pPRf'
     header_params.update({
+        'copy_archive_args': copy_archive_arguments,
         'link_commands': LINK_COMMANDS_AIX,
         'flock': './gyp-flock-tool flock',
         'flock_index': 2,

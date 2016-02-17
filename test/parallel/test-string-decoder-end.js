@@ -3,6 +3,7 @@
 // the whole buffer at once, and that both match the .toString(enc)
 // result of the entire buffer.
 
+require('../common');
 var assert = require('assert');
 var SD = require('string_decoder').StringDecoder;
 var encodings = ['base64', 'hex', 'utf8', 'utf16le', 'ucs2'];
@@ -42,7 +43,7 @@ function testBuf(encoding, buf) {
 
   // write the whole buffer at once.
   var res2 = '';
-  var s = new SD(encoding);
+  s = new SD(encoding);
   res2 += s.write(buf);
   res2 += s.end();
 

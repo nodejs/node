@@ -37,10 +37,10 @@ function runAb(opts, callback) {
     var m = /Document Length:\s*(\d+) bytes/mi.exec(stdout);
     var documentLength = parseInt(m[1]);
 
-    var m = /Complete requests:\s*(\d+)/mi.exec(stdout);
+    m = /Complete requests:\s*(\d+)/mi.exec(stdout);
     var completeRequests = parseInt(m[1]);
 
-    var m = /HTML transferred:\s*(\d+) bytes/mi.exec(stdout);
+    m = /HTML transferred:\s*(\d+) bytes/mi.exec(stdout);
     var htmlTransfered = parseInt(m[1]);
 
     assert.equal(bodyLength, documentLength);

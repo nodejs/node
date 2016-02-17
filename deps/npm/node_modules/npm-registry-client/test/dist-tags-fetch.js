@@ -93,6 +93,7 @@ test('fetch dist-tags for a package', function (t) {
     t.ifError(error, 'no errors')
     t.same(data, { a: '1.0.0', b: '2.0.0' }, 'etag filtered from response')
 
+    server.close()
     t.end()
   })
 })

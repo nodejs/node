@@ -5,6 +5,8 @@
 #ifndef V8_V8THREADS_H_
 #define V8_V8THREADS_H_
 
+#include "src/isolate.h"
+
 namespace v8 {
 namespace internal {
 
@@ -116,6 +118,7 @@ class ThreadManager {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_V8THREADS_H_

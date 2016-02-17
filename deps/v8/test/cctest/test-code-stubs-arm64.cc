@@ -72,11 +72,13 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 0;
-  for (;reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
+  for (; reg_num < Register::kNumRegisters; ++reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
-      queue.Queue(reg);
-      source_reg_offset += kPointerSize;
+    if (reg.IsAllocatable()) {
+      if (!reg.is(destination_reg)) {
+        queue.Queue(reg);
+        source_reg_offset += kPointerSize;
+      }
     }
   }
   // Re-push the double argument.
@@ -101,10 +103,12 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 0; --reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
-      __ Pop(ip0);
-      __ cmp(reg, ip0);
-      __ Assert(eq, kRegisterWasClobbered);
+    if (reg.IsAllocatable()) {
+      if (!reg.is(destination_reg)) {
+        __ Pop(ip0);
+        __ cmp(reg, ip0);
+        __ Assert(eq, kRegisterWasClobbered);
+      }
     }
   }
 
@@ -122,7 +126,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }
@@ -142,8 +146,8 @@ int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
       Simulator::CallArgument(from),
       Simulator::CallArgument::End()
   };
-  return Simulator::current(Isolate::Current())->CallInt64(
-      FUNCTION_ADDR(func), args);
+  return static_cast<int32_t>(Simulator::current(Isolate::Current())
+                                  ->CallInt64(FUNCTION_ADDR(func), args));
 #else
   return (*func)(from);
 #endif

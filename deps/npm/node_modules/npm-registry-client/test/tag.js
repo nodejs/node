@@ -102,6 +102,7 @@ test('tag a package', function (t) {
     t.ifError(error, 'no errors')
     t.ok(data.tagged, 'was tagged')
 
+    server.close()
     t.end()
   })
 })

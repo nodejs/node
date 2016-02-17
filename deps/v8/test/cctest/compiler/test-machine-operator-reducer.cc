@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/cctest.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
@@ -10,10 +11,12 @@
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/typer.h"
+#include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 template <typename T>
 const Operator* NewConstantOperator(CommonOperatorBuilder* common,
@@ -60,8 +63,8 @@ class ReducerTester : public HandleAndZoneScope {
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),
-        typer(isolate, &graph, MaybeHandle<Context>()),
-        jsgraph(isolate, &graph, &common, &javascript, &machine),
+        typer(isolate, &graph),
+        jsgraph(isolate, &graph, &common, &javascript, nullptr, &machine),
         maxuint32(Constant<int32_t>(kMaxUInt32)) {
     Node* s = graph.NewNode(common.Start(num_parameters));
     graph.SetStart(s);
@@ -703,7 +706,8 @@ TEST(ReduceLoadStore) {
 
   Node* base = R.Constant<int32_t>(11);
   Node* index = R.Constant<int32_t>(4);
-  Node* load = R.graph.NewNode(R.machine.Load(kMachInt32), base, index);
+  Node* load = R.graph.NewNode(R.machine.Load(kMachInt32), base, index,
+                               R.graph.start(), R.graph.start());
 
   {
     MachineOperatorReducer reducer(&R.jsgraph);
@@ -714,7 +718,7 @@ TEST(ReduceLoadStore) {
   {
     Node* store = R.graph.NewNode(
         R.machine.Store(StoreRepresentation(kMachInt32, kNoWriteBarrier)), base,
-        index, load);
+        index, load, load, R.graph.start());
     MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.
@@ -747,3 +751,7 @@ TEST(ReduceLoadStore) {
 // TODO(titzer): test MachineOperatorReducer for Float64Mul
 // TODO(titzer): test MachineOperatorReducer for Float64Div
 // TODO(titzer): test MachineOperatorReducer for Float64Mod
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

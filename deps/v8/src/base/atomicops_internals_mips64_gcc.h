@@ -302,6 +302,7 @@ inline Atomic64 Release_Load(volatile const Atomic64* ptr) {
   return *ptr;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_ATOMICOPS_INTERNALS_MIPS_GCC_H_

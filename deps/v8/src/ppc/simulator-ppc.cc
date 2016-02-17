@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_PPC
 
 #include "src/assembler.h"
@@ -166,7 +164,7 @@ bool PPCDebugger::GetValue(const char* desc, intptr_t* value) {
 
 
 bool PPCDebugger::GetFPDoubleValue(const char* desc, double* value) {
-  int regnum = FPRegisters::Number(desc);
+  int regnum = DoubleRegisters::Number(desc);
   if (regnum != kNoRegister) {
     *value = sim_->get_double_from_d_register(regnum);
     return true;
@@ -315,7 +313,8 @@ void PPCDebugger::Debug() {
           if (strcmp(arg1, "all") == 0) {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
-              PrintF("    %3s: %08" V8PRIxPTR, Registers::Name(i), value);
+              PrintF("    %3s: %08" V8PRIxPTR,
+                     Register::from_code(i).ToString(), value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -334,7 +333,7 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("     %3s: %08" V8PRIxPTR " %11" V8PRIdPTR,
-                     Registers::Name(i), value, value);
+                     Register::from_code(i).ToString(), value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -353,7 +352,8 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < DoubleRegister::kNumRegisters; i++) {
               dvalue = GetFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
-              PrintF("%3s: %f 0x%08x %08x\n", FPRegisters::Name(i), dvalue,
+              PrintF("%3s: %f 0x%08x %08x\n",
+                     DoubleRegister::from_code(i).ToString(), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
                      static_cast<uint32_t>(as_words & 0xffffffff));
             }
@@ -794,10 +794,11 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 // Set up simulator support first. Some of this information is needed to
 // setup the architecture state.
 #if V8_TARGET_ARCH_PPC64
-  size_t stack_size = 2 * 1024 * 1024;  // allocate 2MB for stack
+  size_t stack_size = FLAG_sim_stack_size * KB;
 #else
-  size_t stack_size = 1 * 1024 * 1024;  // allocate 1MB for stack
+  size_t stack_size = MB;  // allocate 1MB for stack
 #endif
+  stack_size += 2 * stack_protection_size_;
   stack_ = reinterpret_cast<char*>(malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
@@ -823,14 +824,15 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
   // some buffer below.
-  registers_[sp] = reinterpret_cast<intptr_t>(stack_) + stack_size - 64;
+  registers_[sp] =
+      reinterpret_cast<intptr_t>(stack_) + stack_size - stack_protection_size_;
   InitializeCoverage();
 
   last_debugger_input_ = NULL;
 }
 
 
-Simulator::~Simulator() {}
+Simulator::~Simulator() { free(stack_); }
 
 
 // When the generated code calls an external reference we need to catch that in
@@ -878,7 +880,7 @@ class Redirection {
   static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
     char* addr_of_swi = reinterpret_cast<char*>(swi_instruction);
     char* addr_of_redirection =
-        addr_of_swi - OFFSET_OF(Redirection, swi_instruction_);
+        addr_of_swi - offsetof(Redirection, swi_instruction_);
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
@@ -888,12 +890,33 @@ class Redirection {
     return redirection->external_function();
   }
 
+  static void DeleteChain(Redirection* redirection) {
+    while (redirection != nullptr) {
+      Redirection* next = redirection->next_;
+      delete redirection;
+      redirection = next;
+    }
+  }
+
  private:
   void* external_function_;
   uint32_t swi_instruction_;
   ExternalReference::Type type_;
   Redirection* next_;
 };
+
+
+// static
+void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
+  Redirection::DeleteChain(first);
+  if (i_cache != nullptr) {
+    for (HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
+         entry = i_cache->Next(entry)) {
+      delete static_cast<CachePage*>(entry->value);
+    }
+    delete i_cache;
+  }
+}
 
 
 void* Simulator::RedirectExternalReference(void* external_function,
@@ -1085,10 +1108,16 @@ void Simulator::WriteDW(intptr_t addr, int64_t value) {
 
 
 // Returns the limit of the stack area to enable checking for stack overflows.
-uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
-  // pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + 1024;
+uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
+  // The simulator uses a separate JS stack. If we have exhausted the C stack,
+  // we also drop down the JS limit to reflect the exhaustion on the JS stack.
+  if (GetCurrentStackPosition() < c_limit) {
+    return reinterpret_cast<uintptr_t>(get_sp());
+  }
+
+  // Otherwise the limit is the JS stack. Leave a safety margin to prevent
+  // overrunning the stack when pushing values.
+  return reinterpret_cast<uintptr_t>(stack_) + stack_protection_size_;
 }
 
 
@@ -1540,9 +1569,8 @@ void Simulator::SetCR0(intptr_t result, bool setSO) {
 }
 
 
-void Simulator::ExecuteBranchConditional(Instruction* instr) {
+void Simulator::ExecuteBranchConditional(Instruction* instr, BCType type) {
   int bo = instr->Bits(25, 21) << 21;
-  int offset = (instr->Bits(15, 2) << 18) >> 16;
   int condition_bit = instr->Bits(20, 16);
   int condition_mask = 0x80000000 >> condition_bit;
   switch (bo) {
@@ -1550,45 +1578,46 @@ void Simulator::ExecuteBranchConditional(Instruction* instr) {
     case DCBEZF:  // Decrement CTR; branch if CTR == 0 and condition false
       UNIMPLEMENTED();
     case BF: {  // Branch if condition false
-      if (!(condition_reg_ & condition_mask)) {
-        if (instr->Bit(0) == 1) {  // LK flag set
-          special_reg_lr_ = get_pc() + 4;
-        }
-        set_pc(get_pc() + offset);
-      }
+      if (condition_reg_ & condition_mask) return;
       break;
     }
     case DCBNZT:  // Decrement CTR; branch if CTR != 0 and condition true
     case DCBEZT:  // Decrement CTR; branch if CTR == 0 and condition true
       UNIMPLEMENTED();
     case BT: {  // Branch if condition true
-      if (condition_reg_ & condition_mask) {
-        if (instr->Bit(0) == 1) {  // LK flag set
-          special_reg_lr_ = get_pc() + 4;
-        }
-        set_pc(get_pc() + offset);
-      }
+      if (!(condition_reg_ & condition_mask)) return;
       break;
     }
     case DCBNZ:  // Decrement CTR; branch if CTR != 0
     case DCBEZ:  // Decrement CTR; branch if CTR == 0
       special_reg_ctr_ -= 1;
-      if ((special_reg_ctr_ == 0) == (bo == DCBEZ)) {
-        if (instr->Bit(0) == 1) {  // LK flag set
-          special_reg_lr_ = get_pc() + 4;
-        }
-        set_pc(get_pc() + offset);
-      }
+      if ((special_reg_ctr_ == 0) != (bo == DCBEZ)) return;
       break;
     case BA: {                   // Branch always
-      if (instr->Bit(0) == 1) {  // LK flag set
-        special_reg_lr_ = get_pc() + 4;
-      }
-      set_pc(get_pc() + offset);
       break;
     }
     default:
       UNIMPLEMENTED();  // Invalid encoding
+  }
+
+  intptr_t old_pc = get_pc();
+
+  switch (type) {
+    case BC_OFFSET: {
+      int offset = (instr->Bits(15, 2) << 18) >> 16;
+      set_pc(old_pc + offset);
+      break;
+    }
+    case BC_LINK_REG:
+      set_pc(special_reg_lr_);
+      break;
+    case BC_CTR_REG:
+      set_pc(special_reg_ctr_);
+      break;
+  }
+
+  if (instr->Bit(0) == 1) {  // LK flag set
+    special_reg_lr_ = old_pc + 4;
   }
 }
 
@@ -1598,24 +1627,12 @@ void Simulator::ExecuteExt1(Instruction* instr) {
   switch (instr->Bits(10, 1) << 1) {
     case MCRF:
       UNIMPLEMENTED();  // Not used by V8.
-    case BCLRX: {
-      // need to check BO flag
-      intptr_t old_pc = get_pc();
-      set_pc(special_reg_lr_);
-      if (instr->Bit(0) == 1) {  // LK flag set
-        special_reg_lr_ = old_pc + 4;
-      }
+    case BCLRX:
+      ExecuteBranchConditional(instr, BC_LINK_REG);
       break;
-    }
-    case BCCTRX: {
-      // need to check BO flag
-      intptr_t old_pc = get_pc();
-      set_pc(special_reg_ctr_);
-      if (instr->Bit(0) == 1) {  // LK flag set
-        special_reg_lr_ = old_pc + 4;
-      }
+    case BCCTRX:
+      ExecuteBranchConditional(instr, BC_CTR_REG);
       break;
-    }
     case CRNOR:
     case RFI:
     case CRANDC:
@@ -1832,6 +1849,36 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
         }
         break;
     }
+    case POPCNTW: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uintptr_t rs_val = get_register(rs);
+      uintptr_t count = 0;
+      int n = 0;
+      uintptr_t bit = 0x80000000;
+      for (; n < 32; n++) {
+        if (bit & rs_val) count++;
+        bit >>= 1;
+      }
+      set_register(ra, count);
+      break;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case POPCNTD: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uintptr_t rs_val = get_register(rs);
+      uintptr_t count = 0;
+      int n = 0;
+      uintptr_t bit = 0x8000000000000000UL;
+      for (; n < 64; n++) {
+        if (bit & rs_val) count++;
+        bit >>= 1;
+      }
+      set_register(ra, count);
+      break;
+    }
+#endif
     case SYNC: {
       // todo - simulate sync
       break;
@@ -2648,6 +2695,24 @@ void Simulator::ExecuteExt2(Instruction* instr) {
 }
 
 
+void Simulator::ExecuteExt3(Instruction* instr) {
+  int opcode = instr->Bits(10, 1) << 1;
+  switch (opcode) {
+    case FCFID: {
+      // fcfids
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double t_val = get_double_from_d_register(frb);
+      int64_t* frb_val_p = reinterpret_cast<int64_t*>(&t_val);
+      double frt_val = static_cast<float>(*frb_val_p);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+  }
+  UNIMPLEMENTED();  // Not used by V8.
+}
+
+
 void Simulator::ExecuteExt4(Instruction* instr) {
   switch (instr->Bits(5, 1) << 1) {
     case FDIV: {
@@ -3240,7 +3305,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
     case BCX: {
-      ExecuteBranchConditional(instr);
+      ExecuteBranchConditional(instr, BC_OFFSET);
       break;
     }
     case BX: {
@@ -3563,8 +3628,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 
-    case EXT3:
-      UNIMPLEMENTED();
+    case EXT3: {
+      ExecuteExt3(instr);
+      break;
+    }
     case EXT4: {
       ExecuteExt4(instr);
       break;
@@ -3690,6 +3757,9 @@ void Simulator::Execute() {
 
 
 void Simulator::CallInternal(byte* entry) {
+  // Adjust JS-based stack limit to C-based stack limit.
+  isolate_->stack_guard()->AdjustStackLimitForSimulator();
+
 // Prepare to execute the code at entry
 #if ABI_USES_FUNCTION_DESCRIPTORS
   // entry is the function descriptor
@@ -3877,8 +3947,8 @@ uintptr_t Simulator::PopAddress() {
   set_register(sp, current_sp + sizeof(uintptr_t));
   return address;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // USE_SIMULATOR
 #endif  // V8_TARGET_ARCH_PPC

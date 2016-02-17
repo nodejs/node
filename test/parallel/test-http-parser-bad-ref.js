@@ -4,7 +4,7 @@
 
 // Flags: --expose_gc
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var HTTPParser = process.binding('http_parser').HTTPParser;
 

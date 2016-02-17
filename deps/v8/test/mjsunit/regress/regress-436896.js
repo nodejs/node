@@ -14,4 +14,4 @@ function g(x) {
 }
 
 %OptimizeFunctionOnNextCall(g);
-assertThrows(function() { g(42); }, TypeError);
+assertThrows(function() { g(42); }, SyntaxError);

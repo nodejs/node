@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/func-name-inferrer.h"
 
 #include "src/ast.h"
 #include "src/ast-value-factory.h"
-#include "src/func-name-inferrer.h"
 #include "src/list-inl.h"
 
 namespace v8 {
@@ -82,4 +81,5 @@ void FuncNameInferrer::InferFunctionsNames() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

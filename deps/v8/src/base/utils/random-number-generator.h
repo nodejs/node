@@ -94,6 +94,7 @@ class RandomNumberGenerator final {
   int64_t seed_;
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_

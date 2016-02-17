@@ -74,5 +74,12 @@ if [ $? != 0 ]; then exit 1; fi
 cmp x509-f.p x509-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
+echo "Parsing test certificates"
+
+$cmd -in certs/pss1.pem -text -noout >/dev/null
+if [ $? != 0 ]; then exit 1; fi
+
+echo OK
+
 /bin/rm -f x509-f.* x509-ff.* x509-fff.*
 exit 0

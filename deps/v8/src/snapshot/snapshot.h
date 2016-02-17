@@ -2,14 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/isolate.h"
-#include "src/snapshot/serialize.h"
-
 #ifndef V8_SNAPSHOT_SNAPSHOT_H_
 #define V8_SNAPSHOT_SNAPSHOT_H_
 
+#include "src/snapshot/serialize.h"
+
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Isolate;
+class PartialSerializer;
+class StartupSerializer;
 
 class Snapshot : public AllStatic {
  public:
@@ -36,10 +40,7 @@ class Snapshot : public AllStatic {
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       Handle<FixedArray>* outdated_contexts_out);
 
-  static bool HaveASnapshotToStartFrom(Isolate* isolate) {
-    // Do not use snapshots if the isolate is used to create snapshots.
-    return isolate->snapshot_blob() != NULL;
-  }
+  static bool HaveASnapshotToStartFrom(Isolate* isolate);
 
   static bool EmbedsScript(Isolate* isolate);
 
@@ -88,6 +89,7 @@ class Snapshot : public AllStatic {
 void SetSnapshotFromFile(StartupData* snapshot_blob);
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SNAPSHOT_SNAPSHOT_H_

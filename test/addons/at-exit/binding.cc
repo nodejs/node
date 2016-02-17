@@ -5,7 +5,6 @@
 #include <v8.h>
 
 using node::AtExit;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -34,7 +33,7 @@ static void sanity_check(void) {
   assert(at_exit_cb2_called == 2);
 }
 
-void init(Handle<Object> target) {
+void init(Local<Object> target) {
   AtExit(at_exit_cb1, target->CreationContext()->GetIsolate());
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb2, cookie);

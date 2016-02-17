@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var assert = require('assert');
 
 // this test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
@@ -53,12 +52,6 @@ function parent() {
   var serverExited = false;
   var clientExited = false;
   var serverListened = false;
-  var opt = {
-    env: {
-      NODE_DEBUG: 'net',
-      NODE_COMMON_PORT: process.env.NODE_COMMON_PORT,
-    }
-  };
 
   process.on('exit', function() {
     assert(serverExited);
@@ -75,7 +68,11 @@ function parent() {
     });
   }, common.platformTimeout(2000)).unref();
 
-  var s = spawn(node, [__filename, 'server'], opt);
+  var s = spawn(node, [__filename, 'server'], {
+    env: Object.assign(process.env, {
+      NODE_DEBUG: 'net'
+    })
+  });
   var c;
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');

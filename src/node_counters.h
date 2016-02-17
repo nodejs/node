@@ -26,8 +26,8 @@
 
 namespace node {
 
-void InitPerfCounters(Environment* env, v8::Handle<v8::Object> target);
-void TermPerfCounters(v8::Handle<v8::Object> target);
+void InitPerfCounters(Environment* env, v8::Local<v8::Object> target);
+void TermPerfCounters(v8::Local<v8::Object> target);
 
 }  // namespace node
 

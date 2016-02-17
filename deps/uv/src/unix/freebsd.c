@@ -74,6 +74,30 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
 }
 
 
+#ifdef __DragonFly__
+int uv_exepath(char* buffer, size_t* size) {
+  char abspath[PATH_MAX * 2 + 1];
+  ssize_t abspath_size;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return -EINVAL;
+
+  abspath_size = readlink("/proc/curproc/file", abspath, sizeof(abspath));
+  if (abspath_size < 0)
+    return -errno;
+
+  assert(abspath_size > 0);
+  *size -= 1;
+
+  if (*size > abspath_size)
+    *size = abspath_size;
+
+  memcpy(buffer, abspath, *size);
+  buffer[*size] = '\0';
+
+  return 0;
+}
+#else
 int uv_exepath(char* buffer, size_t* size) {
   char abspath[PATH_MAX * 2 + 1];
   int mib[4];
@@ -82,19 +106,12 @@ int uv_exepath(char* buffer, size_t* size) {
   if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
-#ifdef __DragonFly__
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_ARGS;
-  mib[3] = getpid();
-#else
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;
   mib[2] = KERN_PROC_PATHNAME;
   mib[3] = -1;
-#endif
 
-  abspath_size = sizeof abspath;;
+  abspath_size = sizeof abspath;
   if (sysctl(mib, 4, abspath, &abspath_size, NULL, 0))
     return -errno;
 
@@ -110,7 +127,7 @@ int uv_exepath(char* buffer, size_t* size) {
 
   return 0;
 }
-
+#endif
 
 uint64_t uv_get_free_memory(void) {
   int freecount;
@@ -159,7 +176,7 @@ char** uv_setup_args(int argc, char** argv) {
 int uv_set_process_title(const char* title) {
   int oid[4];
 
-  if (process_title) uv__free(process_title);
+  uv__free(process_title);
   process_title = uv__strdup(title);
 
   oid[0] = CTL_KERN;
@@ -223,17 +240,13 @@ error:
 
 
 int uv_uptime(double* uptime) {
-  time_t now;
-  struct timeval info;
-  size_t size = sizeof(info);
-  static int which[] = {CTL_KERN, KERN_BOOTTIME};
-
-  if (sysctl(which, 2, &info, &size, NULL, 0))
+  int r;
+  struct timespec sp;
+  r = clock_gettime(CLOCK_MONOTONIC, &sp);
+  if (r)
     return -errno;
 
-  now = time(NULL);
-
-  *uptime = (double)(now - info.tv_sec);
+  *uptime = sp.tv_sec;
   return 0;
 }
 
@@ -360,8 +373,10 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   }
 
   *addresses = uv__malloc(*count * sizeof(**addresses));
-  if (!(*addresses))
+  if (!(*addresses)) {
+    freeifaddrs(addrs);
     return -ENOMEM;
+  }
 
   address = *addresses;
 

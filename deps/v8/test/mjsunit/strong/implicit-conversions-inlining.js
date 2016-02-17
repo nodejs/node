@@ -6,6 +6,8 @@
 
 "use strict";
 
+//******************************************************************************
+// Number function declarations
 function inline_add_strong(x, y) {
   "use strong";
   return x + y;
@@ -103,6 +105,42 @@ function inline_sar_strong(x, y) {
 
 function inline_sar_strong_outer(x, y) {
   return inline_sar_strong(x, y);
+}
+
+function inline_less_strong(x, y) {
+  "use strong";
+  return x < y;
+}
+
+function inline_less_strong_outer(x, y) {
+  return inline_less_strong(x, y);
+}
+
+function inline_greater_strong(x, y) {
+  "use strong";
+  return x > y;
+}
+
+function inline_greater_strong_outer(x, y) {
+  return inline_greater_strong(x, y);
+}
+
+function inline_less_equal_strong(x, y) {
+  "use strong";
+  return x <= y;
+}
+
+function inline_less_equal_strong_outer(x, y) {
+  return inline_less_equal_strong(x, y);
+}
+
+function inline_greater_equal_strong(x, y) {
+  "use strong";
+  return x >= y;
+}
+
+function inline_greater_equal_strong_outer(x, y) {
+  return inline_greater_equal_strong(x, y);
 }
 
 function inline_add(x, y) {
@@ -204,19 +242,170 @@ function inline_sar_outer_strong(x, y) {
   return inline_sar(x, y);
 }
 
-let strong_inner_funcs = [inline_add_strong_outer, inline_sub_strong_outer,
-                          inline_mul_strong_outer, inline_div_strong_outer,
-                          inline_mod_strong_outer, inline_or_strong_outer,
-                          inline_and_strong_outer, inline_xor_strong_outer,
-                          inline_shl_strong_outer, inline_shr_strong_outer];
+function inline_less(x, y) {
+  return x < y;
+}
 
-let strong_outer_funcs = [inline_add_outer_strong, inline_sub_outer_strong,
-                          inline_mul_outer_strong, inline_div_outer_strong,
-                          inline_mod_outer_strong, inline_or_outer_strong,
-                          inline_and_outer_strong, inline_xor_outer_strong,
-                          inline_shl_outer_strong, inline_shr_outer_strong];
+function inline_less_outer_strong(x, y) {
+  "use strong";
+  return inline_less(x, y);
+}
 
-for (let strong_inner_func of strong_inner_funcs) {
+function inline_greater(x, y) {
+  return x > y;
+}
+
+function inline_greater_outer_strong(x, y) {
+  "use strong";
+  return inline_greater(x, y);
+}
+
+function inline_less_equal(x, y) {
+  return x <= y;
+}
+
+function inline_less_equal_outer_strong(x, y) {
+  "use strong";
+  return inline_less_equal(x, y);
+}
+
+function inline_greater_equal(x, y) {
+  return x >>> y;
+}
+
+function inline_greater_equal_outer_strong(x, y) {
+  "use strong";
+  return inline_greater_equal(x, y);
+}
+
+//******************************************************************************
+// String function declarations
+function inline_add_string_strong(x, y) {
+  "use strong";
+  return x + y;
+}
+
+function inline_add_string_strong_outer(x, y) {
+  return inline_add_string_strong(x, y);
+}
+
+function inline_less_string_strong(x, y) {
+  "use strong";
+  return x < y;
+}
+
+function inline_less_string_strong_outer(x, y) {
+  return inline_less_string_strong(x, y);
+}
+
+function inline_greater_string_strong(x, y) {
+  "use strong";
+  return x > y;
+}
+
+function inline_greater_string_strong_outer(x, y) {
+  return inline_greater_string_strong(x, y);
+}
+
+function inline_less_equal_string_strong(x, y) {
+  "use strong";
+  return x <= y;
+}
+
+function inline_less_equal_string_strong_outer(x, y) {
+  return inline_less_equal_string_strong(x, y);
+}
+
+function inline_greater_equal_string_strong(x, y) {
+  "use strong";
+  return x >= y;
+}
+
+function inline_greater_equal_string_strong_outer(x, y) {
+  return inline_greater_equal_string_strong(x, y);
+}
+
+function inline_add_string(x, y) {
+  return x + y;
+}
+
+function inline_add_string_outer_strong(x, y) {
+  "use strong";
+  return inline_add_string(x, y);
+}
+
+function inline_less_string(x, y) {
+  return x < y;
+}
+
+function inline_less_string_outer_strong(x, y) {
+  "use strong";
+  return inline_less_string(x, y);
+}
+
+function inline_greater_string(x, y) {
+  return x > y;
+}
+
+function inline_greater_string_outer_strong(x, y) {
+  "use strong";
+  return inline_greater_string(x, y);
+}
+
+function inline_less_equal_string(x, y) {
+  return x <= y;
+}
+
+function inline_less_equal_string_outer_strong(x, y) {
+  "use strong";
+  return inline_less_equal_string(x, y);
+}
+
+function inline_greater_equal_string(x, y) {
+  return x >= y;
+}
+
+function inline_greater_equal_string_outer_strong(x, y) {
+  "use strong";
+  return inline_greater_equal_string(x, y);
+}
+
+
+//******************************************************************************
+// Testing
+let strong_inner_funcs_num = [inline_add_strong_outer, inline_sub_strong_outer,
+                              inline_mul_strong_outer, inline_div_strong_outer,
+                              inline_mod_strong_outer, inline_or_strong_outer,
+                              inline_and_strong_outer, inline_xor_strong_outer,
+                              inline_shl_strong_outer, inline_shr_strong_outer,
+                              inline_less_strong_outer,
+                              inline_greater_strong_outer,
+                              inline_less_equal_strong_outer,
+                              inline_greater_equal_strong_outer];
+
+let strong_outer_funcs_num = [inline_add_outer_strong, inline_sub_outer_strong,
+                              inline_mul_outer_strong, inline_div_outer_strong,
+                              inline_mod_outer_strong, inline_or_outer_strong,
+                              inline_and_outer_strong, inline_xor_outer_strong,
+                              inline_shl_outer_strong, inline_shr_outer_strong,
+                              inline_less_outer_strong,
+                              inline_greater_outer_strong,
+                              inline_less_equal_outer_strong,
+                              inline_greater_equal_outer_strong];
+
+let strong_inner_funcs_string = [inline_add_string_strong_outer,
+                                 inline_less_string_strong_outer,
+                                 inline_greater_string_strong_outer,
+                                 inline_less_equal_string_strong_outer,
+                                 inline_greater_equal_string_strong_outer];
+
+let strong_outer_funcs_string = [inline_add_string_outer_strong,
+                                 inline_less_string_outer_strong,
+                                 inline_greater_string_outer_strong,
+                                 inline_less_equal_string_outer_strong,
+                                 inline_greater_equal_string_outer_strong];
+
+for (let strong_inner_func of strong_inner_funcs_num) {
   assertThrows(function(){strong_inner_func(1, {})}, TypeError);
   for (var i = 0; i < 100; i++) {
     strong_inner_func(1, 2);
@@ -225,11 +414,29 @@ for (let strong_inner_func of strong_inner_funcs) {
   assertThrows(function(){strong_inner_func(1, {})}, TypeError);
 }
 
-for (let strong_outer_func of strong_outer_funcs) {
+for (let strong_outer_func of strong_outer_funcs_num) {
   assertDoesNotThrow(function(){strong_outer_func(1, {})});
   for (var i = 0; i < 100; i++) {
     strong_outer_func(1, 2);
   }
   %OptimizeFunctionOnNextCall(strong_outer_func);
   assertDoesNotThrow(function(){strong_outer_func(1, {})});
+}
+
+for (let strong_inner_func of strong_inner_funcs_string) {
+  assertThrows(function(){strong_inner_func("foo", {})}, TypeError);
+  for (var i = 0; i < 100; i++) {
+    strong_inner_func("foo", "bar");
+  }
+  %OptimizeFunctionOnNextCall(strong_inner_func);
+  assertThrows(function(){strong_inner_func("foo", {})}, TypeError);
+}
+
+for (let strong_outer_func of strong_outer_funcs_string) {
+  assertDoesNotThrow(function(){strong_outer_func("foo", {})});
+  for (var i = 0; i < 100; i++) {
+    strong_outer_func("foo", "bar");
+  }
+  %OptimizeFunctionOnNextCall(strong_outer_func);
+  assertDoesNotThrow(function(){strong_outer_func("foo", {})});
 }

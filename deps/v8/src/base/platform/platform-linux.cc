@@ -108,7 +108,7 @@ const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
 #else
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
+  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
   if (!t || !t->tm_zone) return "";
   return t->tm_zone;
 #endif
@@ -121,7 +121,7 @@ double OS::LocalTimeOffset(TimezoneCache* cache) {
   return 0;
 #else
   time_t tv = time(NULL);
-  struct tm* t = localtime(&tv);
+  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
   // tm_gmtoff includes any daylight savings offset, so subtract it.
   return static_cast<double>(t->tm_gmtoff * msPerSecond -
                              (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
@@ -310,16 +310,19 @@ void VirtualMemory::Reset() {
 
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  CHECK(InVM(address, size));
   return CommitRegion(address, size, is_executable);
 }
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
+  CHECK(InVM(address, size));
   return UncommitRegion(address, size);
 }
 
 
 bool VirtualMemory::Guard(void* address) {
+  CHECK(InVM(address, OS::CommitPageSize()));
   OS::Guard(address, OS::CommitPageSize());
   return true;
 }
@@ -385,4 +388,5 @@ bool VirtualMemory::HasLazyCommits() {
   return true;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

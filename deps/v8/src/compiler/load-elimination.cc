@@ -36,7 +36,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
         if (object == NodeProperties::GetValueInput(effect, 0) &&
             access == FieldAccessOf(effect->op())) {
           Node* const value = effect;
-          NodeProperties::ReplaceWithValue(node, value);
+          ReplaceWithValue(node, value);
           return Replace(value);
         }
         break;
@@ -45,7 +45,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
         if (access == FieldAccessOf(effect->op())) {
           if (object == NodeProperties::GetValueInput(effect, 0)) {
             Node* const value = NodeProperties::GetValueInput(effect, 1);
-            NodeProperties::ReplaceWithValue(node, value);
+            ReplaceWithValue(node, value);
             return Replace(value);
           }
           // TODO(turbofan): Alias analysis to the rescue?

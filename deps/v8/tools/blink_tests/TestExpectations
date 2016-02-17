@@ -1,10 +1,5 @@
-[ Linux ] virtual/pointerevent/fast/events/mouse-cursor-style-change-iframe.html [Skip]
-[ Linux ] virtual/slimmingpaint/fast/events/mouse-cursor-style-change-iframe.html [Skip]
-[ Linux ] virtual/slimmingpaint/fast/forms/radio/radio_checked_dynamic.html [Skip]
-[ Linux ] virtual/slimmingpaint/fast/preloader/document-write-noscript.html [Skip]
-[ Linux ] virtual/slimmingpaint/svg/animations/repeatn-event-1c.svg [Skip]
-[ Linux ] virtual/slimmingpaint/svg/dom/SVGViewSpec.html [Skip]
-[ Linux ] virtual/slimmingpaint/svg/dom/viewspec-viewboxparams.html [Skip]
-[ Linux ] virtual/slimmingpaint/svg/dom/viewspec-zoomandpanparams.html [Skip]
-[ Linux ] virtual/slimmingpaint/svg/repaint/image-animation-with-zoom.html [Skip]
+[ Linux ] virtual/pointerevent/fast/events/mouse-cursor-style-change-iframe.html [ Skip ]
+
+# Turn off Slimming Paint tests on linux.
+[ Linux ] virtual/slimmingpaint/ [ Skip ]
 

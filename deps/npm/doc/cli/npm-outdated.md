@@ -3,16 +3,68 @@ npm-outdated(1) -- Check for outdated packages
 
 ## SYNOPSIS
 
-    npm outdated [<name> [<name> ...]]
+    npm outdated [[<@scope>/]<pkg> ...]
 
 ## DESCRIPTION
 
 This command will check the registry to see if any (or, specific) installed
 packages are currently outdated.
 
-The resulting field 'wanted' shows the latest version according to the
-version specified in the package.json, the field 'latest' the very latest
-version of the package.
+In the output:
+
+* `wanted` is the maximum version of the package that satisfies the semver
+  range specified in `package.json`. If there's no available semver range (i.e.
+  you're running `npm outdated --global`, or the package isn't included in
+  `package.json`), then `wanted` shows the currently-installed version.
+* `latest` is the version of the package tagged as latest in the registry.
+  Running `npm publish` with no special configuration will publish the package
+  with a dist-tag of `latest`. This may or may not be the maximum version of
+  the package, or the most-recently published version of the package, depending
+  on how the package's developer manages the latest dist-tag(1).
+* `location` is where in the dependency tree the package is located. Note that
+  `npm outdated` defaults to a depth of 0, so unless you override that, you'll
+  always be seeing only top-level dependencies that are outdated.
+* `package type` (when using `--long` / `-l`) tells you whether this package is
+  a `dependency` or a `devDependency`. Packages not included in `package.json`
+  are always marked `dependencies`.
+
+### An example
+
+```
+$ npm outdated
+Package      Current   Wanted   Latest  Location
+glob          5.0.15   5.0.15    6.0.1  test-outdated-output
+nothingness    0.0.3      git      git  test-outdated-output
+npm            3.5.1    3.5.2    3.5.1  test-outdated-output
+local-dev      0.0.3   linked   linked  test-outdated-output
+once           1.3.2    1.3.3    1.3.3  test-outdated-output
+```
+
+With these `dependencies`:
+```json
+{
+  "glob": "^5.0.15",
+  "nothingness": "github:othiym23/nothingness#master",
+  "npm": "^3.5.1",
+  "once": "^1.3.1"
+}
+```
+
+A few things to note:
+
+* `glob` requires `^5`, which prevents npm from installing `glob@6`, which is
+  outside the semver range.
+* Git dependencies will always be reinstalled, because of how they're specified.
+  The installed committish might satisfy the dependency specifier (if it's
+  something immutable, like a commit SHA), or it might not, so `npm outdated` and
+  `npm update` have to fetch Git repos to check. This is why currently doing a
+  reinstall of a Git dependency always forces a new clone and install.
+* `npm@3.5.2` is marked as "wanted", but "latest" is `npm@3.5.1` because npm
+  uses dist-tags to manage its `latest` and `next` release channels. `npm update`
+  will install the _newest_ version, but `npm install npm` (with no semver range)
+  will install whatever's tagged as `latest`.
+* `once` is just plain out of date. Reinstalling `node_modules` from scratch or
+  running `npm update` will bring it up to spec.
 
 ## CONFIGURATION
 
@@ -47,6 +99,7 @@ project.
 
 ### depth
 
+* Default: 0
 * Type: Int
 
 Max depth for checking dependency tree.
@@ -54,5 +107,6 @@ Max depth for checking dependency tree.
 ## SEE ALSO
 
 * npm-update(1)
+* npm-dist-tag(1)
 * npm-registry(7)
 * npm-folders(5)

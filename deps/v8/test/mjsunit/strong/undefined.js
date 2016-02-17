@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --strong-mode --harmony-sloppy --harmony-arrow-functions
+// Flags: --strong-mode --harmony-sloppy
 
 // Repurposing the strict mode 'eval' and 'arguments' tests to test for correct
 // behaviour of 'undefined' as an identifier in strong mode.

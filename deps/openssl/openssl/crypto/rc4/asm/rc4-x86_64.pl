@@ -56,7 +56,7 @@
 # achieves respectful 432MBps on 2.8GHz processor now. For reference.
 # If executed on Xeon, current RC4_CHAR code-path is 2.7x faster than
 # RC4_INT code-path. While if executed on Opteron, it's only 25%
-# slower than the RC4_INT one [meaning that if CPU µ-arch detection
+# slower than the RC4_INT one [meaning that if CPU Âµ-arch detection
 # is not implemented, then this final RC4_CHAR code-path should be
 # preferred, as it provides better *all-round* performance].
 

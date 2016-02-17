@@ -25,13 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(mythria): Remove this after this flag is turned on globally
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <stdlib.h>
 
 #include "src/v8.h"
 
+#include "src/crankshaft/unique.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
-#include "src/unique.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

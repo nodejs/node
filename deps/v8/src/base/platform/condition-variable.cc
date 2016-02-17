@@ -264,8 +264,8 @@ void ConditionVariable::Wait(Mutex* mutex) {
   mutex->Unlock();
 
   // Wait on the wait event.
-  while (!event->WaitFor(INFINITE))
-    ;
+  while (!event->WaitFor(INFINITE)) {
+  }
 
   // Reaquire the user mutex.
   mutex->Lock();
@@ -313,4 +313,5 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 
 #endif  // V8_OS_POSIX
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

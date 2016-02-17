@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "July 2015" "" ""
+.TH "PACKAGE\.JSON" "5" "January 2016" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -21,7 +21,7 @@ The name is what your thing is called\.
 Some rules:
 .RS 0
 .IP \(bu 2
-The name must be shorter than 214 characters\. This includes the scope for
+The name must be less than or equal to 214 characters\. This includes the scope for
 scoped packages\.
 .IP \(bu 2
 The name can't start with a dot or an underscore\.
@@ -118,10 +118,10 @@ current SPDX license identifier for the license you're using, like this:
 .P
 You can check the full list of SPDX license IDs \fIhttps://spdx\.org/licenses/\fR\|\.
 Ideally you should pick one that is
-OSI \fIhttp://opensource\.org/licenses/alphabetical\fR approved\.
+OSI \fIhttps://opensource\.org/licenses/alphabetical\fR approved\.
 .P
 If your package is licensed under multiple common licenses, use an SPDX license
-expression syntax version 2\.0 string \fIhttp://npmjs\.com/package/spdx\fR, like this:
+expression syntax version 2\.0 string \fIhttps://npmjs\.com/package/spdx\fR, like this:
 .P
 .RS 2
 .nf
@@ -217,10 +217,10 @@ The "files" field is an array of files to include in your project\.  If
 you name a folder in the array, then it will also include the files
 inside that folder\. (Unless they would be ignored by another rule\.)
 .P
-You can also provide a "\.npmignore" file in the root of your package,
-which will keep files from being included, even if they would be picked
-up by the files array\.  The "\.npmignore" file works just like a
-"\.gitignore"\.
+You can also provide a "\.npmignore" file in the root of your package or
+in subdirectories, which will keep files from being included, even
+if they would be picked up by the files array\.  The \fB\|\.npmignore\fP file
+works just like a \fB\|\.gitignore\fP\|\.
 .P
 Certain files are always included, regardless of settings:
 .RS 0
@@ -506,7 +506,7 @@ See npm help 7 semver for more details about specifying version ranges\.
 .IP \(bu 2
 \fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBnpm\-tag\fP
 .IP \(bu 2
-\fBpath/path/path\fP See Local Paths below
+\fBpath/path/path\fP See Local Paths \fI#local\-paths\fR below
 
 .RE
 .P
@@ -574,8 +574,8 @@ included\.  For example:
 .SH Local Paths
 .P
 As of version 2\.0\.0 you can provide a path to a local directory that contains a
-package\. Local paths can be saved using \fBnpm install \-\-save\fP, using any of
-these forms:
+package\. Local paths can be saved using \fBnpm install \-S\fP or
+\fBnpm install \-\-save\fP, using any of these forms:
 .P
 .RS 2
 .nf
@@ -694,7 +694,7 @@ this\. If you depend on features introduced in 1\.5\.2, use \fB">= 1\.5\.2 < 2"\
 .P
 Array of package names that will be bundled when publishing the package\.
 .P
-If this is spelled \fB"bundleDependencies"\fP, then that is also honorable\.
+If this is spelled \fB"bundleDependencies"\fP, then that is also honored\.
 .SH optionalDependencies
 .P
 If a dependency can be used, but you would like npm to proceed if it cannot be
@@ -758,17 +758,10 @@ Note that, unless the user has set the \fBengine\-strict\fP config flag, this
 field is advisory only\.
 .SH engineStrict
 .P
-\fBNOTE: This feature is deprecated and will be removed in npm 3\.0\.0\.\fR
+\fBThis feature was deprecated with npm 3\.0\.0\fR
 .P
-If you are sure that your module will \fIdefinitely not\fR run properly on
-versions of Node/npm other than those specified in the \fBengines\fP object,
-then you can set \fB"engineStrict": true\fP in your package\.json file\.
-This will override the user's \fBengine\-strict\fP config setting\.
-.P
-Please do not do this unless you are really very very sure\.  If your
-engines object is something overly restrictive, you can quite easily and
-inadvertently lock yourself into obscurity and prevent your users from
-updating to new versions of Node\.  Consider this choice carefully\.
+Prior to npm 3\.0\.0, this feature was used to treat this package as if the
+user had set \fBengine\-strict\fP\|\.
 .SH os
 .P
 You can specify which operating systems your
@@ -884,7 +877,7 @@ npm help install
 .IP \(bu 2
 npm help publish
 .IP \(bu 2
-npm help rm
+npm help uninstall
 
 .RE
 

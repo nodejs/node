@@ -23,16 +23,21 @@ cd test-npm
 rm -rf npm-cache npm-tmp npm-prefix
 mkdir npm-cache npm-tmp npm-prefix
 
-# set some npm env varibles to point to our new temporary folders
-export npm_config_cache="npm-cache"
-export npm_config_prefix="npm-prefix"
-export npm_config_tmp="npm-tmp"
+# set some npm env variables to point to our new temporary folders
+export npm_config_cache="$(pwd)/npm-cache"
+export npm_config_prefix="$(pwd)/npm-prefix"
+export npm_config_tmp="$(pwd)/npm-tmp"
 
+# ensure npm always uses the local node
+export PATH="$(../$NODE -p 'require("path").resolve("..")'):$PATH"
+unset NODE
+
+# make sure the binaries from the non-dev-deps are available
+node cli.js rebuild
 # install npm devDependencies and run npm's tests
-
-../$NODE cli.js install --ignore-scripts
-../$NODE cli.js run-script test-legacy
-../$NODE cli.js run-script test
+node cli.js install --ignore-scripts
+# run the tests
+node cli.js run-script test-node
 
 # clean up everything one single shot
 cd .. && rm -rf test-npm

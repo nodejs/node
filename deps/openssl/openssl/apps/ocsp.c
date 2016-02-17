@@ -1041,7 +1041,7 @@ static int make_ocsp_response(OCSP_RESPONSE **resp, OCSP_REQUEST *req,
     bs = OCSP_BASICRESP_new();
     thisupd = X509_gmtime_adj(NULL, 0);
     if (ndays != -1)
-        nextupd = X509_gmtime_adj(NULL, nmin * 60 + ndays * 3600 * 24);
+        nextupd = X509_time_adj_ex(NULL, ndays, nmin * 60, NULL);
 
     /* Examine each certificate id in the request */
     for (i = 0; i < id_count; i++) {
@@ -1261,8 +1261,8 @@ static OCSP_RESPONSE *query_responder(BIO *err, BIO *cbio, const char *path,
         return NULL;
     }
 
-    if (BIO_get_fd(cbio, &fd) <= 0) {
-        BIO_puts(err, "Can't get connection fd\n");
+    if (BIO_get_fd(cbio, &fd) < 0) {
+        BIO_puts(bio_err, "Can't get connection fd\n");
         goto err;
     }
 

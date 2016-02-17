@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var stream = require('stream');
@@ -42,7 +42,7 @@ function read100() {
 function readn(n, then) {
   console.error('read %d', n);
   expectEndingData -= n;
-  ;(function read() {
+  (function read() {
     var c = r.read(n);
     if (!c)
       r.once('readable', read);

@@ -4,6 +4,7 @@
 //
 // This file was generated at 2014-10-08 15:25:47.940335
 
+#include "src/unicode.h"
 #include "src/unicode-inl.h"
 #include <stdio.h>
 #include <stdlib.h>

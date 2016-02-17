@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=1.0.2d
+VERSION=1.0.2f
 MAJOR=1
 MINOR=0.2
 SHLIB_VERSION_NUMBER=1.0.0
@@ -182,8 +182,7 @@ SHARED_LDFLAGS=
 GENERAL=        Makefile
 BASENAME=       openssl
 NAME=           $(BASENAME)-$(VERSION)
-TARFILE=        $(NAME).tar
-WTARFILE=       $(NAME)-win.tar
+TARFILE=        ../$(NAME).tar
 EXHEADER=       e_os2.h
 HEADER=         e_os.h
 
@@ -205,7 +204,9 @@ CLEARENV=	TOP= && unset TOP $${LIB+LIB} $${LIBS+LIBS}	\
 		$${SHAREDCMD+SHAREDCMD} $${SHAREDFLAGS+SHAREDFLAGS}	\
 		$${SHARED_LIB+SHARED_LIB} $${LIBEXTRAS+LIBEXTRAS}
 
-BUILDENV=	PLATFORM='$(PLATFORM)' PROCESSOR='$(PROCESSOR)' \
+# LC_ALL=C ensures that error [and other] messages are delivered in
+# same language for uniform treatment.
+BUILDENV=	LC_ALL=C PLATFORM='$(PLATFORM)' PROCESSOR='$(PROCESSOR)'\
 		CC='$(CC)' CFLAG='$(CFLAG)' 			\
 		AS='$(CC)' ASFLAG='$(CFLAG) -c'			\
 		AR='$(AR)' NM='$(NM)' RANLIB='$(RANLIB)'	\
@@ -499,35 +500,35 @@ TABLE: Configure
 # would occur. Therefore the list of files is temporarily stored into a file
 # and read directly, requiring GNU-Tar. Call "make TAR=gtar dist" if the normal
 # tar does not support the --files-from option.
-tar:
+TAR_COMMAND=$(TAR) $(TARFLAGS) --files-from $(TARFILE).list \
+	                       --owner 0 --group 0 \
+			       --transform 's|^|$(NAME)/|' \
+			       -cvf -
+
+$(TARFILE).list:
+	find * \! -name STATUS \! -name TABLE \! -name '*.o' \! -name '*.a' \
+	       \! -name '*.so' \! -name '*.so.*'  \! -name 'openssl' \
+	       \( \! -name '*test' -o -name bctest -o -name pod2mantest \) \
+	       \! -name '.#*' \! -name '*~' \! -type l \
+	    | sort > $(TARFILE).list
+
+tar: $(TARFILE).list
 	find . -type d -print | xargs chmod 755
 	find . -type f -print | xargs chmod a+r
 	find . -type f -perm -0100 -print | xargs chmod a+x
-	find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE | sort > ../$(TARFILE).list; \
-	$(TAR) $(TARFLAGS) --files-from ../$(TARFILE).list -cvf - | \
-	tardy --user_number=0  --user_name=openssl \
-	      --group_number=0 --group_name=openssl \
-	      --prefix=openssl-$(VERSION) - |\
-	gzip --best >../$(TARFILE).gz; \
-	rm -f ../$(TARFILE).list; \
-	ls -l ../$(TARFILE).gz
+	$(TAR_COMMAND) | gzip --best > $(TARFILE).gz
+	rm -f $(TARFILE).list
+	ls -l $(TARFILE).gz
 
-tar-snap:
-	@$(TAR) $(TARFLAGS) -cvf - \
-		`find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE \! -name '*.o' \! -name '*.a' \! -name '*.so' \! -name '*.so.*'  \! -name 'openssl' \! -name '*test' \! -name '.#*' \! -name '*~' | sort` |\
-	tardy --user_number=0  --user_name=openssl \
-	      --group_number=0 --group_name=openssl \
-	      --prefix=openssl-$(VERSION) - > ../$(TARFILE);\
-	ls -l ../$(TARFILE)
+tar-snap: $(TARFILE).list
+	$(TAR_COMMAND) > $(TARFILE)
+	rm -f $(TARFILE).list
+	ls -l $(TARFILE)
 
 dist:   
 	$(PERL) Configure dist
-	@$(MAKE) dist_pem_h
 	@$(MAKE) SDIRS='$(SDIRS)' clean
-	@$(MAKE) TAR='$(TAR)' TARFLAGS='$(TARFLAGS)' tar
-
-dist_pem_h:
-	(cd crypto/pem; $(MAKE) -e $(BUILDENV) pem.h; $(MAKE) clean)
+	@$(MAKE) TAR='$(TAR)' TARFLAGS='$(TARFLAGS)' $(DISTTARVARS) tar
 
 install: all install_docs install_sw
 

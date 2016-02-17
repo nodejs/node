@@ -93,7 +93,7 @@ namespace compiler {
   V(ArmLdr)                        \
   V(ArmStr)                        \
   V(ArmPush)                       \
-  V(ArmStoreWriteBarrier)
+  V(ArmPoke)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.

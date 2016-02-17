@@ -37,8 +37,14 @@ class InstructionOperandConverter {
 
   double InputDouble(size_t index) { return ToDouble(instr_->InputAt(index)); }
 
+  float InputFloat32(size_t index) { return ToFloat32(instr_->InputAt(index)); }
+
   int32_t InputInt32(size_t index) {
     return ToConstant(instr_->InputAt(index)).ToInt32();
+  }
+
+  int64_t InputInt64(size_t index) {
+    return ToConstant(instr_->InputAt(index)).ToInt64();
   }
 
   int8_t InputInt8(size_t index) {
@@ -55,6 +61,10 @@ class InstructionOperandConverter {
 
   uint8_t InputInt6(size_t index) {
     return static_cast<uint8_t>(InputInt32(index) & 0x3F);
+  }
+
+  ExternalReference InputExternalReference(size_t index) {
+    return ToExternalReference(instr_->InputAt(index));
   }
 
   Handle<HeapObject> InputHeapObject(size_t index) {
@@ -90,12 +100,11 @@ class InstructionOperandConverter {
   }
 
   Register ToRegister(InstructionOperand* op) {
-    return Register::FromAllocationIndex(RegisterOperand::cast(op)->index());
+    return LocationOperand::cast(op)->GetRegister();
   }
 
   DoubleRegister ToDoubleRegister(InstructionOperand* op) {
-    return DoubleRegister::FromAllocationIndex(
-        DoubleRegisterOperand::cast(op)->index());
+    return LocationOperand::cast(op)->GetDoubleRegister();
   }
 
   Constant ToConstant(InstructionOperand* op) {
@@ -107,6 +116,12 @@ class InstructionOperandConverter {
   }
 
   double ToDouble(InstructionOperand* op) { return ToConstant(op).ToFloat64(); }
+
+  float ToFloat32(InstructionOperand* op) { return ToConstant(op).ToFloat32(); }
+
+  ExternalReference ToExternalReference(InstructionOperand* op) {
+    return ToConstant(op).ToExternalReference();
+  }
 
   Handle<HeapObject> ToHeapObject(InstructionOperand* op) {
     return ToConstant(op).ToHeapObject();
@@ -132,12 +147,15 @@ class OutOfLineCode : public ZoneObject {
 
   Label* entry() { return &entry_; }
   Label* exit() { return &exit_; }
+  Frame* frame() const { return frame_; }
+  Isolate* isolate() const { return masm()->isolate(); }
   MacroAssembler* masm() const { return masm_; }
   OutOfLineCode* next() const { return next_; }
 
  private:
   Label entry_;
   Label exit_;
+  Frame* const frame_;
   MacroAssembler* const masm_;
   OutOfLineCode* const next_;
 };

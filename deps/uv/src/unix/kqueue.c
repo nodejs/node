@@ -379,6 +379,10 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   if (!(statbuf.st_mode & S_IFDIR))
     goto fallback;
 
+  /* The fallback fd is no longer needed */
+  uv__close(fd);
+  handle->event_watcher.fd = -1;
+
   return uv__fsevents_init(handle);
 
 fallback:
@@ -406,8 +410,12 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   uv__free(handle->path);
   handle->path = NULL;
 
-  uv__close(handle->event_watcher.fd);
-  handle->event_watcher.fd = -1;
+  if (handle->event_watcher.fd != -1) {
+    /* When FSEvents is used, we don't use the event_watcher's fd under certain
+     * confitions. (see uv_fs_event_start) */
+    uv__close(handle->event_watcher.fd);
+    handle->event_watcher.fd = -1;
+  }
 
   return 0;
 }

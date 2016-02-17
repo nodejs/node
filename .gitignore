@@ -24,7 +24,8 @@ icu_config.gypi
 
 # various stuff that VC++ produces/uses
 Debug/
-!node_modules/debug/
+!**/node_modules/debug/
+!deps/v8/src/debug/
 Release/
 !doc/blog/**
 *.sln
@@ -43,13 +44,14 @@ ipch/
 
 /config.mk
 /config.gypi
+/config_fips.gypi
 *-nodegyp*
 /gyp-mac-tool
 /dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
 /tools/osx-pkg.pmdoc/index.xml
-/test/addons/doc-*/
+/test/addons/??_*/
 email.md
 deps/v8-*
 deps/icu
@@ -70,6 +72,9 @@ deps/openssl/openssl.xml
 /*.host.mk
 deps/openssl/openssl.target.mk
 deps/zlib/zlib.target.mk
+
+# not needed and causes issues for distro packagers
+deps/npm/node_modules/.bin/
 
 # build/release artifacts
 /*.tar.*

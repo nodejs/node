@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var a = require('assert');
 
@@ -10,7 +10,7 @@ function makeBlock(f) {
   };
 }
 
-assert.ok(common.indirectInstanceOf(a.AssertionError.prototype, Error),
+assert.ok(a.AssertionError.prototype instanceof Error,
           'a.AssertionError instanceof Error');
 
 assert.throws(makeBlock(a, false), a.AssertionError, 'ok(false)');
@@ -73,9 +73,11 @@ assert.throws(makeBlock(a.deepEqual, /a/i, /a/));
 assert.throws(makeBlock(a.deepEqual, /a/m, /a/));
 assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im));
 
-var re1 = /a/;
-re1.lastIndex = 3;
-assert.throws(makeBlock(a.deepEqual, re1, /a/));
+{
+  const re1 = /a/;
+  re1.lastIndex = 3;
+  assert.throws(makeBlock(a.deepEqual, re1, /a/));
+}
 
 
 // 7.4
@@ -140,9 +142,7 @@ assert.throws(makeBlock(a.deepEqual, 'a', ['a']), a.AssertionError);
 assert.throws(makeBlock(a.deepEqual, 'a', {0: 'a'}), a.AssertionError);
 assert.throws(makeBlock(a.deepEqual, 1, {}), a.AssertionError);
 assert.throws(makeBlock(a.deepEqual, true, {}), a.AssertionError);
-if (typeof Symbol === 'symbol') {
-  assert.throws(makeBlock(assert.deepEqual, Symbol(), {}), a.AssertionError);
-}
+assert.throws(makeBlock(a.deepEqual, Symbol(), {}), a.AssertionError);
 
 // primitive wrappers and object
 assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), ['a']),
@@ -174,10 +174,11 @@ assert.throws(makeBlock(a.deepStrictEqual, /a/i, /a/));
 assert.throws(makeBlock(a.deepStrictEqual, /a/m, /a/));
 assert.throws(makeBlock(a.deepStrictEqual, /a/igm, /a/im));
 
-var re1 = /a/;
-re1.lastIndex = 3;
-assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
-
+{
+  const re1 = /a/;
+  re1.lastIndex = 3;
+  assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
+}
 
 // 7.4 - strict
 assert.throws(makeBlock(a.deepStrictEqual, 4, '4'),
@@ -273,8 +274,6 @@ assert.throws(makeBlock(a.deepStrictEqual, new Boolean(true), {}),
 function thrower(errorConstructor) {
   throw new errorConstructor('test');
 }
-var aethrow = makeBlock(thrower, a.AssertionError);
-aethrow = makeBlock(thrower, a.AssertionError);
 
 // the basic calls work
 assert.throws(makeBlock(thrower, a.AssertionError),
@@ -346,9 +345,28 @@ a.throws(makeBlock(thrower, TypeError), function(err) {
   }
 });
 
+// https://github.com/nodejs/node/issues/3188
+threw = false;
+
+try {
+  var ES6Error = class extends Error {};
+
+  var AnotherErrorType = class extends Error {};
+
+  const functionThatThrows = function() {
+    throw new AnotherErrorType('foo');
+  };
+
+  assert.throws(functionThatThrows, ES6Error);
+} catch (e) {
+  threw = true;
+  assert(e instanceof AnotherErrorType,
+    `expected AnotherErrorType, received ${e}`);
+}
+
+assert.ok(threw);
 
 // GH-207. Make sure deepEqual doesn't loop forever on circular refs
-
 var b = {};
 b.b = b;
 
@@ -440,7 +458,8 @@ function testBlockTypeError(method, block) {
     method(block);
     threw = false;
   } catch (e) {
-    assert.equal(e.toString(), 'TypeError: block must be a function');
+    assert.equal(e.toString(),
+                 'TypeError: "block" argument must be a function');
   }
 
   assert.ok(threw);
@@ -464,5 +483,9 @@ testBlockTypeError(assert.throws, null);
 testBlockTypeError(assert.doesNotThrow, null);
 testBlockTypeError(assert.throws, undefined);
 testBlockTypeError(assert.doesNotThrow, undefined);
+
+// https://github.com/nodejs/node/issues/3275
+assert.throws(() => { throw 'error'; }, (err) => err === 'error');
+assert.throws(() => { throw new Error(); }, (err) => err instanceof Error);
 
 console.log('All OK');

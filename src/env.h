@@ -38,13 +38,30 @@ namespace node {
 #define NODE_ISOLATE_SLOT 3
 #endif
 
+// The number of items passed to push_values_to_array_function has diminishing
+// returns around 8. This should be used at all call sites using said function.
+#ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
+#define NODE_PUSH_VAL_TO_ARRAY_MAX 8
+#endif
+
+// Private symbols are per-isolate primitives but Environment proxies them
+// for the sake of convenience.  Strings should be ASCII-only and have a
+// "node:" prefix to avoid name clashes with third-party code.
+#define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                              \
+  V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
+  V(arrow_message_private_symbol, "node:arrowMessage")                        \
+  V(contextify_private_symbol, "node:contextify")                             \
+  V(decorated_private_symbol, "node:decorated")                               \
+  V(npn_buffer_private_symbol, "node:npnBuffer")                              \
+  V(processed_private_symbol, "node:processed")                               \
+  V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
+
 // Strings are per-isolate primitives but Environment proxies them
-// for the sake of convenience.
+// for the sake of convenience.  Strings should be ASCII-only.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(argv_string, "argv")                                                      \
-  V(arrow_message_string, "arrowMessage")                                     \
   V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
   V(atime_string, "atime")                                                    \
@@ -54,6 +71,8 @@ namespace node {
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
+  V(cached_data_string, "cachedData")                                         \
+  V(cached_data_rejected_string, "cachedDataRejected")                        \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(oncertcb_string, "oncertcb")                                              \
@@ -69,7 +88,7 @@ namespace node {
   V(dev_string, "dev")                                                        \
   V(disposed_string, "_disposed")                                             \
   V(domain_string, "domain")                                                  \
-  V(domain_abort_uncaught_exc_string, "_makeCallbackAbortOnUncaught")         \
+  V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
   V(exchange_string, "exchange")                                              \
   V(idle_string, "idle")                                                      \
   V(irq_string, "irq")                                                        \
@@ -165,7 +184,7 @@ namespace node {
   V(port_string, "port")                                                      \
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
-  V(processed_string, "processed")                                            \
+  V(produce_cached_data_string, "produceCachedData")                          \
   V(prototype_string, "prototype")                                            \
   V(raw_string, "raw")                                                        \
   V(rdev_string, "rdev")                                                      \
@@ -205,6 +224,7 @@ namespace node {
   V(timestamp_string, "timestamp")                                            \
   V(title_string, "title")                                                    \
   V(tls_npn_string, "tls_npn")                                                \
+  V(tls_alpn_string, "tls_alpn")                                              \
   V(tls_ocsp_string, "tls_ocsp")                                              \
   V(tls_sni_string, "tls_sni")                                                \
   V(tls_string, "tls")                                                        \
@@ -228,20 +248,24 @@ namespace node {
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
   V(as_external, v8::External)                                                \
+  V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
-  V(async_hooks_pre_function, v8::Function)                                   \
   V(async_hooks_post_function, v8::Function)                                  \
+  V(async_hooks_pre_function, v8::Function)                                   \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_constructor_function, v8::Function)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_array, v8::Array)                                                  \
+  V(domains_stack_array, v8::Array)                                           \
   V(fs_stats_constructor_function, v8::Function)                              \
+  V(generic_internal_field_template, v8::ObjectTemplate)                      \
   V(jsstream_constructor_template, v8::FunctionTemplate)                      \
   V(module_load_list_array, v8::Array)                                        \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(process_object, v8::Object)                                               \
   V(promise_reject_function, v8::Function)                                    \
+  V(push_values_to_array_function, v8::Function)                              \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \
@@ -290,6 +314,19 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
 
+  class AsyncCallbackScope {
+   public:
+    explicit AsyncCallbackScope(Environment* env);
+    ~AsyncCallbackScope();
+
+    inline bool in_makecallback();
+
+   private:
+    Environment* env_;
+
+    DISALLOW_COPY_AND_ASSIGN(AsyncCallbackScope);
+  };
+
   class DomainFlag {
    public:
     inline uint32_t* fields();
@@ -314,13 +351,9 @@ class Environment {
    public:
     inline uint32_t* fields();
     inline int fields_count() const;
-    inline bool in_tick() const;
-    inline bool last_threw() const;
     inline uint32_t index() const;
     inline uint32_t length() const;
-    inline void set_in_tick(bool value);
     inline void set_index(uint32_t value);
-    inline void set_last_threw(bool value);
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -333,10 +366,29 @@ class Environment {
     };
 
     uint32_t fields_[kFieldsCount];
-    bool in_tick_;
-    bool last_threw_;
 
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
+  };
+
+  class ArrayBufferAllocatorInfo {
+   public:
+    inline uint32_t* fields();
+    inline int fields_count() const;
+    inline bool no_zero_fill() const;
+    inline void reset_fill_flag();
+
+   private:
+    friend class Environment;  // So we can call the constructor.
+    inline ArrayBufferAllocatorInfo();
+
+    enum Fields {
+      kNoZeroFill,
+      kFieldsCount
+    };
+
+    uint32_t fields_[kFieldsCount];
+
+    DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocatorInfo);
   };
 
   typedef void (*HandleCleanupCb)(Environment* env,
@@ -401,6 +453,7 @@ class Environment {
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
+  inline ArrayBufferAllocatorInfo* array_buffer_allocator_info();
   inline uint64_t timer_base() const;
 
   static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
@@ -409,14 +462,8 @@ class Environment {
   inline ares_channel* cares_channel_ptr();
   inline ares_task_list* cares_task_list();
 
-  inline bool using_abort_on_uncaught_exc() const;
-  inline void set_using_abort_on_uncaught_exc(bool value);
-
   inline bool using_domains() const;
   inline void set_using_domains(bool value);
-
-  inline bool using_asyncwrap() const;
-  inline void set_using_asyncwrap(bool value);
 
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
@@ -424,10 +471,15 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
-  bool KickNextTick();
+  inline int64_t get_async_wrap_uid();
+
+  bool KickNextTick(AsyncCallbackScope* scope);
 
   inline uint32_t* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(uint32_t* pointer);
+
+  inline uint32_t* heap_space_statistics_buffer() const;
+  inline void set_heap_space_statistics_buffer(uint32_t* pointer);
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
@@ -466,13 +518,19 @@ class Environment {
                                 const char* name,
                                 v8::FunctionCallback callback);
 
+  inline v8::Local<v8::Object> NewInternalFieldObject();
 
-  // Strings are shared across shared contexts. The getters simply proxy to
-  // the per-isolate primitive.
-#define V(PropertyName, StringValue)                                          \
-  inline v8::Local<v8::String> PropertyName() const;
-  PER_ISOLATE_STRING_PROPERTIES(V)
+  // Strings and private symbols are shared across shared contexts
+  // The getters simply proxy to the per-isolate primitive.
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+  inline v8::Local<TypeName> PropertyName() const;
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+  PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
+#undef VS
+#undef VP
 
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> PropertyName() const;                            \
@@ -510,15 +568,16 @@ class Environment {
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
+  ArrayBufferAllocatorInfo array_buffer_allocator_info_;
   const uint64_t timer_base_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
   ares_task_list cares_task_list_;
   bool using_domains_;
-  bool using_abort_on_uncaught_exc_;
-  bool using_asyncwrap_;
   bool printed_error_;
   bool trace_sync_io_;
+  size_t makecallback_cntr_;
+  int64_t async_wrap_uid_;
   debugger::Agent debugger_agent_;
 
   HandleWrapQueue handle_wrap_queue_;
@@ -528,6 +587,7 @@ class Environment {
   int handle_cleanup_waiting_;
 
   uint32_t* heap_statistics_buffer_ = nullptr;
+  uint32_t* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
 
@@ -544,10 +604,15 @@ class Environment {
     inline void Put();
     inline uv_loop_t* event_loop() const;
 
-#define V(PropertyName, StringValue)                                          \
-    inline v8::Local<v8::String> PropertyName() const;
-    PER_ISOLATE_STRING_PROPERTIES(V)
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+    inline v8::Local<TypeName> PropertyName() const;
+    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+    PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
+#undef VS
+#undef VP
 
    private:
     inline static IsolateData* Get(v8::Isolate* isolate);
@@ -557,10 +622,15 @@ class Environment {
     uv_loop_t* const event_loop_;
     v8::Isolate* const isolate_;
 
-#define V(PropertyName, StringValue)                                          \
-    v8::Eternal<v8::String> PropertyName ## _;
-    PER_ISOLATE_STRING_PROPERTIES(V)
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+    v8::Eternal<TypeName> PropertyName ## _;
+    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+    PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
+#undef VS
+#undef VP
 
     unsigned int ref_count_;
 

@@ -98,6 +98,30 @@ consts_misc = [
         'value': 'PropertyDetails::FieldIndexField::kMask' },
     { 'name': 'prop_index_shift',
         'value': 'PropertyDetails::FieldIndexField::kShift' },
+    { 'name': 'prop_representation_mask',
+        'value': 'PropertyDetails::RepresentationField::kMask' },
+    { 'name': 'prop_representation_shift',
+        'value': 'PropertyDetails::RepresentationField::kShift' },
+    { 'name': 'prop_representation_integer8',
+        'value': 'Representation::Kind::kInteger8' },
+    { 'name': 'prop_representation_uinteger8',
+        'value': 'Representation::Kind::kUInteger8' },
+    { 'name': 'prop_representation_integer16',
+        'value': 'Representation::Kind::kInteger16' },
+    { 'name': 'prop_representation_uinteger16',
+        'value': 'Representation::Kind::kUInteger16' },
+    { 'name': 'prop_representation_smi',
+        'value': 'Representation::Kind::kSmi' },
+    { 'name': 'prop_representation_integer32',
+        'value': 'Representation::Kind::kInteger32' },
+    { 'name': 'prop_representation_double',
+        'value': 'Representation::Kind::kDouble' },
+    { 'name': 'prop_representation_heapobject',
+        'value': 'Representation::Kind::kHeapObject' },
+    { 'name': 'prop_representation_tagged',
+        'value': 'Representation::Kind::kTagged' },
+    { 'name': 'prop_representation_external',
+        'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
         'value': 'DescriptorArray::kDescriptorKey' },
@@ -121,6 +145,10 @@ consts_misc = [
         'value': 'Map::ElementsKindBits::kShift' },
     { 'name': 'bit_field3_dictionary_map_shift',
         'value': 'Map::DictionaryMap::kShift' },
+    { 'name': 'bit_field3_number_of_own_descriptors_mask',
+        'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
+    { 'name': 'bit_field3_number_of_own_descriptors_shift',
+        'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
 
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
@@ -132,24 +160,54 @@ consts_misc = [
         'value': 'JavaScriptFrameConstants::kFunctionOffset' },
     { 'name': 'off_fp_args',
         'value': 'JavaScriptFrameConstants::kLastParameterOffset' },
+
+    { 'name': 'scopeinfo_idx_nparams',
+        'value': 'ScopeInfo::kParameterCount' },
+    { 'name': 'scopeinfo_idx_nstacklocals',
+        'value': 'ScopeInfo::kStackLocalCount' },
+    { 'name': 'scopeinfo_idx_ncontextlocals',
+        'value': 'ScopeInfo::kContextLocalCount' },
+    { 'name': 'scopeinfo_idx_ncontextglobals',
+        'value': 'ScopeInfo::kContextGlobalCount' },
+    { 'name': 'scopeinfo_idx_first_vars',
+        'value': 'ScopeInfo::kVariablePartIndex' },
+
+    { 'name': 'sharedfunctioninfo_start_position_mask',
+        'value': 'SharedFunctionInfo::kStartPositionMask' },
+    { 'name': 'sharedfunctioninfo_start_position_shift',
+        'value': 'SharedFunctionInfo::kStartPositionShift' },
+
+    { 'name': 'jsarray_buffer_was_neutered_mask',
+        'value': 'JSArrayBuffer::WasNeutered::kMask' },
+    { 'name': 'jsarray_buffer_was_neutered_shift',
+        'value': 'JSArrayBuffer::WasNeutered::kShift' },
 ];
 
 #
 # The following useful fields are missing accessors, so we define fake ones.
 #
 extras_accessors = [
+    'JSFunction, context, Context, kContextOffset',
+    'Context, closure_index, int, CLOSURE_INDEX',
+    'Context, global_object_index, int, GLOBAL_OBJECT_INDEX',
+    'Context, previous_index, int, PREVIOUS_INDEX',
+    'Context, min_context_slots, int, MIN_CONTEXT_SLOTS',
     'HeapObject, map, Map, kMapOffset',
     'JSObject, elements, Object, kElementsOffset',
     'FixedArray, data, uintptr_t, kHeaderSize',
+    'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
+    'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',
+    'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_attributes, int, kInstanceAttributesOffset',
-    'Map, inobject_properties, int, kInObjectPropertiesOffset',
+    'Map, inobject_properties_or_constructor_function_index, int, kInObjectPropertiesOrConstructorFunctionIndexOffset',
     'Map, instance_size, int, kInstanceSizeOffset',
     'Map, bit_field, char, kBitFieldOffset',
     'Map, bit_field2, char, kBitField2Offset',
-    'Map, bit_field3, SMI, kBitField3Offset',
+    'Map, bit_field3, int, kBitField3Offset',
     'Map, prototype, Object, kPrototypeOffset',
     'NameDictionaryShape, prefix_size, int, kPrefixSize',
     'NameDictionaryShape, entry_size, int, kEntrySize',
+    'NameDictionary, prefix_start_index, int, kPrefixStartIndex',
     'SeededNumberDictionaryShape, prefix_size, int, kPrefixSize',
     'UnseededNumberDictionaryShape, prefix_size, int, kPrefixSize',
     'NumberDictionaryShape, entry_size, int, kEntrySize',
@@ -161,6 +219,7 @@ extras_accessors = [
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
     'SharedFunctionInfo, code, Code, kCodeOffset',
+    'SharedFunctionInfo, scope_info, ScopeInfo, kScopeInfoOffset',
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
@@ -215,6 +274,20 @@ footer = '''
 '''
 
 #
+# Get the base class
+#
+def get_base_class(klass):
+        if (klass == 'Object'):
+                return klass;
+
+        if (not (klass in klasses)):
+                return None;
+
+        k = klasses[klass];
+
+        return get_base_class(k['parent']);
+
+#
 # Loads class hierarchy and type information from "objects.h".
 #
 def load_objects():
@@ -252,12 +325,14 @@ def load_objects():
                         typestr += line;
                         continue;
 
-                match = re.match('class (\w[^\s:]*)(: public (\w[^\s{]*))?\s*{',
+                match = re.match('class (\w[^:]*)(: public (\w[^{]*))?\s*{\s*',
                     line);
 
                 if (match):
-                        klass = match.group(1);
+                        klass = match.group(1).rstrip().lstrip();
                         pklass = match.group(3);
+                        if (pklass):
+                                pklass = pklass.rstrip().lstrip();
                         klasses[klass] = { 'parent': pklass };
 
         #
@@ -508,6 +583,9 @@ def emit_config():
         keys.sort();
         for klassname in keys:
                 pklass = klasses[klassname]['parent'];
+                bklass = get_base_class(klassname);
+                if (bklass != 'Object'):
+                        continue;
                 if (pklass == None):
                         continue;
 

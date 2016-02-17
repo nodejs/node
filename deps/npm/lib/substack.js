@@ -1,15 +1,16 @@
 module.exports = substack
-var npm = require("./npm.js")
+var npm = require('./npm.js')
 
-var isms =
-  [ "\033[32mbeep \033[35mboop\033[m"
-  , "Replace your configs with services"
-  , "SEPARATE ALL THE CONCERNS!"
-  , "MODULE ALL THE THINGS!"
-  , "\\o/"
-  , "but first, burritos"
-  , "full time mad scientist here"
-  , "c/,,\\" ]
+var isms = [
+  '\u001b[32mbeep \u001b[35mboop\u001b[m',
+  'Replace your configs with services',
+  'SEPARATE ALL THE CONCERNS!',
+  'MODULE ALL THE THINGS!',
+  '\\o/',
+  'but first, burritos',
+  'full time mad scientist here',
+  'c/,,\\'
+]
 
 function substack (args, cb) {
   var i = Math.floor(Math.random() * isms.length)

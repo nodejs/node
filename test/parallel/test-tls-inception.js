@@ -12,8 +12,9 @@ var fs = require('fs');
 var path = require('path');
 var net = require('net');
 
-var options, a, b, portA, portB;
-var gotHello = false;
+var options, a, b;
+
+var body = new Buffer(400000).fill('A');
 
 options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
@@ -31,18 +32,14 @@ a = tls.createServer(options, function(socket) {
   dest.pipe(socket);
   socket.pipe(dest);
 
-  dest.on('close', function() {
+  dest.on('end', function() {
     socket.destroy();
   });
 });
 
 // the "target" server
 b = tls.createServer(options, function(socket) {
-  socket.end('hello');
-});
-
-process.on('exit', function() {
-  assert(gotHello);
+  socket.end(body);
 });
 
 a.listen(common.PORT, function() {
@@ -59,14 +56,15 @@ a.listen(common.PORT, function() {
       rejectUnauthorized: false
     });
     ssl.setEncoding('utf8');
-    ssl.once('data', function(data) {
-      assert.equal('hello', data);
-      gotHello = true;
+    var buf = '';
+    ssl.on('data', function(data) {
+      buf += data;
     });
-    ssl.on('end', function() {
+    ssl.on('end', common.mustCall(function() {
+      assert.equal(buf, body);
       ssl.end();
       a.close();
       b.close();
-    });
+    }));
   });
 });

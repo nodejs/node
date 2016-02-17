@@ -1,6 +1,6 @@
 module.exports = warnDeprecated
 
-var log = require("npmlog")
+var log = require('npmlog')
 
 var deprecations = {}
 
@@ -11,8 +11,7 @@ function warnDeprecated (type) {
         deprecations[type] = {}
         messages.forEach(function (m) { log.warn(type, m) })
       }
-    }
-    else {
+    } else {
       if (!deprecations[type]) deprecations[type] = {}
 
       if (!deprecations[type][instance]) {

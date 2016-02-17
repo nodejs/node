@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-EVP_SignInit, EVP_SignUpdate, EVP_SignFinal - EVP signing functions
+EVP_SignInit, EVP_SignInit_ex, EVP_SignUpdate, EVP_SignFinal - EVP signing
+functions
 
 =head1 SYNOPSIS
 

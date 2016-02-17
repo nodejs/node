@@ -340,3 +340,22 @@ date.getYear();
 %OptimizeFunctionOnNextCall(Date.prototype.getYear);
 assertThrows(function() { Date.prototype.getYear.call(""); }, TypeError);
 assertUnoptimized(Date.prototype.getYear);
+
+(function TestDatePrototypeOrdinaryObject() {
+  assertEquals(Object.prototype, Date.prototype.__proto__);
+  assertThrows(function () { Date.prototype.toString() }, TypeError);
+})();
+
+delete Date.prototype.getUTCFullYear;
+delete Date.prototype.getUTCMonth;
+delete Date.prototype.getUTCDate;
+delete Date.prototype.getUTCHours;
+delete Date.prototype.getUTCMinutes;
+delete Date.prototype.getUTCSeconds;
+delete Date.prototype.getUTCMilliseconds;
+date.toISOString();
+
+(function TestDeleteToString() {
+  assertTrue(delete Date.prototype.toString);
+  assertTrue('[object Date]' !== Date());
+})();

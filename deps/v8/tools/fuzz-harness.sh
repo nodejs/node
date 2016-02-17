@@ -85,7 +85,9 @@ python -u "$jsfunfuzz_dir/jsfunfuzz/multi_timed_run.py" 300 \
     "$d8" $flags "$jsfunfuzz_dir/jsfunfuzz/jsfunfuzz.js"
 exit_code=$(cat w* | grep " looking good" -c)
 exit_code=$((100-exit_code))
-tar -cjf fuzz-results-$(date +%Y%m%d%H%M%S).tar.bz2 err-* w*
+archive=fuzz-results-$(date +%Y%m%d%H%M%S).tar.bz2
+echo "Creating archive $archive"
+tar -cjf $archive err-* w*
 rm -f err-* w*
 
 echo "Total failures: $exit_code"

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/arm64/codegen-arm64.h"
 
 #if V8_TARGET_ARCH_ARM64
 
@@ -64,7 +64,7 @@ UnaryMathFunction CreateExpFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
 
 #if !defined(USE_SIMULATOR)
@@ -634,6 +634,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

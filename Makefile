@@ -11,6 +11,23 @@ STAGINGSERVER ?= node-www
 
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 
+ifdef QUICKCHECK
+  QUICKCHECK_ARG := --quickcheck
+endif
+
+ifdef ENABLE_V8_TAP
+  TAP_V8 := --junitout v8-tap.xml
+  TAP_V8_INTL := --junitout v8-intl-tap.xml
+  TAP_V8_BENCHMARKS := --junitout v8-benchmarks-tap.xml
+endif
+
+ifdef DISABLE_V8_I18N
+  V8_TEST_NO_I18N := --noi18n
+  V8_BUILD_OPTIONS += i18nsupport=off
+endif
+
+BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
+
 # Determine EXEEXT
 EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
@@ -67,23 +84,31 @@ uninstall:
 
 clean:
 	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE)
-	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' | xargs rm -rf; fi
+	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs rm -rf; fi
 	-rm -rf node_modules
+	@if [ -d deps/icu ]; then echo deleting deps/icu; rm -rf deps/icu; fi
+	-rm -f test.tap
 
 distclean:
 	-rm -rf out
-	-rm -f config.gypi icu_config.gypi
+	-rm -f config.gypi icu_config.gypi config_fips.gypi
 	-rm -f config.mk
 	-rm -rf $(NODE_EXE) $(NODE_G_EXE)
 	-rm -rf node_modules
 	-rm -rf deps/icu
 	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
 	-rm -f $(BINARYTAR).* $(TARBALL).*
+	-rm -rf deps/v8/testing/gmock
+	-rm -rf deps/v8/testing/gtest
 
 check: test
 
 cctest: all
 	@out/$(BUILDTYPE)/$@
+
+v8:
+	tools/make-v8.sh v8
+	$(MAKE) -C deps/v8 $(V8_ARCH) $(V8_BUILD_OPTIONS)
 
 test: | cctest  # Depends on 'all'.
 	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
@@ -103,12 +128,12 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
 test/addons/.docbuildstamp: doc/api/addons.markdown
-	$(RM) -r test/addons/doc-*/
+	$(RM) -r test/addons/??_*/
 	$(NODE) tools/doc/addon-verify.js
 	touch $@
 
 ADDONS_BINDING_GYPS := \
-	$(filter-out test/addons/doc-*/binding.gyp, \
+	$(filter-out test/addons/??_*/binding.gyp, \
 		$(wildcard test/addons/*/binding.gyp))
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
@@ -181,6 +206,30 @@ test-timers:
 
 test-timers-clean:
 	$(MAKE) --directory=tools clean
+
+test-v8:
+	# note: performs full test unless QUICKCHECK is specified
+	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
+        --mode=$(BUILDTYPE_LOWER) $(V8_TEST_NO_I18N) $(QUICKCHECK_ARG) \
+        --no-presubmit \
+        --shell-dir=$(PWD)/deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) \
+	 $(TAP_V8)
+
+test-v8-intl:
+	# note: performs full test unless QUICKCHECK is specified
+	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
+        --mode=$(BUILDTYPE_LOWER) --no-presubmit $(QUICKCHECK_ARG) \
+        --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) intl \
+        $(TAP_V8_INTL)
+
+test-v8-benchmarks:
+	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
+        --download-data $(QUICKCHECK_ARG) --no-presubmit \
+        --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) benchmarks \
+	 $(TAP_V8_BENCHMARKS)
+
+test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
+	# runs all v8 tests
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
@@ -270,6 +319,9 @@ else
 ifeq ($(DESTCPU),arm)
 ARCH=arm
 else
+ifeq ($(DESTCPU),aarch64)
+ARCH=arm64
+else
 ifeq ($(DESTCPU),ppc64)
 ARCH=ppc64
 else
@@ -280,6 +332,16 @@ ARCH=x86
 endif
 endif
 endif
+endif
+endif
+
+# node and v8 use different arch names (e.g. node 'x86' vs v8 'ia32').
+# pass the proper v8 arch name to $V8_ARCH based on user-specified $DESTCPU.
+ifeq ($(DESTCPU),x86)
+V8_ARCH=ia32
+else
+V8_ARCH ?= $(DESTCPU)
+
 endif
 
 # enforce "x86" over "ia32" as the generally accepted way of referring to 32-bit intel
@@ -292,7 +354,12 @@ endif
 
 TARNAME=node-$(FULLVERSION)
 TARBALL=$(TARNAME).tar
+# Custom user-specified variation, use it directly
+ifdef VARIATION
+BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)-$(VARIATION)
+else
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
+endif
 BINARYTAR=$(BINARYNAME).tar
 # OSX doesn't have xz installed by default, http://macpkg.sourceforge.net/
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
@@ -338,7 +405,7 @@ $(PKG): release-only
 		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
 		> tools/osx-pkg.pmdoc/index.xml
 	$(PACKAGEMAKER) \
-		--id "org.node.pkg" \
+		--id "org.nodejs.pkg" \
 		--doc tools/osx-pkg.pmdoc \
 		--out $(PKG)
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
@@ -346,9 +413,10 @@ $(PKG): release-only
 pkg: $(PKG)
 
 pkg-upload: pkg
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -p node-$(FULLVERSION).pkg $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod 664 node-$(FULLVERSION).pkg
+	scp -p node-$(FULLVERSION).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg.done"
 
 $(TARBALL): release-only $(NODE_EXE) doc
 	git checkout-index -a -f --prefix=$(TARNAME)/
@@ -372,18 +440,21 @@ endif
 tar: $(TARBALL)
 
 tar-upload: tar
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -p node-$(FULLVERSION).tar.gz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod 664 node-$(FULLVERSION).tar.gz
+	scp -p node-$(FULLVERSION).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz.done"
 ifeq ($(XZ), 0)
-	scp -p node-$(FULLVERSION).tar.xz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz.done"
+	chmod 664 node-$(FULLVERSION).tar.xz
+	scp -p node-$(FULLVERSION).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz.done"
 endif
 
 doc-upload: tar
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -r out/doc/ $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/doc.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod -R ug=rw-x+X,o=r+X out/doc/
+	scp -pr out/doc/ $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs.done"
 
 $(TARBALL)-headers: config.gypi release-only
 	$(PYTHON) ./configure \
@@ -405,12 +476,14 @@ endif
 tar-headers: $(TARBALL)-headers
 
 tar-headers-upload: tar-headers
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -p $(TARNAME)-headers.tar.gz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod 664 $(TARNAME)-headers.tar.gz
+	scp -p $(TARNAME)-headers.tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz.done"
 ifeq ($(XZ), 0)
-	scp -p $(TARNAME)-headers.tar.xz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz.done"
+	chmod 664 $(TARNAME)-headers.tar.xz
+	scp -p $(TARNAME)-headers.tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz.done"
 endif
 
 $(BINARYTAR): release-only
@@ -437,12 +510,14 @@ endif
 binary: $(BINARYTAR)
 
 binary-upload: binary
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	chmod 664 node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
+	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz.done"
 ifeq ($(XZ), 0)
-	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz.done"
+	chmod 664 node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz
+	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz.done"
 endif
 
 haswrk=$(shell which wrk > /dev/null 2>&1; echo $$?)
@@ -483,7 +558,13 @@ bench-url: all
 bench-events: all
 	@$(NODE) benchmark/common.js events
 
-bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events
+bench-util: all
+	@$(NODE) benchmark/common.js util
+
+bench-dgram: all
+	@$(NODE) benchmark/common.js dgram
+
+bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events bench-dgram bench-util
 
 bench: bench-net bench-http bench-fs bench-tls
 
@@ -496,7 +577,8 @@ bench-idle:
 	$(NODE) benchmark/idle_clients.js &
 
 jslint:
-	$(NODE) tools/eslint/bin/eslint.js src lib test --rulesdir tools/eslint-rules --reset --quiet
+	$(NODE) tools/eslint/bin/eslint.js lib src test tools/doc tools/eslint-rules \
+		--rulesdir tools/eslint-rules --quiet
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc
@@ -506,7 +588,7 @@ CPPLINT_EXCLUDE += src/node_win32_perfctr_provider.cc
 CPPLINT_EXCLUDE += src/queue.h
 CPPLINT_EXCLUDE += src/tree.h
 CPPLINT_EXCLUDE += src/v8abbr.h
-CPPLINT_EXCLUDE += $(wildcard test/addons/doc-*/*.cc test/addons/doc-*/*.h)
+CPPLINT_EXCLUDE += $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
 
 CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	deps/debugger-agent/include/* \
@@ -530,4 +612,5 @@ lint: jslint cpplint
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
-	bench-http bench-fs bench-tls cctest run-ci
+	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
+	test-v8-benchmarks test-v8-all v8

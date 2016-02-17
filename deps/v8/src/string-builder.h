@@ -5,7 +5,12 @@
 #ifndef V8_STRING_BUILDER_H_
 #define V8_STRING_BUILDER_H_
 
-#include "src/v8.h"
+#include "src/assert-scope.h"
+#include "src/factory.h"
+#include "src/handles.h"
+#include "src/isolate.h"
+#include "src/objects.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -341,10 +346,12 @@ class IncrementalStringBuilder {
       DCHECK(string->length() >= required_length);
     }
 
-    ~NoExtendString() {
+    Handle<String> Finalize() {
       Handle<SeqString> string = Handle<SeqString>::cast(string_);
       int length = NoExtend<DestChar>::written();
-      *string_.location() = *SeqString::Truncate(string, length);
+      Handle<String> result = SeqString::Truncate(string, length);
+      string_ = Handle<String>();
+      return result;
     }
 
    private:
@@ -384,7 +391,7 @@ class IncrementalStringBuilder {
   }
 
   // Add the current part to the accumulator.
-  void Accumulate();
+  void Accumulate(Handle<String> new_part);
 
   // Finish the current part and allocate a new part.
   void Extend();
@@ -424,7 +431,7 @@ void IncrementalStringBuilder::Append(SrcChar c) {
   }
   if (current_index_ == part_length_) Extend();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STRING_BUILDER_H_

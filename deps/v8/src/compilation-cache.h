@@ -5,6 +5,10 @@
 #ifndef V8_COMPILATION_CACHE_H_
 #define V8_COMPILATION_CACHE_H_
 
+#include "src/allocation.h"
+#include "src/handles.h"
+#include "src/objects.h"
+
 namespace v8 {
 namespace internal {
 
@@ -74,8 +78,7 @@ class CompilationCacheScript : public CompilationSubCache {
 
   Handle<SharedFunctionInfo> Lookup(Handle<String> source, Handle<Object> name,
                                     int line_offset, int column_offset,
-                                    bool is_embedder_debug_script,
-                                    bool is_shared_cross_origin,
+                                    ScriptOriginOptions resource_options,
                                     Handle<Context> context,
                                     LanguageMode language_mode);
   void Put(Handle<String> source,
@@ -86,7 +89,7 @@ class CompilationCacheScript : public CompilationSubCache {
  private:
   bool HasOrigin(Handle<SharedFunctionInfo> function_info, Handle<Object> name,
                  int line_offset, int column_offset,
-                 bool is_embedder_debug_script, bool is_shared_cross_origin);
+                 ScriptOriginOptions resource_options);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };
@@ -149,9 +152,8 @@ class CompilationCache {
   // script for the given source string with the right origin.
   MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<String> source, Handle<Object> name, int line_offset,
-      int column_offset, bool is_embedder_debug_script,
-      bool is_shared_cross_origin, Handle<Context> context,
-      LanguageMode language_mode);
+      int column_offset, ScriptOriginOptions resource_options,
+      Handle<Context> context, LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
@@ -234,6 +236,7 @@ class CompilationCache {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILATION_CACHE_H_

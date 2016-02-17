@@ -43,7 +43,7 @@ static void uv_fs_event_queue_readdirchanges(uv_loop_t* loop,
   if (!ReadDirectoryChangesW(handle->dir_handle,
                              handle->buffer,
                              uv_directory_watcher_buffer_size,
-                             FALSE,
+                             (handle->flags & UV_FS_EVENT_RECURSIVE) ? TRUE : FALSE,
                              FILE_NOTIFY_CHANGE_FILE_NAME      |
                                FILE_NOTIFY_CHANGE_DIR_NAME     |
                                FILE_NOTIFY_CHANGE_ATTRIBUTES   |
@@ -63,6 +63,20 @@ static void uv_fs_event_queue_readdirchanges(uv_loop_t* loop,
   handle->req_pending = 1;
 }
 
+static int uv_relative_path(const WCHAR* filename,
+                            const WCHAR* dir,
+	                    WCHAR** relpath) {
+  int dirlen = wcslen(dir);
+  int filelen = wcslen(filename);
+  if (dir[dirlen - 1] == '\\')
+    dirlen--;
+  *relpath = uv__malloc((MAX_PATH + 1) * sizeof(WCHAR));
+  if (!*relpath)
+    uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
+  wcsncpy(*relpath, filename + dirlen + 1, filelen - dirlen - 1);
+  (*relpath)[filelen - dirlen - 1] = L'\0';
+  return 0;
+}
 
 static int uv_split_path(const WCHAR* filename, WCHAR** dir,
     WCHAR** file) {
@@ -237,7 +251,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   if (!ReadDirectoryChangesW(handle->dir_handle,
                              handle->buffer,
                              uv_directory_watcher_buffer_size,
-                             FALSE,
+                             (flags & UV_FS_EVENT_RECURSIVE) ? TRUE : FALSE,
                              FILE_NOTIFY_CHANGE_FILE_NAME      |
                                FILE_NOTIFY_CHANGE_DIR_NAME     |
                                FILE_NOTIFY_CHANGE_ATTRIBUTES   |
@@ -367,9 +381,10 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
 
           if (handle->dirw) {
             /*
-             * We attempt to convert the file name to its long form for
-             * events that still point to valid files on disk.
-             * For removed and renamed events, we do not provide the file name.
+             * We attempt to resolve the long form of the file name explicitly.
+             * We only do this for file names that might still exist on disk.
+             * If this fails, we use the name given by ReadDirectoryChangesW.
+             * This may be the long form or the 8.3 short name in some cases.
              */
             if (file_info->Action != FILE_ACTION_REMOVED &&
               file_info->Action != FILE_ACTION_RENAMED_OLD_NAME) {
@@ -410,7 +425,9 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
 
               if (long_filenamew) {
                 /* Get the file name out of the long path. */
-                result = uv_split_path(long_filenamew, NULL, &filenamew);
+                result = uv_relative_path(long_filenamew,
+                                          handle->dirw,
+                                          &filenamew);
                 uv__free(long_filenamew);
 
                 if (result == 0) {
@@ -422,16 +439,24 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
               }
 
               /*
-               * If we couldn't get the long name - just use the name
-               * provided by ReadDirectoryChangesW.
+               * We could not resolve the long form explicitly.
+               * We therefore use the name given by ReadDirectoryChangesW.
+               * This may be the long form or the 8.3 short name in some cases.
                */
               if (!long_filenamew) {
                 filenamew = file_info->FileName;
                 sizew = file_info->FileNameLength / sizeof(WCHAR);
               }
             } else {
-              /* Removed or renamed callbacks don't provide filename. */
-              filenamew = NULL;
+              /*
+               * Removed or renamed events cannot be resolved to the long form.
+               * We therefore use the name given by ReadDirectoryChangesW.
+               * This may be the long form or the 8.3 short name in some cases.
+               */
+              if (!long_filenamew) {
+                filenamew = file_info->FileName;
+                sizew = file_info->FileNameLength / sizeof(WCHAR);
+              }
             }
           } else {
             /* We already have the long name of the file, so just use it. */

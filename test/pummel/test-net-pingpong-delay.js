@@ -27,7 +27,7 @@ function pingPongTest(port, host, on_complete) {
     });
 
     socket.on('timeout', function() {
-      common.debug('server-side timeout!!');
+      console.error('server-side timeout!!');
       assert.equal(false, true);
     });
 
@@ -73,7 +73,7 @@ function pingPongTest(port, host, on_complete) {
     });
 
     client.on('timeout', function() {
-      common.debug('client-side timeout!!');
+      console.error('client-side timeout!!');
       assert.equal(false, true);
     });
 

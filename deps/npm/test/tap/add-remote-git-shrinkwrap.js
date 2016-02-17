@@ -20,7 +20,7 @@ var pjParent = JSON.stringify({
   name: 'parent',
   version: '1.2.3',
   dependencies: {
-    'child': 'git://localhost:1235/child.git#master'
+    'child': 'git://localhost:1234/child.git#master'
   }
 }, null, 2) + '\n'
 
@@ -61,14 +61,14 @@ test('shrinkwrap gets correct _from and _resolved (#7121)', function (t) {
     { cwd: pkg },
     function (er, code, stdout, stderr) {
       t.ifError(er, 'npm shrinkwrapped without errors')
-      t.notOk(code, '`npm shrinkwrap` exited with 0')
+      t.is(code, 0, '`npm shrinkwrap` exited ok')
       t.equal(stdout.trim(), 'wrote npm-shrinkwrap.json')
-      t.notOk(stderr, 'no error output on successful shrinkwrap')
+      t.equal(stderr.trim(), '', 'no error output on successful shrinkwrap')
 
       var shrinkwrap = require(resolve(pkg, 'npm-shrinkwrap.json'))
       t.equal(
         shrinkwrap.dependencies.child.from,
-        'git://localhost:1235/child.git#master',
+        'git://localhost:1234/child.git#master',
         'npm shrinkwrapped from correctly'
       )
 
@@ -82,7 +82,7 @@ test('shrinkwrap gets correct _from and _resolved (#7121)', function (t) {
 
           t.equal(
             shrinkwrap.dependencies.child.resolved,
-            'git://localhost:1235/child.git#' + treeish,
+            'git://localhost:1234/child.git#' + treeish,
             'npm shrinkwrapped resolved correctly'
           )
 
@@ -121,7 +121,8 @@ function setup (cb) {
           '--listen=localhost',
           '--export-all',
           '--base-path=.',
-          '--port=1235'
+          '--reuseaddr',
+          '--port=1234'
         ],
         {
           cwd: pkg,

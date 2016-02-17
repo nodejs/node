@@ -44,6 +44,17 @@ inline unsigned CountPopulation64(uint64_t value) {
 }
 
 
+// Overloaded versions of CountPopulation32/64.
+inline unsigned CountPopulation(uint32_t value) {
+  return CountPopulation32(value);
+}
+
+
+inline unsigned CountPopulation(uint64_t value) {
+  return CountPopulation64(value);
+}
+
+
 // CountLeadingZeros32(value) returns the number of zero bits following the most
 // significant 1 bit in |value| if |value| is non-zero, otherwise it returns 32.
 inline unsigned CountLeadingZeros32(uint32_t value) {
@@ -94,8 +105,8 @@ inline unsigned CountTrailingZeros32(uint32_t value) {
 #else
   if (value == 0) return 32;
   unsigned count = 0;
-  for (value ^= value - 1; value >>= 1; ++count)
-    ;
+  for (value ^= value - 1; value >>= 1; ++count) {
+  }
   return count;
 #endif
 }
@@ -110,8 +121,8 @@ inline unsigned CountTrailingZeros64(uint64_t value) {
 #else
   if (value == 0) return 64;
   unsigned count = 0;
-  for (value ^= value - 1; value >>= 1; ++count)
-    ;
+  for (value ^= value - 1; value >>= 1; ++count) {
+  }
   return count;
 #endif
 }
@@ -223,6 +234,19 @@ int32_t SignedDiv32(int32_t lhs, int32_t rhs);
 // truncated to int32. If either |rhs| is zero or |lhs| is minint and |rhs|
 // is -1, it returns zero.
 int32_t SignedMod32(int32_t lhs, int32_t rhs);
+
+
+// UnsignedAddOverflow32(lhs,rhs,val) performs an unsigned summation of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the unsigned summation resulted in an overflow.
+inline bool UnsignedAddOverflow32(uint32_t lhs, uint32_t rhs, uint32_t* val) {
+#if V8_HAS_BUILTIN_SADD_OVERFLOW
+  return __builtin_uadd_overflow(lhs, rhs, val);
+#else
+  *val = lhs + rhs;
+  return *val < (lhs | rhs);
+#endif
+}
 
 
 // UnsignedDiv32(lhs, rhs) divides |lhs| by |rhs| and returns the quotient

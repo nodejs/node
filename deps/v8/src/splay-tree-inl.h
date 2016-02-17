@@ -290,6 +290,7 @@ void SplayTree<Config, Allocator>::ForEachNode(Callback* callback) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SPLAY_TREE_INL_H_

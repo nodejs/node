@@ -13,13 +13,13 @@
 
 namespace node {
 
+using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -36,6 +36,7 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
  public:
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
   inline bool have_callback() const;
+  size_t msg_size;
   size_t self_size() const override { return sizeof(*this); }
  private:
   const bool have_callback_;
@@ -45,7 +46,7 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
 SendWrap::SendWrap(Environment* env,
                    Local<Object> req_wrap_obj,
                    bool have_callback)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPWRAP),
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_UDPSENDWRAP),
       have_callback_(have_callback) {
   Wrap(req_wrap_obj, this);
 }
@@ -61,7 +62,7 @@ static void NewSendWrap(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-UDPWrap::UDPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
+UDPWrap::UDPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
     : HandleWrap(env,
                  object,
                  reinterpret_cast<uv_handle_t*>(&handle_),
@@ -71,9 +72,9 @@ UDPWrap::UDPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
 }
 
 
-void UDPWrap::Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+void UDPWrap::Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -167,7 +168,7 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
     break;
   default:
     CHECK(0 && "unexpected address family");
-    abort();
+    ABORT();
   }
 
   if (err == 0) {
@@ -244,29 +245,46 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
 
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
 
-  // send(req, buffer, offset, length, port, address)
+  // send(req, buffer, port, address, hasCallback)
   CHECK(args[0]->IsObject());
-  CHECK(Buffer::HasInstance(args[1]));
+  CHECK(args[1]->IsArray());
   CHECK(args[2]->IsUint32());
   CHECK(args[3]->IsUint32());
-  CHECK(args[4]->IsUint32());
-  CHECK(args[5]->IsString());
-  CHECK(args[6]->IsBoolean());
+  CHECK(args[4]->IsString());
+  CHECK(args[5]->IsBoolean());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  Local<Object> buffer_obj = args[1].As<Object>();
-  size_t offset = args[2]->Uint32Value();
-  size_t length = args[3]->Uint32Value();
-  const unsigned short port = args[4]->Uint32Value();
-  node::Utf8Value address(env->isolate(), args[5]);
-  const bool have_callback = args[6]->IsTrue();
-
-  CHECK_LE(length, Buffer::Length(buffer_obj) - offset);
+  Local<Array> chunks = args[1].As<Array>();
+  // it is faster to fetch the length of the
+  // array in js-land
+  size_t count = args[2]->Uint32Value();
+  const unsigned short port = args[3]->Uint32Value();
+  node::Utf8Value address(env->isolate(), args[4]);
+  const bool have_callback = args[5]->IsTrue();
 
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
+  size_t msg_size = 0;
 
-  uv_buf_t buf = uv_buf_init(Buffer::Data(buffer_obj) + offset,
-                             length);
+  // allocate uv_buf_t of the correct size
+  // if bigger than 16 elements
+  uv_buf_t bufs_[16];
+  uv_buf_t* bufs = bufs_;
+
+  if (ARRAY_SIZE(bufs_) < count)
+    bufs = new uv_buf_t[count];
+
+  // construct uv_buf_t array
+  for (size_t i = 0; i < count; i++) {
+    Local<Value> chunk = chunks->Get(i);
+
+    size_t length = Buffer::Length(chunk);
+
+    bufs[i] = uv_buf_init(Buffer::Data(chunk), length);
+    msg_size += length;
+  }
+
+  req_wrap->msg_size = msg_size;
+
   char addr[sizeof(sockaddr_in6)];
   int err;
 
@@ -279,17 +297,21 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
     break;
   default:
     CHECK(0 && "unexpected address family");
-    abort();
+    ABORT();
   }
 
   if (err == 0) {
     err = uv_udp_send(&req_wrap->req_,
                       &wrap->handle_,
-                      &buf,
-                      1,
+                      bufs,
+                      count,
                       reinterpret_cast<const sockaddr*>(&addr),
                       OnSend);
   }
+
+  // Deallocate space
+  if (bufs != bufs_)
+    delete[] bufs;
 
   req_wrap->Dispatched();
   if (err)
@@ -333,8 +355,11 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
     Environment* env = req_wrap->env();
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
-    Local<Value> arg = Integer::New(env->isolate(), status);
-    req_wrap->MakeCallback(env->oncomplete_string(), 1, &arg);
+    Local<Value> arg[] = {
+      Integer::New(env->isolate(), status),
+      Integer::New(env->isolate(), req_wrap->msg_size),
+    };
+    req_wrap->MakeCallback(env->oncomplete_string(), 2, arg);
   }
   delete req_wrap;
 }

@@ -38,7 +38,6 @@ using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -82,6 +81,11 @@ GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
 
 
 static void NewGetNameInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+}
+
+
+static void NewQueryReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
 }
 
@@ -603,9 +607,9 @@ class QueryTxtWrap: public QueryWrap {
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
-    struct ares_txt_reply* txt_out;
+    struct ares_txt_ext* txt_out;
 
-    int status = ares_parse_txt_reply(buf, len, &txt_out);
+    int status = ares_parse_txt_reply_ext(buf, len, &txt_out);
     if (status != ARES_SUCCESS) {
       ParseError(status);
       return;
@@ -614,7 +618,7 @@ class QueryTxtWrap: public QueryWrap {
     Local<Array> txt_records = Array::New(env()->isolate());
     Local<Array> txt_chunk;
 
-    ares_txt_reply* current = txt_out;
+    struct ares_txt_ext* current = txt_out;
     uint32_t i = 0;
     for (uint32_t j = 0; current != nullptr; current = current->next) {
       Local<String> txt = OneByteString(env()->isolate(), current->txt);
@@ -691,6 +695,49 @@ class QuerySrvWrap: public QueryWrap {
     ares_free_data(srv_start);
 
     this->CallOnComplete(srv_records);
+  }
+};
+
+class QueryPtrWrap: public QueryWrap {
+ public:
+  explicit QueryPtrWrap(Environment* env, Local<Object> req_wrap_obj)
+      : QueryWrap(env, req_wrap_obj) {
+  }
+
+  int Send(const char* name) override {
+    ares_query(env()->cares_channel(),
+               name,
+               ns_c_in,
+               ns_t_ptr,
+               Callback,
+               GetQueryArg());
+    return 0;
+  }
+
+  size_t self_size() const override { return sizeof(*this); }
+
+ protected:
+  void Parse(unsigned char* buf, int len) override {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+
+    struct hostent* host;
+
+    int status = ares_parse_ptr_reply(buf, len, NULL, 0, AF_INET, &host);
+    if (status != ARES_SUCCESS) {
+      ParseError(status);
+      return;
+    }
+
+    Local<Array> aliases = Array::New(env()->isolate());
+
+    for (uint32_t i = 0; host->h_aliases[i] != NULL; i++) {
+      aliases->Set(i, OneByteString(env()->isolate(), host->h_aliases[i]));
+    }
+
+    ares_free_hostent(host);
+
+    this->CallOnComplete(aliases);
   }
 };
 
@@ -918,18 +965,11 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     struct addrinfo *address;
     int n = 0;
 
-    // Count the number of responses.
-    for (address = res; address; address = address->ai_next) {
-      n++;
-    }
-
     // Create the response array.
-    Local<Array> results = Array::New(env->isolate(), n);
+    Local<Array> results = Array::New(env->isolate());
 
     char ip[INET6_ADDRSTRLEN];
     const char *addr;
-
-    n = 0;
 
     // Iterate over the IPv4 responses again this time creating javascript
     // strings for each IP and filling the results array.
@@ -986,6 +1026,10 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       address = address->ai_next;
     }
 
+    // No responses were found to return
+    if (n == 0) {
+      argv[0] = Integer::New(env->isolate(), UV_EAI_NODATA);
+    }
 
     argv[1] = results;
   }
@@ -1068,7 +1112,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
     break;
   default:
     CHECK(0 && "bad address family");
-    abort();
+    ABORT();
   }
 
   GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj);
@@ -1194,7 +1238,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
         break;
       default:
         CHECK(0 && "Bad address family.");
-        abort();
+        ABORT();
     }
 
     if (err)
@@ -1240,9 +1284,9 @@ static void CaresTimerClose(Environment* env,
 }
 
 
-static void Initialize(Handle<Object> target,
-                       Handle<Value> unused,
-                       Handle<Context> context) {
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   int r = ares_library_init(ARES_LIB_INIT_ALL);
@@ -1275,6 +1319,7 @@ static void Initialize(Handle<Object> target,
   env->SetMethod(target, "queryNs", Query<QueryNsWrap>);
   env->SetMethod(target, "queryTxt", Query<QueryTxtWrap>);
   env->SetMethod(target, "querySrv", Query<QuerySrvWrap>);
+  env->SetMethod(target, "queryPtr", Query<QueryPtrWrap>);
   env->SetMethod(target, "queryNaptr", Query<QueryNaptrWrap>);
   env->SetMethod(target, "querySoa", Query<QuerySoaWrap>);
   env->SetMethod(target, "getHostByAddr", Query<GetHostByAddrWrap>);
@@ -1313,6 +1358,14 @@ static void Initialize(Handle<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"),
               niw->GetFunction());
+
+  Local<FunctionTemplate> qrw =
+      FunctionTemplate::New(env->isolate(), NewQueryReqWrap);
+  qrw->InstanceTemplate()->SetInternalFieldCount(1);
+  qrw->SetClassName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"),
+              qrw->GetFunction());
 }
 
 }  // namespace cares_wrap

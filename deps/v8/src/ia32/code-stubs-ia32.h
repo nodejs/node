@@ -188,7 +188,7 @@ class RecordWriteStub: public PlatformCodeStub {
         break;
     }
     DCHECK(GetMode(stub) == mode);
-    CpuFeatures::FlushICache(stub->instruction_start(), 7);
+    Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(), 7);
   }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
@@ -320,13 +320,15 @@ class RecordWriteStub: public PlatformCodeStub {
     Register GetRegThatIsNotEcxOr(Register r1,
                                   Register r2,
                                   Register r3) {
-      for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
-        Register candidate = Register::FromAllocationIndex(i);
-        if (candidate.is(ecx)) continue;
-        if (candidate.is(r1)) continue;
-        if (candidate.is(r2)) continue;
-        if (candidate.is(r3)) continue;
-        return candidate;
+      for (int i = 0; i < Register::kNumRegisters; i++) {
+        Register candidate = Register::from_code(i);
+        if (candidate.IsAllocatable()) {
+          if (candidate.is(ecx)) continue;
+          if (candidate.is(r1)) continue;
+          if (candidate.is(r2)) continue;
+          if (candidate.is(r3)) continue;
+          return candidate;
+        }
       }
       UNREACHABLE();
       return no_reg;
@@ -385,6 +387,7 @@ class RecordWriteStub: public PlatformCodeStub {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_CODE_STUBS_IA32_H_

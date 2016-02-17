@@ -7,14 +7,15 @@ var spawn = require('child_process').spawn;
 var env = {
   'HELLO': 'WORLD'
 };
-env.__proto__ = {
+Object.setPrototypeOf(env, {
   'FOO': 'BAR'
-};
+});
 
+var child;
 if (common.isWindows) {
-  var child = spawn('cmd.exe', ['/c', 'set'], {env: env});
+  child = spawn('cmd.exe', ['/c', 'set'], {env: env});
 } else {
-  var child = spawn('/usr/bin/env', [], {env: env});
+  child = spawn('/usr/bin/env', [], {env: env});
 }
 
 

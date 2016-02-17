@@ -25,7 +25,8 @@ class LivenessAnalysisTest : public GraphTest {
       : locals_count_(locals_count),
         machine_(zone(), kRepWord32),
         javascript_(zone()),
-        jsgraph_(isolate(), graph(), common(), &javascript_, &machine_),
+        jsgraph_(isolate(), graph(), common(), &javascript_, nullptr,
+                 &machine_),
         analyzer_(locals_count, zone()),
         empty_values_(graph()->NewNode(common()->StateValues(0), 0, nullptr)),
         next_checkpoint_id_(0),
@@ -57,11 +58,17 @@ class LivenessAnalysisTest : public GraphTest {
     Node* locals =
         graph()->NewNode(locals_op, locals_count_, &local_inputs.front());
 
+    const FrameStateFunctionInfo* state_info =
+        common()->CreateFrameStateFunctionInfo(
+            FrameStateType::kJavaScriptFunction, 0, locals_count_,
+            Handle<SharedFunctionInfo>(), CALL_MAINTAINS_NATIVE_CONTEXT);
+
     const Operator* op = common()->FrameState(
-        JS_FRAME, BailoutId(ast_num), OutputFrameStateCombine::Ignore());
-    Node* result = graph()->NewNode(op, empty_values_, locals, empty_values_,
-                                    jsgraph()->UndefinedConstant(),
-                                    jsgraph()->UndefinedConstant());
+        BailoutId(ast_num), OutputFrameStateCombine::Ignore(), state_info);
+    Node* result =
+        graph()->NewNode(op, empty_values_, locals, empty_values_,
+                         jsgraph()->UndefinedConstant(),
+                         jsgraph()->UndefinedConstant(), graph()->start());
 
     current_block_->Checkpoint(result);
     return result;
@@ -93,8 +100,7 @@ class LivenessAnalysisTest : public GraphTest {
       }
       DCHECK(frame_state->opcode() == IrOpcode::kFrameState);
 
-      FrameStateCallInfo state_info =
-          OpParameter<FrameStateCallInfo>(frame_state);
+      FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
       int ast_num = state_info.bailout_id().ToInt();
       int first_const = intconst_from_bailout_id(ast_num, locals_count_);
 

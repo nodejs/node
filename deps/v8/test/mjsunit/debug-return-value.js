@@ -124,6 +124,7 @@ function listener(event, exec_state, event_data, data) {
     }
   } catch (e) {
     exception = e
+    print(e + e.stack)
   };
 };
 

@@ -62,6 +62,5 @@ bool SnapshotByteSource::GetBlob(const byte** data, int* number_of_bytes) {
     return false;
   }
 }
-
-}  // namespace v8::internal
+}  // namespace internal
 }  // namespace v8

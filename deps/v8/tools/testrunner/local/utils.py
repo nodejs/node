@@ -32,6 +32,7 @@ from os.path import isdir
 from os.path import join
 import platform
 import re
+import subprocess
 import urllib2
 
 
@@ -121,5 +122,15 @@ def IsWindows():
 def URLRetrieve(source, destination):
   """urllib is broken for SSL connections via a proxy therefore we
   can't use urllib.urlretrieve()."""
+  if IsWindows():
+    try:
+      # In python 2.7.6 on windows, urlopen has a problem with redirects.
+      # Try using curl instead. Note, this is fixed in 2.7.8.
+      subprocess.check_call(["curl", source, '-k', '-L', '-o', destination])
+      return
+    except:
+      # If there's no curl, fall back to urlopen.
+      print "Curl is currently not installed. Falling back to python."
+      pass
   with open(destination, 'w') as f:
     f.write(urllib2.urlopen(source).read())

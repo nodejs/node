@@ -66,6 +66,7 @@ class Memory {
   }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MEMORY_H_

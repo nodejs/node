@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/compilation-cache.h"
 
 #include "src/assembler.h"
-#include "src/compilation-cache.h"
+#include "src/counters.h"
+#include "src/factory.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -113,8 +115,7 @@ CompilationCacheScript::CompilationCacheScript(Isolate* isolate,
 bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
                                        Handle<Object> name, int line_offset,
                                        int column_offset,
-                                       bool is_embedder_debug_script,
-                                       bool is_shared_cross_origin) {
+                                       ScriptOriginOptions resource_options) {
   Handle<Script> script =
       Handle<Script>(Script::cast(function_info->script()), isolate());
   // If the script name isn't set, the boilerplate script should have
@@ -123,16 +124,13 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
     return script->name()->IsUndefined();
   }
   // Do the fast bailout checks first.
-  if (line_offset != script->line_offset()->value()) return false;
-  if (column_offset != script->column_offset()->value()) return false;
+  if (line_offset != script->line_offset()) return false;
+  if (column_offset != script->column_offset()) return false;
   // Check that both names are strings. If not, no match.
   if (!name->IsString() || !script->name()->IsString()) return false;
-  // Were both scripts tagged by the embedder as being internal script?
-  if (is_embedder_debug_script != script->is_embedder_debug_script()) {
+  // Are the origin_options same?
+  if (resource_options.Flags() != script->origin_options().Flags())
     return false;
-  }
-  // Were both scripts tagged by the embedder as being shared cross-origin?
-  if (is_shared_cross_origin != script->is_shared_cross_origin()) return false;
   // Compare the two name strings for equality.
   return String::Equals(Handle<String>::cast(name),
                         Handle<String>(String::cast(script->name())));
@@ -145,9 +143,8 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
 // won't.
 Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     Handle<String> source, Handle<Object> name, int line_offset,
-    int column_offset, bool is_embedder_debug_script,
-    bool is_shared_cross_origin, Handle<Context> context,
-    LanguageMode language_mode) {
+    int column_offset, ScriptOriginOptions resource_options,
+    Handle<Context> context, LanguageMode language_mode) {
   Object* result = NULL;
   int generation;
 
@@ -163,7 +160,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
         // Break when we've found a suitable shared function info that
         // matches the origin.
         if (HasOrigin(function_info, name, line_offset, column_offset,
-                      is_embedder_debug_script, is_shared_cross_origin)) {
+                      resource_options)) {
           result = *function_info;
           break;
         }
@@ -177,8 +174,8 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
   if (result != NULL) {
     Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(result),
                                       isolate());
-    DCHECK(HasOrigin(shared, name, line_offset, column_offset,
-                     is_embedder_debug_script, is_shared_cross_origin));
+    DCHECK(
+        HasOrigin(shared, name, line_offset, column_offset, resource_options));
     // If the script was found in a later generation, we promote it to
     // the first generation to let it survive longer in the cache.
     if (generation != 0) Put(source, context, language_mode, shared);
@@ -292,14 +289,12 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 
 MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
     Handle<String> source, Handle<Object> name, int line_offset,
-    int column_offset, bool is_embedder_debug_script,
-    bool is_shared_cross_origin, Handle<Context> context,
-    LanguageMode language_mode) {
+    int column_offset, ScriptOriginOptions resource_options,
+    Handle<Context> context, LanguageMode language_mode) {
   if (!IsEnabled()) return MaybeHandle<SharedFunctionInfo>();
 
   return script_.Lookup(source, name, line_offset, column_offset,
-                        is_embedder_debug_script, is_shared_cross_origin,
-                        context, language_mode);
+                        resource_options, context, language_mode);
 }
 
 
@@ -407,4 +402,5 @@ void CompilationCache::Disable() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

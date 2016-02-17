@@ -42,7 +42,7 @@ function CheckScope(scope_mirror, scope_expectations, expected_scope_type) {
   }
 }
 
-// A copy of the scope types from mirror-debugger.js.
+// A copy of the scope types from debug/mirrors.js.
 var ScopeType = { Global: 0,
                   Local: 1,
                   With: 2,

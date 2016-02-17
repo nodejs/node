@@ -181,7 +181,8 @@ class GlobalHandles {
 
   // Process pending weak handles.
   // Returns the number of freed nodes.
-  int PostGarbageCollectionProcessing(GarbageCollector collector);
+  int PostGarbageCollectionProcessing(
+      GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags);
 
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);
@@ -196,6 +197,10 @@ class GlobalHandles {
   // class ID.
   void IterateAllRootsInNewSpaceWithClassIds(ObjectVisitor* v);
 
+  // Iterate over all handles in the new space that are weak, unmodified
+  // and have class IDs
+  void IterateWeakRootsInNewSpaceWithClassIds(ObjectVisitor* v);
+
   // Iterates over all weak roots in heap.
   void IterateWeakRoots(ObjectVisitor* v);
 
@@ -203,7 +208,7 @@ class GlobalHandles {
   // them as pending.
   void IdentifyWeakHandles(WeakSlotCallback f);
 
-  // NOTE: Three ...NewSpace... functions below are used during
+  // NOTE: Five ...NewSpace... functions below are used during
   // scavenge collections and iterate over sets of handles that are
   // guaranteed to contain all handles holding new space objects (but
   // may also include old space objects).
@@ -218,6 +223,19 @@ class GlobalHandles {
   // Iterates over weak independent or partially independent handles.
   // See the note above.
   void IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v);
+
+  // Finds weak independent or unmodified handles satisfying
+  // the callback predicate and marks them as pending. See the note above.
+  void MarkNewSpaceWeakUnmodifiedObjectsPending(
+      WeakSlotCallbackWithHeap is_unscavenged);
+
+  // Iterates over weak independent or unmodified handles.
+  // See the note above.
+  void IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v);
+
+  // Identify unmodified objects that are in weak state and marks them
+  // unmodified
+  void IdentifyWeakUnmodifiedObjects(WeakSlotCallback is_unmodified);
 
   // Iterate over objects in object groups that have at least one object
   // which requires visiting. The callback has to return true if objects
@@ -287,17 +305,21 @@ class GlobalHandles {
   // don't assign any initial capacity.
   static const int kObjectGroupConnectionsCapacity = 20;
 
+  class PendingPhantomCallback;
+
   // Helpers for PostGarbageCollectionProcessing.
+  static void InvokeSecondPassPhantomCallbacks(
+      List<PendingPhantomCallback>* callbacks, Isolate* isolate);
   int PostScavengeProcessing(int initial_post_gc_processing_count);
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
-  int DispatchPendingPhantomCallbacks();
+  int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
   void UpdateListOfNewSpaceNodes();
 
   // Internal node structures.
   class Node;
   class NodeBlock;
   class NodeIterator;
-  class PendingPhantomCallback;
+  class PendingPhantomCallbacksSecondPassTask;
 
   Isolate* isolate_;
 
@@ -433,6 +455,7 @@ class EternalHandles {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_GLOBAL_HANDLES_H_

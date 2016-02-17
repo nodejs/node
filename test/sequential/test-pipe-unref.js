@@ -5,6 +5,8 @@ var assert = require('assert');
 var net = require('net');
 var closed = false;
 
+common.refreshTmpDir();
+
 var s = net.Server();
 s.listen(common.PIPE);
 s.unref();

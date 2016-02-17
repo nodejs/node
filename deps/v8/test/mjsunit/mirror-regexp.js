@@ -25,19 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --harmony-unicode-regexps
+// Flags: --expose-debug-as debug --harmony-regexps --harmony-unicode-regexps
 // Test the mirror object for regular expression values
 
-var all_attributes = debug.PropertyAttribute.ReadOnly |
-                     debug.PropertyAttribute.DontEnum |
-                     debug.PropertyAttribute.DontDelete;
-var expected_attributes = {
-  'source': all_attributes,
-  'global': all_attributes,
-  'ignoreCase': all_attributes,
-  'multiline': all_attributes,
-  'unicode' : all_attributes,
-  'lastIndex': debug.PropertyAttribute.DontEnum | debug.PropertyAttribute.DontDelete
+var dont_enum = debug.PropertyAttribute.DontEnum;
+var dont_delete = debug.PropertyAttribute.DontDelete;
+var expected_prototype_attributes = {
+  'source': dont_enum,
+  'global': dont_enum,
+  'ignoreCase': dont_enum,
+  'multiline': dont_enum,
+  'unicode' : dont_enum,
 };
 
 function MirrorRefCache(json_refs) {
@@ -70,9 +68,12 @@ function testRegExpMirror(r) {
   assertTrue(mirror.isRegExp());
   assertEquals('regexp', mirror.type());
   assertFalse(mirror.isPrimitive());
-  for (var p in expected_attributes) {
-    assertEquals(expected_attributes[p],
-                 mirror.property(p).attributes(),
+  assertEquals(dont_enum | dont_delete,
+               mirror.property('lastIndex').attributes());
+  var proto_mirror = mirror.protoObject();
+  for (var p in expected_prototype_attributes) {
+    assertEquals(expected_prototype_attributes[p],
+                 proto_mirror.property(p).attributes(),
                  p + ' attributes');
   }
 
@@ -83,24 +84,12 @@ function testRegExpMirror(r) {
   var fromJSON = eval('(' + json + ')');
   assertEquals('regexp', fromJSON.type);
   assertEquals('RegExp', fromJSON.className);
-  for (var p in expected_attributes) {
-    for (var i = 0; i < fromJSON.properties.length; i++) {
-      if (fromJSON.properties[i].name == p) {
-        assertEquals(expected_attributes[p],
-                     fromJSON.properties[i].attributes,
-                     'Unexpected value for ' + p + ' attributes');
-        assertEquals(mirror.property(p).propertyType(),
-                     fromJSON.properties[i].propertyType,
-                     'Unexpected value for ' + p + ' propertyType');
-        assertEquals(mirror.property(p).value().handle(),
-                     fromJSON.properties[i].ref,
-                     'Unexpected handle for ' + p);
-        assertEquals(mirror.property(p).value().value(),
-                     refs.lookup(fromJSON.properties[i].ref).value,
-                     'Unexpected value for ' + p);
-      }
-    }
-  }
+  assertEquals('lastIndex', fromJSON.properties[0].name);
+  assertEquals(dont_enum | dont_delete, fromJSON.properties[0].attributes);
+  assertEquals(mirror.property('lastIndex').propertyType(),
+               fromJSON.properties[0].propertyType);
+  assertEquals(mirror.property('lastIndex').value().value(),
+               refs.lookup(fromJSON.properties[0].ref).value);
 }
 
 

@@ -12,9 +12,6 @@ namespace v8 {
 namespace internal {
 
 
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
-
-
 class StringCharLoadGenerator : public AllStatic {
  public:
   // Generates the code for handling different string types and loading the
@@ -47,6 +44,7 @@ class MathExpGenerator : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_CODEGEN_ARM_H_

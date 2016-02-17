@@ -1,53 +1,52 @@
-var fs = require("fs")
-var resolve = require("path").resolve
+var fs = require('fs')
+var resolve = require('path').resolve
 
-var osenv = require("osenv")
-var mkdirp = require("mkdirp")
-var rimraf = require("rimraf")
-var test = require("tap").test
+var osenv = require('osenv')
+var mkdirp = require('mkdirp')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
-var common = require("../common-tap.js")
+var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, "install-bad-man")
-var target = resolve(__dirname, "install-bad-man-target")
+var pkg = resolve(__dirname, 'install-bad-man')
+var target = resolve(__dirname, 'install-bad-man-target')
 
 var EXEC_OPTS = {
   cwd: target
 }
 
 var json = {
-  name    : "install-bad-man",
-  version : "1.2.3",
-  man     : [ "./install-bad-man.1.lol" ]
+  name: 'install-bad-man',
+  version: '1.2.3',
+  man: [ './install-bad-man.1.lol' ]
 }
 
-
-test("setup", function (t) {
+test('setup', function (t) {
   setup()
-  t.pass("setup ran")
+  t.pass('setup ran')
   t.end()
 })
 
 test("install from repo on 'OS X'", function (t) {
   common.npm(
     [
-      "install",
-      "--prefix", target,
-      "--global",
+      'install',
+      '--prefix', target,
+      '--global',
       pkg
     ],
     EXEC_OPTS,
     function (err, code, stdout, stderr) {
-      t.ifError(err, "npm command ran from test")
-      t.equals(code, 1, "install exited with failure (1)")
-      t.notOk(stdout, "no output indicating success")
+      t.ifError(err, 'npm command ran from test')
+      t.equals(code, 1, 'install exited with failure (1)')
+      t.notOk(stdout, 'no output indicating success')
       t.notOk(
         stderr.match(/Cannot read property '1' of null/),
-        "no longer has cryptic error output"
+        'no longer has cryptic error output'
       )
       t.ok(
         stderr.match(/install-bad-man\.1\.lol is not a valid name/),
-        "got expected error output"
+        'got expected error output'
       )
 
       t.end()
@@ -55,9 +54,9 @@ test("install from repo on 'OS X'", function (t) {
   )
 })
 
-test("clean", function (t) {
+test('clean', function (t) {
   cleanup()
-  t.pass("cleaned up")
+  t.pass('cleaned up')
   t.end()
 })
 
@@ -65,12 +64,12 @@ function setup () {
   cleanup()
   mkdirp.sync(pkg)
   // make sure it installs locally
-  mkdirp.sync(resolve(target, "node_modules"))
+  mkdirp.sync(resolve(target, 'node_modules'))
   fs.writeFileSync(
-    resolve(pkg, "package.json"),
-    JSON.stringify(json, null, 2)+"\n"
+    resolve(pkg, 'package.json'),
+    JSON.stringify(json, null, 2) + '\n'
   )
-  fs.writeFileSync(resolve(pkg, "install-bad-man.1.lol"), "lol\n")
+  fs.writeFileSync(resolve(pkg, 'install-bad-man.1.lol'), 'lol\n')
 }
 
 function cleanup () {

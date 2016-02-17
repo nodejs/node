@@ -113,6 +113,7 @@ typedef LazyStaticInstance<
 
 #define LAZY_CONDITION_VARIABLE_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_CONDITION_VARIABLE_H_

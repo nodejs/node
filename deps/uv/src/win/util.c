@@ -59,6 +59,10 @@
 static char *process_title;
 static CRITICAL_SECTION process_title_lock;
 
+/* Cached copy of the process id, written once. */
+static DWORD current_pid = 0;
+
+
 /* Interval (in seconds) of the high-resolution clock. */
 static double hrtime_interval_ = 0;
 
@@ -356,6 +360,14 @@ int uv_parent_pid() {
 
   CloseHandle(handle);
   return parent_pid;
+}
+
+
+int uv_current_pid() {
+  if (current_pid == 0) {
+    current_pid = GetCurrentProcessId();
+  }
+  return current_pid;
 }
 
 

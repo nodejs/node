@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/ppc/codegen-ppc.h"
 
 #if V8_TARGET_ARCH_PPC
 
@@ -62,7 +62,7 @@ UnaryMathFunction CreateExpFunction() {
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 #endif
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
 
 #if !defined(USE_SIMULATOR)
@@ -99,7 +99,7 @@ UnaryMathFunction CreateSqrtFunction() {
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 #endif
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 #endif
@@ -613,7 +613,7 @@ CodeAgingHelper::CodeAgingHelper() {
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before ARM simulator ICache is setup.
-  SmartPointer<CodePatcher> patcher(new CodePatcher(
+  base::SmartPointer<CodePatcher> patcher(new CodePatcher(
       young_sequence_.start(), young_sequence_.length() / Assembler::kInstrSize,
       CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
@@ -660,7 +660,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence, Code::Age age,
   uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
     isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
-    CpuFeatures::FlushICache(sequence, young_length);
+    Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     // FIXED_SEQUENCE
     Code* stub = GetCodeAgeStub(isolate, age, parity);
@@ -677,7 +677,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence, Code::Age age,
     }
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_PPC

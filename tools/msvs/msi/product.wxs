@@ -39,7 +39,7 @@
 
     <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
     <Property Id="ARPPRODUCTICON" Value="NodeIcon"/>
-    <Property Id="ApplicationFolderName" Value="node"/>
+    <Property Id="ApplicationFolderName" Value="nodejs"/>
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
     <Property Id="INSTALLDIR">
@@ -244,7 +244,7 @@
                                Type="url"/>
         <util:InternetShortcut Id="DocsShortcut"
                                Name="Node.js documentation"
-                               Target="https://nodejs.org/download/$(var.DistTypeDir)/v$(var.FullVersion)/doc/api/"
+                               Target="https://nodejs.org/download/$(var.DistTypeDir)/v$(var.FullVersion)/docs/api/"
                                Type="url"/>
       </Component>
     </DirectoryRef>

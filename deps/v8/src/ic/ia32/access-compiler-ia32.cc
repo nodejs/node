@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_IA32
 
 #include "src/ic/access-compiler.h"
@@ -32,13 +30,14 @@ Register* PropertyAccessCompiler::store_calling_convention() {
   // receiver, name, scratch1, scratch2, scratch3.
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
-  DCHECK(ebx.is(ElementTransitionAndStoreDescriptor::MapRegister()));
+  DCHECK(FLAG_vector_stores ||
+         ebx.is(StoreTransitionDescriptor::MapRegister()));
   static Register registers[] = {receiver, name, ebx, edi, no_reg};
   return registers;
 }
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_IA32

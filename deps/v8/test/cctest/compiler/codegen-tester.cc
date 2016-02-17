@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(CompareWrapper) {
   // Who tests the testers?
@@ -368,8 +367,6 @@ void Int32BinopInputShapeTester::RunRight(
 }
 
 
-#if V8_TURBOFAN_TARGET
-
 TEST(ParametersEqual) {
   RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
   Node* p1 = m.Parameter(1);
@@ -573,4 +570,145 @@ TEST(RunBinopTester) {
   }
 }
 
-#endif  // V8_TURBOFAN_TARGET
+
+#if V8_TARGET_ARCH_64_BIT
+// TODO(ahaas): run int64 tests on all platforms when supported.
+TEST(RunBufferedRawMachineAssemblerTesterTester) {
+  {
+    BufferedRawMachineAssemblerTester<int64_t> m;
+    m.Return(m.Int64Constant(0x12500000000));
+    CHECK_EQ(0x12500000000, m.Call());
+  }
+  {
+    BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
+    m.Return(m.Parameter(0));
+    FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(*i, m.Call(*i)); }
+  }
+  {
+    BufferedRawMachineAssemblerTester<int64_t> m(kMachInt64, kMachInt64);
+    m.Return(m.Int64Add(m.Parameter(0), m.Parameter(1)));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        CHECK_EQ(*i + *j, m.Call(*i, *j));
+        CHECK_EQ(*j + *i, m.Call(*j, *i));
+      }
+    }
+  }
+  {
+    BufferedRawMachineAssemblerTester<int64_t> m(kMachInt64, kMachInt64,
+                                                 kMachInt64);
+    m.Return(
+        m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)), m.Parameter(2)));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        CHECK_EQ(*i + *i + *j, m.Call(*i, *i, *j));
+        CHECK_EQ(*i + *j + *i, m.Call(*i, *j, *i));
+        CHECK_EQ(*j + *i + *i, m.Call(*j, *i, *i));
+      }
+    }
+  }
+  {
+    BufferedRawMachineAssemblerTester<int64_t> m(kMachInt64, kMachInt64,
+                                                 kMachInt64, kMachInt64);
+    m.Return(m.Int64Add(
+        m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)), m.Parameter(2)),
+        m.Parameter(3)));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        CHECK_EQ(*i + *i + *i + *j, m.Call(*i, *i, *i, *j));
+        CHECK_EQ(*i + *i + *j + *i, m.Call(*i, *i, *j, *i));
+        CHECK_EQ(*i + *j + *i + *i, m.Call(*i, *j, *i, *i));
+        CHECK_EQ(*j + *i + *i + *i, m.Call(*j, *i, *i, *i));
+      }
+    }
+  }
+  {
+    BufferedRawMachineAssemblerTester<void> m;
+    int64_t result;
+    m.Store(MachineTypeForC<int64_t>(), m.PointerConstant(&result),
+            m.Int64Constant(0x12500000000), kNoWriteBarrier);
+    m.Return(m.Int32Constant(0));
+    m.Call();
+    CHECK_EQ(0x12500000000, result);
+  }
+  {
+    BufferedRawMachineAssemblerTester<void> m(kMachFloat64);
+    double result;
+    m.Store(MachineTypeForC<double>(), m.PointerConstant(&result),
+            m.Parameter(0), kNoWriteBarrier);
+    m.Return(m.Int32Constant(0));
+    FOR_FLOAT64_INPUTS(i) {
+      m.Call(*i);
+      CheckDoubleEq(*i, result);
+    }
+  }
+  {
+    BufferedRawMachineAssemblerTester<void> m(kMachInt64, kMachInt64);
+    int64_t result;
+    m.Store(MachineTypeForC<int64_t>(), m.PointerConstant(&result),
+            m.Int64Add(m.Parameter(0), m.Parameter(1)), kNoWriteBarrier);
+    m.Return(m.Int32Constant(0));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        m.Call(*i, *j);
+        CHECK_EQ(*i + *j, result);
+
+        m.Call(*j, *i);
+        CHECK_EQ(*j + *i, result);
+      }
+    }
+  }
+  {
+    BufferedRawMachineAssemblerTester<void> m(kMachInt64, kMachInt64,
+                                              kMachInt64);
+    int64_t result;
+    m.Store(
+        MachineTypeForC<int64_t>(), m.PointerConstant(&result),
+        m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)), m.Parameter(2)),
+        kNoWriteBarrier);
+    m.Return(m.Int32Constant(0));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        m.Call(*i, *i, *j);
+        CHECK_EQ(*i + *i + *j, result);
+
+        m.Call(*i, *j, *i);
+        CHECK_EQ(*i + *j + *i, result);
+
+        m.Call(*j, *i, *i);
+        CHECK_EQ(*j + *i + *i, result);
+      }
+    }
+  }
+  {
+    BufferedRawMachineAssemblerTester<void> m(kMachInt64, kMachInt64,
+                                              kMachInt64, kMachInt64);
+    int64_t result;
+    m.Store(MachineTypeForC<int64_t>(), m.PointerConstant(&result),
+            m.Int64Add(m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)),
+                                  m.Parameter(2)),
+                       m.Parameter(3)),
+            kNoWriteBarrier);
+    m.Return(m.Int32Constant(0));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        m.Call(*i, *i, *i, *j);
+        CHECK_EQ(*i + *i + *i + *j, result);
+
+        m.Call(*i, *i, *j, *i);
+        CHECK_EQ(*i + *i + *j + *i, result);
+
+        m.Call(*i, *j, *i, *i);
+        CHECK_EQ(*i + *j + *i + *i, result);
+
+        m.Call(*j, *i, *i, *i);
+        CHECK_EQ(*j + *i + *i + *i, result);
+      }
+    }
+  }
+}
+
+#endif
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

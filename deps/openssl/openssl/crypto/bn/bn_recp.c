@@ -152,8 +152,10 @@ int BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
 
     if (BN_ucmp(m, &(recp->N)) < 0) {
         BN_zero(d);
-        if (!BN_copy(r, m))
+        if (!BN_copy(r, m)) {
+            BN_CTX_end(ctx);
             return 0;
+        }
         BN_CTX_end(ctx);
         return (1);
     }

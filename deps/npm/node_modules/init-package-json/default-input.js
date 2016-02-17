@@ -32,6 +32,9 @@ function readDeps (test) { return function (cb) {
         try { p = JSON.parse(p) }
         catch (e) { return next() }
         if (!p.version) return next()
+        if (p._requiredBy) {
+          if (!p._requiredBy.some(function (req) { return req === '#USER' })) return next()
+        }
         deps[d] = config.get('save-exact') ? p.version : config.get('save-prefix') + p.version
         return next()
       })

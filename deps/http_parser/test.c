@@ -1101,6 +1101,58 @@ const struct message requests[] =
   ,.body= ""
   }
 
+/* Examples from the Internet draft for LINK/UNLINK methods:
+ * https://tools.ietf.org/id/draft-snell-link-method-01.html#rfc.section.5
+ */
+
+#define LINK_REQUEST 40
+, {.name = "link request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "LINK /images/my_dog.jpg HTTP/1.1\r\n"
+         "Host: example.com\r\n"
+         "Link: <http://example.com/profiles/joe>; rel=\"tag\"\r\n"
+         "Link: <http://example.com/profiles/sally>; rel=\"tag\"\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_LINK
+  ,.request_path= "/images/my_dog.jpg"
+  ,.request_url= "/images/my_dog.jpg"
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.num_headers= 3
+  ,.headers= { { "Host", "example.com" }
+             , { "Link", "<http://example.com/profiles/joe>; rel=\"tag\"" }
+	     , { "Link", "<http://example.com/profiles/sally>; rel=\"tag\"" }
+             }
+  ,.body= ""
+  }
+
+#define UNLINK_REQUEST 41
+, {.name = "link request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "UNLINK /images/my_dog.jpg HTTP/1.1\r\n"
+         "Host: example.com\r\n"
+         "Link: <http://example.com/profiles/sally>; rel=\"tag\"\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_UNLINK
+  ,.request_path= "/images/my_dog.jpg"
+  ,.request_url= "/images/my_dog.jpg"
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.num_headers= 2
+  ,.headers= { { "Host", "example.com" }
+	     , { "Link", "<http://example.com/profiles/sally>; rel=\"tag\"" }
+             }
+  ,.body= ""
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
@@ -2918,6 +2970,59 @@ const struct url_test url_tests[] =
   ,.rv=1 /* s_dead */
   }
 
+, {.name="ipv6 address with Zone ID"
+  ,.url="http://[fe80::a%25eth0]/"
+  ,.is_connect=0
+  ,.u=
+    {.field_set= (1<<UF_SCHEMA) | (1<<UF_HOST) | (1<<UF_PATH)
+    ,.port=0
+    ,.field_data=
+      {{  0,  4 } /* UF_SCHEMA */
+      ,{  8, 14 } /* UF_HOST */
+      ,{  0,  0 } /* UF_PORT */
+      ,{ 23,  1 } /* UF_PATH */
+      ,{  0,  0 } /* UF_QUERY */
+      ,{  0,  0 } /* UF_FRAGMENT */
+      ,{  0,  0 } /* UF_USERINFO */
+      }
+    }
+  ,.rv=0
+  }
+
+, {.name="ipv6 address with Zone ID, but '%' is not percent-encoded"
+  ,.url="http://[fe80::a%eth0]/"
+  ,.is_connect=0
+  ,.u=
+    {.field_set= (1<<UF_SCHEMA) | (1<<UF_HOST) | (1<<UF_PATH)
+    ,.port=0
+    ,.field_data=
+      {{  0,  4 } /* UF_SCHEMA */
+      ,{  8, 12 } /* UF_HOST */
+      ,{  0,  0 } /* UF_PORT */
+      ,{ 21,  1 } /* UF_PATH */
+      ,{  0,  0 } /* UF_QUERY */
+      ,{  0,  0 } /* UF_FRAGMENT */
+      ,{  0,  0 } /* UF_USERINFO */
+      }
+    }
+  ,.rv=0
+  }
+
+, {.name="ipv6 address ending with '%'"
+  ,.url="http://[fe80::a%]/"
+  ,.rv=1 /* s_dead */
+  }
+
+, {.name="ipv6 address with Zone ID including bad character"
+  ,.url="http://[fe80::a%$HOME]/"
+  ,.rv=1 /* s_dead */
+  }
+
+, {.name="just ipv6 Zone ID"
+  ,.url="http://[%eth0]/"
+  ,.rv=1 /* s_dead */
+  }
+
 #if HTTP_PARSER_STRICT
 
 , {.name="tab in URL"
@@ -3163,6 +3268,155 @@ test_simple (const char *buf, enum http_errno err_expected)
         http_errno_name(err_expected), http_errno_name(err), buf);
     abort();
   }
+}
+
+void
+test_invalid_header_content (int req, const char* str)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+  
+  buf = str;
+  size_t buflen = strlen(buf);
+  
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_INVALID_HEADER_TOKEN);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in invalid header content test ***\n");
+  abort();
+}
+
+void
+test_invalid_header_field_content_error (int req)
+{
+  test_invalid_header_content(req, "Foo: F\01ailure");
+  test_invalid_header_content(req, "Foo: B\02ar");
+}
+
+void
+test_invalid_header_field (int req, const char* str)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+  
+  buf = str;
+  size_t buflen = strlen(buf);
+  
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_INVALID_HEADER_TOKEN);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in invalid header token test ***\n");
+  abort();
+}
+
+void
+test_invalid_header_field_token_error (int req)
+{
+  test_invalid_header_field(req, "Fo@: Failure");
+  test_invalid_header_field(req, "Foo\01\test: Bar");
+}
+
+void
+test_double_content_length_error (int req)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = "Content-Length: 0\r\nContent-Length: 1\r\n\r\n";
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_UNEXPECTED_CONTENT_LENGTH);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in double content-length test ***\n");
+  abort();
+}
+
+void
+test_chunked_content_length_error (int req)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = "Transfer-Encoding: chunked\r\nContent-Length: 1\r\n\r\n";
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_CHUNKED_WITH_CONTENT_LENGTH);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in chunked content-length test ***\n");
+  abort();
+}
+
+void
+test_header_cr_no_lf_error (int req)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = "Foo: 1\rBar: 1\r\n\r\n";
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  if (parsed != buflen) {
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_LF_EXPECTED);
+    return;
+  }
+
+  fprintf(stderr,
+          "\n*** Error expected but none in header whitespace test ***\n");
+  abort();
 }
 
 void
@@ -3591,6 +3845,18 @@ main (void)
   test_header_content_length_overflow_error();
   test_chunk_content_length_overflow_error();
 
+  //// HEADER FIELD CONDITIONS
+  test_double_content_length_error(HTTP_REQUEST);
+  test_chunked_content_length_error(HTTP_REQUEST);
+  test_header_cr_no_lf_error(HTTP_REQUEST);
+  test_invalid_header_field_token_error(HTTP_REQUEST);
+  test_invalid_header_field_content_error(HTTP_REQUEST);
+  test_double_content_length_error(HTTP_RESPONSE);
+  test_chunked_content_length_error(HTTP_RESPONSE);
+  test_header_cr_no_lf_error(HTTP_RESPONSE);
+  test_invalid_header_field_token_error(HTTP_RESPONSE);
+  test_invalid_header_field_content_error(HTTP_RESPONSE);
+
   //// RESPONSES
 
   for (i = 0; i < response_count; i++) {
@@ -3690,7 +3956,12 @@ main (void)
     "MOVE",
     "PROPFIND",
     "PROPPATCH",
+    "SEARCH",
     "UNLOCK",
+    "BIND",
+    "REBIND",
+    "UNBIND",
+    "ACL",
     "REPORT",
     "MKACTIVITY",
     "CHECKOUT",
@@ -3700,6 +3971,10 @@ main (void)
     "SUBSCRIBE",
     "UNSUBSCRIBE",
     "PATCH",
+    "PURGE",
+    "MKCALENDAR",
+    "LINK",
+    "UNLINK",
     0 };
   const char **this_method;
   for (this_method = all_methods; *this_method; this_method++) {

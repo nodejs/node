@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var HTTPParser = process.binding('http_parser').HTTPParser;
@@ -260,7 +260,7 @@ function expectBody(expected) {
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
 
-    var headers = headers || parser.headers;
+    headers = headers || parser.headers;
 
     assert.equal(headers.length, 2 * 256); // 256 key/value pairs
     for (var i = 0; i < headers.length; i += 2) {
@@ -333,8 +333,8 @@ function expectBody(expected) {
     assert.equal(versionMinor, 1);
   };
 
-  var body_part = 0,
-      body_parts = ['123', '123456', '1234567890'];
+  let body_part = 0;
+  const body_parts = ['123', '123456', '1234567890'];
 
   var onBody = function(buf, start, len) {
     var body = '' + buf.slice(start, start + len);
@@ -371,8 +371,8 @@ function expectBody(expected) {
     assert.equal(versionMinor, 1);
   };
 
-  var body_part = 0,
-      body_parts =
+  let body_part = 0;
+  const body_parts =
           ['123', '123456', '123456789', '123456789ABC', '123456789ABCDEF'];
 
   var onBody = function(buf, start, len) {

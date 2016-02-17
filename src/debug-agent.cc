@@ -39,7 +39,6 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -160,7 +159,10 @@ void Agent::Stop() {
 
 void Agent::WorkerRun() {
   static const char* argv[] = { "node", "--debug-agent" };
-  Isolate* isolate = Isolate::New();
+  Isolate::CreateParams params;
+  ArrayBufferAllocator array_buffer_allocator;
+  params.array_buffer_allocator = &array_buffer_allocator;
+  Isolate* isolate = Isolate::New(params);
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
@@ -283,7 +285,6 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
     }
 
     // Waiting for client, do not send anything just yet
-    // TODO(indutny): move this to js-land
     if (a->wait_) {
       a->messages_.PushFront(msg);  // Push message back into the ready queue.
       break;
@@ -319,6 +320,8 @@ void Agent::EnqueueMessage(AgentMessage* message) {
 void Agent::MessageHandler(const v8::Debug::Message& message) {
   Isolate* isolate = message.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr)
+    return;  // Called from a non-node context.
   Agent* a = env->debugger_agent();
   CHECK_NE(a, nullptr);
   CHECK_EQ(isolate, a->parent_env()->isolate());

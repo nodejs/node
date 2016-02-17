@@ -1,4 +1,4 @@
-var tap = require('tap')
+var test = require('tap').test
 
 var server = require('./lib/server.js')
 var common = require('./lib/common.js')
@@ -19,7 +19,7 @@ var PARAMS = {
   auth: AUTH
 }
 
-tap.test('unpublish a package', function (t) {
+test('unpublish a package', function (t) {
   server.expect('GET', '/@npm%2fnpm-registry-client?write=true', function (req, res) {
     t.equal(req.method, 'GET')
 
@@ -62,6 +62,7 @@ tap.test('unpublish a package', function (t) {
   client.unpublish(URI, PARAMS, function (er) {
     t.ifError(er, 'no errors')
 
+    server.close()
     t.end()
   })
 })

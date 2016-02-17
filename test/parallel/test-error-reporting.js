@@ -24,8 +24,6 @@ function errExec(script, callback) {
 
     // Count the tests
     exits++;
-
-    console.log('.');
   });
 }
 
@@ -54,7 +52,21 @@ errExec('throws_error4.js', function(err, stdout, stderr) {
   assert.ok(/SyntaxError/.test(stderr));
 });
 
+// Specific long exception line doesn't result in stack overflow
+errExec('throws_error5.js', function(err, stdout, stderr) {
+  assert.ok(/SyntaxError/.test(stderr));
+});
+
+// Long exception line with length > errorBuffer doesn't result in assertion
+errExec('throws_error6.js', function(err, stdout, stderr) {
+  assert.ok(/SyntaxError/.test(stderr));
+});
+
+// Object that throws in toString() doesn't print garbage
+errExec('throws_error7.js', function(err, stdout, stderr) {
+  assert.ok(/<toString\(\) threw exception/.test(stderr));
+});
 
 process.on('exit', function() {
-  assert.equal(4, exits);
+  assert.equal(7, exits);
 });

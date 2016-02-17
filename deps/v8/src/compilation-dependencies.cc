@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compilation-dependencies.h"
+
 #include "src/factory.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/zone.h"
-
-#include "src/compilation-dependencies.h"
 
 namespace v8 {
 namespace internal {
@@ -106,6 +106,24 @@ void CompilationDependencies::Rollback() {
 }
 
 
+void CompilationDependencies::AssumeMapNotDeprecated(Handle<Map> map) {
+  DCHECK(!map->is_deprecated());
+  // Do nothing if the map cannot be deprecated.
+  if (map->CanBeDeprecated()) {
+    Insert(DependentCode::kTransitionGroup, map);
+  }
+}
+
+
+void CompilationDependencies::AssumeMapStable(Handle<Map> map) {
+  DCHECK(map->is_stable());
+  // Do nothing if the map cannot transition.
+  if (map->CanTransition()) {
+    Insert(DependentCode::kPrototypeCheckGroup, map);
+  }
+}
+
+
 void CompilationDependencies::AssumeTransitionStable(
     Handle<AllocationSite> site) {
   // Do nothing if the object doesn't have any useful element transitions left.
@@ -117,5 +135,5 @@ void CompilationDependencies::AssumeTransitionStable(
     Insert(DependentCode::kAllocationSiteTransitionChangedGroup, site);
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

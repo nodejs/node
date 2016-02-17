@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -169,7 +168,7 @@ void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
   // Check we're still in the same context.
   const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
   __ ld(result, MemOperand(cp, offset));
-  __ ld(result, FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  __ ld(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
   __ ld(result, MemOperand(result, Context::SlotOffset(index)));
   // Load its initial map. The global functions all have initial maps.
   __ ld(result,
@@ -217,10 +216,9 @@ static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
 
 static void CompileCallLoadPropertyWithInterceptor(
     MacroAssembler* masm, Register receiver, Register holder, Register name,
-    Handle<JSObject> holder_obj, IC::UtilityId id) {
+    Handle<JSObject> holder_obj, Runtime::FunctionId id) {
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
-  __ CallExternalReference(ExternalReference(IC_Utility(id), masm->isolate()),
-                           NamedLoadHandlerCompiler::kInterceptorArgsLength);
+  __ CallRuntime(id, NamedLoadHandlerCompiler::kInterceptorArgsLength);
 }
 
 
@@ -299,29 +297,35 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 }
 
 
+static void StoreIC_PushArgs(MacroAssembler* masm) {
+  if (FLAG_vector_stores) {
+    __ Push(StoreDescriptor::ReceiverRegister(),
+            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister(),
+            VectorStoreICDescriptor::SlotRegister(),
+            VectorStoreICDescriptor::VectorRegister());
+  } else {
+    __ Push(StoreDescriptor::ReceiverRegister(),
+            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister());
+  }
+}
+
+
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
-  // Push receiver, key and value for runtime call.
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
+  StoreIC_PushArgs(masm);
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(IC::kStoreIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
+  __ TailCallRuntime(Runtime::kStoreIC_Slow, FLAG_vector_stores ? 5 : 3, 1);
 }
 
 
 void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
-  // Push receiver, key and value for runtime call.
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
+  StoreIC_PushArgs(masm);
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(IC::kKeyedStoreIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, FLAG_vector_stores ? 5 : 3,
+                     1);
 }
 
 
@@ -343,15 +347,21 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
 }
 
 
+void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
+    Register current_map, Register destination_map) {
+  DCHECK(false);  // Not implemented.
+}
+
+
 void NamedStoreHandlerCompiler::GenerateRestoreMap(Handle<Map> transition,
+                                                   Register map_reg,
                                                    Register scratch,
                                                    Label* miss) {
   Handle<WeakCell> cell = Map::WeakCellForMap(transition);
-  Register map_reg = StoreTransitionDescriptor::MapRegister();
   DCHECK(!map_reg.is(scratch));
   __ LoadWeakValue(map_reg, cell, miss);
   if (transition->CanBeDeprecated()) {
-    __ ld(scratch, FieldMemOperand(map_reg, Map::kBitField3Offset));
+    __ lwu(scratch, FieldMemOperand(map_reg, Map::kBitField3Offset));
     __ And(at, scratch, Operand(Map::Deprecated::kMask));
     __ Branch(miss, ne, at, Operand(zero_reg));
   }
@@ -558,6 +568,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ Branch(&success);
     GenerateRestoreName(miss, name);
+    if (IC::ICUseVector(kind())) PopVectorAndSlot();
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
@@ -657,7 +668,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     // of this method).
     CompileCallLoadPropertyWithInterceptor(
         masm(), receiver(), holder_reg, this->name(), holder(),
-        IC::kLoadPropertyWithInterceptorOnly);
+        Runtime::kLoadPropertyWithInterceptorOnly);
 
     // Check if interceptor provided a value for property.  If it's
     // the case, return immediately.
@@ -688,10 +699,8 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
   PushInterceptorArguments(masm(), receiver(), holder_reg, this->name(),
                            holder());
 
-  ExternalReference ref = ExternalReference(
-      IC_Utility(IC::kLoadPropertyWithInterceptor), isolate());
-  __ TailCallExternalReference(
-      ref, NamedLoadHandlerCompiler::kInterceptorArgsLength, 1);
+  __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor,
+                     NamedLoadHandlerCompiler::kInterceptorArgsLength, 1);
 }
 
 
@@ -714,9 +723,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ Push(at, value());
 
   // Do tail-call to the runtime system.
-  ExternalReference store_callback_property =
-      ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate());
-  __ TailCallExternalReference(store_callback_property, 5, 1);
+  __ TailCallRuntime(Runtime::kStoreCallbackProperty, 5, 1);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -728,9 +735,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
   __ Push(receiver(), this->name(), value());
 
   // Do tail-call to the runtime system.
-  ExternalReference store_ic_property = ExternalReference(
-      IC_Utility(IC::kStorePropertyWithInterceptor), isolate());
-  __ TailCallExternalReference(store_ic_property, 3, 1);
+  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor, 3, 1);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -779,7 +784,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS64

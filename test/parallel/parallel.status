@@ -2,26 +2,28 @@ prefix parallel
 
 # To mark a test as flaky, list the test name in the appropriate section
 # below, without ".js", followed by ": PASS,FLAKY". Example:
-# sample-test                       : PASS,FLAKY
+# sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-tls-ticket-cluster           : PASS,FLAKY
+test-debug-no-context   : PASS,FLAKY
+test-tls-ticket-cluster : PASS,FLAKY
+test-tick-processor     : PASS,FLAKY
 
 [$system==linux]
-test-cluster-worker-forced-exit   : PASS,FLAKY
-test-http-client-timeout-event    : PASS,FLAKY
-test-process-argv-0               : PASS,FLAKY
-test-tick-processor               : PASS,FLAKY
-test-tls-no-sslv3                 : PASS,FLAKY
-test-child-process-buffering      : PASS,FLAKY
-test-child-process-exit-code      : PASS,FLAKY
+test-http-agent         : PASS,FLAKY
+test-tick-processor     : PASS,FLAKY
 
 [$system==macos]
 
 [$system==solaris] # Also applies to SmartOS
-test-debug-signal-cluster         : PASS,FLAKY
 
 [$system==freebsd]
-test-net-socket-local-address     : PASS,FLAKY
+
+# fs-watch currently needs special configuration on AIX and we
+# want to improve under https://github.com/nodejs/node/issues/5085.
+# Tests are disabled so CI can be green and we can spot other
+# regressions until this work is complete
+[$system==aix]
+test-fs-watch-enoent                 : FAIL, PASS

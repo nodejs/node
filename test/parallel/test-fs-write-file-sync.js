@@ -15,7 +15,7 @@ fs._closeSync = fs.closeSync;
 fs.closeSync = closeSync;
 
 // Reset the umask for testing
-var mask = process.umask(0o000);
+process.umask(0o000);
 
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
 // the file in read-only mode works.
@@ -46,6 +46,18 @@ content = fs.readFileSync(file2, {encoding: 'utf8'});
 assert.equal('abc', content);
 
 assert.equal(mode, fs.statSync(file2).mode & mode);
+
+// Test writeFileSync with file descriptor
+var file3 = path.join(common.tmpDir, 'testWriteFileSyncFd.txt');
+
+var fd = fs.openSync(file3, 'w+', mode);
+fs.writeFileSync(fd, '123');
+fs.closeSync(fd);
+
+content = fs.readFileSync(file3, {encoding: 'utf8'});
+assert.equal('123', content);
+
+assert.equal(mode, fs.statSync(file3).mode & 0o777);
 
 // Verify that all opened files were closed.
 assert.equal(0, openCount);

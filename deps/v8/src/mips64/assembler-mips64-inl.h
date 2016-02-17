@@ -40,7 +40,7 @@
 #include "src/mips64/assembler-mips64.h"
 
 #include "src/assembler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 
 namespace v8 {
@@ -84,40 +84,10 @@ bool Operand::is_reg() const {
 }
 
 
-int Register::NumAllocatableRegisters() {
-    return kMaxNumAllocatableRegisters;
-}
-
-
-int DoubleRegister::NumRegisters() {
-    return FPURegister::kMaxNumRegisters;
-}
-
-
-int DoubleRegister::NumAllocatableRegisters() {
-    return FPURegister::kMaxNumAllocatableRegisters;
-}
-
-
-int DoubleRegister::NumAllocatableAliasedRegisters() {
-  return NumAllocatableRegisters();
-}
-
-
-int FPURegister::ToAllocationIndex(FPURegister reg) {
-  DCHECK(reg.code() % 2 == 0);
-  DCHECK(reg.code() / 2 < kMaxNumAllocatableRegisters);
-  DCHECK(reg.is_valid());
-  DCHECK(!reg.is(kDoubleRegZero));
-  DCHECK(!reg.is(kLithiumScratchDouble));
-  return (reg.code() / 2);
-}
-
-
 // -----------------------------------------------------------------------------
 // RelocInfo.
 
-void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
+void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
     byte* p = reinterpret_cast<byte*>(pc_);
@@ -189,31 +159,19 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 
-Address Assembler::break_address_from_return_address(Address pc) {
-  return pc - Assembler::kPatchDebugBreakSlotReturnOffset;
-}
-
-
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
-  // Encoded internal references are lui/ori load of 48-bit absolute address.
-  Instr instr_lui = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
-  Instr instr_ori = Assembler::instr_at(pc + 1 * Assembler::kInstrSize);
-  Instr instr_ori2 = Assembler::instr_at(pc + 3 * Assembler::kInstrSize);
-  DCHECK(Assembler::IsLui(instr_lui));
-  DCHECK(Assembler::IsOri(instr_ori));
-  DCHECK(Assembler::IsOri(instr_ori2));
-  instr_lui &= ~kImm16Mask;
-  instr_ori &= ~kImm16Mask;
-  instr_ori2 &= ~kImm16Mask;
-  int64_t imm = reinterpret_cast<int64_t>(target);
-  DCHECK((imm & 3) == 0);
-  Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
-                          instr_lui | ((imm >> 32) & kImm16Mask));
-  Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
-                          instr_ori | ((imm >> 16) & kImm16Mask));
-  Assembler::instr_at_put(pc + 3 * Assembler::kInstrSize,
-                          instr_ori | (imm & kImm16Mask));
+  // Encoded internal references are j/jal instructions.
+  Instr instr = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
+
+  uint64_t imm28 =
+      (reinterpret_cast<uint64_t>(target) & static_cast<uint64_t>(kImm28Mask));
+
+  instr &= ~kImm26Mask;
+  uint64_t imm26 = imm28 >> 2;
+  DCHECK(is_uint26(imm26));
+
+  instr_at_put(pc, instr | (imm26 & kImm26Mask));
   // Currently used only by deserializer, and all code will be flushed
   // after complete deserialization, no need to flush on each reference.
 }
@@ -222,7 +180,7 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
   if (mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
-    DCHECK(IsLui(instr_at(pc)));
+    DCHECK(IsJ(instr_at(pc)));
     set_target_internal_reference_encoded_at(pc, target);
   } else {
     DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
@@ -270,18 +228,14 @@ Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
     return Memory::Address_at(pc_);
   } else {
-    // Encoded internal references are lui/ori load of 48-bit absolute address.
+    // Encoded internal references are j/jal instructions.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
-    Instr instr_lui = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
-    Instr instr_ori = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
-    Instr instr_ori2 = Assembler::instr_at(pc_ + 3 * Assembler::kInstrSize);
-    DCHECK(Assembler::IsLui(instr_lui));
-    DCHECK(Assembler::IsOri(instr_ori));
-    DCHECK(Assembler::IsOri(instr_ori2));
-    int64_t imm = (instr_lui & static_cast<int64_t>(kImm16Mask)) << 32;
-    imm |= (instr_ori & static_cast<int64_t>(kImm16Mask)) << 16;
-    imm |= (instr_ori2 & static_cast<int64_t>(kImm16Mask));
-    return reinterpret_cast<Address>(imm);
+    Instr instr = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
+    instr &= kImm26Mask;
+    uint64_t imm28 = instr << 2;
+    uint64_t segment =
+        (reinterpret_cast<uint64_t>(pc_) & ~static_cast<uint64_t>(kImm28Mask));
+    return reinterpret_cast<Address>(segment | imm28);
   }
 }
 
@@ -360,45 +314,24 @@ void RelocInfo::set_code_age_stub(Code* stub,
 }
 
 
-Address RelocInfo::call_address() {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  // The pc_ offset of 0 assumes mips patched return sequence per
-  // debug-mips.cc BreakLocation::SetDebugBreakAtReturn(), or
-  // debug break slot per BreakLocation::SetDebugBreakAtSlot().
+Address RelocInfo::debug_call_address() {
+  // The pc_ offset of 0 assumes patched debug break slot or return
+  // sequence.
+  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
   return Assembler::target_address_at(pc_, host_);
 }
 
 
-void RelocInfo::set_call_address(Address target) {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  // The pc_ offset of 0 assumes mips patched return sequence per
-  // debug-mips.cc BreakLocation::SetDebugBreakAtReturn(), or
-  // debug break slot per BreakLocation::SetDebugBreakAtSlot().
+void RelocInfo::set_debug_call_address(Address target) {
+  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
+  // The pc_ offset of 0 assumes patched debug break slot or return
+  // sequence.
   Assembler::set_target_address_at(pc_, host_, target);
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target_code));
   }
-}
-
-
-Object* RelocInfo::call_object() {
-  return *call_object_address();
-}
-
-
-Object** RelocInfo::call_object_address() {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  return reinterpret_cast<Object**>(pc_ + 6 * Assembler::kInstrSize);
-}
-
-
-void RelocInfo::set_call_object(Object* target) {
-  *call_object_address() = target;
 }
 
 
@@ -453,11 +386,8 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
-  } else if (((RelocInfo::IsJSReturn(mode) &&
-              IsPatchedReturnSequence()) ||
-             (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence())) &&
-             isolate->debug()->has_break_points()) {
+  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
+             IsPatchedDebugBreakSlotSequence()) {
     visitor->VisitDebugTarget(this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
@@ -481,11 +411,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-  } else if (heap->isolate()->debug()->has_break_points() &&
-             ((RelocInfo::IsJSReturn(mode) &&
-              IsPatchedReturnSequence()) ||
-             (RelocInfo::IsDebugBreakSlot(mode) &&
-              IsPatchedDebugBreakSlotSequence()))) {
+  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
+             IsPatchedDebugBreakSlotSequence()) {
     StaticVisitor::VisitDebugTarget(heap, this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
@@ -531,6 +458,7 @@ void Assembler::emit(uint64_t x) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MIPS_ASSEMBLER_MIPS_INL_H_

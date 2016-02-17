@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/codegen.h"
 
 #if defined(V8_OS_AIX)
-#include <fenv.h>
+#include <fenv.h>  // NOLINT(build/c++11)
 #endif
 #include "src/bootstrapper.h"
-#include "src/codegen.h"
 #include "src/compiler.h"
-#include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/parser.h"
 #include "src/prettyprinter.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/rewriter.h"
 #include "src/runtime/runtime.h"
 
@@ -122,37 +121,38 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
   }
 
   if (FLAG_trace_codegen || print_source || print_ast) {
-    PrintF("[generating %s code for %s function: ", kind, ftype);
-    if (info->IsStub()) {
-      const char* name =
-          CodeStub::MajorName(info->code_stub()->MajorKey(), true);
-      PrintF("%s", name == NULL ? "<unknown>" : name);
-    } else {
-      AllowDeferredHandleDereference allow_deference_for_trace;
-      PrintF("%s", info->function()->debug_name()->ToCString().get());
-    }
-    PrintF("]\n");
+    base::SmartArrayPointer<char> name = info->GetDebugName();
+    PrintF("[generating %s code for %s function: %s]\n", kind, ftype,
+           name.get());
   }
 
 #ifdef DEBUG
   if (info->parse_info() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter(info->isolate(), info->zone())
-               .PrintProgram(info->function()));
+           PrettyPrinter(info->isolate()).PrintProgram(info->literal()));
   }
 
   if (info->parse_info() && print_ast) {
-    PrintF("--- AST ---\n%s\n", AstPrinter(info->isolate(), info->zone())
-                                    .PrintProgram(info->function()));
+    PrintF("--- AST ---\n%s\n",
+           AstPrinter(info->isolate()).PrintProgram(info->literal()));
   }
 #endif  // DEBUG
 }
 
 
 Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
-                                             Code::Flags flags,
                                              CompilationInfo* info) {
   Isolate* isolate = info->isolate();
+
+  Code::Flags flags;
+  if (info->IsStub() && info->code_stub()) {
+    DCHECK_EQ(info->output_code_kind(), info->code_stub()->GetCodeKind());
+    flags = Code::ComputeFlags(
+        info->output_code_kind(), info->code_stub()->GetICState(),
+        info->code_stub()->GetExtraICState(), info->code_stub()->GetStubType());
+  } else {
+    flags = Code::ComputeFlags(info->output_code_kind());
+  }
 
   // Allocate and install the code.
   CodeDesc desc;
@@ -182,36 +182,25 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
          (info->IsStub() && FLAG_print_code_stubs) ||
          (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
-    const char* debug_name;
-    SmartArrayPointer<char> debug_name_holder;
-    if (info->IsStub()) {
-      CodeStub::Major major_key = info->code_stub()->MajorKey();
-      debug_name = CodeStub::MajorName(major_key, false);
-    } else {
-      debug_name_holder =
-          info->parse_info()->function()->debug_name()->ToCString();
-      debug_name = debug_name_holder.get();
-    }
-
+    base::SmartArrayPointer<char> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
 
     // Print the source code if available.
-    FunctionLiteral* function = nullptr;
     bool print_source =
         info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION ||
                                code->kind() == Code::FUNCTION);
     if (print_source) {
-      function = info->function();
+      FunctionLiteral* literal = info->literal();
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(String::cast(script->source()),
-                                     function->start_position());
+                                     literal->start_position());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
         int source_len =
-            function->end_position() - function->start_position() + 1;
+            literal->end_position() - literal->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
           if (stream.HasMore()) {
             os << AsReversiblyEscapedUC16(stream.GetNext());
@@ -223,7 +212,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     if (info->IsOptimizing()) {
       if (FLAG_print_unopt_code && info->parse_info()) {
         os << "--- Unoptimized code ---\n";
-        info->closure()->shared()->code()->Disassemble(debug_name, os);
+        info->closure()->shared()->code()->Disassemble(debug_name.get(), os);
       }
       os << "--- Optimized code ---\n"
          << "optimization_id = " << info->optimization_id() << "\n";
@@ -231,26 +220,14 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       os << "--- Code ---\n";
     }
     if (print_source) {
-      os << "source_position = " << function->start_position() << "\n";
+      FunctionLiteral* literal = info->literal();
+      os << "source_position = " << literal->start_position() << "\n";
     }
-    code->Disassemble(debug_name, os);
+    code->Disassemble(debug_name.get(), os);
     os << "--- End code ---\n";
   }
 #endif  // ENABLE_DISASSEMBLER
 }
 
-
-bool CodeGenerator::RecordPositions(MacroAssembler* masm,
-                                    int pos,
-                                    bool right_here) {
-  if (pos != RelocInfo::kNoPosition) {
-    masm->positions_recorder()->RecordStatementPosition(pos);
-    masm->positions_recorder()->RecordPosition(pos);
-    if (right_here) {
-      return masm->positions_recorder()->WriteRecordedPositions();
-    }
-  }
-  return false;
-}
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

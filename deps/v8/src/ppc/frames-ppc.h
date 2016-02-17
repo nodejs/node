@@ -55,6 +55,45 @@ const RegList kCalleeSaved = 1 << 14 |  // r14
 
 const int kNumCalleeSaved = 18;
 
+const RegList kCallerSavedDoubles = 1 << 0 |   // d0
+                                    1 << 1 |   // d1
+                                    1 << 2 |   // d2
+                                    1 << 3 |   // d3
+                                    1 << 4 |   // d4
+                                    1 << 5 |   // d5
+                                    1 << 6 |   // d6
+                                    1 << 7 |   // d7
+                                    1 << 8 |   // d8
+                                    1 << 9 |   // d9
+                                    1 << 10 |  // d10
+                                    1 << 11 |  // d11
+                                    1 << 12 |  // d12
+                                    1 << 13;   // d13
+
+const int kNumCallerSavedDoubles = 14;
+
+const RegList kCalleeSavedDoubles = 1 << 14 |  // d14
+                                    1 << 15 |  // d15
+                                    1 << 16 |  // d16
+                                    1 << 17 |  // d17
+                                    1 << 18 |  // d18
+                                    1 << 19 |  // d19
+                                    1 << 20 |  // d20
+                                    1 << 21 |  // d21
+                                    1 << 22 |  // d22
+                                    1 << 23 |  // d23
+                                    1 << 24 |  // d24
+                                    1 << 25 |  // d25
+                                    1 << 26 |  // d26
+                                    1 << 27 |  // d27
+                                    1 << 28 |  // d28
+                                    1 << 29 |  // d29
+                                    1 << 30 |  // d30
+                                    1 << 31;   // d31
+
+const int kNumCalleeSavedDoubles = 18;
+
+
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
 const int kNumSafepointRegisters = 32;
@@ -116,8 +155,11 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kFrameSize = 2 * kPointerSize;
-  static const int kConstantPoolOffset = 0;  // Not used.
+  static const int kFrameSize =
+      FLAG_enable_embedded_constant_pool ? 3 * kPointerSize : 2 * kPointerSize;
+
+  static const int kConstantPoolOffset =
+      FLAG_enable_embedded_constant_pool ? -3 * kPointerSize : 0;
   static const int kCodeOffset = -2 * kPointerSize;
   static const int kSPOffset = -1 * kPointerSize;
 
@@ -145,43 +187,7 @@ class JavaScriptFrameConstants : public AllStatic {
 };
 
 
-class ArgumentsAdaptorFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + kPointerSize;
-};
-
-
-class ConstructFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kImplicitReceiverOffset = -6 * kPointerSize;
-  static const int kConstructorOffset = -5 * kPointerSize;
-  static const int kLengthOffset = -4 * kPointerSize;
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
-};
-
-
-class InternalFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
-};
-
-
-inline Object* JavaScriptFrame::function_slot_object() const {
-  const int offset = JavaScriptFrameConstants::kFunctionOffset;
-  return Memory::Object_at(fp() + offset);
-}
-
-
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_FRAMES_PPC_H_

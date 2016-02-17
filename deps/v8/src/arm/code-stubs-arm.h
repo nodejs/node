@@ -5,6 +5,8 @@
 #ifndef V8_ARM_CODE_STUBS_ARM_H_
 #define V8_ARM_CODE_STUBS_ARM_H_
 
+#include "src/arm/frames-arm.h"
+
 namespace v8 {
 namespace internal {
 
@@ -127,8 +129,8 @@ class RecordWriteStub: public PlatformCodeStub {
         break;
     }
     DCHECK(GetMode(stub) == mode);
-    CpuFeatures::FlushICache(stub->instruction_start(),
-                             2 * Assembler::kInstrSize);
+    Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(),
+                           2 * Assembler::kInstrSize);
   }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
@@ -309,6 +311,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_CODE_STUBS_ARM_H_

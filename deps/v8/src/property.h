@@ -9,7 +9,6 @@
 
 #include "src/factory.h"
 #include "src/field-index.h"
-#include "src/field-index-inl.h"
 #include "src/isolate.h"
 #include "src/types.h"
 
@@ -108,6 +107,7 @@ class AccessorConstantDescriptor final : public Descriptor {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROPERTY_H_

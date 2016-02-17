@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/layout-descriptor.h"
+
 #include <sstream>
 
-#include "src/v8.h"
-
 #include "src/base/bits.h"
-#include "src/layout-descriptor.h"
+#include "src/handles-inl.h"
 
 using v8::base::bits::CountTrailingZeros32;
 
@@ -46,7 +46,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
   Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
                                              isolate);
 
-  if (!InobjectUnboxedField(map->inobject_properties(), details)) {
+  if (!InobjectUnboxedField(map->GetInObjectProperties(), details)) {
     DCHECK(details.location() != kField ||
            layout_descriptor->IsTagged(details.field_index()));
     return layout_descriptor;
@@ -73,7 +73,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
   if (layout_descriptor->IsSlowLayout()) {
     return full_layout_descriptor;
   }
-  if (!InobjectUnboxedField(map->inobject_properties(), details)) {
+  if (!InobjectUnboxedField(map->GetInObjectProperties(), details)) {
     DCHECK(details.location() != kField ||
            layout_descriptor->IsTagged(details.field_index()));
     return handle(layout_descriptor, map->GetIsolate());
@@ -284,5 +284,5 @@ bool LayoutDescriptor::IsConsistentWithMap(Map* map, bool check_tail) {
   }
   return true;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

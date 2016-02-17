@@ -5,7 +5,7 @@ var assert = require('assert');
 var fp = '/tmp/fadagagsdfgsdf';
 var c = net.connect(fp);
 
-c.on('connect', assert.fail);
+c.on('connect', common.fail);
 
 c.on('error', common.mustCall(function(e) {
   assert.equal(e.code, 'ENOENT');

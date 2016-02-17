@@ -233,7 +233,7 @@ void *ECDSA_get_ex_data(EC_KEY *d, int idx);
  *  \return pointer to a ECDSA_METHOD structure or NULL if an error occurred
  */
 
-ECDSA_METHOD *ECDSA_METHOD_new(ECDSA_METHOD *ecdsa_method);
+ECDSA_METHOD *ECDSA_METHOD_new(const ECDSA_METHOD *ecdsa_method);
 
 /** frees a ECDSA_METHOD structure
  *  \param  ecdsa_method  pointer to the ECDSA_METHOD structure

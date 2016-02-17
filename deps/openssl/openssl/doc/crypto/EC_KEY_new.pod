@@ -70,8 +70,8 @@ The functions EC_KEY_get0_group, EC_KEY_set_group, EC_KEY_get0_private_key, EC_K
 The functions EC_KEY_get_conv_form and EC_KEY_set_conv_form get and set the point_conversion_form for the B<key>. For a description
 of point_conversion_forms please refer to L<EC_POINT_new(3)|EC_POINT_new(3)>.
 
-EC_KEY_insert_key_method_data and EC_KEY_get_key_method_data enable the caller to associate arbitary additional data specific to the
-elliptic curve scheme being used with the EC_KEY object. This data is treated as a "black box" by the ec library. The data to be stored by EC_KEY_insert_key_method_data is provided in the B<data> parameter, which must have have associated functions for duplicating, freeing and "clear_freeing" the data item. If a subsequent EC_KEY_get_key_method_data call is issued, the functions for duplicating, freeing and "clear_freeing" the data item must be provided again, and they must be the same as they were when the data item was inserted.
+EC_KEY_insert_key_method_data and EC_KEY_get_key_method_data enable the caller to associate arbitrary additional data specific to the
+elliptic curve scheme being used with the EC_KEY object. This data is treated as a "black box" by the ec library. The data to be stored by EC_KEY_insert_key_method_data is provided in the B<data> parameter, which must have associated functions for duplicating, freeing and "clear_freeing" the data item. If a subsequent EC_KEY_get_key_method_data call is issued, the functions for duplicating, freeing and "clear_freeing" the data item must be provided again, and they must be the same as they were when the data item was inserted.
 
 EC_KEY_set_flags sets the flags in the B<flags> parameter on the EC_KEY object. Any flags that are already set are left set. The currently defined standard flags are EC_FLAG_NON_FIPS_ALLOW and EC_FLAG_FIPS_CHECKED. In addition there is the flag EC_FLAG_COFACTOR_ECDH which is specific to ECDH and is defined in ecdh.h. EC_KEY_get_flags returns the current flags that are set for this EC_KEY. EC_KEY_clear_flags clears the flags indicated by the B<flags> parameter. All other flags are left in their existing state.
 

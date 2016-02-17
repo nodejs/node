@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    vm     = require('vm');
+require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
 assert.doesNotThrow(function() {
   var context = vm.createContext({ process: process });

@@ -18,8 +18,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                                   ExtraICState extra_ic_state);
 
   // Named
-  static Handle<Code> ComputeLoad(Isolate* isolate, InlineCacheState ic_state,
-                                  ExtraICState extra_state);
   static Handle<Code> ComputeStore(Isolate* isolate, InlineCacheState ic_state,
                                    ExtraICState extra_state);
 
@@ -34,13 +32,18 @@ class PropertyICCompiler : public PropertyAccessCompiler {
 
   // Keyed
   static Handle<Code> ComputeKeyedLoadMonomorphicHandler(
-      Handle<Map> receiver_map);
-  static Handle<Code> ComputeKeyedLoadMonomorphic(Handle<Map> receiver_map);
+      Handle<Map> receiver_map, ExtraICState extra_ic_state);
 
+  static Handle<Code> ComputeKeyedStoreMonomorphicHandler(
+      Handle<Map> receiver_map, LanguageMode language_mode,
+      KeyedAccessStoreMode store_mode);
   static Handle<Code> ComputeKeyedStoreMonomorphic(
       Handle<Map> receiver_map, LanguageMode language_mode,
       KeyedAccessStoreMode store_mode);
-  static Handle<Code> ComputeKeyedLoadPolymorphic(MapHandleList* receiver_maps);
+  static void ComputeKeyedStorePolymorphicHandlers(
+      MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
+      CodeHandleList* handlers, KeyedAccessStoreMode store_mode,
+      LanguageMode language_mode);
   static Handle<Code> ComputeKeyedStorePolymorphic(
       MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
       LanguageMode language_mode);
@@ -69,8 +72,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                            CacheHolderFlag cache_holder = kCacheOnReceiver);
 
   Handle<Code> CompileLoadInitialize(Code::Flags flags);
-  Handle<Code> CompileLoadPreMonomorphic(Code::Flags flags);
-  Handle<Code> CompileLoadMegamorphic(Code::Flags flags);
   Handle<Code> CompileStoreInitialize(Code::Flags flags);
   Handle<Code> CompileStorePreMonomorphic(Code::Flags flags);
   Handle<Code> CompileStoreGeneric(Code::Flags flags);
@@ -82,9 +83,15 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                                   Handle<Name> name, Code::StubType type,
                                   IcCheckType check);
 
+  Handle<Code> CompileKeyedStoreMonomorphicHandler(
+      Handle<Map> receiver_map, KeyedAccessStoreMode store_mode);
   Handle<Code> CompileKeyedStoreMonomorphic(Handle<Map> receiver_map,
                                             KeyedAccessStoreMode store_mode);
   Handle<Code> CompileKeyedStorePolymorphic(MapHandleList* receiver_maps,
+                                            KeyedAccessStoreMode store_mode);
+  void CompileKeyedStorePolymorphicHandlers(MapHandleList* receiver_maps,
+                                            MapHandleList* transitioned_maps,
+                                            CodeHandleList* handlers,
                                             KeyedAccessStoreMode store_mode);
   Handle<Code> CompileKeyedStorePolymorphic(MapHandleList* receiver_maps,
                                             CodeHandleList* handler_stubs,
@@ -118,7 +125,7 @@ class PropertyICCompiler : public PropertyAccessCompiler {
 };
 
 
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_IC_COMPILER_H_

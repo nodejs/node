@@ -1,5 +1,7 @@
 'use strict';
 
+require('../../common');
+
 const binding = require('./build/Release/binding');
 
 // Create an AsyncWrap object.

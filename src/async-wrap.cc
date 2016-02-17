@@ -12,7 +12,6 @@ using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HandleScope;
 using v8::HeapProfiler;
 using v8::Integer;
@@ -83,7 +82,7 @@ intptr_t RetainedAsyncInfo::GetSizeInBytes() {
 }
 
 
-RetainedObjectInfo* WrapperInfo(uint16_t class_id, Handle<Value> wrapper) {
+RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
   // No class_id should be the provider type of NONE.
   CHECK_NE(NODE_ASYNC_ID_OFFSET, class_id);
   CHECK(wrapper->IsObject());
@@ -104,6 +103,9 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Handle<Value> wrapper) {
 
 static void EnableHooksJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Function> init_fn = env->async_hooks_init_function();
+  if (init_fn.IsEmpty() || !init_fn->IsFunction())
+    return env->ThrowTypeError("init callback is not assigned to a function");
   env->async_hooks()->set_enable_callbacks(1);
 }
 
@@ -117,21 +119,26 @@ static void DisableHooksJS(const FunctionCallbackInfo<Value>& args) {
 static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
-  CHECK(args[2]->IsFunction());
+  if (env->async_hooks()->callbacks_enabled())
+    return env->ThrowError("hooks should not be set while also enabled");
+
+  if (!args[0]->IsFunction())
+    return env->ThrowTypeError("init callback must be a function");
 
   env->set_async_hooks_init_function(args[0].As<Function>());
-  env->set_async_hooks_pre_function(args[1].As<Function>());
-  env->set_async_hooks_post_function(args[2].As<Function>());
 
-  env->set_using_asyncwrap(true);
+  if (args[1]->IsFunction())
+    env->set_async_hooks_pre_function(args[1].As<Function>());
+  if (args[2]->IsFunction())
+    env->set_async_hooks_post_function(args[2].As<Function>());
+  if (args[3]->IsFunction())
+    env->set_async_hooks_destroy_function(args[3].As<Function>());
 }
 
 
-static void Initialize(Handle<Object> target,
-                Handle<Value> unused,
-                Handle<Context> context) {
+static void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
@@ -147,6 +154,11 @@ static void Initialize(Handle<Object> target,
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "Providers"), async_providers);
+
+  env->set_async_hooks_init_function(Local<Function>());
+  env->set_async_hooks_pre_function(Local<Function>());
+  env->set_async_hooks_post_function(Local<Function>());
+  env->set_async_hooks_destroy_function(Local<Function>());
 }
 
 
@@ -160,16 +172,19 @@ void LoadAsyncWrapperInfo(Environment* env) {
 }
 
 
-Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
-                                      int argc,
-                                      Handle<Value>* argv) {
+Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
+                                     int argc,
+                                     Local<Value>* argv) {
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
+  Local<Function> pre_fn = env()->async_hooks_pre_function();
+  Local<Function> post_fn = env()->async_hooks_post_function();
   Local<Object> context = object();
   Local<Object> process = env()->process_object();
   Local<Object> domain;
   bool has_domain = false;
-  bool has_abort_on_uncaught_and_domains = false;
+
+  Environment::AsyncCallbackScope callback_scope(env());
 
   if (env()->using_domains()) {
     Local<Value> domain_v = context->Get(env()->domain_string());
@@ -178,70 +193,48 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
       domain = domain_v.As<Object>();
       if (domain->Get(env()->disposed_string())->IsTrue())
         return Undefined(env()->isolate());
-      has_abort_on_uncaught_and_domains = env()->using_abort_on_uncaught_exc();
     }
   }
-
-  TryCatch try_catch;
-  try_catch.SetVerbose(true);
 
   if (has_domain) {
     Local<Value> enter_v = domain->Get(env()->enter_string());
     if (enter_v->IsFunction()) {
-      enter_v.As<Function>()->Call(domain, 0, nullptr);
-      if (try_catch.HasCaught())
-        return Undefined(env()->isolate());
+      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::AsyncWrap::MakeCallback",
+                   "domain enter callback threw, please report this");
+      }
     }
   }
 
-  if (has_async_queue()) {
-    try_catch.SetVerbose(false);
-    env()->async_hooks_pre_function()->Call(context, 0, nullptr);
-    if (try_catch.HasCaught())
+  if (ran_init_callback() && !pre_fn.IsEmpty()) {
+    if (pre_fn->Call(context, 0, nullptr).IsEmpty())
       FatalError("node::AsyncWrap::MakeCallback", "pre hook threw");
-    try_catch.SetVerbose(true);
   }
 
-  Local<Value> ret;
+  Local<Value> ret = cb->Call(context, argc, argv);
 
-  if (has_abort_on_uncaught_and_domains) {
-    Local<Value> fn = process->Get(env()->domain_abort_uncaught_exc_string());
-    if (fn->IsFunction()) {
-      Local<Array> special_context = Array::New(env()->isolate(), 2);
-      special_context->Set(0, context);
-      special_context->Set(1, cb);
-      ret = fn.As<Function>()->Call(special_context, argc, argv);
-    } else {
-      ret = cb->Call(context, argc, argv);
-    }
-  } else {
-    ret = cb->Call(context, argc, argv);
-  }
-
-  if (try_catch.HasCaught()) {
-    return Undefined(env()->isolate());
-  }
-
-  if (has_async_queue()) {
-    try_catch.SetVerbose(false);
-    env()->async_hooks_post_function()->Call(context, 0, nullptr);
-    if (try_catch.HasCaught())
+  if (ran_init_callback() && !post_fn.IsEmpty()) {
+    if (post_fn->Call(context, 0, nullptr).IsEmpty())
       FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
-    try_catch.SetVerbose(true);
+  }
+
+  if (ret.IsEmpty()) {
+    return Undefined(env()->isolate());
   }
 
   if (has_domain) {
     Local<Value> exit_v = domain->Get(env()->exit_string());
     if (exit_v->IsFunction()) {
-      exit_v.As<Function>()->Call(domain, 0, nullptr);
-      if (try_catch.HasCaught())
-        return Undefined(env()->isolate());
+      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::AsyncWrap::MakeCallback",
+                   "domain exit callback threw, please report this");
+      }
     }
   }
 
   Environment::TickInfo* tick_info = env()->tick_info();
 
-  if (tick_info->in_tick()) {
+  if (callback_scope.in_makecallback()) {
     return ret;
   }
 
@@ -254,14 +247,7 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
     return ret;
   }
 
-  tick_info->set_in_tick(true);
-
-  env()->tick_callback_function()->Call(process, 0, nullptr);
-
-  tick_info->set_in_tick(false);
-
-  if (try_catch.HasCaught()) {
-    tick_info->set_last_threw(true);
+  if (env()->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     return Undefined(env()->isolate());
   }
 

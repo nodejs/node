@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/modules.h"
 
 #include "src/ast-value-factory.h"
@@ -57,5 +55,5 @@ const AstRawString* ModuleDescriptor::LookupLocalExport(
   DCHECK_NOT_NULL(entry->value);
   return static_cast<const AstRawString*>(entry->value);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

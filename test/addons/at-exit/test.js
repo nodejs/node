@@ -1,2 +1,3 @@
 'use strict';
-var binding = require('./build/Release/binding');
+require('../../common');
+require('./build/Release/binding');

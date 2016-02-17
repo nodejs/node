@@ -157,3 +157,45 @@ assertThrows(function() {
   String.prototype.sup.call(null);
 }, TypeError);
 assertEquals(String.prototype.sup.length, 0);
+
+
+(function TestToString() {
+  var calls = 0;
+  var obj = {
+    toString() {
+      calls++;
+      return 'abc';
+    },
+    valueOf() {
+      assertUnreachable();
+    }
+  };
+
+  var methodNames = [
+    'anchor',
+    'big',
+    'blink',
+    'bold',
+    'fixed',
+    'fontcolor',
+    'fontsize',
+    'italics',
+    'link',
+    'small',
+    'strike',
+    'sub',
+    'sup',
+  ];
+  for (var name of methodNames) {
+    calls = 0;
+    String.prototype[name].call(obj);
+    assertEquals(1, calls);
+  }
+})();
+
+
+(function TestDeleteStringRelace() {
+  assertEquals('<a name="n">s</a>', 's'.anchor('n'));
+  assertTrue(delete String.prototype.replace);
+  assertEquals('<a name="n">s</a>', 's'.anchor('n'));
+})();

@@ -161,7 +161,7 @@ char** uv_setup_args(int argc, char** argv) {
 
 
 int uv_set_process_title(const char* title) {
-  if (process_title) uv__free(process_title);
+  uv__free(process_title);
   process_title = uv__strdup(title);
   setproctitle(title);
   return 0;
@@ -313,8 +313,10 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
   *addresses = uv__malloc(*count * sizeof(**addresses));
 
-  if (!(*addresses))
+  if (!(*addresses)) {
+    freeifaddrs(addrs);
     return -ENOMEM;
+  }
 
   address = *addresses;
 

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var execFile = require('child_process').execFile;
 var depmod = require.resolve('../fixtures/deprecated.js');
@@ -16,8 +16,7 @@ execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  assert.equal(stderr, '(node) util.p is deprecated. Use console.error ' +
-                       'instead.\n\'This is deprecated\'\n');
+  assert(/util\.debug is deprecated/.test(stderr));
   console.log('normal ok');
 });
 
@@ -25,7 +24,7 @@ execFile(node, noDep, function(er, stdout, stderr) {
   console.error('--no-deprecation: silence deprecations');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  assert.equal(stderr, '\'This is deprecated\'\n');
+  assert.equal(stderr, 'DEBUG: This is deprecated\n');
   console.log('silent ok');
 });
 
@@ -36,8 +35,8 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   var stack = stderr.trim().split('\n');
   // just check the top and bottom.
   assert.equal(stack[0],
-               'Trace: util.p is deprecated. Use console.error instead.');
-  assert.equal(stack.pop(), '\'This is deprecated\'');
+               'Trace: util.debug is deprecated. Use console.error instead.');
+  assert.equal(stack.pop(), 'DEBUG: This is deprecated');
   console.log('trace ok');
 });
 

@@ -126,8 +126,8 @@ class PreparserTestSuite(testsuite.TestSuite):
     with open(testcase.flags[0]) as f:
       return f.read()
 
-  def VariantFlags(self, testcase, default_flags):
-    return [[]];
+  def _VariantGeneratorFactory(self):
+    return testsuite.StandardVariantGenerator
 
 
 def GetSuite(name, root):

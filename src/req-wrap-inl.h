@@ -13,7 +13,7 @@ namespace node {
 
 template <typename T>
 ReqWrap<T>::ReqWrap(Environment* env,
-                    v8::Handle<v8::Object> object,
+                    v8::Local<v8::Object> object,
                     AsyncWrap::ProviderType provider)
     : AsyncWrap(env, object, provider) {
   if (env->in_domain())

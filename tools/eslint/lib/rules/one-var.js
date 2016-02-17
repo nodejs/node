@@ -18,7 +18,7 @@ module.exports = function(context) {
     var MODE_ALWAYS = "always",
         MODE_NEVER = "never";
 
-    var mode = context.options[0];
+    var mode = context.options[0] || MODE_ALWAYS;
 
     var options = {
     };
@@ -217,6 +217,8 @@ module.exports = function(context) {
         "ArrowFunctionExpression": startFunction,
         "BlockStatement": startBlock,
         "ForStatement": startBlock,
+        "ForInStatement": startBlock,
+        "ForOfStatement": startBlock,
         "SwitchStatement": startBlock,
 
         "VariableDeclaration": function(node) {
@@ -263,6 +265,8 @@ module.exports = function(context) {
         },
 
         "ForStatement:exit": endBlock,
+        "ForOfStatement:exit": endBlock,
+        "ForInStatement:exit": endBlock,
         "SwitchStatement:exit": endBlock,
         "BlockStatement:exit": endBlock,
         "Program:exit": endFunction,

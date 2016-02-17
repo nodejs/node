@@ -11,7 +11,7 @@ var expected_tests = 2;
 var linkPath1 = path.join(common.tmpDir, 'junction1');
 var linkPath2 = path.join(common.tmpDir, 'junction2');
 var linkTarget = path.join(common.fixturesDir);
-var linkData = '../fixtures';
+var linkData = path.join(common.fixturesDir);
 
 common.refreshTmpDir();
 
@@ -42,4 +42,3 @@ function verifyLink(linkPath) {
 process.on('exit', function() {
   assert.equal(completed, expected_tests);
 });
-

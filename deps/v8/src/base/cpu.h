@@ -59,6 +59,9 @@ class CPU final {
   static const int ARM_CORTEX_A12 = 0xc0c;
   static const int ARM_CORTEX_A15 = 0xc0f;
 
+  // Denver-specific part code
+  static const int NVIDIA_DENVER_V10 = 0x002;
+
   // PPC-specific part codes
   enum {
     PPC_POWER5,
@@ -142,6 +145,7 @@ class CPU final {
   bool is_fp64_mode_;
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_CPU_H_

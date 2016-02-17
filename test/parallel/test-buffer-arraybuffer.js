@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const Buffer = require('buffer').Buffer;
@@ -40,7 +40,14 @@ assert.equal(dv.getFloat64(8, true), 3.1415);
 
 assert.throws(function() {
   function AB() { }
-  AB.__proto__ = ArrayBuffer;
-  AB.prototype.__proto__ = ArrayBuffer.prototype;
+  Object.setPrototypeOf(AB, ArrayBuffer);
+  Object.setPrototypeOf(AB.prototype, ArrayBuffer.prototype);
   new Buffer(new AB());
 }, TypeError);
+
+// write{Double,Float}{LE,BE} with noAssert should not crash, cf. #3766
+var b = new Buffer(1);
+b.writeFloatLE(11.11, 0, true);
+b.writeFloatBE(11.11, 0, true);
+b.writeDoubleLE(11.11, 0, true);
+b.writeDoubleBE(11.11, 0, true);

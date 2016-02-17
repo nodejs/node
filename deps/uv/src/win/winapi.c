@@ -40,19 +40,13 @@ sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 sCreateSymbolicLinkW pCreateSymbolicLinkW;
 sCancelIoEx pCancelIoEx;
-sInitializeSRWLock pInitializeSRWLock;
-sAcquireSRWLockShared pAcquireSRWLockShared;
-sAcquireSRWLockExclusive pAcquireSRWLockExclusive;
-sTryAcquireSRWLockShared pTryAcquireSRWLockShared;
-sTryAcquireSRWLockExclusive pTryAcquireSRWLockExclusive;
-sReleaseSRWLockShared pReleaseSRWLockShared;
-sReleaseSRWLockExclusive pReleaseSRWLockExclusive;
 sInitializeConditionVariable pInitializeConditionVariable;
 sSleepConditionVariableCS pSleepConditionVariableCS;
 sSleepConditionVariableSRW pSleepConditionVariableSRW;
 sWakeAllConditionVariable pWakeAllConditionVariable;
 sWakeConditionVariable pWakeConditionVariable;
 sCancelSynchronousIo pCancelSynchronousIo;
+sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
 
 
 void uv_winapi_init() {
@@ -129,27 +123,6 @@ void uv_winapi_init() {
   pCancelIoEx = (sCancelIoEx)
     GetProcAddress(kernel32_module, "CancelIoEx");
 
-  pInitializeSRWLock = (sInitializeSRWLock)
-    GetProcAddress(kernel32_module, "InitializeSRWLock");
-
-  pAcquireSRWLockShared = (sAcquireSRWLockShared)
-    GetProcAddress(kernel32_module, "AcquireSRWLockShared");
-
-  pAcquireSRWLockExclusive = (sAcquireSRWLockExclusive)
-    GetProcAddress(kernel32_module, "AcquireSRWLockExclusive");
-
-  pTryAcquireSRWLockShared = (sTryAcquireSRWLockShared)
-    GetProcAddress(kernel32_module, "TryAcquireSRWLockShared");
-
-  pTryAcquireSRWLockExclusive = (sTryAcquireSRWLockExclusive)
-    GetProcAddress(kernel32_module, "TryAcquireSRWLockExclusive");
-
-  pReleaseSRWLockShared = (sReleaseSRWLockShared)
-    GetProcAddress(kernel32_module, "ReleaseSRWLockShared");
-
-  pReleaseSRWLockExclusive = (sReleaseSRWLockExclusive)
-    GetProcAddress(kernel32_module, "ReleaseSRWLockExclusive");
-
   pInitializeConditionVariable = (sInitializeConditionVariable)
     GetProcAddress(kernel32_module, "InitializeConditionVariable");
 
@@ -167,4 +140,7 @@ void uv_winapi_init() {
 
   pCancelSynchronousIo = (sCancelSynchronousIo)
     GetProcAddress(kernel32_module, "CancelSynchronousIo");
+
+  pGetFinalPathNameByHandleW = (sGetFinalPathNameByHandleW)
+    GetProcAddress(kernel32_module, "GetFinalPathNameByHandleW");
 }

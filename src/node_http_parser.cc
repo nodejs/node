@@ -43,7 +43,6 @@ using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -367,7 +366,9 @@ class Parser : public BaseObject {
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
     Parser* parser = Unwrap<Parser>(args.Holder());
-    delete parser;
+
+    if (--parser->refcount_ == 0)
+      delete parser;
   }
 
 
@@ -483,13 +484,18 @@ class Parser : public BaseObject {
     if (parser->prev_alloc_cb_.is_empty())
       return;
 
-    CHECK(args[0]->IsExternal());
-    Local<External> stream_obj = args[0].As<External>();
-    StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
-    CHECK_NE(stream, nullptr);
+    // Restore stream's callbacks
+    if (args.Length() == 1 && args[0]->IsExternal()) {
+      Local<External> stream_obj = args[0].As<External>();
+      StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
+      CHECK_NE(stream, nullptr);
 
-    stream->set_alloc_cb(parser->prev_alloc_cb_);
-    stream->set_read_cb(parser->prev_read_cb_);
+      stream->set_alloc_cb(parser->prev_alloc_cb_);
+      stream->set_read_cb(parser->prev_read_cb_);
+    }
+
+    parser->prev_alloc_cb_.clear();
+    parser->prev_read_cb_.clear();
   }
 
 
@@ -505,6 +511,22 @@ class Parser : public BaseObject {
   }
 
  protected:
+  class ScopedRetainParser {
+   public:
+    explicit ScopedRetainParser(Parser* p) : p_(p) {
+      CHECK_GT(p_->refcount_, 0);
+      p_->refcount_++;
+    }
+
+    ~ScopedRetainParser() {
+      if (0 == --p_->refcount_)
+        delete p_;
+    }
+
+   private:
+    Parser* const p_;
+  };
+
   static const size_t kAllocBufferSize = 64 * 1024;
 
   static void OnAllocImpl(size_t suggested_size, uv_buf_t* buf, void* ctx) {
@@ -541,6 +563,8 @@ class Parser : public BaseObject {
     if (nread == 0)
       return;
 
+    ScopedRetainParser retain(parser);
+
     parser->current_buffer_.Clear();
     Local<Value> ret = parser->Execute(buf->base, nread);
 
@@ -554,6 +578,8 @@ class Parser : public BaseObject {
     if (!cb->IsFunction())
       return;
 
+    Environment::AsyncCallbackScope callback_scope(parser->env());
+
     // Hooks for GetCurrentBuffer
     parser->current_buffer_len_ = nread;
     parser->current_buffer_data_ = buf->base;
@@ -563,7 +589,7 @@ class Parser : public BaseObject {
     parser->current_buffer_len_ = 0;
     parser->current_buffer_data_ = nullptr;
 
-    parser->env()->KickNextTick();
+    parser->env()->KickNextTick(&callback_scope);
   }
 
 
@@ -608,12 +634,23 @@ class Parser : public BaseObject {
   Local<Array> CreateHeaders() {
     // num_values_ is either -1 or the entry # of the last header
     // so num_values_ == 0 means there's a single header
-    Local<Array> headers = Array::New(env()->isolate(), 2 * num_values_);
+    Local<Array> headers = Array::New(env()->isolate());
+    Local<Function> fn = env()->push_values_to_array_function();
+    Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
+    int i = 0;
 
-    for (int i = 0; i < num_values_; ++i) {
-      headers->Set(2 * i, fields_[i].ToString(env()));
-      headers->Set(2 * i + 1, values_[i].ToString(env()));
-    }
+    do {
+      size_t j = 0;
+      while (i < num_values_ && j < ARRAY_SIZE(argv) / 2) {
+        argv[j * 2] = fields_[i].ToString(env());
+        argv[j * 2 + 1] = values_[i].ToString(env());
+        i++;
+        j++;
+      }
+      if (j > 0) {
+        fn->Call(env()->context(), headers, j * 2, argv).ToLocalChecked();
+      }
+    } while (i < num_values_);
 
     return headers;
   }
@@ -669,7 +706,10 @@ class Parser : public BaseObject {
   char* current_buffer_data_;
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
   StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
+  int refcount_ = 1;
   static const struct http_parser_settings settings;
+
+  friend class ScopedRetainParser;
 };
 
 
@@ -687,9 +727,9 @@ const struct http_parser_settings Parser::settings = {
 };
 
 
-void InitHttpParser(Handle<Object> target,
-                    Handle<Value> unused,
-                    Handle<Context> context,
+void InitHttpParser(Local<Object> target,
+                    Local<Value> unused,
+                    Local<Context> context,
                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);

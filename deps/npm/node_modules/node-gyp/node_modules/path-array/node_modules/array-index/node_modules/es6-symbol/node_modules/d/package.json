@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      "d@~0.1.1",
+      "/Users/rebecca/code/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/es6-symbol"
+    ]
+  ],
+  "_from": "d@>=0.1.1 <0.2.0",
+  "_id": "d@0.1.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/node-gyp/path-array/array-index/es6-symbol/d",
+  "_npmUser": {
+    "email": "medikoo+npm@medikoo.com",
+    "name": "medikoo"
+  },
+  "_npmVersion": "1.4.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "d",
+    "raw": "d@~0.1.1",
+    "rawSpec": "~0.1.1",
+    "scope": null,
+    "spec": ">=0.1.1 <0.2.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/node-gyp/path-array/array-index/es6-symbol",
+    "/node-gyp/path-array/array-index/es6-symbol/es5-ext/es6-iterator"
+  ],
+  "_resolved": "https://registry.npmjs.org/d/-/d-0.1.1.tgz",
+  "_shasum": "da184c535d18d8ee7ba2aa229b914009fae11309",
+  "_shrinkwrap": null,
+  "_spec": "d@~0.1.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/es6-symbol",
+  "author": {
+    "email": "medyk@medikoo.com",
+    "name": "Mariusz Nowak",
+    "url": "http://www.medikoo.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/medikoo/d/issues"
+  },
+  "dependencies": {
+    "es5-ext": "~0.10.2"
+  },
+  "description": "Property descriptor factory",
+  "devDependencies": {
+    "tad": "~0.1.21"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "da184c535d18d8ee7ba2aa229b914009fae11309",
+    "tarball": "http://registry.npmjs.org/d/-/d-0.1.1.tgz"
+  },
+  "homepage": "https://github.com/medikoo/d",
+  "keywords": [
+    "descriptor",
+    "descriptors",
+    "ecma",
+    "ecmascript",
+    "es",
+    "meta",
+    "properties",
+    "property"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "medikoo",
+      "email": "medikoo+npm@medikoo.com"
+    }
+  ],
+  "name": "d",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/medikoo/d.git"
+  },
+  "scripts": {
+    "test": "node node_modules/tad/bin/tad"
+  },
+  "version": "0.1.1"
+}

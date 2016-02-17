@@ -12,7 +12,7 @@ var server = http.createServer(function(req, res) {
 server.on('connect', function(req, socket, firstBodyChunk) {
   assert.equal(req.method, 'CONNECT');
   assert.equal(req.url, 'google.com:443');
-  common.debug('Server got CONNECT request');
+  console.error('Server got CONNECT request');
   serverGotConnect = true;
 
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
@@ -40,7 +40,7 @@ server.listen(common.PORT, function() {
   });
 
   req.on('connect', function(res, socket, firstBodyChunk) {
-    common.debug('Client got CONNECT request');
+    console.error('Client got CONNECT request');
     clientGotConnect = true;
 
     // Make sure this request got removed from the pool.

@@ -2,7 +2,7 @@ var path = require('path')
 
 var test = require('tap').test
 var mkdirp = require('mkdirp')
-var fs = require("graceful-fs")
+var fs = require('graceful-fs')
 var rimraf = require('rimraf')
 
 var common = require('../common-tap.js')

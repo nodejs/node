@@ -15,8 +15,7 @@ class SourcePositionTable::Decorator final : public GraphDecorator {
   explicit Decorator(SourcePositionTable* source_positions)
       : source_positions_(source_positions) {}
 
-  void Decorate(Node* node, bool incomplete) final {
-    DCHECK(!source_positions_->current_position_.IsInvalid());
+  void Decorate(Node* node) final {
     source_positions_->table_.Set(node, source_positions_->current_position_);
   }
 
@@ -28,7 +27,7 @@ class SourcePositionTable::Decorator final : public GraphDecorator {
 SourcePositionTable::SourcePositionTable(Graph* graph)
     : graph_(graph),
       decorator_(nullptr),
-      current_position_(SourcePosition::Invalid()),
+      current_position_(SourcePosition::Unknown()),
       table_(graph->zone()) {}
 
 
@@ -56,7 +55,7 @@ void SourcePositionTable::Print(std::ostream& os) const {
   bool needs_comma = false;
   for (auto i : table_) {
     SourcePosition pos = i.second;
-    if (!pos.IsUnknown()) {
+    if (pos.IsKnown()) {
       if (needs_comma) {
         os << ",";
       }

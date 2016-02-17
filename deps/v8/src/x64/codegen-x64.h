@@ -12,9 +12,6 @@ namespace v8 {
 namespace internal {
 
 
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
-
-
 class StringCharLoadGenerator : public AllStatic {
  public:
   // Generates the code for handling different string types and loading the
@@ -111,6 +108,7 @@ class StackArgumentsAccessor BASE_EMBEDDED {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_CODEGEN_X64_H_

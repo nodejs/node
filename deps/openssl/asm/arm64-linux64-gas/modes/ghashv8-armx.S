@@ -65,10 +65,10 @@ gcm_gmult_v8:
 #endif
 	ext		v3.16b,v17.16b,v17.16b,#8
 
-	pmull	v0.1q,v20.1d,v3.1d		//H.lo·Xi.lo
+	pmull	v0.1q,v20.1d,v3.1d		//H.loÂ·Xi.lo
 	eor		v17.16b,v17.16b,v3.16b		//Karatsuba pre-processing
-	pmull2	v2.1q,v20.2d,v3.2d		//H.hi·Xi.hi
-	pmull	v1.1q,v21.1d,v17.1d		//(H.lo+H.hi)·(Xi.lo+Xi.hi)
+	pmull2	v2.1q,v20.2d,v3.2d		//H.hiÂ·Xi.hi
+	pmull	v1.1q,v21.1d,v17.1d		//(H.lo+H.hi)Â·(Xi.lo+Xi.hi)
 
 	ext		v17.16b,v0.16b,v2.16b,#8		//Karatsuba post-processing
 	eor		v18.16b,v0.16b,v2.16b
@@ -132,7 +132,7 @@ gcm_ghash_v8:
 #endif
 	ext		v7.16b,v17.16b,v17.16b,#8
 	eor		v3.16b,v3.16b,v0.16b		//I[i]^=Xi
-	pmull	v4.1q,v20.1d,v7.1d		//H·Ii+1
+	pmull	v4.1q,v20.1d,v7.1d		//HÂ·Ii+1
 	eor		v17.16b,v17.16b,v7.16b		//Karatsuba pre-processing
 	pmull2	v6.1q,v20.2d,v7.2d
 	b		.Loop_mod2x_v8
@@ -141,14 +141,14 @@ gcm_ghash_v8:
 .Loop_mod2x_v8:
 	ext		v18.16b,v3.16b,v3.16b,#8
 	subs		x3,x3,#32		//is there more data?
-	pmull	v0.1q,v22.1d,v3.1d		//H^2.lo·Xi.lo
+	pmull	v0.1q,v22.1d,v3.1d		//H^2.loÂ·Xi.lo
 	csel	x12,xzr,x12,lo			//is it time to zero x12?
 
 	 pmull	v5.1q,v21.1d,v17.1d
 	eor		v18.16b,v18.16b,v3.16b		//Karatsuba pre-processing
-	pmull2	v2.1q,v22.2d,v3.2d		//H^2.hi·Xi.hi
+	pmull2	v2.1q,v22.2d,v3.2d		//H^2.hiÂ·Xi.hi
 	eor		v0.16b,v0.16b,v4.16b		//accumulate
-	pmull2	v1.1q,v21.2d,v18.2d		//(H^2.lo+H^2.hi)·(Xi.lo+Xi.hi)
+	pmull2	v1.1q,v21.2d,v18.2d		//(H^2.lo+H^2.hi)Â·(Xi.lo+Xi.hi)
 	 ld1	{v16.2d},[x2],x12	//load [rotated] I[i+2]
 
 	eor		v2.16b,v2.16b,v6.16b
@@ -173,7 +173,7 @@ gcm_ghash_v8:
 	 ext		v7.16b,v17.16b,v17.16b,#8
 	 ext		v3.16b,v16.16b,v16.16b,#8
 	eor		v0.16b,v1.16b,v18.16b
-	 pmull	v4.1q,v20.1d,v7.1d		//H·Ii+1
+	 pmull	v4.1q,v20.1d,v7.1d		//HÂ·Ii+1
 	eor		v3.16b,v3.16b,v2.16b		//accumulate v3.16b early
 
 	ext		v18.16b,v0.16b,v0.16b,#8		//2nd phase of reduction
@@ -194,10 +194,10 @@ gcm_ghash_v8:
 	eor		v3.16b,v3.16b,v0.16b		//inp^=Xi
 	eor		v17.16b,v16.16b,v18.16b		//v17.16b is rotated inp^Xi
 
-	pmull	v0.1q,v20.1d,v3.1d		//H.lo·Xi.lo
+	pmull	v0.1q,v20.1d,v3.1d		//H.loÂ·Xi.lo
 	eor		v17.16b,v17.16b,v3.16b		//Karatsuba pre-processing
-	pmull2	v2.1q,v20.2d,v3.2d		//H.hi·Xi.hi
-	pmull	v1.1q,v21.1d,v17.1d		//(H.lo+H.hi)·(Xi.lo+Xi.hi)
+	pmull2	v2.1q,v20.2d,v3.2d		//H.hiÂ·Xi.hi
+	pmull	v1.1q,v21.1d,v17.1d		//(H.lo+H.hi)Â·(Xi.lo+Xi.hi)
 
 	ext		v17.16b,v0.16b,v2.16b,#8		//Karatsuba post-processing
 	eor		v18.16b,v0.16b,v2.16b

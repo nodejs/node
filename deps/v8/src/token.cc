@@ -37,4 +37,5 @@ const char Token::token_type[] = {
 #undef KT
 #undef KK
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

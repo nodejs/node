@@ -1,11 +1,11 @@
-.TH "NPM\-LOGOUT" "1" "July 2015" "" ""
+.TH "NPM\-LOGOUT" "1" "January 2016" "" ""
 .SH "NAME"
 \fBnpm-logout\fR \- Log out of the registry
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm logout [\-\-registry=url] [\-\-scope=@orgname]
+npm logout [\-\-registry=<url>] [\-\-scope=<@scope>]
 .fi
 .RE
 .SH DESCRIPTION
@@ -23,7 +23,7 @@ connected to that scope, if set\.
 .SH CONFIGURATION
 .SS registry
 .P
-Default: http://registry\.npmjs\.org/
+Default: https://registry\.npmjs\.org/
 .P
 The base URL of the npm package registry\. If \fBscope\fP is also specified,
 it takes precedence\.

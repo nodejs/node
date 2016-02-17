@@ -3,18 +3,19 @@ var common = require('../common');
 var assert = require('assert');
 
 common.globalCheck = false;
+common.refreshTmpDir();
 
-var net = require('net'),
-    repl = require('repl'),
-    message = 'Read, Eval, Print Loop',
-    prompt_unix = 'node via Unix socket> ',
-    prompt_tcp = 'node via TCP socket> ',
-    prompt_multiline = '... ',
-    prompt_npm = 'npm should be run outside of the ' +
-                 'node repl, in your normal shell.\n' +
-                 '(Press Control-D to exit.)\n',
-    expect_npm = prompt_npm + prompt_unix,
-    server_tcp, server_unix, client_tcp, client_unix, timer;
+const net = require('net');
+const repl = require('repl');
+const message = 'Read, Eval, Print Loop';
+const prompt_unix = 'node via Unix socket> ';
+const prompt_tcp = 'node via TCP socket> ';
+const prompt_multiline = '... ';
+const prompt_npm = 'npm should be run outside of the ' +
+                   'node repl, in your normal shell.\n' +
+                   '(Press Control-D to exit.)\n';
+const expect_npm = prompt_npm + prompt_unix;
+var server_tcp, server_unix, client_tcp, client_unix, timer;
 
 
 // absolute path to test/fixtures/a.js
@@ -116,6 +117,11 @@ function error_test() {
       expect: prompt_multiline },
     { client: client_unix, send: '+ ".2"}`',
       expect: `'io.js 1.0.2'\n${prompt_unix}` },
+    // Dot prefix in multiline commands aren't treated as commands
+    { client: client_unix, send: '("a"',
+      expect: prompt_multiline },
+    { client: client_unix, send: '.charAt(0))',
+      expect: `'a'\n${prompt_unix}` },
     // Floating point numbers are not interpreted as REPL commands.
     { client: client_unix, send: '.1234',
       expect: '0.1234' },
@@ -148,7 +154,7 @@ function error_test() {
     { client: client_unix, send: '(function() { "use strict"; return 0755; })()',
       expect: /^SyntaxError: Octal literals are not allowed in strict mode/ },
     { client: client_unix, send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
-      expect: /^SyntaxError: Strict mode function may not have duplicate parameter names/ },
+      expect: /^SyntaxError: Duplicate parameter name not allowed in this context/ },
     { client: client_unix, send: '(function() { "use strict"; with (this) {} })()',
       expect: /^SyntaxError: Strict mode code may not include a with statement/ },
     { client: client_unix, send: '(function() { "use strict"; var x; delete x; })()',
@@ -179,6 +185,13 @@ function error_test() {
       expect: prompt_multiline },
     { client: client_unix, send: '})()',
       expect: '1' },
+    // Multiline function call
+    { client: client_unix, send: 'function f(){}; f(f(1,',
+      expect: prompt_multiline },
+    { client: client_unix, send: '2)',
+      expect: prompt_multiline },
+    { client: client_unix, send: ')',
+      expect: 'undefined\n' + prompt_unix },
     // npm prompt error message
     { client: client_unix, send: 'npm install foobar',
       expect: expect_npm },
@@ -242,6 +255,58 @@ function error_test() {
             'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
       expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
                '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
+    // regression tests for https://github.com/nodejs/node/issues/2749
+    { client: client_unix, send: 'function x() {\nreturn \'\\n\';\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {\nreturn \'\\\\\';\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    // regression tests for https://github.com/nodejs/node/issues/3421
+    { client: client_unix, send: 'function x() {\n//\'\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {\n//"\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {//\'\n }',
+      expect: prompt_multiline + 'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {//"\n }',
+      expect: prompt_multiline + 'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {\nvar i = "\'";\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x(/*optional*/) {}',
+      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x(/* // 5 */) {}',
+      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: '// /* 5 */',
+      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: '"//"',
+      expect: '\'//\'\n' + prompt_unix },
+    { client: client_unix, send: '"data /*with*/ comment"',
+      expect: '\'data /*with*/ comment\'\n' + prompt_unix },
+    { client: client_unix, send: 'function x(/*fn\'s optional params*/) {}',
+      expect: 'undefined\n' + prompt_unix },
+    { client: client_unix, send: '/* \'\n"\n\'"\'\n*/',
+      expect: 'undefined\n' + prompt_unix },
+    // REPL should get a normal require() function, not one that allows
+    // access to internal modules without the --expose_internals flag.
+    { client: client_unix, send: 'require("internal/repl")',
+      expect: /^Error: Cannot find module 'internal\/repl'/ },
+    // REPL should handle quotes within regexp literal in multiline mode
+    { client: client_unix, send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
+      expect: prompt_multiline + prompt_multiline +
+            'undefined\n' + prompt_unix },
+    { client: client_unix, send: "function x(s) {\nreturn s.replace(/\'/,'');\n}",
+      expect: prompt_multiline + prompt_multiline +
+            'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x(s) {\nreturn s.replace(/"/,"");\n}',
+      expect: prompt_multiline + prompt_multiline +
+            'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x(s) {\nreturn s.replace(/.*/,"");\n}',
+      expect: prompt_multiline + prompt_multiline +
+            'undefined\n' + prompt_unix },
   ]);
 }
 
@@ -381,5 +446,5 @@ function unix_test() {
 unix_test();
 
 timer = setTimeout(function() {
-  assert.fail('Timeout');
+  assert.fail(null, null, 'Timeout');
 }, 5000);

@@ -166,9 +166,9 @@ shouldBeSyntaxError("'use strict'; function f() { ++(1, arguments) }");
 shouldBeSyntaxError("'use strict'; function f() { (1, arguments)++ }");
 shouldBeSyntaxError("'use strict'; function f() { --(1, arguments) }");
 shouldBeSyntaxError("'use strict'; function f() { (1, arguments)-- }");
-shouldBeSyntaxError("'use strict'; if (0) delete +a.b");
-shouldBeSyntaxError("'use strict'; if (0) delete ++a.b");
-shouldBeSyntaxError("'use strict'; if (0) delete void a.b");
+shouldBeSyntaxError("'use strict'; undefined; if (0) delete +a.b");
+shouldBeSyntaxError("'use strict'; undefined; if (0) delete ++a.b");
+shouldBeSyntaxError("'use strict'; undefined; if (0) delete void a.b");
 
 shouldBeTrue("(function (a){'use strict'; a = false; return a !== arguments[0]; })(true)");
 shouldBeTrue("(function (a){'use strict'; arguments[0] = false; return a !== arguments[0]; })(true)");

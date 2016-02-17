@@ -73,9 +73,16 @@ typedef struct uv__fsevents_event_s uv__fsevents_event_t;
 typedef struct uv__cf_loop_signal_s uv__cf_loop_signal_t;
 typedef struct uv__cf_loop_state_s uv__cf_loop_state_t;
 
+enum uv__cf_loop_signal_type_e {
+  kUVCFLoopSignalRegular,
+  kUVCFLoopSignalClosing
+};
+typedef enum uv__cf_loop_signal_type_e uv__cf_loop_signal_type_t;
+
 struct uv__cf_loop_signal_s {
   QUEUE member;
   uv_fs_event_t* handle;
+  uv__cf_loop_signal_type_t type;
 };
 
 struct uv__fsevents_event_s {
@@ -98,7 +105,9 @@ struct uv__cf_loop_state_s {
 /* Forward declarations */
 static void uv__cf_loop_cb(void* arg);
 static void* uv__cf_loop_runner(void* arg);
-static int uv__cf_loop_signal(uv_loop_t* loop, uv_fs_event_t* handle);
+static int uv__cf_loop_signal(uv_loop_t* loop,
+                              uv_fs_event_t* handle,
+                              uv__cf_loop_signal_type_t type);
 
 /* Lazy-loaded by uv__fsevents_global_init(). */
 static CFArrayRef (*pCFArrayCreate)(CFAllocatorRef,
@@ -149,11 +158,7 @@ static void (*pFSEventStreamStop)(FSEventStreamRef);
       int err;                                                                \
       uv_mutex_lock(&(handle)->cf_mutex);                                     \
       /* Split-off all events and empty original queue */                     \
-      QUEUE_INIT(&events);                                                    \
-      if (!QUEUE_EMPTY(&(handle)->cf_events)) {                               \
-        q = QUEUE_HEAD(&(handle)->cf_events);                                 \
-        QUEUE_SPLIT(&(handle)->cf_events, q, &events);                        \
-      }                                                                       \
+      QUEUE_MOVE(&(handle)->cf_events, &events);                              \
       /* Get error (if any) and zero original one */                          \
       err = (handle)->cf_error;                                               \
       (handle)->cf_error = 0;                                                 \
@@ -387,7 +392,8 @@ static void uv__fsevents_destroy_stream(uv_loop_t* loop) {
 
 
 /* Runs in CF thread, when there're new fsevent handles to add to stream */
-static void uv__fsevents_reschedule(uv_fs_event_t* handle) {
+static void uv__fsevents_reschedule(uv_fs_event_t* handle,
+                                    uv__cf_loop_signal_type_t type) {
   uv__cf_loop_state_t* state;
   QUEUE* q;
   uv_fs_event_t* curr;
@@ -486,7 +492,7 @@ final:
    *
    * NOTE: This is coupled with `uv_sem_wait()` in `uv__fsevents_close`
    */
-  if (!uv__is_active(handle))
+  if (type == kUVCFLoopSignalClosing)
     uv_sem_post(&state->fsevent_sem);
 }
 
@@ -676,7 +682,7 @@ void uv__fsevents_loop_delete(uv_loop_t* loop) {
   if (loop->cf_state == NULL)
     return;
 
-  if (uv__cf_loop_signal(loop, NULL) != 0)
+  if (uv__cf_loop_signal(loop, NULL, kUVCFLoopSignalRegular) != 0)
     abort();
 
   uv_thread_join(&loop->cf_thread);
@@ -735,17 +741,14 @@ static void uv__cf_loop_cb(void* arg) {
 
   loop = arg;
   state = loop->cf_state;
-  QUEUE_INIT(&split_head);
 
   uv_mutex_lock(&loop->cf_mutex);
-  if (!QUEUE_EMPTY(&loop->cf_signals)) {
-    QUEUE* split_pos = QUEUE_HEAD(&loop->cf_signals);
-    QUEUE_SPLIT(&loop->cf_signals, split_pos, &split_head);
-  }
+  QUEUE_MOVE(&loop->cf_signals, &split_head);
   uv_mutex_unlock(&loop->cf_mutex);
 
   while (!QUEUE_EMPTY(&split_head)) {
     item = QUEUE_HEAD(&split_head);
+    QUEUE_REMOVE(item);
 
     s = QUEUE_DATA(item, uv__cf_loop_signal_t, member);
 
@@ -753,16 +756,17 @@ static void uv__cf_loop_cb(void* arg) {
     if (s->handle == NULL)
       pCFRunLoopStop(state->loop);
     else
-      uv__fsevents_reschedule(s->handle);
+      uv__fsevents_reschedule(s->handle, s->type);
 
-    QUEUE_REMOVE(item);
     uv__free(s);
   }
 }
 
 
 /* Runs in UV loop to notify CF thread */
-int uv__cf_loop_signal(uv_loop_t* loop, uv_fs_event_t* handle) {
+int uv__cf_loop_signal(uv_loop_t* loop,
+                       uv_fs_event_t* handle,
+                       uv__cf_loop_signal_type_t type) {
   uv__cf_loop_signal_t* item;
   uv__cf_loop_state_t* state;
 
@@ -771,6 +775,7 @@ int uv__cf_loop_signal(uv_loop_t* loop, uv_fs_event_t* handle) {
     return -ENOMEM;
 
   item->handle = handle;
+  item->type = type;
 
   uv_mutex_lock(&loop->cf_mutex);
   QUEUE_INSERT_TAIL(&loop->cf_signals, &item->member);
@@ -833,7 +838,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
 
   /* Reschedule FSEventStream */
   assert(handle != NULL);
-  err = uv__cf_loop_signal(handle->loop, handle);
+  err = uv__cf_loop_signal(handle->loop, handle, kUVCFLoopSignalRegular);
   if (err)
     goto fail_loop_signal;
 
@@ -873,7 +878,7 @@ int uv__fsevents_close(uv_fs_event_t* handle) {
 
   /* Reschedule FSEventStream */
   assert(handle != NULL);
-  err = uv__cf_loop_signal(handle->loop, handle);
+  err = uv__cf_loop_signal(handle->loop, handle, kUVCFLoopSignalClosing);
   if (err)
     return -err;
 

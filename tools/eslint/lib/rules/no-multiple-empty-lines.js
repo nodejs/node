@@ -13,13 +13,15 @@
 module.exports = function(context) {
 
     // Use options.max or 2 as default
-    var numLines = 2;
+    var max = 2,
+        maxEOF;
 
     // store lines that appear empty but really aren't
     var notEmpty = [];
 
     if (context.options.length) {
-        numLines = context.options[0].max;
+        max = context.options[0].max;
+        maxEOF = context.options[0].maxEOF;
     }
 
     //--------------------------------------------------------------------------
@@ -45,17 +47,28 @@ module.exports = function(context) {
                 location,
                 trimmedLines = lines.map(function(str) {
                     return str.trim();
-                });
+                }),
+                firstOfEndingBlankLines;
 
             // add the notEmpty lines in there with a placeholder
             notEmpty.forEach(function(x, i) {
                 trimmedLines[i] = x;
             });
 
-            // swallow the final newline, as some editors add it automatically
-            // and we don't want it to cause an issue
-            if (trimmedLines[trimmedLines.length - 1] === "") {
-                trimmedLines = trimmedLines.slice(0, -1);
+            if (typeof maxEOF === "undefined") {
+                // swallow the final newline, as some editors add it
+                // automatically and we don't want it to cause an issue
+                if (trimmedLines[trimmedLines.length - 1] === "") {
+                    trimmedLines = trimmedLines.slice(0, -1);
+                }
+                firstOfEndingBlankLines = trimmedLines.length;
+            } else {
+                // save the number of the first of the last blank lines
+                firstOfEndingBlankLines = trimmedLines.length;
+                while (trimmedLines[firstOfEndingBlankLines - 1] === ""
+                        && firstOfEndingBlankLines > 0) {
+                    firstOfEndingBlankLines--;
+                }
             }
 
             // Aggregate and count blank lines
@@ -67,12 +80,22 @@ module.exports = function(context) {
                 if (lastLocation === currentLocation - 1) {
                     blankCounter++;
                 } else {
-                    if (blankCounter >= numLines) {
-                        location = {
-                            line: lastLocation + 1,
-                            column: lines[lastLocation].length
-                        };
-                        context.report(node, location, "Multiple blank lines not allowed.");
+                    location = {
+                        line: lastLocation + 1,
+                        column: 1
+                    };
+                    if (lastLocation < firstOfEndingBlankLines) {
+                        // within the file, not at the end
+                        if (blankCounter >= max) {
+                            context.report(node, location,
+                                    "More than " + max + " blank " + (max === 1 ? "line" : "lines") + " not allowed.");
+                        }
+                    } else {
+                        // inside the last blank lines
+                        if (blankCounter >= maxEOF) {
+                            context.report(node, location,
+                                    "Too many blank lines at the end of file. Max of " + maxEOF + " allowed.");
+                        }
                     }
 
                     // Finally, reset the blank counter
@@ -89,6 +112,9 @@ module.exports.schema = [
         "type": "object",
         "properties": {
             "max": {
+                "type": "integer"
+            },
+            "maxEOF": {
                 "type": "integer"
             }
         },

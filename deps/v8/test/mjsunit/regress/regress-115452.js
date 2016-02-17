@@ -27,7 +27,7 @@
 
 // Test that a function declaration cannot overwrite a read-only property.
 
-// Flags: --es52_globals
+// Flags: --es52-globals
 
 function foobl() {}
 assertTrue(typeof this.foobl == "function");

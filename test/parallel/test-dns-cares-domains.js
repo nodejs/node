@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var dns = require('dns');
 var domain = require('domain');
@@ -12,6 +12,7 @@ var methods = [
   'resolveNs',
   'resolveTxt',
   'resolveSrv',
+  'resolvePtr',
   'resolveNaptr',
   'resolveSoa'
 ];

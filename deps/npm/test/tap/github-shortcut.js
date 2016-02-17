@@ -25,8 +25,8 @@ test('setup', function (t) {
 test('github-shortcut', function (t) {
   var cloneUrls = [
     ['git://github.com/foo/private.git', 'GitHub shortcuts try git URLs first'],
-    ['https://github.com/foo/private.git', 'GitHub shortcuts try HTTPS URLs third'],
-    ['git@github.com:foo/private.git', 'GitHub shortcuts try SSH second']
+    ['https://github.com/foo/private.git', 'GitHub shortcuts try HTTPS URLs second'],
+    ['git@github.com:foo/private.git', 'GitHub shortcuts try SSH third']
   ]
   var npm = requireInject.installGlobally('../../lib/npm.js', {
     'child_process': {
@@ -39,7 +39,7 @@ test('github-shortcut', function (t) {
           } else {
             t.fail('too many attempts to clone')
           }
-          cb(new Error())
+          cb(new Error('execFile mock fails on purpose'))
         })
       }
     }
@@ -51,10 +51,10 @@ test('github-shortcut', function (t) {
     registry: common.registry,
     loglevel: 'silent'
   }
+  t.plan(1 + cloneUrls.length)
   npm.load(opts, function (er) {
     t.ifError(er, 'npm loaded without error')
     npm.commands.install(['foo/private'], function (er, result) {
-      t.ok(er, 'mocked install failed as expected')
       t.end()
     })
   })

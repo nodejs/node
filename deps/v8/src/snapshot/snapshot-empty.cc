@@ -4,8 +4,6 @@
 
 // Used for building without snapshots.
 
-#include "src/v8.h"
-
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -25,4 +23,5 @@ void DisposeNatives() {}
 
 
 const v8::StartupData* Snapshot::DefaultSnapshotBlob() { return NULL; }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

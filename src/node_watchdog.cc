@@ -1,15 +1,14 @@
 #include "node_watchdog.h"
-#include "env.h"
-#include "env-inl.h"
 #include "util.h"
+#include "util-inl.h"
 
 namespace node {
 
 using v8::V8;
 
 
-Watchdog::Watchdog(Environment* env, uint64_t ms) : env_(env),
-                                                    destroyed_(false) {
+Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms) : isolate_(isolate),
+                                                        destroyed_(false) {
   int rc;
   loop_ = new uv_loop_t;
   CHECK(loop_);
@@ -84,7 +83,7 @@ void Watchdog::Async(uv_async_t* async) {
 void Watchdog::Timer(uv_timer_t* timer) {
   Watchdog* w = ContainerOf(&Watchdog::timer_, timer);
   uv_stop(w->loop_);
-  V8::TerminateExecution(w->env()->isolate());
+  V8::TerminateExecution(w->isolate());
 }
 
 

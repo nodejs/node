@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/ic/stub-cache.h"
 
 #include "src/base/bits.h"
-#include "src/ic/stub-cache.h"
 #include "src/type-info.h"
 
 namespace v8 {
@@ -143,5 +142,5 @@ void StubCache::CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
     }
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

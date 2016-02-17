@@ -11,7 +11,6 @@ namespace node {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Local;
 using v8::Object;
@@ -59,7 +58,7 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
 
 
 HandleWrap::HandleWrap(Environment* env,
-                       Handle<Object> object,
+                       Local<Object> object,
                        uv_handle_t* handle,
                        AsyncWrap::ProviderType provider,
                        AsyncWrap* parent)

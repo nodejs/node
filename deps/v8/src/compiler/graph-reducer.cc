@@ -8,13 +8,12 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node.h"
+#include "src/compiler/node-properties.h"
+#include "src/compiler/verifier.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-bool Reducer::Finish() { return true; }
-
 
 enum class GraphReducer::State : uint8_t {
   kUnvisited,
@@ -24,8 +23,12 @@ enum class GraphReducer::State : uint8_t {
 };
 
 
-GraphReducer::GraphReducer(Graph* graph, Zone* zone)
+void Reducer::Finalize() {}
+
+
+GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead)
     : graph_(graph),
+      dead_(dead),
       state_(graph, 4),
       reducers_(zone),
       revisit_(zone),
@@ -58,7 +61,11 @@ void GraphReducer::ReduceNode(Node* node) {
         Push(node);
       }
     } else {
-      break;
+      // Run all finalizers.
+      for (Reducer* const reducer : reducers_) reducer->Finalize();
+
+      // Check if we have new nodes to revisit.
+      if (revisit_.empty()) break;
     }
   }
   DCHECK(revisit_.empty());
@@ -66,23 +73,7 @@ void GraphReducer::ReduceNode(Node* node) {
 }
 
 
-void GraphReducer::ReduceGraph() {
-  for (;;) {
-    ReduceNode(graph()->end());
-    // TODO(turbofan): Remove this once the dead node trimming is in the
-    // GraphReducer.
-    bool done = true;
-    for (Reducer* const reducer : reducers_) {
-      if (!reducer->Finish()) {
-        done = false;
-        break;
-      }
-    }
-    if (done) break;
-    // Reset all marks on the graph in preparation to re-reduce the graph.
-    state_.Reset(graph());
-  }
-}
+void GraphReducer::ReduceGraph() { ReduceNode(graph()->end()); }
 
 
 Reduction GraphReducer::Reduce(Node* const node) {
@@ -136,7 +127,7 @@ void GraphReducer::ReduceTop() {
   }
 
   // Remember the max node id before reduction.
-  NodeId const max_id = graph()->NodeCount() - 1;
+  NodeId const max_id = static_cast<NodeId>(graph()->NodeCount() - 1);
 
   // All inputs should be visited or on stack. Apply reductions to node.
   Reduction reduction = Reduce(node);
@@ -184,6 +175,7 @@ void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
     // {replacement} was already reduced and finish.
     for (Edge edge : node->use_edges()) {
       Node* const user = edge.from();
+      Verifier::VerifyEdgeInputReplacement(edge, replacement);
       edge.UpdateTo(replacement);
       // Don't revisit this node if it refers to itself.
       if (user != node) Revisit(user);
@@ -205,6 +197,42 @@ void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
 
     // If there was a replacement, reduce it after popping {node}.
     Recurse(replacement);
+  }
+}
+
+
+void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
+                                    Node* control) {
+  if (effect == nullptr && node->op()->EffectInputCount() > 0) {
+    effect = NodeProperties::GetEffectInput(node);
+  }
+  if (control == nullptr && node->op()->ControlInputCount() > 0) {
+    control = NodeProperties::GetControlInput(node);
+  }
+
+  // Requires distinguishing between value, effect and control edges.
+  for (Edge edge : node->use_edges()) {
+    Node* const user = edge.from();
+    DCHECK(!user->IsDead());
+    if (NodeProperties::IsControlEdge(edge)) {
+      if (user->opcode() == IrOpcode::kIfSuccess) {
+        Replace(user, control);
+      } else if (user->opcode() == IrOpcode::kIfException) {
+        DCHECK_NOT_NULL(dead_);
+        edge.UpdateTo(dead_);
+        Revisit(user);
+      } else {
+        UNREACHABLE();
+      }
+    } else if (NodeProperties::IsEffectEdge(edge)) {
+      DCHECK_NOT_NULL(effect);
+      edge.UpdateTo(effect);
+      Revisit(user);
+    } else {
+      DCHECK_NOT_NULL(value);
+      edge.UpdateTo(value);
+      Revisit(user);
+    }
   }
 }
 

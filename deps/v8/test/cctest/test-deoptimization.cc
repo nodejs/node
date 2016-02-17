@@ -32,7 +32,7 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/isolate.h"
 #include "test/cctest/cctest.h"
@@ -48,50 +48,60 @@ using ::v8::internal::Object;
 // Size of temp buffer for formatting small strings.
 #define SMALL_STRING_BUFFER_SIZE 80
 
-// Utility class to set --allow-natives-syntax --always-opt and --nouse-inlining
-// when constructed and return to their default state when destroyed.
+// Utility class to set the following runtime flags when constructed and return
+// to their default state when destroyed:
+//   --allow-natives-syntax --always-opt --noturbo-inlining --nouse-inlining
 class AlwaysOptimizeAllowNativesSyntaxNoInlining {
  public:
   AlwaysOptimizeAllowNativesSyntaxNoInlining()
       : always_opt_(i::FLAG_always_opt),
         allow_natives_syntax_(i::FLAG_allow_natives_syntax),
+        turbo_inlining_(i::FLAG_turbo_inlining),
         use_inlining_(i::FLAG_use_inlining) {
     i::FLAG_always_opt = true;
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_turbo_inlining = false;
     i::FLAG_use_inlining = false;
   }
 
   ~AlwaysOptimizeAllowNativesSyntaxNoInlining() {
-    i::FLAG_allow_natives_syntax = allow_natives_syntax_;
     i::FLAG_always_opt = always_opt_;
+    i::FLAG_allow_natives_syntax = allow_natives_syntax_;
+    i::FLAG_turbo_inlining = turbo_inlining_;
     i::FLAG_use_inlining = use_inlining_;
   }
 
  private:
   bool always_opt_;
   bool allow_natives_syntax_;
+  bool turbo_inlining_;
   bool use_inlining_;
 };
 
 
-// Utility class to set --allow-natives-syntax and --nouse-inlining when
-// constructed and return to their default state when destroyed.
+// Utility class to set the following runtime flags when constructed and return
+// to their default state when destroyed:
+//   --allow-natives-syntax --noturbo-inlining --nouse-inlining
 class AllowNativesSyntaxNoInlining {
  public:
   AllowNativesSyntaxNoInlining()
       : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
+        turbo_inlining_(i::FLAG_turbo_inlining),
         use_inlining_(i::FLAG_use_inlining) {
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_turbo_inlining = false;
     i::FLAG_use_inlining = false;
   }
 
   ~AllowNativesSyntaxNoInlining() {
     i::FLAG_allow_natives_syntax = allow_natives_syntax_;
+    i::FLAG_turbo_inlining = turbo_inlining_;
     i::FLAG_use_inlining = use_inlining_;
   }
 
  private:
   bool allow_natives_syntax_;
+  bool turbo_inlining_;
   bool use_inlining_;
 };
 
@@ -107,13 +117,11 @@ static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
                                         const char* property_name) {
   v8::Local<v8::Function> fun =
       v8::Local<v8::Function>::Cast(obj->Get(v8_str(property_name)));
-  return v8::Utils::OpenHandle(*fun);
+  return i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
 }
 
 
 TEST(DeoptimizeSimple) {
-  i::FLAG_turbo_deoptimization = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -152,8 +160,6 @@ TEST(DeoptimizeSimple) {
 
 
 TEST(DeoptimizeSimpleWithArguments) {
-  i::FLAG_turbo_deoptimization = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -193,8 +199,6 @@ TEST(DeoptimizeSimpleWithArguments) {
 
 
 TEST(DeoptimizeSimpleNested) {
-  i::FLAG_turbo_deoptimization = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -220,7 +224,6 @@ TEST(DeoptimizeSimpleNested) {
 
 
 TEST(DeoptimizeRecursive) {
-  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -248,7 +251,6 @@ TEST(DeoptimizeRecursive) {
 
 
 TEST(DeoptimizeMultiple) {
-  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -277,7 +279,6 @@ TEST(DeoptimizeMultiple) {
 
 
 TEST(DeoptimizeConstructor) {
-  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -316,7 +317,6 @@ TEST(DeoptimizeConstructor) {
 
 
 TEST(DeoptimizeConstructorMultiple) {
-  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -346,7 +346,6 @@ TEST(DeoptimizeConstructorMultiple) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   AllowNativesSyntaxNoInlining options;
   v8::Isolate::CreateParams create_params;
@@ -451,7 +450,6 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -474,7 +472,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -497,7 +494,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -520,7 +516,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -543,7 +538,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -566,7 +560,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
 
 
 UNINITIALIZED_TEST(DeoptimizeCompare) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -623,7 +616,6 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
 
 
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -716,7 +708,6 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
 
 
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

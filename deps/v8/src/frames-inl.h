@@ -7,6 +7,7 @@
 
 #include "src/frames.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/v8memory.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -217,6 +218,12 @@ inline JSFunction* JavaScriptFrame::function() const {
 }
 
 
+inline Object* JavaScriptFrame::function_slot_object() const {
+  const int offset = JavaScriptFrameConstants::kFunctionOffset;
+  return Memory::Object_at(fp() + offset);
+}
+
+
 inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }
@@ -225,6 +232,10 @@ inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)
 inline OptimizedFrame::OptimizedFrame(StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {
 }
+
+
+inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
 
 
 inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
@@ -279,6 +290,7 @@ inline StackFrame* SafeStackFrameIterator::frame() const {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FRAMES_INL_H_

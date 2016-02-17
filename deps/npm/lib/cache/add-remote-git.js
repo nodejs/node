@@ -1,5 +1,4 @@
 var assert = require('assert')
-var crypto = require('crypto')
 var fs = require('graceful-fs')
 var path = require('path')
 var url = require('url')
@@ -13,12 +12,14 @@ var mkdir = require('mkdirp')
 var normalizeGitUrl = require('normalize-git-url')
 var npa = require('npm-package-arg')
 var realizePackageSpecifier = require('realize-package-specifier')
+var uniqueFilename = require('unique-filename')
 
 var addLocal = require('./add-local.js')
 var correctMkdir = require('../utils/correct-mkdir.js')
 var git = require('../utils/git.js')
 var npm = require('../npm.js')
 var rm = require('../utils/gently-rm.js')
+var tempFilename = require('../utils/temp-filename.js')
 
 var remotes = path.resolve(npm.config.get('cache'), '_git-remotes')
 var templates = path.join(remotes, '_templates')
@@ -47,7 +48,7 @@ function addRemoteGit (uri, _cb) {
   if (parsed) {
     // normalize GitHub syntax to org/repo (for now)
     var from
-    if (parsed.type === 'github' && parsed.default === 'shortcut') {
+    if (parsed.type === 'github' && parsed.getDefaultRepresentation() === 'shortcut') {
       from = parsed.path()
     } else {
       from = parsed.toString()
@@ -56,7 +57,7 @@ function addRemoteGit (uri, _cb) {
     log.verbose('addRemoteGit', from, 'is a repository hosted by', parsed.type)
 
     // prefer explicit URLs to pushing everything through shortcuts
-    if (parsed.default !== 'shortcut') {
+    if (parsed.getDefaultRepresentation() !== 'shortcut') {
       return tryClone(from, parsed.toString(), false, cb)
     }
 
@@ -75,7 +76,7 @@ function addRemoteGit (uri, _cb) {
 
 function tryGitProto (from, hostedInfo, cb) {
   var gitURL = hostedInfo.git()
-  if (!gitURL) return trySSH(from, hostedInfo, cb)
+  if (!gitURL) return tryHTTPS(from, hostedInfo, cb)
 
   log.silly('tryGitProto', 'attempting to clone', gitURL)
   tryClone(from, gitURL, true, function (er) {
@@ -115,9 +116,9 @@ function tryClone (from, combinedURL, silent, cb) {
   var treeish = normalized.branch
 
   // ensure that similarly-named remotes don't collide
-  var repoID = cloneURL.replace(/[^a-zA-Z0-9]+/g, '-') + '-' +
-    crypto.createHash('sha1').update(combinedURL).digest('hex').slice(0, 8)
-  var cachedRemote = path.join(remotes, repoID)
+  var cachedRemote = uniqueFilename(remotes, combinedURL.replace(/[^a-zA-Z0-9]+/g, '-'), cloneURL)
+  var repoID = path.relative(remotes, cachedRemote)
+  cachedRemote = path.join(remotes, repoID)
 
   cb = inflight(repoID, cb)
   if (!cb) {
@@ -297,11 +298,7 @@ function resolveHead (from, cloneURL, treeish, cachedRemote, cb) {
       log.verbose('resolveHead', from, 'resolved Git URL:', resolvedURL)
 
       // generate a unique filename
-      var tmpdir = path.join(
-        npm.tmp,
-        'git-cache-' + crypto.pseudoRandomBytes(6).toString('hex'),
-        resolvedTreeish
-      )
+      var tmpdir = path.join(tempFilename('git-cache'), resolvedTreeish)
       log.silly('resolveHead', 'Git working directory:', tmpdir)
 
       mkdir(tmpdir, function (er) {

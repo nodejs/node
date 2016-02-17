@@ -1,37 +1,61 @@
 /**
  * @fileoverview RuleContext utility for rules
  * @author Nicholas C. Zakas
+ * @copyright 2013 Nicholas C. Zakas. All rights reserved.
+ * See LICENSE file in root directory for full license.
  */
 "use strict";
+
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var RuleFixer = require("./util/rule-fixer");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
 var PASSTHROUGHS = [
-        "getAllComments",
-        "getAncestors",
-        "getComments",
-        "getFilename",
-        "getFirstToken",
-        "getFirstTokens",
-        "getJSDocComment",
-        "getLastToken",
-        "getLastTokens",
-        "getNodeByRangeIndex",
-        "getScope",
-        "getSource",
-        "getSourceLines",
-        "getTokenAfter",
-        "getTokenBefore",
-        "getTokenByRangeStart",
-        "getTokens",
-        "getTokensAfter",
-        "getTokensBefore",
-        "getTokensBetween",
-        "markVariableAsUsed",
-        "isMarkedAsUsed"
-    ];
+    "getAllComments",
+    "getAncestors",
+    "getComments",
+    "getDeclaredVariables",
+    "getFilename",
+    "getFirstToken",
+    "getFirstTokens",
+    "getJSDocComment",
+    "getLastToken",
+    "getLastTokens",
+    "getNodeByRangeIndex",
+    "getScope",
+    "getSource",
+    "getSourceLines",
+    "getTokenAfter",
+    "getTokenBefore",
+    "getTokenByRangeStart",
+    "getTokens",
+    "getTokensAfter",
+    "getTokensBefore",
+    "getTokensBetween",
+    "markVariableAsUsed",
+    "isMarkedAsUsed"
+];
+
+//------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/**
+ * An error message description
+ * @typedef {Object} MessageDescriptor
+ * @property {string} nodeType The type of node.
+ * @property {Location} loc The location of the problem.
+ * @property {string} message The problem message.
+ * @property {Object} [data] Optional data to use to fill in placeholders in the
+ *      message.
+ * @property {Function} fix The function to call that creates a fix command.
+ */
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -87,15 +111,47 @@ function RuleContext(ruleId, eslint, severity, options, settings, ecmaFeatures) 
 
     /**
      * Passthrough to eslint.report() that automatically assigns the rule ID and severity.
-     * @param {ASTNode} node The AST node related to the message.
+     * @param {ASTNode|MessageDescriptor} nodeOrDescriptor The AST node related to the message or a message
+     *      descriptor.
      * @param {Object=} location The location of the error.
      * @param {string} message The message to display to the user.
      * @param {Object} opts Optional template data which produces a formatted message
      *     with symbols being replaced by this object's values.
      * @returns {void}
      */
-    this.report = function(node, location, message, opts) {
-        eslint.report(ruleId, severity, node, location, message, opts);
+    this.report = function(nodeOrDescriptor, location, message, opts) {
+
+        var descriptor,
+            fix = null;
+
+        // check to see if it's a new style call
+        if (arguments.length === 1) {
+            descriptor = nodeOrDescriptor;
+
+            // if there's a fix specified, get it
+            if (typeof descriptor.fix === "function") {
+                fix = descriptor.fix(new RuleFixer());
+            }
+
+            eslint.report(
+                ruleId, severity, descriptor.node,
+                descriptor.loc || descriptor.node.loc.start,
+                descriptor.message, descriptor.data, fix
+            );
+
+            return;
+        }
+
+        // old style call
+        eslint.report(ruleId, severity, nodeOrDescriptor, location, message, opts);
+    };
+
+    /**
+     * Passthrough to eslint.getSourceCode().
+     * @returns {SourceCode} The SourceCode object for the code.
+     */
+    this.getSourceCode = function() {
+        return eslint.getSourceCode();
     };
 
 }

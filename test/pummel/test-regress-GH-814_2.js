@@ -21,7 +21,7 @@ function tailCB(data) {
     console.error('[FAIL]\n DATA -> ');
     console.error(data);
     console.error('\n');
-    throw Error('Buffers GC test -> FAIL');
+    throw new Error('Buffers GC test -> FAIL');
   }
 }
 

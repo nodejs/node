@@ -12,17 +12,17 @@ const defaultCoreList = require('constants').defaultCoreCipherList;
 
 function doCheck(arg, check) {
   var out = '';
-  var arg = arg.concat([
+  arg = arg.concat([
     '-pe',
     'require("constants").defaultCipherList'
   ]);
   spawn(process.execPath, arg, {}).
-    on('error', assert.fail).
+    on('error', common.fail).
     stdout.on('data', function(chunk) {
       out += chunk;
     }).on('end', function() {
       assert.equal(out.trim(), check);
-    }).on('error', assert.fail);
+    }).on('error', common.fail);
 }
 
 // test the default unmodified version

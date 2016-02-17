@@ -483,16 +483,25 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
   HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000,    \
      101)                                                                     \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
+  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
+  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                              \
   /* Garbage collection timers. */                                            \
   HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                        \
+  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                        \
+  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,           \
+     MILLISECOND)                                                             \
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                        \
   HT(gc_context, V8.GCContext, 10000,                                         \
      MILLISECOND) /* GC context cleanup time */                               \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
+  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,       \
+     MILLISECOND)                                                             \
+  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000, \
+     MILLISECOND)                                                             \
   HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,           \
      MILLISECOND)                                                             \
   /* Parsing timers. */                                                       \
@@ -571,11 +580,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
   SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
-  SC(string_ctor_calls, V8.StringConstructorCalls)                    \
-  SC(string_ctor_conversions, V8.StringConstructorConversions)        \
-  SC(string_ctor_cached_number, V8.StringConstructorCachedNumber)     \
-  SC(string_ctor_string_value, V8.StringConstructorStringValue)       \
-  SC(string_ctor_gc_required, V8.StringConstructorGCRequired)         \
   /* Amount of evaled source code. */                                 \
   SC(total_eval_size, V8.TotalEvalSize)                               \
   /* Amount of loaded source code. */                                 \
@@ -658,7 +662,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
   SC(array_function_runtime, V8.ArrayFunctionRuntime)                          \
   SC(array_function_native, V8.ArrayFunctionNative)                            \
-  SC(for_in, V8.ForIn)                                                         \
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
@@ -892,6 +895,7 @@ class Counters {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COUNTERS_H_

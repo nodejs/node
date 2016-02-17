@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
+#include "src/arm64/frames-arm64.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 
@@ -76,7 +76,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   input_->SetRegister(jssp.code(), reinterpret_cast<intptr_t>(frame->sp()));
   input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
 
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
+  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
     input_->SetDoubleRegister(i, 0.0);
   }
 
@@ -123,8 +123,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // in the input frame.
 
   // Save all allocatable floating point registers.
-  CPURegList saved_fp_registers(CPURegister::kFPRegister, kDRegSizeInBits,
-                                FPRegister::kAllocatableFPRegisters);
+  CPURegList saved_fp_registers(
+      CPURegister::kFPRegister, kDRegSizeInBits,
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+          ->allocatable_double_codes_mask());
   __ PushCPURegList(saved_fp_registers);
 
   // We save all the registers expcept jssp, sp and lr.
@@ -354,11 +356,12 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  // No out-of-line constant pool support.
+  // No embedded constant pool support.
   UNREACHABLE();
 }
 
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -5,10 +5,11 @@ if (module.parent) {
   process.exit(42);
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    child = require('child_process'),
-    nodejs = '"' + process.execPath + '"';
+const common = require('../common');
+const assert = require('assert');
+const child = require('child_process');
+const path = require('path');
+const nodejs = '"' + process.execPath + '"';
 
 
 // replace \ by / because windows uses backslashes in paths, but they're still
@@ -74,4 +75,12 @@ child.exec(nodejs + ' -p "\\-42"',
 child.exec(nodejs + ' --use-strict -p process.execArgv',
     function(status, stdout, stderr) {
       assert.equal(stdout, "[ '--use-strict', '-p', 'process.execArgv' ]\n");
+    });
+
+// Regression test for https://github.com/nodejs/node/issues/3574
+const emptyFile = path.join(common.fixturesDir, 'empty.js');
+child.exec(nodejs + ` -e 'require("child_process").fork("${emptyFile}")'`,
+    function(status, stdout, stderr) {
+      assert.equal(stdout, '');
+      assert.equal(stderr, '');
     });

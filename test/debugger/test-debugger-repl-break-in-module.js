@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 var repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('break-in-module/main.js');
@@ -19,8 +20,8 @@ repl.addTest('sb(")^$*+?}{|][(.js\\\\", 1)', [
 
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
-    /break in .*[\\\/]mod\.js:23/,
-    /21/, /22/, /23/, /24/, /25/
+  /break in .*[\\\/]mod\.js:23/,
+  /21/, /22/, /23/, /24/, /25/
 ]);
 
 // -- RESTORE BREAKPOINT ON RESTART --

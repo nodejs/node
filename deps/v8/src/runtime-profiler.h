@@ -39,6 +39,7 @@ class RuntimeProfiler {
   bool any_ic_changed_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_RUNTIME_PROFILER_H_

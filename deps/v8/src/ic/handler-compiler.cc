@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
-#include "src/cpu-profiler.h"
-#include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
+
+#include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
 #include "src/ic/ic-inl.h"
+#include "src/isolate-inl.h"
+#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -53,6 +53,16 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   while (true) {
     if (current_map->is_dictionary_map()) cache_name = name;
     if (current_map->prototype()->IsNull()) break;
+    if (name->IsPrivate()) {
+      // TODO(verwaest): Use nonexistent_private_symbol.
+      cache_name = name;
+      JSReceiver* prototype = JSReceiver::cast(current_map->prototype());
+      if (!prototype->map()->is_hidden_prototype() &&
+          !prototype->map()->IsJSGlobalObjectMap()) {
+        break;
+      }
+    }
+
     last = handle(JSObject::cast(current_map->prototype()));
     current_map = handle(last->map());
   }
@@ -89,21 +99,11 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Handle<Name> name,
                                                   Label* miss,
                                                   ReturnHolder return_what) {
-  PrototypeCheckType check_type = CHECK_ALL_MAPS;
-  int function_index = -1;
-  if (map()->instance_type() < FIRST_NONSTRING_TYPE) {
-    function_index = Context::STRING_FUNCTION_INDEX;
-  } else if (map()->instance_type() == SYMBOL_TYPE) {
-    function_index = Context::SYMBOL_FUNCTION_INDEX;
-  } else if (map()->instance_type() == HEAP_NUMBER_TYPE) {
-    function_index = Context::NUMBER_FUNCTION_INDEX;
-  } else if (*map() == isolate()->heap()->boolean_map()) {
-    function_index = Context::BOOLEAN_FUNCTION_INDEX;
-  } else {
-    check_type = SKIP_RECEIVER;
-  }
-
-  if (check_type == CHECK_ALL_MAPS) {
+  PrototypeCheckType check_type = SKIP_RECEIVER;
+  int function_index = map()->IsPrimitiveMap()
+                           ? map()->GetConstructorFunctionIndex()
+                           : Map::kNoConstructorFunctionIndex;
+  if (function_index != Map::kNoConstructorFunctionIndex) {
     GenerateDirectLoadGlobalFunctionPrototype(masm(), function_index,
                                               scratch1(), miss);
     Object* function = isolate()->native_context()->get(function_index);
@@ -111,6 +111,7 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
     Handle<Map> map(JSObject::cast(prototype)->map());
     set_map(map);
     object_reg = scratch1();
+    check_type = CHECK_ALL_MAPS;
   }
 
   // Check that the maps starting from the prototype haven't changed.
@@ -329,7 +330,10 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     PrototypeIterator iter(isolate(), last);
     while (!iter.IsAtEnd()) {
       lost_holder_register = true;
-      last = JSObject::cast(iter.GetCurrent());
+      // Casting to JSObject is fine here. The LookupIterator makes sure to
+      // look behind non-masking interceptors during the original lookup, and
+      // we wouldn't try to compile a handler if there was a Proxy anywhere.
+      last = iter.GetCurrent<JSObject>();
       iter.Advance();
     }
     auto last_handle = handle(last);
@@ -423,14 +427,19 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     Handle<Map> transition, Handle<Name> name) {
   Label miss;
 
+  if (FLAG_vector_stores) PushVectorAndSlot();
+
   // Check that we are allowed to write this.
   bool is_nonexistent = holder()->map() == transition->GetBackPointer();
   if (is_nonexistent) {
     // Find the top object.
     Handle<JSObject> last;
+    PrototypeIterator::WhereToEnd end =
+        name->IsPrivate() ? PrototypeIterator::END_AT_NON_HIDDEN
+                          : PrototypeIterator::END_AT_NULL;
     PrototypeIterator iter(isolate(), holder());
-    while (!iter.IsAtEnd()) {
-      last = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    while (!iter.IsAtEnd(end)) {
+      last = PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
     }
     if (!last.is_null()) set_holder(last);
@@ -450,11 +459,21 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   DCHECK(!transition->is_access_check_needed());
 
   // Call to respective StoreTransitionStub.
+  bool virtual_args = StoreTransitionHelper::HasVirtualSlotArg();
+  Register map_reg = StoreTransitionHelper::MapRegister();
+
   if (details.type() == DATA_CONSTANT) {
-    GenerateRestoreMap(transition, scratch2(), &miss);
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
-    Register map_reg = StoreTransitionDescriptor::MapRegister();
-    GenerateConstantCheck(map_reg, descriptor, value(), scratch2(), &miss);
+    Register tmp =
+        virtual_args ? VectorStoreICDescriptor::VectorRegister() : map_reg;
+    GenerateRestoreMap(transition, tmp, scratch2(), &miss);
+    GenerateConstantCheck(tmp, descriptor, value(), scratch2(), &miss);
+    if (virtual_args) {
+      // This will move the map from tmp into map_reg.
+      RearrangeVectorAndSlot(tmp, map_reg);
+    } else if (FLAG_vector_stores) {
+      PopVectorAndSlot();
+    }
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate());
     GenerateTailCall(masm(), stub.GetCode());
@@ -469,7 +488,14 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
             : StoreTransitionStub::StoreMapAndValue;
 
-    GenerateRestoreMap(transition, scratch2(), &miss);
+    Register tmp =
+        virtual_args ? VectorStoreICDescriptor::VectorRegister() : map_reg;
+    GenerateRestoreMap(transition, tmp, scratch2(), &miss);
+    if (virtual_args) {
+      RearrangeVectorAndSlot(tmp, map_reg);
+    } else if (FLAG_vector_stores) {
+      PopVectorAndSlot();
+    }
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate(),
                              FieldIndex::ForDescriptor(*transition, descriptor),
@@ -478,9 +504,16 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   }
 
   GenerateRestoreName(&miss, name);
+  if (FLAG_vector_stores) PopVectorAndSlot();
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   return GetCode(kind(), Code::FAST, name);
+}
+
+
+bool NamedStoreHandlerCompiler::RequiresFieldTypeChecks(
+    HeapType* field_type) const {
+  return !field_type->Classes().Done();
 }
 
 
@@ -488,11 +521,20 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
   Label miss;
   DCHECK(it->representation().IsHeapObject());
 
-  GenerateFieldTypeChecks(*it->GetFieldType(), value(), &miss);
+  HeapType* field_type = *it->GetFieldType();
+  bool need_save_restore = false;
+  if (RequiresFieldTypeChecks(field_type)) {
+    need_save_restore = IC::ICUseVector(kind());
+    if (need_save_restore) PushVectorAndSlot();
+    GenerateFieldTypeChecks(field_type, value(), &miss);
+    if (need_save_restore) PopVectorAndSlot();
+  }
+
   StoreFieldStub stub(isolate(), it->GetFieldIndex(), it->representation());
   GenerateTailCall(masm(), stub.GetCode());
 
   __ bind(&miss);
+  if (need_save_restore) PopVectorAndSlot();
   TailCallBuiltin(masm(), MissBuiltin(kind()));
   return GetCode(kind(), Code::FAST, it->name());
 }
@@ -524,7 +566,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 
 
 void ElementHandlerCompiler::CompileElementHandlers(
-    MapHandleList* receiver_maps, CodeHandleList* handlers) {
+    MapHandleList* receiver_maps, CodeHandleList* handlers,
+    LanguageMode language_mode) {
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map = receiver_maps->at(i);
     Handle<Code> cached_stub;
@@ -532,7 +575,9 @@ void ElementHandlerCompiler::CompileElementHandlers(
     if (receiver_map->IsStringMap()) {
       cached_stub = LoadIndexedStringStub(isolate()).GetCode();
     } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
-      cached_stub = isolate()->builtins()->KeyedLoadIC_Slow();
+      cached_stub = is_strong(language_mode)
+                        ? isolate()->builtins()->KeyedLoadIC_Slow_Strong()
+                        : isolate()->builtins()->KeyedLoadIC_Slow();
     } else {
       bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
       ElementsKind elements_kind = receiver_map->elements_kind();
@@ -540,26 +585,30 @@ void ElementHandlerCompiler::CompileElementHandlers(
       // No need to check for an elements-free prototype chain here, the
       // generated stub code needs to check that dynamically anyway.
       bool convert_hole_to_undefined =
-          is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
-          *receiver_map == isolate()->get_initial_js_array_map(elements_kind);
+          (is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
+           *receiver_map ==
+               isolate()->get_initial_js_array_map(elements_kind)) &&
+          !is_strong(language_mode);
 
       if (receiver_map->has_indexed_interceptor()) {
         cached_stub = LoadIndexedInterceptorStub(isolate()).GetCode();
       } else if (IsSloppyArgumentsElements(elements_kind)) {
         cached_stub = KeyedLoadSloppyArgumentsStub(isolate()).GetCode();
       } else if (IsFastElementsKind(elements_kind) ||
-                 IsExternalArrayElementsKind(elements_kind) ||
                  IsFixedTypedArrayElementsKind(elements_kind)) {
         cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind,
                                           convert_hole_to_undefined).GetCode();
       } else {
         DCHECK(elements_kind == DICTIONARY_ELEMENTS);
-        cached_stub = LoadDictionaryElementStub(isolate()).GetCode();
+        LoadICState state =
+            LoadICState(is_strong(language_mode) ? LoadICState::kStrongModeState
+                                                 : kNoExtraICState);
+        cached_stub = LoadDictionaryElementStub(isolate(), state).GetCode();
       }
     }
 
     handlers->Add(cached_stub);
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

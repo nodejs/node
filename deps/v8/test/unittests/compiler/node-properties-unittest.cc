@@ -10,78 +10,72 @@
 using testing::AnyOf;
 using testing::ElementsAre;
 using testing::IsNull;
-using testing::UnorderedElementsAre;
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef TestWithZone NodePropertiesTest;
-
+class NodePropertiesTest : public TestWithZone {
+ public:
+  Node* NewMockNode(const Operator* op) {
+    return Node::New(zone(), 0, op, 0, nullptr, false);
+  }
+  Node* NewMockNode(const Operator* op, Node* n1) {
+    Node* nodes[] = {n1};
+    return Node::New(zone(), 0, op, arraysize(nodes), nodes, false);
+  }
+  Node* NewMockNode(const Operator* op, Node* n1, Node* n2) {
+    Node* nodes[] = {n1, n2};
+    return Node::New(zone(), 0, op, arraysize(nodes), nodes, false);
+  }
+};
 
 namespace {
 
 const Operator kMockOperator(IrOpcode::kDead, Operator::kNoProperties,
-                             "MockOperator", 0, 0, 0, 1, 0, 0);
-const Operator kMockOpEffect(IrOpcode::kDead, Operator::kNoProperties,
-                             "MockOpEffect", 0, 1, 0, 1, 1, 0);
-const Operator kMockOpControl(IrOpcode::kDead, Operator::kNoProperties,
-                              "MockOpControl", 0, 0, 1, 1, 0, 1);
+                             "MockOperator", 0, 0, 0, 1, 1, 2);
 const Operator kMockCallOperator(IrOpcode::kCall, Operator::kNoProperties,
                                  "MockCallOperator", 0, 0, 0, 0, 0, 2);
+
+const IfExceptionHint kNoHint = IfExceptionHint::kLocallyCaught;
 
 }  // namespace
 
 
-TEST_F(NodePropertiesTest, ReplaceWithValue_ValueUse) {
+TEST_F(NodePropertiesTest, ReplaceUses) {
   CommonOperatorBuilder common(zone());
-  Node* node = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
-  Node* use_value = Node::New(zone(), 0, common.Return(), 1, &node, false);
-  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
-  NodeProperties::ReplaceWithValue(node, replacement);
-  EXPECT_EQ(replacement, use_value->InputAt(0));
+  Node* node = NewMockNode(&kMockOperator);
+  Node* effect = NewMockNode(&kMockOperator);
+  Node* use_value = NewMockNode(common.Return(), node);
+  Node* use_effect = NewMockNode(common.EffectPhi(1), node);
+  Node* use_success = NewMockNode(common.IfSuccess(), node);
+  Node* use_exception = NewMockNode(common.IfException(kNoHint), effect, node);
+  Node* r_value = NewMockNode(&kMockOperator);
+  Node* r_effect = NewMockNode(&kMockOperator);
+  Node* r_success = NewMockNode(&kMockOperator);
+  Node* r_exception = NewMockNode(&kMockOperator);
+  NodeProperties::ReplaceUses(node, r_value, r_effect, r_success, r_exception);
+  EXPECT_EQ(r_value, use_value->InputAt(0));
+  EXPECT_EQ(r_effect, use_effect->InputAt(0));
+  EXPECT_EQ(r_success, use_success->InputAt(0));
+  EXPECT_EQ(r_exception, use_exception->InputAt(1));
   EXPECT_EQ(0, node->UseCount());
-  EXPECT_EQ(1, replacement->UseCount());
-  EXPECT_THAT(replacement->uses(), ElementsAre(use_value));
-}
-
-
-TEST_F(NodePropertiesTest, ReplaceWithValue_EffectUse) {
-  CommonOperatorBuilder common(zone());
-  Node* start = Node::New(zone(), 0, common.Start(1), 0, nullptr, false);
-  Node* node = Node::New(zone(), 0, &kMockOpEffect, 1, &start, false);
-  Node* use_effect = Node::New(zone(), 0, common.EffectPhi(1), 1, &node, false);
-  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
-  NodeProperties::ReplaceWithValue(node, replacement);
-  EXPECT_EQ(start, use_effect->InputAt(0));
-  EXPECT_EQ(0, node->UseCount());
-  EXPECT_EQ(2, start->UseCount());
-  EXPECT_EQ(0, replacement->UseCount());
-  EXPECT_THAT(start->uses(), UnorderedElementsAre(use_effect, node));
-}
-
-
-TEST_F(NodePropertiesTest, ReplaceWithValue_ControlUse) {
-  CommonOperatorBuilder common(zone());
-  Node* start = Node::New(zone(), 0, common.Start(1), 0, nullptr, false);
-  Node* node = Node::New(zone(), 0, &kMockOpControl, 1, &start, false);
-  Node* success = Node::New(zone(), 0, common.IfSuccess(), 1, &node, false);
-  Node* use_control = Node::New(zone(), 0, common.Merge(1), 1, &success, false);
-  Node* replacement = Node::New(zone(), 0, &kMockOperator, 0, nullptr, false);
-  NodeProperties::ReplaceWithValue(node, replacement);
-  EXPECT_EQ(start, use_control->InputAt(0));
-  EXPECT_EQ(0, node->UseCount());
-  EXPECT_EQ(2, start->UseCount());
-  EXPECT_EQ(0, replacement->UseCount());
-  EXPECT_THAT(start->uses(), UnorderedElementsAre(use_control, node));
+  EXPECT_EQ(1, r_value->UseCount());
+  EXPECT_EQ(1, r_effect->UseCount());
+  EXPECT_EQ(1, r_success->UseCount());
+  EXPECT_EQ(1, r_exception->UseCount());
+  EXPECT_THAT(r_value->uses(), ElementsAre(use_value));
+  EXPECT_THAT(r_effect->uses(), ElementsAre(use_effect));
+  EXPECT_THAT(r_success->uses(), ElementsAre(use_success));
+  EXPECT_THAT(r_exception->uses(), ElementsAre(use_exception));
 }
 
 
 TEST_F(NodePropertiesTest, FindProjection) {
   CommonOperatorBuilder common(zone());
-  Node* start = Node::New(zone(), 0, common.Start(1), 0, nullptr, false);
-  Node* proj0 = Node::New(zone(), 1, common.Projection(0), 1, &start, false);
-  Node* proj1 = Node::New(zone(), 2, common.Projection(1), 1, &start, false);
+  Node* start = NewMockNode(common.Start(1));
+  Node* proj0 = NewMockNode(common.Projection(0), start);
+  Node* proj1 = NewMockNode(common.Projection(1), start);
   EXPECT_EQ(proj0, NodeProperties::FindProjection(start, 0));
   EXPECT_EQ(proj1, NodeProperties::FindProjection(start, 1));
   EXPECT_THAT(NodeProperties::FindProjection(start, 2), IsNull());
@@ -92,9 +86,9 @@ TEST_F(NodePropertiesTest, FindProjection) {
 TEST_F(NodePropertiesTest, CollectControlProjections_Branch) {
   Node* result[2];
   CommonOperatorBuilder common(zone());
-  Node* branch = Node::New(zone(), 1, common.Branch(), 0, nullptr, false);
-  Node* if_false = Node::New(zone(), 2, common.IfFalse(), 1, &branch, false);
-  Node* if_true = Node::New(zone(), 3, common.IfTrue(), 1, &branch, false);
+  Node* branch = NewMockNode(common.Branch());
+  Node* if_false = NewMockNode(common.IfFalse(), branch);
+  Node* if_true = NewMockNode(common.IfTrue(), branch);
   NodeProperties::CollectControlProjections(branch, result, arraysize(result));
   EXPECT_EQ(if_true, result[0]);
   EXPECT_EQ(if_false, result[1]);
@@ -104,9 +98,9 @@ TEST_F(NodePropertiesTest, CollectControlProjections_Branch) {
 TEST_F(NodePropertiesTest, CollectControlProjections_Call) {
   Node* result[2];
   CommonOperatorBuilder common(zone());
-  Node* call = Node::New(zone(), 1, &kMockCallOperator, 0, nullptr, false);
-  Node* if_ex = Node::New(zone(), 2, common.IfException(), 1, &call, false);
-  Node* if_ok = Node::New(zone(), 3, common.IfSuccess(), 1, &call, false);
+  Node* call = NewMockNode(&kMockCallOperator);
+  Node* if_ex = NewMockNode(common.IfException(kNoHint), call, call);
+  Node* if_ok = NewMockNode(common.IfSuccess(), call);
   NodeProperties::CollectControlProjections(call, result, arraysize(result));
   EXPECT_EQ(if_ok, result[0]);
   EXPECT_EQ(if_ex, result[1]);
@@ -116,10 +110,10 @@ TEST_F(NodePropertiesTest, CollectControlProjections_Call) {
 TEST_F(NodePropertiesTest, CollectControlProjections_Switch) {
   Node* result[3];
   CommonOperatorBuilder common(zone());
-  Node* sw = Node::New(zone(), 1, common.Switch(3), 0, nullptr, false);
-  Node* if_default = Node::New(zone(), 2, common.IfDefault(), 1, &sw, false);
-  Node* if_value1 = Node::New(zone(), 3, common.IfValue(1), 1, &sw, false);
-  Node* if_value2 = Node::New(zone(), 4, common.IfValue(2), 1, &sw, false);
+  Node* sw = NewMockNode(common.Switch(3));
+  Node* if_default = NewMockNode(common.IfDefault(), sw);
+  Node* if_value1 = NewMockNode(common.IfValue(1), sw);
+  Node* if_value2 = NewMockNode(common.IfValue(2), sw);
   NodeProperties::CollectControlProjections(sw, result, arraysize(result));
   EXPECT_THAT(result[0], AnyOf(if_value1, if_value2));
   EXPECT_THAT(result[1], AnyOf(if_value1, if_value2));

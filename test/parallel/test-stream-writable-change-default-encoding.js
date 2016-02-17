@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var stream = require('stream');
@@ -8,7 +8,7 @@ var util = require('util');
 function MyWritable(fn, options) {
   stream.Writable.call(this, options);
   this.fn = fn;
-};
+}
 
 util.inherits(MyWritable, stream.Writable);
 

@@ -8,6 +8,7 @@ var writeFileSync = require('fs').writeFileSync
 var common = require('../common-tap.js')
 
 var link = path.join(__dirname, 'link')
+var linkScoped = path.join(__dirname, 'link-scoped')
 var linkInstall = path.join(__dirname, 'link-install')
 var linkRoot = path.join(__dirname, 'link-root')
 
@@ -32,6 +33,18 @@ var readJSON = {
   license: 'ISC'
 }
 
+var readScopedJSON = {
+  name: '@scope/foo',
+  version: '1.0.0',
+  description: '',
+  main: 'index.js',
+  scripts: {
+    test: 'echo \"Error: no test specified\" && exit 1'
+  },
+  author: '',
+  license: 'ISC'
+}
+
 var installJSON = {
   name: 'bar',
   version: '1.0.0',
@@ -44,7 +57,6 @@ var installJSON = {
   license: 'ISC'
 }
 
-
 test('setup', function (t) {
   setup()
   common.npm(['ls', '-g', '--depth=0'], OPTS, function (err, c, out) {
@@ -55,7 +67,7 @@ test('setup', function (t) {
   })
 })
 
-test('creates global link', function (t) {
+test('create global link', function (t) {
   process.chdir(link)
   common.npm(['link'], OPTS, function (err, c, out) {
     t.ifError(err, 'link has no error')
@@ -69,6 +81,20 @@ test('creates global link', function (t) {
   })
 })
 
+test('create scoped global link', function (t) {
+  process.chdir(linkScoped)
+  common.npm(['link'], OPTS, function (err, c, out) {
+    t.ifError(err, 'link has no error')
+    common.npm(['ls', '-g'], OPTS, function (err, c, out, stderr) {
+      t.ifError(err)
+      t.equal(c, 0)
+      t.equal(stderr, '', 'got expected stderr')
+      t.has(out, /@scope[/]foo@1.0.0/, 'creates global link ok')
+      t.end()
+    })
+  })
+})
+
 test('link-install the package', function (t) {
   process.chdir(linkInstall)
   common.npm(['link', 'foo'], OPTS, function (err) {
@@ -77,6 +103,19 @@ test('link-install the package', function (t) {
       t.ifError(err)
       t.equal(c, 1)
       t.has(out, /foo@1.0.0/, 'link-install ok')
+      t.end()
+    })
+  })
+})
+
+test('link-install the scoped package', function (t) {
+  process.chdir(linkInstall)
+  common.npm(['link', linkScoped], OPTS, function (err) {
+    t.ifError(err, 'link-install has no error')
+    common.npm(['ls'], OPTS, function (err, c, out) {
+      t.ifError(err)
+      t.equal(c, 1)
+      t.has(out, /@scope[/]foo@1.0.0/, 'link-install ok')
       t.end()
     })
   })
@@ -100,6 +139,7 @@ test('cleanup', function (t) {
 function cleanup () {
   rimraf.sync(linkRoot)
   rimraf.sync(link)
+  rimraf.sync(linkScoped)
   rimraf.sync(linkInstall)
 }
 
@@ -110,6 +150,11 @@ function setup () {
   writeFileSync(
     path.join(link, 'package.json'),
     JSON.stringify(readJSON, null, 2)
+  )
+  mkdirp.sync(linkScoped)
+  writeFileSync(
+    path.join(linkScoped, 'package.json'),
+    JSON.stringify(readScopedJSON, null, 2)
   )
   mkdirp.sync(linkInstall)
   writeFileSync(

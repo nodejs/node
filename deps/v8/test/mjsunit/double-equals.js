@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --harmony-simd
+
 /**
  * This test uses assert{True,False}(... == ...) instead of
  * assertEquals(..., ...) to not rely on the details of the
@@ -234,3 +236,15 @@ function testBadConversion(value) {
 testBadConversion(0);
 testBadConversion("string");
 testBadConversion(true);
+
+var s = Symbol();
+testEqual(s, s);
+testEqual(Object(s), s);
+testEqual(new Wrapper(s), s);
+testNotEqual(Object(s), Object(s));
+
+var simd = SIMD.Float32x4(1, 2, 3, 4);
+testEqual(simd, simd);
+testEqual(Object(simd), simd);
+testEqual(new Wrapper(simd), simd);
+testNotEqual(Object(simd), Object(simd));

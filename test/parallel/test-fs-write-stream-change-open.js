@@ -1,17 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-var path = require('path'),
-    fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
 var file = path.join(common.tmpDir, 'write.txt');
 
 common.refreshTmpDir();
 
-var stream = fs.WriteStream(file),
-    _fs_close = fs.close,
-    _fs_open = fs.open;
+const stream = fs.WriteStream(file);
+const _fs_close = fs.close;
+const _fs_open = fs.open;
 
 // change the fs.open with an identical function after the WriteStream
 // has pushed it onto its internal action queue, but before it's

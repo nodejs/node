@@ -419,6 +419,10 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
             BIO_set_flags(b, BIO_FLAGS_IO_SPECIAL | BIO_FLAGS_SHOULD_RETRY);
             b->retry_reason = b->next_bio->retry_reason;
             break;
+        case SSL_ERROR_WANT_X509_LOOKUP:
+            BIO_set_retry_special(b);
+            b->retry_reason = BIO_RR_SSL_X509_LOOKUP;
+            break;
         default:
             break;
         }

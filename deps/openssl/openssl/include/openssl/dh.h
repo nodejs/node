@@ -142,7 +142,7 @@ struct dh_st {
     BIGNUM *p;
     BIGNUM *g;
     long length;                /* optional */
-    BIGNUM *pub_key;            /* g^x */
+    BIGNUM *pub_key;            /* g^x % p */
     BIGNUM *priv_key;           /* x */
     int flags;
     BN_MONT_CTX *method_mont_p;
@@ -174,6 +174,7 @@ struct dh_st {
 /* DH_check_pub_key error codes */
 # define DH_CHECK_PUBKEY_TOO_SMALL       0x01
 # define DH_CHECK_PUBKEY_TOO_LARGE       0x02
+# define DH_CHECK_PUBKEY_INVALID         0x03
 
 /*
  * primes p where (p-1)/2 is prime too are called "safe"; we define this for

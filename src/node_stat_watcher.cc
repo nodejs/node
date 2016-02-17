@@ -14,7 +14,6 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -22,7 +21,7 @@ using v8::Object;
 using v8::Value;
 
 
-void StatWatcher::Initialize(Environment* env, Handle<Object> target) {
+void StatWatcher::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(StatWatcher::New);

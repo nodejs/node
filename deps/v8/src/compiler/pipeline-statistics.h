@@ -36,7 +36,7 @@ class PipelineStatistics : public Malloced {
     void End(PipelineStatistics* pipeline_stats,
              CompilationStatistics::BasicStats* diff);
 
-    SmartPointer<ZonePool::StatsScope> scope_;
+    base::SmartPointer<ZonePool::StatsScope> scope_;
     base::ElapsedTimer timer_;
     size_t outer_zone_initial_size_;
     size_t allocated_bytes_at_start_;

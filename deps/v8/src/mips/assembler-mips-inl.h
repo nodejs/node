@@ -40,7 +40,7 @@
 #include "src/mips/assembler-mips.h"
 
 #include "src/assembler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 
 
 namespace v8 {
@@ -84,48 +84,10 @@ bool Operand::is_reg() const {
 }
 
 
-int Register::NumAllocatableRegisters() {
-    return kMaxNumAllocatableRegisters;
-}
-
-
-int DoubleRegister::NumRegisters() {
-    return FPURegister::kMaxNumRegisters;
-}
-
-
-int DoubleRegister::NumAllocatableRegisters() {
-    return FPURegister::kMaxNumAllocatableRegisters;
-}
-
-
-int DoubleRegister::NumAllocatableAliasedRegisters() {
-  return NumAllocatableRegisters();
-}
-
-
-int FPURegister::ToAllocationIndex(FPURegister reg) {
-  DCHECK(reg.code() % 2 == 0);
-  DCHECK(reg.code() / 2 < kMaxNumAllocatableRegisters);
-  DCHECK(reg.is_valid());
-  DCHECK(!reg.is(kDoubleRegZero));
-  DCHECK(!reg.is(kLithiumScratchDouble));
-  return (reg.code() / 2);
-}
-
-
 // -----------------------------------------------------------------------------
 // RelocInfo.
 
-void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
-  if (IsCodeTarget(rmode_)) {
-    uint32_t scope1 = (uint32_t) target_address() & ~kImm28Mask;
-    uint32_t scope2 = reinterpret_cast<uint32_t>(pc_) & ~kImm28Mask;
-
-    if (scope1 != scope2) {
-      Assembler::JumpToJumpRegister(pc_);
-    }
-  }
+void RelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
     byte* p = reinterpret_cast<byte*>(pc_);
@@ -192,11 +154,6 @@ void RelocInfo::set_target_address(Address target,
 
 Address Assembler::target_address_from_return_address(Address pc) {
   return pc - kCallTargetAddressOffset;
-}
-
-
-Address Assembler::break_address_from_return_address(Address pc) {
-  return pc - Assembler::kPatchDebugBreakSlotReturnOffset;
 }
 
 
@@ -359,45 +316,24 @@ void RelocInfo::set_code_age_stub(Code* stub,
 }
 
 
-Address RelocInfo::call_address() {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  // The pc_ offset of 0 assumes mips patched return sequence per
-  // debug-mips.cc BreakLocation::SetDebugBreakAtReturn(), or
-  // debug break slot per BreakLocation::SetDebugBreakAtSlot().
+Address RelocInfo::debug_call_address() {
+  // The pc_ offset of 0 assumes patched debug break slot or return
+  // sequence.
+  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
   return Assembler::target_address_at(pc_, host_);
 }
 
 
-void RelocInfo::set_call_address(Address target) {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  // The pc_ offset of 0 assumes mips patched return sequence per
-  // debug-mips.cc BreakLocation::SetDebugBreakAtReturn(), or
-  // debug break slot per BreakLocation::SetDebugBreakAtSlot().
+void RelocInfo::set_debug_call_address(Address target) {
+  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
+  // The pc_ offset of 0 assumes patched debug break slot or return
+  // sequence.
   Assembler::set_target_address_at(pc_, host_, target);
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target_code));
   }
-}
-
-
-Object* RelocInfo::call_object() {
-  return *call_object_address();
-}
-
-
-Object** RelocInfo::call_object_address() {
-  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  return reinterpret_cast<Object**>(pc_ + 2 * Assembler::kInstrSize);
-}
-
-
-void RelocInfo::set_call_object(Object* target) {
-  *call_object_address() = target;
 }
 
 
@@ -449,11 +385,8 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
-  } else if (((RelocInfo::IsJSReturn(mode) &&
-              IsPatchedReturnSequence()) ||
-             (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence())) &&
-             isolate->debug()->has_break_points()) {
+  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
+             IsPatchedDebugBreakSlotSequence()) {
     visitor->VisitDebugTarget(this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
@@ -477,11 +410,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-  } else if (heap->isolate()->debug()->has_break_points() &&
-             ((RelocInfo::IsJSReturn(mode) &&
-              IsPatchedReturnSequence()) ||
-             (RelocInfo::IsDebugBreakSlot(mode) &&
-              IsPatchedDebugBreakSlotSequence()))) {
+  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
+             IsPatchedDebugBreakSlotSequence()) {
     StaticVisitor::VisitDebugTarget(heap, this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
@@ -507,16 +437,29 @@ void Assembler::CheckTrampolinePoolQuick(int extra_instructions) {
 }
 
 
-void Assembler::emit(Instr x) {
+void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
   }
+  if (IsPrevInstrCompactBranch()) {
+    if (Instruction::IsForbiddenAfterBranchInstr(x)) {
+      // Nop instruction to preceed a CTI in forbidden slot:
+      Instr nop = SPECIAL | SLL;
+      *reinterpret_cast<Instr*>(pc_) = nop;
+      pc_ += kInstrSize;
+    }
+    ClearCompactBranchState();
+  }
   *reinterpret_cast<Instr*>(pc_) = x;
   pc_ += kInstrSize;
+  if (is_compact_branch == CompactBranchType::COMPACT_BRANCH) {
+    EmittedCompactBranchInstruction();
+  }
   CheckTrampolinePoolQuick();
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MIPS_ASSEMBLER_MIPS_INL_H_

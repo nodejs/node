@@ -4,6 +4,7 @@
 #include "v8.h"
 
 #include <assert.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -18,11 +19,18 @@ namespace node {
   TypeName(const TypeName&) = delete;                                         \
   TypeName(TypeName&&) = delete
 
+// Windows 8+ does not like abort() in Release mode
+#ifdef _WIN32
+#define ABORT() raise(SIGABRT)
+#else
+#define ABORT() abort()
+#endif
+
 #if defined(NDEBUG)
 # define ASSERT(expression)
 # define CHECK(expression)                                                    \
   do {                                                                        \
-    if (!(expression)) abort();                                               \
+    if (!(expression)) ABORT();                                               \
   } while (0)
 #else
 # define ASSERT(expression)  assert(expression)
@@ -43,7 +51,7 @@ namespace node {
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_NE(a, b) CHECK((a) != (b))
 
-#define UNREACHABLE() abort()
+#define UNREACHABLE() ABORT()
 
 // TAILQ-style intrusive list node.
 template <typename T>
@@ -168,9 +176,11 @@ inline void ClearWrap(v8::Local<v8::Object> object);
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
+inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
+
 class Utf8Value {
   public:
-    explicit Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value);
+    explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
     ~Utf8Value() {
       if (str_ != str_st_)
@@ -193,6 +203,33 @@ class Utf8Value {
     size_t length_;
     char* str_;
     char str_st_[1024];
+};
+
+class TwoByteValue {
+  public:
+    explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+    ~TwoByteValue() {
+      if (str_ != str_st_)
+        free(str_);
+    }
+
+    uint16_t* operator*() {
+      return str_;
+    };
+
+    const uint16_t* operator*() const {
+      return str_;
+    };
+
+    size_t length() const {
+      return length_;
+    };
+
+  private:
+    size_t length_;
+    uint16_t* str_;
+    uint16_t str_st_[1024];
 };
 
 }  // namespace node

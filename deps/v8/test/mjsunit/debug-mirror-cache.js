@@ -51,8 +51,7 @@ function listener(event, exec_state, event_data, data) {
     listenerCallCount++;
 
     // Check that mirror cache is cleared when entering debugger.
-    assertEquals(0, debug.next_handle_, "Mirror cache not cleared");
-    assertEquals(0, debug.mirror_cache_.length, "Mirror cache not cleared");
+    assertTrue(debug.MirrorCacheIsEmpty(), "Mirror cache not cleared");
 
     // Get the debug command processor in paused state.
     var dcp = exec_state.debugCommandProcessor(false);
@@ -66,8 +65,7 @@ function listener(event, exec_state, event_data, data) {
     Debug.scripts();
 
     // Some mirrors where cached.
-    assertFalse(debug.next_handle_ == 0, "Mirror cache not used");
-    assertFalse(debug.mirror_cache_.length == 0, "Mirror cache not used");
+    assertFalse(debug.MirrorCacheIsEmpty(), "Mirror cache not used");
   }
   } catch (e) {
     print(e);

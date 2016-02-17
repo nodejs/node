@@ -130,6 +130,10 @@ void DeclarationContext::InitializeIfNeeded() {
   context_.Reset(isolate, context);
   context->Enter();
   is_initialized_ = true;
+  // Reset counts. Bootstrapping might have called into the interceptor.
+  get_count_ = 0;
+  set_count_ = 0;
+  query_count_ = 0;
   PostInitializeContext(context);
 }
 
@@ -143,7 +147,7 @@ void DeclarationContext::Check(const char* source,
   // to avoid that.
   CcTest::heap()->CollectGarbage(v8::internal::NEW_SPACE);
   HandleScope scope(CcTest::isolate());
-  TryCatch catcher;
+  TryCatch catcher(CcTest::isolate());
   catcher.SetVerbose(true);
   Local<Script> script =
       Script::Compile(String::NewFromUtf8(CcTest::isolate(), source));
@@ -567,7 +571,7 @@ class SimpleContext {
              Expectations expectations,
              v8::Handle<Value> value = Local<Value>()) {
     HandleScope scope(context_->GetIsolate());
-    TryCatch catcher;
+    TryCatch catcher(context_->GetIsolate());
     catcher.SetVerbose(true);
     Local<Script> script =
         Script::Compile(String::NewFromUtf8(context_->GetIsolate(), source));

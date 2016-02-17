@@ -13,7 +13,6 @@ namespace node {
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Local;
 using v8::Object;
@@ -24,7 +23,7 @@ using v8::Value;
 
 template <class Base>
 void StreamBase::AddMethods(Environment* env,
-                            Handle<FunctionTemplate> t,
+                            Local<FunctionTemplate> t,
                             int flags) {
   HandleScope scope(env->isolate());
 

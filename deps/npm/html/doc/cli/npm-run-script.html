@@ -11,8 +11,9 @@
 
 <h1><a href="../cli/npm-run-script.html">npm-run-script</a></h1> <p>Run arbitrary package scripts</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm run-script [command] [-- &lt;args&gt;]
-npm run [command] [-- &lt;args&gt;]
+<pre><code>npm run-script &lt;command&gt; [-- &lt;args&gt;...]
+
+alias: npm run
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This runs an arbitrary command from a package&#39;s <code>&quot;scripts&quot;</code> object.  If no
 <code>&quot;command&quot;</code> is provided, it will list the available scripts.  <code>run[-script]</code> is
@@ -37,13 +38,15 @@ prefix. For example, if there is a <code>devDependency</code> on <code>tap</code
 you should write:</p>
 <pre><code>&quot;scripts&quot;: {&quot;test&quot;: &quot;tap test/\*.js&quot;}
 </code></pre><p>instead of <code>&quot;scripts&quot;: {&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}</code> to run your tests.</p>
+<p>If you try to run a script without having a <code>node_modules</code> directory and it fails,
+you will be given a warning to run <code>npm install</code>, just in case you&#39;ve forgotten.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></li>
-<li><a href="../cli/npm-test.html"><a href="../cli/npm-test.html">npm-test(1)</a></a></li>
-<li><a href="../cli/npm-start.html"><a href="../cli/npm-start.html">npm-start(1)</a></a></li>
-<li><a href="../cli/npm-restart.html"><a href="../cli/npm-restart.html">npm-restart(1)</a></a></li>
-<li><a href="../cli/npm-stop.html"><a href="../cli/npm-stop.html">npm-stop(1)</a></a></li>
+<li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
+<li><a href="../cli/npm-test.html">npm-test(1)</a></li>
+<li><a href="../cli/npm-start.html">npm-start(1)</a></li>
+<li><a href="../cli/npm-restart.html">npm-restart(1)</a></li>
+<li><a href="../cli/npm-stop.html">npm-stop(1)</a></li>
 </ul>
 
 </div>
@@ -57,5 +60,5 @@ you should write:</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-run-script &mdash; npm@2.13.3</p>
+<p id="footer">npm-run-script &mdash; npm@3.6.0</p>
 

@@ -32,10 +32,11 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
-#include "src/allocation-tracker.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/hashmap.h"
-#include "src/heap-profiler.h"
+#include "src/profiler/allocation-tracker.h"
+#include "src/profiler/heap-profiler.h"
+#include "src/profiler/heap-snapshot-generator-inl.h"
 #include "test/cctest/cctest.h"
 
 using i::AllocationTraceNode;
@@ -95,10 +96,11 @@ class NamedEntriesDetector {
 
 static const v8::HeapGraphNode* GetGlobalObject(
     const v8::HeapSnapshot* snapshot) {
-  CHECK_EQ(2, snapshot->GetRoot()->GetChildrenCount());
-  // The 0th-child is (GC Roots), 1st is the user root.
+  CHECK_EQ(3, snapshot->GetRoot()->GetChildrenCount());
+  // The 0th-child is (GC Roots), 1st is code stubs context, 2nd is the user
+  // root.
   const v8::HeapGraphNode* global_obj =
-      snapshot->GetRoot()->GetChild(1)->GetToNode();
+      snapshot->GetRoot()->GetChild(2)->GetToNode();
   CHECK_EQ(0, strncmp("Object", const_cast<i::HeapEntry*>(
       reinterpret_cast<const i::HeapEntry*>(global_obj))->name(), 6));
   return global_obj;
@@ -478,6 +480,37 @@ TEST(HeapSnapshotSymbol) {
       GetProperty(a, v8::HeapGraphEdge::kInternal, "name");
   CHECK(name);
   CHECK(v8_str("mySymbol")->Equals(name->GetName()));
+}
+
+
+void CheckSimdSnapshot(const char* program, const char* var_name) {
+  i::FLAG_harmony_simd = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun(program);
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* var =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, var_name);
+  CHECK(var);
+  CHECK_EQ(var->GetType(), v8::HeapGraphNode::kSimdValue);
+}
+
+
+TEST(HeapSnapshotSimd) {
+  CheckSimdSnapshot("a = SIMD.Float32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int8x16();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint8x16();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool8x16();\n", "a");
 }
 
 
@@ -960,7 +993,7 @@ TEST(HeapSnapshotJSONSerialization) {
   v8::Local<v8::String> ref_string =
       CompileRun(STRING_LITERAL_FOR_TEST)->ToString(isolate);
 #undef STRING_LITERAL_FOR_TEST
-  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(ref_string),
+  CHECK_LT(0, strcmp(*v8::String::Utf8Value(ref_string),
                      *v8::String::Utf8Value(string)));
 }
 
@@ -1318,7 +1351,8 @@ class TestActivityControl : public v8::ActivityControl {
   int total_;
   int abort_count_;
 };
-}
+
+}  // namespace
 
 
 TEST(TakeHeapSnapshotAborting) {
@@ -1411,7 +1445,8 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
 
 i::List<TestRetainedObjectInfo*> TestRetainedObjectInfo::instances;
-}
+
+}  // namespace
 
 
 static const v8::HeapGraphNode* GetNode(const v8::HeapGraphNode* parent,
@@ -1663,9 +1698,6 @@ TEST(GlobalObjectFields) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* builtins =
-      GetProperty(global, v8::HeapGraphEdge::kInternal, "builtins");
-  CHECK(builtins);
   const v8::HeapGraphNode* native_context =
       GetProperty(global, v8::HeapGraphEdge::kInternal, "native_context");
   CHECK(native_context);
@@ -1768,7 +1800,7 @@ TEST(GetHeapValueForDeletedObject) {
 
 
 static int StringCmp(const char* ref, i::String* act) {
-  i::SmartArrayPointer<char> s_act = act->ToCString();
+  v8::base::SmartArrayPointer<char> s_act = act->ToCString();
   int result = strcmp(ref, s_act.get());
   if (result != 0)
     fprintf(stderr, "Expected: \"%s\", Actual: \"%s\"\n", ref, s_act.get());
@@ -1948,21 +1980,24 @@ TEST(HiddenPropertiesFastCase) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
   const v8::HeapGraphNode* hidden_props =
-      GetProperty(c, v8::HeapGraphEdge::kInternal, "hidden_properties");
+      GetProperty(c, v8::HeapGraphEdge::kProperty, "<symbol>");
   CHECK(!hidden_props);
 
   v8::Handle<v8::Value> cHandle =
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "c"));
   CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
-  cHandle->ToObject(isolate)->SetHiddenValue(v8_str("key"), v8_str("val"));
+  cHandle->ToObject(isolate)
+      ->SetPrivate(env.local(),
+                   v8::Private::ForApi(env->GetIsolate(), v8_str("key")),
+                   v8_str("val"))
+      .FromJust();
 
   snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   global = GetGlobalObject(snapshot);
   c = GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
   CHECK(c);
-  hidden_props = GetProperty(c, v8::HeapGraphEdge::kInternal,
-      "hidden_properties");
+  hidden_props = GetProperty(c, v8::HeapGraphEdge::kProperty, "<symbol>");
   CHECK(hidden_props);
 }
 
@@ -2082,6 +2117,7 @@ TEST(NoDebugObjectInSnapshot) {
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* root = snapshot->GetRoot();
   int globals_count = 0;
+  bool found = false;
   for (int i = 0; i < root->GetChildrenCount(); ++i) {
     const v8::HeapGraphEdge* edge = root->GetChild(i);
     if (edge->GetType() == v8::HeapGraphEdge::kShortcut) {
@@ -2089,10 +2125,13 @@ TEST(NoDebugObjectInSnapshot) {
       const v8::HeapGraphNode* global = edge->GetToNode();
       const v8::HeapGraphNode* foo =
           GetProperty(global, v8::HeapGraphEdge::kProperty, "foo");
-      CHECK(foo);
+      if (foo != nullptr) {
+        found = true;
+      }
     }
   }
-  CHECK_EQ(1, globals_count);
+  CHECK_EQ(2, globals_count);
+  CHECK(found);
 }
 
 
@@ -2459,22 +2498,23 @@ TEST(TrackHeapAllocations) {
 
 
 static const char* inline_heap_allocation_source =
-"function f_0(x) {\n"
-"  return f_1(x+1);\n"
-"}\n"
-"%NeverOptimizeFunction(f_0);\n"
-"function f_1(x) {\n"
-"  return new f_2(x+1);\n"
-"}\n"
-"function f_2(x) {\n"
-"  this.foo = x;\n"
-"}\n"
-"var instances = [];\n"
-"function start() {\n"
-"  instances.push(f_0(0));\n"
-"}\n"
-"\n"
-"for (var i = 0; i < 100; i++) start();\n";
+    "function f_0(x) {\n"
+    "  return f_1(x+1);\n"
+    "}\n"
+    "%NeverOptimizeFunction(f_0);\n"
+    "function f_1(x) {\n"
+    "  return new f_2(x+1);\n"
+    "}\n"
+    "%NeverOptimizeFunction(f_1);\n"
+    "function f_2(x) {\n"
+    "  this.foo = x;\n"
+    "}\n"
+    "var instances = [];\n"
+    "function start() {\n"
+    "  instances.push(f_0(0));\n"
+    "}\n"
+    "\n"
+    "for (var i = 0; i < 100; i++) start();\n";
 
 
 TEST(TrackBumpPointerAllocations) {

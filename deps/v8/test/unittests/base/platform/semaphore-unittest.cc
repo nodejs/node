@@ -27,9 +27,8 @@ class ProducerThread final : public Thread {
         buffer_(buffer),
         free_space_(free_space),
         used_space_(used_space) {}
-  virtual ~ProducerThread() {}
 
-  virtual void Run() override {
+  void Run() override {
     for (size_t n = 0; n < kDataSize; ++n) {
       free_space_->Wait();
       buffer_[n % kBufferSize] = kAlphabet[n % kAlphabetSize];
@@ -52,9 +51,8 @@ class ConsumerThread final : public Thread {
         buffer_(buffer),
         free_space_(free_space),
         used_space_(used_space) {}
-  virtual ~ConsumerThread() {}
 
-  virtual void Run() override {
+  void Run() override {
     for (size_t n = 0; n < kDataSize; ++n) {
       used_space_->Wait();
       EXPECT_EQ(kAlphabet[n % kAlphabetSize], buffer_[n % kBufferSize]);
@@ -73,9 +71,8 @@ class WaitAndSignalThread final : public Thread {
  public:
   explicit WaitAndSignalThread(Semaphore* semaphore)
       : Thread(Options("WaitAndSignalThread")), semaphore_(semaphore) {}
-  virtual ~WaitAndSignalThread() {}
 
-  virtual void Run() override {
+  void Run() override {
     for (int n = 0; n < 100; ++n) {
       semaphore_->Wait();
       ASSERT_FALSE(semaphore_->WaitFor(TimeDelta::FromMicroseconds(1)));

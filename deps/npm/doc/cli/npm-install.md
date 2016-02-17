@@ -3,15 +3,17 @@ npm-install(1) -- Install a package
 
 ## SYNOPSIS
 
-    npm install (with no args in a package dir)
+    npm install (with no args, in package dir)
+    npm install [<@scope>/]<name>
+    npm install [<@scope>/]<name>@<tag>
+    npm install [<@scope>/]<name>@<version>
+    npm install [<@scope>/]<name>@<version range>
     npm install <tarball file>
     npm install <tarball url>
     npm install <folder>
-    npm install [@<scope>/]<name> [--save|--save-dev|--save-optional] [--save-exact]
-    npm install [@<scope>/]<name>@<tag>
-    npm install [@<scope>/]<name>@<version>
-    npm install [@<scope>/]<name>@<version range>
-    npm i (with any of the previous argument usage)
+
+    alias: npm i
+    common options: [-S|--save|-D|--save-dev|-O|--save-optional] [-E|--save-exact] [--dry-run]
 
 ## DESCRIPTION
 
@@ -21,13 +23,13 @@ by that. See npm-shrinkwrap(1).
 
 A `package` is:
 
-* a) a folder containing a program described by a package.json file
+* a) a folder containing a program described by a `package.json(5)` file
 * b) a gzipped tarball containing (a)
 * c) a url that resolves to (b)
 * d) a `<name>@<version>` that is published on the registry (see `npm-registry(7)`) with (c)
-* e) a `<name>@<tag>` that points to (d)
+* e) a `<name>@<tag>` (see `npm-dist-tag(1)`) that points to (d)
 * f) a `<name>` that has a "latest" tag satisfying (e)
-* g) a `<git remote url>` that resolves to (b)
+* g) a `<git remote url>` that resolves to (a)
 
 Even if you never publish your package, you can still get a lot of
 benefits of using npm if you just want to write a node program (a), and
@@ -43,7 +45,9 @@ after packing it up into a tarball (b).
     it installs the current package context (ie, the current working
     directory) as a global package.
 
-    By default, `npm install` will install all modules listed as dependencies.
+    By default, `npm install` will install all modules listed as dependencies
+    in `package.json(5)`.
+
     With the `--production` flag (or when the `NODE_ENV` environment variable
     is set to `production`), npm will not install modules listed in
     `devDependencies`.
@@ -71,10 +75,10 @@ after packing it up into a tarball (b).
 
           npm install https://github.com/indexzero/forever/tarball/v0.5.6
 
-* `npm install [@<scope>/]<name> [--save|--save-dev|--save-optional]`:
+* `npm install [<@scope>/]<name> [-S|--save|-D|--save-dev|-O|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
-    `npm-config(7)`.)
+    `npm-config(7)`. The config's default value is `latest`.)
 
     In most cases, this will install the latest version
     of the module published on npm.
@@ -86,18 +90,21 @@ after packing it up into a tarball (b).
     `npm install` takes 3 exclusive, optional flags which save or update
     the package version in your main package.json:
 
-    * `--save`: Package will appear in your `dependencies`.
+    * `-S, --save`: Package will appear in your `dependencies`.
 
-    * `--save-dev`: Package will appear in your `devDependencies`.
+    * `-D, --save-dev`: Package will appear in your `devDependencies`.
 
-    * `--save-optional`: Package will appear in your `optionalDependencies`.
+    * `-O, --save-optional`: Package will appear in your `optionalDependencies`.
 
     When using any of the above options to save dependencies to your
     package.json, there is an additional, optional flag:
 
-    * `--save-exact`: Saved dependencies will be configured with an
+    * `-E, --save-exact`: Saved dependencies will be configured with an
       exact version rather than using npm's default semver range
       operator.
+
+    Further, if you have an `npm-shrinkwrap.json` then it will be updated as
+    well.
 
     `<scope>` is optional. The package will be downloaded from the registry
     associated with the specified scope. If no registry is associated with
@@ -121,7 +128,7 @@ after packing it up into a tarball (b).
     working directory, then it will try to install that, and only try to
     fetch the package by name if it is not valid.
 
-* `npm install [@<scope>/]<name>@<tag>`:
+* `npm install [<@scope>/]<name>@<tag>`:
 
     Install the version of the package that is referenced by the specified tag.
     If the tag does not exist in the registry data for that package, then this
@@ -132,7 +139,7 @@ after packing it up into a tarball (b).
           npm install sax@latest
           npm install @myorg/mypackage@latest
 
-* `npm install [@<scope>/]<name>@<version>`:
+* `npm install [<@scope>/]<name>@<version>`:
 
     Install the specified version of the package.  This will fail if the
     version has not been published to the registry.
@@ -142,7 +149,7 @@ after packing it up into a tarball (b).
           npm install sax@0.1.1
           npm install @myorg/privatepackage@1.5.0
 
-* `npm install [@<scope>/]<name>@<version range>`:
+* `npm install [<@scope>/]<name>@<version range>`:
 
     Install a version of the package matching the specified version range.  This
     will follow the same rules for resolving dependencies described in `package.json(5)`.
@@ -157,10 +164,10 @@ after packing it up into a tarball (b).
 
 * `npm install <git remote url>`:
 
-    Install a package by cloning a git remote url.  The format of the git
-    url is:
+    Installs the package from the hosted git provider, cloning it with
+    `git`. First it tries via the https (git with github) and if that fails, via ssh.
 
-          <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:/]<path>[#<commit-ish>]
+          <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit-ish>]
 
     `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
     `git+https`.  If no `<commit-ish>` is specified, then `master` is
@@ -202,7 +209,7 @@ after packing it up into a tarball (b).
 
     Install the package at `https://gist.github.com/gistID` by attempting to
     clone it using `git`. The GitHub username associated with the gist is
-    optional and will not be saved in `package.json` if `--save` is used.
+    optional and will not be saved in `package.json` if `-S` or `--save` is used.
 
     If you don't specify a *commit-ish* then `master` will be used.
 
@@ -241,13 +248,26 @@ The `--tag` argument will apply to all of the specified install targets. If a
 tag with the given name exists, the tagged version is preferred over newer
 versions.
 
-The `--force` argument will force npm to fetch remote resources even if a
+The `--dry-run` argument will report in the usual way what the install would
+have done without actually installing anything.
+
+The `-f` or `--force` argument will force npm to fetch remote resources even if a
 local copy exists on disk.
 
     npm install sax --force
 
-The `--global` argument will cause npm to install the package globally
+The `-g` or `--global` argument will cause npm to install the package globally
 rather than locally.  See `npm-folders(5)`.
+
+The `--global-style` argument will cause npm to install the package into
+your local `node_modules` folder with the same layout it uses with the
+global `node_modules` folder. Only your direct dependencies will show in
+`node_modules` and everything they depend on will be flattened in their
+`node_modules` folders. This obviously will elminate some deduping.
+
+The `--legacy-bundling` argument will cause npm to install the package such
+that versions of npm prior to 1.4, such as the one included with node 0.8,
+can install the package. This eliminates all automatic deduping.
 
 The `--link` argument will cause npm to link global installs into the
 local space in some cases.
@@ -264,6 +284,9 @@ shrinkwrap file and use the package.json instead.
 The `--nodedir=/path/to/node/source` argument will allow npm to find the
 node source code so that npm can compile native modules.
 
+The `--only={prod[uction]|dev[elopment]}` argument will cause either only
+`devDependencies` or only non-`devDependencies` to be installed regardless of the `NODE_ENV`.
+
 See `npm-config(7)`.  Many of the configuration params have some
 effect on installation, since that's most of what npm does.
 
@@ -271,26 +294,39 @@ effect on installation, since that's most of what npm does.
 
 To install a package, npm uses the following algorithm:
 
-    install(where, what, family, ancestors)
-    fetch what, unpack to <where>/node_modules/<what>
-    for each dep in what.dependencies
-      resolve dep to precise version
-    for each dep@version in what.dependencies
-        not in <where>/node_modules/<what>/node_modules/*
-        and not in <family>
-      add precise version deps to <family>
-      install(<where>/node_modules/<what>, dep, family)
+    load the existing node_modules tree from disk
+    clone the tree
+    fetch the package.json and assorted metadata and add it to the clone
+    walk the clone and add any missing dependencies
+      dependencies will be added as close to the top as is possible
+      without breaking any other modules
+    compare the original tree with the cloned tree and make a list of
+    actions to take to convert one to the other
+    execute all of the actions, deepest first
+      kinds of actions are install, update, remove and move
 
 For this `package{dep}` structure: `A{B,C}, B{C}, C{D}`,
 this algorithm produces:
 
     A
     +-- B
-    `-- C
-        `-- D
+    +-- C
+    +-- D
 
 That is, the dependency from B to C is satisfied by the fact that A
-already caused C to be installed at a higher level.
+already caused C to be installed at a higher level. D is still installed
+at the top level because nothing conflicts with it.
+
+For `A{B,C}, B{C,D@1}, C{D@2}`, this algorithm produces:
+
+    A
+    +-- B
+    +-- C
+       `-- D@2
+    +-- D@1
+
+Because B's D@1 will be installed in the top level, C now has to install D@2
+privately for itself.
 
 See npm-folders(5) for a more detailed description of the specific
 folder structures that npm creates.
@@ -329,5 +365,6 @@ affects a real use-case, it will be investigated.
 * npmrc(5)
 * npm-registry(7)
 * npm-tag(1)
-* npm-rm(1)
+* npm-uninstall(1)
 * npm-shrinkwrap(1)
+* package.json(5)

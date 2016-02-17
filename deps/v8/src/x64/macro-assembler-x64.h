@@ -7,11 +7,27 @@
 
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
+#include "src/base/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
+#include "src/x64/frames-x64.h"
 
 namespace v8 {
 namespace internal {
+
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {Register::kCode_rax};
+const Register kReturnRegister1 = {Register::kCode_rdx};
+const Register kJSFunctionRegister = {Register::kCode_rdi};
+const Register kContextRegister = {Register::kCode_rsi};
+const Register kInterpreterAccumulatorRegister = {Register::kCode_rax};
+const Register kInterpreterRegisterFileRegister = {Register::kCode_r11};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r12};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r14};
+const Register kInterpreterDispatchTableRegister = {Register::kCode_r15};
+const Register kJavaScriptCallArgCountRegister = {Register::kCode_rax};
+const Register kRuntimeCallFunctionRegister = {Register::kCode_rbx};
+const Register kRuntimeCallArgCountRegister = {Register::kCode_rax};
 
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
@@ -32,21 +48,15 @@ enum PointersToHereCheck {
   kPointersToHereAreAlwaysInteresting
 };
 
-enum SmiOperationConstraint {
-  PRESERVE_SOURCE_REGISTER,
-  BAILOUT_ON_NO_OVERFLOW,
-  BAILOUT_ON_OVERFLOW,
-  NUMBER_OF_CONSTRAINTS
+enum class SmiOperationConstraint {
+  kPreserveSourceRegister = 1 << 0,
+  kBailoutOnNoOverflow = 1 << 1,
+  kBailoutOnOverflow = 1 << 2
 };
 
-STATIC_ASSERT(NUMBER_OF_CONSTRAINTS <= 8);
+typedef base::Flags<SmiOperationConstraint> SmiOperationConstraints;
 
-class SmiOperationExecutionMode : public EnumSet<SmiOperationConstraint, byte> {
- public:
-  SmiOperationExecutionMode() : EnumSet<SmiOperationConstraint, byte>(0) { }
-  explicit SmiOperationExecutionMode(byte bits)
-      : EnumSet<SmiOperationConstraint, byte>(bits) { }
-};
+DEFINE_OPERATORS_FOR_FLAGS(SmiOperationConstraints)
 
 #ifdef DEBUG
 bool AreAliased(Register reg1,
@@ -124,6 +134,10 @@ class MacroAssembler: public Assembler {
 
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, Heap::RootListIndex index);
+  void LoadRoot(const Operand& destination, Heap::RootListIndex index) {
+    LoadRoot(kScratchRegister, index);
+    movp(destination, kScratchRegister);
+  }
   void StoreRoot(Register source, Heap::RootListIndex index);
   // Load a root value where the index (or part of it) is variable.
   // The variable_offset register is added to the fixed_offset value
@@ -134,6 +148,21 @@ class MacroAssembler: public Assembler {
   void CompareRoot(Register with, Heap::RootListIndex index);
   void CompareRoot(const Operand& with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
+
+  // Compare the object in a register to a value and jump if they are equal.
+  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal,
+                  Label::Distance if_equal_distance = Label::kNear) {
+    CompareRoot(with, index);
+    j(equal, if_equal, if_equal_distance);
+  }
+
+  // Compare the object in a register to a value and jump if they are not equal.
+  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
+                     Label* if_not_equal,
+                     Label::Distance if_not_equal_distance = Label::kNear) {
+    CompareRoot(with, index);
+    j(not_equal, if_not_equal, if_not_equal_distance);
+  }
 
   // These functions do not arrange the registers in any particular order so
   // they are not useful for calls that can cause a GC.  The caller can
@@ -314,8 +343,8 @@ class MacroAssembler: public Assembler {
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax:rdx (untouched) and the pointer to the first
-  // argument in register rsi.
-  void LeaveExitFrame(bool save_doubles = false);
+  // argument in register rsi (if pop_arguments == true).
+  void LeaveExitFrame(bool save_doubles = false, bool pop_arguments = true);
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax (untouched).
@@ -366,17 +395,15 @@ class MacroAssembler: public Assembler {
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
-  // Invoke specified builtin JavaScript function. Adds an entry to
-  // the unresolved list if the name does not resolve.
-  void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeFlag flag,
+  // Invoke specified builtin JavaScript function.
+  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
+  void GetBuiltinFunction(Register target, int native_context_index);
 
   // Store the code object for the given builtin in the target register.
-  void GetBuiltinEntry(Register target, Builtins::JavaScript id);
+  void GetBuiltinEntry(Register target, int native_context_index);
 
 
   // ---------------------------------------------------------------------------
@@ -546,11 +573,8 @@ class MacroAssembler: public Assembler {
 
   // Add an integer constant to a tagged smi, giving a tagged smi as result,
   // or jumping to a label if the result cannot be represented by a smi.
-  void SmiAddConstant(Register dst,
-                      Register src,
-                      Smi* constant,
-                      SmiOperationExecutionMode mode,
-                      Label* bailout_label,
+  void SmiAddConstant(Register dst, Register src, Smi* constant,
+                      SmiOperationConstraints constraints, Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
@@ -560,11 +584,8 @@ class MacroAssembler: public Assembler {
 
   // Subtract an integer constant from a tagged smi, giving a tagged smi as
   // result, or jumping to a label if the result cannot be represented by a smi.
-  void SmiSubConstant(Register dst,
-                      Register src,
-                      Smi* constant,
-                      SmiOperationExecutionMode mode,
-                      Label* bailout_label,
+  void SmiSubConstant(Register dst, Register src, Smi* constant,
+                      SmiOperationConstraints constraints, Label* bailout_label,
                       Label::Distance near_jump = Label::kFar);
 
   // Negating a smi can give a negative zero or too large positive value.
@@ -739,17 +760,6 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // String macros.
 
-  // Generate code to do a lookup in the number string cache. If the number in
-  // the register object is found in the cache the generated code falls through
-  // with the result in the result register. The object and the result register
-  // can be the same. If the number is not found in the cache the code jumps to
-  // the label not_found with only the content of register object unchanged.
-  void LookupNumberStringCache(Register object,
-                               Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* not_found);
-
   // If object is a string, its map is loaded into object_map.
   void JumpIfNotString(Register object,
                        Register object_map,
@@ -797,11 +807,29 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, intptr_t x);
 
+  void Cvtss2sd(XMMRegister dst, XMMRegister src);
+  void Cvtss2sd(XMMRegister dst, const Operand& src);
+  void Cvtsd2ss(XMMRegister dst, XMMRegister src);
+  void Cvtsd2ss(XMMRegister dst, const Operand& src);
+
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
-  // xorps to clear the dst register before cvtsi2sd to solve this issue.
+  // xorpd to clear the dst register before cvtsi2sd to solve this issue.
   void Cvtlsi2sd(XMMRegister dst, Register src);
   void Cvtlsi2sd(XMMRegister dst, const Operand& src);
+
+  void Cvtqsi2ss(XMMRegister dst, Register src);
+  void Cvtqsi2ss(XMMRegister dst, const Operand& src);
+
+  void Cvtqsi2sd(XMMRegister dst, Register src);
+  void Cvtqsi2sd(XMMRegister dst, const Operand& src);
+
+  void Cvtsd2si(Register dst, XMMRegister src);
+
+  void Cvttsd2si(Register dst, XMMRegister src);
+  void Cvttsd2si(Register dst, const Operand& src);
+  void Cvttsd2siq(Register dst, XMMRegister src);
+  void Cvttsd2siq(Register dst, const Operand& src);
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
@@ -885,6 +913,65 @@ class MacroAssembler: public Assembler {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
+#define AVX_OP2_WITH_TYPE(macro_name, name, src_type) \
+  void macro_name(XMMRegister dst, src_type src) {    \
+    if (CpuFeatures::IsSupported(AVX)) {              \
+      CpuFeatureScope scope(this, AVX);               \
+      v##name(dst, dst, src);                         \
+    } else {                                          \
+      name(dst, src);                                 \
+    }                                                 \
+  }
+#define AVX_OP2_X(macro_name, name) \
+  AVX_OP2_WITH_TYPE(macro_name, name, XMMRegister)
+#define AVX_OP2_O(macro_name, name) \
+  AVX_OP2_WITH_TYPE(macro_name, name, const Operand&)
+#define AVX_OP2_XO(macro_name, name) \
+  AVX_OP2_X(macro_name, name)        \
+  AVX_OP2_O(macro_name, name)
+
+  AVX_OP2_XO(Addsd, addsd)
+  AVX_OP2_XO(Subsd, subsd)
+  AVX_OP2_XO(Mulsd, mulsd)
+  AVX_OP2_XO(Divsd, divsd)
+  AVX_OP2_X(Andpd, andpd)
+  AVX_OP2_X(Orpd, orpd)
+  AVX_OP2_X(Xorpd, xorpd)
+  AVX_OP2_X(Pcmpeqd, pcmpeqd)
+  AVX_OP2_WITH_TYPE(Psllq, psllq, byte)
+  AVX_OP2_WITH_TYPE(Psrlq, psrlq, byte)
+
+#undef AVX_OP2_O
+#undef AVX_OP2_X
+#undef AVX_OP2_XO
+#undef AVX_OP2_WITH_TYPE
+
+  void Movsd(XMMRegister dst, XMMRegister src);
+  void Movsd(XMMRegister dst, const Operand& src);
+  void Movsd(const Operand& dst, XMMRegister src);
+  void Movss(XMMRegister dst, XMMRegister src);
+  void Movss(XMMRegister dst, const Operand& src);
+  void Movss(const Operand& dst, XMMRegister src);
+
+  void Movd(XMMRegister dst, Register src);
+  void Movd(XMMRegister dst, const Operand& src);
+  void Movd(Register dst, XMMRegister src);
+  void Movq(XMMRegister dst, Register src);
+  void Movq(Register dst, XMMRegister src);
+
+  void Movaps(XMMRegister dst, XMMRegister src);
+  void Movapd(XMMRegister dst, XMMRegister src);
+  void Movmskpd(Register dst, XMMRegister src);
+
+  void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void Sqrtsd(XMMRegister dst, XMMRegister src);
+  void Sqrtsd(XMMRegister dst, const Operand& src);
+
+  void Ucomiss(XMMRegister src1, XMMRegister src2);
+  void Ucomiss(XMMRegister src1, const Operand& src2);
+  void Ucomisd(XMMRegister src1, XMMRegister src2);
+  void Ucomisd(XMMRegister src1, const Operand& src2);
+
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
@@ -927,8 +1014,23 @@ class MacroAssembler: public Assembler {
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
   void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
 
+  void Lzcntq(Register dst, Register src);
+  void Lzcntq(Register dst, const Operand& src);
+
   void Lzcntl(Register dst, Register src);
   void Lzcntl(Register dst, const Operand& src);
+
+  void Tzcntq(Register dst, Register src);
+  void Tzcntq(Register dst, const Operand& src);
+
+  void Tzcntl(Register dst, Register src);
+  void Tzcntl(Register dst, const Operand& src);
+
+  void Popcntl(Register dst, Register src);
+  void Popcntl(Register dst, const Operand& src);
+
+  void Popcntq(Register dst, Register src);
+  void Popcntq(Register dst, const Operand& src);
 
   // Non-x64 instructions.
   // Push/pop all general purpose registers.
@@ -1096,6 +1198,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
+  // Abort execution if argument is not a JSFunction, enabled via --debug-code.
+  void AssertFunction(Register object);
+
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object);
@@ -1173,12 +1278,6 @@ class MacroAssembler: public Assembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. Make sure that no pointers are left to the
-  // object(s) no longer allocated as they would be invalid when allocation is
-  // un-done.
-  void UndoAllocationInNewSpace(Register object);
-
   // Allocate a heap number in new space with undefined value. Returns
   // tagged pointer in result register, or jumps to gc_required if new
   // space is full.
@@ -1243,10 +1342,7 @@ class MacroAssembler: public Assembler {
   // function and jumps to the miss label if the fast checks fail. The
   // function register will be untouched; the other register may be
   // clobbered.
-  void TryGetFunctionPrototype(Register function,
-                               Register result,
-                               Label* miss,
-                               bool miss_on_bound_function = false);
+  void TryGetFunctionPrototype(Register function, Register result, Label* miss);
 
   // Picks out an array index from the hash field.
   // Register use:
@@ -1256,6 +1352,9 @@ class MacroAssembler: public Assembler {
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
+
+  // Load the global proxy from the current context.
+  void LoadGlobalProxy(Register dst);
 
   // Conditionally load the cached Array transitioned map of type
   // transitioned_kind from the native context if the map in register
@@ -1420,6 +1519,9 @@ class MacroAssembler: public Assembler {
     return SafepointRegisterStackIndex(reg.code());
   }
 
+  // Load the type feedback vector from a JavaScript frame.
+  void EmitLoadTypeFeedbackVector(Register vector);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
@@ -1550,7 +1652,7 @@ class MacroAssembler: public Assembler {
 class CodePatcher {
  public:
   CodePatcher(byte* address, int size);
-  virtual ~CodePatcher();
+  ~CodePatcher();
 
   // Macro assembler to emit code.
   MacroAssembler* masm() { return &masm_; }
@@ -1582,6 +1684,11 @@ inline Operand FieldOperand(Register object,
 
 inline Operand ContextOperand(Register context, int index) {
   return Operand(context, Context::SlotOffset(index));
+}
+
+
+inline Operand ContextOperand(Register context, Register index) {
+  return Operand(context, index, times_pointer_size, Context::SlotOffset(0));
 }
 
 
@@ -1626,6 +1733,7 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 #define ACCESS_MASM(masm) masm->
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_MACRO_ASSEMBLER_X64_H_

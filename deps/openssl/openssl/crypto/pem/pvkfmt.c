@@ -624,13 +624,11 @@ static int do_PVK_header(const unsigned char **in, unsigned int length,
             PEMerr(PEM_F_DO_PVK_HEADER, PEM_R_PVK_TOO_SHORT);
             return 0;
         }
-        length -= 20;
     } else {
         if (length < 24) {
             PEMerr(PEM_F_DO_PVK_HEADER, PEM_R_PVK_TOO_SHORT);
             return 0;
         }
-        length -= 24;
         pvk_magic = read_ledword(&p);
         if (pvk_magic != MS_PVKMAGIC) {
             PEMerr(PEM_F_DO_PVK_HEADER, PEM_R_BAD_MAGIC_NUMBER);
@@ -692,23 +690,23 @@ static EVP_PKEY *do_PVK_body(const unsigned char **in,
             inlen = PEM_def_callback(psbuf, PEM_BUFSIZE, 0, u);
         if (inlen <= 0) {
             PEMerr(PEM_F_DO_PVK_BODY, PEM_R_BAD_PASSWORD_READ);
-            return NULL;
+            goto err;
         }
         enctmp = OPENSSL_malloc(keylen + 8);
         if (!enctmp) {
             PEMerr(PEM_F_DO_PVK_BODY, ERR_R_MALLOC_FAILURE);
-            return NULL;
+            goto err;
         }
         if (!derive_pvk_key(keybuf, p, saltlen,
                             (unsigned char *)psbuf, inlen))
-            return NULL;
+            goto err;
         p += saltlen;
         /* Copy BLOBHEADER across, decrypt rest */
         memcpy(enctmp, p, 8);
         p += 8;
         if (keylen < 8) {
             PEMerr(PEM_F_DO_PVK_BODY, PEM_R_PVK_TOO_SHORT);
-            return NULL;
+            goto err;
         }
         inlen = keylen - 8;
         q = enctmp + 8;

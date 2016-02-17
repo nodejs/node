@@ -5,7 +5,7 @@
 #ifndef V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_
 #define V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_
 
-#include "src/v8.h"
+#include "include/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -13,9 +13,8 @@ namespace internal {
 class TriggerFailureExtension : public v8::Extension {
  public:
   TriggerFailureExtension() : v8::Extension("v8/trigger-failure", kSource) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name);
   static void TriggerCheckFalse(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void TriggerAssertFalse(
@@ -27,6 +26,7 @@ class TriggerFailureExtension : public v8::Extension {
   static const char* const kSource;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXTENSIONS_TRIGGER_FAILURE_EXTENSION_H_

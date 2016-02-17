@@ -9,6 +9,7 @@
 #include "src/ast.h"
 #include "src/bailout-reason.h"
 #include "src/compilation-dependencies.h"
+#include "src/signature.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -16,14 +17,9 @@ namespace internal {
 
 class AstValueFactory;
 class HydrogenCodeStub;
+class JavaScriptFrame;
 class ParseInfo;
 class ScriptData;
-
-struct OffsetRange {
-  OffsetRange(int from, int to) : from(from), to(to) {}
-  int from;
-  int to;
-};
 
 
 // This class encapsulates encoding and decoding of sources positions from
@@ -118,21 +114,22 @@ class CompilationInfo {
     kMustNotHaveEagerFrame = 1 << 4,
     kDeoptimizationSupport = 1 << 5,
     kDebug = 1 << 6,
-    kCompilingForDebugging = 1 << 7,
-    kSerializing = 1 << 8,
-    kContextSpecializing = 1 << 9,
-    kInliningEnabled = 1 << 10,
-    kTypingEnabled = 1 << 11,
-    kDisableFutureOptimization = 1 << 12,
-    kSplittingEnabled = 1 << 13,
-    kBuiltinInliningEnabled = 1 << 14,
-    kTypeFeedbackEnabled = 1 << 15,
+    kSerializing = 1 << 7,
+    kFunctionContextSpecializing = 1 << 8,
+    kFrameSpecializing = 1 << 9,
+    kNativeContextSpecializing = 1 << 10,
+    kInliningEnabled = 1 << 11,
+    kTypingEnabled = 1 << 12,
+    kDisableFutureOptimization = 1 << 13,
+    kSplittingEnabled = 1 << 14,
     kDeoptimizationEnabled = 1 << 16,
-    kSourcePositionsEnabled = 1 << 17
+    kSourcePositionsEnabled = 1 << 17,
+    kFirstCompile = 1 << 18,
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
   CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
+  CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone);
   virtual ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }
@@ -146,12 +143,14 @@ class CompilationInfo {
   bool is_module() const;
   LanguageMode language_mode() const;
   Handle<JSFunction> closure() const;
-  FunctionLiteral* function() const;
+  FunctionLiteral* literal() const;
   Scope* scope() const;
-  bool MayUseThis() const;
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
+  bool has_context() const;
+  bool has_literal() const;
+  bool has_scope() const;
   // -----------------------------------------------------------
 
   Isolate* isolate() const {
@@ -165,14 +164,17 @@ class CompilationInfo {
   Handle<Code> unoptimized_code() const { return unoptimized_code_; }
   int opt_count() const { return opt_count_; }
   int num_parameters() const;
+  int num_parameters_including_this() const;
+  bool is_this_defined() const;
   int num_heap_slots() const;
-  Code::Flags flags() const;
-  bool has_scope() const { return scope() != nullptr; }
 
   void set_parameter_count(int parameter_count) {
     DCHECK(IsStub());
     parameter_count_ = parameter_count;
   }
+
+  bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
+  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
   bool is_tracking_positions() const { return track_positions_; }
 
@@ -202,7 +204,13 @@ class CompilationInfo {
     return GetFlag(kMustNotHaveEagerFrame);
   }
 
-  void MarkAsDebug() { SetFlag(kDebug); }
+  // Compiles marked as debug produce unoptimized code with debug break slots.
+  // Inner functions that cannot be compiled w/o context are compiled eagerly.
+  // Always include deoptimization support to avoid having to recompile again.
+  void MarkAsDebug() {
+    SetFlag(kDebug);
+    SetFlag(kDeoptimizationSupport);
+  }
 
   bool is_debug() const { return GetFlag(kDebug); }
 
@@ -210,14 +218,24 @@ class CompilationInfo {
 
   bool will_serialize() const { return GetFlag(kSerializing); }
 
-  void MarkAsContextSpecializing() { SetFlag(kContextSpecializing); }
+  void MarkAsFunctionContextSpecializing() {
+    SetFlag(kFunctionContextSpecializing);
+  }
 
-  bool is_context_specializing() const { return GetFlag(kContextSpecializing); }
+  bool is_function_context_specializing() const {
+    return GetFlag(kFunctionContextSpecializing);
+  }
 
-  void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
+  void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
 
-  bool is_type_feedback_enabled() const {
-    return GetFlag(kTypeFeedbackEnabled);
+  bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
+
+  void MarkAsNativeContextSpecializing() {
+    SetFlag(kNativeContextSpecializing);
+  }
+
+  bool is_native_context_specializing() const {
+    return GetFlag(kNativeContextSpecializing);
   }
 
   void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
@@ -236,12 +254,6 @@ class CompilationInfo {
 
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
-  void MarkAsBuiltinInliningEnabled() { SetFlag(kBuiltinInliningEnabled); }
-
-  bool is_builtin_inlining_enabled() const {
-    return GetFlag(kBuiltinInliningEnabled);
-  }
-
   void MarkAsTypingEnabled() { SetFlag(kTypingEnabled); }
 
   bool is_typing_enabled() const { return GetFlag(kTypingEnabled); }
@@ -249,6 +261,12 @@ class CompilationInfo {
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
 
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
+
+  void MarkAsFirstCompile() { SetFlag(kFirstCompile); }
+
+  void MarkAsCompiled() { SetFlag(kFirstCompile, false); }
+
+  bool is_first_compile() const { return GetFlag(kFirstCompile); }
 
   bool IsCodePreAgingActive() const {
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
@@ -261,10 +279,8 @@ class CompilationInfo {
   }
   void SetCode(Handle<Code> code) { code_ = code; }
 
-  void MarkCompilingForDebugging() { SetFlag(kCompilingForDebugging); }
-  bool IsCompilingForDebugging() { return GetFlag(kCompilingForDebugging); }
-  void MarkNonOptimizable() {
-    SetMode(CompilationInfo::NONOPT);
+  void SetBytecodeArray(Handle<BytecodeArray> bytecode_array) {
+    bytecode_array_ = bytecode_array;
   }
 
   bool ShouldTrapOnDeopt() const {
@@ -277,35 +293,40 @@ class CompilationInfo {
         (closure()->context()->global_object() != NULL);
   }
 
-  GlobalObject* global_object() const {
+  JSGlobalObject* global_object() const {
     return has_global_object() ? closure()->context()->global_object() : NULL;
   }
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
-  bool IsOptimizable() const { return mode_ == BASE; }
   bool IsStub() const { return mode_ == STUB; }
   void SetOptimizing(BailoutId osr_ast_id, Handle<Code> unoptimized) {
-    DCHECK(!shared_info().is_null());
+    DCHECK(has_shared_info());
     SetMode(OPTIMIZE);
     osr_ast_id_ = osr_ast_id;
     unoptimized_code_ = unoptimized;
     optimization_id_ = isolate()->NextOptimizationId();
+    set_output_code_kind(Code::OPTIMIZED_FUNCTION);
   }
 
-  void SetStub(CodeStub* code_stub) {
-    SetMode(STUB);
-    code_stub_ = code_stub;
+  void SetFunctionType(Type::FunctionType* function_type) {
+    function_type_ = function_type;
   }
+  Type::FunctionType* function_type() const { return function_type_; }
+
+  void SetStub(CodeStub* code_stub);
 
   // Deoptimization support.
   bool HasDeoptimizationSupport() const {
     return GetFlag(kDeoptimizationSupport);
   }
   void EnableDeoptimizationSupport() {
-    DCHECK(IsOptimizable());
+    DCHECK_EQ(BASE, mode_);
     SetFlag(kDeoptimizationSupport);
   }
+  bool ShouldEnsureSpaceForLazyDeopt() { return !IsStub(); }
+
+  bool ExpectsJSReceiverAsReceiver();
 
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
@@ -343,19 +364,6 @@ class CompilationInfo {
     prologue_offset_ = prologue_offset;
   }
 
-  // Adds offset range [from, to) where fp register does not point
-  // to the current frame base. Used in CPU profiler to detect stack
-  // samples where top frame is not set up.
-  inline void AddNoFrameRange(int from, int to) {
-    if (no_frame_ranges_) no_frame_ranges_->Add(OffsetRange(from, to));
-  }
-
-  List<OffsetRange>* ReleaseNoFrameRanges() {
-    List<OffsetRange>* result = no_frame_ranges_;
-    no_frame_ranges_ = NULL;
-    return result;
-  }
-
   int start_position_for(uint32_t inlining_id) {
     return inlined_function_infos_.at(inlining_id).start_position;
   }
@@ -380,12 +388,43 @@ class CompilationInfo {
     DCHECK(height >= 0);
     osr_expr_stack_height_ = height;
   }
+  JavaScriptFrame* osr_frame() const { return osr_frame_; }
+  void set_osr_frame(JavaScriptFrame* osr_frame) { osr_frame_ = osr_frame; }
 
 #if DEBUG
   void PrintAstForTesting();
 #endif
 
-  bool is_simple_parameter_list();
+  bool has_simple_parameters();
+
+  struct InlinedFunctionHolder {
+    Handle<SharedFunctionInfo> shared_info;
+
+    // Root that holds the unoptimized code of the inlined function alive
+    // (and out of reach of code flushing) until we finish compilation.
+    // Do not remove.
+    Handle<Code> inlined_code_object_root;
+
+    explicit InlinedFunctionHolder(
+        Handle<SharedFunctionInfo> inlined_shared_info)
+        : shared_info(inlined_shared_info),
+          inlined_code_object_root(inlined_shared_info->code()) {}
+  };
+
+  typedef std::vector<InlinedFunctionHolder> InlinedFunctionList;
+  InlinedFunctionList const& inlined_functions() const {
+    return inlined_functions_;
+  }
+
+  void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function) {
+    inlined_functions_.push_back(InlinedFunctionHolder(inlined_function));
+  }
+
+  base::SmartArrayPointer<char> GetDebugName() const;
+
+  Code::Kind output_code_kind() const { return output_code_kind_; }
+
+  void set_output_code_kind(Code::Kind kind) { output_code_kind_ = kind; }
 
  protected:
   ParseInfo* parse_info_;
@@ -400,17 +439,15 @@ class CompilationInfo {
   // Compilation mode.
   // BASE is generated by the full codegen, optionally prepared for bailouts.
   // OPTIMIZE is optimized code generated by the Hydrogen-based backend.
-  // NONOPT is generated by the full codegen and is not prepared for
-  //   recompilation/bailouts.  These functions are never recompiled.
   enum Mode {
     BASE,
     OPTIMIZE,
-    NONOPT,
     STUB
   };
 
-  CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub, Mode mode,
-                  Isolate* isolate, Zone* zone);
+  CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
+                  const char* debug_name, Mode mode, Isolate* isolate,
+                  Zone* zone);
 
   Isolate* isolate_;
 
@@ -428,6 +465,8 @@ class CompilationInfo {
 
   unsigned flags_;
 
+  Code::Kind output_code_kind_;
+
   // For compiled stubs, the stub object
   CodeStub* code_stub_;
   // The compiled code.
@@ -444,6 +483,11 @@ class CompilationInfo {
   // data.  Keep track which code we patched.
   Handle<Code> unoptimized_code_;
 
+  // Holds the bytecode array generated by the interpreter.
+  // TODO(rmcilroy/mstarzinger): Temporary work-around until compiler.cc is
+  // refactored to avoid us needing to carry the BytcodeArray around.
+  Handle<BytecodeArray> bytecode_array_;
+
   // The zone from which the compilation pipeline working on this
   // CompilationInfo allocates.
   Zone* zone_;
@@ -457,9 +501,10 @@ class CompilationInfo {
 
   int prologue_offset_;
 
-  List<OffsetRange>* no_frame_ranges_;
   std::vector<InlinedFunctionInfo> inlined_function_infos_;
   bool track_positions_;
+
+  InlinedFunctionList inlined_functions_;
 
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.
@@ -471,6 +516,13 @@ class CompilationInfo {
   int optimization_id_;
 
   int osr_expr_stack_height_;
+
+  // The current OSR frame for specialization or {nullptr}.
+  JavaScriptFrame* osr_frame_ = nullptr;
+
+  Type::FunctionType* function_type_;
+
+  const char* debug_name_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
@@ -594,10 +646,13 @@ class Compiler : public AllStatic {
       Handle<JSFunction> function);
   MUST_USE_RESULT static MaybeHandle<Code> GetLazyCode(
       Handle<JSFunction> function);
-  MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
-      Handle<SharedFunctionInfo> shared);
-  MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
-      Handle<JSFunction> function);
+  MUST_USE_RESULT static MaybeHandle<Code> GetStubCode(
+      Handle<JSFunction> function, CodeStub* stub);
+
+  static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
+  static bool CompileDebugCode(Handle<JSFunction> function);
+  static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
+  static void CompileForLiveEdit(Handle<Script> script);
 
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* info);
@@ -606,21 +661,18 @@ class Compiler : public AllStatic {
   // Adds deoptimization support, requires ParseAndAnalyze.
   static bool EnsureDeoptimizationSupport(CompilationInfo* info);
 
-  static bool EnsureCompiled(Handle<JSFunction> function,
-                             ClearExceptionFlag flag);
-
-  static void CompileForLiveEdit(Handle<Script> script);
-
   // Compile a String source within a context for eval.
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
-      ParseRestriction restriction, int scope_position);
+      ParseRestriction restriction, int line_offset, int column_offset = 0,
+      Handle<Object> script_name = Handle<Object>(),
+      ScriptOriginOptions options = ScriptOriginOptions());
 
   // Compile a String source within a context.
   static Handle<SharedFunctionInfo> CompileScript(
       Handle<String> source, Handle<Object> script_name, int line_offset,
-      int column_offset, bool is_debugger_script, bool is_shared_cross_origin,
+      int column_offset, ScriptOriginOptions resource_options,
       Handle<Object> source_map_url, Handle<Context> context,
       v8::Extension* extension, ScriptData** cached_data,
       ScriptCompiler::CompileOptions compile_options,
@@ -631,9 +683,8 @@ class Compiler : public AllStatic {
                                                           int source_length);
 
   // Create a shared function info object (the code may be lazily compiled).
-  static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
-                                                      Handle<Script> script,
-                                                      CompilationInfo* outer);
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
+      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
 
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 
@@ -641,18 +692,13 @@ class Compiler : public AllStatic {
   // In the latter case, return the InOptimizationQueue builtin.  On failure,
   // return the empty handle.
   MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCode(
-      Handle<JSFunction> function,
-      Handle<Code> current_code,
-      ConcurrencyMode mode,
-      BailoutId osr_ast_id = BailoutId::None());
+      Handle<JSFunction> function, Handle<Code> current_code,
+      ConcurrencyMode mode, BailoutId osr_ast_id = BailoutId::None(),
+      JavaScriptFrame* osr_frame = nullptr);
 
   // Generate and return code from previously queued optimization job.
   // On failure, return the empty handle.
   static Handle<Code> GetConcurrentlyOptimizedCode(OptimizedCompileJob* job);
-
-  // TODO(titzer): move this method out of the compiler.
-  static bool DebuggerWantsEagerCompilation(
-      Isolate* isolate, bool allow_lazy_without_ctx = false);
 };
 
 
@@ -679,6 +725,7 @@ class CompilationPhase BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_H_

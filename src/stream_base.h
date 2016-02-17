@@ -22,8 +22,15 @@ class StreamReq {
   explicit StreamReq(DoneCb cb) : cb_(cb) {
   }
 
-  inline void Done(int status) {
-    cb_(static_cast<Req*>(this), status);
+  inline void Done(int status, const char* error_str = nullptr) {
+    Req* req = static_cast<Req*>(this);
+    Environment* env = req->env();
+    if (error_str != nullptr) {
+      req->object()->Set(env->error_string(),
+                         OneByteString(env->isolate(), error_str));
+    }
+
+    cb_(req, status);
   }
 
  private:
@@ -187,7 +194,7 @@ class StreamBase : public StreamResource {
 
   template <class Base>
   static inline void AddMethods(Environment* env,
-                                v8::Handle<v8::FunctionTemplate> target,
+                                v8::Local<v8::FunctionTemplate> target,
                                 int flags = kFlagNone);
 
   virtual void* Cast() = 0;

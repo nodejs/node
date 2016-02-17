@@ -13,7 +13,6 @@ using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -340,9 +339,9 @@ void SyncProcessStdioPipe::CloseCallback(uv_handle_t* handle) {
 }
 
 
-void SyncProcessRunner::Initialize(Handle<Object> target,
-                                   Handle<Value> unused,
-                                   Handle<Context> context) {
+void SyncProcessRunner::Initialize(Local<Object> target,
+                                   Local<Value> unused,
+                                   Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "spawn", Spawn);
 }
@@ -486,7 +485,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   r = uv_run(uv_loop_, UV_RUN_DEFAULT);
   if (r < 0)
     // We can't handle uv_run failure.
-    abort();
+    ABORT();
 
   // If we get here the process should have exited.
   CHECK_GE(exit_status_, 0);
@@ -509,7 +508,7 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     // callbacks called.
     int r = uv_run(uv_loop_, UV_RUN_DEFAULT);
     if (r < 0)
-      abort();
+      ABORT();
 
     CHECK_EQ(uv_loop_close(uv_loop_), 0);
     delete uv_loop_;

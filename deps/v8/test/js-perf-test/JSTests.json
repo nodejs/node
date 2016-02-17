@@ -3,16 +3,29 @@
   "run_count": 5,
   "run_count_android_arm": 3,
   "run_count_android_arm64": 3,
+  "timeout": 120,
   "units": "score",
   "total": true,
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "RestParameters",
+      "path": ["RestParameters"],
+      "main": "run.js",
+      "resources": ["rest.js"],
+      "flags": ["--harmony-rest-parameters"],
+      "run_count": 5,
+      "units": "score",
+      "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Basic1"}
+      ]
+    },
+    {
       "name": "SpreadCalls",
       "path": ["SpreadCalls"],
       "main": "run.js",
       "resources": ["spreadcalls.js"],
-      "flags": ["--harmony-spreadcalls"],
       "run_count": 5,
       "units": "score",
       "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",
@@ -27,7 +40,6 @@
       "path": ["Classes"],
       "main": "run.js",
       "resources": ["super.js", "default-constructor.js"],
-      "flags": ["--harmony-classes"],
       "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
       "tests": [
         {"name": "Super"},
@@ -100,10 +112,29 @@
       "path": ["Object"],
       "main": "run.js",
       "resources": ["assign.js"],
-      "flags": ["--harmony-object"],
       "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
       "tests": [
         {"name": "Assign"}
+      ]
+    },
+    {
+      "name": "Scope",
+      "path": ["Scope"],
+      "main": "run.js",
+      "resources": ["with.js"],
+      "results_regexp": "^%s\\-Scope\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "With"}
+      ]
+    },
+    {
+      "name": "Exceptions",
+      "path": ["Exceptions"],
+      "main": "run.js",
+      "resources": ["try-catch.js"],
+      "results_regexp": "^%s\\-Exceptions\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Try-Catch"}
       ]
     }
   ]

@@ -70,3 +70,21 @@ assertSame(Realm.shared.caller_1, Realm.shared.result_1);
 Realm.eval(realms[0], script);
 assertSame(Realm.shared.caller_0, Realm.shared.result_0);
 assertSame(null, Realm.shared.result_1);
+
+
+// test that do not pollute / leak a function prototype v8/4217
+var realmIndex = Realm.create();
+var otherObject = Realm.eval(realmIndex, "Object");
+
+var f = Realm.eval(realmIndex, "function f(){}; f");
+f.prototype = null;
+
+var o = new f();
+var proto = Object.getPrototypeOf(o);
+assertFalse(proto === Object.prototype);
+assertTrue(proto === otherObject.prototype);
+
+o = Realm.eval(realmIndex, "new f()");
+proto = Object.getPrototypeOf(o);
+assertFalse(proto === Object.prototype);
+assertTrue(proto === otherObject.prototype);

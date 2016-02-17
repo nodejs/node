@@ -398,6 +398,7 @@ inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
   return ticks + delta;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_TIME_H_

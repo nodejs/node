@@ -48,7 +48,7 @@ void VerifyAllocatedGaps(const Instruction* instr) {
 void RegisterAllocatorVerifier::VerifyInput(
     const OperandConstraint& constraint) {
   CHECK_NE(kSameAsFirst, constraint.type_);
-  if (constraint.type_ != kImmediate) {
+  if (constraint.type_ != kImmediate && constraint.type_ != kExplicit) {
     CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
              constraint.virtual_register_);
   }
@@ -59,6 +59,7 @@ void RegisterAllocatorVerifier::VerifyTemp(
     const OperandConstraint& constraint) {
   CHECK_NE(kSameAsFirst, constraint.type_);
   CHECK_NE(kImmediate, constraint.type_);
+  CHECK_NE(kExplicit, constraint.type_);
   CHECK_NE(kConstant, constraint.type_);
 }
 
@@ -66,6 +67,7 @@ void RegisterAllocatorVerifier::VerifyTemp(
 void RegisterAllocatorVerifier::VerifyOutput(
     const OperandConstraint& constraint) {
   CHECK_NE(kImmediate, constraint.type_);
+  CHECK_NE(kExplicit, constraint.type_);
   CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
            constraint.virtual_register_);
 }
@@ -143,6 +145,8 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
     constraint->type_ = kConstant;
     constraint->value_ = ConstantOperand::cast(op)->virtual_register();
     constraint->virtual_register_ = constraint->value_;
+  } else if (op->IsExplicit()) {
+    constraint->type_ = kExplicit;
   } else if (op->IsImmediate()) {
     auto imm = ImmediateOperand::cast(op);
     int value = imm->type() == ImmediateOperand::INLINE ? imm->inline_value()
@@ -155,13 +159,11 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
     int vreg = unallocated->virtual_register();
     constraint->virtual_register_ = vreg;
     if (unallocated->basic_policy() == UnallocatedOperand::FIXED_SLOT) {
-      constraint->type_ = kFixedSlot;
+      constraint->type_ = sequence()->IsFloat(vreg) ? kDoubleSlot : kSlot;
       constraint->value_ = unallocated->fixed_slot_index();
     } else {
       switch (unallocated->extended_policy()) {
         case UnallocatedOperand::ANY:
-          CHECK(false);
-          break;
         case UnallocatedOperand::NONE:
           if (sequence()->IsFloat(vreg)) {
             constraint->type_ = kNoneDouble;
@@ -185,11 +187,7 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
           }
           break;
         case UnallocatedOperand::MUST_HAVE_SLOT:
-          if (sequence()->IsFloat(vreg)) {
-            constraint->type_ = kDoubleSlot;
-          } else {
-            constraint->type_ = kSlot;
-          }
+          constraint->type_ = sequence()->IsFloat(vreg) ? kDoubleSlot : kSlot;
           break;
         case UnallocatedOperand::SAME_AS_FIRST_INPUT:
           constraint->type_ = kSameAsFirst;
@@ -220,20 +218,25 @@ void RegisterAllocatorVerifier::CheckConstraint(
     case kRegister:
       CHECK(op->IsRegister());
       return;
-    case kFixedRegister:
-      CHECK(op->IsRegister());
-      CHECK_EQ(RegisterOperand::cast(op)->index(), constraint->value_);
-      return;
     case kDoubleRegister:
       CHECK(op->IsDoubleRegister());
       return;
+    case kExplicit:
+      CHECK(op->IsExplicit());
+      return;
+    case kFixedRegister:
+      CHECK(op->IsRegister());
+      CHECK_EQ(LocationOperand::cast(op)->GetRegister().code(),
+               constraint->value_);
+      return;
     case kFixedDoubleRegister:
       CHECK(op->IsDoubleRegister());
-      CHECK_EQ(DoubleRegisterOperand::cast(op)->index(), constraint->value_);
+      CHECK_EQ(LocationOperand::cast(op)->GetDoubleRegister().code(),
+               constraint->value_);
       return;
     case kFixedSlot:
       CHECK(op->IsStackSlot());
-      CHECK_EQ(StackSlotOperand::cast(op)->index(), constraint->value_);
+      CHECK_EQ(LocationOperand::cast(op)->index(), constraint->value_);
       return;
     case kSlot:
       CHECK(op->IsStackSlot());
@@ -286,7 +289,7 @@ class PhiMap : public ZoneMap<int, PhiData*>, public ZoneObject {
 struct OperandLess {
   bool operator()(const InstructionOperand* a,
                   const InstructionOperand* b) const {
-    return a->CompareModuloType(*b);
+    return a->CompareCanonicalized(*b);
   }
 };
 
@@ -320,7 +323,7 @@ class OperandMap : public ZoneObject {
           this->erase(it++);
           if (it == this->end()) return;
         }
-        if (it->first->EqualsModuloType(*o.first)) {
+        if (it->first->EqualsCanonicalized(*o.first)) {
           ++it;
           if (it == this->end()) return;
         } else {
@@ -680,7 +683,10 @@ void RegisterAllocatorVerifier::VerifyGapMoves(BlockMaps* block_maps,
       const auto op_constraints = instr_constraint.operand_constraints_;
       size_t count = 0;
       for (size_t i = 0; i < instr->InputCount(); ++i, ++count) {
-        if (op_constraints[count].type_ == kImmediate) continue;
+        if (op_constraints[count].type_ == kImmediate ||
+            op_constraints[count].type_ == kExplicit) {
+          continue;
+        }
         int virtual_register = op_constraints[count].virtual_register_;
         auto op = instr->InputAt(i);
         if (!block_maps->IsPhi(virtual_register)) {

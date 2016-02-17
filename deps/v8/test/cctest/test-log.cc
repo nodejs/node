@@ -36,9 +36,9 @@
 
 #include "src/v8.h"
 
-#include "src/cpu-profiler.h"
 #include "src/log.h"
 #include "src/log-utils.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
 #include "src/v8threads.h"
@@ -482,7 +482,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     i::Vector<const char> source = TestSources::GetScriptsSource();
     v8::Handle<v8::String> source_str = v8::String::NewFromUtf8(
         isolate, source.start(), v8::String::kNormalString, source.length());
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     v8::Handle<v8::Script> script = CompileWithOrigin(source_str, "");
     if (script.IsEmpty()) {
       v8::String::Utf8Value exception(try_catch.Exception());
@@ -528,6 +528,61 @@ TEST(LogVersion) {
                 i::Version::GetPatch(), i::Version::IsCandidate());
     CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
     log.Dispose();
+  }
+  isolate->Dispose();
+}
+
+
+// https://crbug.com/539892
+// CodeCreateEvents with really large names should not crash.
+TEST(Issue539892) {
+  class : public i::CodeEventLogger {
+   public:
+    virtual void CodeMoveEvent(Address from, Address to) {}
+    virtual void CodeDeleteEvent(Address from) {}
+    virtual void CodeDisableOptEvent(i::Code* code,
+                                     i::SharedFunctionInfo* shared) {}
+
+   private:
+    virtual void LogRecordedBuffer(i::Code* code, i::SharedFunctionInfo* shared,
+                                   const char* name, int length) {}
+  } code_event_logger;
+  SETUP_FLAGS();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    ScopedLoggerInitializer initialize_logger(saved_log, saved_prof, isolate);
+    Logger* logger = initialize_logger.logger();
+    logger->addCodeEventListener(&code_event_logger);
+
+    // Function with a really large name.
+    const char* source_text =
+        "(function "
+        "baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac"
+        "(){})();";
+
+    CompileRun(source_text);
+
+    // Must not crash.
+    logger->LogCompiledFunctions();
   }
   isolate->Dispose();
 }

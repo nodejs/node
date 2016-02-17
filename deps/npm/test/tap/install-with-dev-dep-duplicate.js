@@ -31,7 +31,8 @@ var expected = {
     underscore: {
       version: '1.5.1',
       from: 'underscore@1.5.1',
-      resolved: common.registry + '/underscore/-/underscore-1.5.1.tgz'
+      resolved: common.registry + '/underscore/-/underscore-1.5.1.tgz',
+      invalid: true
     }
   }
 }
@@ -49,6 +50,10 @@ test('prefers version from dependencies over devDependencies', function (t) {
         npm.commands.ls([], true, function (err, _, results) {
           if (err) return t.fail(err)
 
+          // these contain full paths so we can't do an exact match
+          // with them
+          delete results.problems
+          delete results.dependencies.underscore.problems
           t.deepEqual(results, expected)
           s.close()
           t.end()

@@ -5,6 +5,7 @@
 #ifndef V8_ELEMENTS_KIND_H_
 #define V8_ELEMENTS_KIND_H_
 
+#include "src/base/macros.h"
 #include "src/checks.h"
 
 namespace v8 {
@@ -28,17 +29,9 @@ enum ElementsKind {
 
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
-  SLOPPY_ARGUMENTS_ELEMENTS,
-  // The "fast" kind for external arrays
-  EXTERNAL_INT8_ELEMENTS,
-  EXTERNAL_UINT8_ELEMENTS,
-  EXTERNAL_INT16_ELEMENTS,
-  EXTERNAL_UINT16_ELEMENTS,
-  EXTERNAL_INT32_ELEMENTS,
-  EXTERNAL_UINT32_ELEMENTS,
-  EXTERNAL_FLOAT32_ELEMENTS,
-  EXTERNAL_FLOAT64_ELEMENTS,
-  EXTERNAL_UINT8_CLAMPED_ELEMENTS,
+
+  FAST_SLOPPY_ARGUMENTS_ELEMENTS,
+  SLOW_SLOPPY_ARGUMENTS_ELEMENTS,
 
   // Fixed typed arrays
   UINT8_ELEMENTS,
@@ -56,8 +49,6 @@ enum ElementsKind {
   LAST_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   FIRST_FAST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
   LAST_FAST_ELEMENTS_KIND = FAST_HOLEY_DOUBLE_ELEMENTS,
-  FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_INT8_ELEMENTS,
-  LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_UINT8_CLAMPED_ELEMENTS,
   FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
   LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = FAST_HOLEY_ELEMENTS
@@ -88,36 +79,32 @@ inline bool IsDictionaryElementsKind(ElementsKind kind) {
 
 
 inline bool IsSloppyArgumentsElements(ElementsKind kind) {
-  return kind == SLOPPY_ARGUMENTS_ELEMENTS;
-}
-
-
-inline bool IsExternalArrayElementsKind(ElementsKind kind) {
-  return kind >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
-      kind <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;
-}
-
-
-inline bool IsTerminalElementsKind(ElementsKind kind) {
-  return kind == TERMINAL_FAST_ELEMENTS_KIND ||
-      IsExternalArrayElementsKind(kind);
+  return kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS ||
+         kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
 
 inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
   return kind >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
-      kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+         kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+}
+
+
+inline bool IsTerminalElementsKind(ElementsKind kind) {
+  return kind == TERMINAL_FAST_ELEMENTS_KIND ||
+         IsFixedTypedArrayElementsKind(kind);
 }
 
 
 inline bool IsFastElementsKind(ElementsKind kind) {
-  DCHECK(FIRST_FAST_ELEMENTS_KIND == 0);
+  STATIC_ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
   return kind <= FAST_HOLEY_DOUBLE_ELEMENTS;
 }
 
 
 inline bool IsTransitionElementsKind(ElementsKind kind) {
-  return IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind);
+  return IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind) ||
+         kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
 
@@ -127,21 +114,13 @@ inline bool IsFastDoubleElementsKind(ElementsKind kind) {
 }
 
 
-inline bool IsExternalFloatOrDoubleElementsKind(ElementsKind kind) {
-  return kind == EXTERNAL_FLOAT64_ELEMENTS ||
-      kind == EXTERNAL_FLOAT32_ELEMENTS;
-}
-
-
 inline bool IsFixedFloatElementsKind(ElementsKind kind) {
   return kind == FLOAT32_ELEMENTS || kind == FLOAT64_ELEMENTS;
 }
 
 
 inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
-  return IsFastDoubleElementsKind(kind) ||
-      IsExternalFloatOrDoubleElementsKind(kind) ||
-      IsFixedFloatElementsKind(kind);
+  return IsFastDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
 }
 
 
@@ -179,9 +158,8 @@ inline bool IsHoleyElementsKind(ElementsKind kind) {
 
 
 inline bool IsFastPackedElementsKind(ElementsKind kind) {
-  return kind == FAST_SMI_ELEMENTS ||
-      kind == FAST_DOUBLE_ELEMENTS ||
-      kind == FAST_ELEMENTS;
+  return kind == FAST_SMI_ELEMENTS || kind == FAST_DOUBLE_ELEMENTS ||
+         kind == FAST_ELEMENTS;
 }
 
 
@@ -233,25 +211,22 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind);
 
 
+inline ElementsKind GetMoreGeneralElementsKind(ElementsKind from_kind,
+                                               ElementsKind to_kind) {
+  if (IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
+    return to_kind;
+  }
+  return from_kind;
+}
+
+
 inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {
   return IsFastElementsKind(from_kind) &&
       from_kind != TERMINAL_FAST_ELEMENTS_KIND;
 }
 
 
-ElementsKind GetNextMoreGeneralFastElementsKind(ElementsKind elements_kind,
-                                                bool allow_only_packed);
-
-
-inline bool CanTransitionToMoreGeneralFastElementsKind(
-    ElementsKind elements_kind,
-    bool allow_only_packed) {
-  return IsFastElementsKind(elements_kind) &&
-      (elements_kind != TERMINAL_FAST_ELEMENTS_KIND &&
-       (!allow_only_packed || elements_kind != FAST_ELEMENTS));
-}
-
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ELEMENTS_KIND_H_

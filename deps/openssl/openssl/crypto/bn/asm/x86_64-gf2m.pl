@@ -13,7 +13,7 @@
 # in bn_gf2m.c. It's kind of low-hanging mechanical port from C for
 # the time being... Except that it has two code paths: code suitable
 # for any x86_64 CPU and PCLMULQDQ one suitable for Westmere and
-# later. Improvement varies from one benchmark and µ-arch to another.
+# later. Improvement varies from one benchmark and Âµ-arch to another.
 # Vanilla code path is at most 20% faster than compiler-generated code
 # [not very impressive], while PCLMULQDQ - whole 85%-160% better on
 # 163- and 571-bit ECDH benchmarks on Intel CPUs. Keep in mind that
@@ -184,13 +184,13 @@ ___
 $code.=<<___;
 	movdqa		%xmm0,%xmm4
 	movdqa		%xmm1,%xmm5
-	pclmulqdq	\$0,%xmm1,%xmm0	# a1·b1
+	pclmulqdq	\$0,%xmm1,%xmm0	# a1Â·b1
 	pxor		%xmm2,%xmm4
 	pxor		%xmm3,%xmm5
-	pclmulqdq	\$0,%xmm3,%xmm2	# a0·b0
-	pclmulqdq	\$0,%xmm5,%xmm4	# (a0+a1)·(b0+b1)
+	pclmulqdq	\$0,%xmm3,%xmm2	# a0Â·b0
+	pclmulqdq	\$0,%xmm5,%xmm4	# (a0+a1)Â·(b0+b1)
 	xorps		%xmm0,%xmm4
-	xorps		%xmm2,%xmm4	# (a0+a1)·(b0+b1)-a0·b0-a1·b1
+	xorps		%xmm2,%xmm4	# (a0+a1)Â·(b0+b1)-a0Â·b0-a1Â·b1
 	movdqa		%xmm4,%xmm5
 	pslldq		\$8,%xmm4
 	psrldq		\$8,%xmm5
@@ -225,13 +225,13 @@ $code.=<<___;
 	mov	\$0xf,$mask
 	mov	$a1,$a
 	mov	$b1,$b
-	call	_mul_1x1		# a1·b1
+	call	_mul_1x1		# a1Â·b1
 	mov	$lo,16(%rsp)
 	mov	$hi,24(%rsp)
 
 	mov	48(%rsp),$a
 	mov	64(%rsp),$b
-	call	_mul_1x1		# a0·b0
+	call	_mul_1x1		# a0Â·b0
 	mov	$lo,0(%rsp)
 	mov	$hi,8(%rsp)
 
@@ -239,7 +239,7 @@ $code.=<<___;
 	mov	56(%rsp),$b
 	xor	48(%rsp),$a
 	xor	64(%rsp),$b
-	call	_mul_1x1		# (a0+a1)·(b0+b1)
+	call	_mul_1x1		# (a0+a1)Â·(b0+b1)
 ___
 	@r=("%rbx","%rcx","%rdi","%rsi");
 $code.=<<___;

@@ -232,6 +232,7 @@ struct LazyDynamicInstance {
       CreateTrait, InitOnceTrait, DestroyTrait> type;
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_LAZY_INSTANCE_H_

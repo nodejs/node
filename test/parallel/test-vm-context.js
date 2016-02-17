@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var vm = require('vm');
@@ -60,3 +60,15 @@ var ctx = {};
 Object.defineProperty(ctx, 'b', { configurable: false });
 ctx = vm.createContext(ctx);
 assert.equal(script.runInContext(ctx), false);
+
+// Error on the first line of a module should
+// have the correct line and column number
+assert.throws(function() {
+  vm.runInContext('throw new Error()', context, {
+    filename: 'expected-filename.js',
+    lineOffset: 32,
+    columnOffset: 123
+  });
+}, function(err) {
+  return /expected-filename.js:33:130/.test(err.stack);
+}, 'Expected appearance of proper offset in Error stack');

@@ -5,6 +5,8 @@
 #ifndef V8_DISASM_H_
 #define V8_DISASM_H_
 
+#include "src/utils.h"
+
 namespace disasm {
 
 typedef unsigned char byte;

@@ -39,11 +39,11 @@ test('setup', function (t) {
       registry: common.registry,
       cwd: PKG_DIR
     }, function (err) {
-        t.ifError(err, 'started server')
-        mockServer = server
+      t.ifError(err, 'started server')
+      mockServer = server
 
-        t.end()
-      })
+      t.end()
+    })
   })
 })
 

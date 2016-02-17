@@ -4,6 +4,11 @@ var fs = require('fs');
 var path = require('path');
 var assert = require('assert');
 
+if (!common.isWindows) {
+  console.log('1..0 # Skipped: this test is Windows-specific.');
+  return;
+}
+
 var successes = 0;
 
 // make a path that will be at least 260 chars long.

@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
 
@@ -19,7 +20,7 @@ if (process.argv[2] === 'child') {
     execFile(process.execPath, args, function(err, stdout, stderr) {
       assert.equal(err, null);
       assert.equal(stdout, '');
-      if (/^WARNING[\s\S]*fs\.readFileSync/.test(stderr))
+      if (/WARNING[\s\S]*fs\.readFileSync/.test(stderr))
         cntr++;
       if (args[0] === '--trace-sync-io') {
         assert.equal(cntr, 1);

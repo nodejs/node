@@ -2,15 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=70
+// Flags: --stack-size=100
 
 "a".replace(/a/g, "");
 
+var count = 0;
 function test() {
    try {
      test();
    } catch(e) {
-     "b".replace(/(b)/g, new []);
+     if (count < 50) {
+       count++;
+       "b".replace(/(b)/g, new []);
+     }
    }
 }
 

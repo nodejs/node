@@ -22,11 +22,8 @@ aesni_cbc_sha256_enc	PROC PUBLIC
 	and	r11d,296
 	cmp	r11d,296
 	je	aesni_cbc_sha256_enc_avx2
-	and	eax,1073741824
-	and	r10d,268435968
-	or	r10d,eax
-	cmp	r10d,1342177792
-	je	aesni_cbc_sha256_enc_avx
+	and	r10d,268435456
+	jnz	aesni_cbc_sha256_enc_avx
 	ud2
 	xor	eax,eax
 	cmp	rcx,0

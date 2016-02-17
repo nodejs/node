@@ -56,13 +56,17 @@
     'configurations': {
       'Debug': {
         'variables': {
-          'v8_enable_handle_zapping%': 1,
+          'v8_enable_handle_zapping': 1,
         },
         'defines': [ 'DEBUG', '_DEBUG' ],
         'cflags': [ '-g', '-O0' ],
         'conditions': [
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
+          }],
+          ['OS=="aix"', {
+            'cflags': [ '-gxcoff' ],
+            'ldflags': [ '-Wl,-bbigtoc' ],
           }],
         ],
         'msvs_settings': {
@@ -83,7 +87,7 @@
       },
       'Release': {
         'variables': {
-          'v8_enable_handle_zapping%': 0,
+          'v8_enable_handle_zapping': 0,
         },
         'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
         'conditions': [
@@ -173,15 +177,32 @@
     },
     'msvs_disabled_warnings': [4351, 4355, 4800],
     'conditions': [
-      ['asan != 0', {
+      ['asan == 1 and OS != "mac"', {
         'cflags+': [
           '-fno-omit-frame-pointer',
           '-fsanitize=address',
-          '-w',  # http://crbug.com/162783
+          '-DLEAK_SANITIZER'
         ],
-        'cflags_cc+': [ '-gline-tables-only' ],
         'cflags!': [ '-fomit-frame-pointer' ],
         'ldflags': [ '-fsanitize=address' ],
+      }],
+      ['asan == 1 and OS == "mac"', {
+        'xcode_settings': {
+          'OTHER_CFLAGS+': [
+            '-fno-omit-frame-pointer',
+            '-gline-tables-only',
+            '-fsanitize=address',
+            '-DLEAK_SANITIZER'
+          ],
+          'OTHER_CFLAGS!': [
+            '-fomit-frame-pointer',
+          ],
+        },
+        'target_conditions': [
+          ['_type!="static_library"', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=address']},
+          }],
+        ],
       }],
       ['OS == "win"', {
         'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
@@ -199,11 +220,11 @@
           'BUILDING_UV_SHARED=1',
         ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris"', {
+      [ 'OS in "linux freebsd openbsd solaris aix"', {
         'cflags': [ '-pthread', ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++0x' ],
         'ldflags': [ '-rdynamic' ],
@@ -225,11 +246,11 @@
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
           }],
-          [ 'target_arch=="ppc"', {
+          [ 'target_arch=="ppc" and OS!="aix"', {
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
           }],
-          [ 'target_arch=="ppc64"', {
+          [ 'target_arch=="ppc64" and OS!="aix"', {
 	    'cflags': [ '-m64', '-mminimal-toc' ],
 	    'ldflags': [ '-m64' ],
 	   }],
@@ -238,6 +259,18 @@
             'ldflags': [ '-pthreads' ],
             'cflags!': [ '-pthread' ],
             'ldflags!': [ '-pthread' ],
+          }],
+          [ 'OS=="aix"', {
+            'conditions': [
+              [ 'target_arch=="ppc"', {
+                'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
+              }],
+              [ 'target_arch=="ppc64"', {
+                'cflags': [ '-maix64' ],
+                'ldflags': [ '-maix64' ],
+              }],
+            ],
+            'ldflags!': [ '-rdynamic' ],
           }],
         ],
       }],

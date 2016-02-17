@@ -21,6 +21,10 @@ def main():
   print 'Revert activation of MSVS 2013.'
   print 'Activating MSVS 2013 again.'
   print 'Clobber after ICU roll.'
+  print 'Moar clobbering...'
+  print 'Remove build/android.gypi'
+  print 'Cleanup after windows ninja switch attempt.'
+  print 'Switching to pinned msvs toolchain.'
   return 0
 
 

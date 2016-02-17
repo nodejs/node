@@ -1,6 +1,7 @@
 'use strict';
 // Make sure the domain stack is a stack
 
+require('../common');
 var assert = require('assert');
 var domain = require('domain');
 

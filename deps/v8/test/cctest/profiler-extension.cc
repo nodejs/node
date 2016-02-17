@@ -72,4 +72,5 @@ void ProfilerExtension::StopProfiling(
       : v8::String::Empty(args.GetIsolate()));
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

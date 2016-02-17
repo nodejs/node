@@ -69,32 +69,36 @@ class StringResource8 : public v8::String::ExternalOneByteStringResource {
 
 std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
     const char* fname, Encoding encoding, int repeat, v8::Isolate* isolate,
-    v8::Handle<v8::Context> context) {
+    v8::Local<v8::Context> context) {
   int length = 0;
   const byte* source = ReadFileAndRepeat(fname, &length, repeat);
-  v8::Handle<v8::String> source_handle;
+  v8::Local<v8::String> source_handle;
   switch (encoding) {
     case UTF8: {
       source_handle = v8::String::NewFromUtf8(
-          isolate, reinterpret_cast<const char*>(source));
+                          isolate, reinterpret_cast<const char*>(source),
+                          v8::NewStringType::kNormal).ToLocalChecked();
       break;
     }
     case UTF16: {
-      source_handle = v8::String::NewFromTwoByte(
-          isolate, reinterpret_cast<const uint16_t*>(source),
-          v8::String::kNormalString, length / 2);
+      source_handle =
+          v8::String::NewFromTwoByte(
+              isolate, reinterpret_cast<const uint16_t*>(source),
+              v8::NewStringType::kNormal, length / 2).ToLocalChecked();
       break;
     }
     case LATIN1: {
       StringResource8* string_resource =
           new StringResource8(reinterpret_cast<const char*>(source), length);
-      source_handle = v8::String::NewExternal(isolate, string_resource);
+      source_handle = v8::String::NewExternalOneByte(isolate, string_resource)
+                          .ToLocalChecked();
       break;
     }
   }
   v8::base::TimeDelta parse_time1, parse_time2;
-  Handle<Script> script = Isolate::Current()->factory()->NewScript(
-      v8::Utils::OpenHandle(*source_handle));
+  Handle<Script> script =
+      reinterpret_cast<i::Isolate*>(isolate)->factory()->NewScript(
+          v8::Utils::OpenHandle(*source_handle));
   i::ScriptData* cached_data_impl = NULL;
   // First round of parsing (produce data to cache).
   {
@@ -142,6 +146,8 @@ int main(int argc, char* argv[]) {
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
+  v8::V8::InitializeExternalStartupData(argv[0]);
+
   Encoding encoding = LATIN1;
   std::vector<std::string> fnames;
   std::string benchmark;
@@ -169,7 +175,7 @@ int main(int argc, char* argv[]) {
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
-    v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
     DCHECK(!context.IsEmpty());
     {

@@ -1,9 +1,9 @@
 'use strict';
 (function() {
-  var assert = require('assert'),
-      child = require('child_process'),
-      util = require('util'),
-      common = require('../common');
+  const assert = require('assert');
+  const child = require('child_process');
+  const util = require('util');
+  const common = require('../common');
   if (process.env['TEST_INIT']) {
     util.print('Loaded successfully!');
   } else {

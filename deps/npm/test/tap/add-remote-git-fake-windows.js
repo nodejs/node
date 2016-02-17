@@ -20,7 +20,7 @@ var pjParent = JSON.stringify({
   name: 'parent',
   version: '1.2.3',
   dependencies: {
-    child: 'git://localhost:1233/child.git'
+    child: 'git://localhost:1234/child.git'
   }
 }, null, 2) + '\n'
 
@@ -28,7 +28,6 @@ var pjChild = JSON.stringify({
   name: 'child',
   version: '1.0.3'
 }, null, 2) + '\n'
-
 
 test('setup', function (t) {
   bootstrap()
@@ -93,7 +92,8 @@ function setup (cb) {
           '--listen=localhost',
           '--export-all',
           '--base-path=.',
-          '--port=1233'
+          '--reuseaddr',
+          '--port=1234'
         ],
         {
           cwd: pkg,

@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
 #include "src/assembler.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/third_party/fdlibm/fdlibm.h"
-
 
 namespace v8 {
 namespace internal {
@@ -69,8 +68,8 @@ RUNTIME_FUNCTION(Runtime_RemPiO2) {
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_ARG_CHECKED(JSTypedArray, result, 1);
   RUNTIME_ASSERT(result->byte_length() == Smi::FromInt(2 * sizeof(double)));
-  void* backing_store = JSArrayBuffer::cast(result->buffer())->backing_store();
-  double* y = static_cast<double*>(backing_store);
+  FixedFloat64Array* array = FixedFloat64Array::cast(result->elements());
+  double* y = static_cast<double*>(array->DataPtr());
   return Smi::FromInt(fdlibm::rempio2(x, y));
 }
 
@@ -135,7 +134,7 @@ RUNTIME_FUNCTION(Runtime_MathFloor) {
 
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if VFP3 is not available.
-RUNTIME_FUNCTION(Runtime_MathPowSlow) {
+RUNTIME_FUNCTION(Runtime_MathPow) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   isolate->counters()->math_pow()->Increment();
@@ -238,12 +237,6 @@ RUNTIME_FUNCTION(Runtime_MathFround) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathPow) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_MathPowSlow(args, isolate);
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsMinusZero) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -252,5 +245,20 @@ RUNTIME_FUNCTION(Runtime_IsMinusZero) {
   HeapNumber* number = HeapNumber::cast(obj);
   return isolate->heap()->ToBoolean(IsMinusZero(number->value()));
 }
+
+
+RUNTIME_FUNCTION(Runtime_InitializeRNG) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  static const int kSize = 4;
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(kSize);
+  uint16_t seeds[kSize];
+  do {
+    isolate->random_number_generator()->NextBytes(seeds,
+                                                  kSize * sizeof(*seeds));
+  } while (!(seeds[0] && seeds[1] && seeds[2] && seeds[3]));
+  for (int i = 0; i < kSize; i++) array->set(i, Smi::FromInt(seeds[i]));
+  return *isolate->factory()->NewJSArrayWithElements(array);
 }
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

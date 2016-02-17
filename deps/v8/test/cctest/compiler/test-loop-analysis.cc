@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
@@ -20,14 +21,15 @@
 #include "src/compiler/verifier.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
                         0, 1, 0, 0);
 static Operator kIntLt(IrOpcode::kInt32LessThan, Operator::kPure,
                        "Int32LessThan", 2, 0, 0, 1, 0, 0);
-static Operator kStore(IrOpcode::kStore, Operator::kNoProperties, "Store", 0, 2,
+static Operator kStore(IrOpcode::kStore, Operator::kNoProperties, "Store", 1, 1,
                        1, 0, 1, 0);
 
 static const int kNumLeafs = 4;
@@ -39,9 +41,9 @@ class LoopFinderTester : HandleAndZoneScope {
       : isolate(main_isolate()),
         common(main_zone()),
         graph(main_zone()),
-        jsgraph(main_isolate(), &graph, &common, NULL, NULL),
+        jsgraph(main_isolate(), &graph, &common, nullptr, nullptr, nullptr),
         start(graph.NewNode(common.Start(1))),
-        end(graph.NewNode(common.End(), start)),
+        end(graph.NewNode(common.End(1), start)),
         p0(graph.NewNode(common.Parameter(0), start)),
         zero(jsgraph.Int32Constant(0)),
         one(jsgraph.OneConstant()),
@@ -234,8 +236,7 @@ struct StoreLoop {
   Node* store;
 
   explicit StoreLoop(While& w)
-      : base(w.t.jsgraph.Int32Constant(12)),
-        val(w.t.jsgraph.Int32Constant(13)) {
+      : base(w.t.graph.start()), val(w.t.jsgraph.Int32Constant(13)) {
     Build(w);
   }
 
@@ -243,7 +244,7 @@ struct StoreLoop {
 
   void Build(While& w) {
     phi = w.t.graph.NewNode(w.t.op(2, true), base, base, w.loop);
-    store = w.t.graph.NewNode(&kStore, phi, val, w.loop);
+    store = w.t.graph.NewNode(&kStore, val, phi, w.loop);
     phi->ReplaceInput(1, store);
   }
 };
@@ -489,7 +490,7 @@ TEST(LaNestedLoop1x) {
   p2a->ReplaceInput(1, p2b);
   p2b->ReplaceInput(1, p2a);
 
-  t.Return(t.p0, p1a, w1.exit);
+  t.Return(t.p0, t.start, w1.exit);
 
   Node* chain[] = {w1.loop, w2.loop};
   t.CheckNestedLoops(chain, 2);
@@ -1013,3 +1014,7 @@ TEST(LaManyNested_64) { RunManyNestedLoops_i(64); }
 
 
 TEST(LaPhiTangle) { LoopFinderTester t; }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

@@ -166,6 +166,7 @@ namespace internal {
                                                                      \
   /* Scanner-internal use only. */                                   \
   T(WHITESPACE, NULL, 0)                                             \
+  T(UNINITIALIZED, NULL, 0)                                          \
                                                                      \
   /* ES6 Template Literals */                                        \
   T(TEMPLATE_SPAN, NULL, 0)                                          \
@@ -317,6 +318,7 @@ class Token {
   static const char token_type[NUM_TOKENS];
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TOKEN_H_

@@ -23,7 +23,8 @@ extern bool FLAG_enable_slow_asserts;
 const bool FLAG_enable_slow_asserts = false;
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #define DCHECK_TAG_ALIGNED(address)             \
   DCHECK((reinterpret_cast<intptr_t>(address) & \

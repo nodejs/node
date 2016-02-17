@@ -44,6 +44,7 @@ tap.test('basic fetch with scoped always-auth enabled', function (t) {
 
       var sink = cat(function (data) {
         t.deepEqual(data, readFileSync(tgz))
+        server.close()
         t.end()
       })
 

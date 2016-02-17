@@ -6,9 +6,14 @@
 #define V8_API_NATIVES_H_
 
 #include "src/handles.h"
+#include "src/property-details.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ObjectTemplateInfo;
+class TemplateInfo;
 
 class ApiNatives {
  public:
@@ -37,6 +42,10 @@ class ApiNatives {
 
   static void AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                               Handle<Name> name, Handle<Object> value,
+                              PropertyAttributes attributes);
+
+  static void AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
+                              Handle<Name> name, v8::Intrinsic intrinsic,
                               PropertyAttributes attributes);
 
   static void AddAccessorProperty(Isolate* isolate, Handle<TemplateInfo> info,

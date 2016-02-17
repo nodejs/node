@@ -14,7 +14,7 @@
 #include "src/hashmap.h"
 #include "src/list.h"
 #include "src/token.h"
-#include "src/unicode-inl.h"
+#include "src/unicode.h"
 #include "src/unicode-decoder.h"
 #include "src/utils.h"
 
@@ -25,6 +25,7 @@ namespace internal {
 class AstRawString;
 class AstValueFactory;
 class ParserRecorder;
+class UnicodeCache;
 
 
 // Returns the value (0 .. 15) of a hexadecimal character c.
@@ -109,45 +110,6 @@ class Utf16CharacterStream {
 
 
 // ---------------------------------------------------------------------
-// Caching predicates used by scanners.
-
-class UnicodeCache {
- public:
-  UnicodeCache() {}
-  typedef unibrow::Utf8Decoder<512> Utf8Decoder;
-
-  StaticResource<Utf8Decoder>* utf8_decoder() {
-    return &utf8_decoder_;
-  }
-
-  bool IsIdentifierStart(unibrow::uchar c) { return kIsIdentifierStart.get(c); }
-  bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
-  bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
-  bool IsLineTerminatorSequence(unibrow::uchar c, unibrow::uchar next) {
-    if (!IsLineTerminator(c)) return false;
-    if (c == 0x000d && next == 0x000a) return false;  // CR with following LF.
-    return true;
-  }
-
-  bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
-  bool IsWhiteSpaceOrLineTerminator(unibrow::uchar c) {
-    return kIsWhiteSpaceOrLineTerminator.get(c);
-  }
-
- private:
-  unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
-  unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  unibrow::Predicate<WhiteSpace, 128> kIsWhiteSpace;
-  unibrow::Predicate<WhiteSpaceOrLineTerminator, 128>
-      kIsWhiteSpaceOrLineTerminator;
-  StaticResource<Utf8Decoder> utf8_decoder_;
-
-  DISALLOW_COPY_AND_ASSIGN(UnicodeCache);
-};
-
-
-// ---------------------------------------------------------------------
 // DuplicateFinder discovers duplicate symbols.
 
 class DuplicateFinder {
@@ -204,11 +166,7 @@ class LiteralBuffer {
  public:
   LiteralBuffer() : is_one_byte_(true), position_(0), backing_store_() { }
 
-  ~LiteralBuffer() {
-    if (backing_store_.length() > 0) {
-      backing_store_.Dispose();
-    }
-  }
+  ~LiteralBuffer() { backing_store_.Dispose(); }
 
   INLINE(void AddChar(uint32_t code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
@@ -399,6 +357,8 @@ class Scanner {
 
   // Returns the next token and advances input.
   Token::Value Next();
+  // Returns the token following peek()
+  Token::Value PeekAhead();
   // Returns the current token again.
   Token::Value current_token() { return current_.token; }
   // Returns the location information for the current token
@@ -435,6 +395,7 @@ class Scanner {
   const AstRawString* CurrentRawSymbol(AstValueFactory* ast_value_factory);
 
   double DoubleValue();
+  bool ContainsDot();
   bool LiteralMatches(const char* data, int length, bool allow_escapes = true) {
     if (is_literal_one_byte() &&
         literal_length() == length &&
@@ -476,21 +437,6 @@ class Scanner {
   // characters, but works for seeking forward until simple delimiter
   // tokens, which is what it is used for.
   void SeekForward(int pos);
-
-  bool HarmonyModules() const {
-    return harmony_modules_;
-  }
-  void SetHarmonyModules(bool modules) {
-    harmony_modules_ = modules;
-  }
-  bool HarmonyClasses() const {
-    return harmony_classes_;
-  }
-  void SetHarmonyClasses(bool classes) {
-    harmony_classes_ = classes;
-  }
-  bool HarmonyUnicode() const { return harmony_unicode_; }
-  void SetHarmonyUnicode(bool unicode) { harmony_unicode_ = unicode; }
 
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
@@ -541,6 +487,7 @@ class Scanner {
     // Initialize current_ to not refer to a literal.
     current_.literal_chars = NULL;
     current_.raw_literal_chars = NULL;
+    next_next_.token = Token::UNINITIALIZED;
   }
 
   // Support BookmarkScope functionality.
@@ -553,16 +500,22 @@ class Scanner {
 
   // Literal buffer support
   inline void StartLiteral() {
-    LiteralBuffer* free_buffer = (current_.literal_chars == &literal_buffer1_) ?
-            &literal_buffer2_ : &literal_buffer1_;
+    LiteralBuffer* free_buffer =
+        (current_.literal_chars == &literal_buffer0_)
+            ? &literal_buffer1_
+            : (current_.literal_chars == &literal_buffer1_) ? &literal_buffer2_
+                                                            : &literal_buffer0_;
     free_buffer->Reset();
     next_.literal_chars = free_buffer;
   }
 
   inline void StartRawLiteral() {
     LiteralBuffer* free_buffer =
-        (current_.raw_literal_chars == &raw_literal_buffer1_) ?
-            &raw_literal_buffer2_ : &raw_literal_buffer1_;
+        (current_.raw_literal_chars == &raw_literal_buffer0_)
+            ? &raw_literal_buffer1_
+            : (current_.raw_literal_chars == &raw_literal_buffer1_)
+                  ? &raw_literal_buffer2_
+                  : &raw_literal_buffer0_;
     free_buffer->Reset();
     next_.raw_literal_chars = free_buffer;
   }
@@ -739,6 +692,7 @@ class Scanner {
   UnicodeCache* unicode_cache_;
 
   // Buffers collecting literal strings, numbers, etc.
+  LiteralBuffer literal_buffer0_;
   LiteralBuffer literal_buffer1_;
   LiteralBuffer literal_buffer2_;
 
@@ -747,11 +701,13 @@ class Scanner {
   LiteralBuffer source_mapping_url_;
 
   // Buffer to store raw string values
+  LiteralBuffer raw_literal_buffer0_;
   LiteralBuffer raw_literal_buffer1_;
   LiteralBuffer raw_literal_buffer2_;
 
-  TokenDesc current_;  // desc for current token (as returned by Next())
-  TokenDesc next_;     // desc for next token (one token look-ahead)
+  TokenDesc current_;    // desc for current token (as returned by Next())
+  TokenDesc next_;       // desc for next token (one token look-ahead)
+  TokenDesc next_next_;  // desc for the token after next (after PeakAhead())
 
   // Variables for Scanner::BookmarkScope and the *Bookmark implementation.
   // These variables contain the scanner state when a bookmark is set.
@@ -801,14 +757,9 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
-  // Whether we scan 'module', 'import', 'export' as keywords.
-  bool harmony_modules_;
-  // Whether we scan 'class', 'extends', 'static' and 'super' as keywords.
-  bool harmony_classes_;
-  // Whether we allow \u{xxxxx}.
-  bool harmony_unicode_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_SCANNER_H_

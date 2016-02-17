@@ -2,18 +2,26 @@
 /*
  * This test is a regression test for joyent/node#8900.
  */
-var assert = require('assert');
+const common = require('../common');
 
-var N = 5;
+const TEST_DURATION = common.platformTimeout(100);
+const N = 3;
 var nbIntervalFired = 0;
-var timer = setInterval(function() {
+
+const keepOpen = setTimeout(() => {
+  console.error('[FAIL] Interval fired %d/%d times.', nbIntervalFired, N);
+  throw new Error('Test timed out. keepOpen was not canceled.');
+}, TEST_DURATION);
+
+const timer = setInterval(() => {
   ++nbIntervalFired;
-  if (nbIntervalFired === N)
+  if (nbIntervalFired === N) {
     clearInterval(timer);
+    timer._onTimeout = () => {
+      throw new Error('Unrefd interval fired after being cleared.');
+    };
+    clearTimeout(keepOpen);
+  }
 }, 1);
 
 timer.unref();
-
-setTimeout(function onTimeout() {
-  assert.strictEqual(nbIntervalFired, N);
-}, 100);

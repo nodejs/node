@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-var fs = require('fs');
 var http = require('http');
 
 var body = 'hello world\n';
@@ -17,7 +16,7 @@ var httpServer = http.createServer(function(req, res) {
 
   res.on('finish', function() {
     sawFinish = true;
-    assert(typeof(req.connection.bytesWritten) === 'number');
+    assert(typeof req.connection.bytesWritten === 'number');
     assert(req.connection.bytesWritten > 0);
   });
   res.writeHead(200, { 'Content-Type': 'text/plain' });

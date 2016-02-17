@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug
-// Flags: --turbo-deoptimization
 // Get the Debug object exposed from the debug context global object.
 var Debug = debug.Debug
 

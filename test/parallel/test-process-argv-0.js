@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 var path = require('path');
 var assert = require('assert');
 var spawn = require('child_process').spawn;

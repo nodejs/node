@@ -120,10 +120,10 @@ All requests refer to the following request (body omitted):
 
     POST /foo HTTP/1.1
     Host: example.org
-    Date: Tue, 07 Jun 2011 20:51:35 GMT
+    Date: Tue, 07 Jun 2014 20:51:35 GMT
     Content-Type: application/json
-    Content-MD5: h0auK8hnYJKmHTLhKtMTkQ==
-    Content-Length: 123
+    Digest: SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=
+    Content-Length: 18
 
 The "rsa-key-1" keyId refers to a private key known to the client and a public
 key known to the server. The "hmac-key-1" keyId refers to key known to the
@@ -137,21 +137,21 @@ The authorization header and signature would be generated as:
 
 The client would compose the signing string as:
 
-    date: Tue, 07 Jun 2011 20:51:35 GMT
+    date: Tue, 07 Jun 2014 20:51:35 GMT
 
 ## Header List
 
 The authorization header and signature would be generated as:
 
-    Authorization: Signature keyId="rsa-key-1",algorithm="rsa-sha256",headers="request-line date content-type content-md5",signature="Base64(RSA-SHA256(signing string))"
+    Authorization: Signature keyId="rsa-key-1",algorithm="rsa-sha256",headers="(request-target) date content-type digest",signature="Base64(RSA-SHA256(signing string))"
 
 The client would compose the signing string as (`+ "\n"` inserted for
 readability):
 
-    POST /foo HTTP/1.1 + "\n"
+    (request-target) post /foo + "\n"
     date: Tue, 07 Jun 2011 20:51:35 GMT + "\n"
     content-type: application/json + "\n"
-    content-md5: h0auK8hnYJKmHTLhKtMTkQ==
+    digest: SHA-256=Base64(SHA256(Body))
 
 ## Algorithm
 
@@ -261,9 +261,9 @@ And all examples use this request:
 
     POST /foo?param=value&pet=dog HTTP/1.1
     Host: example.com
-    Date: Thu, 05 Jan 2012 21:31:40 GMT
+    Date: Thu, 05 Jan 2014 21:31:40 GMT
     Content-Type: application/json
-    Content-MD5: Sd/dVLAcvNLSq16eXua5uQ==
+    Digest: SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=
     Content-Length: 18
 
     {"hello": "world"}
@@ -272,7 +272,7 @@ And all examples use this request:
 
 The string to sign would be:
 
-    date: Thu, 05 Jan 2012 21:31:40 GMT
+    date: Thu, 05 Jan 2014 21:31:40 GMT
 
 The Authorization header would be:
 
@@ -283,14 +283,13 @@ The Authorization header would be:
 Parameterized to include all headers, the string to sign would be (`+ "\n"`
 inserted for readability):
 
-    POST /foo?param=value&pet=dog HTTP/1.1 + "\n"
-    host: example.com + "\n"
-    date: Thu, 05 Jan 2012 21:31:40 GMT + "\n"
-    content-type: application/json + "\n"
-    content-md5: Sd/dVLAcvNLSq16eXua5uQ== + "\n"
+    (request-target): post /foo?param=value&pet=dog
+    host: example.com
+    date: Thu, 05 Jan 2014 21:31:40 GMT
+    content-type: application/json
+    digest: SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=
     content-length: 18
 
 The Authorization header would be:
 
-    Authorization: Signature keyId="Test",algorithm="rsa-sha256",headers="request-line host date content-type content-md5 content-length",signature="H/AaTDkJvLELy4i1RujnKlS6dm8QWiJvEpn9cKRMi49kKF+mohZ15z1r+mF+XiKS5kOOscyS83olfBtsVhYjPg2Ei3/D9D4Mvb7bFm9IaLJgYTFFuQCghrKQQFPiqJN320emjHxFowpIm1BkstnEU7lktH/XdXVBo8a6Uteiztw="
-
+    Authorization: Signature keyId="Test",algorithm="rsa-sha256",headers="(request-target) host date content-type digest content-length",signature="jgSqYK0yKclIHfF9zdApVEbDp5eqj8C4i4X76pE+XHoxugXv7qnVrGR+30bmBgtpR39I4utq17s9ghz/2QFVxlnToYAvbSVZJ9ulLd1HQBugO0jOyn9sXOtcN7uNHBjqNCqUsnt0sw/cJA6B6nJZpyNqNyAXKdxZZItOuhIs78w="

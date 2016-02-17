@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/factory.h"
 #include "src/frames-inl.h"
-#include "src/runtime/runtime-utils.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -111,7 +112,7 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   int offset = generator_object->continuation();
   DCHECK(offset > 0);
   frame->set_pc(pc + offset);
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     frame->set_constant_pool(
         generator_object->function()->code()->constant_pool());
   }
@@ -226,5 +227,5 @@ RUNTIME_FUNCTION(Runtime_GeneratorThrow) {
   UNREACHABLE();  // Optimization disabled in SetUpGenerators().
   return NULL;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -10,30 +10,44 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class CompilationInfo;
+
 namespace compiler {
 
+// Forward declarations.
 class JSCallFunctionAccessor;
 
-class JSInliner final : public Reducer {
+// The JSInliner provides the core graph inlining machinery. Note that this
+// class only deals with the mechanics of how to inline one graph into another,
+// heuristics that decide what and how much to inline are beyond its scope.
+class JSInliner final : public AdvancedReducer {
  public:
-  enum Mode { kBuiltinsInlining, kGeneralInlining };
-
-  JSInliner(Mode mode, Zone* local_zone, CompilationInfo* info,
+  JSInliner(Editor* editor, Zone* local_zone, CompilationInfo* info,
             JSGraph* jsgraph)
-      : mode_(mode), local_zone_(local_zone), info_(info), jsgraph_(jsgraph) {}
+      : AdvancedReducer(editor),
+        local_zone_(local_zone),
+        info_(info),
+        jsgraph_(jsgraph) {}
 
+  // Reducer interface, eagerly inlines everything.
   Reduction Reduce(Node* node) final;
 
+  // Can be used by inlining heuristics or by testing code directly, without
+  // using the above generic reducer interface of the inlining machinery.
+  Reduction ReduceJSCallFunction(Node* node, Handle<JSFunction> function);
+
  private:
-  Mode const mode_;
   Zone* local_zone_;
   CompilationInfo* info_;
   JSGraph* jsgraph_;
 
-  Node* CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
-                                         Handle<JSFunction> jsfunction,
-                                         Zone* temp_zone);
-  void AddClosureToFrameState(Node* frame_state, Handle<JSFunction> jsfunction);
+  Node* CreateArgumentsAdaptorFrameState(
+      JSCallFunctionAccessor* call, Handle<SharedFunctionInfo> shared_info);
+
+  Reduction InlineCall(Node* call, Node* context, Node* frame_state,
+                       Node* start, Node* end);
 };
 
 }  // namespace compiler
