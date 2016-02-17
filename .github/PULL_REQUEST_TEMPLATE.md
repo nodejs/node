@@ -28,13 +28,4 @@ _Please make sure to review and check all of these items_:
 - [ ] zlib
 - [ ] other _(please specify which)_
 
-### SemVer
-
-What [semver][1] change does this change require?
-
-- [ ] patch _(no new APIs, no breaking changes)_
-- [ ] minor _(new APIs, no breaking changes)_
-- [ ] major _(breaking changes, or just too dangerous to be minor/patch)_
-
 [0]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit
-[1]: http://semver.org/
