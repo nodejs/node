@@ -32,6 +32,7 @@ reduced test case (without any external dependencies)_.
 - [ ] crypto
 - [ ] dgram
 - [ ] dns
+- [ ] doc
 - [ ] fs
 - [ ] http
 - [ ] https
