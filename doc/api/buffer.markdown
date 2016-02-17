@@ -728,7 +728,7 @@ const buf = new Buffer([1,-2,3,4]);
 buf.readInt16BE();
   // returns 510
 buf.readInt16LE(1);
-  // returns -511
+  // returns 1022
 ```
 
 ### buf.readInt32BE(offset[, noAssert])
