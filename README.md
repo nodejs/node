@@ -388,6 +388,7 @@ information about the governance of the Node.js project, see
 * [rvagg](https://github.com/rvagg) - **Rod Vagg** &lt;rod@vagg.org&gt;
 * [shigeki](https://github.com/shigeki) - **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt;
 * [trevnorris](https://github.com/trevnorris) - **Trevor Norris** &lt;trev.norris@gmail.com&gt;
+* [Trott](https://github.com/Trott) - **Rich Trott** &lt;rtrott@gmail.com&gt;
 
 ### Collaborators
 
@@ -425,7 +426,6 @@ information about the governance of the Node.js project, see
 * [thealphanerd](https://github.com/thealphanerd) - **Myles Borins** &lt;myles.borins@gmail.com&gt;
 * [thefourtheye](https://github.com/thefourtheye) - **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt;
 * [thlorenz](https://github.com/thlorenz) - **Thorsten Lorenz** &lt;thlorenz@gmx.de&gt;
-* [Trott](https://github.com/Trott) - **Rich Trott** &lt;rtrott@gmail.com&gt;
 * [tunniclm](https://github.com/tunniclm) - **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vkurchatkin](https://github.com/vkurchatkin) - **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) - **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
