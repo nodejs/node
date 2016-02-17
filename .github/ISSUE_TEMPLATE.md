@@ -17,11 +17,11 @@ reduced test case (without any external dependencies)_.
 
 ### Affected platforms
 
-- [ ] linux
-- [ ] windows
+- [ ] Linux
+- [ ] Windows
 - [ ] OS X
-- [ ] freebsd
-- [ ] solaris
+- [ ] FreeBSD
+- [ ] Solaris
 - [ ] other _(please specify which)_
 
 ### Core subsystem (if known)
