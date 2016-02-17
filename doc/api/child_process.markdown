@@ -803,7 +803,12 @@ receive the object as the second argument passed to the callback function
 registered on the `process.on('message')` event.
 
 The `options` argument, if present, is an object used to parameterize the
-sending of certain types of handles.
+sending of certain types of handles. `options` supports the following
+properties:
+
+  * `keepOpen` - A Boolean value that can be used when passing instances of
+    `net.Socket`. When `true`, the socket is kept open in the sending process.
+    Defaults to `false`.
 
 The optional `callback` is a function that is invoked after the message is
 sent but before the child may have received it.  The function is called with a
