@@ -24,7 +24,7 @@ reduced test case (without any external dependencies)_.
 - [ ] solaris
 - [ ] other _(please specify which)_
 
-### Core part (if known)
+### Core subsystem (if known)
 
 - [ ] buffer
 - [ ] child_process

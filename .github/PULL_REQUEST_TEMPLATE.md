@@ -9,7 +9,7 @@ _Please make sure to review and check all of these items_:
 - [ ] Does `make test` pass after this change?
 - [ ] Is commit message formatted according to [CONTRIBUTING.md][0]
 
-### Affected core part(s)
+### Affected core subsystem(s)
 
 - [ ] buffer
 - [ ] child_process
