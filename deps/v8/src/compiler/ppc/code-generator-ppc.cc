@@ -1210,8 +1210,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   PPCOperandConverter i(this, instr);
   Label done;
   ArchOpcode op = instr->arch_opcode();
-  bool check_unordered = (op == kPPC_CmpDouble);
   CRegister cr = cr0;
+  int reg_value = -1;
 
   // Overflow checked for add/sub only.
   DCHECK((condition != kOverflow && condition != kNotOverflow) ||
@@ -1223,44 +1223,44 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
 
   Condition cond = FlagsConditionToCondition(condition);
-  switch (cond) {
-    case eq:
-    case lt:
+  if (op == kPPC_CmpDouble) {
+    // check for unordered if necessary
+    if (cond == le) {
+      reg_value = 0;
       __ li(reg, Operand::Zero());
-      __ li(kScratchReg, Operand(1));
-      __ isel(cond, reg, kScratchReg, reg, cr);
-      break;
-    case ne:
-    case ge:
+      __ bunordered(&done, cr);
+    } else if (cond == gt) {
+      reg_value = 1;
       __ li(reg, Operand(1));
-      __ isel(NegateCondition(cond), reg, r0, reg, cr);
-      break;
-    case gt:
-      if (check_unordered) {
-        __ li(reg, Operand(1));
+      __ bunordered(&done, cr);
+    }
+    // Unnecessary for eq/lt & ne/ge since only FU bit will be set.
+  }
+
+  if (CpuFeatures::IsSupported(ISELECT)) {
+    switch (cond) {
+      case eq:
+      case lt:
+      case gt:
+        if (reg_value != 1) __ li(reg, Operand(1));
         __ li(kScratchReg, Operand::Zero());
-        __ bunordered(&done, cr);
         __ isel(cond, reg, reg, kScratchReg, cr);
-      } else {
-        __ li(reg, Operand::Zero());
-        __ li(kScratchReg, Operand(1));
-        __ isel(cond, reg, kScratchReg, reg, cr);
-      }
-      break;
-    case le:
-      if (check_unordered) {
-        __ li(reg, Operand::Zero());
-        __ li(kScratchReg, Operand(1));
-        __ bunordered(&done, cr);
-        __ isel(NegateCondition(cond), reg, r0, kScratchReg, cr);
-      } else {
-        __ li(reg, Operand(1));
+        break;
+      case ne:
+      case ge:
+      case le:
+        if (reg_value != 1) __ li(reg, Operand(1));
+        // r0 implies logical zero in this form
         __ isel(NegateCondition(cond), reg, r0, reg, cr);
-      }
-      break;
+        break;
     default:
       UNREACHABLE();
       break;
+    }
+  } else {
+    if (reg_value != 0) __ li(reg, Operand::Zero());
+    __ b(NegateCondition(cond), &done, cr);
+    __ li(reg, Operand(1));
   }
   __ bind(&done);
 }
