@@ -7,13 +7,9 @@ _Please provide issue details here_.
 _Please provide necessary steps for reproduction of this issue, or better the
 reduced test case (without any external dependencies)_.
 
-### Affected node.js versions
+### Affected node.js version(s)
 
-- [ ] master
-- [ ] v5.x
-- [ ] v4.x
-- [ ] v0.12
-- [ ] v0.10
+_Please fill in affected version(s)_
 
 ### Affected platforms
 
