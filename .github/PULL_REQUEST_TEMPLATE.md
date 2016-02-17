@@ -17,6 +17,7 @@ _Please make sure to review and check all of these items_:
 - [ ] crypto
 - [ ] dgram
 - [ ] dns
+- [ ] doc
 - [ ] fs
 - [ ] http
 - [ ] https
@@ -29,7 +30,7 @@ _Please make sure to review and check all of these items_:
 
 ### SemVer
 
-What semver change does this change require?
+What [semver][1] change does this change require?
 
 - [ ] patch _(no new APIs, no breaking changes)_
 - [ ] minor _(new APIs, no breaking changes)_
@@ -43,3 +44,4 @@ Should this patch be backported to:
 - [ ] older versions? _(please specify the version numbers)_
 
 [0]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit
+[1]: http://semver.org/
