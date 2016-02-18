@@ -16,6 +16,11 @@ continue.
 as [`process.exit()`][] or uncaught exceptions, and should not be used as an
 alternative to the `'exit'` event unless the intention is to schedule more work.
 
+## Event: 'disconnect'
+
+If process is spawned with an IPC channel, `'disconnect'` will be emitted when
+IPC channel is closed. Read more in [child_process `'disconnect'` event][] doc.
+
 ## Event: 'exit'
 
 Emitted when the process is about to exit. There is no way to prevent the
@@ -52,7 +57,7 @@ event on the child's process object.
 ## Event: 'rejectionHandled'
 
 Emitted whenever a Promise was rejected and an error handler was attached to it
-(for example with `.catch()`) later than after an event loop turn. This event
+(for example with [`promise.catch()`][]) later than after an event loop turn. This event
 is emitted with the following arguments:
 
  - `p` the promise that was previously emitted in an `'unhandledRejection'`
@@ -140,7 +145,7 @@ down the process. It is not safe to resume normal operation after
 Emitted whenever a `Promise` is rejected and no error handler is attached to
 the promise within a turn of the event loop. When programming with promises
 exceptions are encapsulated as rejected promises. Such promises can be caught
-and handled using [`promise.catch(...)`][] and rejections are propagated through
+and handled using [`promise.catch()`][] and rejections are propagated through
 a promise chain. This event is useful for detecting and keeping track of
 promises that were rejected whose rejections were not handled yet. This event
 is emitted with the following arguments:
@@ -182,7 +187,7 @@ var resource = new SomeResource();
 
 In cases like this, you may not want to track the rejection as a developer
 error like you would for other `'unhandledRejection'` events. To address
-this, you can either attach a dummy `.catch(() => { })` handler to
+this, you can either attach a dummy [`.catch(() => { })`][`promise.catch()`] handler to
 `resource.loaded`, preventing the `'unhandledRejection'` event from being
 emitted, or you can use the [`'rejectionHandled'`][] event.
 
@@ -307,7 +312,7 @@ operations are pending.  The following status codes are used in other
 cases:
 
 * `1` **Uncaught Fatal Exception** - There was an uncaught exception,
-  and it was not handled by a domain or an `'uncaughtException'` event
+  and it was not handled by a domain or an [`'uncaughtException'`][] event
   handler.
 * `2` - Unused (reserved by Bash for builtin misuse)
 * `3` **Internal JavaScript Parse Error** - The JavaScript source code
@@ -327,7 +332,7 @@ cases:
 * `7` **Internal Exception Handler Run-Time Failure** - There was an
   uncaught exception, and the internal fatal exception handler
   function itself threw an error while attempting to handle it.  This
-  can happen, for example, if a `process.on('uncaughtException')` or
+  can happen, for example, if a [`'uncaughtException'`][] or
   `domain.on('error')` handler throws an error.
 * `8` - Unused.  In previous versions of Node.js, exit code 8 sometimes
   indicated an uncaught exception.
@@ -397,7 +402,7 @@ Note:
 - `SIGSTOP` cannot have a listener installed.
 
 Note that Windows does not support sending Signals, but Node.js offers some
-emulation with `process.kill()`, and `child_process.kill()`. Sending signal `0`
+emulation with [`process.kill()`][], and [`ChildProcess.kill()`][]. Sending signal `0`
 can be used to test for the existence of a process. Sending `SIGINT`,
 `SIGTERM`, and `SIGKILL` cause the unconditional termination of the target
 process.
@@ -495,9 +500,9 @@ the value of `process.config`.*
 
 ## process.connected
 
-* {Boolean} Set to false after `process.disconnect()` is called
+* {Boolean} Set to `false` after `process.disconnect()` is called
 
-If `process.connected` is false, it is no longer possible to send messages.
+If `process.connected` is `false`, it is no longer possible to send messages.
 
 ## process.cwd()
 
@@ -665,7 +670,7 @@ emitMyWarning();
 
 This is the set of Node.js-specific command line options from the
 executable that started the process.  These options do not show up in
-`process.argv`, and do not include the Node.js executable, the name of
+[`process.argv`][], and do not include the Node.js executable, the name of
 the script, or any options following the script name. These options
 are useful in order to spawn child processes with the same execution
 environment as the parent.
@@ -719,7 +724,7 @@ A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
 
-Specifying a code to `process.exit(code)` will override any previous
+Specifying a code to [`process.exit(code)`][`process.exit()`] will override any previous
 setting of `process.exitCode`.
 
 
@@ -837,7 +842,7 @@ console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
-`SIGINT` or `SIGHUP`.  If omitted, the signal will be `SIGTERM`.
+`'SIGINT'` or `'SIGHUP'`.  If omitted, the signal will be `'SIGTERM'`.
 See [Signal Events][] and kill(2) for more information.
 
 Will throw an error if target does not exist, and as a special case, a signal
@@ -869,11 +874,11 @@ Note: When SIGUSR1 is received by Node.js it starts the debugger, see
 ## process.mainModule
 
 Alternate way to retrieve [`require.main`][]. The difference is that if the main
-module changes at runtime, `require.main` might still refer to the original main
+module changes at runtime, [`require.main`][] might still refer to the original main
 module in modules that were required before the change occurred. Generally it's
 safe to assume that the two refer to the same module.
 
-As with `require.main`, it will be `undefined` if there was no entry script.
+As with [`require.main`][], it will be `undefined` if there was no entry script.
 
 ## process.memoryUsage()
 
@@ -1043,7 +1048,7 @@ relied upon to exist.
 
 When Node.js is spawned with an IPC channel attached, it can send messages to its
 parent process using `process.send()`. Each will be received as a
-[`'message'`][] event on the parent's `ChildProcess` object.
+[`'message'`][] event on the parent's [`ChildProcess`][] object.
 
 *Note: this function uses [`JSON.stringify()`][] internally to serialize the `message`.*
 
@@ -1055,7 +1060,7 @@ Note: this function is only available on POSIX platforms (i.e. not Windows,
 Android)
 
 Sets the effective group identity of the process. (See setegid(2).)
-This accepts either a numerical ID or a groupname string. If a groupname
+This accepts either a numerical ID or a group name string. If a group name
 is specified, this method blocks while resolving it to a numerical ID.
 
 ```js
@@ -1099,7 +1104,7 @@ Note: this function is only available on POSIX platforms (i.e. not Windows,
 Android)
 
 Sets the group identity of the process. (See setgid(2).)  This accepts either
-a numerical ID or a groupname string. If a groupname is specified, this method
+a numerical ID or a group name string. If a group name is specified, this method
 blocks while resolving it to a numerical ID.
 
 ```js
@@ -1152,7 +1157,7 @@ if (process.getuid && process.setuid) {
 A writable stream to stderr (on fd `2`).
 
 `process.stderr` and `process.stdout` are unlike other streams in Node.js in
-that they cannot be closed (`end()` will throw), they never emit the `finish`
+that they cannot be closed ([`end()`][] will throw), they never emit the [`'finish'`][]
 event and that writes can block when output is redirected to a file (although
 disks are fast and operating systems normally employ write-back caching so it
 should be a very rare occurrence indeed.)
@@ -1202,7 +1207,7 @@ console.log = (msg) => {
 ```
 
 `process.stderr` and `process.stdout` are unlike other streams in Node.js in
-that they cannot be closed (`end()` will throw), they never emit the `'finish'`
+that they cannot be closed ([`end()`][] will throw), they never emit the [`'finish'`][]
 event and that writes can block when output is redirected to a file (although
 disks are fast and operating systems normally employ write-back caching so it
 should be a very rare occurrence indeed.)
@@ -1287,21 +1292,30 @@ Will print something like:
   openssl: '1.0.1k' }
 ```
 
+[`'finish'`]: stream.html#stream_event_finish
 [`'message'`]: child_process.html#child_process_event_message
+[`'rejectionHandled'`]: #process_event_rejectionhandled
+[`'uncaughtException'`]: #process_event_uncaughtexception
 [`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
+[`ChildProcess.kill()`]: child_process.html#child_process_child_kill_signal
 [`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
+[`ChildProcess`]: child_process.html#child_process_class_childprocess
+[`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`process.argv`]: #process_process_argv
 [`process.exit()`]: #process_process_exit_code
-[`promise.catch(...)`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
-[`'rejectionHandled'`]: #process_event_rejectionhandled
+[`process.kill()`]: #process_process_kill_pid_signal
+[`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_arg
+[child_process `'disconnect'` event]: child_process.html#child_process_event_disconnect
+[process_emit_warning]: #process_emitwarning_warning_name_ctor
+[process_warning]: #process_event_warning
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [the tty docs]: tty.html#tty_tty
-[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[process_warning]: #process_event_warning
-[process_emit_warning]: #process_process_emitwarning_warning_name_ctor
