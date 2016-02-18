@@ -47,17 +47,15 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
 
   function responseHandler(buffer, expectedOutput) {
     const response = buffer.toString();
-    // We won't always have data on both stdout and stderr.
-    if (response.length > 0) {
-      if (FIPS_ENABLED !== expectedOutput && FIPS_DISABLED !== expectedOutput) {
-        // In the case of expected errors just look for a substring.
-        assert.notEqual(-1, response.indexOf(expectedOutput));
-      } else {
-        // Normal path where we expect either FIPS enabled or disabled.
-        assert.equal(expectedOutput, response);
-      }
-      childOk(child);
+    assert.notEqual(0, response.length);
+    if (FIPS_ENABLED !== expectedOutput && FIPS_DISABLED !== expectedOutput) {
+      // In the case of expected errors just look for a substring.
+      assert.notEqual(-1, response.indexOf(expectedOutput));
+    } else {
+      // Normal path where we expect either FIPS enabled or disabled.
+      assert.equal(expectedOutput, response);
     }
+    childOk(child);
   }
 
   responseHandler(child[stream], expectedOutput);
@@ -71,7 +69,7 @@ testHelper(
   'require("crypto").fips',
   process.env);
 
-// --enable-fips should force FIPS mode on
+// --enable-fips should turn FIPS mode on
 testHelper(
   compiledWithFips() ? 'stdout' : 'stderr',
   ['--enable-fips'],
@@ -79,27 +77,11 @@ testHelper(
   'require("crypto").fips',
   process.env);
 
-//--disable-fips should force FIPS mode on
+//--force-fips should turn FIPS mode on
 testHelper(
   compiledWithFips() ? 'stdout' : 'stderr',
-  ['--disable-fips'],
-  compiledWithFips() ? FIPS_DISABLED : OPTION_ERROR_STRING,
-  'require("crypto").fips',
-  process.env);
-
-// --disable-fips should take precedence over --enable-fips
-testHelper(
-  compiledWithFips() ? 'stdout' : 'stderr',
-  ['--disable-fips', '--enable-fips'],
-  compiledWithFips() ? FIPS_DISABLED : OPTION_ERROR_STRING,
-  'require("crypto").fips',
-  process.env);
-
-// --disable-fips and --enable-fips order do not matter
-testHelper(
-  compiledWithFips() ? 'stdout' : 'stderr',
-  ['--enable-fips', '--disable-fips'],
-  compiledWithFips() ? FIPS_DISABLED : OPTION_ERROR_STRING,
+  ['--force-fips'],
+  compiledWithFips() ? FIPS_ENABLED : OPTION_ERROR_STRING,
   'require("crypto").fips',
   process.env);
 
@@ -111,18 +93,18 @@ testHelper(
   'require("crypto").fips',
   addToEnv('OPENSSL_CONF', CNF_FIPS_ON));
 
-// --disable-fips should take precedence over OpenSSL config file
-testHelper(
-  compiledWithFips() ? 'stdout' : 'stderr',
-  ['--disable-fips'],
-  compiledWithFips() ? FIPS_DISABLED : OPTION_ERROR_STRING,
-  'require("crypto").fips',
-  addToEnv('OPENSSL_CONF', CNF_FIPS_ON));
-
 // --enable-fips should take precedence over OpenSSL config file
 testHelper(
   compiledWithFips() ? 'stdout' : 'stderr',
   ['--enable-fips'],
+  compiledWithFips() ? FIPS_ENABLED : OPTION_ERROR_STRING,
+  'require("crypto").fips',
+  addToEnv('OPENSSL_CONF', CNF_FIPS_OFF));
+
+// --force-fips should take precedence over OpenSSL config file
+testHelper(
+  compiledWithFips() ? 'stdout' : 'stderr',
+  ['--force-fips'],
   compiledWithFips() ? FIPS_ENABLED : OPTION_ERROR_STRING,
   'require("crypto").fips',
   addToEnv('OPENSSL_CONF', CNF_FIPS_OFF));
@@ -164,19 +146,35 @@ testHelper(
   'require("crypto").fips)',
   addToEnv('OPENSSL_CONF', CNF_FIPS_ON));
 
-// --disable-fips prevents use of setFipsCrypto API
+// --enable-fips does not prevent use of setFipsCrypto API
 testHelper(
-  'stderr',
-  ['--disable-fips'],
-  compiledWithFips() ? FIPS_ERROR_STRING : OPTION_ERROR_STRING,
-  'require("crypto").fips = true',
+  compiledWithFips() ? 'stdout' : 'stderr',
+  ['--enable-fips'],
+  compiledWithFips() ? FIPS_DISABLED : OPTION_ERROR_STRING,
+  '(require("crypto").fips = false,' +
+  'require("crypto").fips)',
   process.env);
 
-// --enable-fips prevents use of setFipsCrypto API
+// --force-fips prevents use of setFipsCrypto API
 testHelper(
   'stderr',
-  ['--enable-fips'],
+  ['--force-fips'],
   compiledWithFips() ? FIPS_ERROR_STRING : OPTION_ERROR_STRING,
   'require("crypto").fips = false',
   process.env);
 
+// --force-fips and --enable-fips order does not matter
+testHelper(
+  'stderr',
+  ['--force-fips', '--enable-fips'],
+  compiledWithFips() ? FIPS_ERROR_STRING : OPTION_ERROR_STRING,
+  'require("crypto").fips = false',
+  process.env);
+
+//--enable-fips and --force-fips order does not matter
+testHelper(
+  'stderr',
+  ['--enable-fips', '--force-fips'],
+  compiledWithFips() ? FIPS_ERROR_STRING : OPTION_ERROR_STRING,
+  'require("crypto").fips = false',
+  process.env);

@@ -5674,12 +5674,12 @@ void InitCryptoOnce() {
   CRYPTO_THREADID_set_callback(crypto_threadid_cb);
 
 #ifdef NODE_FIPS_MODE
-  /* Override FIPS settings in cnf file. */
-  int err = 0;
-  if (disable_fips_crypto && !FIPS_mode_set(0)) {
-    err = ERR_get_error();
-  } else if (!disable_fips_crypto && enable_fips_crypto && !FIPS_mode_set(1)) {
-    err = ERR_get_error();
+  /* Override FIPS settings in cnf file, if needed. */
+  unsigned long err = 0;
+  if (enable_fips_crypto || force_fips_crypto) {
+    if (0 == FIPS_mode() && !FIPS_mode_set(1)) {
+      err = ERR_get_error();
+    }
   }
   if (0 != err) {
     fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
@@ -5760,12 +5760,9 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 #ifdef NODE_FIPS_MODE
   bool mode = args[0]->BooleanValue();
-  if (disable_fips_crypto) {
+  if (force_fips_crypto) {
     return env->ThrowError(
-        "Cannot set FIPS mode, it was forced with --disable-fips at startup.");
-  } else if (enable_fips_crypto) {
-    return env->ThrowError(
-        "Cannot set FIPS mode, it was forced with --enable-fips at startup.");
+        "Cannot set FIPS mode, it was forced with --force-fips at startup.");
   } else if (!FIPS_mode_set(mode)) {
     unsigned long err = ERR_get_error();
     return ThrowCryptoError(env, err);
