@@ -27,7 +27,7 @@
       get() {
         const internalUtil = NativeModule.require('internal/util');
         eeWarned = internalUtil.printDeprecationMessage(
-          `process.EventEmitter is deprecated. Use require('events') instead.`,
+          "process.EventEmitter is deprecated. Use require('events') instead.",
           eeWarned
         );
         return EventEmitter;

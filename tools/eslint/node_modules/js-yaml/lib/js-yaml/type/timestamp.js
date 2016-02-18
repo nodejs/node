@@ -15,14 +15,8 @@ var YAML_TIMESTAMP_REGEXP = new RegExp(
   '(?::([0-9][0-9]))?))?)?$');         // [11] tz_minute
 
 function resolveYamlTimestamp(data) {
-  if (null === data) {
-    return false;
-  }
-
-  if (YAML_TIMESTAMP_REGEXP.exec(data) === null) {
-    return false;
-  }
-
+  if (data === null) return false;
+  if (YAML_TIMESTAMP_REGEXP.exec(data) === null) return false;
   return true;
 }
 
@@ -32,9 +26,7 @@ function constructYamlTimestamp(data) {
 
   match = YAML_TIMESTAMP_REGEXP.exec(data);
 
-  if (null === match) {
-    throw new Error('Date resolve error');
-  }
+  if (match === null) throw new Error('Date resolve error');
 
   // match: [1] year [2] month [3] day
 
@@ -66,16 +58,12 @@ function constructYamlTimestamp(data) {
     tz_hour = +(match[10]);
     tz_minute = +(match[11] || 0);
     delta = (tz_hour * 60 + tz_minute) * 60000; // delta in mili-seconds
-    if ('-' === match[9]) {
-      delta = -delta;
-    }
+    if (match[9] === '-') delta = -delta;
   }
 
   date = new Date(Date.UTC(year, month, day, hour, minute, second, fraction));
 
-  if (delta) {
-    date.setTime(date.getTime() - delta);
-  }
+  if (delta) date.setTime(date.getTime() - delta);
 
   return date;
 }

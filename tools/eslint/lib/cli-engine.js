@@ -20,15 +20,17 @@
 var fs = require("fs"),
     path = require("path"),
 
-    assign = require("object-assign"),
+    lodash = require("lodash"),
     debug = require("debug"),
+    glob = require("glob"),
     shell = require("shelljs"),
 
     rules = require("./rules"),
     eslint = require("./eslint"),
+    defaultOptions = require("../conf/cli-options"),
     IgnoredPaths = require("./ignored-paths"),
     Config = require("./config"),
-    util = require("./util"),
+    Plugins = require("./config/plugins"),
     fileEntryCache = require("file-entry-cache"),
     globUtil = require("./util/glob-util"),
     SourceCodeFixer = require("./util/source-code-fixer"),
@@ -38,7 +40,6 @@ var fs = require("fs"),
     crypto = require( "crypto" ),
     pkg = require("../package.json");
 
-var DEFAULT_PARSER = require("../conf/eslint.json").parser;
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -76,63 +77,13 @@ var DEFAULT_PARSER = require("../conf/eslint.json").parser;
 // Private
 //------------------------------------------------------------------------------
 
-
-var defaultOptions = {
-        configFile: null,
-        baseConfig: false,
-        rulePaths: [],
-        useEslintrc: true,
-        envs: [],
-        globals: [],
-        rules: {},
-        extensions: [".js"],
-        ignore: true,
-        ignorePath: null,
-        parser: DEFAULT_PARSER,
-        cache: false,
-        // in order to honor the cacheFile option if specified
-        // this option should not have a default value otherwise
-        // it will always be used
-        cacheLocation: "",
-        cacheFile: ".eslintcache",
-        fix: false,
-        allowInlineConfig: true
-    },
-    loadedPlugins = Object.create(null);
+defaultOptions = lodash.assign({}, defaultOptions, {cwd: process.cwd()});
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
 debug = debug("eslint:cli-engine");
-
-/**
- * Load the given plugins if they are not loaded already.
- * @param {string[]} pluginNames An array of plugin names which should be loaded.
- * @returns {void}
- */
-function loadPlugins(pluginNames) {
-    if (pluginNames) {
-        pluginNames.forEach(function(pluginName) {
-            var pluginNamespace = util.getNamespace(pluginName),
-                pluginNameWithoutNamespace = util.removeNameSpace(pluginName),
-                pluginNameWithoutPrefix = util.removePluginPrefix(pluginNameWithoutNamespace),
-                plugin;
-
-            if (!loadedPlugins[pluginNameWithoutPrefix]) {
-                debug("Load plugin " + pluginNameWithoutPrefix);
-
-                plugin = require(pluginNamespace + util.PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix);
-                // if this plugin has rules, import them
-                if (plugin.rules) {
-                    rules.import(plugin.rules, pluginNameWithoutPrefix);
-                }
-
-                loadedPlugins[pluginNameWithoutPrefix] = plugin;
-            }
-        });
-    }
-}
 
 /**
  * It will calculate the error and warning count for collection of messages per file
@@ -192,6 +143,7 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
         stats,
         fileExtension = path.extname(filename),
         processor,
+        loadedPlugins,
         fixedResult;
 
     if (filename) {
@@ -201,7 +153,12 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
     filename = filename || "<text>";
     debug("Linting " + filename);
     config = configHelper.getConfig(filePath);
-    loadPlugins(config.plugins);
+
+    if (config.plugins) {
+        Plugins.loadAll(config.plugins);
+    }
+
+    loadedPlugins = Plugins.getAll();
 
     for (var plugin in loadedPlugins) {
         if (loadedPlugins[plugin].processors && Object.keys(loadedPlugins[plugin].processors).indexOf(fileExtension) >= 0) {
@@ -286,7 +243,7 @@ function createIgnoreResult(filePath) {
             {
                 fatal: false,
                 severity: 1,
-                message: "File ignored because of your .eslintignore file. Use --no-ignore to override."
+                message: "File ignored because of a matching ignore pattern. Use --no-ignore to override."
             }
         ],
         errorCount: 0,
@@ -325,14 +282,15 @@ function md5Hash(str) {
  * if cacheFile points to a file or looks like a file then in will just use that file
  *
  * @param {string} cacheFile The name of file to be used to store the cache
+ * @param {string} cwd Current working directory
  * @returns {string} the resolved path to the cache file
  */
-function getCacheFile(cacheFile) {
+function getCacheFile(cacheFile, cwd) {
     // make sure the path separators are normalized for the environment/os
     // keeping the trailing path separator if present
     cacheFile = path.normalize(cacheFile);
 
-    var resolvedCacheFile = path.resolve(cacheFile);
+    var resolvedCacheFile = path.resolve(cwd, cacheFile);
     var looksLikeADirectory = cacheFile[cacheFile.length - 1 ] === path.sep;
 
     /**
@@ -340,7 +298,7 @@ function getCacheFile(cacheFile) {
      * @returns {string} the resolved path to the cacheFile
      */
     function getCacheFileForDirectory() {
-        return path.join(resolvedCacheFile, ".cache_" + md5Hash(process.cwd()));
+        return path.join(resolvedCacheFile, ".cache_" + md5Hash(cwd));
     }
 
     var fileStats;
@@ -389,31 +347,33 @@ function getCacheFile(cacheFile) {
  */
 function CLIEngine(options) {
 
+    options = lodash.assign(Object.create(null), defaultOptions, options);
+
     /**
      * Stored options for this instance
      * @type {Object}
      */
-    this.options = assign(Object.create(defaultOptions), options || {});
+    this.options = options;
 
-
-    var cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile);
+    var cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
 
     /**
      * cache used to not operate on files that haven't changed since last successful
      * execution (e.g. file passed with no errors and no warnings
      * @type {Object}
      */
-    this._fileCache = fileEntryCache.create(cacheFile); // eslint-disable-line no-underscore-dangle
+    this._fileCache = fileEntryCache.create(cacheFile);
 
     if (!this.options.cache) {
-        this._fileCache.destroy(); // eslint-disable-line no-underscore-dangle
+        this._fileCache.destroy();
     }
 
     // load in additional rules
     if (this.options.rulePaths) {
+        var cwd = this.options.cwd;
         this.options.rulePaths.forEach(function(rulesdir) {
             debug("Loading rules from " + rulesdir);
-            rules.load(rulesdir);
+            rules.load(rulesdir, cwd);
         });
     }
 
@@ -444,7 +404,7 @@ CLIEngine.getFormatter = function(format) {
 
         // if there's a slash, then it's a file
         if (format.indexOf("/") > -1) {
-            formatterPath = path.resolve(process.cwd(), format);
+            formatterPath = path.resolve(this.options.cwd, format);
         } else {
             formatterPath = "./formatters/" + format;
         }
@@ -506,11 +466,7 @@ CLIEngine.prototype = {
      * @returns {void}
      */
     addPlugin: function(name, pluginobject) {
-        var pluginNameWithoutPrefix = util.removePluginPrefix(util.removeNameSpace(name));
-        if (pluginobject.rules) {
-            rules.import(pluginobject.rules, pluginNameWithoutPrefix);
-        }
-        loadedPlugins[pluginNameWithoutPrefix] = pluginobject;
+        Plugins.define(name, pluginobject);
     },
 
     /**
@@ -532,15 +488,27 @@ CLIEngine.prototype = {
         var results = [],
             processed = {},
             options = this.options,
-            fileCache = this._fileCache, // eslint-disable-line no-underscore-dangle
+            fileCache = this._fileCache,
             configHelper = new Config(options),
+            ignoredPaths = new IgnoredPaths(options),
+            globOptions,
             stats,
             startTime,
             prevConfig; // the previous configuration used
 
         startTime = Date.now();
 
-        patterns = this.resolveFileGlobPatterns(patterns);
+        globOptions = {
+            nodir: true
+        };
+
+        var cwd = options.cwd || process.cwd;
+        patterns = this.resolveFileGlobPatterns(patterns.map(function(pattern) {
+            if (pattern.indexOf("/") > 0) {
+                return path.join(cwd, pattern);
+            }
+            return pattern;
+        }));
 
         /**
          * Calculates the hash of the config file used to validate a given file
@@ -572,11 +540,28 @@ CLIEngine.prototype = {
          * Executes the linter on a file defined by the `filename`. Skips
          * unsupported file extensions and any files that are already linted.
          * @param {string} filename The resolved filename of the file to be linted
+         * @param {boolean} warnIgnored always warn when a file is ignored
          * @returns {void}
          */
-        function executeOnFile(filename) {
+        function executeOnFile(filename, warnIgnored) {
             var hashOfConfig;
 
+            if (options.ignore !== false) {
+
+                if (ignoredPaths.contains(filename, "custom")) {
+                    if (warnIgnored) {
+                        results.push(createIgnoreResult(filename));
+                    }
+                    return;
+                }
+
+                if (ignoredPaths.contains(filename, "default")) {
+                    return;
+                }
+
+            }
+
+            filename = path.resolve(filename);
             if (processed[filename]) {
                 return;
             }
@@ -636,18 +621,19 @@ CLIEngine.prototype = {
             results.push(res);
         }
 
-        // Lint each desired file
-        globUtil.listFilesToProcess(patterns, options).forEach(executeOnFile);
+        patterns.forEach(function(pattern) {
 
-        // only warn for files explicitly passed on the command line
-        if (options.ignore) {
-            patterns.forEach(function(file) {
-                var fullPath = path.resolve(file);
-                if (shell.test("-f", fullPath) && !processed[fullPath]) {
-                    results.push(createIgnoreResult(file));
-                }
-            });
-        }
+            var file = path.resolve(pattern);
+
+            if (shell.test("-f", file)) {
+                executeOnFile(fs.realpathSync(pattern), !shell.test("-d", file));
+            } else {
+                glob.sync(pattern, globOptions).forEach(function(globMatch) {
+                    executeOnFile(globMatch, false);
+                });
+            }
+
+        });
 
         stats = calculateStatsPerRun(results);
 
@@ -677,10 +663,9 @@ CLIEngine.prototype = {
             stats,
             options = this.options,
             configHelper = new Config(options),
-            ignoredPaths = IgnoredPaths.load(options),
-            exclude = ignoredPaths.contains.bind(ignoredPaths);
+            ignoredPaths = new IgnoredPaths(options);
 
-        if (filename && options.ignore && exclude(filename)) {
+        if (filename && (options.ignore !== false) && ignoredPaths.contains(filename)) {
             results.push(createIgnoreResult(filename));
         } else {
             results.push(processText(text, configHelper, filename, options.fix, options.allowInlineConfig));
@@ -716,7 +701,7 @@ CLIEngine.prototype = {
         var ignoredPaths;
 
         if (this.options.ignore) {
-            ignoredPaths = IgnoredPaths.load(this.options);
+            ignoredPaths = new IgnoredPaths(this.options);
             return ignoredPaths.contains(filePath);
         }
 

@@ -10,21 +10,18 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+var FUNCTION_TYPE = /^(?:ArrowFunctionExpression|Function(?:Declaration|Expression))$/;
+
 module.exports = function(context) {
-
     return {
-
         "BlockStatement": function(node) {
-            var parent = node.parent,
-                parentType = parent.type;
-
             // if the body is not empty, we can just return immediately
             if (node.body.length !== 0) {
                 return;
             }
 
             // a function is generally allowed to be empty
-            if (parentType === "FunctionDeclaration" || parentType === "FunctionExpression" || parentType === "ArrowFunctionExpression") {
+            if (FUNCTION_TYPE.test(node.parent.type)) {
                 return;
             }
 

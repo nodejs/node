@@ -50,7 +50,7 @@ module.exports = function(context) {
     function reportNoBeginningSpace(node, token) {
         context.report({
             node: node,
-            loc: token.loc.end,
+            loc: token.loc.start,
             message: "There should be no space after '" + token.value + "'",
             fix: function(fixer) {
                 var nextToken = context.getSourceCode().getTokenAfter(token);
@@ -86,7 +86,7 @@ module.exports = function(context) {
     function reportRequiredBeginningSpace(node, token) {
         context.report({
             node: node,
-            loc: token.loc.end,
+            loc: token.loc.start,
             message: "A space is required after '" + token.value + "'",
             fix: function(fixer) {
                 return fixer.insertTextAfter(token, " ");

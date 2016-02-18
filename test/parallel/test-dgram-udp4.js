@@ -4,10 +4,10 @@ const assert = require('assert');
 const dgram = require('dgram');
 const server_port = common.PORT;
 const message_to_send = 'A message to send';
-let server, client;
+let client;
 let timer;
 
-server = dgram.createSocket('udp4');
+const server = dgram.createSocket('udp4');
 server.on('message', function(msg, rinfo) {
   console.log('server got: ' + msg +
               ' from ' + rinfo.address + ':' + rinfo.port);

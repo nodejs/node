@@ -16,7 +16,7 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
 
     /**
-     * Checks if the callee if the Function constructor, and if so, reports an issue.
+     * Checks if the callee is the Function constructor, and if so, reports an issue.
      * @param {ASTNode} node The node to check and report on
      * @returns {void}
      * @private

@@ -70,7 +70,7 @@ module.exports = function(context) {
      * This rule handles a given node as multiline when the closing parenthesis
      * and the last element are not on the same line.
      *
-     * @param {ASTNode} node - A ndoe to check.
+     * @param {ASTNode} node - A node to check.
      * @returns {boolean} `true` if the node is multiline.
      */
     function isMultiline(node) {
@@ -81,7 +81,13 @@ module.exports = function(context) {
 
         var sourceCode = context.getSourceCode(),
             penultimateToken = sourceCode.getLastToken(lastItem),
-            lastToken = sourceCode.getLastToken(node);
+            lastToken = sourceCode.getTokenAfter(penultimateToken);
+
+        // parentheses are a pain
+        while (lastToken.value === ")") {
+            penultimateToken = lastToken;
+            lastToken = sourceCode.getTokenAfter(lastToken);
+        }
 
         if (lastToken.value === ",") {
             penultimateToken = lastToken;
@@ -181,12 +187,30 @@ module.exports = function(context) {
         }
     }
 
+    /**
+     * Only if a given node is not multiline, reports the last element of a given node
+     * when it does not have a trailing comma.
+     * Otherwise, reports a trailing comma if it exists.
+     *
+     * @param {ASTNode} node - A node to check. Its type is one of
+     *   ObjectExpression, ObjectPattern, ArrayExpression, ArrayPattern,
+     *   ImportDeclaration, and ExportNamedDeclaration.
+     * @returns {void}
+     */
+    function allowTrailingCommaIfMultiline(node) {
+        if (!isMultiline(node)) {
+            forbidTrailingComma(node);
+        }
+    }
+
     // Chooses a checking function.
     var checkForTrailingComma;
     if (mode === "always") {
         checkForTrailingComma = forceTrailingComma;
     } else if (mode === "always-multiline") {
         checkForTrailingComma = forceTrailingCommaIfMultiline;
+    } else if (mode === "only-multiline") {
+        checkForTrailingComma = allowTrailingCommaIfMultiline;
     } else {
         checkForTrailingComma = forbidTrailingComma;
     }
@@ -203,6 +227,6 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "enum": ["always", "always-multiline", "never"]
+        "enum": ["always", "always-multiline", "only-multiline", "never"]
     }
 ];

@@ -40,6 +40,7 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "type": "integer"
+        "type": "integer",
+        "minimum": 0
     }
 ];
