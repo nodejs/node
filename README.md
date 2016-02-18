@@ -367,11 +367,11 @@ handling your report.
 ## Current Project Team Members
 
 The Node.js project team comprises a group of core collaborators and a sub-group
-that forms the _Technical Steering Committee_ (TSC) which governs the project. For more
+that forms the _Core Technical Committee_ (CTC) which governs the project. For more
 information about the governance of the Node.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
-### TSC (Technical Steering Committee)
+### CTC (Core Technical Committee)
 
 * [bnoordhuis](https://github.com/bnoordhuis) - **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
 * [chrisdickinson](https://github.com/chrisdickinson) - **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
@@ -431,7 +431,7 @@ information about the governance of the Node.js project, see
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) - **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
 * [zkat](https://github.com/zkat) - **Kat Marchán** &lt;kzm@sykosomatic.org&gt;
 
-Collaborators & TSC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
+Collaborators & CTC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the Node.js project.
 
 ### Release Team
