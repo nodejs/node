@@ -1,3 +1,5 @@
+#include "node-contextify.h"
+
 #include "node.h"
 #include "node_internals.h"
 #include "node_watchdog.h"
@@ -461,407 +463,411 @@ class ContextifyContext {
   }
 };
 
-class ContextifyScript : public BaseObject {
- private:
-  Persistent<UnboundScript> script_;
 
- public:
-  static void Init(Environment* env, Local<Object> target) {
-    HandleScope scope(env->isolate());
-    Local<String> class_name =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "ContextifyScript");
+void ContextifyScript::Init(Environment* env, Local<Object> target) {
+  HandleScope scope(env->isolate());
+  Local<String> class_name =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "ContextifyScript");
 
-    Local<FunctionTemplate> script_tmpl = env->NewFunctionTemplate(New);
-    script_tmpl->InstanceTemplate()->SetInternalFieldCount(1);
-    script_tmpl->SetClassName(class_name);
-    env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
-    env->SetProtoMethod(script_tmpl, "runInThisContext", RunInThisContext);
+  Local<FunctionTemplate> script_tmpl = env->NewFunctionTemplate(New);
+  script_tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+  script_tmpl->SetClassName(class_name);
+  env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
+  env->SetProtoMethod(script_tmpl, "runInThisContext", RunInThisContext);
 
-    target->Set(class_name, script_tmpl->GetFunction());
-    env->set_script_context_constructor_template(script_tmpl);
-  }
+  target->Set(class_name, script_tmpl->GetFunction());
+  env->set_script_context_constructor_template(script_tmpl);
+}
 
 
   // args: code, [options]
-  static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
+void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
 
-    if (!args.IsConstructCall()) {
-      return env->ThrowError("Must call vm.Script as a constructor.");
-    }
-
-    ContextifyScript* contextify_script =
-        new ContextifyScript(env, args.This());
-
-    TryCatch try_catch;
-    Local<String> code = args[0]->ToString(env->isolate());
-    Local<String> filename = GetFilenameArg(args, 1);
-    Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
-    Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
-    bool display_errors = GetDisplayErrorsArg(args, 1);
-    MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
-    bool produce_cached_data = GetProduceCachedData(env, args, 1);
-    if (try_catch.HasCaught()) {
-      try_catch.ReThrow();
-      return;
-    }
-
-    ScriptCompiler::CachedData* cached_data = nullptr;
-    if (!cached_data_buf.IsEmpty()) {
-      Local<Uint8Array> ui8 = cached_data_buf.ToLocalChecked();
-      ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
-      cached_data = new ScriptCompiler::CachedData(
-          static_cast<uint8_t*>(contents.Data()) + ui8->ByteOffset(),
-          ui8->ByteLength());
-    }
-
-    ScriptOrigin origin(filename, lineOffset, columnOffset);
-    ScriptCompiler::Source source(code, origin, cached_data);
-    ScriptCompiler::CompileOptions compile_options =
-        ScriptCompiler::kNoCompileOptions;
-
-    if (source.GetCachedData() != nullptr)
-      compile_options = ScriptCompiler::kConsumeCodeCache;
-    else if (produce_cached_data)
-      compile_options = ScriptCompiler::kProduceCodeCache;
-
-    Local<UnboundScript> v8_script = ScriptCompiler::CompileUnbound(
-        env->isolate(),
-        &source,
-        compile_options);
-
-    if (v8_script.IsEmpty()) {
-      if (display_errors) {
-        DecorateErrorStack(env, try_catch);
-      }
-      try_catch.ReThrow();
-      return;
-    }
-    contextify_script->script_.Reset(env->isolate(), v8_script);
-
-    if (compile_options == ScriptCompiler::kConsumeCodeCache) {
-      args.This()->Set(
-          env->cached_data_rejected_string(),
-          Boolean::New(env->isolate(), source.GetCachedData()->rejected));
-    } else if (compile_options == ScriptCompiler::kProduceCodeCache) {
-      const ScriptCompiler::CachedData* cached_data = source.GetCachedData();
-      MaybeLocal<Object> buf = Buffer::Copy(
-          env,
-          reinterpret_cast<const char*>(cached_data->data),
-          cached_data->length);
-      args.This()->Set(env->cached_data_string(), buf.ToLocalChecked());
-    }
+  if (!args.IsConstructCall()) {
+    return env->ThrowError("Must call vm.Script as a constructor.");
   }
 
+  ContextifyScript* contextify_script =
+      new ContextifyScript(env, args.This());
+  contextify_script->persistent().SetWrapperClassId(
+      ClassId::CONTEXTIFY_SCRIPT);
 
-  static bool InstanceOf(Environment* env, const Local<Value>& value) {
-    return !value.IsEmpty() &&
-           env->script_context_constructor_template()->HasInstance(value);
+  TryCatch try_catch;
+  Local<String> code = args[0]->ToString(env->isolate());
+  Local<String> filename = GetFilenameArg(args, 1);
+  Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
+  Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
+  bool display_errors = GetDisplayErrorsArg(args, 1);
+  MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
+  bool produce_cached_data = GetProduceCachedData(env, args, 1);
+  if (try_catch.HasCaught()) {
+    try_catch.ReThrow();
+    return;
   }
+
+  ScriptCompiler::CachedData* cached_data = nullptr;
+  if (!cached_data_buf.IsEmpty()) {
+    Local<Uint8Array> ui8 = cached_data_buf.ToLocalChecked();
+    ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
+    cached_data = new ScriptCompiler::CachedData(
+        static_cast<uint8_t*>(contents.Data()) + ui8->ByteOffset(),
+        ui8->ByteLength());
+  }
+
+  ScriptOrigin origin(filename, lineOffset, columnOffset);
+  ScriptCompiler::Source source(code, origin, cached_data);
+  ScriptCompiler::CompileOptions compile_options =
+      ScriptCompiler::kNoCompileOptions;
+
+  if (source.GetCachedData() != nullptr)
+    compile_options = ScriptCompiler::kConsumeCodeCache;
+  else if (produce_cached_data)
+    compile_options = ScriptCompiler::kProduceCodeCache;
+
+  Local<UnboundScript> v8_script = ScriptCompiler::CompileUnbound(
+      env->isolate(),
+      &source,
+      compile_options);
+
+  if (v8_script.IsEmpty()) {
+    if (display_errors) {
+      DecorateErrorStack(env, try_catch);
+    }
+    try_catch.ReThrow();
+    return;
+  }
+  contextify_script->script_.Reset(env->isolate(), v8_script);
+
+  if (compile_options == ScriptCompiler::kConsumeCodeCache) {
+    args.This()->Set(
+        env->cached_data_rejected_string(),
+        Boolean::New(env->isolate(), source.GetCachedData()->rejected));
+  } else if (compile_options == ScriptCompiler::kProduceCodeCache) {
+    const ScriptCompiler::CachedData* cached_data = source.GetCachedData();
+    MaybeLocal<Object> buf = Buffer::Copy(
+        env,
+        reinterpret_cast<const char*>(cached_data->data),
+        cached_data->length);
+    args.This()->Set(env->cached_data_string(), buf.ToLocalChecked());
+  }
+}
+
+
+bool ContextifyScript::InstanceOf(Environment* env, const Local<Value>& value) {
+  return !value.IsEmpty() &&
+         env->script_context_constructor_template()->HasInstance(value);
+}
 
 
   // args: [options]
-  static void RunInThisContext(const FunctionCallbackInfo<Value>& args) {
-    // Assemble arguments
+void ContextifyScript::RunInThisContext(
+    const FunctionCallbackInfo<Value>& args) {
+  // Assemble arguments
+  TryCatch try_catch;
+  uint64_t timeout = GetTimeoutArg(args, 0);
+  bool display_errors = GetDisplayErrorsArg(args, 0);
+  if (try_catch.HasCaught()) {
+    try_catch.ReThrow();
+    return;
+  }
+
+  // Do the eval within this context
+  Environment* env = Environment::GetCurrent(args);
+  EvalMachine(env, timeout, display_errors, args, try_catch);
+}
+
+  // args: sandbox, [options]
+void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  int64_t timeout;
+  bool display_errors;
+
+  // Assemble arguments
+  if (!args[0]->IsObject()) {
+    return env->ThrowTypeError(
+        "contextifiedSandbox argument must be an object.");
+  }
+
+  Local<Object> sandbox = args[0].As<Object>();
+  {
     TryCatch try_catch;
-    uint64_t timeout = GetTimeoutArg(args, 0);
-    bool display_errors = GetDisplayErrorsArg(args, 0);
+    timeout = GetTimeoutArg(args, 1);
+    display_errors = GetDisplayErrorsArg(args, 1);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;
     }
-
-    // Do the eval within this context
-    Environment* env = Environment::GetCurrent(args);
-    EvalMachine(env, timeout, display_errors, args, try_catch);
   }
 
-  // args: sandbox, [options]
-  static void RunInContext(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-
-    int64_t timeout;
-    bool display_errors;
-
-    // Assemble arguments
-    if (!args[0]->IsObject()) {
-      return env->ThrowTypeError(
-          "contextifiedSandbox argument must be an object.");
-    }
-
-    Local<Object> sandbox = args[0].As<Object>();
-    {
-      TryCatch try_catch;
-      timeout = GetTimeoutArg(args, 1);
-      display_errors = GetDisplayErrorsArg(args, 1);
-      if (try_catch.HasCaught()) {
-        try_catch.ReThrow();
-        return;
-      }
-    }
-
-    // Get the context from the sandbox
-    ContextifyContext* contextify_context =
-        ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
-    if (contextify_context == nullptr) {
-      return env->ThrowTypeError(
-          "sandbox argument must have been converted to a context.");
-    }
-
-    if (contextify_context->context().IsEmpty())
-      return;
-
-    {
-      TryCatch try_catch;
-      // Do the eval within the context
-      Context::Scope context_scope(contextify_context->context());
-      if (EvalMachine(contextify_context->env(),
-                      timeout,
-                      display_errors,
-                      args,
-                      try_catch)) {
-        contextify_context->CopyProperties();
-      }
-
-      if (try_catch.HasCaught()) {
-        try_catch.ReThrow();
-        return;
-      }
-    }
+  // Get the context from the sandbox
+  ContextifyContext* contextify_context =
+      ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
+  if (contextify_context == nullptr) {
+    return env->ThrowTypeError(
+        "sandbox argument must have been converted to a context.");
   }
 
-  static void DecorateErrorStack(Environment* env, const TryCatch& try_catch) {
-    Local<Value> exception = try_catch.Exception();
+  if (contextify_context->context().IsEmpty())
+    return;
 
-    if (!exception->IsObject())
-      return;
-
-    Local<Object> err_obj = exception.As<Object>();
-
-    if (IsExceptionDecorated(env, err_obj))
-      return;
-
-    AppendExceptionLine(env, exception, try_catch.Message());
-    Local<Value> stack = err_obj->Get(env->stack_string());
-    auto maybe_value =
-        err_obj->GetPrivate(
-            env->context(),
-            env->arrow_message_private_symbol());
-
-    Local<Value> arrow;
-    if (!(maybe_value.ToLocal(&arrow) &&
-          arrow->IsString() &&
-          stack->IsString())) {
-      return;
+  {
+    TryCatch try_catch;
+    // Do the eval within the context
+    Context::Scope context_scope(contextify_context->context());
+    if (EvalMachine(contextify_context->env(),
+                    timeout,
+                    display_errors,
+                    args,
+                    try_catch)) {
+      contextify_context->CopyProperties();
     }
 
-    Local<String> decorated_stack = String::Concat(arrow.As<String>(),
-                                                   stack.As<String>());
-    err_obj->Set(env->stack_string(), decorated_stack);
-    err_obj->SetPrivate(
-        env->context(),
-        env->decorated_private_symbol(),
-        True(env->isolate()));
-  }
-
-  static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
-                               const int i) {
-    if (args[i]->IsUndefined() || args[i]->IsString()) {
-      return -1;
-    }
-    if (!args[i]->IsObject()) {
-      Environment::ThrowTypeError(args.GetIsolate(),
-                                  "options must be an object");
-      return -1;
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "timeout");
-    Local<Value> value = args[i].As<Object>()->Get(key);
-    if (value->IsUndefined()) {
-      return -1;
-    }
-    int64_t timeout = value->IntegerValue();
-
-    if (timeout <= 0) {
-      Environment::ThrowRangeError(args.GetIsolate(),
-                                   "timeout must be a positive number");
-      return -1;
-    }
-    return timeout;
-  }
-
-
-  static bool GetDisplayErrorsArg(const FunctionCallbackInfo<Value>& args,
-                                  const int i) {
-    if (args[i]->IsUndefined() || args[i]->IsString()) {
-      return true;
-    }
-    if (!args[i]->IsObject()) {
-      Environment::ThrowTypeError(args.GetIsolate(),
-                                  "options must be an object");
-      return false;
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(),
-                                              "displayErrors");
-    Local<Value> value = args[i].As<Object>()->Get(key);
-
-    return value->IsUndefined() ? true : value->BooleanValue();
-  }
-
-
-  static Local<String> GetFilenameArg(const FunctionCallbackInfo<Value>& args,
-                                      const int i) {
-    Local<String> defaultFilename =
-        FIXED_ONE_BYTE_STRING(args.GetIsolate(), "evalmachine.<anonymous>");
-
-    if (args[i]->IsUndefined()) {
-      return defaultFilename;
-    }
-    if (args[i]->IsString()) {
-      return args[i].As<String>();
-    }
-    if (!args[i]->IsObject()) {
-      Environment::ThrowTypeError(args.GetIsolate(),
-                                  "options must be an object");
-      return Local<String>();
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "filename");
-    Local<Value> value = args[i].As<Object>()->Get(key);
-
-    if (value->IsUndefined())
-      return defaultFilename;
-    return value->ToString(args.GetIsolate());
-  }
-
-
-  static MaybeLocal<Uint8Array> GetCachedData(
-      Environment* env,
-      const FunctionCallbackInfo<Value>& args,
-      const int i) {
-    if (!args[i]->IsObject()) {
-      return MaybeLocal<Uint8Array>();
-    }
-    Local<Value> value = args[i].As<Object>()->Get(env->cached_data_string());
-    if (value->IsUndefined()) {
-      return MaybeLocal<Uint8Array>();
-    }
-
-    if (!value->IsUint8Array()) {
-      Environment::ThrowTypeError(
-          args.GetIsolate(),
-          "options.cachedData must be a Buffer instance");
-      return MaybeLocal<Uint8Array>();
-    }
-
-    return value.As<Uint8Array>();
-  }
-
-
-  static bool GetProduceCachedData(
-      Environment* env,
-      const FunctionCallbackInfo<Value>& args,
-      const int i) {
-    if (!args[i]->IsObject()) {
-      return false;
-    }
-    Local<Value> value =
-        args[i].As<Object>()->Get(env->produce_cached_data_string());
-
-    return value->IsTrue();
-  }
-
-
-  static Local<Integer> GetLineOffsetArg(
-                                      const FunctionCallbackInfo<Value>& args,
-                                      const int i) {
-    Local<Integer> defaultLineOffset = Integer::New(args.GetIsolate(), 0);
-
-    if (!args[i]->IsObject()) {
-      return defaultLineOffset;
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "lineOffset");
-    Local<Value> value = args[i].As<Object>()->Get(key);
-
-    return value->IsUndefined() ? defaultLineOffset : value->ToInteger();
-  }
-
-
-  static Local<Integer> GetColumnOffsetArg(
-                                      const FunctionCallbackInfo<Value>& args,
-                                      const int i) {
-    Local<Integer> defaultColumnOffset = Integer::New(args.GetIsolate(), 0);
-
-    if (!args[i]->IsObject()) {
-      return defaultColumnOffset;
-    }
-
-    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(),
-                                              "columnOffset");
-    Local<Value> value = args[i].As<Object>()->Get(key);
-
-    return value->IsUndefined() ? defaultColumnOffset : value->ToInteger();
-  }
-
-
-  static bool EvalMachine(Environment* env,
-                          const int64_t timeout,
-                          const bool display_errors,
-                          const FunctionCallbackInfo<Value>& args,
-                          TryCatch& try_catch) {
-    if (!ContextifyScript::InstanceOf(env, args.Holder())) {
-      env->ThrowTypeError(
-          "Script methods can only be called on script instances.");
-      return false;
-    }
-
-    ContextifyScript* wrapped_script = Unwrap<ContextifyScript>(args.Holder());
-    Local<UnboundScript> unbound_script =
-        PersistentToLocal(env->isolate(), wrapped_script->script_);
-    Local<Script> script = unbound_script->BindToCurrentContext();
-
-    Local<Value> result;
-    if (timeout != -1) {
-      Watchdog wd(env->isolate(), timeout);
-      result = script->Run();
-    } else {
-      result = script->Run();
-    }
-
-    if (try_catch.HasCaught() && try_catch.HasTerminated()) {
-      V8::CancelTerminateExecution(env->isolate());
-      env->ThrowError("Script execution timed out.");
+    if (try_catch.HasCaught()) {
       try_catch.ReThrow();
-      return false;
+      return;
     }
+  }
+}
 
-    if (result.IsEmpty()) {
-      // Error occurred during execution of the script.
-      if (display_errors) {
-        DecorateErrorStack(env, try_catch);
-      }
-      try_catch.ReThrow();
-      return false;
-    }
+void ContextifyScript::DecorateErrorStack(Environment* env,
+                                          const TryCatch& try_catch) {
+  Local<Value> exception = try_catch.Exception();
 
-    args.GetReturnValue().Set(result);
+  if (!exception->IsObject())
+    return;
+
+  Local<Object> err_obj = exception.As<Object>();
+
+  if (IsExceptionDecorated(env, err_obj))
+    return;
+
+  AppendExceptionLine(env, exception, try_catch.Message());
+  Local<Value> stack = err_obj->Get(env->stack_string());
+  auto maybe_value =
+      err_obj->GetPrivate(
+          env->context(),
+          env->arrow_message_private_symbol());
+
+  Local<Value> arrow;
+  if (!(maybe_value.ToLocal(&arrow) &&
+        arrow->IsString() &&
+        stack->IsString())) {
+    return;
+  }
+
+  Local<String> decorated_stack = String::Concat(arrow.As<String>(),
+                                                 stack.As<String>());
+  err_obj->Set(env->stack_string(), decorated_stack);
+  err_obj->SetPrivate(
+      env->context(),
+      env->decorated_private_symbol(),
+      True(env->isolate()));
+}
+
+int64_t ContextifyScript::GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
+                                        const int i) {
+  if (args[i]->IsUndefined() || args[i]->IsString()) {
+    return -1;
+  }
+  if (!args[i]->IsObject()) {
+    Environment::ThrowTypeError(args.GetIsolate(),
+                                "options must be an object");
+    return -1;
+  }
+
+  Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "timeout");
+  Local<Value> value = args[i].As<Object>()->Get(key);
+  if (value->IsUndefined()) {
+    return -1;
+  }
+  int64_t timeout = value->IntegerValue();
+
+  if (timeout <= 0) {
+    Environment::ThrowRangeError(args.GetIsolate(),
+                                 "timeout must be a positive number");
+    return -1;
+  }
+  return timeout;
+}
+
+
+bool ContextifyScript::GetDisplayErrorsArg(
+    const FunctionCallbackInfo<Value>& args, const int i) {
+  if (args[i]->IsUndefined() || args[i]->IsString()) {
     return true;
   }
-
-
-  ContextifyScript(Environment* env, Local<Object> object)
-      : BaseObject(env, object) {
-    MakeWeak<ContextifyScript>(this);
+  if (!args[i]->IsObject()) {
+    Environment::ThrowTypeError(args.GetIsolate(),
+                                "options must be an object");
+    return false;
   }
 
+  Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(),
+                                            "displayErrors");
+  Local<Value> value = args[i].As<Object>()->Get(key);
 
-  ~ContextifyScript() override {
-    script_.Reset();
+  return value->IsUndefined() ? true : value->BooleanValue();
+}
+
+
+Local<String> ContextifyScript::GetFilenameArg(
+    const FunctionCallbackInfo<Value>& args, const int i) {
+  Local<String> defaultFilename =
+      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "evalmachine.<anonymous>");
+
+  if (args[i]->IsUndefined()) {
+    return defaultFilename;
   }
-};
+  if (args[i]->IsString()) {
+    return args[i].As<String>();
+  }
+  if (!args[i]->IsObject()) {
+    Environment::ThrowTypeError(args.GetIsolate(),
+                                "options must be an object");
+    return Local<String>();
+  }
 
+  Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "filename");
+  Local<Value> value = args[i].As<Object>()->Get(key);
+
+  if (value->IsUndefined())
+    return defaultFilename;
+  return value->ToString(args.GetIsolate());
+}
+
+
+MaybeLocal<Uint8Array> ContextifyScript::GetCachedData(
+    Environment* env,
+    const FunctionCallbackInfo<Value>& args,
+    const int i) {
+  if (!args[i]->IsObject()) {
+    return MaybeLocal<Uint8Array>();
+  }
+  Local<Value> value = args[i].As<Object>()->Get(env->cached_data_string());
+  if (value->IsUndefined()) {
+    return MaybeLocal<Uint8Array>();
+  }
+
+  if (!value->IsUint8Array()) {
+    Environment::ThrowTypeError(
+        args.GetIsolate(),
+        "options.cachedData must be a Buffer instance");
+    return MaybeLocal<Uint8Array>();
+  }
+
+  return value.As<Uint8Array>();
+}
+
+
+bool ContextifyScript::GetProduceCachedData(
+    Environment* env,
+    const FunctionCallbackInfo<Value>& args,
+    const int i) {
+  if (!args[i]->IsObject()) {
+    return false;
+  }
+  Local<Value> value =
+      args[i].As<Object>()->Get(env->produce_cached_data_string());
+
+  return value->IsTrue();
+}
+
+
+Local<Integer> ContextifyScript::GetLineOffsetArg(
+    const FunctionCallbackInfo<Value>& args,
+    const int i) {
+  Local<Integer> defaultLineOffset = Integer::New(args.GetIsolate(), 0);
+
+  if (!args[i]->IsObject()) {
+    return defaultLineOffset;
+  }
+
+  Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "lineOffset");
+  Local<Value> value = args[i].As<Object>()->Get(key);
+
+  return value->IsUndefined() ? defaultLineOffset : value->ToInteger();
+}
+
+
+Local<Integer> ContextifyScript::GetColumnOffsetArg(
+    const FunctionCallbackInfo<Value>& args,
+    const int i) {
+  Local<Integer> defaultColumnOffset = Integer::New(args.GetIsolate(), 0);
+
+  if (!args[i]->IsObject()) {
+    return defaultColumnOffset;
+  }
+
+  Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(),
+                                            "columnOffset");
+  Local<Value> value = args[i].As<Object>()->Get(key);
+
+  return value->IsUndefined() ? defaultColumnOffset : value->ToInteger();
+}
+
+
+bool ContextifyScript::EvalMachine(Environment* env,
+                                   const int64_t timeout,
+                                   const bool display_errors,
+                                   const FunctionCallbackInfo<Value>& args,
+                                   TryCatch& try_catch) {
+  if (!env->CanCallIntoJs())
+    return false;
+  if (!ContextifyScript::InstanceOf(env, args.Holder())) {
+    env->ThrowTypeError(
+        "Script methods can only be called on script instances.");
+    return false;
+  }
+
+  ContextifyScript* wrapped_script = Unwrap<ContextifyScript>(args.Holder());
+  Local<UnboundScript> unbound_script =
+      PersistentToLocal(env->isolate(), wrapped_script->script_);
+  Local<Script> script = unbound_script->BindToCurrentContext();
+
+  Local<Value> result;
+  if (timeout != -1) {
+    Watchdog wd(env->isolate(), timeout);
+    result = script->Run();
+  } else {
+    result = script->Run();
+  }
+
+  if (try_catch.HasCaught() && try_catch.HasTerminated()) {
+    V8::CancelTerminateExecution(env->isolate());
+    env->ThrowError("Script execution timed out.");
+    try_catch.ReThrow();
+    return false;
+  }
+
+  if (result.IsEmpty()) {
+    // Error occurred during execution of the script.
+    if (display_errors) {
+      DecorateErrorStack(env, try_catch);
+    }
+    try_catch.ReThrow();
+    return false;
+  }
+
+  args.GetReturnValue().Set(result);
+  return true;
+}
+
+
+void ContextifyScript::Dispose() {
+  persistent().Reset();
+  delete this;
+}
+
+ContextifyScript::ContextifyScript(Environment* env, Local<Object> object)
+    : BaseObject(env, object) {
+  MakeWeak<ContextifyScript>(this);
+}
+
+ContextifyScript::~ContextifyScript() {
+  script_.Reset();
+}
 
 void InitContextify(Local<Object> target,
                     Local<Value> unused,

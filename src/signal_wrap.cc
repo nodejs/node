@@ -58,6 +58,7 @@ class SignalWrap : public HandleWrap {
                    AsyncWrap::PROVIDER_SIGNALWRAP) {
     int r = uv_signal_init(env->event_loop(), &handle_);
     CHECK_EQ(r, 0);
+    RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&handle_));
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {

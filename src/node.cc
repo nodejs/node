@@ -43,6 +43,7 @@
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
+#include "worker.h"
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
@@ -138,7 +139,6 @@ static bool syntax_check_only = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool trace_sync_io = false;
-static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
@@ -153,22 +153,32 @@ static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 
+// used by C++ modules as well
+bool track_heap_objects = false;
+bool no_deprecation = false;
+bool experimental_workers = false;
+
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
 static const char* icu_data_dir = nullptr;
 #endif
 
-// used by C++ modules as well
-bool no_deprecation = false;
+v8::Platform* default_platform = nullptr;
 
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 static bool debugger_running;
+// Needed for potentially non-thread-safe process-globals
+static uv_mutex_t process_mutex;
+// Workers have read-only access to process-globals but cannot write them
+static uv_rwlock_t process_rwlock;
 static uv_async_t dispatch_debug_messages_async;
 
 static node::atomic<Isolate*> node_isolate;
-static v8::Platform* default_platform;
+static uv_thread_t process_main_thread;
 
+static size_t thread_id_counter = 1;
+static uv_mutex_t thread_id_counter_mutex;
 
 static void PrintErrorString(const char* format, ...) {
   va_list ap;
@@ -1131,6 +1141,8 @@ Local<Value> MakeCallback(Environment* env,
                           const Local<Function> callback,
                           int argc,
                           Local<Value> argv[]) {
+  if (!env->CanCallIntoJs())
+    return Undefined(env->isolate());
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
@@ -1166,22 +1178,33 @@ Local<Value> MakeCallback(Environment* env,
     Local<Value> enter_v = domain->Get(env->enter_string());
     if (enter_v->IsFunction()) {
       if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::MakeCallback",
-                   "domain enter callback threw, please report this");
+        if (env->CanCallIntoJs())
+          FatalError("node::MakeCallback",
+                     "domain enter callback threw, please report this");
+        else
+          return Undefined(env->isolate());
       }
     }
   }
 
   if (ran_init_callback && !pre_fn.IsEmpty()) {
-    if (pre_fn->Call(object, 0, nullptr).IsEmpty())
-      FatalError("node::MakeCallback", "pre hook threw");
+    if (pre_fn->Call(object, 0, nullptr).IsEmpty()) {
+      if (env->CanCallIntoJs())
+        FatalError("node::MakeCallback", "pre hook threw");
+      else
+        return Undefined(env->isolate());
+    }
   }
 
   Local<Value> ret = callback->Call(recv, argc, argv);
 
   if (ran_init_callback && !post_fn.IsEmpty()) {
-    if (post_fn->Call(object, 0, nullptr).IsEmpty())
-      FatalError("node::MakeCallback", "post hook threw");
+    if (post_fn->Call(object, 0, nullptr).IsEmpty()) {
+      if (env->CanCallIntoJs())
+        FatalError("node::MakeCallback", "post hook threw");
+      else
+        return Undefined(env->isolate());
+    }
   }
 
   if (ret.IsEmpty()) {
@@ -1192,8 +1215,11 @@ Local<Value> MakeCallback(Environment* env,
     Local<Value> exit_v = domain->Get(env->exit_string());
     if (exit_v->IsFunction()) {
       if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::MakeCallback",
+        if (env->CanCallIntoJs())
+          FatalError("node::MakeCallback",
                    "domain exit callback threw, please report this");
+        else
+          return Undefined(env->isolate());
       }
     }
   }
@@ -1508,6 +1534,7 @@ void AppendExceptionLine(Environment* env,
   if (env->printed_error())
     return;
   env->set_printed_error(true);
+  ScopedLock::Mutex lock(&process_mutex);
   uv_tty_reset_mode();
   PrintErrorString("\n%s", arrow);
 }
@@ -1607,13 +1634,15 @@ static Local<Value> ExecuteString(Environment* env,
   Local<v8::Script> script = v8::Script::Compile(source, filename);
   if (script.IsEmpty()) {
     ReportException(env, try_catch);
-    exit(3);
+    env->Exit(3);
+    return Local<Value>();
   }
 
   Local<Value> result = script->Run();
   if (result.IsEmpty()) {
     ReportException(env, try_catch);
-    exit(4);
+    env->Exit(4);
+    return Local<Value>();
   }
 
   return scope.Escape(result);
@@ -1688,6 +1717,7 @@ static void Abort(const FunctionCallbackInfo<Value>& args) {
 
 static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_thread());
 
   if (args.Length() != 1 || !args[0]->IsString()) {
     return env->ThrowTypeError("Bad argument.");
@@ -1731,6 +1761,8 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 || args[0]->IsUndefined()) {
     old = umask(0);
     umask(static_cast<mode_t>(old));
+  } else if (env->is_worker_thread()) {
+    return env->ThrowRangeError("cannot set umask from a worker");
   } else if (!args[0]->IsInt32() && !args[0]->IsString()) {
     return env->ThrowTypeError("argument must be an integer or octal string.");
   } else {
@@ -1887,6 +1919,7 @@ static void GetEGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_thread());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("setgid argument must be a number or a string");
@@ -1906,6 +1939,7 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_thread());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("setegid argument must be a number or string");
@@ -1925,6 +1959,7 @@ static void SetEGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_thread());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("setuid argument must be a number or a string");
@@ -1944,6 +1979,7 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_thread());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("seteuid argument must be a number or string");
@@ -2081,7 +2117,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 
 void Exit(const FunctionCallbackInfo<Value>& args) {
-  exit(args[0]->Int32Value());
+  Environment::GetCurrent(args)->Exit(args[0]->Int32Value());
 }
 
 
@@ -2090,6 +2126,8 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
   double uptime;
 
   uv_update_time(env->event_loop());
+  // TODO(petkaantonov) Will report the main instance's uptime even when
+  // called inside a worker instance
   uptime = uv_now(env->event_loop()) - prog_start_time;
 
   args.GetReturnValue().Set(Number::New(env->isolate(), uptime / 1000));
@@ -2318,7 +2356,7 @@ void FatalException(Isolate* isolate,
     // failed before the process._fatalException function was added!
     // this is probably pretty bad.  Nothing to do but report and exit.
     ReportException(env, error, message);
-    exit(6);
+    return env->Exit(6);
   }
 
   TryCatch fatal_try_catch;
@@ -2333,12 +2371,12 @@ void FatalException(Isolate* isolate,
   if (fatal_try_catch.HasCaught()) {
     // the fatal exception function threw, so we must exit
     ReportException(env, fatal_try_catch);
-    exit(7);
+    return env->Exit(7);
   }
 
   if (false == caught->BooleanValue()) {
     ReportException(env, error, message);
-    exit(1);
+    return env->Exit(1);
   }
 }
 
@@ -2360,6 +2398,9 @@ void OnMessage(Local<Message> message, Local<Value> error) {
 
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  ScopedLock::Mutex lock(env->ApiMutex());
+  if (!env->CanCallIntoJs())
+    return;
 
   Local<String> module = args[0]->ToString(env->isolate());
   node::Utf8Value module_v(env->isolate(), module);
@@ -2458,7 +2499,12 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
 static void ProcessTitleGetter(Local<String> property,
                                const PropertyCallbackInfo<Value>& info) {
   char buffer[512];
-  uv_get_process_title(buffer, sizeof(buffer));
+  {
+    // FIXME(petkaantonov) remove this when
+    // https://github.com/libuv/libuv/issues/271 is resolved.
+    ScopedLock::Read lock(&process_rwlock);
+    uv_get_process_title(buffer, sizeof(buffer));
+  }
   info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer));
 }
 
@@ -2467,7 +2513,9 @@ static void ProcessTitleSetter(Local<String> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
-  // TODO(piscisaureus): protect with a lock
+  // FIXME(petkaantonov) remove this when
+  // https://github.com/libuv/libuv/issues/271 is resolved.
+  ScopedLock::Write lock(&process_rwlock);
   uv_set_process_title(*title);
 }
 
@@ -2475,6 +2523,7 @@ static void ProcessTitleSetter(Local<String> property,
 static void EnvGetter(Local<String> property,
                       const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  ScopedLock::Read lock(&process_rwlock);
 #ifdef __POSIX__
   node::Utf8Value key(isolate, property);
   const char* val = getenv(*key);
@@ -2503,6 +2552,7 @@ static void EnvGetter(Local<String> property,
 static void EnvSetter(Local<String> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
+  ScopedLock::Write lock(&process_rwlock);
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   node::Utf8Value val(info.GetIsolate(), value);
@@ -2524,6 +2574,7 @@ static void EnvSetter(Local<String> property,
 static void EnvQuery(Local<String> property,
                      const PropertyCallbackInfo<Integer>& info) {
   int32_t rc = -1;  // Not found unless proven otherwise.
+  ScopedLock::Read lock(&process_rwlock);
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   if (getenv(*key))
@@ -2550,6 +2601,7 @@ static void EnvQuery(Local<String> property,
 static void EnvDeleter(Local<String> property,
                        const PropertyCallbackInfo<Boolean>& info) {
   bool rc = true;
+  ScopedLock::Write lock(&process_rwlock);
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   rc = getenv(*key) != nullptr;
@@ -2576,7 +2628,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Local<Function> fn = env->push_values_to_array_function();
   Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
   size_t idx = 0;
-
+  ScopedLock::Read lock(&process_rwlock);
 #ifdef __POSIX__
   int size = 0;
   while (environ[size])
@@ -2688,12 +2740,16 @@ static Local<Object> GetFeatures(Environment* env) {
            Boolean::New(env->isolate(),
                         get_builtin_module("crypto") != nullptr));
 
+  obj->Set(env->experimental_workers_string(),
+           Boolean::New(env->isolate(), experimental_workers));
+
   return scope.Escape(obj);
 }
 
 
 static void DebugPortGetter(Local<String> property,
                             const PropertyCallbackInfo<Value>& info) {
+  ScopedLock::Read lock(&process_rwlock);
   info.GetReturnValue().Set(debug_port);
 }
 
@@ -2701,6 +2757,7 @@ static void DebugPortGetter(Local<String> property,
 static void DebugPortSetter(Local<String> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
+  ScopedLock::Write lock(&process_rwlock);
   debug_port = value->Int32Value();
 }
 
@@ -2807,8 +2864,18 @@ void SetupProcessObject(Environment* env,
 
   process->SetAccessor(env->title_string(),
                        ProcessTitleGetter,
-                       ProcessTitleSetter,
+                       env->is_main_thread() ? ProcessTitleSetter : nullptr,
                        env->as_external());
+
+  // process.isMainThread
+  READONLY_PROPERTY(process,
+                    "isMainThread",
+                    Boolean::New(env->isolate(), env->is_main_thread()));
+
+  // process.isWorkerThread
+  READONLY_PROPERTY(process,
+                    "isWorkerThread",
+                    Boolean::New(env->isolate(), env->is_worker_thread()));
 
   // process.version
   READONLY_PROPERTY(process,
@@ -2960,15 +3027,18 @@ void SetupProcessObject(Environment* env,
   // create process.env
   Local<ObjectTemplate> process_env_template =
       ObjectTemplate::New(env->isolate());
-  process_env_template->SetNamedPropertyHandler(EnvGetter,
-                                                EnvSetter,
-                                                EnvQuery,
-                                                EnvDeleter,
-                                                EnvEnumerator,
-                                                env->as_external());
+  process_env_template->SetNamedPropertyHandler(
+    EnvGetter,
+    env->is_main_thread() ? EnvSetter : nullptr,
+    EnvQuery,
+    env->is_main_thread() ? EnvDeleter : nullptr,
+    EnvEnumerator,
+    env->as_external());
   Local<Object> process_env = process_env_template->NewInstance();
   process->Set(env->env_string(), process_env);
 
+  READONLY_PROPERTY(process, "tid", Number::New(env->isolate(),
+                                                env->thread_id()));
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
   process->SetAccessor(env->need_imm_cb_string(),
@@ -2976,43 +3046,55 @@ void SetupProcessObject(Environment* env,
                        NeedImmediateCallbackSetter,
                        env->as_external());
 
-  // -e, --eval
-  if (eval_string) {
-    READONLY_PROPERTY(process,
-                      "_eval",
-                      String::NewFromUtf8(env->isolate(), eval_string));
-  }
-
-  // -p, --print
-  if (print_eval) {
-    READONLY_PROPERTY(process, "_print_eval", True(env->isolate()));
-  }
-
-  // -c, --check
-  if (syntax_check_only) {
-    READONLY_PROPERTY(process, "_syntax_check_only", True(env->isolate()));
-  }
-
-  // -i, --interactive
-  if (force_repl) {
-    READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
-  }
-
-  if (preload_module_count) {
-    CHECK(preload_modules);
-    Local<Array> array = Array::New(env->isolate());
-    for (unsigned int i = 0; i < preload_module_count; ++i) {
-      Local<String> module = String::NewFromUtf8(env->isolate(),
-                                                 preload_modules[i]);
-      array->Set(i, module);
+  if (env->is_main_thread()) {
+    // -e, --eval
+    if (eval_string) {
+      READONLY_PROPERTY(process,
+                        "_eval",
+                        String::NewFromUtf8(env->isolate(), eval_string));
     }
-    READONLY_PROPERTY(process,
-                      "_preload_modules",
-                      array);
 
-    delete[] preload_modules;
-    preload_modules = nullptr;
-    preload_module_count = 0;
+    // -c, --check
+    if (syntax_check_only) {
+      READONLY_PROPERTY(process, "_syntax_check_only", True(env->isolate()));
+    }
+
+    // -p, --print
+    if (print_eval) {
+      READONLY_PROPERTY(process, "_print_eval", True(env->isolate()));
+    }
+
+    // -i, --interactive
+    if (force_repl) {
+      READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
+    }
+
+    if (preload_module_count) {
+      CHECK(preload_modules);
+      Local<Array> array = Array::New(env->isolate());
+      for (unsigned int i = 0; i < preload_module_count; ++i) {
+        Local<String> module = String::NewFromUtf8(env->isolate(),
+                                                   preload_modules[i]);
+        array->Set(i, module);
+      }
+      READONLY_PROPERTY(process,
+                        "_preload_modules",
+                        array);
+      delete[] preload_modules;
+      preload_modules = nullptr;
+      preload_module_count = 0;
+    }
+
+
+    // --prof-process
+    if (prof_process) {
+      READONLY_PROPERTY(process, "profProcess", True(env->isolate()));
+    }
+  }
+
+  // --trace-deprecation
+  if (trace_deprecation) {
+    READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
   // --no-deprecation
@@ -3023,16 +3105,6 @@ void SetupProcessObject(Environment* env,
   // --throw-deprecation
   if (throw_deprecation) {
     READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
-  }
-
-  // --prof-process
-  if (prof_process) {
-    READONLY_PROPERTY(process, "profProcess", True(env->isolate()));
-  }
-
-  // --trace-deprecation
-  if (trace_deprecation) {
-    READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
   // --security-revert flags
@@ -3061,50 +3133,56 @@ void SetupProcessObject(Environment* env,
 
   process->SetAccessor(env->debug_port_string(),
                        DebugPortGetter,
-                       DebugPortSetter,
+                       env->is_main_thread() ? DebugPortSetter : nullptr,
                        env->as_external());
 
   // define various internal methods
-  env->SetMethod(process,
-                 "_startProfilerIdleNotifier",
-                 StartProfilerIdleNotifier);
-  env->SetMethod(process,
-                 "_stopProfilerIdleNotifier",
-                 StopProfilerIdleNotifier);
   env->SetMethod(process, "_getActiveRequests", GetActiveRequests);
   env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(process, "reallyExit", Exit);
-  env->SetMethod(process, "abort", Abort);
-  env->SetMethod(process, "chdir", Chdir);
   env->SetMethod(process, "cwd", Cwd);
 
+  if (env->is_main_thread()) {
+    env->SetMethod(process, "abort", Abort);
+    env->SetMethod(process,
+                   "_startProfilerIdleNotifier",
+                   StartProfilerIdleNotifier);
+    env->SetMethod(process,
+                   "_stopProfilerIdleNotifier",
+                   StopProfilerIdleNotifier);
+    env->SetMethod(process, "chdir", Chdir);
+  }
   env->SetMethod(process, "umask", Umask);
 
 #if defined(__POSIX__) && !defined(__ANDROID__)
   env->SetMethod(process, "getuid", GetUid);
   env->SetMethod(process, "geteuid", GetEUid);
-  env->SetMethod(process, "setuid", SetUid);
-  env->SetMethod(process, "seteuid", SetEUid);
-
-  env->SetMethod(process, "setgid", SetGid);
-  env->SetMethod(process, "setegid", SetEGid);
   env->SetMethod(process, "getgid", GetGid);
   env->SetMethod(process, "getegid", GetEGid);
-
   env->SetMethod(process, "getgroups", GetGroups);
-  env->SetMethod(process, "setgroups", SetGroups);
-  env->SetMethod(process, "initgroups", InitGroups);
+
+  if (env->is_main_thread()) {
+    env->SetMethod(process, "setuid", SetUid);
+    env->SetMethod(process, "seteuid", SetEUid);
+    env->SetMethod(process, "setgid", SetGid);
+    env->SetMethod(process, "setegid", SetEGid);
+    env->SetMethod(process, "setgroups", SetGroups);
+    env->SetMethod(process, "initgroups", InitGroups);
+  }
 #endif  // __POSIX__ && !defined(__ANDROID__)
 
   env->SetMethod(process, "_kill", Kill);
 
-  env->SetMethod(process, "_debugProcess", DebugProcess);
-  env->SetMethod(process, "_debugPause", DebugPause);
-  env->SetMethod(process, "_debugEnd", DebugEnd);
+  if (env->is_main_thread()) {
+    env->SetMethod(process, "_debugProcess", DebugProcess);
+    env->SetMethod(process, "_debugPause", DebugPause);
+    env->SetMethod(process, "_debugEnd", DebugEnd);
+  }
 
   env->SetMethod(process, "hrtime", Hrtime);
 
-  env->SetMethod(process, "dlopen", DLOpen);
+  if (env->is_main_thread())
+    env->SetMethod(process, "dlopen", DLOpen);
 
   env->SetMethod(process, "uptime", Uptime);
   env->SetMethod(process, "memoryUsage", MemoryUsage);
@@ -3123,6 +3201,7 @@ void SetupProcessObject(Environment* env,
 
 
 #undef READONLY_PROPERTY
+#undef READONLY_DONT_ENUM_PROPERTY
 
 
 static void AtExit() {
@@ -3167,8 +3246,6 @@ void LoadEnvironment(Environment* env) {
   // source code.)
 
   // The node.js file returns a function 'f'
-  atexit(AtExit);
-
   TryCatch try_catch;
 
   // Disable verbose mode to stop FatalException() handler from trying
@@ -3180,7 +3257,7 @@ void LoadEnvironment(Environment* env) {
   Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
-    exit(10);
+    return env->Exit(10);
   }
   CHECK(f_value->IsFunction());
   Local<Function> f = Local<Function>::Cast(f_value);
@@ -3432,6 +3509,9 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js
+    } else if (strcmp(arg, "--experimental-workers") == 0 ||
+               strcmp(arg, "--experimental_workers") == 0) {
+      experimental_workers = true;
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
@@ -3767,6 +3847,7 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 
 
 inline void PlatformInit() {
+process_main_thread = uv_thread_self();
 #ifdef __POSIX__
   sigset_t sigmask;
   sigemptyset(&sigmask);
@@ -3833,6 +3914,7 @@ void Init(int* argc,
           const char** argv,
           int* exec_argc,
           const char*** exec_argv) {
+  atexit(AtExit);
   // Initialize prog_start_time to get relative uptime.
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
@@ -3939,6 +4021,9 @@ static AtExitCallback* at_exit_functions_;
 
 // TODO(bnoordhuis) Turn into per-context event.
 void RunAtExit(Environment* env) {
+  if (env->is_worker_thread())
+    return;
+
   AtExitCallback* p = at_exit_functions_;
   at_exit_functions_ = nullptr;
 
@@ -4018,18 +4103,6 @@ Environment* CreateEnvironment(Isolate* isolate,
   return env;
 }
 
-static Environment* CreateEnvironment(Isolate* isolate,
-                                      Local<Context> context,
-                                      NodeInstanceData* instance_data) {
-  return CreateEnvironment(isolate,
-                           instance_data->event_loop(),
-                           context,
-                           instance_data->argc(),
-                           instance_data->argv(),
-                           instance_data->exec_argc(),
-                           instance_data->exec_argv());
-}
-
 
 static void HandleCloseCb(uv_handle_t* handle) {
   Environment* env = reinterpret_cast<Environment*>(handle->data);
@@ -4037,11 +4110,32 @@ static void HandleCloseCb(uv_handle_t* handle) {
 }
 
 
-static void HandleCleanup(Environment* env,
+static void HandleCleanupCallback(Environment* env,
                           uv_handle_t* handle,
                           void* arg) {
   handle->data = env;
   uv_close(handle, HandleCloseCb);
+}
+
+
+Environment* CreateEnvironment(Isolate* isolate,
+                               Local<Context> context,
+                               WorkerContext* worker_context) {
+  CHECK_NE(worker_context, nullptr);
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(context);
+  Environment* env = Environment::New(context,
+                                      worker_context->worker_event_loop(),
+                                      worker_context);
+  InitializeEnvironment(env,
+                        isolate,
+                        worker_context->worker_event_loop(),
+                        context,
+                        worker_context->argc(),
+                        worker_context->argv(),
+                        worker_context->exec_argc(),
+                        worker_context->exec_argv());
+  return env;
 }
 
 
@@ -4056,7 +4150,26 @@ Environment* CreateEnvironment(Isolate* isolate,
 
   Context::Scope context_scope(context);
   Environment* env = Environment::New(context, loop);
+  InitializeEnvironment(env,
+                        isolate,
+                        loop,
+                        context,
+                        argc,
+                        argv,
+                        exec_argc,
+                        exec_argv);
+  return env;
+}
 
+
+void InitializeEnvironment(Environment* env,
+                           Isolate* isolate,
+                           uv_loop_t* loop,
+                           Local<Context> context,
+                           int argc,
+                           const char* const* argv,
+                           int exec_argc,
+                           const char* const* exec_argv) {
   isolate->SetAutorunMicrotasks(false);
 
   uv_check_init(env->event_loop(), env->immediate_check_handle());
@@ -4082,24 +4195,23 @@ Environment* CreateEnvironment(Isolate* isolate,
   // Register handle cleanups
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->immediate_check_handle()),
-      HandleCleanup,
+      HandleCleanupCallback,
       nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->immediate_idle_handle()),
-      HandleCleanup,
+      HandleCleanupCallback,
       nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()),
-      HandleCleanup,
+      HandleCleanupCallback,
       nullptr);
   env->RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(env->idle_check_handle()),
-      HandleCleanup,
+      HandleCleanupCallback,
       nullptr);
 
-  if (v8_is_profiling) {
+  if (env->is_main_thread() && v8_is_profiling)
     StartProfilerIdleNotifier(env);
-  }
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New(isolate);
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
@@ -4109,15 +4221,34 @@ Environment* CreateEnvironment(Isolate* isolate,
 
   SetupProcessObject(env, argc, argv, exec_argc, exec_argv);
   LoadAsyncWrapperInfo(env);
+}
 
-  return env;
+// MSVC work-around for intrusive lists.
+namespace workaround {
+static ListHead <WorkerContext,
+                 &WorkerContext::cleanup_queue_member_> cleanup_queue_;
+}
+static uv_mutex_t cleanup_queue_mutex_;
+// Deleting WorkerContexts in response to their notification signals
+// will cause use-after-free inside libuv. So the final `delete this`
+// call must be made somewhere else.
+static void CleanupWorkerContexts() {
+  ScopedLock::Mutex lock(&cleanup_queue_mutex_);
+  while (WorkerContext* context = workaround::cleanup_queue_.PopFront())
+    delete context;
 }
 
 
-// Entry point for new node instances, also called directly for the main
-// node instance.
-static void StartNodeInstance(void* arg) {
-  NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
+void QueueWorkerContextCleanup(WorkerContext* context) {
+  ScopedLock::Mutex lock(&cleanup_queue_mutex_);
+  workaround::cleanup_queue_.PushBack(context);
+}
+
+
+static int RunMainThread(int argc,
+                         const char** argv,
+                         int exec_argc,
+                         const char** exec_argv) {
   Isolate::CreateParams params;
   ArrayBufferAllocator* array_buffer_allocator = new ArrayBufferAllocator();
   params.array_buffer_allocator = array_buffer_allocator;
@@ -4128,26 +4259,26 @@ static void StartNodeInstance(void* arg) {
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
+  CHECK_EQ(nullptr, node_isolate.exchange(isolate));
 
-  // Fetch a reference to the main isolate, so we have a reference to it
-  // even when we need it to access it from another (debugger) thread.
-  if (instance_data->is_main())
-    CHECK_EQ(nullptr, node_isolate.exchange(isolate));
-
+  int exit_code = 1;
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
     Local<Context> context = Context::New(isolate);
-    Environment* env = CreateEnvironment(isolate, context, instance_data);
-    array_buffer_allocator->set_env(env);
+    Environment* env = CreateEnvironment(isolate,
+                                         uv_default_loop(),
+                                         context,
+                                         argc,
+                                         argv,
+                                         exec_argc,
+                                         exec_argv);
     Context::Scope context_scope(context);
-
     isolate->SetAbortOnUncaughtExceptionCallback(
         ShouldAbortOnUncaughtException);
-
     // Start debug agent when argv has --debug
-    if (instance_data->use_debug_agent())
+    if (use_debug_agent)
       StartDebug(env, debug_wait_connect);
 
     {
@@ -4158,7 +4289,7 @@ static void StartNodeInstance(void* arg) {
     env->set_trace_sync_io(trace_sync_io);
 
     // Enable debugger
-    if (instance_data->use_debug_agent())
+    if (use_debug_agent)
       EnableDebug(env);
 
     {
@@ -4167,6 +4298,7 @@ static void StartNodeInstance(void* arg) {
       do {
         v8::platform::PumpMessageLoop(default_platform, isolate);
         more = uv_run(env->event_loop(), UV_RUN_ONCE);
+        CleanupWorkerContexts();
 
         if (more == false) {
           v8::platform::PumpMessageLoop(default_platform, isolate);
@@ -4182,10 +4314,9 @@ static void StartNodeInstance(void* arg) {
     }
 
     env->set_trace_sync_io(false);
+    env->TerminateSubWorkers();
 
-    int exit_code = EmitExit(env);
-    if (instance_data->is_main())
-      instance_data->set_exit_code(exit_code);
+    exit_code = EmitExit(env);
     RunAtExit(env);
 
 #if defined(LEAK_SANITIZER)
@@ -4197,18 +4328,35 @@ static void StartNodeInstance(void* arg) {
     env = nullptr;
   }
 
-  if (instance_data->is_main()) {
-    // Synchronize with signal handler, see TryStartDebugger.
-    while (isolate != node_isolate.exchange(nullptr));  // NOLINT
-  }
+  // Synchronize with signal handler, see TryStartDebugger.
+  while (isolate != node_isolate.exchange(nullptr));  // NOLINT
 
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
   isolate = nullptr;
   delete array_buffer_allocator;
+  return exit_code;
 }
 
+
+uv_thread_t* main_thread() {
+  return &process_main_thread;
+}
+
+
+size_t GenerateThreadId() {
+  ScopedLock::Mutex lock(&thread_id_counter_mutex);
+  size_t ret = thread_id_counter;
+  thread_id_counter++;
+  return ret;
+}
+
+
 int Start(int argc, char** argv) {
+  CHECK_EQ(uv_mutex_init(&process_mutex), 0);
+  CHECK_EQ(uv_mutex_init(&thread_id_counter_mutex), 0);
+  CHECK_EQ(uv_mutex_init(&cleanup_queue_mutex_), 0);
+  CHECK_EQ(uv_rwlock_init(&process_rwlock), 0);
   PlatformInit();
 
   CHECK_GT(argc, 0);
@@ -4233,25 +4381,22 @@ int Start(int argc, char** argv) {
   V8::InitializePlatform(default_platform);
   V8::Initialize();
 
-  int exit_code = 1;
-  {
-    NodeInstanceData instance_data(NodeInstanceType::MAIN,
-                                   uv_default_loop(),
-                                   argc,
-                                   const_cast<const char**>(argv),
-                                   exec_argc,
-                                   exec_argv,
-                                   use_debug_agent);
-    StartNodeInstance(&instance_data);
-    exit_code = instance_data.exit_code();
-  }
+  int exit_code = RunMainThread(argc,
+                                  const_cast<const char**>(argv),
+                                  exec_argc,
+                                  exec_argv);
   V8::Dispose();
+  V8::ShutdownPlatform();
 
   delete default_platform;
   default_platform = nullptr;
 
   delete[] exec_argv;
   exec_argv = nullptr;
+  uv_mutex_destroy(&process_mutex);
+  uv_mutex_destroy(&thread_id_counter_mutex);
+  uv_mutex_destroy(&cleanup_queue_mutex_);
+  uv_rwlock_destroy(&process_rwlock);
 
   return exit_code;
 }

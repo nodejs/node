@@ -154,6 +154,7 @@ TCPWrap::TCPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
+  RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&handle_));
   UpdateWriteQueueSize();
 }
 

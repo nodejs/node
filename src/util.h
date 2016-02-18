@@ -51,7 +51,8 @@ namespace node {
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_NE(a, b) CHECK((a) != (b))
 
-#define UNREACHABLE() ABORT()
+#define STATIC_ASSERT(expression) static_assert(expression, #expression)
+#define UNREACHABLE() abort()
 
 // TAILQ-style intrusive list node.
 template <typename T>
@@ -106,6 +107,7 @@ class ListHead {
   inline void MoveBack(ListHead* that);
   inline void PushBack(T* element);
   inline void PushFront(T* element);
+  inline void Remove(T* element);
   inline bool IsEmpty() const;
   inline T* PopFront();
   inline Iterator begin() const;
@@ -177,6 +179,8 @@ template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
 inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
+
+char* ToUtf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value);
 
 class Utf8Value {
   public:

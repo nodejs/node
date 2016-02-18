@@ -133,6 +133,7 @@ PipeWrap::PipeWrap(Environment* env,
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
+  RegisterHandleCleanup(reinterpret_cast<uv_handle_t*>(&handle_));
   UpdateWriteQueueSize();
 }
 

@@ -7,6 +7,7 @@
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
+#include "persistent-handle-cleanup.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -70,6 +71,14 @@ inline Environment::IsolateData::IsolateData(v8::Isolate* isolate,
             v8::NewStringType::kInternalized,                                 \
             sizeof(StringValue) - 1).ToLocalChecked()),
     PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, StringName)                                           \
+    PropertyName ## _(isolate,                                                \
+                      v8::Symbol::New(isolate,                                \
+                                      FIXED_ONE_BYTE_STRING(isolate,          \
+                                                            StringName))),
+    PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
     ref_count_(0) {}
 
@@ -177,8 +186,17 @@ inline void Environment::ArrayBufferAllocatorInfo::reset_fill_flag() {
 }
 
 inline Environment* Environment::New(v8::Local<v8::Context> context,
-                                     uv_loop_t* loop) {
-  Environment* env = new Environment(context, loop);
+                                     uv_loop_t* loop,
+                                     WorkerContext* worker_context) {
+  bool is_worker = worker_context != nullptr;
+  size_t thread_id = is_worker ? GenerateThreadId() : 0;
+  Environment* env = new Environment(context, loop, thread_id);
+  if (is_worker) {
+    env->set_worker_context(worker_context);
+    worker_context->set_worker_env(env);
+    env->set_owner_env(worker_context->owner_env());
+  }
+
   env->AssignToContext(context);
   return env;
 }
@@ -213,7 +231,8 @@ inline Environment* Environment::GetCurrent(
 }
 
 inline Environment::Environment(v8::Local<v8::Context> context,
-                                uv_loop_t* loop)
+                                uv_loop_t* loop,
+                                size_t thread_id)
     : isolate_(context->GetIsolate()),
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       timer_base_(uv_now(loop)),
@@ -223,6 +242,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       makecallback_cntr_(0),
       async_wrap_uid_(0),
       debugger_agent_(this),
+      thread_id_(thread_id),
       http_parser_buffer_(nullptr),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
@@ -243,7 +263,11 @@ inline Environment::Environment(v8::Local<v8::Context> context,
 }
 
 inline Environment::~Environment() {
+  CHECK_EQ(sub_worker_context_count(), 0);
   v8::HandleScope handle_scope(isolate());
+
+  PersistentHandleCleanup cleanup(this);
+  isolate()->VisitHandlesWithClassIds(&cleanup);
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
@@ -255,6 +279,27 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
+
+  if (using_cares_) {
+    ares_destroy(ares_channel());
+    using_cares_ = false;
+  }
+
+  // For valgrind. The main environment cannot deal with CleanupHandles()
+  // for some reason.
+  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront())
+    delete hc;
+}
+
+inline void Environment::TerminateSubWorkers() {
+  for (WorkerContext* context : *sub_worker_contexts()) {
+    // See libuv issue https://github.com/libuv/libuv/issues/276.
+    context->owner_notifications()->Ref();
+    context->Terminate(false);
+  }
+
+  while (sub_worker_context_count() > 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
 }
 
 inline void Environment::CleanupHandles() {
@@ -317,10 +362,18 @@ inline uv_check_t* Environment::idle_check_handle() {
   return &idle_check_handle_;
 }
 
-inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
-                                               HandleCleanupCb cb,
-                                               void *arg) {
-  handle_cleanup_queue_.PushBack(new HandleCleanup(handle, cb, arg));
+inline void Environment::DeregisterHandleCleanup(HandleCleanup* hc) {
+  handle_cleanup_queue_.Remove(hc);
+  delete hc;
+}
+
+inline HandleCleanup* Environment::RegisterHandleCleanup(
+    uv_handle_t* handle,
+    HandleCleanupCb cb,
+    void* arg) {
+  HandleCleanup* hc = new HandleCleanup(handle, cb, arg);
+  handle_cleanup_queue_.PushBack(hc);
+  return hc;
 }
 
 inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
@@ -406,6 +459,45 @@ inline void Environment::set_http_parser_buffer(char* buffer) {
   http_parser_buffer_ = buffer;
 }
 
+inline WorkerContext* Environment::worker_context() const {
+  CHECK(is_worker_thread());
+  CHECK_NE(worker_context_, nullptr);
+  return worker_context_;
+}
+
+inline void Environment::set_worker_context(WorkerContext* context) {
+  CHECK_EQ(worker_context_, nullptr);
+  CHECK_NE(context, nullptr);
+  worker_context_ = context;
+}
+
+inline Environment* Environment::owner_env() const {
+  CHECK_NE(owner_env_, nullptr);
+  return owner_env_;
+}
+
+inline void Environment::set_owner_env(Environment* env) {
+  CHECK_EQ(owner_env_, nullptr);
+  CHECK_NE(env, nullptr);
+  owner_env_ = env;
+}
+
+inline size_t Environment::thread_id() const {
+  return thread_id_;
+}
+
+inline bool Environment::is_main_thread() const {
+  return worker_context_ == nullptr;
+}
+
+inline bool Environment::is_worker_thread() const {
+  return !is_main_thread();
+}
+
+inline size_t Environment::sub_worker_context_count() const {
+  return sub_worker_context_count_;
+};
+
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {
   return ContainerOf(&Environment::cares_timer_handle_, handle);
 }
@@ -425,6 +517,10 @@ inline ares_channel* Environment::cares_channel_ptr() {
 
 inline ares_task_list* Environment::cares_task_list() {
   return &cares_task_list_;
+}
+
+inline void Environment::set_using_cares() {
+  using_cares_ = true;
 }
 
 inline Environment::IsolateData* Environment::isolate_data() const {
@@ -530,6 +626,55 @@ inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
   function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
+inline void Environment::AddSubWorkerContext(WorkerContext* context) {
+  sub_worker_context_count_++;
+  sub_worker_context_list_dirty_ = true;
+  sub_worker_contexts()->PushBack(context);
+}
+
+inline void Environment::RemoveSubWorkerContext(WorkerContext* context) {
+  sub_worker_context_count_--;
+  sub_worker_context_list_dirty_ = true;
+  sub_worker_contexts()->Remove(context);
+}
+
+inline Environment::WorkerContextList* Environment::sub_worker_contexts() {
+  return &sub_worker_contexts_;
+}
+
+inline uv_mutex_t* Environment::ApiMutex() {
+  return is_worker_thread() ? worker_context()->api_mutex() : nullptr;
+}
+
+inline bool Environment::CanCallIntoJs() const {
+  return is_main_thread() ||
+         (is_worker_thread() && worker_context()->JsExecutionAllowed());
+}
+
+inline void Environment::Exit(int exit_code) {
+  if (is_main_thread())
+    exit(exit_code);
+  else
+    worker_context()->Exit(exit_code);
+}
+
+inline void Environment::ProcessNotifications() {
+  if (is_worker_thread())
+    WorkerContext::WorkerNotificationCallback(worker_context());
+
+  process_owner_notifications:
+  sub_worker_context_list_dirty_ = false;
+  for (WorkerContext* context : *sub_worker_contexts()) {
+    WorkerContext::OwnerNotificationCallback(context);
+    // The loop needs to be restarted if the list changed while in-loop.
+    // The list will only change if a worker is being terminated abruptly,
+    // which is a rare occurrence, so restarting the loop should not be a
+    // problem performance-wise.
+    if (sub_worker_context_list_dirty_)
+      goto process_owner_notifications;
+  }
+}
+
 inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
   v8::MaybeLocal<v8::Object> m_obj =
       generic_internal_field_template()->NewInstance(context());
@@ -562,6 +707,21 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #undef VS
 #undef VP
 
+#define V(PropertyName, StringName)                                           \
+  inline                                                                      \
+  v8::Local<v8::Symbol> Environment::IsolateData::PropertyName() const {      \
+    return const_cast<IsolateData*>(this)->PropertyName ## _.Get(isolate());  \
+  }
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, StringName)                                           \
+  inline v8::Local<v8::Symbol> Environment::PropertyName() const {            \
+    return isolate_data()->PropertyName();                                    \
+  }
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
     return StrongPersistentToLocal(PropertyName ## _);                        \
@@ -575,6 +735,7 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #undef ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES
 #undef PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES
 #undef PER_ISOLATE_STRING_PROPERTIES
+#undef PER_ISOLATE_SYMBOL_PROPERTIES
 
 }  // namespace node
 
