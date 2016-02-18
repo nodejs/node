@@ -19,7 +19,7 @@ var ucs2_control = 'a\u0000';
 
 // grow the strings to proper length
 while (ucs2_control.length <= EXTERN_APEX) {
-  ucs2_control += ucs2_control;
+  ucs2_control = ucs2_control.repeat(2);
 }
 
 
