@@ -1130,7 +1130,7 @@ Example:
 
 ```js
 const crypto = require('crypto');
-const key = crypto.pbkdf2sync('secret', 'salt', 100000, 512, 'sha512');
+const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
 console.log(key.toString('hex'));  // 'c5e478d...1469e50'
 ```
 
