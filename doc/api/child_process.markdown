@@ -184,7 +184,7 @@ replace the existing process and uses a shell to execute the command.*
 
 ### child_process.execFile(file[, args][, options][, callback])
 
-* `file` {String} A path to an executable file
+* `file` {String} The name or path of the executable file to run
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
@@ -502,7 +502,7 @@ configuration at startup.
 
 ### child_process.execFileSync(file[, args][, options])
 
-* `file` {String} The filename of the program to run
+* `file` {String} The name or path of the executable file to run
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
