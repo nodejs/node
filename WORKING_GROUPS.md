@@ -1,11 +1,11 @@
-# Node.js Working Groups
+# Node.js Core Working Groups
 
-Node.js Working Groups are autonomous projects created by the
-[Technical Steering Committee (TSC)](https://github.com/nodejs/node/blob/master/GOVERNANCE.md#technical-committee).
+Node.js Core Working Groups are autonomous projects created by the
+[Core Technical Committee (CTC)](https://github.com/nodejs/node/blob/master/GOVERNANCE.md#core-technical-committee).
 
-Working Groups can be formed at any time but must be ratified by the TSC.
+Working Groups can be formed at any time but must be ratified by the CTC.
 Once formed the work defined in the Working Group charter is the
-responsibility of the WG rather than the TSC.
+responsibility of the WG rather than the CTC.
 
 It is important that Working Groups are not formed pre-maturely. Working
 Groups are not formed to *begin* a set of tasks but instead are formed
@@ -14,7 +14,7 @@ think it would benefit from being done as an autonomous project.
 
 If the work defined in a Working Group charter is completed the Working
 Group should be dissolved and the responsibility for governance absorbed
-back in to the TSC.
+back in to the CTC.
 
 ## Current Working Groups
 
@@ -229,9 +229,9 @@ Their responsibilities are:
 * Maintaining the [addon-examples](https://github.com/nodejs/node-addon-examples)
   GitHub repository, including code, issues and documentation.
 * Maintaining the C++ Addon API within the Node.js project, in subordination to
-  the Node.js TSC.
+  the Node.js CTC.
 * Maintaining the Addon documentation within the Node.js project, in
-  subordination to the Node.js TSC.
+  subordination to the Node.js CTC.
 * Maintaining the _nan_ package in npm, releasing new versions as appropriate.
 * Messaging about the future of the Node.js and NAN interface to give the
   community advance notice of changes.
