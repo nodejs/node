@@ -642,6 +642,7 @@ cluster.setupMaster({
 });
 cluster.fork(); // https worker
 cluster.setupMaster({
+  exec: 'worker.js',
   args: ['--use', 'http']
 });
 cluster.fork(); // http worker
