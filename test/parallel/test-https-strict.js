@@ -1,6 +1,6 @@
 'use strict';
 // disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+process.env.NODE_TLS_INSECURELY_ACCEPT_UNTRUSTED_CERTIFICATES = '1';
 
 var common = require('../common');
 var assert = require('assert');
