@@ -6,7 +6,7 @@ _Please provide description of change here._
 
 _Please make sure to review and check all of these items:_
 
-- [ ] Does `make test` (or `vcbuild test nosign`) pass with this change?
+- [ ] Does `make -j8 test` (or `vcbuild test nosign`) pass with this change?
 - [ ] Is commit message formatted according to [CONTRIBUTING.md][0]
 - [ ] Regression test (or benchmark if this is a performance-related change) is
   included (only required for code changes)
