@@ -219,7 +219,7 @@ function test_cyclic_link_overprotection(callback) {
   var folder = cycles + '/folder';
   var link = folder + '/cycles';
   var testPath = cycles;
-  for (var i = 0; i < 10; i++) testPath += '/folder/cycles';
+  testPath += '/folder/cycles'.repeat(10);
   try {fs.unlinkSync(link);} catch (ex) {}
   fs.symlinkSync(cycles, link, 'dir');
   unlink.push(link);

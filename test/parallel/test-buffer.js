@@ -612,10 +612,7 @@ assert.equal(Buffer('=bad'.repeat(1e4), 'base64').length, 0);
 {
   // Creating buffers larger than pool size.
   const l = Buffer.poolSize + 5;
-  let s = '';
-  for (let i = 0; i < l; i++) {
-    s += 'h';
-  }
+  const s = 'h'.repeat(l);
 
   const b = new Buffer(s);
 

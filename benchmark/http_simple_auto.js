@@ -13,11 +13,7 @@ var spawn = require('child_process').spawn;
 
 var port = parseInt(process.env.PORT || 8000);
 
-var fixed = '';
-var i;
-for (i = 0; i < 20 * 1024; i++) {
-  fixed += 'C';
-}
+var fixed = 'C'.repeat(20 * 1024);
 
 var stored = {};
 var storedBuffer = {};
@@ -30,16 +26,14 @@ var server = http.createServer(function(req, res) {
   var n_chunks = parseInt(commands[3], 10);
   var status = 200;
   var n;
+  var i;
 
   if (command == 'bytes') {
     n = parseInt(arg, 10);
     if (n <= 0)
       throw new Error('bytes called with n <= 0');
     if (stored[n] === undefined) {
-      stored[n] = '';
-      for (i = 0; i < n; i++) {
-        stored[n] += 'C';
-      }
+      stored[n] = 'C'.repeat(n);
     }
     body = stored[n];
   } else if (command == 'buffer') {
