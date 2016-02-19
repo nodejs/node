@@ -1,5 +1,6 @@
-_Thanks for wanting to report an issue you've found in node.js. Please fill in
-below template. If unsure about something, just do as best as you're able._
+_Thanks for wanting to report an issue you've found in node.js. Please delete
+this text and fill in below template. If unsure about something, just do as best
+as you're able._
 
 _Note that it will be much easier for us to fix the issue if we will have a test
 case that reproduces the problem. Ideally this test case should not have any
