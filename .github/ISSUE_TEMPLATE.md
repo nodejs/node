@@ -1,40 +1,12 @@
-### Issue details
+_Thanks for wanting to report an issue you've found in node.js. Please fill in
+below template. If unsure about something, just do as best as you're able._
 
-_Please provide issue details here_.
+_Note that it will be much easier for us to fix the issue if we will have a test
+case that reproduces the problem. Ideally this test case should not have any
+external dependencies. We understand that it is not always possible to reduce
+your code to a small test case, but we will appreciate to have as much data as
+possible. Thank you!_
 
-### Steps to reproduce/test case
-
-_Please provide necessary steps for reproduction of this issue, or better the
-reduced test case (without any external dependencies, if possible)_.
-
-### Affected node.js version(s)
-
-_Please fill in affected version(s)_
-
-### Affected platforms
-
-- [ ] Linux
-- [ ] Windows
-- [ ] OS X
-- [ ] FreeBSD
-- [ ] Solaris
-- [ ] other _(please specify which)_
-
-### Core subsystem (if known)
-
-- [ ] buffer
-- [ ] child_process
-- [ ] cluster
-- [ ] crypto
-- [ ] dgram
-- [ ] dns
-- [ ] doc
-- [ ] fs
-- [ ] http
-- [ ] https
-- [ ] net
-- [ ] tls
-- [ ] tty
-- [ ] vm
-- [ ] zlib
-- [ ] other _(please specify which)_
+**Version**: _enter affected node.js version(s)_
+**Platform**: _either `uname -a` output or Windows version and cpu-bitsize_
+**Subsystem**: _optional. if known - please specify affected core module name_

@@ -15,21 +15,6 @@ _Please make sure to review and check all of these items_:
 
 ### Affected core subsystem(s)
 
-- [ ] buffer
-- [ ] child_process
-- [ ] cluster
-- [ ] crypto
-- [ ] dgram
-- [ ] dns
-- [ ] doc
-- [ ] fs
-- [ ] http
-- [ ] https
-- [ ] net
-- [ ] tls
-- [ ] tty
-- [ ] vm
-- [ ] zlib
-- [ ] other _(please specify which)_
+_Please provide affected core subsystem(s) (like buffer, cluster, crypto, etc)_
 
 [0]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit
