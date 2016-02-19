@@ -9,10 +9,7 @@ var chars_recved = 0;
 var npauses = 0;
 
 console.log('build big string');
-var body = '';
-for (var i = 0; i < N; i++) {
-  body += 'C';
-}
+body = 'C'.repeat(N);
 
 console.log('start server on port ' + common.PORT);
 
