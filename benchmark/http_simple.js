@@ -4,7 +4,7 @@ var http = require('http');
 
 var port = parseInt(process.env.PORT || 8000);
 
-var fixed = makeString(20 * 1024, 'C'),
+var fixed = 'C'.repeat(20 * 1024),
   storedBytes = {},
   storedBuffer = {},
   storedUnicode = {};
@@ -42,7 +42,7 @@ var server = module.exports = http.createServer(function(req, res) {
     if (n <= 0)
       throw new Error('bytes called with n <= 0');
     if (storedBytes[n] === undefined) {
-      storedBytes[n] = makeString(n, 'C');
+      storedBytes[n] = 'C'.repeat(n);
     }
     body = storedBytes[n];
 
@@ -63,7 +63,7 @@ var server = module.exports = http.createServer(function(req, res) {
     if (n <= 0)
       throw new Error('unicode called with n <= 0');
     if (storedUnicode[n] === undefined) {
-      storedUnicode[n] = makeString(n, '\u263A');
+      storedUnicode[n] = '\u263A'.repeat(n);
     }
     body = storedUnicode[n];
 
@@ -106,14 +106,6 @@ var server = module.exports = http.createServer(function(req, res) {
     res.end(body);
   }
 });
-
-function makeString(size, c) {
-  var s = '';
-  while (s.length < size) {
-    s += c;
-  }
-  return s;
-}
 
 server.listen(port, function() {
   if (module === require.main)

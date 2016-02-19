@@ -9,10 +9,7 @@ var bytes = 1024 * 5;
 var requests = 0;
 var responses = 0;
 
-var body = '';
-for (var i = 0; i < bytes; i++) {
-  body += 'C';
-}
+var body = 'C'.repeat(bytes);
 
 var server = http.createServer(function(req, res) {
   res.writeHead(200, {

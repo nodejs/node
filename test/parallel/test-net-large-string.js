@@ -4,10 +4,7 @@ var assert = require('assert');
 var net = require('net');
 
 var kPoolSize = 40 * 1024;
-var data = '';
-for (var i = 0; i < kPoolSize; ++i) {
-  data += 'あ'; // 3bytes
-}
+var data = 'あ'.repeat(kPoolSize);
 var receivedSize = 0;
 var encoding = 'UTF-8';
 
