@@ -8,5 +8,8 @@ your code to a small test case, but we will appreciate to have as much data as
 possible. Thank you!_
 
 **Version**: _enter affected node.js version(s)_
+
 **Platform**: _either `uname -a` output or Windows version and cpu-bitsize_
+
 **Subsystem**: _optional. if known - please specify affected core module name_
+
