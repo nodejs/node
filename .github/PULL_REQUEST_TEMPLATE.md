@@ -9,7 +9,7 @@ _Please make sure to review and check all of these items_:
 - [ ] Does `make test` (or `vcbuild test nosign`) pass with this change?
 - [ ] Is commit message formatted according to [CONTRIBUTING.md][0]
 - [ ] Regression test (or benchmark if this is a performance-related change) is
-  included
+  included (only required for code changes)
 - [ ] Documentation change or addition is included (if this change modifies
   existing APIs, or introduces new ones)
 
