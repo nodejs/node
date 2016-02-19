@@ -386,8 +386,27 @@ Doing so will cause the parent's event loop to not include the child in its
 reference count, allowing the parent to exit independently of the child, unless
 there is an established IPC channel between the child and parent.
 
-Example of detaching a long-running process and redirecting its output to a
-file:
+When using the `detached` option to start a long-running process, the process
+will not stay running in the background after the parent exits unless it is
+provided with a `stdio` configuration that is not connected to the parent.
+If the parent's `stdio` is inherited, the child will remain attached to the
+controlling terminal.
+
+Example of a long-running process, by detaching and also ignoring its parent
+`stdio` file descriptors, in order to ignore the parent's termination:
+
+```js
+const spawn = require('child_process').spawn;
+
+const child = spawn(process.argv[0], ['child_program.js'], {
+  detached: true,
+  stdio: ['ignore']
+});
+
+child.unref();
+```
+
+Alternatively one can redirect the child process' output into files:
 
 ```js
 const fs = require('fs');
@@ -402,12 +421,6 @@ const child = spawn('prg', [], {
 
 child.unref();
 ```
-
-When using the `detached` option to start a long-running process, the process
-will not stay running in the background after the parent exits unless it is
-provided with a `stdio` configuration that is not connected to the parent.
-If the parent's `stdio` is inherited, the child will remain attached to the
-controlling terminal.
 
 #### options.stdio
 
