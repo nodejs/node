@@ -3,8 +3,8 @@
 #include "node_http_parser.h"
 #include "node_revert.h"
 
-#include "base-object.h"
-#include "base-object-inl.h"
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "stream_base.h"
@@ -148,10 +148,10 @@ struct StringPtr {
 };
 
 
-class Parser : public BaseObject {
+class Parser : public AsyncWrap {
  public:
   Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
-      : BaseObject(env, wrap),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
     Wrap(object(), this);
@@ -162,6 +162,11 @@ class Parser : public BaseObject {
   ~Parser() override {
     ClearWrap(object());
     persistent().Reset();
+  }
+
+
+  size_t self_size() const override {
+    return sizeof(*this);
   }
 
 
@@ -286,8 +291,10 @@ class Parser : public BaseObject {
 
     argv[A_UPGRADE] = Boolean::New(env()->isolate(), parser_.upgrade);
 
+    Environment::AsyncCallbackScope callback_scope(env());
+
     Local<Value> head_response =
-        cb.As<Function>()->Call(obj, arraysize(argv), argv);
+        MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (head_response.IsEmpty()) {
       got_exception_ = true;
@@ -322,7 +329,7 @@ class Parser : public BaseObject {
       Integer::NewFromUnsigned(env()->isolate(), length)
     };
 
-    Local<Value> r = cb.As<Function>()->Call(obj, arraysize(argv), argv);
+    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -345,7 +352,9 @@ class Parser : public BaseObject {
     if (!cb->IsFunction())
       return 0;
 
-    Local<Value> r = cb.As<Function>()->Call(obj, 0, nullptr);
+    Environment::AsyncCallbackScope callback_scope(env());
+
+    Local<Value> r = MakeCallback(cb.As<Function>(), 0, nullptr);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -585,7 +594,7 @@ class Parser : public BaseObject {
     parser->current_buffer_len_ = nread;
     parser->current_buffer_data_ = buf->base;
 
-    cb.As<Function>()->Call(obj, 1, &ret);
+    parser->MakeCallback(cb.As<Function>(), 1, &ret);
 
     parser->current_buffer_len_ = 0;
     parser->current_buffer_data_ = nullptr;
@@ -659,7 +668,7 @@ class Parser : public BaseObject {
       url_.ToString(env())
     };
 
-    Local<Value> r = cb.As<Function>()->Call(obj, arraysize(argv), argv);
+    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (r.IsEmpty())
       got_exception_ = true;
