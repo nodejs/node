@@ -72,7 +72,7 @@ server-side resources, which makes it a potential vector for denial-of-service
 attacks.
 
 To mitigate this, renegotiations are limited to three times every 10 minutes. An
-error is emitted on the [tls.TLSSocket][] instance when the threshold is
+error is emitted on the [`tls.TLSSocket`][] instance when the threshold is
 exceeded. The limits are configurable:
 
   - `tls.CLIENT_RENEG_LIMIT`: renegotiation limit, default is 3.
@@ -155,7 +155,7 @@ is expensive.
 
 ## Class: CryptoStream
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket()`][] instead.
+    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 This is an encrypted stream.
 
@@ -190,7 +190,7 @@ connections using TLS or SSL.
 When a client connection emits an `'error'` event before secure connection is
 established - it will be forwarded here.
 
-`tlsSocket` is the [tls.TLSSocket][] that the error originated from.
+`tlsSocket` is the [`tls.TLSSocket`][] that the error originated from.
 
 ### Event: 'newSession'
 
@@ -272,7 +272,7 @@ server.on('resumeSession', (id, cb) => {
 `function (tlsSocket) {}`
 
 This event is emitted after a new connection has been successfully
-handshaked. The argument is an instance of [tls.TLSSocket][]. It has all the
+handshaked. The argument is an instance of [`tls.TLSSocket`][]. It has all the
 common stream methods and events.
 
 `socket.authorized` is a boolean value which indicates if the
@@ -649,7 +649,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
 The `callback` parameter will be added as a listener for the
 [`'secureConnect'`][] event.
 
-`tls.connect()` returns a [tls.TLSSocket][] object.
+`tls.connect()` returns a [`tls.TLSSocket`][] object.
 
 Here is an example of a client of echo server as described previously:
 
@@ -756,12 +756,12 @@ and the cleartext one is used as a replacement for the initial encrypted stream.
    automatically reject clients with invalid certificates. Only applies to
    servers with `requestCert` enabled.
 
- - `options`: An object with common SSL options. See [tls.TLSSocket][].
+ - `options`: An object with common SSL options. See [`tls.TLSSocket`][].
 
 `tls.createSecurePair()` returns a SecurePair object with `cleartext` and
 `encrypted` stream properties.
 
-NOTE: `cleartext` has the same APIs as [tls.TLSSocket][]
+NOTE: `cleartext` has the same APIs as [`tls.TLSSocket`][]
 
 ## tls.createServer(options[, secureConnectionListener])
 
@@ -978,7 +978,7 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
-[`tls.TLSSocket()`]: #tls_class_tls_tlssocket
+[`tls.TLSSocket`]: #tls_class_tls_tlssocket
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.Server.address()`]: net.html#net_server_address
