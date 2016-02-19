@@ -1,5 +1,5 @@
 {
-  "version": "2.14.18",
+  "version": "2.14.19",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -40,7 +40,7 @@
     "char-spinner": "~1.0.1",
     "chmodr": "~1.0.2",
     "chownr": "~1.0.1",
-    "cmd-shim": "~2.0.1",
+    "cmd-shim": "~2.0.2",
     "columnify": "~1.5.4",
     "config-chain": "~1.1.10",
     "dezalgo": "~1.0.3",
