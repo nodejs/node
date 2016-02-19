@@ -7,7 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-debug-no-context   : PASS,FLAKY
 test-tls-ticket-cluster : PASS,FLAKY
 test-tick-processor     : PASS,FLAKY
 
