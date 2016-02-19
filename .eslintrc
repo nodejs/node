@@ -31,6 +31,18 @@ rules:
   no-octal: 2
   no-redeclare: 2
 
+  # Variables
+  # http://eslint.org/docs/rules/#variables
+  no-delete-var: 2
+  no-undef: 2
+  no-unused-vars: [2, {"args": "none"}]
+
+  # Node.js and CommonJS
+  # http://eslint.org/docs/rules/#nodejs-and-commonjs
+  no-mixed-requires: 2
+  no-new-require: 2
+  no-restricted-modules: [2, "sys", "_linklist"]
+
   # Stylistic Issues
   # https://github.com/eslint/eslint/tree/master/docs/rules#stylistic-issues
   comma-spacing: 2
@@ -65,12 +77,6 @@ rules:
   # Strict Mode
   # https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
   strict: [2, "global"]
-
-  # Variables
-  # https://github.com/eslint/eslint/tree/master/docs/rules#variables
-  no-delete-var: 2
-  no-undef: 2
-  no-unused-vars: [2, {"args": "none"}]
 
   # Custom rules in tools/eslint-rules
   require-buffer: 2
