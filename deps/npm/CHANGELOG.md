@@ -1,3 +1,24 @@
+### v2.14.19 (2016-02-11):
+
+Really tiny micro-release this week! The main thing to note is a dependency
+update that means we no longer have `graceful-fs@3` in our dependency tree. This
+has some implications for being able to run on future Node.js releases, so
+better to get this out the door. 😁
+
+#### DEPS
+
+* [`a556e0f`](https://github.com/npm/npm/commit/a556e0f9dcb5d7b44224ba9c16c9d0dc6c8d2532)
+  `cmd-shim@2.0.2`: Final straggler using `graceful-fs@<4`.
+  ([@ForbesLindesay](https://github.com/ForbesLindesay))
+
+#### DOCS
+
+* [`69a2d59`](https://github.com/npm/npm/commit/69a2d599bf0cba674ee268483e9bd5c14333b89f)
+  [#11391](https://github.com/npm/npm/pull/11391)
+  Fixed versions of `shrinkwrap.json` in examples in documentation for `npm
+  shrinkwrap`, which did not quite match up.
+  ([@xcatliu](https://github.com/xcatliu))
+
 ### v2.14.18 (2016-02-04):
 
 Clearly our docs are perfect after all those wonderful PRs, 'cause this week's
