@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const L = require('_linklist');
+const L = require('_linklist'); // eslint-disable-line no-restricted-modules
 
 var list = { name: 'list' };
 var A = { name: 'A' };
