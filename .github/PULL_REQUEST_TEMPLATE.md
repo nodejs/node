@@ -1,10 +1,10 @@
 ### Description of change
 
-_Please provide description of change here_.
+_Please provide description of change here._
 
 ### Pull Request check-list
 
-_Please make sure to review and check all of these items_:
+_Please make sure to review and check all of these items:_
 
 - [ ] Does `make test` (or `vcbuild test nosign`) pass with this change?
 - [ ] Is commit message formatted according to [CONTRIBUTING.md][0]
