@@ -1,3 +1,4 @@
+'use strict';
 var SlowBuffer = require('buffer').SlowBuffer;
 var common = require('../common.js');
 var assert = require('assert');

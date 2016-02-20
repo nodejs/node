@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var StringDecoder = require('string_decoder').StringDecoder;
 

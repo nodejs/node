@@ -1,3 +1,4 @@
+'use strict';
 // throughput benchmark in signing and verifying
 var common = require('../common.js');
 var crypto = require('crypto');

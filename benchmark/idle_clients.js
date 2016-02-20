@@ -1,4 +1,5 @@
-net = require('net');
+'use strict';
+const net = require('net');
 
 var errors = 0, connections = 0;
 
