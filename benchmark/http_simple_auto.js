@@ -6,6 +6,7 @@
 //   <args>   Arguments to pass to `ab`.
 //   <target> Target to benchmark, e.g. `bytes/1024` or `buffer/8192`.
 //
+'use strict';
 
 var path = require("path");
 var http = require("http");

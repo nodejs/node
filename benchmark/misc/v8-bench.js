@@ -1,4 +1,5 @@
 // compare with "google-chrome deps/v8/benchmarks/run.html"
+'use strict';
 var fs = require('fs');
 var path = require('path');
 var vm = require('vm');
