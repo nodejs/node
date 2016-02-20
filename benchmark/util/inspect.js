@@ -1,3 +1,4 @@
+'use strict';
 var util = require('util');
 
 var common = require('../common.js');

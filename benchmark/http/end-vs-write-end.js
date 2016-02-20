@@ -6,6 +6,7 @@
 // always as hot as it could be.
 //
 // Verify that our assumptions are valid.
+'use strict';
 
 var common = require('../common.js');
 
@@ -17,7 +18,7 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  http = require('http');
+  const http = require('http');
   var chunk;
   var len = conf.kb * 1024;
   switch (conf.type) {
@@ -26,7 +27,6 @@ function main(conf) {
       chunk.fill('x');
       break;
     case 'utf':
-      encoding = 'utf8';
       chunk = new Array(len / 2 + 1).join('ü');
       break;
     case 'asc':

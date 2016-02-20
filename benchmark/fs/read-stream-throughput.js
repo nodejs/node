@@ -1,4 +1,5 @@
 // test the throughput of the fs.WriteStream class.
+'use strict';
 
 var path = require('path');
 var common = require('../common.js');

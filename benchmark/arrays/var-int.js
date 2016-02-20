@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var bench = common.createBenchmark(main, {
   type: ['Array', 'Buffer', 'Int8Array', 'Uint8Array', 'Int16Array',
