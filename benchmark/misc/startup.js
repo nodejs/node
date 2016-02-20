@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var spawn = require('child_process').spawn;
 var path = require('path');

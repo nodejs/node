@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var bench = common.createBenchmark(main, {
   len: [64, 256, 1024, 4096, 32768],

@@ -1,4 +1,4 @@
-
+'use strict';
 var common = require('../common.js');
 var bench = common.createBenchmark(main, {
   noAssert: [false, true],
