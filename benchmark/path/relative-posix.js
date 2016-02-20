@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var path = require('path');
 var v8 = require('v8');

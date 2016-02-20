@@ -1,4 +1,5 @@
 // test the speed of .pipe() with sockets
+'use strict';
 
 var common = require('../common.js');
 var PORT = common.PORT;

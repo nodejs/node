@@ -1,4 +1,5 @@
-SlowBuffer = require('buffer').SlowBuffer;
+'use strict';
+const SlowBuffer = require('buffer').SlowBuffer;
 
 var common = require('../common.js');
 var bench = common.createBenchmark(main, {

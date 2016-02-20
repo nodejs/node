@@ -1,3 +1,5 @@
+'use strict';
+
 var http = require('http');
 var port = parseInt(process.env.PORT, 10) || 8000;
 var defaultLag = parseInt(process.argv[2], 10) || 100;

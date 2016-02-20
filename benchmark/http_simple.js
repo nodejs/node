@@ -1,3 +1,5 @@
+'use strict';
+
 var path = require('path'),
     exec = require('child_process').exec,
     http = require('http');

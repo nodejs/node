@@ -1,3 +1,4 @@
+'use strict';
 var cluster = require('cluster');
 var os = require('os');
 
