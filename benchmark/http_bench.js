@@ -1,3 +1,4 @@
+'use strict';
 var spawn = require('child_process').spawn;
 var cluster = require('cluster');
 var http = require('http');

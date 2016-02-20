@@ -1,5 +1,6 @@
 // In this benchmark, we connect a client to the server, and write
 // as many bytes as we can in the specified time (default = 10s)
+'use strict';
 
 var common = require('../common.js');
 var util = require('util');

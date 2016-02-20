@@ -1,4 +1,5 @@
 // Measure the time it takes for the HTTP client to send a request body.
+'use strict';
 
 var common = require('../common.js');
 var http = require('http');
