@@ -30,11 +30,6 @@ server.listen(common.PORT, function() {
   }
 });
 
-setTimeout(function() {
-  process.removeListener('uncaughtException', catcher);
-  throw new Error('Taking too long!');
-}, common.platformTimeout(1000)).unref();
-
 process.on('uncaughtException', catcher);
 var errors = 0;
 function catcher() {
