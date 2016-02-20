@@ -1,6 +1,7 @@
 // Call fs.readFile over and over again really fast.
 // Then see how many times it got called.
 // Yes, this is a silly benchmark.  Most benchmarks are silly.
+'use strict';
 
 var path = require('path');
 var common = require('../common.js');
