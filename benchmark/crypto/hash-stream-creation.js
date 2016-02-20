@@ -1,5 +1,6 @@
 // throughput benchmark
 // creates a single hasher, then pushes a bunch of data through it
+'use strict';
 var common = require('../common.js');
 var crypto = require('crypto');
 

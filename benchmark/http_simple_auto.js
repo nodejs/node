@@ -6,6 +6,7 @@
 //   <args>   Arguments to pass to `ab`.
 //   <target> Target to benchmark, e.g. `bytes/1024` or `buffer/8192`.
 //
+'use strict';
 
 var http = require('http');
 var spawn = require('child_process').spawn;

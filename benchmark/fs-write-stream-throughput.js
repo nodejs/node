@@ -1,5 +1,5 @@
-
 // If there are no args, then this is the root.  Run all the benchmarks!
+'use strict';
 if (!process.argv[2])
   parent();
 else

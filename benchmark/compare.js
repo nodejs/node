@@ -1,3 +1,4 @@
+'use strict';
 var usage = 'node benchmark/compare.js ' +
             '<node-binary1> <node-binary2> ' +
             '[--html] [--red|-r] [--green|-g] ' +

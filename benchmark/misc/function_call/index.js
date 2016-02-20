@@ -2,6 +2,7 @@
 // relative to a comparable C++ function.
 // Reports millions of calls per second.
 // Note that JS speed goes up, while cxx speed stays about the same.
+'use strict';
 
 var assert = require('assert');
 var common = require('../../common.js');
