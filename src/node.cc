@@ -2450,9 +2450,10 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Linked module has no declared entry point.");
   }
 
-  cache->Set(module_name, module->Get(exports_prop));
+  auto effective_exports = module->Get(exports_prop);
+  cache->Set(module_name, effective_exports);
 
-  args.GetReturnValue().Set(exports);
+  args.GetReturnValue().Set(effective_exports);
 }
 
 static void ProcessTitleGetter(Local<String> property,
