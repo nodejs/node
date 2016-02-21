@@ -48,11 +48,13 @@ Example:
 ```js
 var server = net.createServer((socket) => {
   socket.end('goodbye\n');
+}).on('error', (err) => {
+  // handle errors here
+  throw err;
 });
 
 // grab a random port.
-server.listen((err) => {
-  if (err) throw err;
+server.listen(() => {
   address = server.address();
   console.log('opened server on %j', address);
 });
@@ -655,9 +657,10 @@ const server = net.createServer((c) => {
   c.write('hello\r\n');
   c.pipe(c);
 });
-server.listen(8124, (err) => {
-  // 'listening' listener
-  if (err) throw err;
+server.on('error', (err) => {
+  throw err;
+});
+server.listen(8124, () => {
   console.log('server bound');
 });
 ```
@@ -672,9 +675,8 @@ To listen on the socket `/tmp/echo.sock` the third line from the last would
 just be changed to
 
 ```js
-server.listen('/tmp/echo.sock', (err) => {
-  // 'listening' listener
-  if (err) throw err;
+server.listen('/tmp/echo.sock', () => {
+  console.log('server bound');
 });
 ```
 
