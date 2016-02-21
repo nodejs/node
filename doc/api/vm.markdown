@@ -41,9 +41,12 @@ The options when creating a script are:
 - `cachedData`: an optional `Buffer` with V8's code cache data for the supplied
   source. When supplied `cachedDataRejected` value will be set to either
   `true` or `false` depending on acceptance of the data by V8.
-- `produceCachedData`: if `true` and no `cachedData` is present - a `Buffer`
-  with V8's code cache data will be produced and stored in `cachedData` property
-  of the returned `vm.Script` instance.
+- `produceCachedData`: if `true` and no `cachedData` is present - V8 tries to
+  produce code cache data for `code`. Upon success, a `Buffer` with V8's code
+  cache data will be produced and stored in `cachedData` property of the
+  returned `vm.Script` instance. `cachedDataProduced` value will be set to
+  either `true` or `false` depending on whether code cache data is produced
+  successfully.
 
 ### script.runInContext(contextifiedSandbox[, options])
 
