@@ -23,11 +23,11 @@ assert.equal(path.win32.basename('basename.ext'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext\\'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext\\\\'), 'basename.ext');
 assert.equal(path.win32.basename('foo'), 'foo');
-assert.equal(path.win32.basename(null), 'null');
-assert.equal(path.win32.basename(true), 'true');
-assert.equal(path.win32.basename(1), '1');
-assert.equal(path.win32.basename(), 'undefined');
-assert.equal(path.win32.basename({}), '[object Object]');
+assert.throws(path.win32.basename.bind(null, null), TypeError);
+assert.throws(path.win32.basename.bind(null, true), TypeError);
+assert.throws(path.win32.basename.bind(null, 1), TypeError);
+assert.throws(path.win32.basename.bind(null), TypeError);
+assert.throws(path.win32.basename.bind(null, {}), TypeError);
 
 // On unix a backslash is just treated as any other character.
 assert.equal(path.posix.basename('\\dir\\basename.ext'), '\\dir\\basename.ext');
@@ -36,11 +36,11 @@ assert.equal(path.posix.basename('basename.ext'), 'basename.ext');
 assert.equal(path.posix.basename('basename.ext\\'), 'basename.ext\\');
 assert.equal(path.posix.basename('basename.ext\\\\'), 'basename.ext\\\\');
 assert.equal(path.posix.basename('foo'), 'foo');
-assert.equal(path.posix.basename(null), 'null');
-assert.equal(path.posix.basename(true), 'true');
-assert.equal(path.posix.basename(1), '1');
-assert.equal(path.posix.basename(), 'undefined');
-assert.equal(path.posix.basename({}), '[object Object]');
+assert.throws(path.posix.basename.bind(null, null), TypeError);
+assert.throws(path.posix.basename.bind(null, true), TypeError);
+assert.throws(path.posix.basename.bind(null, 1), TypeError);
+assert.throws(path.posix.basename.bind(null), TypeError);
+assert.throws(path.posix.basename.bind(null, {}), TypeError);
 
 // POSIX filenames may include control characters
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
@@ -60,11 +60,11 @@ assert.equal(path.posix.dirname(''), '.');
 assert.equal(path.posix.dirname('/'), '/');
 assert.equal(path.posix.dirname('////'), '/');
 assert.equal(path.posix.dirname('foo'), '.');
-assert.equal(path.posix.dirname(null), '.');
-assert.equal(path.posix.dirname(true), '.');
-assert.equal(path.posix.dirname(1), '.');
-assert.equal(path.posix.dirname(), '.');
-assert.equal(path.posix.dirname({}), '.');
+assert.throws(path.posix.dirname.bind(null, null), TypeError);
+assert.throws(path.posix.dirname.bind(null, true), TypeError);
+assert.throws(path.posix.dirname.bind(null, 1), TypeError);
+assert.throws(path.posix.dirname.bind(null), TypeError);
+assert.throws(path.posix.dirname.bind(null, {}), TypeError);
 
 assert.equal(path.win32.dirname('c:\\'), 'c:\\');
 assert.equal(path.win32.dirname('c:\\foo'), 'c:\\');
@@ -100,11 +100,11 @@ assert.equal(path.win32.dirname(''), '.');
 assert.equal(path.win32.dirname('/'), '/');
 assert.equal(path.win32.dirname('////'), '/');
 assert.equal(path.win32.dirname('foo'), '.');
-assert.equal(path.win32.dirname(null), '.');
-assert.equal(path.win32.dirname(true), '.');
-assert.equal(path.win32.dirname(1), '.');
-assert.equal(path.win32.dirname(), '.');
-assert.equal(path.win32.dirname({}), '.');
+assert.throws(path.win32.dirname.bind(null, null), TypeError);
+assert.throws(path.win32.dirname.bind(null, true), TypeError);
+assert.throws(path.win32.dirname.bind(null, 1), TypeError);
+assert.throws(path.win32.dirname.bind(null), TypeError);
+assert.throws(path.win32.dirname.bind(null, {}), TypeError);
 
 
 // path.extname tests
@@ -180,11 +180,11 @@ assert.equal(path.win32.extname('file\\'), '');
 assert.equal(path.win32.extname('file\\\\'), '');
 assert.equal(path.win32.extname('file.\\'), '.');
 assert.equal(path.win32.extname('file.\\\\'), '.');
-assert.equal(path.win32.extname(null), '');
-assert.equal(path.win32.extname(true), '');
-assert.equal(path.win32.extname(1), '');
-assert.equal(path.win32.extname(), '');
-assert.equal(path.win32.extname({}), '');
+assert.throws(path.win32.extname.bind(null, null), TypeError);
+assert.throws(path.win32.extname.bind(null, true), TypeError);
+assert.throws(path.win32.extname.bind(null, 1), TypeError);
+assert.throws(path.win32.extname.bind(null), TypeError);
+assert.throws(path.win32.extname.bind(null, {}), TypeError);
 
 // On *nix, backslash is a valid name component like any other character.
 assert.equal(path.posix.extname('.\\'), '');
@@ -195,11 +195,11 @@ assert.equal(path.posix.extname('file\\'), '');
 assert.equal(path.posix.extname('file\\\\'), '');
 assert.equal(path.posix.extname('file.\\'), '.\\');
 assert.equal(path.posix.extname('file.\\\\'), '.\\\\');
-assert.equal(path.posix.extname(null), '');
-assert.equal(path.posix.extname(true), '');
-assert.equal(path.posix.extname(1), '');
-assert.equal(path.posix.extname(), '');
-assert.equal(path.posix.extname({}), '');
+assert.throws(path.posix.extname.bind(null, null), TypeError);
+assert.throws(path.posix.extname.bind(null, true), TypeError);
+assert.throws(path.posix.extname.bind(null, 1), TypeError);
+assert.throws(path.posix.extname.bind(null), TypeError);
+assert.throws(path.posix.extname.bind(null, {}), TypeError);
 
 
 // path.join tests
@@ -336,10 +336,10 @@ assert.equal(failures.length, 0, failures.join(''));
 
 
 // Test thrown TypeErrors
-var typeErrorTests = [true, false, 7, null, {}, undefined, [], NaN];
+const typeErrorTests = [true, false, 7, null, {}, undefined, [], NaN];
 
 function fail(fn) {
-  var args = Array.prototype.slice.call(arguments, 1);
+  const args = Array.prototype.slice.call(arguments, 1);
 
   assert.throws(function() {
     fn.apply(null, args);
@@ -347,24 +347,23 @@ function fail(fn) {
 }
 
 typeErrorTests.forEach(function(test) {
-  fail(path.join, test);
-  fail(path.resolve, test);
-  fail(path.normalize, test);
-  fail(path.isAbsolute, test);
-  fail(path.relative, test, 'foo');
-  fail(path.relative, 'foo', test);
-  fail(path.parse, test);
+  [path.posix, path.win32].forEach(function(namespace) {
+    fail(namespace.join, test);
+    fail(namespace.resolve, test);
+    fail(namespace.normalize, test);
+    fail(namespace.isAbsolute, test);
+    fail(namespace.relative, test, 'foo');
+    fail(namespace.relative, 'foo', test);
+    fail(namespace.parse, test);
+    fail(namespace.dirname, test);
+    fail(namespace.basename, test);
+    fail(namespace.extname, test);
 
-  // These methods should throw a TypeError, but do not for backwards
-  // compatibility. Uncommenting these lines in the future should be a goal.
-  // fail(path.dirname, test);
-  // fail(path.basename, test);
-  // fail(path.extname, test);
-
-  // undefined is a valid value as the second argument to basename
-  if (test !== undefined) {
-    fail(path.basename, 'foo', test);
-  }
+    // undefined is a valid value as the second argument to basename
+    if (test !== undefined) {
+      fail(namespace.basename, 'foo', test);
+    }
+  });
 });
 
 
