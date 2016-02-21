@@ -72,6 +72,7 @@ namespace node {
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
   V(cached_data_string, "cachedData")                                         \
+  V(cached_data_produced_string, "cachedDataProduced")                        \
   V(cached_data_rejected_string, "cachedDataRejected")                        \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
