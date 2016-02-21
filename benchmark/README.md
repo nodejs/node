@@ -1,147 +1,292 @@
-# Node.js core benchmark tests
+# Node.js core benchmark
 
-This folder contains benchmark tests to measure the performance for certain
-Node.js APIs.
+This folder contains benchmarks to measure the performance of the Node.js APIs.
+
+## Table of Content
+
+* [Prerequisites](#prerequisites)
+* [Running benchmarks](#running-benchmarks)
+ * [Running individual benchmarks](#running-individual-benchmarks)
+ * [Running all benchmarks](#running-all-benchmarks)
+ * [Comparing node versions](#comparing-node-versions)
+ * [Comparing parameters](#comparing-parameters)
+* [Creating a benchmark](#creating-a-benchmark)
 
 ## Prerequisites
 
-Most of the http benchmarks require [`wrk`][wrk] and [`ab`][ab] (ApacheBench) being installed.
-These may be available through your preferred package manager.
+Most of the http benchmarks require [`wrk`][wrk] to be installed. It may be
+available through your preferred package manager. If not, `wrk` can be built
+[from source][wrk] via `make`.
 
-If they are not available:
-- `wrk` may easily be built [from source][wrk] via `make`.
-- `ab` is sometimes bundled in a package called `apache2-utils`.
+To analyze the results `R` should be installed. Check you package manager or
+download it from https://www.r-project.org/.
+
+The R packages `ggplot2` and `plyr` are also used and can be installed using
+the R REPL.
+
+```R
+$ R
+install.packages("ggplot2")
+install.packages("plyr")
+```
 
 [wrk]: https://github.com/wg/wrk
-[ab]: http://httpd.apache.org/docs/2.2/programs/ab.html
 
-## How to run tests
+## Running benchmarks
 
-There are three ways to run benchmark tests:
+### Running individual benchmarks
 
-### Run all tests of a given type
+This can be useful for debugging a benchmark or doing a quick performance
+measure. But it does not provide the statistical information to make any
+conclusions about the performance.
 
-For example, buffers:
+Individual benchmarks can be executed by simply executing the benchmark script
+with node.
 
-```bash
-node benchmark/run.js buffers
+```
+$ node benchmark/buffers/buffer-tostring.js
+
+buffers/buffer-tostring.js n=10000000 len=0 arg=true: 62710590.393305704
+buffers/buffer-tostring.js n=10000000 len=1 arg=true: 9178624.591787899
+buffers/buffer-tostring.js n=10000000 len=64 arg=true: 7658962.8891432695
+buffers/buffer-tostring.js n=10000000 len=1024 arg=true: 4136904.4060201733
+buffers/buffer-tostring.js n=10000000 len=0 arg=false: 22974354.231509723
+buffers/buffer-tostring.js n=10000000 len=1 arg=false: 11485945.656765845
+buffers/buffer-tostring.js n=10000000 len=64 arg=false: 8718280.70650129
+buffers/buffer-tostring.js n=10000000 len=1024 arg=false: 4103857.0726124765
 ```
 
-The above command will find all scripts under `buffers` directory and require
-each of them as a module. When a test script is required, it creates an instance
-of `Benchmark` (a class defined in common.js). In the next tick, the `Benchmark`
-constructor iterates through the configuration object property values and runs
-the test function with each of the combined arguments in spawned processes. For
-example, buffers/buffer-read.js has the following configuration:
+Each line represents a single benchmark with parameters specified as
+`${variable}=${value}`. Each configuration combination is executed in a separate
+process. This ensures that benchmark results aren't affected by the execution
+order due to v8 optimizations. **The last number is the rate of operations
+measured in ops/sec (higher is better).**
 
-```js
-var bench = common.createBenchmark(main, {
-    noAssert: [false, true],
-    buffer: ['fast', 'slow'],
-    type: ['UInt8', 'UInt16LE', 'UInt16BE',
-        'UInt32LE', 'UInt32BE',
-        'Int8', 'Int16LE', 'Int16BE',
-        'Int32LE', 'Int32BE',
-        'FloatLE', 'FloatBE',
-        'DoubleLE', 'DoubleBE'],
-        millions: [1]
-});
-```
-The runner takes one item from each of the property array value to build a list
-of arguments to run the main function. The main function will receive the conf
-object as follows:
+Furthermore you can specify a subset of the configurations, by setting them in
+the process arguments:
 
-- first run:
-```js
-    {   noAssert: false,
-        buffer: 'fast',
-        type: 'UInt8',
-        millions: 1
-    }
 ```
-- second run:
-```js
-    {
-        noAssert: false,
-        buffer: 'fast',
-        type: 'UInt16LE',
-        millions: 1
-    }
+$ node benchmark/buffers/buffer-tostring.js len=1024
+
+buffers/buffer-tostring.js n=10000000 len=1024 arg=true: 3498295.68561504
+buffers/buffer-tostring.js n=10000000 len=1024 arg=false: 3783071.1678948295
 ```
+
+### Running all benchmarks
+
+Similar to running individual benchmarks, a group of benchmarks can be executed
+by using the `run.js` tool. Again this does not provide the statistical
+information to make any conclusions.
+
+```
+$ node benchmark/run.js arrays
+
+arrays/var-int.js
+arrays/var-int.js n=25 type=Array: 71.90148040747789
+arrays/var-int.js n=25 type=Buffer: 92.89648382795582
 ...
 
-In this case, the main function will run 2*2*14*1 = 56 times. The console output
-looks like the following:
+arrays/zero-float.js
+arrays/zero-float.js n=25 type=Array: 75.46208316171496
+arrays/zero-float.js n=25 type=Buffer: 101.62785630273159
+...
 
-```
-buffers//buffer-read.js
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt8 millions=1: 271.83
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt16LE millions=1: 239.43
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 244.57
+arrays/zero-int.js
+arrays/zero-int.js n=25 type=Array: 72.31023859816062
+arrays/zero-int.js n=25 type=Buffer: 90.49906662339653
 ...
 ```
 
-The last number is the rate of operations. Higher is better.
-
-### Run an individual test
-
-For example, buffer-slice.js:
-
-```bash
-node benchmark/buffers/buffer-read.js
+It is possible to execute more groups by adding extra process arguments.
 ```
-The output:
+$ node benchmark/run.js arrays buffers
 ```
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt8 millions=1: 246.79
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt16LE millions=1: 240.11
-buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 245.91
+
+### Comparing node versions
+
+To compare the effect of a new node version use the `compare.js` tool. This
+will run each benchmark multiple times, making it possible to calculate
+statistics on the performance measures.
+
+As an example on how to check for a possible performance improvement, the
+[#5134](https://github.com/nodejs/node/pull/5134) pull request will be used as
+an example. This pull request _claims_ to improve the performance of the
+`string_decoder` module.
+
+First build two versions of node, one from the master branch (here called
+`./node-master`) and another with the pull request applied (here called
+`./node-pr-5135`).
+
+The `compare.js` tool will then produce a csv file with the benchmark results.
+
+```
+$ node benchmark/compare.js --old ./node-master --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
+```
+
+For analysing the benchmark results use the `compare.R` tool.
+
+```
+$ cat compare-pr-5134.csv | Rscript benchmark/compare.R
+
+                                                                                      improvement significant      p.value
+string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=ascii           12.46 %         *** 1.165345e-04
+string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=base64-ascii    24.70 %         *** 1.820615e-15
+string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=base64-utf8     23.60 %         *** 2.105625e-12
+string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=utf8            14.04 %         *** 1.291105e-07
+string_decoder/string-decoder.js n=250000 chunk=1024 inlen=128  encoding=ascii            6.70 %           * 2.928003e-02
 ...
 ```
 
-### Run tests with options
+In the output, _improvement_ is the relative improvement of the new version,
+hopefully this is positive. _significant_ tells if there is enough
+statistical evidence to validate the _improvement_. If there is enough evidence
+then there will be at least one star (`*`), more stars is just better. **However
+if there are no stars, then you shouldn't make any conclusions based on the
+_improvement_.** Sometimes this is fine, for example if you are expecting there
+to be no improvements, then there shouldn't be any stars.
 
-This example will run only the first type of url test, with one iteration.
-(Note: benchmarks require __many__ iterations to be statistically accurate.)
+**A word of caution:** Statistics is not a foolproof tool. If a benchmark shows
+a statistical significant difference, there is a 5% risk that this
+difference doesn't actually exists. For a single benchmark this is not an
+issue. But when considering 20 benchmarks it's normal that one of them
+will show significance, when it shouldn't. A possible solution is to instead
+consider at least two stars (`**`) as the threshold, in that case the risk
+is 1%. If three stars (`***`) is considered the risk is 0.1%. However this
+may require more runs to obtain (can be set with `--runs`).
 
+_For the statistically minded, the R script performs an [independent/unpaired
+2-group t-test][t-test], with the null hypothesis that the performance is the
+same for both versions. The significant field will show a star if the p-value
+is less than `0.05`._
 
-```bash
-node benchmark/url/url-parse.js type=one n=1
+[t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
+
+The `compare.R` tool can also produce a box plot by using the `--plot filename`
+option. In this case there are 48 different benchmark combinations, thus you
+may want to filter the csv file. This can be done while benchmarking using the
+`--set` parameter (e.g. `--set encoding=ascii`) or by filtering results
+afterwards using tools such as `sed` or `grep`. In the `sed` case be sure to
+keep the first line since that contains the header information.
+
 ```
-Output:
+$ cat compare-pr-5134.csv | sed '1p;/encoding=ascii/!d' | Rscript benchmark/compare.R --plot compare-plot.png
+
+                                                                               improvement significant      p.value
+string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=ascii    12.46 %         *** 1.165345e-04
+string_decoder/string-decoder.js n=250000 chunk=1024 inlen=128 encoding=ascii      6.70 %           * 2.928003e-02
+string_decoder/string-decoder.js n=250000 chunk=1024 inlen=32 encoding=ascii       7.47 %         *** 5.780583e-04
+string_decoder/string-decoder.js n=250000 chunk=16 inlen=1024 encoding=ascii       8.94 %         *** 1.788579e-04
+string_decoder/string-decoder.js n=250000 chunk=16 inlen=128 encoding=ascii       10.54 %         *** 4.016172e-05
+...
 ```
-url/url-parse.js type=one n=1: 1663.74402
+
+![compare tool boxplot](doc_img/compare-boxplot.png)
+
+### Comparing parameters
+
+It can be useful to compare the performance for different parameters, for
+example to analyze the time complexity.
+
+To do this use the `scatter.js` tool, this will run a benchmark multiple times
+and generate a csv with the results.
+
+```
+$ node benchmark/scatter.js benchmark/string_decoder/string-decoder.js > scatter.csv
 ```
 
-## How to write a benchmark test
+After generating the csv, a comparison table can be created using the
+`scatter.R` tool. Even more useful it creates an actual scatter plot when using
+the `--plot filename` option.
 
-The benchmark tests are grouped by types. Each type corresponds to a subdirectory,
-such as `arrays`, `buffers`, or `fs`.
+```
+$ cat scatter.csv | Rscript benchmark/scatter.R --xaxis chunk --category encoding --plot scatter-plot.png --log
 
-Let's add a benchmark test for Buffer.slice function. We first create a file
-buffers/buffer-slice.js.
+aggregating variable: inlen
 
-### The code snippet
+chunk     encoding      mean confidence.interval
+   16        ascii 1111933.3           221502.48
+   16 base64-ascii  167508.4            33116.09
+   16  base64-utf8  122666.6            25037.65
+   16         utf8  783254.8           159601.79
+   64        ascii 2623462.9           399791.36
+   64 base64-ascii  462008.3            85369.45
+   64  base64-utf8  420108.4            85612.05
+   64         utf8 1358327.5           235152.03
+  256        ascii 3730343.4           371530.47
+  256 base64-ascii  663281.2            80302.73
+  256  base64-utf8  632911.7            81393.07
+  256         utf8 1554216.9           236066.53
+ 1024        ascii 4399282.0           186436.46
+ 1024 base64-ascii  730426.6            63806.12
+ 1024  base64-utf8  680954.3            68076.33
+ 1024         utf8 1554832.5           237532.07
+```
+
+Because the scatter plot can only show two variables (in this case _chunk_ and
+_encoding_) the rest is aggregated. Sometimes aggregating is a problem, this
+can be solved by filtering. This can be done while benchmarking using the
+`--set` parameter (e.g. `--set encoding=ascii`) or by filtering results
+afterwards using tools such as `sed` or `grep`. In the `sed` case be
+sure to keep the first line since that contains the header information.
+
+```
+$ cat scatter.csv | sed -E '1p;/([^,]+, ){3}128,/!d' | Rscript benchmark/scatter.R --xaxis chunk --category encoding --plot scatter-plot.png --log
+
+chunk     encoding       mean confidence.interval
+   16        ascii  701285.96           21233.982
+   16 base64-ascii  107719.07            3339.439
+   16  base64-utf8   72966.95            2438.448
+   16         utf8  475340.84           17685.450
+   64        ascii 2554105.08           87067.132
+   64 base64-ascii  330120.32            8551.707
+   64  base64-utf8  249693.19            8990.493
+   64         utf8 1128671.90           48433.862
+  256        ascii 4841070.04          181620.768
+  256 base64-ascii  849545.53           29931.656
+  256  base64-utf8  809629.89           33773.496
+  256         utf8 1489525.15           49616.334
+ 1024        ascii 4931512.12          165402.805
+ 1024 base64-ascii  863933.22           27766.982
+ 1024  base64-utf8  827093.97           24376.522
+ 1024         utf8 1487176.43           50128.721
+```
+
+![compare tool boxplot](doc_img/scatter-plot.png)
+
+## Creating a benchmark
+
+All benchmarks use the `require('../common.js')` module. This contains the
+`createBenchmark(main, configs)` method which will setup your benchmark.
+
+The first argument `main` is the benchmark function, the second argument
+specifies the benchmark parameters. `createBenchmark` will run all possible
+combinations of these parameters, unless specified otherwise. Note that the
+configuration values can only be strings or numbers.
+
+`createBenchmark` also creates a `bench` object, which is used for timing
+the runtime of the benchmark. Run `bench.start()` after the initialization
+and `bench.end(n)` when the benchmark is done. `n` is the number of operations
+you performed in the benchmark.
 
 ```js
-var common = require('../common.js'); // Load the test runner
+'use strict';
+const common = require('../common.js');
+const SlowBuffer = require('buffer').SlowBuffer;
 
-var SlowBuffer = require('buffer').SlowBuffer;
-
-// Create a benchmark test for function `main` and the configuration variants
-var bench = common.createBenchmark(main, {
-  type: ['fast', 'slow'], // Two types of buffer
-  n: [512] // Number of times (each unit is 1024) to call the slice API
+const bench = common.createBenchmark(main, {
+  n: [1024],
+  type: ['fast', 'slow'],
+  size: [16, 128, 1024]
 });
 
 function main(conf) {
-  // Read the parameters from the configuration
-  var n = +conf.n;
-  var b = conf.type === 'fast' ? buf : slowBuf;
-  bench.start(); // Start benchmarking
-  for (var i = 0; i < n * 1024; i++) {
-    // Add your test here
-    b.slice(10, 256);
+  bench.start();
+
+  const BufferConstructor = conf.type === 'fast' ? Buffer : SlowBuffer;
+
+  for (let i = 0; i < conf.n; i++) {
+    new BufferConstructor(conf.size);
   }
-  bench.end(n); // End benchmarking
+  bench.end(conf.n);
 }
 ```
