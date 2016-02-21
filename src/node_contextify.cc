@@ -545,11 +545,17 @@ class ContextifyScript : public BaseObject {
           Boolean::New(env->isolate(), source.GetCachedData()->rejected));
     } else if (compile_options == ScriptCompiler::kProduceCodeCache) {
       const ScriptCompiler::CachedData* cached_data = source.GetCachedData();
-      MaybeLocal<Object> buf = Buffer::Copy(
-          env,
-          reinterpret_cast<const char*>(cached_data->data),
-          cached_data->length);
-      args.This()->Set(env->cached_data_string(), buf.ToLocalChecked());
+      bool cached_data_produced = cached_data != nullptr;
+      if (cached_data_produced) {
+        MaybeLocal<Object> buf = Buffer::Copy(
+            env,
+            reinterpret_cast<const char*>(cached_data->data),
+            cached_data->length);
+        args.This()->Set(env->cached_data_string(), buf.ToLocalChecked());
+      }
+      args.This()->Set(
+          env->cached_data_produced_string(),
+          Boolean::New(env->isolate(), cached_data_produced));
     }
   }
 
