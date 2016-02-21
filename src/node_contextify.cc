@@ -545,7 +545,7 @@ class ContextifyScript : public BaseObject {
           Boolean::New(env->isolate(), source.GetCachedData()->rejected));
     } else if (compile_options == ScriptCompiler::kProduceCodeCache) {
       const ScriptCompiler::CachedData* cached_data = source.GetCachedData();
-      bool cached_data_produced = (cached_data != nullptr);
+      bool cached_data_produced = cached_data != nullptr;
       if (cached_data_produced) {
         MaybeLocal<Object> buf = Buffer::Copy(
             env,
