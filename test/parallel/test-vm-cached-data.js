@@ -12,7 +12,7 @@ function produce(source) {
   const script = new vm.Script(source, {
     produceCachedData: true
   });
-  assert(script.cachedData instanceof Buffer);
+  assert(!script.cachedDataProduced || script.cachedData instanceof Buffer);
 
   return script.cachedData;
 }
@@ -30,6 +30,15 @@ function testProduceConsume() {
   assert.equal(script.runInThisContext()(), 'original');
 }
 testProduceConsume();
+
+function testProduceMultiple() {
+  const source = getSource('original');
+
+  produce(source);
+  produce(source);
+  produce(source);
+}
+testProduceMultiple();
 
 function testRejectInvalid() {
   const source = getSource('invalid');
