@@ -9,7 +9,7 @@ const domain = require('domain');
 
 // Crazy stuff to keep the process open,
 // then close it when we are actually done.
-const TEST_DURATION = common.platformTimeout(100);
+const TEST_DURATION = common.platformTimeout(1000);
 const keepOpen = setTimeout(function() {
   throw new Error('Test timed out. keepOpen was not canceled.');
 }, TEST_DURATION);
