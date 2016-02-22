@@ -11,7 +11,8 @@ env:
 before_install:
   - "npm config set spin false"
   - "node . install -g ."
-  - "sudo mkdir -p /var/run/couchdb"
+  - "mkdir -p /var/run/couchdb"
+sudo: false
 script: "npm run-script test-all"
 notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8

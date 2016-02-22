@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "January 2016" "" ""
+.TH "NPM\-INSTALL" "1" "February 2016" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -195,9 +195,11 @@ fetch the package by name if it is not valid\.
     <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit\-ish>]
 .fi
 .RE
-  \fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, or
-  \fBgit+https\fP\|\.  If no \fB<commit\-ish>\fP is specified, then \fBmaster\fP is
-  used\.
+  \fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, \fBgit+https\fP,
+  or \fBgit+file\fP\|\.
+  If no \fB<commit\-ish>\fP is specified, then \fBmaster\fP is used\.
+  If the repository makes use of submodules, those submodules will
+  be cloned as well\.
   The following git environment variables are recognized by npm and will be added
   to the environment when running git:
 .RS 0

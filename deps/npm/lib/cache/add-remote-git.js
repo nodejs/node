@@ -346,6 +346,24 @@ function checkoutTreeish (from, resolvedURL, resolvedTreeish, tmpdir, cb) {
       }
       log.verbose('checkoutTreeish', from, 'checkout', stdout)
 
+      updateSubmodules(from, resolvedURL, tmpdir, cb)
+    }
+  )
+}
+
+function updateSubmodules (from, resolvedURL, tmpdir, cb) {
+  var args = ['submodule', '-q', 'update', '--init', '--recursive']
+  git.whichAndExec(
+    args,
+    { cwd: tmpdir, env: gitEnv() },
+    function (er, stdout, stderr) {
+      stdout = (stdout + '\n' + stderr).trim()
+      if (er) {
+        log.error('git ' + args.join(' ') + ':', stderr)
+        return cb(er)
+      }
+      log.verbose('updateSubmodules', from, 'submodule update', stdout)
+
       // convince addLocal that the checkout is a local dependency
       realizePackageSpecifier(tmpdir, function (er, spec) {
         if (er) {

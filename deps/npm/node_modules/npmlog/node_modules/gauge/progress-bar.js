@@ -36,7 +36,7 @@ var ProgressBar = module.exports = function (options, cursor) {
     {type: "completionbar"},
     {type: "endgroup"}
   ]
-  this.updatefreq = options.maxUpdateFrequency || 50
+  this.updatefreq = options.maxUpdateFrequency == null ? 50 : options.maxUpdateFrequency
   this.lastName = ""
   this.lastCompleted = 0
   this.spun = 0
@@ -132,13 +132,12 @@ ProgressBar.prototype.show = function(name, completed) {
   if (!isTTY()) return
   if (this.disabled) return
   if (! this.spun && ! completed) return
-  if (this.tryAgain) {
-    clearTimeout(this.tryAgain)
-    this.tryAgain = null
-  }
+  if (this.tryAgain) return
   var self = this
+
   if (this.showing && new Date() - this.last < this.updatefreq) {
     this.tryAgain = setTimeout(function () {
+      self.tryAgain = null
       if (self.disabled) return
       if (! self.spun && ! completed) return
       drawBar()
