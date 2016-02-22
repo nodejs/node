@@ -345,9 +345,12 @@ using v8::Value;
 
 void RunCallback(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  if (!args[0]->IsFunction()) {
+    return;
+  }
   Local<Function> cb = Local<Function>::Cast(args[0]);
   const unsigned argc = 1;
-  Local<Value> argv[argc] = { String::NewFromUtf8(isolate, "hello world") };
+  Local<Value> argv[argc] = { String::NewFromUtf8(isolate, "hello, world") };
   cb->Call(Null(isolate), argc, argv);
 }
 
@@ -390,6 +393,7 @@ property `msg` that echoes the string passed to `createObject()`:
 
 namespace demo {
 
+using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
@@ -399,6 +403,13 @@ using v8::Value;
 
 void CreateObject(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+
+  if (!args[0]->IsString()) {
+    isolate->ThrowException(Exception::TypeError(
+      String::NewFromUtf8(isolate, "Argument must be a string"))
+    );
+    return;
+  }
 
   Local<Object> obj = Object::New(isolate);
   obj->Set(String::NewFromUtf8(isolate, "msg"), args[0]->ToString());
@@ -421,9 +432,9 @@ To test it in JavaScript:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj1 = addon('hello');
-var obj2 = addon('world');
-console.log(obj1.msg+' '+obj2.msg); // 'hello world'
+const obj1 = addon('hello');
+const obj2 = addon('world');
+console.log(obj1.msg + ', ' + obj2.msg); // 'hello world'
 ```
 
 
@@ -449,7 +460,7 @@ using v8::Value;
 
 void MyFunction(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  args.GetReturnValue().Set(String::NewFromUtf8(isolate, "hello world"));
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, "hello, world"));
 }
 
 void CreateFunction(const FunctionCallbackInfo<Value>& args) {
@@ -479,8 +490,8 @@ To test:
 // test.js
 const addon = require('./build/Release/addon');
 
-var fn = addon();
-console.log(fn()); // 'hello world'
+const fn = addon();
+console.log(fn()); // 'hello, world'
 ```
 
 
@@ -520,17 +531,25 @@ Then, in `myobject.h`, the wrapper class inherits from `node::ObjectWrap`:
 
 namespace demo {
 
-class MyObject : public node::ObjectWrap {
+using node::ObjectWrap;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::Local;
+using v8::Object;
+using v8::Persistent;
+using v8::Value;
+
+class MyObject : public ObjectWrap {
  public:
-  static void Init(v8::Local<v8::Object> exports);
+  static void Init(Local<Object> exports);
 
  private:
   explicit MyObject(double value = 0);
   ~MyObject();
 
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void PlusOne(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Persistent<v8::Function> constructor;
+  static void New(const FunctionCallbackInfo<Value>& args);
+  static void PlusOne(const FunctionCallbackInfo<Value>& args);
+  static Persistent<Function> constructor;
   double value_;
 };
 
@@ -592,7 +611,6 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     double value = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
     MyObject* obj = new MyObject(value);
     obj->Wrap(args.This());
-    args.GetReturnValue().Set(args.This());
   } else {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
     const int argc = 1;
@@ -637,7 +655,7 @@ Test it with:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj = new addon.MyObject(10);
+const obj = new addon.MyObject(10);
 console.log( obj.plusOne() ); // 11
 console.log( obj.plusOne() ); // 12
 console.log( obj.plusOne() ); // 13
@@ -649,9 +667,9 @@ Alternatively, it is possible to use a factory pattern to avoid explicitly
 creating object instances using the JavaScript `new` operator:
 
 ```js
-var obj = addon.createObject();
+const obj = addon.createObject();
 // instead of:
-// var obj = new addon.Object();
+// const obj = new addon.Object();
 ```
 
 First, the `createObject()` method is implemented in `addon.cc`:
@@ -699,18 +717,25 @@ JavaScript:
 
 namespace demo {
 
-class MyObject : public node::ObjectWrap {
+using node::ObjectWrap;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::Isolate;
+using v8::Persistent;
+using v8::Value;
+
+class MyObject : public ObjectWrap {
  public:
-  static void Init(v8::Isolate* isolate);
-  static void NewInstance(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Init(Isolate* isolate);
+  static void NewInstance(const FunctionCallbackInfo<Value>& args);
 
  private:
   explicit MyObject(double value = 0);
   ~MyObject();
 
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void PlusOne(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Persistent<v8::Function> constructor;
+  static void New(const FunctionCallbackInfo<Value>& args);
+  static void PlusOne(const FunctionCallbackInfo<Value>& args);
+  static Persistent<Function> constructor;
   double value_;
 };
 
@@ -767,7 +792,6 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     double value = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
     MyObject* obj = new MyObject(value);
     obj->Wrap(args.This());
-    args.GetReturnValue().Set(args.This());
   } else {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
     const int argc = 1;
@@ -823,12 +847,12 @@ Test it with:
 // test.js
 const createObject = require('./build/Release/addon');
 
-var obj = createObject(10);
+const obj = createObject(10);
 console.log( obj.plusOne() ); // 11
 console.log( obj.plusOne() ); // 12
 console.log( obj.plusOne() ); // 13
 
-var obj2 = createObject(20);
+const obj2 = createObject(20);
 console.log( obj2.plusOne() ); // 21
 console.log( obj2.plusOne() ); // 22
 console.log( obj2.plusOne() ); // 23
@@ -850,6 +874,7 @@ that can take two `MyObject` objects as input arguments:
 
 namespace demo {
 
+using node::ObjectWrap;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
@@ -865,9 +890,9 @@ void CreateObject(const FunctionCallbackInfo<Value>& args) {
 void Add(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
 
-  MyObject* obj1 = node::ObjectWrap::Unwrap<MyObject>(
+  MyObject* obj1 = ObjectWrap::Unwrap<MyObject>(
       args[0]->ToObject());
-  MyObject* obj2 = node::ObjectWrap::Unwrap<MyObject>(
+  MyObject* obj2 = ObjectWrap::Unwrap<MyObject>(
       args[1]->ToObject());
 
   double sum = obj1->value() + obj2->value();
@@ -899,18 +924,25 @@ after unwrapping the object.
 
 namespace demo {
 
-class MyObject : public node::ObjectWrap {
+using node::ObjectWrap;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::Isolate;
+using v8::Persistent;
+using v8::Value;
+
+class MyObject : public ObjectWrap {
  public:
-  static void Init(v8::Isolate* isolate);
-  static void NewInstance(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Init(Isolate* isolate);
+  static void NewInstance(const FunctionCallbackInfo<Value>& args);
   inline double value() const { return value_; }
 
  private:
   explicit MyObject(double value = 0);
   ~MyObject();
 
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Persistent<v8::Function> constructor;
+  static void New(const FunctionCallbackInfo<Value>& args);
+  static Persistent<Function> constructor;
   double value_;
 };
 
@@ -963,7 +995,6 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     double value = args[0]->IsUndefined() ? 0 : args[0]->NumberValue();
     MyObject* obj = new MyObject(value);
     obj->Wrap(args.This());
-    args.GetReturnValue().Set(args.This());
   } else {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
     const int argc = 1;
@@ -993,9 +1024,9 @@ Test it with:
 // test.js
 const addon = require('./build/Release/addon');
 
-var obj1 = addon.createObject(10);
-var obj2 = addon.createObject(20);
-var result = addon.add(obj1, obj2);
+const obj1 = addon.createObject(10);
+const obj2 = addon.createObject(20);
+const result = addon.add(obj1, obj2);
 
 console.log(result); // 30
 ```
