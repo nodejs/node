@@ -61,6 +61,7 @@ class SimpleTestCase(test.TestCase):
 
   def GetCommand(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
+    result += self.config.context.GetVmFlags(self, self.mode)
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:

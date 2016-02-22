@@ -233,21 +233,27 @@ exports.spawnPwd = function(options) {
 };
 
 exports.platformTimeout = function(ms) {
-  if (process.config.target_defaults.default_configuration === 'Debug')
-    ms = 2 * ms;
+  var newTimeout = ms;
 
-  if (process.arch !== 'arm')
-    return ms;
+  if (process.arch === 'arm') {
+    const armv = process.config.variables.arm_version;
 
-  const armv = process.config.variables.arm_version;
+    if (armv === '6') // ARMv6
+      newTimeout *= 7;  
 
-  if (armv === '6')
-    return 7 * ms;  // ARMv6
+    if (armv === '7') // ARMv7
+      newTimeout *= 2; 
+  }
 
-  if (armv === '7')
-    return 2 * ms;  // ARMv7
+  if (process.features.debug) {
+    newTimeout *= 5;
+  }
 
-  return ms; // ARMv8+
+  if (process.env.TEST_TIMEOUT_MULTIPLIER !== undefined) {
+    newTimeout = ms * process.env.TEST_TIMEOUT_MULTIPLIER;
+  }
+
+  return newTimeout;
 };
 
 var knownGlobals = [setTimeout,

@@ -447,4 +447,4 @@ unix_test();
 
 timer = setTimeout(function() {
   assert.fail(null, null, 'Timeout');
-}, 5000);
+}, common.platformTimeout(5000));
