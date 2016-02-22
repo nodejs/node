@@ -121,18 +121,35 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 
   if (env->async_hooks()->callbacks_enabled())
     return env->ThrowError("hooks should not be set while also enabled");
+  if (!args[0]->IsObject())
+    return env->ThrowTypeError("first argument must be an object");
 
-  if (!args[0]->IsFunction())
+  Local<Object> fn_obj = args[0].As<Object>();
+
+  Local<Value> init_v = fn_obj->Get(
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "init")).ToLocalChecked();
+  Local<Value> pre_v = fn_obj->Get(
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "pre")).ToLocalChecked();
+  Local<Value> post_v = fn_obj->Get(
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "post")).ToLocalChecked();
+  Local<Value> destroy_v = fn_obj->Get(
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "destroy")).ToLocalChecked();
+
+  if (!init_v->IsFunction())
     return env->ThrowTypeError("init callback must be a function");
 
-  env->set_async_hooks_init_function(args[0].As<Function>());
+  env->set_async_hooks_init_function(init_v.As<Function>());
 
-  if (args[1]->IsFunction())
-    env->set_async_hooks_pre_function(args[1].As<Function>());
-  if (args[2]->IsFunction())
-    env->set_async_hooks_post_function(args[2].As<Function>());
-  if (args[3]->IsFunction())
-    env->set_async_hooks_destroy_function(args[3].As<Function>());
+  if (pre_v->IsFunction())
+    env->set_async_hooks_pre_function(pre_v.As<Function>());
+  if (post_v->IsFunction())
+    env->set_async_hooks_post_function(post_v.As<Function>());
+  if (destroy_v->IsFunction())
+    env->set_async_hooks_destroy_function(destroy_v.As<Function>());
 }
 
 
