@@ -6,7 +6,7 @@ const assert = require('assert');
 const async_wrap = process.binding('async_wrap');
 
 const storage = new Map();
-async_wrap.setupHooks(init, pre, post, destroy);
+async_wrap.setupHooks({ init, pre, post, destroy });
 async_wrap.enable();
 
 function init(uid) {
