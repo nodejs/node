@@ -120,7 +120,6 @@ function filterByEnv (data) {
   var devDependencies = data.devDependencies || []
   Object.keys(data.dependencies).forEach(function (name) {
     var keys = Object.keys(devDependencies)
-    if (production && !dev && keys.indexOf(name) !== -1) return
     if (dev && !production && keys.indexOf(name) === -1) return
     if (!dev && keys.indexOf(name) !== -1 && data.dependencies[name].missing) return
     dependencies[name] = data.dependencies[name]

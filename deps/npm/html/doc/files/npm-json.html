@@ -90,7 +90,7 @@ Ideally you should pick one that is
 expression syntax version 2.0 string</a>, like this:</p>
 <pre><code>{ &quot;license&quot; : &quot;(ISC OR GPL-3.0)&quot; }
 </code></pre><p>If you are using a license that hasn&#39;t been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:</p>
+you are using a custom license, use a string value like this one:</p>
 <pre><code>{ &quot;license&quot; : &quot;SEE LICENSE IN &lt;filename&gt;&quot; }
 </code></pre><p>Then include a file named <code>&lt;filename&gt;</code> at the top level of the package.</p>
 <p>Some old packages used license objects or a &quot;licenses&quot; property containing an
@@ -143,10 +143,12 @@ works just like a <code>.gitignore</code>.</p>
 <p>Certain files are always included, regardless of settings:</p>
 <ul>
 <li><code>package.json</code></li>
-<li><code><a href="../../doc/README.html">README</a></code> (and its variants)</li>
-<li><code>CHANGELOG</code> (and its variants)</li>
+<li><code><a href="../../doc/README.html">README</a></code></li>
+<li><code>CHANGES</code> / <code>CHANGELOG</code> / <code>HISTORY</code></li>
 <li><code>LICENSE</code> / <code>LICENCE</code></li>
+<li>The file in the &quot;main&quot; field</li>
 </ul>
+<p><code><a href="../../doc/README.html">README</a></code>, <code>CHANGES</code> &amp; <code>LICENSE</code> can have any case and extension.</p>
 <p>Conversely, some files are always ignored:</p>
 <ul>
 <li><code>.git</code></li>
@@ -155,10 +157,11 @@ works just like a <code>.gitignore</code>.</p>
 <li><code>.hg</code></li>
 <li><code>.lock-wscript</code></li>
 <li><code>.wafpickle-N</code></li>
-<li><code>*.swp</code></li>
+<li><code>.*.swp</code></li>
 <li><code>.DS_Store</code></li>
 <li><code>._*</code></li>
 <li><code>npm-debug.log</code></li>
+<li><code>.npmrc</code></li>
 </ul>
 <h2 id="main">main</h2>
 <p>The main field is a module ID that is the primary entry point to your program.
@@ -559,5 +562,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@3.6.0</p>
+<p id="footer">package.json &mdash; npm@3.7.3</p>
 

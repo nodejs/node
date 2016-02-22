@@ -1,4 +1,4 @@
-# lodash.pad v3.2.0
+# lodash.pad v3.2.1
 
 The [lodash](https://lodash.com/) method `_.pad` exported as a [Node.js](https://nodejs.org/) module.
 
@@ -15,4 +15,4 @@ In Node.js:
 var pad = require('lodash.pad');
 ```
 
-See the [documentation](https://lodash.com/docs#pad) or [package source](https://github.com/lodash/lodash/blob/3.2.0-npm-packages/lodash.pad) for more details.
+See the [documentation](https://lodash.com/docs#pad) or [package source](https://github.com/lodash/lodash/blob/3.2.1-npm-packages/lodash.pad) for more details.

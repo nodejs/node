@@ -231,10 +231,9 @@ exports.removeDeps = function (args, tree, saveToDependencies, log, next) {
     var pkgName = moduleName(pkg)
     if (saveToDependencies) {
       var toRemove = tree.children.filter(moduleNameMatches(pkgName))
-      replaceModule(tree, 'removed', toRemove[0])
-      toRemove.forEach(function (parent) {
-        parent.save = saveToDependencies
-      })
+      var pkgToRemove = toRemove[0] || createChild({package: {name: pkgName}})
+      replaceModule(tree, 'removed', pkgToRemove)
+      pkgToRemove.save = saveToDependencies
     }
     tree.children = tree.children.filter(noModuleNameMatches(pkgName))
   })
