@@ -89,8 +89,9 @@ parameter is undefined, a default error message is assigned.
 
 ## assert.deepStrictEqual(actual, expected[, message])
 
-Generally identical to [`assert.deepEqual()`][] with the exception that primitive
-values are compared using the strict equality operator ( `===` ).
+Generally identical to [`assert.deepEqual()`][] with the exceptions that
+primitive values are compared using the strict equality operator ( `===` ), and
+object prototypes are included in the comparison.
 
 ```js
 const assert = require('assert');
