@@ -394,7 +394,7 @@ Causes npm to install the package into your local `node_modules` folder with
 the same layout it uses with the global `node_modules` folder.  Only your
 direct dependencies will show in `node_modules` and everything they depend
 on will be flattened in their `node_modules` folders.  This obviously will
-elminate some deduping. If used with `legacy-bundling`, `legacy-bundling` will be
+eliminate some deduping. If used with `legacy-bundling`, `legacy-bundling` will be
 preferred.
 
 ### group

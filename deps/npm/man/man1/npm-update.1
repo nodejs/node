@@ -1,4 +1,4 @@
-.TH "NPM\-UPDATE" "1" "January 2016" "" ""
+.TH "NPM\-UPDATE" "1" "February 2016" "" ""
 .SH "NAME"
 \fBnpm-update\fR \- Update a package
 .SH SYNOPSIS
@@ -25,18 +25,7 @@ or local) will be updated\.
 .P
 As of \fBnpm@2\.6\.1\fP, the \fBnpm update\fP will only inspect top\-level packages\.
 Prior versions of \fBnpm\fP would also recursively inspect all dependencies\.
-To get the old behavior, use \fBnpm \-\-depth Infinity update\fP, but be warned that
-simultaneous asynchronous update of all packages, including \fBnpm\fP itself
-and packages that \fBnpm\fP depends on, often causes problems up to and including
-the uninstallation of \fBnpm\fP itself\.
-.P
-To restore a missing \fBnpm\fP, use the command:
-.P
-.RS 2
-.nf
-curl \-L https://npmjs\.com/install\.sh | sh
-.fi
-.RE
+To get the old behavior, use \fBnpm \-\-depth Infinity update\fP\|\.
 .SH EXAMPLES
 .P
 IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fP or later\.  For
@@ -49,16 +38,17 @@ on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions o
 .RS 2
 .nf
 {
-  dist\-tags: { latest: "1\.2\.2" },
-  versions: { "1\.2\.2",
-              "1\.2\.1",
-              "1\.2\.0",
-              "1\.1\.2",
-              "1\.1\.1",
-              "1\.0\.0",
-              "0\.4\.1",
-              "0\.4\.0",
-              "0\.2\.0"
+  "dist\-tags": { "latest": "1\.2\.2" },
+  "versions": {
+    "1\.2\.2",
+    "1\.2\.1",
+    "1\.2\.0",
+    "1\.1\.2",
+    "1\.1\.1",
+    "1\.0\.0",
+    "0\.4\.1",
+    "0\.4\.0",
+    "0\.2\.0"
   }
 }
 .fi
@@ -69,8 +59,8 @@ If \fBapp\fP\|'s \fBpackage\.json\fP contains:
 .P
 .RS 2
 .nf
-dependencies: {
-  dep1: "^1\.1\.1"
+"dependencies": {
+  "dep1": "^1\.1\.1"
 }
 .fi
 .RE
@@ -83,8 +73,8 @@ However, if \fBapp\fP\|'s \fBpackage\.json\fP contains:
 .P
 .RS 2
 .nf
-dependencies: {
-  dep1: "~1\.1\.1"
+"dependencies": {
+  "dep1": "~1\.1\.1"
 }
 .fi
 .RE
@@ -99,8 +89,8 @@ Suppose \fBapp\fP has a caret dependency on a version below \fB1\.0\.0\fP, for e
 .P
 .RS 2
 .nf
-dependencies: {
-  dep1: "^0\.2\.0"
+"dependencies": {
+  "dep1": "^0\.2\.0"
 }
 .fi
 .RE
@@ -112,8 +102,8 @@ If the dependence were on \fB^0\.4\.0\fP:
 .P
 .RS 2
 .nf
-dependencies: {
-  dep1: "^0\.4\.0"
+"dependencies": {
+  "dep1": "^0\.4\.0"
 }
 .fi
 .RE
@@ -129,8 +119,8 @@ the minimum required dependency in \fBpackage\.json\fP, you can use
 .P
 .RS 2
 .nf
-dependencies: {
-  dep1: "^1\.1\.1"
+"dependencies": {
+  "dep1": "^1\.1\.1"
 }
 .fi
 .RE
@@ -140,8 +130,8 @@ and \fBpackage\.json\fP will be modified:
 .P
 .RS 2
 .nf
-dependencies: {
-  dep1: "^1\.2\.2"
+"dependencies": {
+  "dep1": "^1\.2\.2"
 }
 .fi
 .RE
@@ -150,7 +140,7 @@ Note that \fBnpm\fP will only write an updated version to \fBpackage\.json\fP
 if it installs a new package\.
 .SS Updating Globally\-Installed Packages
 .P
-\fBnpm update \-g\fP will apply the \fBupdate\fP action to each globally\- installed
+\fBnpm update \-g\fP will apply the \fBupdate\fP action to each globally installed
 package that is \fBoutdated\fP \-\- that is, has a version that is different from
 \fBlatest\fP\|\.
 .P

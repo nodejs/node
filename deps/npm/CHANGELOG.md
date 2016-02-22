@@ -1,3 +1,277 @@
+### v3.7.3 (2016-02-11):
+
+Hey all! We've got a pretty small release this week -- just documentation
+updates and a couple of dependencies. This release also includes a particular
+dependency upgrade that makes it so we're exclusively using the latest version
+of `graceful-fs`, which'll make it so things keep working with future Node.js
+releases.
+
+A certain internal Node.js API was deprecated and slated for future removal from
+Node Core. This API was critical for versions of `graceful-fs@<4`, before a
+different approach was used to achieve similar ends. By upgrading this library,
+and making sure all our dependencies are also updated, we've ensured npm will
+continue to work once the API is finally removed. Older versions of npm, on the
+other hand, will simply not work on future versions of Node.js.
+
+#### DEPENDENCY UPGRADES
+
+* [`29536f4`](https://github.com/npm/npm/commit/29536f42da6c06091c9acbc8952f72daa8a9412c)
+  `cmd-shim@2.0.2`:
+  Final straggler using `graceful-fs@<4`.
+  ([@ForbesLindesay](https://github.com/ForbesLindesay))
+* [`5f59e74`](https://github.com/npm/npm/commit/5f59e748ef4c066756bb204a452cecd0543c7a2f)
+  `lodash.uniq@4.1.0`
+  ([@jdalton](https://github.com/jdalton))
+* [`987cabe`](https://github.com/npm/npm/commit/987cabe8a18abcb5a685685958bf74c7258a979c)
+  `lodash.union@4.1.0`
+  ([@jdalton](https://github.com/jdalton))
+* [`5c641f0`](https://github.com/npm/npm/commit/5c641f05fdc153c6bb06a89c46fe2a345ce413db)
+  `lodash.clonedeep@4.1.0`
+  ([@jdalton](https://github.com/jdalton))
+
+#### EVERYONE GETTING SOCKS LIKE IT'S OPRAH'S SHOW
+
+* [`9ea5658`](https://github.com/npm/npm/commit/9ea56582ca4d0991dbed44f992c88f08a643cb4b)
+  [#11410](https://github.com/npm/npm/pull/11410)
+  Fixed a small spelling error in `npm-config.md`.
+  ([@pra85](https://github.com/pra85))
+* [`2a11e56`](https://github.com/npm/npm/commit/2a11e562a14bce18b6ddca6c20d17f97b6a8ec2f)
+  [#11403](https://github.com/npm/npm/pull/11403)
+  Removes `--depth Infinity` warning from documentation -- this operation should
+  actually be totally safe as of `npm@3`. (The warning remains for `npm@2`.)
+  ([@Aourin](https://github.com/Aourin))
+* [`42a4727`](https://github.com/npm/npm/commit/42a4727bfb1e21c890b8e2babda55e06ac2bda29)
+  [#11391](https://github.com/npm/npm/pull/11391)
+  Fixed versions of `shrinkwrap.json` in examples in documentation for `npm
+  shrinkwrap`, which did not quite match up.
+  ([@xcatliu](https://github.com/xcatliu))
+
+### v3.7.2 (2016-02-04):
+
+This week, the CLI team has been busy working on rewriting tests to support
+getting coverage reports going and running all of our tests on Windows.
+Meanwhile, we've got a bunch of dependency updates and one or two other
+things.
+
+#### TESTS WENT INTO HIDING
+
+Last week we took a patch from [@substack](https://github.com/substack) to
+stop the installer from reordering arrays in an installed module's
+`package.json`...  but somehow I dropped the test when I was rebasing.
+
+* [`21b9271`](https://github.com/npm/npm/commit/21b927182514a0ff6d9f34480bfc39f72e3e9f8c)
+  [#10063](https://github.com/npm/npm/issues/10063)
+  Restore test that verifies that we don't re-order arrays in a module's
+  `package.json` on install.
+  ([@substack](https://github.com/substack))
+
+#### DOCUMENTATION FIXES
+
+* [`c67521d`](https://github.com/npm/npm/commit/c67521dc6c1e41d39d02c74105e41442851d23bb)
+  [#11348](https://github.com/npm/npm/pull/11348)
+  Improve the documentation around which files are ALWAYS included in published packages
+  and which are ALWAYS excluded.
+  ([@jscissr](https://github.com/jscissr))
+* [`7ef6793`](https://github.com/npm/npm/commit/7ef6793cd191cc8d88340f7e1ce9c9e3d6f0b2f4)
+  [#11348](https://github.com/npm/npm/pull/11348)
+  The release date on the 3.7.0 changelog entry was wrong.  I honestly don't
+  know how I keep doing this. =D
+  ([@rafek](https://github.com/rafek))
+
+#### DEPENDENCY UPDATES
+
+* [`8a3c80c`](https://github.com/npm/npm/commit/8a3c80c4fd3d82fe937f30bc7cbd3dee51a8a893)
+  `graceful-fs@4.1.3`:
+  Fix a bug where close wasn't getting made graceful.
+  ([@isaacs](https://github.com/isaacs))
+
+`lodash` saw updates across most of its modules this week with browser
+campatibility fixes that don't really impact us.
+
+* [`2df342b`](https://github.com/npm/npm/commit/2df342bf30efa99b98016acc8a5dc03e00b58b9c)
+  `lodash.without@4.0.2`
+  ([@jdalton](https://github.com/jdalton))
+* [`86aa91d`](https://github.com/npm/npm/commit/86aa91dce60f6b6a92bb3ba2bf6e6be1f6afc750)
+  `lodash.uniq@4.0.2`
+  ([@jdalton](https://github.com/jdalton))
+* [`0a94bf6`](https://github.com/npm/npm/commit/0a94bf6af0ebd38d080f92257e0cd9bae40b31ff)
+  `lodash.union@4.0.2`
+  ([@jdalton](https://github.com/jdalton))
+* [`b4c9582`](https://github.com/npm/npm/commit/b4c9582b4ef5991f3d155e0c6142ed1c631860af)
+  `lodash.isarguments@3.0.6`
+  ([@jdalton](https://github.com/jdalton))
+* [`efe766c`](https://github.com/npm/npm/commit/efe766c63c0948a4ae4c0d12f2b834629ab86e92)
+  `lodash.keys@4.0.2`: Minor code cleanup and the above.
+  ([@jdalton](https://github.com/jdalton))
+* [`36abb24`](https://github.com/npm/npm/commit/36abb24ef31017adbf325e7f833d5d4b0f03f5d4)
+  `lodash.clonedeep@4.0.4`:
+  Add support for cloning prototype objects and the above.
+  ([@jdalton](https://github.com/jdalton))
+
+### v3.7.1 (2016-02-01):
+
+Super quick Monday patch on last week's release.
+
+If you ever wondered why we release things to the `npm@next` tag for a week
+before promoting them to `npm@latest`, this is it!
+
+#### RELEASE TRAIN VINDICATED (again)
+
+* [`adcaf04`](adcaf047811dcc475ab1984fc93fe34540fc03d7)
+  [#11349](https://github.com/npm/npm/issues/11349)
+  Revert last weeks change to use JSON clone instead of `lodash.cloneDeep`.
+  ([@iarna](https://github.com/iarna))
+
+### v3.7.0 (2016-01-29):
+
+Hi all! This week brings us some important performance improvements,
+support for git submodules(!) and a bunch of bug fixes.
+
+#### PERFORMANCE
+
+`gauge`, the module responsible for drawing `npm`'s progress bars, had an
+embarrassing bug in its debounce implementation that resulted in it, on many
+systems, actually being _slower_ than if it hadn't been debouncing. This was
+due to it destroying and then creating a timer object any time it got an
+update while waiting on its minimum update period to elapse. This only was
+a measurable slowdown when sending thousands of updates a second, but
+unfortunately parts of `npm`'s logging do exactly that. This has been patched
+to eliminate that churn, and our testing shows the progress bar as being
+eliminated as a source of slow down.
+
+Meanwhile, `are-we-there-yet` is the module that tracks just how complete
+our big asynchronous install process is. [@STRML](https://github.com/STRML)
+spent some time auditing its source and made a few smaller performance
+improvements to it. Most impactful was eliminating a bizarre bit of code
+that was both binding to AND closing over the current object. I don't have
+any explanation for how that crept in. =D
+
+* [`c680fa9`](https://github.com/npm/npm/commit/c680fa9f8135759eb5512f4b86e47fa265733f79)
+  `npmlog@2.0.2`: New `are-we-there-yet` with performance patches from
+  [@STRML](https://github.com/STRML). New `gauge` with timer churn
+  performance patch.
+  ([@iarna](https://github.com/iarna))
+
+We were also using `lodash`'s `cloneDeep` on `package.json` data which is
+definitely overkill, seeing as `package.json` data has all the restrictions
+of being `json`. The fix for this is just swapping that out for something
+that does a pair of `JSON.stringify`/`JSON.parse`, which is distinctly more
+speedy.
+
+* [`1d1ea7e`](https://github.com/npm/npm/commit/1d1ea7eeb958034878eb6573149aeecc686888d3)
+  [#11306](https://github.com/npm/npm/pull/11306)
+  Use JSON clone instead of `lodash.cloneDeep`.
+  ([@STRML](https://github.com/STRML))
+
+#### NEW FEATURE: GIT SUBMODULE SUPPORT
+
+Long, long requested– the referenced issue is from 2011– we're finally
+getting rudimentary git submodule support.
+
+* [`39dea9c`](https://github.com/npm/npm/commit/39dea9ca4216c6ea628f5ca47d2b34a4b251a1ed)
+  [#1876](https://github.com/npm/npm/issues/1876)
+  Add support for git submodules in git remotes. This is a fairly simple
+  approach, which does not leverage the git caching mechanism to cache
+  submodules. It also doesn't provide a means to disable automatic
+  initialization, e.g. via a setting in the `.gitmodules` file.
+  ([@gagern](https://github.com/gagern))
+
+#### ROBUSTNESS
+
+* [`5dec02a`](https://github.com/npm/npm/commit/5dec02a3d0e82202c021e27aff9d006283fdc25a)
+  [#10347](https://github.com/npm/npm/issues/10347)
+  There is an obscure feature that lets you monkey-patch npm when it starts
+  up. If the module being required with this feature failed, it would
+  previously just make `npm` error out– this reduces that to a warning.
+  ([@evanlucas](https://github.com/evanlucas))
+
+#### BUG FIXES
+
+* [`9ab8b8d`](https://github.com/npm/npm/commit/9ab8b8d047792612ae7f9a6079745d51d5283a53)
+  [#10820](https://github.com/npm/npm/issues/10820)
+  Fix a bug with `npm ls` where if you asked for ONLY production dependencies in output
+  it would exclude dependencies that were BOTH production AND development dependencies.
+  ([@davidvgalbraith](https://github.com/davidvgalbraith))
+* [`6803fed`](https://github.com/npm/npm/commit/6803fedadb8f9b36cd85f7338ecf75d1d183c833)
+  [#8982](https://github.com/npm/npm/issues/8982)
+  Fix a bug where, under some circumstances, if you had a path that
+  contained the name of a package being installed somewhere in it, `npm`
+  would incorrectly refuse to run lifecycle scripts.
+  ([@elvanja](https://github.com/elvanja))
+* [`3eae40b`](https://github.com/npm/npm/commit/3eae40b7a681aa067dfe4fea8c9a76da5b508b48)
+  [#9253](https://github.com/npm/npm/issues/9253)
+  Fix a bug where, when running lifecycle scripts, if the Node.js binary you ran
+  `npm` with wasn't in your `PATH`, `npm` wouldn't use it to run your scripts.
+  ([@segrey](https://github.com/segrey))
+* [`61daa6a`](https://github.com/npm/npm/commit/61daa6ae8cbc041d3a0d8a6f8f268b47dd8176eb)
+  [#11014](https://github.com/npm/npm/issues/11014)
+  Fix a bug where running `rimraf node_modules/<package>` followed by `npm
+  rm --save <package>` would fail. `npm` now correctly removes the module
+  from your `package.json` even though it doesn't exist on disk.
+  ([@davidvgalbraith](https://github.com/davidvgalbraith))
+* [`a605586`](https://github.com/npm/npm/commit/a605586df134ee97c95f89c4b4bd6bc73f7aa439)
+  [#9679](https://github.com/npm/npm/issues/9679)
+  Fix a bug where `npm install --save git+https://…` would save a `https://`
+  url to your `package.json` which was a problem because `npm` wouldn't then
+  know that it was a git repo.
+  ([@gagern](https://github.com/gagern))
+* [`bbdc700`](https://github.com/npm/npm/commit/bbdc70024467c365cc4e06b8410947c04b6f145b)
+  [#10063](https://github.com/npm/npm/issues/10063)
+  Fix a bug where `npm` would change the order of array properties in the
+  `package.json` files of dependencies.  `npm` adds a bunch of stuff to
+  `package.json` files in your `node_modules` folder for debugging and
+  bookkeeping purposes.  As a part of this process it sorts the object to
+  reduce file churn when it does updates.  This fixes a bug where the arrays
+  in the object were also getting sorted.  This wasn't a problem for
+  properties that `npm` itself maintains, but _is_ a problem for properties
+  used by other packages.
+  ([@substack](https://github.com/substack))
+
+#### DOCS IMPROVEMENTS
+
+* [`2609a29`](https://github.com/npm/npm/commit/2609a2950704f577ac888668e81ba514568fab44)
+  [#11273](https://github.com/npm/npm/pull/11273)
+  Include an example of viewing package version history in the `npm view` documentation.
+  ([@vedatmahir](https://github.com/vedatmahir))
+* [`719ea9c`](https://github.com/npm/npm/commit/719ea9c45a5c3233f3afde043b89824aad2df0a7)
+  [#11272](https://github.com/npm/npm/pull/11272)
+  Fix typographical issue in `npm update` documentation.
+  ([@jonathanp](https://github.com/jonathanp))
+* [`cb9df5a`](https://github.com/npm/npm/commit/cb9df5a37091e06071d8704b629e7ebaa41c37fe)
+  [#11215](https://github.com/npm/npm/pull/11215)
+  Do not call `SEE LICENSE IN <filename>` an _SPDX expression_, as it's not.
+  ([@kemitchell](https://github.com/kemitchell))
+* [`f427934`](https://github.com/npm/npm/commit/f4279346c368da4bca09385f773e8eed1d389e5e)
+  [#11196](https://github.com/npm/npm/pull/11196)
+  Correct the `package.json` examples in the `npm update` documentation to actually be
+  valid JSON and not just JavaScript object literals.
+  ([@s100](https://github.com/s100))
+
+#### DEPENDENCY UPDATES
+
+* [`a7b2407`](https://github.com/npm/npm/commit/a7b24074cb59a1ab17c0d8eff1498047e6a123e5)
+  `retry@0.9.0`: New features and interface agnostic refactoring.
+  ([@tim-kos](https://github.com/tim-kos))
+* [`220fc77`](https://github.com/npm/npm/commit/220fc7702ae3e5d601dfefd3e95c14e9b32327de)
+  `request@2.69.0`:
+  A bunch of small bug fixes and module updates.
+  ([@simov](https://github.com/simov))
+* [`9e5c84f`](https://github.com/npm/npm/commit/9e5c84f1903748897e54f8ff099729ff744eab0f)
+  `which@1.2.4`:
+  Update `isexe` and fix bug in `pathExt`, in which files without extensions
+  would sometimes be preferred to files with extensions on Windows, even though
+  those without extensions aren't executable.
+  `pathExt` is a list of extensions that are considered executable (exe, cmd,
+  bat, com on Windows).
+  ([@isaacs](https://github.com/isaacs))
+* [`375b9c4`](https://github.com/npm/npm/commit/375b9c42fe0c6de47ac2f92527354b2ea79b7968)
+  `rimraf@2.5.1`: Minor doc formatting fixes.
+  ([@isaacs](https://github.com/isaacs))
+* [`ef1971e`](https://github.com/npm/npm/commit/ef1971e6270c2bc72e6392b51a8b84f52708f7e7)
+  `lodash.clonedeep@4.0.2`:
+  Misc minor code cleanup. No functional changes.
+  ([@jdalton](https://github.com/jdalton))
+
 ### v3.6.0 (2016-01-20):
 
 Hi all!  This is a bigger release, in part 'cause we didn't have one last
