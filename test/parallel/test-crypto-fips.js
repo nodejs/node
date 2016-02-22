@@ -67,7 +67,7 @@ testHelper(
   [],
   FIPS_DISABLED,
   'require("crypto").fips',
-  process.env);
+  addToEnv('OPENSSL_CONF', ''));
 
 // --enable-fips should turn FIPS mode on
 testHelper(
@@ -116,7 +116,7 @@ testHelper(
   compiledWithFips() ? FIPS_ENABLED : FIPS_ERROR_STRING,
   '(require("crypto").fips = true,' +
   'require("crypto").fips)',
-  process.env);
+  addToEnv('OPENSSL_CONF', ''));
 
 // setFipsCrypto should be able to turn FIPS mode on and off
 testHelper(
@@ -126,7 +126,7 @@ testHelper(
   '(require("crypto").fips = true,' +
   'require("crypto").fips = false,' +
   'require("crypto").fips)',
-  process.env);
+  addToEnv('OPENSSL_CONF', ''));
 
 // setFipsCrypto takes precedence over OpenSSL config file, FIPS on
 testHelper(
