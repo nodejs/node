@@ -4,7 +4,7 @@ var ProgressBar = require("../progress-bar.js")
 
 var cursor = []
 var C
-var bar = new ProgressBar({theme: ProgressBar.ascii}, C = {
+var bar = new ProgressBar({theme: ProgressBar.ascii, maxUpdateFrequency: 0}, C = {
   show: function () {
     cursor.push(["show"])
     return C

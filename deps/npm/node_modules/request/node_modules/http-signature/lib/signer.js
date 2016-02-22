@@ -342,6 +342,11 @@ module.exports = {
         stringToSign += '\n';
     }
 
+    /* This is just for unit tests. */
+    if (request.hasOwnProperty('_stringToSign')) {
+      request._stringToSign = stringToSign;
+    }
+
     var signature;
     if (alg[0] === 'hmac') {
       if (typeof (options.key) !== 'string' && !Buffer.isBuffer(options.key))
