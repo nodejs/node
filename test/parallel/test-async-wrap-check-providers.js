@@ -36,7 +36,7 @@ function init(id, provider) {
 
 function noop() { }
 
-async_wrap.setupHooks(init, noop, noop);
+async_wrap.setupHooks({ init });
 
 async_wrap.enable();
 
