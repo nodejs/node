@@ -5,6 +5,7 @@ env:
 rules:
   # Possible Errors
   # https://github.com/eslint/eslint/tree/master/docs/rules#possible-errors
+  comma-dangle: [2, "only-multiline"]
   no-control-regex: 2
   no-debugger: 2
   no-dupe-args: 2
@@ -30,6 +31,7 @@ rules:
   no-fallthrough: 2
   no-octal: 2
   no-redeclare: 2
+  no-unused-labels: 2
 
   # Variables
   # http://eslint.org/docs/rules/#variables
@@ -41,6 +43,7 @@ rules:
   # http://eslint.org/docs/rules/#nodejs-and-commonjs
   no-mixed-requires: 2
   no-new-require: 2
+  no-path-concat: 2
   no-restricted-modules: [2, "sys", "_linklist"]
 
   # Stylistic Issues
@@ -71,6 +74,7 @@ rules:
   no-confusing-arrow: 2
   no-const-assign: 2
   no-dupe-class-members: 2
+  no-new-symbol: 2
   no-this-before-super: 2
   prefer-const: 2
 

@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
 var path = require('path');
-var doesNotExist = __filename + '__this_should_not_exist';
+var doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
 var readOnlyFile = path.join(common.tmpDir, 'read_only_file');
 var readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
