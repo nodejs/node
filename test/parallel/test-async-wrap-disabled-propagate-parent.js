@@ -30,7 +30,7 @@ function init(uid, type, parentUid, parentHandle) {
 
 function noop() { }
 
-async_wrap.setupHooks(init, noop, noop);
+async_wrap.setupHooks({ init });
 async_wrap.enable();
 
 const server = net.createServer(function(c) {
