@@ -68,7 +68,7 @@ fs.open('.', 'r', undefined, function(err, fd) {
   fs.close(fd);
 });
 
-console.log('stating: ' + __filename);
+console.log(`stating:  ${__filename}`);
 fs.stat(__filename, function(err, s) {
   if (err) {
     got_error = true;
