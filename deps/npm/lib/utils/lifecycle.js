@@ -1,6 +1,7 @@
 exports = module.exports = lifecycle
 exports.cmd = cmd
 exports.makeEnv = makeEnv
+exports._incorrectWorkingDirectory = _incorrectWorkingDirectory
 
 var log = require('npmlog')
 var spawn = require('./spawn')
@@ -52,8 +53,7 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
 
     unsafe = unsafe || npm.config.get('unsafe-perm')
 
-    if ((wd.indexOf(npm.dir) !== 0 ||
-          wd.indexOf(pkg.name) !== wd.length - pkg.name.length) &&
+    if ((wd.indexOf(npm.dir) !== 0 || _incorrectWorkingDirectory(wd, pkg)) &&
         !unsafe && pkg.scripts[stage]) {
       log.warn('lifecycle', logid(pkg, stage), 'cannot run in wd',
         '%s %s (wd=%s)', pkg._id, pkg.scripts[stage], wd
@@ -75,6 +75,10 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
   })
 }
 
+function _incorrectWorkingDirectory (wd, pkg) {
+  return wd.lastIndexOf(pkg.name) !== wd.length - pkg.name.length
+}
+
 function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   var pathArr = []
   var p = wd.split('node_modules')
@@ -89,6 +93,9 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   // we also unshift the bundled node-gyp-bin folder so that
   // the bundled one will be used for installing things.
   pathArr.unshift(path.join(__dirname, '..', '..', 'bin', 'node-gyp-bin'))
+
+  // prefer current node interpreter in child scripts
+  pathArr.push(path.dirname(process.execPath))
 
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === 'win32' ? ';' : ':')

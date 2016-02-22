@@ -1,4 +1,4 @@
-# lodash._baseflatten v4.0.0
+# lodash._baseflatten v4.0.1
 
 The internal [lodash](https://lodash.com/) function `baseFlatten` exported as a [Node.js](https://nodejs.org/) module.
 
@@ -15,4 +15,4 @@ In Node.js:
 var baseFlatten = require('lodash._baseflatten');
 ```
 
-See the [package source](https://github.com/lodash/lodash/blob/4.0.0-npm-packages/lodash._baseflatten) for more details.
+See the [package source](https://github.com/lodash/lodash/blob/4.0.1-npm-packages/lodash._baseflatten) for more details.
