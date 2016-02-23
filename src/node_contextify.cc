@@ -50,21 +50,19 @@ class ContextifyContext {
  protected:
   enum Kind {
     kSandbox,
-    kContext,
-    kProxyGlobal
+    kContext
   };
 
   Environment* const env_;
   Persistent<Object> sandbox_;
   Persistent<Context> context_;
-  Persistent<Object> proxy_global_;
   int references_;
 
  public:
   explicit ContextifyContext(Environment* env, Local<Object> sandbox)
       : env_(env),
         sandbox_(env->isolate(), sandbox),
-        // Wait for sandbox_, proxy_global_, and context_ to die
+        // Wait for sandbox_ and context_ to die
         references_(0) {
     context_.Reset(env->isolate(), CreateV8Context(env));
 
@@ -78,17 +76,11 @@ class ContextifyContext {
     context_.SetWeak(this, WeakCallback<Context, kContext>);
     context_.MarkIndependent();
     references_++;
-
-    proxy_global_.Reset(env->isolate(), context()->Global());
-    proxy_global_.SetWeak(this, WeakCallback<Object, kProxyGlobal>);
-    proxy_global_.MarkIndependent();
-    references_++;
   }
 
 
   ~ContextifyContext() {
     context_.Reset();
-    proxy_global_.Reset();
     sandbox_.Reset();
   }
 
@@ -102,6 +94,10 @@ class ContextifyContext {
     return PersistentToLocal(env()->isolate(), context_);
   }
 
+
+  inline Local<Object> global_proxy() const {
+    return context()->Global();
+  }
 
   // XXX(isaacs): This function only exists because of a shortcoming of
   // the V8 SetNamedPropertyHandler function.
@@ -318,10 +314,8 @@ class ContextifyContext {
     ContextifyContext* context = data.GetParameter();
     if (kind == kSandbox)
       context->sandbox_.ClearWeak();
-    else if (kind == kContext)
-      context->context_.ClearWeak();
     else
-      context->proxy_global_.ClearWeak();
+      context->context_.ClearWeak();
 
     if (--context->references_ == 0)
       delete context;
@@ -359,15 +353,14 @@ class ContextifyContext {
     MaybeLocal<Value> maybe_rv =
         sandbox->GetRealNamedProperty(ctx->context(), property);
     if (maybe_rv.IsEmpty()) {
-      Local<Object> proxy_global = PersistentToLocal(isolate,
-                                                     ctx->proxy_global_);
-      maybe_rv = proxy_global->GetRealNamedProperty(ctx->context(), property);
+      maybe_rv =
+          ctx->global_proxy()->GetRealNamedProperty(ctx->context(), property);
     }
 
     Local<Value> rv;
     if (maybe_rv.ToLocal(&rv)) {
       if (rv == ctx->sandbox_)
-        rv = PersistentToLocal(isolate, ctx->proxy_global_);
+        rv = ctx->global_proxy();
 
       args.GetReturnValue().Set(rv);
     }
@@ -408,11 +401,8 @@ class ContextifyContext {
         sandbox->GetRealNamedPropertyAttributes(ctx->context(), property);
 
     if (maybe_prop_attr.IsNothing()) {
-      Local<Object> proxy_global = PersistentToLocal(isolate,
-          ctx->proxy_global_);
-
       maybe_prop_attr =
-          proxy_global->GetRealNamedPropertyAttributes(ctx->context(),
+          ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
               property);
     }
 
