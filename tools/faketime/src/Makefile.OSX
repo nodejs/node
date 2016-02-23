@@ -1,0 +1,75 @@
+#
+# Notes:
+#
+#   * Compilation Defines:
+#
+#     FAKE_STAT
+#         - Enables time faking also for files' timestamps.
+#
+#     NO_ATFILE
+#         - Disables support for the fstatat() group of functions
+#
+#     PTHREAD
+#         - Define this to enable multithreading support.
+#
+#     PTHREAD_SINGLETHREADED_TIME
+#         - Define this if you want to single-thread time() ... there ARE
+#           possibile caching side-effects in a multithreaded environment
+#           without this, but the performance impact may require you to
+#           try it unsynchronized.
+#
+# 	  FAKE_SLEEP
+# 	      - Also intercept sleep(), nanosleep(), usleep(), alarm(), [p]poll()
+#
+#   * Compilation addition: second libMT target added for building the pthread-
+#     enabled library as a separate library
+#
+#   * Compilation switch change: previous versions compiled using '-nostartfiles'
+#     This is no longer the case since there is a 'startup' constructor for the library
+#     which is used to activate the start-at times when specified. This also initializes
+#     the dynamic disabling of the FAKE_STAT calls.
+#
+# By default, libfaketime will be compiled for your system's default architecture.
+# To build for a different architecture, add -arch flags to CFLAGS and LDFLAGS.
+#
+# default to clang to support thread local variables
+CC ?= clang
+INSTALL ?= install
+
+PREFIX ?= /usr/local
+
+CFLAGS += -DFAKE_SLEEP -DFAKE_INTERNAL_CALLS -DPREFIX='"'${PREFIX}'"'
+LIB_LDFLAGS += -dynamiclib -current_version 0.9.6 -compatibility_version 0.7
+
+SONAME = 1
+LIBS = libfaketime.${SONAME}.dylib
+BINS = faketime
+
+all: ${LIBS} ${BINS}
+
+libfaketime.${SONAME}.dylib: libfaketime.c
+	${CC} -o $@ ${CFLAGS} ${LDFLAGS} ${LIB_LDFLAGS} -install_name ${PREFIX}/lib/faketime/$@ $<
+
+faketime: faketime.c
+	${CC} -o $@ ${CFLAGS} ${LDFLAGS} $<
+
+clean:
+	@rm -f ${OBJ} ${LIBS} ${BINS}
+
+distclean: clean
+	@echo
+
+install: ${LIBS} ${BINS}
+	@echo
+	@echo "Copying the faketime libraries to ${DESTDIR}${PREFIX}/lib/faketime and the faketime wrapper script to ${DESTDIR}${PREFIX}/bin ..."
+	$(INSTALL) -dm0755 "${DESTDIR}${PREFIX}/lib/faketime/"
+	$(INSTALL) -m0644 ${LIBS} "${DESTDIR}${PREFIX}/lib/faketime/"
+	$(INSTALL) -dm0755 "${DESTDIR}${PREFIX}/bin"
+	$(INSTALL) -m0755 faketime "${DESTDIR}${PREFIX}/bin/faketime"
+
+uninstall:
+	for f in ${LIBS}; do rm -f "${DESTDIR}${PREFIX}/lib/faketime/$$f"; done
+	rmdir "${DESTDIR}${PREFIX}/lib/faketime"
+	rm -f "${DESTDIR}${PREFIX}/bin/faketime"
+
+.PHONY: all clean distclean install uninstall

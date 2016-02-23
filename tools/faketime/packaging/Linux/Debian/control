@@ -1,0 +1,40 @@
+Source: faketime
+Section: utils
+Priority: extra
+Maintainer: Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+Build-Depends:
+ debhelper (>= 9),
+ dh-exec (>= 0.3)
+Standards-Version: 3.9.4
+Homepage: http://www.code-wizards.com/projects/libfaketime/
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/faketime.git
+Vcs-Git: git://anonscm.debian.org/collab-maint/faketime.git
+
+Package: faketime
+Architecture: any
+Pre-Depends: multiarch-support
+Depends: ${shlibs:Depends}, ${misc:Depends}, libfaketime (= ${binary:Version})
+Multi-Arch: foreign
+Description: report faked system time to programs
+ The Fake Time Preload Library (FTPL, a.k.a. libfaketime) intercepts
+ various system calls which programs use to retrieve the current date
+ and time. It can then report faked dates and times (as specified by
+ you, the user) to these programs. This means you can modify the
+ system time a program sees without having to change the time
+ system-wide. FTPL allows you to specify both absolute dates (e.g.,
+ 2004-01-01) and relative dates (e.g., 10 days ago).
+
+Package: libfaketime
+Architecture: any
+Pre-Depends: multiarch-support
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: report faked system time to programs
+ The Fake Time Preload Library (FTPL, a.k.a. libfaketime) intercepts
+ various system calls which programs use to retrieve the current date
+ and time. It can then report faked dates and times (as specified by
+ you, the user) to these programs. This means you can modify the
+ system time a program sees without having to change the time
+ system-wide. FTPL allows you to specify both absolute dates (e.g.,
+ 2004-01-01) and relative dates (e.g., 10 days ago).
+

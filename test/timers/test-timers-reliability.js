@@ -32,7 +32,7 @@ var intervalFired = false;
  */
 
 var monoTimer = new Timer();
-monoTimer.ontimeout = function() {
+monoTimer[Timer.kOnTimeout] = function() {
     /*
      * Make sure that setTimeout's and setInterval's callbacks have
      * already fired, otherwise it means that they are vulnerable to

@@ -1,0 +1,25 @@
+# Maintainer: Robert Orzanna <orschiro@gmail.com>
+
+_pkgbasename=libfaketime
+pkgname=lib32-$_pkgbasename
+pkgver=0.9.5
+pkgrel=1
+pkgdesc='Report fake dates and times to programs without having to change the system-wide time.'
+arch=('x86_64')
+url='http://www.code-wizards.com/projects/libfaketime/'
+license=('GPL2')
+source=("http://www.code-wizards.com/projects/${_pkgbasename}/${_pkgbasename}-${pkgver}.tar.gz"
+        'lib32.patch')
+md5sums=('89b5c71e6c6a93b1c6feba374ac37719'
+         '0a01f842df4c8acbd2b081be046e8d67')
+
+build() {
+  cd "${_pkgbasename}-${pkgver}"
+  patch -p1 -i ../lib32.patch
+  make
+}
+
+package() {
+  cd "${_pkgbasename}-${pkgver}"
+  make PREFIX=/usr DESTDIR="${pkgdir}" install
+}

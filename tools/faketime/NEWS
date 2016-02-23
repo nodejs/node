@@ -1,0 +1,130 @@
+Since 0.9.6:
+    - Julien Gilli added an option to disable monotonic time faking
+    - Azat Khuzhin added support for COARSE clocks
+
+Since 0.9.5:
+    - fixed crashes that happened when other LD_PRELOAD libraries were used
+    - fixed passing through of return values when using the faketime wrapper
+    - fixed compile-time issues with CLOCK_MONOTONIC_RAW on some platforms
+    - rbalint added Filter commands: FAKETIME_ONLY_CMDS and
+      FAKETIME_SKIP_CMDS control which (sub-)processes libfaketime
+      is applied to.
+
+Since 0.9:
+    - ryandesign at MacPorts provided a Portfile for MacPorts and
+      fixed various build issues on OSX.
+    - Balint Reczey added support for nanosecond resolution, saving
+      timestamps to files, speeding up and slowing down per-process
+      timers, CLOCK_MONOTONIC and CLOCK_MONOTONIC_RAW, faketime
+      support for system calls such as sleep() and alarm().
+    - Applied a patch by Gerardo Malazdrewicz and Toni G to restore
+      compatibility with newer versions of glibc.
+    - Balint Reczey added an option to use the same global clock setting
+      for all libfaketime-spawned processes.
+    - Balint Reczey has rewritten the faketime wrapper shell script in C
+      and refactored libfaketime.
+    - Balint Reczey added support for advancing the time with each time-
+      related system call ("deterministic time").
+    - Added "timeprivacy" wrapper by adrelanos; it ensures that programs
+      are started with unique timestamps.
+    - Code and documentation cleanup by Tomi Ollila.
+    - Reworked Makefiles for more flexible installation, including fixes
+      by Lukas Fleischner, Daniel Kahm Gillmor, and Hugues Andreux.
+    - Fixed license issues as pointed out by Paul Wouters.
+    - Mac OS X support has been improved for OS X 10.7 and 10.8; due to
+      changes to the underlying libraries on OS X, libfaketime 0.9.5 will
+      no longer work with OS X < 10.6; use libfaketime 0.9(.1) for older
+      OS X installations.
+    - Don Fong has contributed a new framework for functional tests.
+      Petr Salinger ensured its compatibility with GNU/kFreeBSD.
+
+Since 0.8.2:
+    - Added support for "limited faking".
+      You can optionally specify when libfaketime starts to fake the
+      returned timestamps and when it shall stop doing so. For example,
+      a program can be started regularly, and after 5 minutes run-time
+      it will be sent two years into the future. Those limiting
+      start and stop times can be specified in seconds or as the
+      number of any time-related function calls within the program.
+    - Added a feature to spawn an external process after x seconds
+      or y time-related system calls. This can, for example, be used
+      to execute an arbitrary shell script x seconds after a program
+      has been started.
+
+Since 0.8.1:
+    - Added a MacOS port.
+      Thanks to Derrick Brashear!
+    - Added a functional test framework that aids in automatically
+      determining whether libfaketime works properly on the current
+      machine. Thanks to Don Fong!
+
+Since 0.8:
+    - Changed directory layout and Makefile structure.
+      Thanks to Lukas Fleischer!
+
+Since 0.7:
+    - Added support for fstatat() and fstatat64() which were introduced in
+      Linux kernel 2.6.16 and used in recent coreutils.
+      Thanks to Daniel Kahn Gillmor for the report!
+      This can be disabled by passing -DNO_ATFILE in the Makefile.
+    - Added a simple wrapper shell script and a man page for it. Makes it
+      easier to run commands under faked system times. It assumes that the
+      libraries will be copied to /usr/lib/faketime during installation,
+      please adjust this path if necessary. The "install" target in the
+      Makefile has been adapted accordingly.
+    - Added support for fractional time offsets, such as FAKETIME="+1,5h".
+      Please note that either , or . has to be used as a delimiter
+      depending on your locale. Thanks to Karl Chen!
+    - Added support for speeding the clock up or slowing it down. For
+      example, FAKETIME="+5d x2,0" will set the faked time 5 days into
+      the future and make the clock run twice as fast for the specified
+      program. Slowing it down can be done e.g. by using FAKETIME="+0 x0,5".
+      Again, the delimiter to use for the fraction depends on your locale.
+      Thanks to Karl Chen!
+
+Since 0.6:
+    Main version 0.7 contributions by David North, TDI:
+    - Added ability to 'start clock at' a specific time.
+    - Added pthread synchronization support
+    - Added a 2 second delay to timetest.c so one can observe if the
+      clock is relative or absolute
+    - Added test.sh example of 'start clock at'
+    - Added ability to disable the FAKE_STAT functionality at library-start
+      in the case that the library was compiled -DFAKE_STAT, and added another
+      test case for demonstrating this
+    - Repaired a bug w.r.t. strptime/mktime wherein 'isdst' was uninitialized
+      which led to pseudorandom +/- 1 hour results being returned in 'start at'
+      or absolute time modes
+
+    Other enhancements:
+    - Fixed missing interceptions to libc-internal functions and added notes
+      about a workaround for running Java programs with faked times in the
+      future (they worked properly, but often locked up at exiting). Thanks to
+      Jamie Cameron of Google for in-depth analysis and prototype solution!
+
+Since 0.5:
+    - Performance enhancements by means of caching the data read
+      e.g. from $HOME/.faketimerc for 10 seconds.
+    - Several file timestamp related system calls such as fstat() will be
+      intercepted now. See the README file on how to turn this off if you
+      do not need it. Thanks to Philipp Hachtmann!
+    - A system-wide /etc/faketimerc file will now be used if no FAKETIME
+      environment variable has been set and no $HOME/.faketimerc is present.
+      Thanks to David Burley, Jacob Moorman, and Wayne Davison of
+      SourceForge, Inc.!
+    - Added trivial Makefile targets clean/distclean/install
+    - Changed Makefile target test to run new test.sh script
+    - Added new test cases to timetest.c
+
+Since 0.4:
+    - Allow "y" for years of offset specification. Thanks to Bas ten Berge!
+
+Since 0.3:
+    - Support for FAKETIME_FMT environment variable. Thanks to Moreno Baricevic!
+
+Since 0.2:
+    - Intercept clock_gettime(). Thanks to Andreas Thienemann!
+
+Since 0.1:
+    - Fixed segfault when calling time(NULL). Thanks to Andres Ojamaa!
+    - Added additional sanity checks.

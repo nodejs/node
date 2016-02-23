@@ -1,0 +1,539 @@
+      =======================================================
+             libfaketime, version 0.9.6 (June 2014)
+        (previously also know as FakeTime Preload Library)
+      =======================================================
+
+
+Content of this file:
+---------------------
+
+1. Introduction
+2. Compatibility issues
+3. Installation
+4. Usage
+   a) Basics
+   b) Using absolute dates
+   c) Using 'start at' dates
+   d) Using offsets for relative dates
+   e) Advanced features and caveats
+   f) Faking the date and time system-wide
+   g) Using the "faketime" wrapper script
+   h) "Limiting" libfaketime based on elapsed time or number of calls
+   i) "Limiting" libfaketime per process
+   j) Spawning an external process
+   k) Saving timestamps to file, loading them from file
+5. License
+6. Contact
+
+
+
+1. Introduction
+---------------
+
+libfaketime intercepts various system calls which programs use to
+retrieve the current date and time. It can then report faked dates and times
+(as specified by you, the user) to these programs. This means you can modify
+the system time a program sees without having to change the time system-wide.
+
+libfaketime allows you to specify both absolute dates (e.g., 01/01/2004) and
+relative dates (e.g., 10 days ago).
+
+libfaketime might be used for various purposes, for example
+
+- running legacy software with y2k bugs
+- testing software for year-2038 compliance
+- debugging time-related issues, such as expired SSL certificates
+- running software which ceases to run outside a certain timeframe
+- using different system-wide date and time settings, e.g., on OpenVZ-
+  based virtual machines running on the same host
+- deterministic build processes.
+
+
+
+2. Compatibility issues
+-----------------------
+
+* libfaketime has been designed on and for Linux, but is supposed and has been
+  reported to work on other *NIXes as well, including Mac OS X.
+
+* libfaketime uses the library preload mechanism and thus cannot work with
+  statically linked binaries or binaries that have the setuid-flag set (e.g.,
+  suidroot programs like "ping" or "passwd"). Please see you system linker's
+  manpage for further details (man ld).
+
+* As of version 0.7, support has been added for use in a pthreads environment. A
+  separate library is built (libfaketimeMT.so.1) which contains the pthread
+  synchronization calls. This library also single-threads calls through the
+  time() intercept, because several variables are statically cached by the
+  library and could cause issues when accessed without synchronization. However,
+  the performance penalty for this might be an issue for some applications. If
+  this is the case, you can try using an unsynchronized time() intercept by
+  removing the -DPTHREAD_SINGLETHREADED_TIME from the Makefile and rebuilding
+  libfaketimeMT.so.1 . Thanks to David North, TDI!
+
+* If and only if you want to run Java programs with faked times in the future
+  (not in the past) on Linux, you also should set the environment variable
+  LD_ASSUME_KERNEL=2.4.19 before running the appropriate "java" command. This
+  fixes an occasional bug where Java locks up at exiting. Again, this is only
+  required for Java with faked times in the future. Thanks to Jamie Cameron for
+  reporting this issue and finding a workaround!
+
+* libfaketime will eventually be bypassed by applications that dynamically load
+  system libraries, such as librt, explicitly themselves instead of relying on
+  the linker to do so at application start time. libfaketime will not work with
+  those applications unless you can modify them.
+
+* Applications can explicitly be designed to prevent libfaketime from working,
+  e.g., by checking whether certain environment variables are set or whether
+  libfaketime-specific files are present.
+
+
+
+3. Installation
+---------------
+
+Running "make" should compile both library versions and a test program, which
+it then also executes.
+
+If the test works fine, you should copy the libfaketime libraries
+(libfaketime.so.1, and libfaketimeMT.so.1) to the place you want them in.
+Running "make install" will attempt to place them in /usr/local/lib/faketime
+and will install the wrapper shell script "faketime" in /usr/local/bin, both of
+which most likely will require root privileges; however, from a technical point
+of view, there is no necessity for a system-wide installation, so you can use
+libfaketime also on machines where you do not have root privileges. You may want
+to adjust the PREFIX variable in the Makefiles accordingly.
+
+By default, the Makefile compiles/links libfaketime for your default system
+architecture. If you need to build, e.g., 32-bit files on a 64-bit platform,
+please see the notes about CFLAGS and LDFLAGS in src/Makefile.
+
+Since version 0.6, system calls to file timestamps are also intercepted,
+thanks to a contribution by Philipp Hachtmann. This is especially useful in
+combination with relative time offsets as explained in section 4d) below, if a
+program writes and reads files whose timestamps also shall be faked. If you do
+not need this feature or if it confuses the application you want to use FTPL
+with, define the environment variable NO_FAKE_STAT, and the intercepted stat
+calls will be passed through unaltered.
+
+On OS X, it is necessary to compile differently, due to the different
+behavior dyld has. Use the Makefile provided to compile
+libfaketime.1.dylib. Additionally, instead of using LD_PRELOAD,
+the variable DYLD_INSERT_LIBRARIES should be set to the path to
+libfaketime.1.dylib, and the variable DYLD_FORCE_FLAT_NAMESPACE should be
+set (to anything). Mac OS X users should read README.OSX for additional
+details.
+
+
+
+4. Usage
+--------
+
+4a) Usage basics
+----------------
+
+Using libfaketime on a program of your choice consists of two steps:
+
+1. Making sure libfaketime gets loaded by the system's linker.
+2. Specify the faked time.
+
+
+As an example, we want the "date" command to report our faked time. To do so,
+we could use the following command line on Linux:
+
+user@host> date
+Tue Nov 23 12:01:05 CEST 2007
+
+user@host> LD_PRELOAD=/usr/local/lib/libfaketime.so.1 FAKETIME="-15d" date
+Mon Nov  8 12:01:12 CEST 2007
+
+
+The basic way of running any command/program with libfaketime enabled is to
+make sure the environment variable LD_PRELOAD contains the path and
+filename of the libfaketime library. This can either be done by setting it once
+beforehand:
+
+export LD_PRELOAD=/path/to/libfaketime.so.1
+(now run any command you want)
+
+
+Or it can be done by specifying it on the command line itself:
+
+LD_PRELOAD=/path/to/libfaketime.so.1 your_command_here
+
+(These examples are for the bash shell; how environment variables are set may
+vary on your system.)
+
+On Linux, library search paths can be set as part of the linker configuration.
+LD_PRELOAD then also works with relative paths. For example, when libfaketime.so.1
+is installed as /path/to/libfaketime.so.1, you can add /path/to to an appropriate
+linker configuration file, e.g., /etc/ld.so.conf.d/local.conf and then run
+the "ldconfig" command. Afterwards, using LD_PRELOAD=libfaketime.so.1 suffices.
+
+However, also the faked time should be specified; otherwise, libfaketime
+will be loaded, but just report the real system time. There are three
+ways to specify the faked time:
+
+a) By setting the environment variable FAKETIME.
+b) By using the file given in the environment variable FAKETIME_TIMESTAMP_FILE
+c) By using the file .faketimerc in your home directory.
+d) By using the file /etc/faketimerc for a system-wide default.
+
+If you want to use b) c) or d), $HOME/.faketimerc or /etc/faketimerc consist of
+only one line of text with exactly the same content as the FAKETIME environment
+variable, which is described below. Note that /etc/faketimerc will only be used
+if there is no $HOME/.faketimerc nor FAKETIME_TIMESTAMP_FILE file exists, and
+the FAKETIME environment variable always has priority over the files.
+
+
+4b) Using absolute dates
+------------------------
+
+The format which _must_ be used for _absolute_ dates is "YYYY-MM-DD hh:mm:ss".
+For example, the 24th of December, 2002, 8:30 PM would have to be specified as
+FAKETIME="2002-12-24 20:30:00".
+
+
+4c) Using 'start at' dates
+--------------------------
+
+(Thanks to a major contribution by David North, TDI in version 0.7)
+
+The format which _must_ be used for _start_at_ dates is "@YYYY-MM-DD hh:mm:ss".
+For example, the 24th of December, 2002, 8:30 PM would have to be specified as
+FAKETIME="@2002-12-24 20:30:00".
+
+The absolute dates described in 4b simulate a STOPPED system clock at the
+specified absolute time. The 'start at' format allows a 'relative' clock
+operation as described below in section 4d, but using a 'start at' time
+instead of an offset time.
+
+
+4d) Using offsets for relative dates
+------------------------------------
+
+Relative date offsets can be positive or negative, thus what you put into
+FAKETIME _must_ either start with a + or a -, followed by a number, and
+optionally followed by a multiplier:
+
+- by default, the offset you specify is in seconds. Example:
+
+  export FAKETIME="-120" will set the faked time 2 minutes (120 seconds) behind
+  the real time.
+
+- the multipliers "m", "h", "d" and "y" can be used to specify the offset in
+  minutes, hours, days and years (365 days each), respectively. Examples:
+
+  export FAKETIME="-10m" sets the faked time 10 minutes behind the real time.
+  export FAKETIME="+14d" sets the faked time to 14 days in the future.
+
+
+You now should understand the complete example we've used before:
+
+LD_PRELOAD=/usr/local/lib/libfaketime.so.1 FAKETIME="-15d" date
+
+This command line makes sure FTPL gets loaded and sets the faked time to
+15 days in the past.
+
+Moreno Baricevic has contributed support for the FAKETIME_FMT environment
+variable, which allows to optionally set the strptime() format:
+
+Some simple examples:
+LD_PRELOAD=./libfaketime.so.1 FAKETIME_FMT=%s FAKETIME="`date +%s -d'1 year ago'`" date
+LD_PRELOAD=./libfaketime.so.1 FAKETIME_FMT=%s FAKETIME="`stat -c %Y somefile`" date
+LD_PRELOAD=./libfaketime.so.1 FAKETIME_FMT=%c FAKETIME="`date`" date
+
+
+4e) Advanced features and caveats
+---------------------------------
+
+Advanced time specification options:
+------------------------------------
+
+Since version 0.8, thanks to a contribution by Karl Chen, fractions can be used
+in the specification of time offsets. For example,
+
+FAKETIME="+1,5h"
+
+is equivalent to FAKETIME="+90m". Please be aware that the fraction delimiter
+depends on your locale settings, so actually you might need to use
+
+FAKETIME="+1.5h"
+
+You should figure out the proper delimiter, e.g. by using libfaketime on
+a command like /bin/date where you immediately can verify whether it worked as
+expected.
+
+Also contributed by Karl Chen in v0.8 is the option to speed up or slow
+down the wall clock time for the program which is executed using libfaketime.
+For example,
+
+FAKETIME="+1y x2"
+
+will set the faked time one year into the future and will make the clock run
+twice as fast. Similarly,
+
+FAKETIME="+1y x0,5"
+
+will make the clock run only half as fast. As stated above, the fraction
+delimiter depends on your locale.
+
+FAKETIME="+1y i2,0"
+
+will make the clock step two seconds per each time(), etc. call, running
+completely independently of the system clock. It helps running programs
+with some determinism. In this single case all spawned processes will use
+the same global clock without restaring it at the start of each process.
+
+For testing, your should run a command like
+
+LD_PRELOAD=./libfaketime.so.1 FAKETIME="+1,5y x10,0" \
+/bin/bash -c 'while true; do echo $SECONDS ; sleep 1 ; done'
+
+For each second that the endless loop sleeps, the executed bash shell will
+think that 10 seconds have passed ($SECONDS is a bash-internal variable
+measuring the time since the shell was started).
+
+(Please note that replacing "echo $SECONDS" e.g. with a call to "/bin/date"
+will not give the expected result, since /bin/date will always be started
+as a new process for which also FTPL will be re-initialized. It will show
+the correct offset (1.5 years in the future), but no speed-ups or
+slow-downs.)
+
+For applications that should use a different date & time each time they are
+run, consider using the included timeprivacy wrapper shellscript (contributed
+by adrelanos at riseup dot net).
+
+
+Caveats:
+--------
+
+Whenever possible, you should use relative offsets or 'start at' dates,
+and not use absolute dates.
+
+Why? Because the absolute date/time you set is fixed, i.e., if a program
+retrieves the current time, and retrieves the current time again 5
+minutes later, it will still get the same result twice. This is likely to break
+programs which measure the time passing by (e.g., a mail program which checks
+for new mail every X minutes).
+
+Using relative offsets or 'start at' dates solves this problem.
+libfaketime then will always report the faked time based on the real
+current time and the offset you've specified.
+
+Please also note that your default specification of the fake time is cached for
+10 seconds in order to enhance the library's performance. Thus, if you change the
+content of $HOME/.faketimerc or /etc/faketimerc while a program is running, it
+may take up to 10 seconds before the new fake time is applied. If this is a
+problem in your scenario, you can change number of seconds before the file is read
+again with environment variable FAKETIME_CACHE_DURATION, or disable caching at all
+with FAKETIME_NO_CACHE=1. Remember that disabling the cache may negatively
+influence the performance.
+
+
+4f) Faking the date and time system-wide
+----------------------------------------
+
+David Burley of SourceForge, Inc. reported an interesting use case of applying
+libfaketime system-wide: Currently, all virtual machines running inside
+an OpenVZ host have the same system date and time. In order to use multiple
+sandboxes with different system dates, the libfaketime library can be put into
+/etc/ld.so.preload; it will then be applied to all commands and programs
+automatically. This is of course best used with a system-wide /etc/faketimerc
+file. Kudos to SourceForge, Inc. for providing the patch!
+
+Caveat: If you run a virtual machine, its real-time clock might be reset to the
+real world date & time when you reboot. Depending on your FAKETIME setting,
+this may lead to side effects, such as forced file system checks on each reboot.
+System-wide faked time may also lead to unexpected side effects with software
+auto-update tools, if the offset between real world time and faked system time
+is too large. If in doubt, set your system's date to the faked time and try out
+whether everything still works as expected before applying libfaketime
+system-wide.
+
+
+4g) Using the "faketime" wrapper
+--------------------------------
+
+As of version 0.8, libfaketime provides a command named "faketime", which is
+placed into /usr/bin by "make install". It spares the hassle of setting
+the LD_PRELOAD and FAKETIME environment variables manually, but only exposes
+a subset of libfaketime's functionality. On the other hand, it uses the date
+interpretation function by /bin/date in order to provide higher flexibility
+regarding the specification of the faked date and time. For example, you
+can use
+
+faketime 'last Friday 5 pm' /your/command/here
+
+Of course, also absolute dates can be used, such as in
+
+faketime '2008-12-24 08:15:42' /bin/date
+
+Thanks to Daniel Kahn Gillmor for providing these suggestions!
+
+Balint Reczey has rewritten the wrapper in 0.9.5 from a simple shell script
+to an efficient wrapper application.
+
+
+4h) "Limiting" libfaketime based on elapsed time or number of calls
+--------------------------
+
+Starting with version 0.9, libfaketime can be configured to not be continuously
+active, but only during a certain time interval.
+
+For example, you might want to start a program with the real current time, but
+after 5 minutes of usage, you might want it to see a faked time, e.g., a year
+in the future.
+
+Dynamic changes to the faked time are alternatively possible by
+
+- changing the FAKETIME environment variable at run-time; this is the preferred
+  way if you use libfaketime for debugging and testing as a programmer, as it
+  gives you the most direct control of libfaketime without any performance
+  penalities.
+
+- not using the FAKETIME environment variable, but specifying the fake time in a
+  file (such as ~/.faketimerc). You can change the content of this file at
+  run-time. This works best with caching disabled (see Makefile), but comes at a
+  performance cost because this file has to be read and evaluated each time.
+
+The feature described here works based on two pairs of environment variables,
+
+  FAKETIME_START_AFTER_SECONDS and FAKETIME_STOP_AFTER_SECONDS, and
+  FAKETIME_START_AFTER_NUMCALLS and FAKETIME_STOP_AFTER_NUMCALLS
+
+The default value for each of these environment variables is -1, which means
+"ignore this value".
+
+If you want libfaketime to be only active during the run-time minutes 2 to 5
+of your application, you would set
+
+  FAKETIME_START_AFTER_SECONDS=60
+  FAKETIME_STOP_AFTER_SECONDS=300
+
+This means that your application will work with the real time from start (second
+0) up to second 60. It will then see a faked time from run-time seconds 60 to
+300 (minutes 2, 3, 4, and 5). After run-time second 600, it will again see the
+real (not-faked) time.
+
+This approach is not as flexible as changing the FAKETIME environment variable
+during runtime, but may be easier to use, works on a per-program (and not a
+per-user or system-wide) scope, and has only a minor performance overhead.
+
+Using the other pair of environment variables, you can limit the activity time
+of libfaketime not based on wall-clock seconds, but on the number of
+time-related function calls the started program performs. This alternative is
+probably only suitable for programmers who either know the code of the program
+in order to determine useful start/stop values or want to perform fuzzing
+tests.
+
+Both pairs of environment variables can be combined to further restrict
+libfaketime activity, although this is only useful in very few scenarios.
+
+Limiting libfaketime activity in this way is not recommended in general. Many
+programs will break when they are subject to sudden changes in time, especially
+if they are started using the current (real) time and are then sent back into
+the past after, e.g., 5 minutes. For example, they may appear to be frozen or
+stuck because they are waiting until a certain point in time that, however, is
+never reached due to the delayed libfaketime activity. Avoid using this
+functionality unless you are sure you really need it and know what you are
+doing.
+
+
+4i) "Limiting" libfaketime per process
+--------------------------------------
+
+Faketime can be instructed to fake time related calls only for selected
+commands or to fake time for each command except for a certain subset of
+commands.
+
+The environment variables are FAKETIME_ONLY_CMDS and FAKETIME_SKIP_CMDS
+respectively.
+
+Example:
+    FAKETIME_ONLY_CMDS=javadoc faketime '2008-12-24 08:15:42' make
+will run the "make" command but the time faking will only be applied
+to javadoc processes.
+
+Multiple commands are separated by commas.
+
+Example:
+    FAKETIME_SKIP_CMDS="javadoc,ctags" faketime '2008-12-24 08:15:42' make
+will run the "make" command and apply time faking for everything "make"
+does except for javadoc and ctags processes.
+
+FAKETIME_ONLY_CMDS and FAKETIME_SKIP_CMDS are mutually exclusive, i.e.,
+you cannot set them both at the same time. Faketime will terminate with
+an error message if both environment variables are set.
+
+
+4j) Spawning an external process
+--------------------------------
+
+From version 0.9 on, libfaketime can execute a shell command once after an
+arbitrary number of seconds or number of time-related system calls of the
+program started. This has two limitations one needs to be aware of:
+
+* Spawning the external process happens during a time-related system call
+  of the original program. If you want the external process to be started
+  5 seconds after program start, but this program does not make any time-
+  related system calls before run-time second 8, the start of your external
+  process will be delayed until run-time second 8.
+
+* The original program is blocked until the external process is finished,
+  because the intercepting time-related system call will not return earlier. If
+  you need to start a long-running external process, make sure it forks into the
+  background.
+
+Spawning the external process is controlled using three environment variables:
+FAKETIME_SPAWN_TARGET, FAKETIME_SPAWN_SECONDS, FAKETIME_SPAWN_NUMCALLS.
+
+Example (using bash on Linux):
+
+(... usual libfaketime setup here, setting LD_PRELOAD and FAKETIME ...)
+export FAKETIME_SPAWN_TARGET="/bin/echo 'Hello world'"
+export FAKETIME_SPAWN_SECONDS=5
+/opt/local/bin/myprogram
+
+This will run the "echo" command with the given parameter during the first
+time-related system function call that "myprogram" performs after running for 5
+seconds.
+
+
+4k) Saving timestamps to file, loading them from file
+-----------------------------------------------------
+
+Faketime can save faked timestamps to a file specified by FAKETIME_SAVE_FILE
+environment variable. It can also use the file specified by FAKETIME_LOAD_FILE
+to replay timestamps from it. After consuming the whole file, libfaketime
+returns to using the rule set in FAKETIME variable, but the timestamp processes
+will start counting from will be the last timestamp in the file.
+
+The file stores each timestamp in a stream of saved_timestamp structs
+without any metadata or padding:
+
+/* Storage format for timestamps written to file. Big endian. */
+struct saved_timestamp {
+  int64_t sec;
+  uint64_t nsec;
+};
+
+Faketime needs to be run using the faketime wrapper to use these files. This
+functionality has been added by Balint Reczey in v0.9.5.
+
+
+5. License
+----------
+
+libfaketime has been released under the GNU Public License, GPL. Please see the
+included COPYING file.
+
+
+6. Contact
+-----------
+
+Bug reports, feature suggestions, success reports, and patches/pull
+requests are highly appreciated:
+
+            https://github.com/wolfcw/libfaketime
+

@@ -1,0 +1,45 @@
+# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
+# $Id: Portfile 112093 2013-10-11 19:57:13Z ryandesign@macports.org $
+
+PortSystem          1.0
+PortGroup           github 1.0
+
+github.setup        wolfcw libfaketime 0.9.5rc3 v
+
+checksums           rmd160  8d10140a181e0d5ce93bd7b0e7eeaa380eb7a9c6 \
+                    sha256  ee2234335b3d730fdf6898d8dba9195d9ab3068c29af25270be03682d24a424f
+
+categories          sysutils
+platforms           darwin
+maintainers         code-wizards.com:wolf openmaintainer
+license             GPL-2
+
+description         libfaketime modifies the system time for a single application
+
+long_description    libfaketime intercepts various system calls that applications use to \
+                    retrieve the current date and time. It can then report user-specified \
+                    faked dates and times to these applications. This allows us to modify \
+                    the system time an application sees without having to change the time \
+                    system-wide. The faketime wrapper can be used from command line. \
+                    Check the documentation on how to integrate into installed applications.
+
+patchfiles          patch-test-Makefile.OSX.diff
+
+use_configure       no
+
+variant universal {}
+
+compiler.blacklist  *cc* *dragonegg*
+
+build.args          -f Makefile.OSX
+build.env           CC="${configure.cc}" \
+                    CFLAGS="[get_canonical_archflags cc]" \
+                    LDFLAGS="[get_canonical_archflags ld]" \
+                    PREFIX=${prefix}
+
+test.run            yes
+test.args           ${build.args}
+eval test.env       ${build.env}
+
+destroot.args       ${build.args}
+eval destroot.env   ${build.env}

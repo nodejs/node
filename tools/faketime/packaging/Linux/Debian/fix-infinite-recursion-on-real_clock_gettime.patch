@@ -1,0 +1,29 @@
+From: Gerardo Malazdrewicz <gerardo@malazdrewicz.com.ar>
+To: 699559@bugs.debian.org
+Subject: Avoiding loop (very dirty patch)
+Date: Tue, 26 Mar 2013 01:18:05 +0100
+
+[Message part 1 (text/plain, inline)]
+
+Attached patch works for me, but it is very very dirty.
+
+Possibly side effects.
+
+Alternative seems to be to protect the call to real_clock_gettime so it is
+executed just once (to validate the parameters). Subsequent calls are not
+needed (parameters have been validated).
+
+Thanks,
+       Gerardo
+
+--- a/src/libfaketime.c
++++ b/src/libfaketime.c
+@@ -1380,7 +1380,7 @@ void __attribute__ ((constructor)) ftpl_init(void)
+   real_clock_get_time =     dlsym(RTLD_NEXT, "clock_get_time");
+   real_clock_gettime  =     apple_clock_gettime;
+ #else
+-  real_clock_gettime  =     dlsym(RTLD_NEXT, "clock_gettime");
++  real_clock_gettime  =     dlsym(RTLD_NEXT, "__clock_gettime");
+ #ifdef FAKE_TIMERS
+   real_timer_settime_22 =   dlvsym(RTLD_NEXT, "timer_settime","GLIBC_2.2");
+   real_timer_settime_233 =  dlvsym(RTLD_NEXT, "timer_settime","GLIBC_2.3.3");

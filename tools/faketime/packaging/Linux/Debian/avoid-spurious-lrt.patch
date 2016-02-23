@@ -1,0 +1,30 @@
+Author: Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+
+On i386 systems, for some reason if i do not clean up this extra -lrt, i get the following error:
+
+ [...]
+make[1]: Entering directory `/home/dkg/src/faketime/faketime/src'
+cc -o libfaketime.o -c -g -O2 -fstack-protector --param=ssp-buffer-size=4 -Wformat -Werror=format-security -std=gnu99 -Wall -Wextra -Werror -DFAKE_STAT -DFAKE_SLEEP -DFAKE_TIMERS -DFAKE_INTERNAL_CALLS -fPIC -DPREFIX='"'/usr/local'"' -DLIBDIRNAME='"'/lib/faketime'"' -DMULTI_ARCH  libfaketime.c
+cc -o libfaketime.so.1 -Wl,-soname,libfaketime.so.1 -Wl,-z,relro -Wl,--version-script=libfaketime.map -lrt -shared libfaketime.o -ldl -lm -lpthread -lrt
+libfaketime.o: In function `ft_cleanup':
+/home/dkg/src/faketime/faketime/src/libfaketime.c:1277: multiple definition of `timer_gettime'
+/home/dkg/src/faketime/faketime/src/libfaketime.c:1277: multiple definition of `timer_settime'
+collect2: error: ld returned 1 exit status
+make[1]: *** [libfaketime.so.1] Error 1
+ [...]
+
+I confess i don't really understand why removing this would fix
+things, but i also don't see the need to have multiple attempts to
+link to librt.
+
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -69,7 +69,7 @@
+ 
+ CFLAGS += -std=gnu99 -Wall -Wextra -Werror -DFAKE_STAT -DFAKE_SLEEP -DFAKE_TIMERS -DFAKE_INTERNAL_CALLS -fPIC -DPREFIX='"'$(PREFIX)'"' -DLIBDIRNAME='"'$(LIBDIRNAME)'"'
+ LIB_LDFLAGS += -shared
+-LDFLAGS += -Wl,--version-script=libfaketime.map -lrt
++LDFLAGS += -Wl,--version-script=libfaketime.map
+ LDADD += -ldl -lm -lpthread -lrt
+ 
+ SRC = libfaketime.c

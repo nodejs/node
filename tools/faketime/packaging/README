@@ -1,0 +1,14 @@
+# libfaketime packaging
+
+Not everyone feels comfortable with installing tools and libraries manually
+by downloading and building them from source. Luckily enough, voluntary
+maintainers prepare new libfaketime releases for various platforms and make
+them available as binary packages or otherwise automatically installable
+software.
+
+In this directory, we collect build specification files for the platforms
+that we are aware of being actively supported. They help us to analyze
+build issues, create awareness for platform-specific patches that had to
+be applied and might be merged with our code, and provide the contact
+information for future "early release warnings".
+

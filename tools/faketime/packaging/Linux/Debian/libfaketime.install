@@ -1,0 +1,3 @@
+#!/usr/bin/dh-exec
+src/libfaketime.so.1 usr/lib/${DEB_HOST_MULTIARCH}/faketime/
+src/libfaketimeMT.so.1 usr/lib/${DEB_HOST_MULTIARCH}/faketime/

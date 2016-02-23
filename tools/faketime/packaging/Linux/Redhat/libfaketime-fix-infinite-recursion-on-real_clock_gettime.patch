@@ -1,0 +1,13 @@
+diff --git a/src/libfaketime.c b/src/libfaketime.c
+index 3ec372b..f70283b 100644
+--- a/src/libfaketime.c
++++ b/src/libfaketime.c
+@@ -1380,7 +1380,7 @@ void __attribute__ ((constructor)) ftpl_init(void)
+   real_clock_get_time =     dlsym(RTLD_NEXT, "clock_get_time");
+   real_clock_gettime  =     apple_clock_gettime;
+ #else
+-  real_clock_gettime  =     dlsym(RTLD_NEXT, "clock_gettime");
++  real_clock_gettime  =     dlsym(RTLD_NEXT, "__clock_gettime");
+ #ifdef FAKE_TIMERS
+   real_timer_settime_22 =   dlvsym(RTLD_NEXT, "timer_settime","GLIBC_2.2");
+   real_timer_settime_233 =  dlvsym(RTLD_NEXT, "timer_settime","GLIBC_2.3.3");
