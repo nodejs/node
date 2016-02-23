@@ -481,7 +481,8 @@ const relativeTests = [
      ['/var/lib', '/var/apache', '../apache'],
      ['/var/', '/var/lib', 'lib'],
      ['/', '/var/lib', 'var/lib'],
-     ['/foo/test', '/foo/test/bar/package.json', 'bar/package.json']
+     ['/foo/test', '/foo/test/bar/package.json', 'bar/package.json'],
+     ['/Users/a/web/b/test/mails', '/Users/a/web/b', '../..']
     ]
   ]
 ];
