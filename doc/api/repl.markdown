@@ -243,7 +243,7 @@ blocks. The `preserveCursor` argument is passed to [`readline.prompt`][]. This i
 used primarily with `defineCommand`. It's also used internally to render each
 prompt line.
 
-## repl.start(options)
+## repl.start([options])
 
 Returns and starts a `REPLServer` instance, that inherits from
 [Readline Interface][]. Accepts an "options" Object that takes
