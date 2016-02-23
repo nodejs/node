@@ -1,0 +1,12 @@
+per-file *-mips*=paul.lind@imgtec.com
+per-file *-mips*=gergely.kis@imgtec.com
+per-file *-mips*=akos.palfi@imgtec.com
+per-file *-mips*=balazs.kilvady@imgtec.com
+per-file *-mips*=dusan.milosavljevic@imgtec.com
+per-file *-ppc*=dstence@us.ibm.com
+per-file *-ppc*=joransiu@ca.ibm.com
+per-file *-ppc*=jyan@ca.ibm.com
+per-file *-ppc*=mbrandy@us.ibm.com
+per-file *-ppc*=michael_dawson@ca.ibm.com
+per-file *-x87*=chunyang.dai@intel.com
+per-file *-x87*=weiliang.lin@intel.com

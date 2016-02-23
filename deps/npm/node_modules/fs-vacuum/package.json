@@ -1,0 +1,63 @@
+{
+  "name": "fs-vacuum",
+  "version": "1.2.7",
+  "description": "recursively remove empty directories -- to a point",
+  "main": "vacuum.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/fs-vacuum.git"
+  },
+  "keywords": [
+    "rm",
+    "rimraf",
+    "clean"
+  ],
+  "author": {
+    "name": "Forrest L Norvell",
+    "email": "ogd@aoaioxxysz.net"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/fs-vacuum/issues"
+  },
+  "homepage": "https://github.com/npm/fs-vacuum",
+  "devDependencies": {
+    "mkdirp": "^0.5.0",
+    "tap": "^0.4.11",
+    "tmp": "0.0.24"
+  },
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "path-is-inside": "^1.0.1",
+    "rimraf": "^2.2.8"
+  },
+  "gitHead": "498a44d987ee11bc355fe1ec479d55a689fc37ef",
+  "_id": "fs-vacuum@1.2.7",
+  "_shasum": "75e501f9d2889ba2fe9fe12f936ba5dad50ca35a",
+  "_from": "fs-vacuum@>=1.2.7 <1.3.0",
+  "_npmVersion": "2.14.3",
+  "_nodeVersion": "2.2.2",
+  "_npmUser": {
+    "name": "zkat",
+    "email": "kat@sykosomatic.org"
+  },
+  "dist": {
+    "shasum": "75e501f9d2889ba2fe9fe12f936ba5dad50ca35a",
+    "tarball": "http://registry.npmjs.org/fs-vacuum/-/fs-vacuum-1.2.7.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/fs-vacuum/-/fs-vacuum-1.2.7.tgz"
+}

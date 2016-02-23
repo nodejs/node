@@ -1,0 +1,55 @@
+<pkmkdoc spec="1.12">
+  <properties>
+    <title>Node.js</title>
+    <build>/Users/nodejs/Desktop/node.pkg</build>
+    <organization>org.nodejs</organization>
+    <userSees ui="both"/>
+    <min-target os="3"/>
+    <domain system="true"/>
+  </properties>
+  <distribution>
+    <versions min-spec="1.000000"/>
+    <scripts></scripts>
+  </distribution>
+  <contents>
+    <choice title="Node.js" id="choice1" starts_selected="true" starts_enabled="true" starts_hidden="false">
+      <pkgref id="org.nodejs.node.pkg"/>
+    </choice>
+    <choice title="npm" id="choice2" starts_selected="true" starts_enabled="true" starts_hidden="false">
+      <pkgref id="org.nodejs.npm.pkg"/>
+    </choice>
+  </contents>
+  <resources bg-scale="none" bg-align="topleft">
+    <locale lang="en">
+      <resource relative="true" mod="true" type="background">../doc/osx_installer_logo.png</resource>
+      <resource relative="true" mod="true" type="license">../LICENSE</resource>
+      <resource mime-type="text/rtf" kind="embedded" type="welcome"><![CDATA[{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf360
+{\fonttbl\f0\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs26 \cf0 This package will install Node.js {nodeversion} and npm {npmversion} into /usr/local/.}]]></resource>
+      <resource mime-type="text/rtf" kind="embedded" type="conclusion"><![CDATA[{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf360
+{\fonttbl\f0\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs26 \cf0 Node.js was installed at\
+\
+   /usr/local/bin/node\
+\
+npm was installed at\
+\
+   /usr/local/bin/npm\
+\
+Make sure that /usr/local/bin is in your $PATH.}]]></resource>
+    </locale>
+  </resources>
+  <flags/>
+  <item type="file">01local.xml</item>
+  <item type="file">02npm.xml</item>
+  <mod>properties.title</mod>
+  <mod>properties.userDomain</mod>
+  <mod>properties.anywhereDomain</mod>
+  <mod>properties.systemDomain</mod>
+</pkmkdoc>

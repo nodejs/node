@@ -1,0 +1,276 @@
+#!/bin/sh
+
+if [ "$1" = "" ]; then
+  key=../apps/server.pem
+else
+  key="$1"
+fi
+if [ "$2" = "" ]; then
+  cert=../apps/server.pem
+else
+  cert="$2"
+fi
+ssltest="../util/shlib_wrap.sh ./ssltest -key $key -cert $cert -c_key $key -c_cert $cert"
+
+if ../util/shlib_wrap.sh ../apps/openssl x509 -in $cert -text -noout | fgrep 'DSA Public Key' >/dev/null; then
+  dsa_cert=YES
+else
+  dsa_cert=NO
+fi
+
+if [ "$3" = "" ]; then
+  CA="-CApath ../certs"
+else
+  CA="-CAfile $3"
+fi
+
+if [ "$4" = "" ]; then
+  extra=""
+else
+  extra="$4"
+fi
+
+serverinfo="./serverinfo.pem"
+
+#############################################################################
+
+echo test sslv2
+$ssltest -ssl2 $extra || exit 1
+
+echo test sslv2 with server authentication
+$ssltest -ssl2 -server_auth $CA $extra || exit 1
+
+if [ $dsa_cert = NO ]; then
+  echo test sslv2 with client authentication
+  $ssltest -ssl2 -client_auth $CA $extra || exit 1
+
+  echo test sslv2 with both client and server authentication
+  $ssltest -ssl2 -server_auth -client_auth $CA $extra || exit 1
+fi
+
+echo test sslv3
+$ssltest -ssl3 $extra || exit 1
+
+echo test sslv3 with server authentication
+$ssltest -ssl3 -server_auth $CA $extra || exit 1
+
+echo test sslv3 with client authentication
+$ssltest -ssl3 -client_auth $CA $extra || exit 1
+
+echo test sslv3 with both client and server authentication
+$ssltest -ssl3 -server_auth -client_auth $CA $extra || exit 1
+
+echo test sslv2/sslv3
+$ssltest $extra || exit 1
+
+echo test sslv2/sslv3 with server authentication
+$ssltest -server_auth $CA $extra || exit 1
+
+echo test sslv2/sslv3 with client authentication
+$ssltest -client_auth $CA $extra || exit 1
+
+echo test sslv2/sslv3 with both client and server authentication
+$ssltest -server_auth -client_auth $CA $extra || exit 1
+
+echo test sslv2 via BIO pair
+$ssltest -bio_pair -ssl2 $extra || exit 1
+
+echo test sslv2 with server authentication via BIO pair
+$ssltest -bio_pair -ssl2 -server_auth $CA $extra || exit 1
+
+if [ $dsa_cert = NO ]; then
+  echo test sslv2 with client authentication via BIO pair
+  $ssltest -bio_pair -ssl2 -client_auth $CA $extra || exit 1
+
+  echo test sslv2 with both client and server authentication via BIO pair
+  $ssltest -bio_pair -ssl2 -server_auth -client_auth $CA $extra || exit 1
+fi
+
+echo test sslv3 via BIO pair
+$ssltest -bio_pair -ssl3 $extra || exit 1
+
+echo test sslv3 with server authentication via BIO pair
+$ssltest -bio_pair -ssl3 -server_auth $CA $extra || exit 1
+
+echo test sslv3 with client authentication via BIO pair
+$ssltest -bio_pair -ssl3 -client_auth $CA $extra || exit 1
+
+echo test sslv3 with both client and server authentication via BIO pair
+$ssltest -bio_pair -ssl3 -server_auth -client_auth $CA $extra || exit 1
+
+echo test sslv2/sslv3 via BIO pair
+$ssltest $extra || exit 1
+
+echo test dtlsv1
+$ssltest -dtls1 $extra || exit 1
+
+echo test dtlsv1 with server authentication
+$ssltest -dtls1 -server_auth $CA $extra || exit 1
+
+echo test dtlsv1 with client authentication
+$ssltest -dtls1 -client_auth $CA $extra || exit 1
+
+echo test dtlsv1 with both client and server authentication
+$ssltest -dtls1 -server_auth -client_auth $CA $extra || exit 1
+
+echo test dtlsv1.2
+$ssltest -dtls12 $extra || exit 1
+
+echo test dtlsv1.2 with server authentication
+$ssltest -dtls12 -server_auth $CA $extra || exit 1
+
+echo test dtlsv1.2 with client authentication
+$ssltest -dtls12 -client_auth $CA $extra || exit 1
+
+echo test dtlsv1.2 with both client and server authentication
+$ssltest -dtls12 -server_auth -client_auth $CA $extra || exit 1
+
+if [ $dsa_cert = NO ]; then
+  echo 'test sslv2/sslv3 w/o (EC)DHE via BIO pair'
+  $ssltest -bio_pair -no_dhe -no_ecdhe $extra || exit 1
+fi
+
+echo test sslv2/sslv3 with 1024bit DHE via BIO pair
+$ssltest -bio_pair -dhe1024dsa -v $extra || exit 1
+
+echo test sslv2/sslv3 with server authentication
+$ssltest -bio_pair -server_auth $CA $extra || exit 1
+
+echo test sslv2/sslv3 with client authentication via BIO pair
+$ssltest -bio_pair -client_auth $CA $extra || exit 1
+
+echo test sslv2/sslv3 with both client and server authentication via BIO pair
+$ssltest -bio_pair -server_auth -client_auth $CA $extra || exit 1
+
+echo test sslv2/sslv3 with both client and server authentication via BIO pair and app verify
+$ssltest -bio_pair -server_auth -client_auth -app_verify $CA $extra || exit 1
+
+test_cipher() {
+    _cipher=$1
+    echo "Testing $_cipher"
+    prot=""
+    if [ $2 = "SSLv3" ] ; then
+      prot="-ssl3"
+    fi
+    $ssltest -cipher $_cipher $prot
+    if [ $? -ne 0 ] ; then
+	  echo "Failed $_cipher"
+	  exit 1
+    fi
+}
+
+echo "Testing ciphersuites"
+for protocol in TLSv1.2 SSLv3; do
+  echo "Testing ciphersuites for $protocol"
+  for cipher in `../util/shlib_wrap.sh ../apps/openssl ciphers "RSA+$protocol" | tr ':' ' '`; do
+    test_cipher $cipher $protocol
+  done
+  if ../util/shlib_wrap.sh ../apps/openssl no-dh; then
+    echo "skipping RSA+DHE tests"
+  else
+    for cipher in `../util/shlib_wrap.sh ../apps/openssl ciphers "EDH+aRSA+$protocol:-EXP" | tr ':' ' '`; do
+      test_cipher $cipher $protocol
+    done
+    echo "testing connection with weak DH, expecting failure"
+    if [ $protocol = "SSLv3" ] ; then
+      $ssltest -cipher EDH -dhe512 -ssl3
+    else
+      $ssltest -cipher EDH -dhe512
+    fi
+    if [ $? -eq 0 ]; then
+      echo "FAIL: connection with weak DH succeeded"
+      exit 1
+    fi
+  fi
+  if ../util/shlib_wrap.sh ../apps/openssl no-ec; then
+    echo "skipping RSA+ECDHE tests"
+  else
+    for cipher in `../util/shlib_wrap.sh ../apps/openssl ciphers "EECDH+aRSA+$protocol:-EXP" | tr ':' ' '`; do
+      test_cipher $cipher $protocol
+    done
+  fi
+done
+
+#############################################################################
+
+if ../util/shlib_wrap.sh ../apps/openssl no-dh; then
+  echo skipping anonymous DH tests
+else
+  echo test tls1 with 1024bit anonymous DH, multiple handshakes
+  $ssltest -v -bio_pair -tls1 -cipher ADH -dhe1024dsa -num 10 -f -time $extra || exit 1
+fi
+
+if ../util/shlib_wrap.sh ../apps/openssl no-rsa; then
+  echo skipping RSA tests
+else
+  echo 'test tls1 with 1024bit RSA, no (EC)DHE, multiple handshakes'
+  ../util/shlib_wrap.sh ./ssltest -v -bio_pair -tls1 -cert ../apps/server2.pem -no_dhe -no_ecdhe -num 10 -f -time $extra || exit 1
+
+  if ../util/shlib_wrap.sh ../apps/openssl no-dh; then
+    echo skipping RSA+DHE tests
+  else
+    echo test tls1 with 1024bit RSA, 1024bit DHE, multiple handshakes
+    ../util/shlib_wrap.sh ./ssltest -v -bio_pair -tls1 -cert ../apps/server2.pem -dhe1024dsa -num 10 -f -time $extra || exit 1
+  fi
+fi
+
+echo test tls1 with PSK
+$ssltest -tls1 -cipher PSK -psk abc123 $extra || exit 1
+
+echo test tls1 with PSK via BIO pair
+$ssltest -bio_pair -tls1 -cipher PSK -psk abc123 $extra || exit 1
+
+#############################################################################
+# Custom Extension tests
+
+echo test tls1 with custom extensions
+$ssltest -bio_pair -tls1 -custom_ext || exit 1
+
+#############################################################################
+# Serverinfo tests
+
+echo test tls1 with serverinfo
+$ssltest -bio_pair -tls1 -serverinfo_file $serverinfo || exit 1
+$ssltest -bio_pair -tls1 -serverinfo_file $serverinfo -serverinfo_sct || exit 1
+$ssltest -bio_pair -tls1 -serverinfo_file $serverinfo -serverinfo_tack || exit 1
+$ssltest -bio_pair -tls1 -serverinfo_file $serverinfo -serverinfo_sct -serverinfo_tack || exit 1
+$ssltest -bio_pair -tls1 -custom_ext -serverinfo_file $serverinfo -serverinfo_sct -serverinfo_tack || exit 1
+
+
+#############################################################################
+# ALPN tests
+
+$ssltest -bio_pair -tls1 -alpn_client foo -alpn_server bar || exit 1
+$ssltest -bio_pair -tls1 -alpn_client foo -alpn_server foo -alpn_expected foo || exit 1
+$ssltest -bio_pair -tls1 -alpn_client foo,bar -alpn_server foo -alpn_expected foo || exit 1
+$ssltest -bio_pair -tls1 -alpn_client bar,foo -alpn_server foo -alpn_expected foo || exit 1
+$ssltest -bio_pair -tls1 -alpn_client bar,foo -alpn_server foo,bar -alpn_expected foo || exit 1
+$ssltest -bio_pair -tls1 -alpn_client bar,foo -alpn_server bar,foo -alpn_expected bar || exit 1
+$ssltest -bio_pair -tls1 -alpn_client foo,bar -alpn_server bar,foo -alpn_expected bar || exit 1
+$ssltest -bio_pair -tls1 -alpn_client baz -alpn_server bar,foo || exit 1
+
+if ../util/shlib_wrap.sh ../apps/openssl no-srp; then
+  echo skipping SRP tests
+else
+  echo test tls1 with SRP
+  $ssltest -tls1 -cipher SRP -srpuser test -srppass abc123 || exit 1
+
+  echo test tls1 with SRP via BIO pair
+  $ssltest -bio_pair -tls1 -cipher SRP -srpuser test -srppass abc123 || exit 1
+
+  echo test tls1 with SRP auth
+  $ssltest -tls1 -cipher aSRP -srpuser test -srppass abc123 || exit 1
+
+  echo test tls1 with SRP auth via BIO pair
+  $ssltest -bio_pair -tls1 -cipher aSRP -srpuser test -srppass abc123 || exit 1
+fi
+
+#############################################################################
+# Multi-buffer tests
+
+if [ -z "$extra" -a `uname -m` = "x86_64" ]; then
+  $ssltest -cipher AES128-SHA    -bytes 8m	|| exit 1
+  $ssltest -cipher AES128-SHA256 -bytes 8m	|| exit 1
+fi
+
+exit 0

@@ -1,0 +1,69 @@
+{
+  "_args": [
+    [
+      "util-extend@^1.0.1",
+      "/Users/rebecca/code/npm/node_modules/read-installed"
+    ]
+  ],
+  "_from": "util-extend@>=1.0.1 <2.0.0",
+  "_id": "util-extend@1.0.3",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/read-installed/util-extend",
+  "_nodeVersion": "4.0.0",
+  "_npmUser": {
+    "email": "i@izs.me",
+    "name": "isaacs"
+  },
+  "_npmVersion": "2.14.15",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "util-extend",
+    "raw": "util-extend@^1.0.1",
+    "rawSpec": "^1.0.1",
+    "scope": null,
+    "spec": ">=1.0.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/read-installed"
+  ],
+  "_resolved": "https://registry.npmjs.org/util-extend/-/util-extend-1.0.3.tgz",
+  "_shasum": "a7c216d267545169637b3b6edc6ca9119e2ff93f",
+  "_shrinkwrap": null,
+  "_spec": "util-extend@^1.0.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/read-installed",
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/isaacs/util-extend/issues"
+  },
+  "dependencies": {},
+  "description": "Node's internal object extension function",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "a7c216d267545169637b3b6edc6ca9119e2ff93f",
+    "tarball": "http://registry.npmjs.org/util-extend/-/util-extend-1.0.3.tgz"
+  },
+  "gitHead": "22757dc229edbb253af63d533f27a837184f4a51",
+  "homepage": "https://github.com/isaacs/util-extend#readme",
+  "license": "MIT",
+  "main": "extend.js",
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "name": "util-extend",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/util-extend.git"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "version": "1.0.3"
+}

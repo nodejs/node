@@ -1,0 +1,3 @@
+Cache RECP_CTX values
+make the result argument independant of the inputs.
+split up the _exp_ functions

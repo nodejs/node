@@ -1,0 +1,76 @@
+=pod
+
+=head1 NAME
+
+BUF_MEM_new, BUF_MEM_new_ex, BUF_MEM_free, BUF_MEM_grow - simple
+character array structure
+
+BUF_strdup, BUF_strndup, BUF_memdup, BUF_strlcpy, BUF_strlcat -
+standard C library equivalents
+
+=head1 SYNOPSIS
+
+ #include <openssl/buffer.h>
+
+ BUF_MEM *BUF_MEM_new(void);
+
+ void	BUF_MEM_free(BUF_MEM *a);
+
+ int	BUF_MEM_grow(BUF_MEM *str, int len);
+
+ char *BUF_strdup(const char *str);
+
+ char *BUF_strndup(const char *str, size_t siz);
+
+ void *BUF_memdup(const void *data, size_t siz);
+
+ size_t BUF_strlcpy(char *dst, const char *src, size_t size);
+
+ size_t BUF_strlcat(char *dst, const char *src, size_t size);
+
+ size_t BUF_strnlen(const char *str, size_t maxlen);
+
+=head1 DESCRIPTION
+
+The buffer library handles simple character arrays. Buffers are used for
+various purposes in the library, most notably memory BIOs.
+
+BUF_MEM_new() allocates a new buffer of zero size.
+
+BUF_MEM_free() frees up an already existing buffer. The data is zeroed
+before freeing up in case the buffer contains sensitive data.
+
+BUF_MEM_grow() changes the size of an already existing buffer to
+B<len>. Any data already in the buffer is preserved if it increases in
+size.
+
+BUF_strdup(), BUF_strndup(), BUF_memdup(), BUF_strlcpy(),
+BUF_strlcat() and BUF_strnlen are equivalents of the standard C
+library functions. The dup() functions use OPENSSL_malloc() underneath
+and so should be used in preference to the standard library for memory
+leak checking or replacing the malloc() function.
+
+Memory allocated from these functions should be freed up using the
+OPENSSL_free() function.
+
+BUF_strndup makes the explicit guarantee that it will never read past
+the first B<siz> bytes of B<str>.
+
+=head1 RETURN VALUES
+
+BUF_MEM_new() returns the buffer or NULL on error.
+
+BUF_MEM_free() has no return value.
+
+BUF_MEM_grow() returns zero on error or the new size (i.e. B<len>).
+
+=head1 SEE ALSO
+
+L<bio(3)|bio(3)>
+
+=head1 HISTORY
+
+BUF_MEM_new(), BUF_MEM_free() and BUF_MEM_grow() are available in all
+versions of SSLeay and OpenSSL. BUF_strdup() was added in SSLeay 0.8.
+
+=cut

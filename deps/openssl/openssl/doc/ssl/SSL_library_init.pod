@@ -1,0 +1,57 @@
+=pod
+
+=head1 NAME
+
+SSL_library_init, OpenSSL_add_ssl_algorithms, SSLeay_add_ssl_algorithms
+- initialize SSL library by registering algorithms
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_library_init(void);
+ #define OpenSSL_add_ssl_algorithms()    SSL_library_init()
+ #define SSLeay_add_ssl_algorithms()     SSL_library_init()
+
+=head1 DESCRIPTION
+
+SSL_library_init() registers the available SSL/TLS ciphers and digests.
+
+OpenSSL_add_ssl_algorithms() and SSLeay_add_ssl_algorithms() are synonyms
+for SSL_library_init().
+
+=head1 NOTES
+
+SSL_library_init() must be called before any other action takes place.
+SSL_library_init() is not reentrant. 
+
+=head1 WARNING
+
+SSL_library_init() adds ciphers and digests used directly and indirectly by
+SSL/TLS.
+
+=head1 EXAMPLES
+
+A typical TLS/SSL application will start with the library initialization,
+and provide readable error messages.
+
+ SSL_load_error_strings();                /* readable error messages */
+ SSL_library_init();                      /* initialize library */
+
+=head1 RETURN VALUES
+
+SSL_library_init() always returns "1", so it is safe to discard the return
+value.
+
+=head1 NOTES
+
+OpenSSL 0.9.8o and 1.0.0a and later added SHA2 algorithms to SSL_library_init().
+Applications which need to use SHA2 in earlier versions of OpenSSL should call
+OpenSSL_add_all_algorithms() as well.
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>, L<SSL_load_error_strings(3)|SSL_load_error_strings(3)>,
+L<RAND_add(3)|RAND_add(3)>
+
+=cut

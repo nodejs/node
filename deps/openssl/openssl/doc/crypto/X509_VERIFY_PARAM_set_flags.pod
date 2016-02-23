@@ -1,0 +1,244 @@
+=pod
+
+=head1 NAME
+
+X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags, X509_VERIFY_PARAM_get_flags, X509_VERIFY_PARAM_set_purpose, X509_VERIFY_PARAM_set_trust, X509_VERIFY_PARAM_set_depth, X509_VERIFY_PARAM_get_depth, X509_VERIFY_PARAM_set_time, X509_VERIFY_PARAM_add0_policy, X509_VERIFY_PARAM_set1_policies, X509_VERIFY_PARAM_set1_host, X509_VERIFY_PARAM_add1_host, X509_VERIFY_PARAM_set_hostflags, X509_VERIFY_PARAM_get0_peername, X509_VERIFY_PARAM_set1_email, X509_VERIFY_PARAM_set1_ip, X509_VERIFY_PARAM_set1_ip_asc - X509 verification parameters
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509_vfy.h>
+
+ int X509_VERIFY_PARAM_set_flags(X509_VERIFY_PARAM *param, unsigned long flags);
+ int X509_VERIFY_PARAM_clear_flags(X509_VERIFY_PARAM *param,
+							unsigned long flags);
+ unsigned long X509_VERIFY_PARAM_get_flags(X509_VERIFY_PARAM *param);
+
+ int X509_VERIFY_PARAM_set_purpose(X509_VERIFY_PARAM *param, int purpose);
+ int X509_VERIFY_PARAM_set_trust(X509_VERIFY_PARAM *param, int trust);
+
+ void X509_VERIFY_PARAM_set_time(X509_VERIFY_PARAM *param, time_t t);
+
+ int X509_VERIFY_PARAM_add0_policy(X509_VERIFY_PARAM *param,
+						ASN1_OBJECT *policy);
+ int X509_VERIFY_PARAM_set1_policies(X509_VERIFY_PARAM *param, 
+					STACK_OF(ASN1_OBJECT) *policies);
+
+ void X509_VERIFY_PARAM_set_depth(X509_VERIFY_PARAM *param, int depth);
+ int X509_VERIFY_PARAM_get_depth(const X509_VERIFY_PARAM *param);
+
+ int X509_VERIFY_PARAM_set1_host(X509_VERIFY_PARAM *param,
+				 const char *name, size_t namelen);
+ int X509_VERIFY_PARAM_add1_host(X509_VERIFY_PARAM *param,
+                                 const char *name, size_t namelen);
+ void X509_VERIFY_PARAM_set_hostflags(X509_VERIFY_PARAM *param,
+				      unsigned int flags);
+ char *X509_VERIFY_PARAM_get0_peername(X509_VERIFY_PARAM *param);
+ int X509_VERIFY_PARAM_set1_email(X509_VERIFY_PARAM *param,
+				 const char *email, size_t emaillen);
+ int X509_VERIFY_PARAM_set1_ip(X509_VERIFY_PARAM *param,
+			       const unsigned char *ip, size_t iplen);
+ int X509_VERIFY_PARAM_set1_ip_asc(X509_VERIFY_PARAM *param, const char *ipasc);
+
+=head1 DESCRIPTION
+
+These functions manipulate the B<X509_VERIFY_PARAM> structure associated with
+a certificate verification operation. 
+
+The X509_VERIFY_PARAM_set_flags() function sets the flags in B<param> by oring
+it with B<flags>. See the B<VERIFICATION FLAGS> section for a complete
+description of values the B<flags> parameter can take.
+
+X509_VERIFY_PARAM_get_flags() returns the flags in B<param>.
+
+X509_VERIFY_PARAM_clear_flags() clears the flags B<flags> in B<param>.
+
+X509_VERIFY_PARAM_set_purpose() sets the verification purpose in B<param>
+to B<purpose>. This determines the acceptable purpose of the certificate
+chain, for example SSL client or SSL server.
+
+X509_VERIFY_PARAM_set_trust() sets the trust setting in B<param> to 
+B<trust>.
+
+X509_VERIFY_PARAM_set_time() sets the verification time in B<param> to
+B<t>. Normally the current time is used.
+
+X509_VERIFY_PARAM_add0_policy() enables policy checking (it is disabled
+by default) and adds B<policy> to the acceptable policy set.
+
+X509_VERIFY_PARAM_set1_policies() enables policy checking (it is disabled
+by default) and sets the acceptable policy set to B<policies>. Any existing
+policy set is cleared. The B<policies> parameter can be B<NULL> to clear
+an existing policy set.
+
+X509_VERIFY_PARAM_set_depth() sets the maximum verification depth to B<depth>.
+That is the maximum number of untrusted CA certificates that can appear in a
+chain.
+
+X509_VERIFY_PARAM_set1_host() sets the expected DNS hostname to
+B<name> clearing any previously specified host name or names.  If
+B<name> is NULL, or empty the list of hostnames is cleared, and
+name checks are not performed on the peer certificate.  If B<name>
+is NUL-terminated, B<namelen> may be zero, otherwise B<namelen>
+must be set to the length of B<name>.  When a hostname is specified,
+certificate verification automatically invokes L<X509_check_host(3)>
+with flags equal to the B<flags> argument given to
+B<X509_VERIFY_PARAM_set_hostflags()> (default zero).  Applications
+are strongly advised to use this interface in preference to explicitly
+calling L<X509_check_host(3)>, hostname checks are out of scope
+with the DANE-EE(3) certificate usage, and the internal check will
+be suppressed as appropriate when DANE support is added to OpenSSL.
+
+X509_VERIFY_PARAM_add1_host() adds B<name> as an additional reference
+identifer that can match the peer's certificate.  Any previous names
+set via X509_VERIFY_PARAM_set1_host() or X509_VERIFY_PARAM_add1_host()
+are retained, no change is made if B<name> is NULL or empty.  When
+multiple names are configured, the peer is considered verified when
+any name matches.
+
+X509_VERIFY_PARAM_get0_peername() returns the DNS hostname or subject
+CommonName from the peer certificate that matched one of the reference
+identifiers.  When wildcard matching is not disabled, or when a
+reference identifier specifies a parent domain (starts with ".")
+rather than a hostname, the peer name may be a wildcard name or a
+sub-domain of the reference identifier respectively.  The return
+string is allocated by the library and is no longer valid once the
+associated B<param> argument is freed.  Applications must not free
+the return value.
+
+X509_VERIFY_PARAM_set1_email() sets the expected RFC822 email address to
+B<email>.  If B<email> is NUL-terminated, B<emaillen> may be zero, otherwise
+B<emaillen> must be set to the length of B<email>.  When an email address
+is specified, certificate verification automatically invokes
+L<X509_check_email(3)>.
+
+X509_VERIFY_PARAM_set1_ip() sets the expected IP address to B<ip>.
+The B<ip> argument is in binary format, in network byte-order and
+B<iplen> must be set to 4 for IPv4 and 16 for IPv6.  When an IP
+address is specified, certificate verification automatically invokes
+L<X509_check_ip(3)>.
+
+X509_VERIFY_PARAM_set1_ip_asc() sets the expected IP address to
+B<ipasc>.  The B<ipasc> argument is a NUL-terminal ASCII string:
+dotted decimal quad for IPv4 and colon-separated hexadecimal for
+IPv6.  The condensed "::" notation is supported for IPv6 addresses.
+
+=head1 RETURN VALUES
+
+X509_VERIFY_PARAM_set_flags(), X509_VERIFY_PARAM_clear_flags(),
+X509_VERIFY_PARAM_set_purpose(), X509_VERIFY_PARAM_set_trust(),
+X509_VERIFY_PARAM_add0_policy() X509_VERIFY_PARAM_set1_policies(),
+X509_VERIFY_PARAM_set1_host(), X509_VERIFY_PARAM_set_hostflags(),
+X509_VERIFY_PARAM_set1_email(), X509_VERIFY_PARAM_set1_ip() and
+X509_VERIFY_PARAM_set1_ip_asc() return 1 for success and 0 for
+failure.
+
+X509_VERIFY_PARAM_get_flags() returns the current verification flags.
+
+X509_VERIFY_PARAM_set_time() and X509_VERIFY_PARAM_set_depth() do not return
+values.
+
+X509_VERIFY_PARAM_get_depth() returns the current verification depth.
+
+=head1 VERIFICATION FLAGS
+
+The verification flags consists of zero or more of the following flags
+ored together.
+
+B<X509_V_FLAG_CRL_CHECK> enables CRL checking for the certificate chain leaf
+certificate. An error occurs if a suitable CRL cannot be found. 
+
+B<X509_V_FLAG_CRL_CHECK_ALL> enables CRL checking for the entire certificate
+chain.
+
+B<X509_V_FLAG_IGNORE_CRITICAL> disabled critical extension checking. By default
+any unhandled critical extensions in certificates or (if checked) CRLs results
+in a fatal error. If this flag is set unhandled critical extensions are
+ignored. B<WARNING> setting this option for anything other than debugging
+purposes can be a security risk. Finer control over which extensions are
+supported can be performed in the verification callback.
+
+THe B<X509_V_FLAG_X509_STRICT> flag disables workarounds for some broken
+certificates and makes the verification strictly apply B<X509> rules.
+
+B<X509_V_FLAG_ALLOW_PROXY_CERTS> enables proxy certificate verification.
+
+B<X509_V_FLAG_POLICY_CHECK> enables certificate policy checking, by default
+no policy checking is peformed. Additional information is sent to the 
+verification callback relating to policy checking.
+
+B<X509_V_FLAG_EXPLICIT_POLICY>, B<X509_V_FLAG_INHIBIT_ANY> and
+B<X509_V_FLAG_INHIBIT_MAP> set the B<require explicit policy>, B<inhibit any
+policy> and B<inhibit policy mapping> flags respectively as defined in
+B<RFC3280>. Policy checking is automatically enabled if any of these flags
+are set.
+
+If B<X509_V_FLAG_NOTIFY_POLICY> is set and the policy checking is successful
+a special status code is set to the verification callback. This permits it
+to examine the valid policy tree and perform additional checks or simply
+log it for debugging purposes.
+
+By default some additional features such as indirect CRLs and CRLs signed by
+different keys are disabled. If B<X509_V_FLAG_EXTENDED_CRL_SUPPORT> is set
+they are enabled.
+
+If B<X509_V_FLAG_USE_DELTAS> ise set delta CRLs (if present) are used to
+determine certificate status. If not set deltas are ignored.
+
+B<X509_V_FLAG_CHECK_SS_SIGNATURE> enables checking of the root CA self signed
+cerificate signature. By default this check is disabled because it doesn't
+add any additional security but in some cases applications might want to
+check the signature anyway. A side effect of not checking the root CA
+signature is that disabled or unsupported message digests on the root CA
+are not treated as fatal errors.
+
+The B<X509_V_FLAG_CB_ISSUER_CHECK> flag enables debugging of certificate
+issuer checks. It is B<not> needed unless you are logging certificate
+verification. If this flag is set then additional status codes will be sent
+to the verification callback and it B<must> be prepared to handle such cases
+without assuming they are hard errors.
+
+The B<X509_V_FLAG_NO_ALT_CHAINS> flag suppresses checking for alternative
+chains. By default, when building a certificate chain, if the first certificate
+chain found is not trusted, then OpenSSL will continue to check to see if an
+alternative chain can be found that is trusted. With this flag set the behaviour
+will match that of OpenSSL versions prior to 1.0.2b.
+
+=head1 NOTES
+
+The above functions should be used to manipulate verification parameters
+instead of legacy functions which work in specific structures such as
+X509_STORE_CTX_set_flags().
+
+=head1 BUGS
+
+Delta CRL checking is currently primitive. Only a single delta can be used and
+(partly due to limitations of B<X509_STORE>) constructed CRLs are not 
+maintained.
+
+If CRLs checking is enable CRLs are expected to be available in the
+corresponding B<X509_STORE> structure. No attempt is made to download
+CRLs from the CRL distribution points extension.
+
+=head1 EXAMPLE
+
+Enable CRL checking when performing certificate verification during SSL 
+connections associated with an B<SSL_CTX> structure B<ctx>:
+
+  X509_VERIFY_PARAM *param;
+  param = X509_VERIFY_PARAM_new();
+  X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_CRL_CHECK);
+  SSL_CTX_set1_param(ctx, param);
+  X509_VERIFY_PARAM_free(param);
+
+=head1 SEE ALSO
+
+L<X509_verify_cert(3)|X509_verify_cert(3)>,
+L<X509_check_host(3)|X509_check_host(3)>,
+L<X509_check_email(3)|X509_check_email(3)>,
+L<X509_check_ip(3)|X509_check_ip(3)>
+
+=head1 HISTORY
+
+The B<X509_V_FLAG_NO_ALT_CHAINS> flag was added in OpenSSL 1.0.2b
+
+=cut

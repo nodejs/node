@@ -1,0 +1,55 @@
+{
+  "name": "opener",
+  "description": "Opens stuff, like webpages and files and executables, cross-platform",
+  "version": "1.4.1",
+  "author": {
+    "name": "Domenic Denicola",
+    "email": "d@domenic.me",
+    "url": "https://domenic.me/"
+  },
+  "license": "WTFPL",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/domenic/opener.git"
+  },
+  "main": "opener.js",
+  "bin": {
+    "opener": "opener.js"
+  },
+  "files": [
+    "opener.js"
+  ],
+  "scripts": {
+    "lint": "jshint opener.js"
+  },
+  "devDependencies": {
+    "jshint": "^2.6.3"
+  },
+  "gitHead": "d0ee95b19951703462fa593baa16e81fdff7827c",
+  "bugs": {
+    "url": "https://github.com/domenic/opener/issues"
+  },
+  "homepage": "https://github.com/domenic/opener",
+  "_id": "opener@1.4.1",
+  "_shasum": "897590acd1aed3311b703b58bccb4d43f56f2895",
+  "_from": "opener@>=1.4.1 <1.5.0",
+  "_npmVersion": "2.7.0",
+  "_nodeVersion": "1.5.1",
+  "_npmUser": {
+    "name": "domenic",
+    "email": "d@domenic.me"
+  },
+  "maintainers": [
+    {
+      "name": "domenic",
+      "email": "domenic@domenicdenicola.com"
+    }
+  ],
+  "dist": {
+    "shasum": "897590acd1aed3311b703b58bccb4d43f56f2895",
+    "tarball": "http://registry.npmjs.org/opener/-/opener-1.4.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/opener/-/opener-1.4.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

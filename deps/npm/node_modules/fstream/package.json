@@ -1,0 +1,71 @@
+{
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "name": "fstream",
+  "description": "Advanced file system stream things",
+  "version": "1.0.8",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/fstream.git"
+  },
+  "main": "fstream.js",
+  "engines": {
+    "node": ">=0.6"
+  },
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "inherits": "~2.0.0",
+    "mkdirp": ">=0.5 0",
+    "rimraf": "2"
+  },
+  "devDependencies": {
+    "standard": "^4.0.0",
+    "tap": "^1.2.0"
+  },
+  "scripts": {
+    "test": "standard && tap examples/*.js"
+  },
+  "license": "ISC",
+  "gitHead": "d9f81146c50e687f1df04c1a0e7e4c173eb3dae2",
+  "bugs": {
+    "url": "https://github.com/isaacs/fstream/issues"
+  },
+  "homepage": "https://github.com/isaacs/fstream#readme",
+  "_id": "fstream@1.0.8",
+  "_shasum": "7e8d7a73abb3647ef36e4b8a15ca801dba03d038",
+  "_from": "fstream@>=1.0.8 <1.1.0",
+  "_npmVersion": "2.14.3",
+  "_nodeVersion": "2.2.2",
+  "_npmUser": {
+    "name": "zkat",
+    "email": "kat@sykosomatic.org"
+  },
+  "dist": {
+    "shasum": "7e8d7a73abb3647ef36e4b8a15ca801dba03d038",
+    "tarball": "http://registry.npmjs.org/fstream/-/fstream-1.0.8.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    },
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/fstream/-/fstream-1.0.8.tgz",
+  "readme": "ERROR: No README data found!"
+}

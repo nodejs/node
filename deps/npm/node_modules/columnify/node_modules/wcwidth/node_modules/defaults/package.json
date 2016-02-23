@@ -1,0 +1,54 @@
+{
+  "name": "defaults",
+  "version": "1.0.3",
+  "description": "merge single level defaults over a config object",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/tmpvar/defaults.git"
+  },
+  "keywords": [
+    "config",
+    "defaults"
+  ],
+  "author": {
+    "name": "Elijah Insua",
+    "email": "tmpvar@gmail.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "clone": "^1.0.2"
+  },
+  "devDependencies": {
+    "tap": "^2.0.0"
+  },
+  "gitHead": "8831ec32a5f999bfae1a8c9bf32880971ed7c6f2",
+  "bugs": {
+    "url": "https://github.com/tmpvar/defaults/issues"
+  },
+  "homepage": "https://github.com/tmpvar/defaults#readme",
+  "_id": "defaults@1.0.3",
+  "_shasum": "c656051e9817d9ff08ed881477f3fe4019f3ef7d",
+  "_from": "defaults@>=1.0.0 <2.0.0",
+  "_npmVersion": "2.14.4",
+  "_nodeVersion": "4.1.1",
+  "_npmUser": {
+    "name": "tmpvar",
+    "email": "tmpvar@gmail.com"
+  },
+  "dist": {
+    "shasum": "c656051e9817d9ff08ed881477f3fe4019f3ef7d",
+    "tarball": "http://registry.npmjs.org/defaults/-/defaults-1.0.3.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "tmpvar",
+      "email": "tmpvar@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/defaults/-/defaults-1.0.3.tgz"
+}

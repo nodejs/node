@@ -1,0 +1,81 @@
+=pod
+
+=begin comment
+
+Copyright 2005 Nokia. All rights reserved.
+
+The portions of the attached software ("Contribution") is developed by
+Nokia Corporation and is licensed pursuant to the OpenSSL open source
+license.
+
+The Contribution, originally written by Mika Kousa and Pasi Eronen of
+Nokia Corporation, consists of the "PSK" (Pre-Shared Key) ciphersuites
+support (see RFC 4279) to OpenSSL.
+
+No patent licenses or other rights except those expressly stated in
+the OpenSSL open source license shall be deemed granted or received
+expressly, by implication, estoppel, or otherwise.
+
+No assurances are provided by Nokia that the Contribution does not
+infringe the patent or other intellectual property rights of any third
+party or that the license provides you with all the necessary rights
+to make use of the Contribution.
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. IN
+ADDITION TO THE DISCLAIMERS INCLUDED IN THE LICENSE, NOKIA
+SPECIFICALLY DISCLAIMS ANY LIABILITY FOR CLAIMS BROUGHT BY YOU OR ANY
+OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
+OTHERWISE.
+
+=end comment
+
+=head1 NAME
+
+SSL_CTX_set_psk_client_callback, SSL_set_psk_client_callback - set PSK client callback
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ void SSL_CTX_set_psk_client_callback(SSL_CTX *ctx,
+	unsigned int (*callback)(SSL *ssl, const char *hint,
+	char *identity, unsigned int max_identity_len,
+	unsigned char *psk, unsigned int max_psk_len));
+ void SSL_set_psk_client_callback(SSL *ssl,
+	unsigned int (*callback)(SSL *ssl, const char *hint,
+	char *identity, unsigned int max_identity_len,
+ 	unsigned char *psk, unsigned int max_psk_len));
+
+
+=head1 DESCRIPTION
+
+A client application must provide a callback function which is called
+when the client is sending the ClientKeyExchange message to the server.
+
+The purpose of the callback function is to select the PSK identity and
+the pre-shared key to use during the connection setup phase.
+
+The callback is set using functions SSL_CTX_set_psk_client_callback()
+or SSL_set_psk_client_callback(). The callback function is given the
+connection in parameter B<ssl>, a B<NULL>-terminated PSK identity hint
+sent by the server in parameter B<hint>, a buffer B<identity> of
+length B<max_identity_len> bytes where the the resulting
+B<NULL>-terminated identity is to be stored, and a buffer B<psk> of
+length B<max_psk_len> bytes where the resulting pre-shared key is to
+be stored.
+
+=head1 NOTES
+
+Note that parameter B<hint> given to the callback may be B<NULL>.
+
+=head1 RETURN VALUES
+
+Return values from the client callback are interpreted as follows:
+
+On success (callback found a PSK identity and a pre-shared key to use)
+the length (> 0) of B<psk> in bytes is returned.
+
+Otherwise or on errors callback should return 0. In this case
+the connection setup fails.
+
+=cut

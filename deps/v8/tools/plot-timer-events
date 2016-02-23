@@ -1,0 +1,93 @@
+#!/bin/sh
+
+# find the name of the log file to process, it must not start with a dash.
+log_file="v8.log"
+for arg in "$@"
+do
+  if ! expr "X${arg}" : "^X-" > /dev/null; then
+    log_file=${arg}
+  fi
+done
+
+tools_path=`cd $(dirname "$0");pwd`
+if test ! "$D8_PATH"; then
+  d8_public=`which d8`
+  if test -x "$d8_public"; then D8_PATH=$(dirname "$d8_public"); fi
+fi
+
+if test ! -n "$D8_PATH"; then
+  D8_PATH=$tools_path/..
+fi
+
+d8_exec=$D8_PATH/d8
+
+if test ! -x "$d8_exec"; then
+  D8_PATH=`pwd`/out/native
+  d8_exec=$D8_PATH/d8
+fi
+
+if test ! -x "$d8_exec"; then
+  d8_exec=`grep -m 1 -o '".*/d8"' $log_file | sed 's/"//g'`
+fi
+
+if test ! -x "$d8_exec"; then
+  echo "d8 shell not found in $D8_PATH"
+  echo "To build, execute 'make native' from the V8 directory"
+  exit 1
+fi
+
+
+contains=0;
+for arg in "$@"; do
+  `echo "$arg" | grep -q "^--distortion"`
+  if test $? -eq 0; then
+    contains=1
+    break
+  fi
+done
+
+if test "$contains" -eq 0; then
+  # Try to find out how much the instrumentation overhead is.
+  calibration_log=calibration.log
+  calibration_script="for (var i = 0; i < 1000000; i++) print();"
+
+  $d8_exec --nocrankshaft --prof --logfile $calibration_log \
+       --log-timer-events -e "$calibration_script" > /dev/null
+  t_1_start=`grep "timer-event-start,\"V8.Execute\"" $calibration_log  \
+       | tail -n1 | awk -F, '{print $3}'`
+  t_1_end=`grep "timer-event-end,\"V8.Execute\"" $calibration_log  \
+       | tail -n1 | awk -F, '{print $3}'`
+  n_1=`grep "timer-event\|tick" $calibration_log  | wc -l`
+
+  $d8_exec --nocrankshaft --prof --logfile $calibration_log \
+       --log-internal-timer-events -e "$calibration_script" > /dev/null
+  t_2_start=`grep "timer-event-start,\"V8.Execute\"" $calibration_log  \
+       | tail -n1 | awk -F, '{print $3}'`
+  t_2_end=`grep "timer-event-end,\"V8.Execute\"" $calibration_log  \
+       | tail -n1 | awk -F, '{print $3}'`
+  n_2=`grep "timer-event\|tick" $calibration_log  | wc -l`
+
+  rm $calibration_log
+
+  # Overhead in picoseconds.
+  options=--distortion=
+  options+=`echo "1000*(($t_1_end - $t_1_start) - ($t_2_end - $t_2_start)) \
+              / ($n_1 - $n_2)" | bc`
+  echo $options
+fi
+
+cat $log_file |
+    $d8_exec $tools_path/csvparser.js $tools_path/splaytree.js \
+    $tools_path/codemap.js $tools_path/profile.js $tools_path/profile_view.js \
+    $tools_path/logreader.js $tools_path/tickprocessor.js \
+    $tools_path/profviz/composer.js $tools_path/profviz/stdio.js \
+    -- $@ $options 2>/dev/null > timer-events.plot
+
+success=$?
+if test $success -ne 0; then
+    cat timer-events.plot
+else
+    cat timer-events.plot | gnuplot > timer-events.png
+fi
+
+rm -f timer-events.plot

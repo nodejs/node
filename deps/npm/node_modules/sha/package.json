@@ -1,0 +1,54 @@
+{
+  "name": "sha",
+  "version": "2.0.1",
+  "description": "Check and get file hashes",
+  "scripts": {
+    "test": "mocha -R spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ForbesLindesay/sha.git"
+  },
+  "license": "(BSD-2-Clause OR MIT)",
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "readable-stream": "^2.0.2"
+  },
+  "devDependencies": {
+    "mocha": "~1.9.0"
+  },
+  "gitHead": "ce7c72ba753d886fb46c396cbadcbfc8eac25b4f",
+  "bugs": {
+    "url": "https://github.com/ForbesLindesay/sha/issues"
+  },
+  "homepage": "https://github.com/ForbesLindesay/sha",
+  "_id": "sha@2.0.1",
+  "_shasum": "6030822fbd2c9823949f8f72ed6411ee5cf25aae",
+  "_from": "sha@>=2.0.1 <2.1.0",
+  "_npmVersion": "2.7.1",
+  "_nodeVersion": "1.6.2",
+  "_npmUser": {
+    "name": "forbeslindesay",
+    "email": "forbes@lindesay.co.uk"
+  },
+  "maintainers": [
+    {
+      "name": "forbeslindesay",
+      "email": "forbes@lindesay.co.uk"
+    },
+    {
+      "name": "kenan",
+      "email": "kenan@kenany.me"
+    },
+    {
+      "name": "thefourtheye",
+      "email": "thechargingvolcano@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "6030822fbd2c9823949f8f72ed6411ee5cf25aae",
+    "tarball": "http://registry.npmjs.org/sha/-/sha-2.0.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/sha/-/sha-2.0.1.tgz"
+}

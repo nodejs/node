@@ -1,0 +1,10 @@
+{ "name":"npm-test-files"
+, "version":"1.2.5"
+, "files":
+  [ "include4"
+  , "sub/include"
+  , "sub/include2"
+  , "sub/include4"
+  , "test.sh"
+  , ".npmignore" ]
+, "scripts":{"test":"bash test.sh"}}

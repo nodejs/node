@@ -1,0 +1,127 @@
+=pod
+
+=head1 NAME
+
+X509_STORE_CTX_new, X509_STORE_CTX_cleanup, X509_STORE_CTX_free, X509_STORE_CTX_init, X509_STORE_CTX_trusted_stack, X509_STORE_CTX_set_cert, X509_STORE_CTX_set_chain, X509_STORE_CTX_set0_crls, X509_STORE_CTX_get0_param, X509_STORE_CTX_set0_param, X509_STORE_CTX_set_default - X509_STORE_CTX initialisation
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509_vfy.h>
+
+ X509_STORE_CTX *X509_STORE_CTX_new(void);
+ void X509_STORE_CTX_cleanup(X509_STORE_CTX *ctx);
+ void X509_STORE_CTX_free(X509_STORE_CTX *ctx);
+
+ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store,
+			 X509 *x509, STACK_OF(X509) *chain);
+
+ void X509_STORE_CTX_trusted_stack(X509_STORE_CTX *ctx, STACK_OF(X509) *sk);
+
+ void	X509_STORE_CTX_set_cert(X509_STORE_CTX *ctx,X509 *x);
+ void	X509_STORE_CTX_set_chain(X509_STORE_CTX *ctx,STACK_OF(X509) *sk);
+ void	X509_STORE_CTX_set0_crls(X509_STORE_CTX *ctx, STACK_OF(X509_CRL) *sk);
+
+ X509_VERIFY_PARAM *X509_STORE_CTX_get0_param(X509_STORE_CTX *ctx);
+ void X509_STORE_CTX_set0_param(X509_STORE_CTX *ctx, X509_VERIFY_PARAM *param);
+ int X509_STORE_CTX_set_default(X509_STORE_CTX *ctx, const char *name);
+
+=head1 DESCRIPTION
+
+These functions initialise an B<X509_STORE_CTX> structure for subsequent use
+by X509_verify_cert().
+
+X509_STORE_CTX_new() returns a newly initialised B<X509_STORE_CTX> structure.
+
+X509_STORE_CTX_cleanup() internally cleans up an B<X509_STORE_CTX> structure.
+The context can then be reused with an new call to X509_STORE_CTX_init().
+
+X509_STORE_CTX_free() completely frees up B<ctx>. After this call B<ctx>
+is no longer valid.
+
+X509_STORE_CTX_init() sets up B<ctx> for a subsequent verification operation.
+It must be called before each call to X509_verify_cert(), i.e. a B<ctx> is only
+good for one call to X509_verify_cert(); if you want to verify a second
+certificate with the same B<ctx> then you must call X509_XTORE_CTX_cleanup()
+and then X509_STORE_CTX_init() again before the second call to
+X509_verify_cert(). The trusted certificate store is set to B<store>, the end
+entity certificate to be verified is set to B<x509> and a set of additional
+certificates (which will be untrusted but may be used to build the chain) in
+B<chain>. Any or all of the B<store>, B<x509> and B<chain> parameters can be
+B<NULL>.
+
+X509_STORE_CTX_trusted_stack() sets the set of trusted certificates of B<ctx>
+to B<sk>. This is an alternative way of specifying trusted certificates 
+instead of using an B<X509_STORE>.
+
+X509_STORE_CTX_set_cert() sets the certificate to be vertified in B<ctx> to
+B<x>.
+
+X509_STORE_CTX_set_chain() sets the additional certificate chain used by B<ctx>
+to B<sk>.
+
+X509_STORE_CTX_set0_crls() sets a set of CRLs to use to aid certificate
+verification to B<sk>. These CRLs will only be used if CRL verification is
+enabled in the associated B<X509_VERIFY_PARAM> structure. This might be
+used where additional "useful" CRLs are supplied as part of a protocol,
+for example in a PKCS#7 structure.
+
+X509_VERIFY_PARAM *X509_STORE_CTX_get0_param() retrieves an intenal pointer
+to the verification parameters associated with B<ctx>.
+
+X509_STORE_CTX_set0_param() sets the intenal verification parameter pointer
+to B<param>. After this call B<param> should not be used.
+
+X509_STORE_CTX_set_default() looks up and sets the default verification
+method to B<name>. This uses the function X509_VERIFY_PARAM_lookup() to
+find an appropriate set of parameters from B<name>.
+
+=head1 NOTES
+
+The certificates and CRLs in a store are used internally and should B<not>
+be freed up until after the associated B<X509_STORE_CTX> is freed. Legacy
+applications might implicitly use an B<X509_STORE_CTX> like this:
+
+  X509_STORE_CTX ctx;
+  X509_STORE_CTX_init(&ctx, store, cert, chain);
+
+this is B<not> recommended in new applications they should instead do:
+
+  X509_STORE_CTX *ctx;
+  ctx = X509_STORE_CTX_new();
+  if (ctx == NULL)
+	/* Bad error */
+  X509_STORE_CTX_init(ctx, store, cert, chain);
+
+=head1 BUGS
+
+The certificates and CRLs in a context are used internally and should B<not>
+be freed up until after the associated B<X509_STORE_CTX> is freed. Copies
+should be made or reference counts increased instead.
+
+=head1 RETURN VALUES
+
+X509_STORE_CTX_new() returns an newly allocates context or B<NULL> is an
+error occurred.
+
+X509_STORE_CTX_init() returns 1 for success or 0 if an error occurred.
+
+X509_STORE_CTX_get0_param() returns a pointer to an B<X509_VERIFY_PARAM>
+structure or B<NULL> if an error occurred.
+
+X509_STORE_CTX_cleanup(), X509_STORE_CTX_free(), X509_STORE_CTX_trusted_stack(),
+X509_STORE_CTX_set_cert(), X509_STORE_CTX_set_chain(),
+X509_STORE_CTX_set0_crls() and X509_STORE_CTX_set0_param() do not return
+values.
+
+X509_STORE_CTX_set_default() returns 1 for success or 0 if an error occurred.
+
+=head1 SEE ALSO
+
+L<X509_verify_cert(3)|X509_verify_cert(3)>
+L<X509_VERIFY_PARAM_set_flags(3)|X509_VERIFY_PARAM_set_flags(3)>
+
+=head1 HISTORY
+
+X509_STORE_CTX_set0_crls() was first added to OpenSSL 1.0.0
+
+=cut

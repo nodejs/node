@@ -1,0 +1,6440 @@
+	.title	vax_bn_mul_add_words  unsigned multiply & add, 32*32+32+32=>64
+;
+; w.j.m. 15-jan-1999
+;
+; it's magic ...
+;
+; ULONG bn_mul_add_words(ULONG r[],ULONG a[],int n,ULONG w) {
+;	ULONG c = 0;
+;	int i;
+;	for(i = 0; i < n; i++) <c,r[i]> := r[i] + c + a[i] * w ;
+;	return c;
+; }
+
+r=4 ;(AP)
+a=8 ;(AP)
+n=12 ;(AP)	n	by value (input)
+w=16 ;(AP)	w	by value (input)
+
+
+	.psect	code,nowrt
+
+.entry	bn_mul_add_words,^m<r2,r3,r4,r5,r6>
+
+	moval	@r(ap),r2
+	moval	@a(ap),r3
+	movl	n(ap),r4	; assumed >0 by C code
+	movl	w(ap),r5
+	clrl	r6		; c
+
+0$:
+	emul	r5,(r3),(r2),r0		; w, a[], r[] considered signed
+
+	; fixup for "negative" r[]
+	tstl	(r2)
+	bgeq	10$
+	incl	r1
+10$:
+
+	; add in c
+	addl2	r6,r0
+	adwc	#0,r1
+
+	; combined fixup for "negative" w, a[]
+	tstl	r5
+	bgeq	20$
+	addl2	(r3),r1
+20$:
+	tstl	(r3)
+	bgeq	30$
+	addl2	r5,r1
+30$:
+
+	movl	r0,(r2)+		; store lo result in r[] & advance
+	addl	#4,r3			; advance a[]
+	movl	r1,r6			; store hi result => c
+
+	sobgtr	r4,0$
+
+	movl	r6,r0			; return c
+	ret
+
+	.title	vax_bn_mul_words  unsigned multiply & add, 32*32+32=>64
+;
+; w.j.m. 15-jan-1999
+;
+; it's magic ...
+;
+; ULONG bn_mul_words(ULONG r[],ULONG a[],int n,ULONG w) {
+;	ULONG c = 0;
+;	int i;
+;	for(i = 0; i < num; i++) <c,r[i]> := a[i] * w + c ;
+;	return(c);
+; }
+
+r=4 ;(AP)
+a=8 ;(AP)
+n=12 ;(AP)	n	by value (input)
+w=16 ;(AP)	w	by value (input)
+
+
+	.psect	code,nowrt
+
+.entry	bn_mul_words,^m<r2,r3,r4,r5,r6>
+
+	moval	@r(ap),r2	; r2 -> r[]
+	moval	@a(ap),r3	; r3 -> a[]
+	movl	n(ap),r4	; r4 = loop count (assumed >0 by C code)
+	movl	w(ap),r5	; r5 = w
+	clrl	r6		; r6 = c
+
+0$:
+	; <r1,r0> := w * a[] + c
+	emul	r5,(r3),r6,r0		; w, a[], c considered signed
+
+	; fixup for "negative" c
+	tstl	r6			; c
+	bgeq	10$
+	incl	r1
+10$:
+
+	; combined fixup for "negative" w, a[]
+	tstl	r5			; w
+	bgeq	20$
+	addl2	(r3),r1			; a[]
+20$:
+	tstl	(r3)			; a[]
+	bgeq	30$
+	addl2	r5,r1			; w
+30$:
+
+	movl	r0,(r2)+		; store lo result in r[] & advance
+	addl	#4,r3			; advance a[]
+	movl	r1,r6			; store hi result => c
+
+	sobgtr	r4,0$
+
+	movl	r6,r0			; return c
+	ret
+
+	.title	vax_bn_sqr_words  unsigned square, 32*32=>64
+;
+; w.j.m. 15-jan-1999
+;
+; it's magic ...
+;
+; void bn_sqr_words(ULONG r[],ULONG a[],int n) {
+;	int i;
+;	for(i = 0; i < n; i++) <r[2*i+1],r[2*i]> := a[i] * a[i] ;
+; }
+
+r=4 ;(AP)
+a=8 ;(AP)
+n=12 ;(AP)	n	by value (input)
+
+
+	.psect	code,nowrt
+
+.entry	bn_sqr_words,^m<r2,r3,r4,r5>
+
+	moval	@r(ap),r2	; r2 -> r[]
+	moval	@a(ap),r3	; r3 -> a[]
+	movl	n(ap),r4	; r4 = n (assumed >0 by C code)
+
+0$:
+	movl	(r3)+,r5		; r5 = a[] & advance
+
+	; <r1,r0> := a[] * a[]
+	emul	r5,r5,#0,r0		; a[] considered signed
+
+	; fixup for "negative" a[]
+	tstl	r5			; a[]
+	bgeq	30$
+	addl2	r5,r1			; a[]
+	addl2	r5,r1			; a[]
+30$:
+
+	movl	r0,(r2)+		; store lo result in r[] & advance
+	movl	r1,(r2)+		; store hi result in r[] & advance
+
+	sobgtr	r4,0$
+
+	movl	#1,r0			; return SS$_NORMAL
+	ret
+
+	.title	vax_bn_div_words  unsigned divide
+;
+; Richard Levitte 20-Nov-2000
+;
+; ULONG bn_div_words(ULONG h, ULONG l, ULONG d)
+; {
+;	return ((ULONG)((((ULLONG)h)<<32)|l) / (ULLONG)d);
+; }
+;
+; Using EDIV would be very easy, if it didn't do signed calculations.
+; Any time any of the input numbers are signed, there are problems,
+; usually with integer overflow, at which point it returns useless
+; data (the quotient gets the value of l, and the remainder becomes 0).
+;
+; If it was just for the dividend, it would be very easy, just divide
+; it by 2 (unsigned), do the division, multiply the resulting quotient
+; and remainder by 2, add the bit that was dropped when dividing by 2
+; to the remainder, and do some adjustment so the remainder doesn't
+; end up larger than the divisor.  For some cases when the divisor is
+; negative (from EDIV's point of view, i.e. when the highest bit is set),
+; dividing the dividend by 2 isn't enough, and since some operations
+; might generate integer overflows even when the dividend is divided by
+; 4 (when the high part of the shifted down dividend ends up being exactly
+; half of the divisor, the result is the quotient 0x80000000, which is
+; negative...) it needs to be divided by 8.  Furthermore, the divisor needs
+; to be divided by 2 (unsigned) as well, to avoid more problems with the sign.
+; In this case, a little extra fiddling with the remainder is required.
+;
+; So, the simplest way to handle this is always to divide the dividend
+; by 8, and to divide the divisor by 2 if it's highest bit is set.
+; After EDIV has been used, the quotient gets multiplied by 8 if the
+; original divisor was positive, otherwise 4.  The remainder, oddly
+; enough, is *always* multiplied by 8.
+; NOTE: in the case mentioned above, where the high part of the shifted
+; down dividend ends up being exactly half the shifted down divisor, we
+; end up with a 33 bit quotient.  That's no problem however, it usually
+; means we have ended up with a too large remainder as well, and the
+; problem is fixed by the last part of the algorithm (next paragraph).
+;
+; The routine ends with comparing the resulting remainder with the
+; original divisor and if the remainder is larger, subtract the
+; original divisor from it, and increase the quotient by 1.  This is
+; done until the remainder is smaller than the divisor.
+;
+; The complete algorithm looks like this:
+;
+; d'    = d
+; l'    = l & 7
+; [h,l] = [h,l] >> 3
+; [q,r] = floor([h,l] / d)	# This is the EDIV operation
+; if (q < 0) q = -q		# I doubt this is necessary any more
+;
+; r'    = r >> 29
+; if (d' >= 0)
+;   q'  = q >> 29
+;   q   = q << 3
+; else
+;   q'  = q >> 30
+;   q   = q << 2
+; r     = (r << 3) + l'
+;
+; if (d' < 0)
+;   {
+;     [r',r] = [r',r] - q
+;     while ([r',r] < 0)
+;       {
+;         [r',r] = [r',r] + d
+;         [q',q] = [q',q] - 1
+;       }
+;   }
+;
+; while ([r',r] >= d')
+;   {
+;     [r',r] = [r',r] - d'
+;     [q',q] = [q',q] + 1
+;   }
+;
+; return q
+
+h=4 ;(AP)	h	by value (input)
+l=8 ;(AP)	l	by value (input)
+d=12 ;(AP)	d	by value (input)
+
+;r2 = l, q
+;r3 = h, r
+;r4 = d
+;r5 = l'
+;r6 = r'
+;r7 = d'
+;r8 = q'
+
+	.psect	code,nowrt
+
+.entry	bn_div_words,^m<r2,r3,r4,r5,r6,r7,r8>
+	movl	l(ap),r2
+	movl	h(ap),r3
+	movl	d(ap),r4
+
+	bicl3	#^XFFFFFFF8,r2,r5 ; l' = l & 7
+	bicl3	#^X00000007,r2,r2
+
+	bicl3	#^XFFFFFFF8,r3,r6
+	bicl3	#^X00000007,r3,r3
+        
+	addl	r6,r2
+
+	rotl	#-3,r2,r2	; l = l >> 3
+	rotl	#-3,r3,r3	; h = h >> 3
+                
+	movl	r4,r7		; d' = d
+
+	movl	#0,r6		; r' = 0
+	movl	#0,r8		; q' = 0
+
+	tstl	r4
+	beql	666$		; Uh-oh, the divisor is 0...
+	bgtr	1$
+	rotl	#-1,r4,r4	; If d is negative, shift it right.
+	bicl2	#^X80000000,r4	; Since d is then a large number, the
+				; lowest bit is insignificant
+				; (contradict that, and I'll fix the problem!)
+1$:     
+	ediv	r4,r2,r2,r3	; Do the actual division
+
+	tstl	r2
+	bgeq	3$
+	mnegl	r2,r2		; if q < 0, negate it
+3$:     
+	tstl	r7
+	blss	4$
+	rotl	#3,r2,r2	;   q = q << 3
+	bicl3	#^XFFFFFFF8,r2,r8 ;    q' gets the high bits from q
+	bicl3	#^X00000007,r2,r2
+	bsb	41$
+4$:				; else
+	rotl	#2,r2,r2	;   q = q << 2
+	bicl3	#^XFFFFFFFC,r2,r8 ;   q' gets the high bits from q
+	bicl3	#^X00000003,r2,r2
+41$:
+	rotl	#3,r3,r3	; r = r << 3
+	bicl3	#^XFFFFFFF8,r3,r6 ; r' gets the high bits from r
+	bicl3	#^X00000007,r3,r3
+	addl	r5,r3		; r = r + l'
+
+	tstl	r7
+	bgeq	5$
+	bitl	#1,r7
+	beql	5$		; if d' < 0 && d' & 1
+	subl	r2,r3		;   [r',r] = [r',r] - [q',q]
+	sbwc	r8,r6
+45$:
+	bgeq	5$		;   while r < 0
+	decl	r2		;     [q',q] = [q',q] - 1
+	sbwc	#0,r8
+	addl	r7,r3		;     [r',r] = [r',r] + d'
+	adwc	#0,r6
+	brb	45$
+
+; The return points are placed in the middle to keep a short distance from
+; all the branch points
+42$:
+;	movl	r3,r1
+	movl	r2,r0
+	ret
+666$:
+	movl	#^XFFFFFFFF,r0
+	ret
+
+5$:
+	tstl	r6
+	bneq	6$
+	cmpl	r3,r7
+	blssu	42$		; while [r',r] >= d'
+6$:
+	subl	r7,r3		;   [r',r] = [r',r] - d'
+	sbwc	#0,r6
+	incl	r2		;   [q',q] = [q',q] + 1
+	adwc	#0,r8
+	brb	5$	
+
+	.title	vax_bn_add_words  unsigned add of two arrays
+;
+; Richard Levitte 20-Nov-2000
+;
+; ULONG bn_add_words(ULONG r[], ULONG a[], ULONG b[], int n) {
+;	ULONG c = 0;
+;	int i;
+;	for (i = 0; i < n; i++) <c,r[i]> = a[i] + b[i] + c;
+;	return(c);
+; }
+
+r=4 ;(AP)	r	by reference (output)
+a=8 ;(AP)	a	by reference (input)
+b=12 ;(AP)	b	by reference (input)
+n=16 ;(AP)	n	by value (input)
+
+
+	.psect	code,nowrt
+
+.entry	bn_add_words,^m<r2,r3,r4,r5,r6>
+
+	moval	@r(ap),r2
+	moval	@a(ap),r3
+	moval	@b(ap),r4
+	movl	n(ap),r5	; assumed >0 by C code
+	clrl	r0		; c
+
+	tstl	r5		; carry = 0
+	bleq	666$
+
+0$:
+	movl	(r3)+,r6	; carry untouched
+	adwc	(r4)+,r6	; carry used and touched
+	movl	r6,(r2)+	; carry untouched
+	sobgtr	r5,0$		; carry untouched
+
+	adwc	#0,r0
+666$:
+	ret
+
+	.title	vax_bn_sub_words  unsigned add of two arrays
+;
+; Richard Levitte 20-Nov-2000
+;
+; ULONG bn_sub_words(ULONG r[], ULONG a[], ULONG b[], int n) {
+;	ULONG c = 0;
+;	int i;
+;	for (i = 0; i < n; i++) <c,r[i]> = a[i] - b[i] - c;
+;	return(c);
+; }
+
+r=4 ;(AP)	r	by reference (output)
+a=8 ;(AP)	a	by reference (input)
+b=12 ;(AP)	b	by reference (input)
+n=16 ;(AP)	n	by value (input)
+
+
+	.psect	code,nowrt
+
+.entry	bn_sub_words,^m<r2,r3,r4,r5,r6>
+
+	moval	@r(ap),r2
+	moval	@a(ap),r3
+	moval	@b(ap),r4
+	movl	n(ap),r5	; assumed >0 by C code
+	clrl	r0		; c
+
+	tstl	r5		; carry = 0
+	bleq	666$
+
+0$:
+	movl	(r3)+,r6	; carry untouched
+	sbwc	(r4)+,r6	; carry used and touched
+	movl	r6,(r2)+	; carry untouched
+	sobgtr	r5,0$		; carry untouched
+
+	adwc	#0,r0
+666$:
+	ret
+
+
+;r=4 ;(AP)
+;a=8 ;(AP)
+;b=12 ;(AP)
+;n=16 ;(AP)	n	by value (input)
+
+	.psect	code,nowrt
+
+.entry	BN_MUL_COMBA8,^m<r2,r3,r4,r5,r6,r7,r8,r9,r10,r11>
+	movab	-924(sp),sp
+	clrq	r8
+
+	clrl	r10
+
+	movl	8(ap),r6
+	movzwl	2(r6),r3
+	movl	12(ap),r7
+	bicl3	#-65536,(r7),r2
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,(r6),-12(fp)
+	bicl3	#-65536,r3,-16(fp)
+	mull3	r0,-12(fp),-4(fp)
+	mull2	r2,-12(fp)
+	mull3	r2,-16(fp),-8(fp)
+	mull2	r0,-16(fp)
+	addl3	-4(fp),-8(fp),r0
+	bicl3	#0,r0,-4(fp)
+	cmpl	-4(fp),-8(fp)
+	bgequ	noname.45
+	addl2	#65536,-16(fp)
+noname.45:
+	movzwl	-2(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-16(fp)
+	bicl3	#-65536,-4(fp),r0
+	ashl	#16,r0,-8(fp)
+	addl3	-8(fp),-12(fp),r0
+	bicl3	#0,r0,-12(fp)
+	cmpl	-12(fp),-8(fp)
+	bgequ	noname.46
+	incl	-16(fp)
+noname.46:
+	movl	-12(fp),r1
+	movl	-16(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.47
+	incl	r2
+noname.47:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.48
+	incl	r10
+noname.48:
+
+	movl	4(ap),r11
+	movl	r9,(r11)
+
+	clrl	r9
+
+	movzwl	2(r6),r2
+	bicl3	#-65536,4(r7),r3
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,(r6),-28(fp)
+	bicl3	#-65536,r2,-32(fp)
+	mull3	r0,-28(fp),-20(fp)
+	mull2	r3,-28(fp)
+	mull3	r3,-32(fp),-24(fp)
+	mull2	r0,-32(fp)
+	addl3	-20(fp),-24(fp),r0
+	bicl3	#0,r0,-20(fp)
+	cmpl	-20(fp),-24(fp)
+	bgequ	noname.49
+	addl2	#65536,-32(fp)
+noname.49:
+	movzwl	-18(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-32(fp)
+	bicl3	#-65536,-20(fp),r0
+	ashl	#16,r0,-24(fp)
+	addl3	-24(fp),-28(fp),r0
+	bicl3	#0,r0,-28(fp)
+	cmpl	-28(fp),-24(fp)
+	bgequ	noname.50
+	incl	-32(fp)
+noname.50:
+	movl	-28(fp),r1
+	movl	-32(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.51
+	incl	r2
+noname.51:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.52
+	incl	r9
+noname.52:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,(r7),r3
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-44(fp)
+	bicl3	#-65536,r2,-48(fp)
+	mull3	r0,-44(fp),-36(fp)
+	mull2	r3,-44(fp)
+	mull3	r3,-48(fp),-40(fp)
+	mull2	r0,-48(fp)
+	addl3	-36(fp),-40(fp),r0
+	bicl3	#0,r0,-36(fp)
+	cmpl	-36(fp),-40(fp)
+	bgequ	noname.53
+	addl2	#65536,-48(fp)
+noname.53:
+	movzwl	-34(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-48(fp)
+	bicl3	#-65536,-36(fp),r0
+	ashl	#16,r0,-40(fp)
+	addl3	-40(fp),-44(fp),r0
+	bicl3	#0,r0,-44(fp)
+	cmpl	-44(fp),-40(fp)
+	bgequ	noname.54
+	incl	-48(fp)
+noname.54:
+	movl	-44(fp),r1
+	movl	-48(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.55
+	incl	r2
+noname.55:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.56
+	incl	r9
+noname.56:
+
+	movl	r8,4(r11)
+
+	clrl	r8
+
+	movzwl	10(r6),r2
+	bicl3	#-65536,(r7),r3
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r6),-60(fp)
+	bicl3	#-65536,r2,-64(fp)
+	mull3	r0,-60(fp),-52(fp)
+	mull2	r3,-60(fp)
+	mull3	r3,-64(fp),-56(fp)
+	mull2	r0,-64(fp)
+	addl3	-52(fp),-56(fp),r0
+	bicl3	#0,r0,-52(fp)
+	cmpl	-52(fp),-56(fp)
+	bgequ	noname.57
+	addl2	#65536,-64(fp)
+noname.57:
+	movzwl	-50(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-64(fp)
+	bicl3	#-65536,-52(fp),r0
+	ashl	#16,r0,-56(fp)
+	addl3	-56(fp),-60(fp),r0
+	bicl3	#0,r0,-60(fp)
+	cmpl	-60(fp),-56(fp)
+	bgequ	noname.58
+	incl	-64(fp)
+noname.58:
+	movl	-60(fp),r1
+	movl	-64(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.59
+	incl	r2
+noname.59:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.60
+	incl	r8
+noname.60:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,4(r7),r3
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-76(fp)
+	bicl3	#-65536,r2,-80(fp)
+	mull3	r0,-76(fp),-68(fp)
+	mull2	r3,-76(fp)
+	mull3	r3,-80(fp),-72(fp)
+	mull2	r0,-80(fp)
+	addl3	-68(fp),-72(fp),r0
+	bicl3	#0,r0,-68(fp)
+	cmpl	-68(fp),-72(fp)
+	bgequ	noname.61
+	addl2	#65536,-80(fp)
+noname.61:
+	movzwl	-66(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-80(fp)
+	bicl3	#-65536,-68(fp),r0
+	ashl	#16,r0,-72(fp)
+	addl3	-72(fp),-76(fp),r0
+	bicl3	#0,r0,-76(fp)
+	cmpl	-76(fp),-72(fp)
+	bgequ	noname.62
+	incl	-80(fp)
+noname.62:
+	movl	-76(fp),r1
+	movl	-80(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.63
+	incl	r2
+noname.63:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.64
+	incl	r8
+noname.64:
+
+	movzwl	2(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,(r6),-92(fp)
+	bicl3	#-65536,r2,-96(fp)
+	mull3	r0,-92(fp),-84(fp)
+	mull2	r3,-92(fp)
+	mull3	r3,-96(fp),-88(fp)
+	mull2	r0,-96(fp)
+	addl3	-84(fp),-88(fp),r0
+	bicl3	#0,r0,-84(fp)
+	cmpl	-84(fp),-88(fp)
+	bgequ	noname.65
+	addl2	#65536,-96(fp)
+noname.65:
+	movzwl	-82(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-96(fp)
+	bicl3	#-65536,-84(fp),r0
+	ashl	#16,r0,-88(fp)
+	addl3	-88(fp),-92(fp),r0
+	bicl3	#0,r0,-92(fp)
+	cmpl	-92(fp),-88(fp)
+	bgequ	noname.66
+	incl	-96(fp)
+noname.66:
+	movl	-92(fp),r1
+	movl	-96(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.67
+	incl	r2
+noname.67:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.68
+	incl	r8
+noname.68:
+
+	movl	r10,8(r11)
+
+	clrl	r10
+
+	movzwl	2(r6),r2
+	bicl3	#-65536,12(r7),r3
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,(r6),-108(fp)
+	bicl3	#-65536,r2,-112(fp)
+	mull3	r0,-108(fp),-100(fp)
+	mull2	r3,-108(fp)
+	mull3	r3,-112(fp),-104(fp)
+	mull2	r0,-112(fp)
+	addl3	-100(fp),-104(fp),r0
+	bicl3	#0,r0,-100(fp)
+	cmpl	-100(fp),-104(fp)
+	bgequ	noname.69
+	addl2	#65536,-112(fp)
+noname.69:
+	movzwl	-98(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-112(fp)
+	bicl3	#-65536,-100(fp),r0
+	ashl	#16,r0,-104(fp)
+	addl3	-104(fp),-108(fp),r0
+	bicl3	#0,r0,-108(fp)
+	cmpl	-108(fp),-104(fp)
+	bgequ	noname.70
+	incl	-112(fp)
+noname.70:
+	movl	-108(fp),r1
+	movl	-112(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.71
+	incl	r2
+noname.71:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.72
+	incl	r10
+noname.72:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-124(fp)
+	bicl3	#-65536,r2,-128(fp)
+	mull3	r0,-124(fp),-116(fp)
+	mull2	r3,-124(fp)
+	mull3	r3,-128(fp),-120(fp)
+	mull2	r0,-128(fp)
+	addl3	-116(fp),-120(fp),r0
+	bicl3	#0,r0,-116(fp)
+	cmpl	-116(fp),-120(fp)
+	bgequ	noname.73
+	addl2	#65536,-128(fp)
+noname.73:
+	movzwl	-114(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-128(fp)
+	bicl3	#-65536,-116(fp),r0
+	ashl	#16,r0,-120(fp)
+	addl3	-120(fp),-124(fp),r0
+	bicl3	#0,r0,-124(fp)
+	cmpl	-124(fp),-120(fp)
+	bgequ	noname.74
+	incl	-128(fp)
+noname.74:
+	movl	-124(fp),r1
+	movl	-128(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.75
+	incl	r2
+noname.75:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.76
+	incl	r10
+noname.76:
+
+	movzwl	10(r6),r2
+	bicl3	#-65536,4(r7),r3
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r6),-140(fp)
+	bicl3	#-65536,r2,-144(fp)
+	mull3	r0,-140(fp),-132(fp)
+	mull2	r3,-140(fp)
+	mull3	r3,-144(fp),-136(fp)
+	mull2	r0,-144(fp)
+	addl3	-132(fp),-136(fp),r0
+	bicl3	#0,r0,-132(fp)
+	cmpl	-132(fp),-136(fp)
+	bgequ	noname.77
+	addl2	#65536,-144(fp)
+noname.77:
+	movzwl	-130(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-144(fp)
+	bicl3	#-65536,-132(fp),r0
+	ashl	#16,r0,-136(fp)
+	addl3	-136(fp),-140(fp),r0
+	bicl3	#0,r0,-140(fp)
+	cmpl	-140(fp),-136(fp)
+	bgequ	noname.78
+	incl	-144(fp)
+noname.78:
+	movl	-140(fp),r1
+	movl	-144(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.79
+	incl	r2
+noname.79:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.80
+	incl	r10
+noname.80:
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,(r7),r3
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-156(fp)
+	bicl3	#-65536,r2,-160(fp)
+	mull3	r0,-156(fp),-148(fp)
+	mull2	r3,-156(fp)
+	mull3	r3,-160(fp),-152(fp)
+	mull2	r0,-160(fp)
+	addl3	-148(fp),-152(fp),r0
+	bicl3	#0,r0,-148(fp)
+	cmpl	-148(fp),-152(fp)
+	bgequ	noname.81
+	addl2	#65536,-160(fp)
+noname.81:
+	movzwl	-146(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-160(fp)
+	bicl3	#-65536,-148(fp),r0
+	ashl	#16,r0,-152(fp)
+	addl3	-152(fp),-156(fp),r0
+	bicl3	#0,r0,-156(fp)
+	cmpl	-156(fp),-152(fp)
+	bgequ	noname.82
+	incl	-160(fp)
+noname.82:
+	movl	-156(fp),r1
+	movl	-160(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.83
+	incl	r2
+noname.83:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.84
+	incl	r10
+noname.84:
+
+	movl	r9,12(r11)
+
+	clrl	r9
+
+	movzwl	18(r6),r2
+	bicl3	#-65536,(r7),r3
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,16(r6),-172(fp)
+	bicl3	#-65536,r2,-176(fp)
+	mull3	r0,-172(fp),-164(fp)
+	mull2	r3,-172(fp)
+	mull3	r3,-176(fp),-168(fp)
+	mull2	r0,-176(fp)
+	addl3	-164(fp),-168(fp),r0
+	bicl3	#0,r0,-164(fp)
+	cmpl	-164(fp),-168(fp)
+	bgequ	noname.85
+	addl2	#65536,-176(fp)
+noname.85:
+	movzwl	-162(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-176(fp)
+	bicl3	#-65536,-164(fp),r0
+	ashl	#16,r0,-168(fp)
+	addl3	-168(fp),-172(fp),r0
+	bicl3	#0,r0,-172(fp)
+	cmpl	-172(fp),-168(fp)
+	bgequ	noname.86
+	incl	-176(fp)
+noname.86:
+	movl	-172(fp),r1
+	movl	-176(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.87
+	incl	r2
+noname.87:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.88
+	incl	r9
+noname.88:
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,4(r7),r3
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-188(fp)
+	bicl3	#-65536,r2,-192(fp)
+	mull3	r0,-188(fp),-180(fp)
+	mull2	r3,-188(fp)
+	mull3	r3,-192(fp),-184(fp)
+	mull2	r0,-192(fp)
+	addl3	-180(fp),-184(fp),r0
+	bicl3	#0,r0,-180(fp)
+	cmpl	-180(fp),-184(fp)
+	bgequ	noname.89
+	addl2	#65536,-192(fp)
+noname.89:
+	movzwl	-178(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-192(fp)
+	bicl3	#-65536,-180(fp),r0
+	ashl	#16,r0,-184(fp)
+	addl3	-184(fp),-188(fp),r0
+	bicl3	#0,r0,-188(fp)
+	cmpl	-188(fp),-184(fp)
+	bgequ	noname.90
+	incl	-192(fp)
+noname.90:
+	movl	-188(fp),r1
+	movl	-192(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.91
+	incl	r2
+noname.91:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.92
+	incl	r9
+noname.92:
+
+	movzwl	10(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r6),-204(fp)
+	bicl3	#-65536,r2,-208(fp)
+	mull3	r0,-204(fp),-196(fp)
+	mull2	r3,-204(fp)
+	mull3	r3,-208(fp),-200(fp)
+	mull2	r0,-208(fp)
+	addl3	-196(fp),-200(fp),r0
+	bicl3	#0,r0,-196(fp)
+	cmpl	-196(fp),-200(fp)
+	bgequ	noname.93
+	addl2	#65536,-208(fp)
+noname.93:
+	movzwl	-194(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-208(fp)
+	bicl3	#-65536,-196(fp),r0
+	ashl	#16,r0,-200(fp)
+	addl3	-200(fp),-204(fp),r0
+	bicl3	#0,r0,-204(fp)
+	cmpl	-204(fp),-200(fp)
+	bgequ	noname.94
+	incl	-208(fp)
+noname.94:
+	movl	-204(fp),r1
+	movl	-208(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.95
+	incl	r2
+noname.95:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.96
+	incl	r9
+noname.96:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,12(r7),r3
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-220(fp)
+	bicl3	#-65536,r2,-224(fp)
+	mull3	r0,-220(fp),-212(fp)
+	mull2	r3,-220(fp)
+	mull3	r3,-224(fp),-216(fp)
+	mull2	r0,-224(fp)
+	addl3	-212(fp),-216(fp),r0
+	bicl3	#0,r0,-212(fp)
+	cmpl	-212(fp),-216(fp)
+	bgequ	noname.97
+	addl2	#65536,-224(fp)
+noname.97:
+	movzwl	-210(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-224(fp)
+	bicl3	#-65536,-212(fp),r0
+	ashl	#16,r0,-216(fp)
+	addl3	-216(fp),-220(fp),r0
+	bicl3	#0,r0,-220(fp)
+	cmpl	-220(fp),-216(fp)
+	bgequ	noname.98
+	incl	-224(fp)
+noname.98:
+	movl	-220(fp),r1
+	movl	-224(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.99
+	incl	r2
+noname.99:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.100
+	incl	r9
+noname.100:
+
+	movzwl	2(r6),r2
+	bicl3	#-65536,16(r7),r3
+	movzwl	18(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,(r6),-236(fp)
+	bicl3	#-65536,r2,-240(fp)
+	mull3	r0,-236(fp),-228(fp)
+	mull2	r3,-236(fp)
+	mull3	r3,-240(fp),-232(fp)
+	mull2	r0,-240(fp)
+	addl3	-228(fp),-232(fp),r0
+	bicl3	#0,r0,-228(fp)
+	cmpl	-228(fp),-232(fp)
+	bgequ	noname.101
+	addl2	#65536,-240(fp)
+noname.101:
+	movzwl	-226(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-240(fp)
+	bicl3	#-65536,-228(fp),r0
+	ashl	#16,r0,-232(fp)
+	addl3	-232(fp),-236(fp),r0
+	bicl3	#0,r0,-236(fp)
+	cmpl	-236(fp),-232(fp)
+	bgequ	noname.102
+	incl	-240(fp)
+noname.102:
+	movl	-236(fp),r1
+	movl	-240(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.103
+	incl	r2
+noname.103:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.104
+	incl	r9
+noname.104:
+
+	movl	r8,16(r11)
+
+	clrl	r8
+
+	movzwl	2(r6),r2
+	bicl3	#-65536,20(r7),r3
+	movzwl	22(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,(r6),-252(fp)
+	bicl3	#-65536,r2,-256(fp)
+	mull3	r0,-252(fp),-244(fp)
+	mull2	r3,-252(fp)
+	mull3	r3,-256(fp),-248(fp)
+	mull2	r0,-256(fp)
+	addl3	-244(fp),-248(fp),r0
+	bicl3	#0,r0,-244(fp)
+	cmpl	-244(fp),-248(fp)
+	bgequ	noname.105
+	addl2	#65536,-256(fp)
+noname.105:
+	movzwl	-242(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-256(fp)
+	bicl3	#-65536,-244(fp),r0
+	ashl	#16,r0,-248(fp)
+	addl3	-248(fp),-252(fp),r0
+	bicl3	#0,r0,-252(fp)
+	cmpl	-252(fp),-248(fp)
+	bgequ	noname.106
+	incl	-256(fp)
+noname.106:
+	movl	-252(fp),r1
+	movl	-256(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.107
+	incl	r2
+noname.107:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.108
+	incl	r8
+noname.108:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,16(r7),r3
+	movzwl	18(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-268(fp)
+	bicl3	#-65536,r2,-272(fp)
+	mull3	r0,-268(fp),-260(fp)
+	mull2	r3,-268(fp)
+	mull3	r3,-272(fp),-264(fp)
+	mull2	r0,-272(fp)
+	addl3	-260(fp),-264(fp),r0
+	bicl3	#0,r0,-260(fp)
+	cmpl	-260(fp),-264(fp)
+	bgequ	noname.109
+	addl2	#65536,-272(fp)
+noname.109:
+	movzwl	-258(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-272(fp)
+	bicl3	#-65536,-260(fp),r0
+	ashl	#16,r0,-264(fp)
+	addl3	-264(fp),-268(fp),r0
+	bicl3	#0,r0,-268(fp)
+	cmpl	-268(fp),-264(fp)
+	bgequ	noname.110
+	incl	-272(fp)
+noname.110:
+	movl	-268(fp),r1
+	movl	-272(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.111
+	incl	r2
+noname.111:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.112
+	incl	r8
+noname.112:
+
+	movzwl	10(r6),r2
+	bicl3	#-65536,12(r7),r3
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r6),-284(fp)
+	bicl3	#-65536,r2,-288(fp)
+	mull3	r0,-284(fp),-276(fp)
+	mull2	r3,-284(fp)
+	mull3	r3,-288(fp),-280(fp)
+	mull2	r0,-288(fp)
+	addl3	-276(fp),-280(fp),r0
+	bicl3	#0,r0,-276(fp)
+	cmpl	-276(fp),-280(fp)
+	bgequ	noname.113
+	addl2	#65536,-288(fp)
+noname.113:
+	movzwl	-274(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-288(fp)
+	bicl3	#-65536,-276(fp),r0
+	ashl	#16,r0,-280(fp)
+	addl3	-280(fp),-284(fp),r0
+	bicl3	#0,r0,-284(fp)
+	cmpl	-284(fp),-280(fp)
+	bgequ	noname.114
+	incl	-288(fp)
+noname.114:
+	movl	-284(fp),r1
+	movl	-288(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.115
+	incl	r2
+noname.115:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.116
+	incl	r8
+noname.116:
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-300(fp)
+	bicl3	#-65536,r2,-304(fp)
+	mull3	r0,-300(fp),-292(fp)
+	mull2	r3,-300(fp)
+	mull3	r3,-304(fp),-296(fp)
+	mull2	r0,-304(fp)
+	addl3	-292(fp),-296(fp),r0
+	bicl3	#0,r0,-292(fp)
+	cmpl	-292(fp),-296(fp)
+	bgequ	noname.117
+	addl2	#65536,-304(fp)
+noname.117:
+	movzwl	-290(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-304(fp)
+	bicl3	#-65536,-292(fp),r0
+	ashl	#16,r0,-296(fp)
+	addl3	-296(fp),-300(fp),r0
+	bicl3	#0,r0,-300(fp)
+	cmpl	-300(fp),-296(fp)
+	bgequ	noname.118
+	incl	-304(fp)
+noname.118:
+	movl	-300(fp),r1
+	movl	-304(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.119
+	incl	r2
+noname.119:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.120
+	incl	r8
+noname.120:
+
+	movzwl	18(r6),r2
+	bicl3	#-65536,4(r7),r3
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,16(r6),-316(fp)
+	bicl3	#-65536,r2,-320(fp)
+	mull3	r0,-316(fp),-308(fp)
+	mull2	r3,-316(fp)
+	mull3	r3,-320(fp),-312(fp)
+	mull2	r0,-320(fp)
+	addl3	-308(fp),-312(fp),r0
+	bicl3	#0,r0,-308(fp)
+	cmpl	-308(fp),-312(fp)
+	bgequ	noname.121
+	addl2	#65536,-320(fp)
+noname.121:
+	movzwl	-306(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-320(fp)
+	bicl3	#-65536,-308(fp),r0
+	ashl	#16,r0,-312(fp)
+	addl3	-312(fp),-316(fp),r0
+	bicl3	#0,r0,-316(fp)
+	cmpl	-316(fp),-312(fp)
+	bgequ	noname.122
+	incl	-320(fp)
+noname.122:
+	movl	-316(fp),r1
+	movl	-320(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.123
+	incl	r2
+
+noname.123:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.124
+	incl	r8
+noname.124:
+
+	movzwl	22(r6),r2
+	bicl3	#-65536,(r7),r3
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,20(r6),-332(fp)
+	bicl3	#-65536,r2,-336(fp)
+	mull3	r0,-332(fp),-324(fp)
+	mull2	r3,-332(fp)
+	mull3	r3,-336(fp),-328(fp)
+	mull2	r0,-336(fp)
+	addl3	-324(fp),-328(fp),r0
+	bicl3	#0,r0,-324(fp)
+	cmpl	-324(fp),-328(fp)
+	bgequ	noname.125
+	addl2	#65536,-336(fp)
+noname.125:
+	movzwl	-322(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-336(fp)
+	bicl3	#-65536,-324(fp),r0
+	ashl	#16,r0,-328(fp)
+	addl3	-328(fp),-332(fp),r0
+	bicl3	#0,r0,-332(fp)
+	cmpl	-332(fp),-328(fp)
+	bgequ	noname.126
+	incl	-336(fp)
+noname.126:
+	movl	-332(fp),r1
+	movl	-336(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.127
+	incl	r2
+noname.127:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.128
+	incl	r8
+noname.128:
+
+	movl	r10,20(r11)
+
+	clrl	r10
+
+	movzwl	26(r6),r2
+	bicl3	#-65536,(r7),r3
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,24(r6),-348(fp)
+	bicl3	#-65536,r2,-352(fp)
+	mull3	r0,-348(fp),-340(fp)
+	mull2	r3,-348(fp)
+	mull3	r3,-352(fp),-344(fp)
+	mull2	r0,-352(fp)
+	addl3	-340(fp),-344(fp),r0
+	bicl3	#0,r0,-340(fp)
+	cmpl	-340(fp),-344(fp)
+	bgequ	noname.129
+	addl2	#65536,-352(fp)
+noname.129:
+	movzwl	-338(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-352(fp)
+	bicl3	#-65536,-340(fp),r0
+	ashl	#16,r0,-344(fp)
+	addl3	-344(fp),-348(fp),r0
+	bicl3	#0,r0,-348(fp)
+	cmpl	-348(fp),-344(fp)
+	bgequ	noname.130
+	incl	-352(fp)
+noname.130:
+	movl	-348(fp),r1
+	movl	-352(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.131
+	incl	r2
+noname.131:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.132
+	incl	r10
+noname.132:
+
+	movzwl	22(r6),r2
+	bicl3	#-65536,4(r7),r3
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,20(r6),-364(fp)
+	bicl3	#-65536,r2,-368(fp)
+	mull3	r0,-364(fp),-356(fp)
+	mull2	r3,-364(fp)
+	mull3	r3,-368(fp),-360(fp)
+	mull2	r0,-368(fp)
+	addl3	-356(fp),-360(fp),r0
+	bicl3	#0,r0,-356(fp)
+	cmpl	-356(fp),-360(fp)
+	bgequ	noname.133
+	addl2	#65536,-368(fp)
+noname.133:
+	movzwl	-354(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-368(fp)
+	bicl3	#-65536,-356(fp),r0
+	ashl	#16,r0,-360(fp)
+	addl3	-360(fp),-364(fp),r0
+	bicl3	#0,r0,-364(fp)
+	cmpl	-364(fp),-360(fp)
+	bgequ	noname.134
+	incl	-368(fp)
+noname.134:
+	movl	-364(fp),r1
+	movl	-368(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.135
+	incl	r2
+noname.135:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.136
+	incl	r10
+noname.136:
+
+	movzwl	18(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,16(r6),-380(fp)
+	bicl3	#-65536,r2,-384(fp)
+	mull3	r0,-380(fp),-372(fp)
+	mull2	r3,-380(fp)
+	mull3	r3,-384(fp),-376(fp)
+	mull2	r0,-384(fp)
+	addl3	-372(fp),-376(fp),r0
+	bicl3	#0,r0,-372(fp)
+	cmpl	-372(fp),-376(fp)
+	bgequ	noname.137
+	addl2	#65536,-384(fp)
+noname.137:
+	movzwl	-370(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-384(fp)
+	bicl3	#-65536,-372(fp),r0
+	ashl	#16,r0,-376(fp)
+	addl3	-376(fp),-380(fp),r0
+	bicl3	#0,r0,-380(fp)
+	cmpl	-380(fp),-376(fp)
+	bgequ	noname.138
+	incl	-384(fp)
+noname.138:
+	movl	-380(fp),r1
+	movl	-384(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.139
+	incl	r2
+noname.139:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.140
+	incl	r10
+noname.140:
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,12(r7),r3
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-396(fp)
+	bicl3	#-65536,r2,-400(fp)
+	mull3	r0,-396(fp),-388(fp)
+	mull2	r3,-396(fp)
+	mull3	r3,-400(fp),-392(fp)
+	mull2	r0,-400(fp)
+	addl3	-388(fp),-392(fp),r0
+	bicl3	#0,r0,-388(fp)
+	cmpl	-388(fp),-392(fp)
+	bgequ	noname.141
+	addl2	#65536,-400(fp)
+noname.141:
+	movzwl	-386(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-400(fp)
+	bicl3	#-65536,-388(fp),r0
+	ashl	#16,r0,-392(fp)
+	addl3	-392(fp),-396(fp),r0
+	bicl3	#0,r0,-396(fp)
+	cmpl	-396(fp),-392(fp)
+	bgequ	noname.142
+	incl	-400(fp)
+noname.142:
+	movl	-396(fp),r1
+	movl	-400(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.143
+	incl	r2
+noname.143:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.144
+	incl	r10
+noname.144:
+
+	movzwl	10(r6),r2
+	bicl3	#-65536,16(r7),r3
+	movzwl	18(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r6),-412(fp)
+	bicl3	#-65536,r2,-416(fp)
+	mull3	r0,-412(fp),-404(fp)
+	mull2	r3,-412(fp)
+	mull3	r3,-416(fp),-408(fp)
+	mull2	r0,-416(fp)
+	addl3	-404(fp),-408(fp),r0
+	bicl3	#0,r0,-404(fp)
+	cmpl	-404(fp),-408(fp)
+	bgequ	noname.145
+	addl2	#65536,-416(fp)
+noname.145:
+	movzwl	-402(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-416(fp)
+	bicl3	#-65536,-404(fp),r0
+	ashl	#16,r0,-408(fp)
+	addl3	-408(fp),-412(fp),r0
+	bicl3	#0,r0,-412(fp)
+	cmpl	-412(fp),-408(fp)
+	bgequ	noname.146
+	incl	-416(fp)
+noname.146:
+	movl	-412(fp),r1
+	movl	-416(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.147
+	incl	r2
+noname.147:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.148
+	incl	r10
+noname.148:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,20(r7),r3
+	movzwl	22(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-428(fp)
+	bicl3	#-65536,r2,-432(fp)
+	mull3	r0,-428(fp),-420(fp)
+	mull2	r3,-428(fp)
+	mull3	r3,-432(fp),-424(fp)
+	mull2	r0,-432(fp)
+	addl3	-420(fp),-424(fp),r0
+	bicl3	#0,r0,-420(fp)
+	cmpl	-420(fp),-424(fp)
+	bgequ	noname.149
+	addl2	#65536,-432(fp)
+noname.149:
+	movzwl	-418(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-432(fp)
+	bicl3	#-65536,-420(fp),r0
+	ashl	#16,r0,-424(fp)
+	addl3	-424(fp),-428(fp),r0
+	bicl3	#0,r0,-428(fp)
+	cmpl	-428(fp),-424(fp)
+	bgequ	noname.150
+	incl	-432(fp)
+noname.150:
+	movl	-428(fp),r1
+	movl	-432(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.151
+	incl	r2
+noname.151:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.152
+	incl	r10
+noname.152:
+
+	movzwl	2(r6),r2
+	bicl3	#-65536,24(r7),r3
+	movzwl	26(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,(r6),-444(fp)
+	bicl3	#-65536,r2,-448(fp)
+	mull3	r0,-444(fp),-436(fp)
+	mull2	r3,-444(fp)
+	mull3	r3,-448(fp),-440(fp)
+	mull2	r0,-448(fp)
+	addl3	-436(fp),-440(fp),r0
+	bicl3	#0,r0,-436(fp)
+	cmpl	-436(fp),-440(fp)
+	bgequ	noname.153
+	addl2	#65536,-448(fp)
+noname.153:
+	movzwl	-434(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-448(fp)
+	bicl3	#-65536,-436(fp),r0
+	ashl	#16,r0,-440(fp)
+	addl3	-440(fp),-444(fp),r0
+	bicl3	#0,r0,-444(fp)
+	cmpl	-444(fp),-440(fp)
+	bgequ	noname.154
+	incl	-448(fp)
+noname.154:
+	movl	-444(fp),r1
+	movl	-448(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.155
+	incl	r2
+noname.155:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.156
+	incl	r10
+noname.156:
+
+	movl	r9,24(r11)
+
+	clrl	r9
+
+	movzwl	2(r6),r2
+	bicl3	#-65536,28(r7),r3
+	movzwl	30(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,(r6),-460(fp)
+	bicl3	#-65536,r2,-464(fp)
+	mull3	r0,-460(fp),-452(fp)
+	mull2	r3,-460(fp)
+	mull3	r3,-464(fp),-456(fp)
+	mull2	r0,-464(fp)
+	addl3	-452(fp),-456(fp),r0
+	bicl3	#0,r0,-452(fp)
+	cmpl	-452(fp),-456(fp)
+	bgequ	noname.157
+	addl2	#65536,-464(fp)
+noname.157:
+	movzwl	-450(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-464(fp)
+	bicl3	#-65536,-452(fp),r0
+	ashl	#16,r0,-456(fp)
+	addl3	-456(fp),-460(fp),r0
+	bicl3	#0,r0,-460(fp)
+	cmpl	-460(fp),-456(fp)
+	bgequ	noname.158
+	incl	-464(fp)
+noname.158:
+	movl	-460(fp),r1
+	movl	-464(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.159
+	incl	r2
+noname.159:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.160
+	incl	r9
+noname.160:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,24(r7),r3
+	movzwl	26(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-476(fp)
+	bicl3	#-65536,r2,-480(fp)
+	mull3	r0,-476(fp),-468(fp)
+	mull2	r3,-476(fp)
+	mull3	r3,-480(fp),-472(fp)
+	mull2	r0,-480(fp)
+	addl3	-468(fp),-472(fp),r0
+	bicl3	#0,r0,-468(fp)
+	cmpl	-468(fp),-472(fp)
+	bgequ	noname.161
+	addl2	#65536,-480(fp)
+noname.161:
+	movzwl	-466(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-480(fp)
+	bicl3	#-65536,-468(fp),r0
+	ashl	#16,r0,-472(fp)
+	addl3	-472(fp),-476(fp),r0
+	bicl3	#0,r0,-476(fp)
+	cmpl	-476(fp),-472(fp)
+	bgequ	noname.162
+	incl	-480(fp)
+noname.162:
+	movl	-476(fp),r1
+	movl	-480(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.163
+	incl	r2
+noname.163:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.164
+	incl	r9
+noname.164:
+
+	movzwl	10(r6),r2
+	bicl3	#-65536,20(r7),r3
+	movzwl	22(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r6),-492(fp)
+	bicl3	#-65536,r2,-496(fp)
+	mull3	r0,-492(fp),-484(fp)
+	mull2	r3,-492(fp)
+	mull3	r3,-496(fp),-488(fp)
+	mull2	r0,-496(fp)
+	addl3	-484(fp),-488(fp),r0
+	bicl3	#0,r0,-484(fp)
+	cmpl	-484(fp),-488(fp)
+	bgequ	noname.165
+	addl2	#65536,-496(fp)
+noname.165:
+	movzwl	-482(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-496(fp)
+	bicl3	#-65536,-484(fp),r0
+	ashl	#16,r0,-488(fp)
+	addl3	-488(fp),-492(fp),r0
+	bicl3	#0,r0,-492(fp)
+	cmpl	-492(fp),-488(fp)
+	bgequ	noname.166
+	incl	-496(fp)
+noname.166:
+	movl	-492(fp),r1
+	movl	-496(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.167
+	incl	r2
+noname.167:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.168
+	incl	r9
+noname.168:
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,16(r7),r3
+	movzwl	18(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-508(fp)
+	bicl3	#-65536,r2,-512(fp)
+	mull3	r0,-508(fp),-500(fp)
+	mull2	r3,-508(fp)
+	mull3	r3,-512(fp),-504(fp)
+	mull2	r0,-512(fp)
+	addl3	-500(fp),-504(fp),r0
+	bicl3	#0,r0,-500(fp)
+	cmpl	-500(fp),-504(fp)
+	bgequ	noname.169
+	addl2	#65536,-512(fp)
+noname.169:
+	movzwl	-498(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-512(fp)
+	bicl3	#-65536,-500(fp),r0
+	ashl	#16,r0,-504(fp)
+	addl3	-504(fp),-508(fp),r0
+	bicl3	#0,r0,-508(fp)
+	cmpl	-508(fp),-504(fp)
+	bgequ	noname.170
+	incl	-512(fp)
+noname.170:
+	movl	-508(fp),r1
+	movl	-512(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.171
+	incl	r2
+noname.171:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.172
+	incl	r9
+noname.172:
+
+	movzwl	18(r6),r2
+	bicl3	#-65536,12(r7),r3
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,16(r6),-524(fp)
+	bicl3	#-65536,r2,-528(fp)
+	mull3	r0,-524(fp),-516(fp)
+	mull2	r3,-524(fp)
+	mull3	r3,-528(fp),-520(fp)
+	mull2	r0,-528(fp)
+	addl3	-516(fp),-520(fp),r0
+	bicl3	#0,r0,-516(fp)
+	cmpl	-516(fp),-520(fp)
+	bgequ	noname.173
+	addl2	#65536,-528(fp)
+noname.173:
+	movzwl	-514(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-528(fp)
+	bicl3	#-65536,-516(fp),r0
+	ashl	#16,r0,-520(fp)
+	addl3	-520(fp),-524(fp),r0
+	bicl3	#0,r0,-524(fp)
+	cmpl	-524(fp),-520(fp)
+	bgequ	noname.174
+	incl	-528(fp)
+noname.174:
+	movl	-524(fp),r1
+	movl	-528(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.175
+	incl	r2
+noname.175:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.176
+	incl	r9
+noname.176:
+
+	movzwl	22(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,20(r6),-540(fp)
+	bicl3	#-65536,r2,-544(fp)
+	mull3	r0,-540(fp),-532(fp)
+	mull2	r3,-540(fp)
+	mull3	r3,-544(fp),-536(fp)
+	mull2	r0,-544(fp)
+	addl3	-532(fp),-536(fp),r0
+	bicl3	#0,r0,-532(fp)
+	cmpl	-532(fp),-536(fp)
+	bgequ	noname.177
+	addl2	#65536,-544(fp)
+noname.177:
+	movzwl	-530(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-544(fp)
+	bicl3	#-65536,-532(fp),r0
+	ashl	#16,r0,-536(fp)
+	addl3	-536(fp),-540(fp),r0
+	bicl3	#0,r0,-540(fp)
+	cmpl	-540(fp),-536(fp)
+	bgequ	noname.178
+	incl	-544(fp)
+noname.178:
+	movl	-540(fp),r1
+	movl	-544(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.179
+	incl	r2
+noname.179:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.180
+	incl	r9
+noname.180:
+
+	movzwl	26(r6),r2
+	bicl3	#-65536,4(r7),r3
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,24(r6),-556(fp)
+	bicl3	#-65536,r2,-560(fp)
+	mull3	r0,-556(fp),-548(fp)
+	mull2	r3,-556(fp)
+	mull3	r3,-560(fp),-552(fp)
+	mull2	r0,-560(fp)
+	addl3	-548(fp),-552(fp),r0
+	bicl3	#0,r0,-548(fp)
+	cmpl	-548(fp),-552(fp)
+	bgequ	noname.181
+	addl2	#65536,-560(fp)
+noname.181:
+	movzwl	-546(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-560(fp)
+	bicl3	#-65536,-548(fp),r0
+	ashl	#16,r0,-552(fp)
+	addl3	-552(fp),-556(fp),r0
+	bicl3	#0,r0,-556(fp)
+	cmpl	-556(fp),-552(fp)
+	bgequ	noname.182
+	incl	-560(fp)
+noname.182:
+	movl	-556(fp),r1
+	movl	-560(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.183
+	incl	r2
+noname.183:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.184
+	incl	r9
+noname.184:
+
+	movzwl	30(r6),r2
+	bicl3	#-65536,(r7),r3
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,28(r6),-572(fp)
+	bicl3	#-65536,r2,-576(fp)
+	mull3	r0,-572(fp),-564(fp)
+	mull2	r3,-572(fp)
+	mull3	r3,-576(fp),-568(fp)
+	mull2	r0,-576(fp)
+	addl3	-564(fp),-568(fp),r0
+	bicl3	#0,r0,-564(fp)
+	cmpl	-564(fp),-568(fp)
+	bgequ	noname.185
+	addl2	#65536,-576(fp)
+noname.185:
+	movzwl	-562(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-576(fp)
+	bicl3	#-65536,-564(fp),r0
+	ashl	#16,r0,-568(fp)
+	addl3	-568(fp),-572(fp),r0
+	bicl3	#0,r0,-572(fp)
+	cmpl	-572(fp),-568(fp)
+	bgequ	noname.186
+	incl	-576(fp)
+noname.186:
+	movl	-572(fp),r1
+	movl	-576(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.187
+	incl	r2
+noname.187:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.188
+	incl	r9
+noname.188:
+
+	movl	r8,28(r11)
+
+	clrl	r8
+
+	movzwl	30(r6),r2
+	bicl3	#-65536,4(r7),r3
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,28(r6),-588(fp)
+	bicl3	#-65536,r2,-592(fp)
+	mull3	r0,-588(fp),-580(fp)
+	mull2	r3,-588(fp)
+	mull3	r3,-592(fp),-584(fp)
+	mull2	r0,-592(fp)
+	addl3	-580(fp),-584(fp),r0
+	bicl3	#0,r0,-580(fp)
+	cmpl	-580(fp),-584(fp)
+	bgequ	noname.189
+	addl2	#65536,-592(fp)
+noname.189:
+	movzwl	-578(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-592(fp)
+	bicl3	#-65536,-580(fp),r0
+	ashl	#16,r0,-584(fp)
+	addl3	-584(fp),-588(fp),r0
+	bicl3	#0,r0,-588(fp)
+	cmpl	-588(fp),-584(fp)
+	bgequ	noname.190
+	incl	-592(fp)
+noname.190:
+	movl	-588(fp),r1
+	movl	-592(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.191
+	incl	r2
+noname.191:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.192
+	incl	r8
+noname.192:
+
+	movzwl	26(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,24(r6),-604(fp)
+	bicl3	#-65536,r2,-608(fp)
+	mull3	r0,-604(fp),-596(fp)
+	mull2	r3,-604(fp)
+	mull3	r3,-608(fp),-600(fp)
+	mull2	r0,-608(fp)
+	addl3	-596(fp),-600(fp),r0
+	bicl3	#0,r0,-596(fp)
+	cmpl	-596(fp),-600(fp)
+	bgequ	noname.193
+	addl2	#65536,-608(fp)
+noname.193:
+	movzwl	-594(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-608(fp)
+	bicl3	#-65536,-596(fp),r0
+	ashl	#16,r0,-600(fp)
+	addl3	-600(fp),-604(fp),r0
+	bicl3	#0,r0,-604(fp)
+	cmpl	-604(fp),-600(fp)
+	bgequ	noname.194
+	incl	-608(fp)
+noname.194:
+	movl	-604(fp),r1
+	movl	-608(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.195
+	incl	r2
+noname.195:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.196
+	incl	r8
+noname.196:
+
+	movzwl	22(r6),r2
+	bicl3	#-65536,12(r7),r3
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,20(r6),-620(fp)
+	bicl3	#-65536,r2,-624(fp)
+	mull3	r0,-620(fp),-612(fp)
+	mull2	r3,-620(fp)
+	mull3	r3,-624(fp),-616(fp)
+	mull2	r0,-624(fp)
+	addl3	-612(fp),-616(fp),r0
+	bicl3	#0,r0,-612(fp)
+	cmpl	-612(fp),-616(fp)
+	bgequ	noname.197
+	addl2	#65536,-624(fp)
+noname.197:
+	movzwl	-610(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-624(fp)
+	bicl3	#-65536,-612(fp),r0
+	ashl	#16,r0,-616(fp)
+	addl3	-616(fp),-620(fp),r0
+	bicl3	#0,r0,-620(fp)
+	cmpl	-620(fp),-616(fp)
+	bgequ	noname.198
+	incl	-624(fp)
+noname.198:
+	movl	-620(fp),r1
+	movl	-624(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.199
+	incl	r2
+noname.199:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.200
+	incl	r8
+noname.200:
+
+	movzwl	18(r6),r2
+	bicl3	#-65536,16(r7),r3
+	movzwl	18(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,16(r6),-636(fp)
+	bicl3	#-65536,r2,-640(fp)
+	mull3	r0,-636(fp),-628(fp)
+	mull2	r3,-636(fp)
+	mull3	r3,-640(fp),-632(fp)
+	mull2	r0,-640(fp)
+	addl3	-628(fp),-632(fp),r0
+	bicl3	#0,r0,-628(fp)
+	cmpl	-628(fp),-632(fp)
+	bgequ	noname.201
+	addl2	#65536,-640(fp)
+noname.201:
+	movzwl	-626(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-640(fp)
+	bicl3	#-65536,-628(fp),r0
+	ashl	#16,r0,-632(fp)
+	addl3	-632(fp),-636(fp),r0
+	bicl3	#0,r0,-636(fp)
+	cmpl	-636(fp),-632(fp)
+	bgequ	noname.202
+	incl	-640(fp)
+noname.202:
+	movl	-636(fp),r1
+	movl	-640(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.203
+	incl	r2
+noname.203:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.204
+	incl	r8
+noname.204:
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,20(r7),r3
+	movzwl	22(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-652(fp)
+	bicl3	#-65536,r2,-656(fp)
+	mull3	r0,-652(fp),-644(fp)
+	mull2	r3,-652(fp)
+	mull3	r3,-656(fp),-648(fp)
+	mull2	r0,-656(fp)
+	addl3	-644(fp),-648(fp),r0
+	bicl3	#0,r0,-644(fp)
+	cmpl	-644(fp),-648(fp)
+	bgequ	noname.205
+	addl2	#65536,-656(fp)
+noname.205:
+	movzwl	-642(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-656(fp)
+	bicl3	#-65536,-644(fp),r0
+	ashl	#16,r0,-648(fp)
+	addl3	-648(fp),-652(fp),r0
+	bicl3	#0,r0,-652(fp)
+	cmpl	-652(fp),-648(fp)
+	bgequ	noname.206
+	incl	-656(fp)
+noname.206:
+	movl	-652(fp),r1
+	movl	-656(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.207
+	incl	r2
+noname.207:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.208
+	incl	r8
+noname.208:
+
+	movzwl	10(r6),r2
+	bicl3	#-65536,24(r7),r3
+	movzwl	26(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r6),-668(fp)
+	bicl3	#-65536,r2,-672(fp)
+	mull3	r0,-668(fp),-660(fp)
+	mull2	r3,-668(fp)
+	mull3	r3,-672(fp),-664(fp)
+	mull2	r0,-672(fp)
+	addl3	-660(fp),-664(fp),r0
+	bicl3	#0,r0,-660(fp)
+	cmpl	-660(fp),-664(fp)
+	bgequ	noname.209
+	addl2	#65536,-672(fp)
+noname.209:
+	movzwl	-658(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-672(fp)
+	bicl3	#-65536,-660(fp),r0
+	ashl	#16,r0,-664(fp)
+	addl3	-664(fp),-668(fp),r0
+	bicl3	#0,r0,-668(fp)
+	cmpl	-668(fp),-664(fp)
+	bgequ	noname.210
+	incl	-672(fp)
+noname.210:
+	movl	-668(fp),r1
+	movl	-672(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.211
+	incl	r2
+noname.211:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.212
+	incl	r8
+noname.212:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,28(r7),r3
+	movzwl	30(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-684(fp)
+	bicl3	#-65536,r2,-688(fp)
+	mull3	r0,-684(fp),-676(fp)
+	mull2	r3,-684(fp)
+	mull3	r3,-688(fp),-680(fp)
+	mull2	r0,-688(fp)
+	addl3	-676(fp),-680(fp),r0
+	bicl3	#0,r0,-676(fp)
+	cmpl	-676(fp),-680(fp)
+	bgequ	noname.213
+	addl2	#65536,-688(fp)
+noname.213:
+	movzwl	-674(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-688(fp)
+	bicl3	#-65536,-676(fp),r0
+	ashl	#16,r0,-680(fp)
+	addl3	-680(fp),-684(fp),r0
+	bicl3	#0,r0,-684(fp)
+	cmpl	-684(fp),-680(fp)
+	bgequ	noname.214
+	incl	-688(fp)
+noname.214:
+	movl	-684(fp),r1
+	movl	-688(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.215
+	incl	r2
+noname.215:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.216
+	incl	r8
+noname.216:
+
+	movl	r10,32(r11)
+
+	clrl	r10
+
+	movzwl	10(r6),r2
+	bicl3	#-65536,28(r7),r3
+	movzwl	30(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r6),-700(fp)
+	bicl3	#-65536,r2,-704(fp)
+	mull3	r0,-700(fp),-692(fp)
+	mull2	r3,-700(fp)
+	mull3	r3,-704(fp),-696(fp)
+	mull2	r0,-704(fp)
+	addl3	-692(fp),-696(fp),r0
+	bicl3	#0,r0,-692(fp)
+	cmpl	-692(fp),-696(fp)
+	bgequ	noname.217
+	addl2	#65536,-704(fp)
+noname.217:
+	movzwl	-690(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-704(fp)
+	bicl3	#-65536,-692(fp),r0
+	ashl	#16,r0,-696(fp)
+	addl3	-696(fp),-700(fp),r0
+	bicl3	#0,r0,-700(fp)
+	cmpl	-700(fp),-696(fp)
+	bgequ	noname.218
+	incl	-704(fp)
+noname.218:
+	movl	-700(fp),r1
+	movl	-704(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.219
+	incl	r2
+noname.219:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.220
+	incl	r10
+noname.220:
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,24(r7),r3
+	movzwl	26(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-716(fp)
+	bicl3	#-65536,r2,-720(fp)
+	mull3	r0,-716(fp),-708(fp)
+	mull2	r3,-716(fp)
+	mull3	r3,-720(fp),-712(fp)
+	mull2	r0,-720(fp)
+	addl3	-708(fp),-712(fp),r0
+	bicl3	#0,r0,-708(fp)
+	cmpl	-708(fp),-712(fp)
+	bgequ	noname.221
+	addl2	#65536,-720(fp)
+noname.221:
+	movzwl	-706(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-720(fp)
+	bicl3	#-65536,-708(fp),r0
+	ashl	#16,r0,-712(fp)
+	addl3	-712(fp),-716(fp),r0
+	bicl3	#0,r0,-716(fp)
+	cmpl	-716(fp),-712(fp)
+	bgequ	noname.222
+	incl	-720(fp)
+noname.222:
+	movl	-716(fp),r1
+	movl	-720(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.223
+	incl	r2
+noname.223:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.224
+	incl	r10
+noname.224:
+
+	movzwl	18(r6),r2
+	bicl3	#-65536,20(r7),r3
+	movzwl	22(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,16(r6),-732(fp)
+	bicl3	#-65536,r2,-736(fp)
+	mull3	r0,-732(fp),-724(fp)
+	mull2	r3,-732(fp)
+	mull3	r3,-736(fp),-728(fp)
+	mull2	r0,-736(fp)
+	addl3	-724(fp),-728(fp),r0
+	bicl3	#0,r0,-724(fp)
+	cmpl	-724(fp),-728(fp)
+	bgequ	noname.225
+	addl2	#65536,-736(fp)
+noname.225:
+	movzwl	-722(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-736(fp)
+	bicl3	#-65536,-724(fp),r0
+	ashl	#16,r0,-728(fp)
+	addl3	-728(fp),-732(fp),r0
+	bicl3	#0,r0,-732(fp)
+	cmpl	-732(fp),-728(fp)
+	bgequ	noname.226
+	incl	-736(fp)
+noname.226:
+	movl	-732(fp),r1
+	movl	-736(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.227
+	incl	r2
+noname.227:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.228
+	incl	r10
+noname.228:
+
+	movzwl	22(r6),r2
+	bicl3	#-65536,16(r7),r3
+	movzwl	18(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,20(r6),-748(fp)
+	bicl3	#-65536,r2,-752(fp)
+	mull3	r0,-748(fp),-740(fp)
+	mull2	r3,-748(fp)
+	mull3	r3,-752(fp),-744(fp)
+	mull2	r0,-752(fp)
+	addl3	-740(fp),-744(fp),r0
+	bicl3	#0,r0,-740(fp)
+	cmpl	-740(fp),-744(fp)
+	bgequ	noname.229
+	addl2	#65536,-752(fp)
+noname.229:
+	movzwl	-738(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-752(fp)
+	bicl3	#-65536,-740(fp),r0
+	ashl	#16,r0,-744(fp)
+	addl3	-744(fp),-748(fp),r0
+	bicl3	#0,r0,-748(fp)
+	cmpl	-748(fp),-744(fp)
+	bgequ	noname.230
+	incl	-752(fp)
+noname.230:
+	movl	-748(fp),r1
+	movl	-752(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.231
+	incl	r2
+noname.231:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.232
+	incl	r10
+noname.232:
+
+	movzwl	26(r6),r2
+	bicl3	#-65536,12(r7),r3
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,24(r6),-764(fp)
+	bicl3	#-65536,r2,-768(fp)
+	mull3	r0,-764(fp),-756(fp)
+	mull2	r3,-764(fp)
+	mull3	r3,-768(fp),-760(fp)
+	mull2	r0,-768(fp)
+	addl3	-756(fp),-760(fp),r0
+	bicl3	#0,r0,-756(fp)
+	cmpl	-756(fp),-760(fp)
+	bgequ	noname.233
+	addl2	#65536,-768(fp)
+noname.233:
+	movzwl	-754(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-768(fp)
+	bicl3	#-65536,-756(fp),r0
+	ashl	#16,r0,-760(fp)
+	addl3	-760(fp),-764(fp),r0
+	bicl3	#0,r0,-764(fp)
+	cmpl	-764(fp),-760(fp)
+	bgequ	noname.234
+	incl	-768(fp)
+noname.234:
+	movl	-764(fp),r1
+	movl	-768(fp),r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.235
+	incl	r2
+noname.235:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.236
+	incl	r10
+noname.236:
+
+	bicl3	#-65536,28(r6),r3
+	movzwl	30(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,8(r7),r2
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-772(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-776(fp)
+	mull2	r0,r4
+	addl3	-772(fp),-776(fp),r0
+	bicl3	#0,r0,-772(fp)
+	cmpl	-772(fp),-776(fp)
+	bgequ	noname.237
+	addl2	#65536,r4
+noname.237:
+	movzwl	-770(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-772(fp),r0
+	ashl	#16,r0,-776(fp)
+	addl2	-776(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-776(fp)
+	bgequ	noname.238
+	incl	r4
+noname.238:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.239
+	incl	r2
+noname.239:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.240
+	incl	r10
+noname.240:
+
+	movl	r9,36(r11)
+
+	clrl	r9
+
+	bicl3	#-65536,28(r6),r3
+	movzwl	30(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,12(r7),r2
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-780(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-784(fp)
+	mull2	r0,r4
+	addl3	-780(fp),-784(fp),r0
+	bicl3	#0,r0,-780(fp)
+	cmpl	-780(fp),-784(fp)
+	bgequ	noname.241
+	addl2	#65536,r4
+noname.241:
+	movzwl	-778(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-780(fp),r0
+	ashl	#16,r0,-784(fp)
+	addl2	-784(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-784(fp)
+	bgequ	noname.242
+	incl	r4
+noname.242:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.243
+	incl	r2
+noname.243:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.244
+	incl	r9
+noname.244:
+
+	bicl3	#-65536,24(r6),r3
+	movzwl	26(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,16(r7),r2
+	movzwl	18(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-788(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-792(fp)
+	mull2	r0,r4
+	addl3	-788(fp),-792(fp),r0
+	bicl3	#0,r0,-788(fp)
+	cmpl	-788(fp),-792(fp)
+	bgequ	noname.245
+	addl2	#65536,r4
+noname.245:
+	movzwl	-786(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-788(fp),r0
+	ashl	#16,r0,-792(fp)
+	addl2	-792(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-792(fp)
+	bgequ	noname.246
+	incl	r4
+noname.246:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.247
+	incl	r2
+noname.247:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.248
+	incl	r9
+noname.248:
+
+	bicl3	#-65536,20(r6),r3
+	movzwl	22(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,20(r7),r2
+	movzwl	22(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-796(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-800(fp)
+	mull2	r0,r4
+	addl3	-796(fp),-800(fp),r0
+	bicl3	#0,r0,-796(fp)
+	cmpl	-796(fp),-800(fp)
+	bgequ	noname.249
+	addl2	#65536,r4
+noname.249:
+	movzwl	-794(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-796(fp),r0
+	ashl	#16,r0,-800(fp)
+	addl2	-800(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-800(fp)
+	bgequ	noname.250
+	incl	r4
+noname.250:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.251
+	incl	r2
+noname.251:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.252
+	incl	r9
+noname.252:
+
+	bicl3	#-65536,16(r6),r3
+	movzwl	18(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,24(r7),r2
+	movzwl	26(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-804(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-808(fp)
+	mull2	r0,r4
+	addl3	-804(fp),-808(fp),r0
+	bicl3	#0,r0,-804(fp)
+	cmpl	-804(fp),-808(fp)
+	bgequ	noname.253
+	addl2	#65536,r4
+noname.253:
+	movzwl	-802(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-804(fp),r0
+	ashl	#16,r0,-808(fp)
+	addl2	-808(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-808(fp)
+	bgequ	noname.254
+	incl	r4
+noname.254:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.255
+	incl	r2
+noname.255:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.256
+	incl	r9
+noname.256:
+
+	bicl3	#-65536,12(r6),r3
+	movzwl	14(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,28(r7),r2
+	movzwl	30(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-812(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-816(fp)
+	mull2	r0,r4
+	addl3	-812(fp),-816(fp),r0
+	bicl3	#0,r0,-812(fp)
+	cmpl	-812(fp),-816(fp)
+	bgequ	noname.257
+	addl2	#65536,r4
+noname.257:
+	movzwl	-810(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-812(fp),r0
+	ashl	#16,r0,-816(fp)
+	addl2	-816(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-816(fp)
+	bgequ	noname.258
+	incl	r4
+noname.258:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.259
+	incl	r2
+noname.259:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.260
+	incl	r9
+noname.260:
+
+	movl	r8,40(r11)
+
+	clrl	r8
+
+	bicl3	#-65536,16(r6),r3
+	movzwl	18(r6),r2
+	bicl3	#-65536,28(r7),r1
+	movzwl	30(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r4
+	bicl3	#-65536,r2,-828(fp)
+	mull3	r0,r4,-820(fp)
+	mull2	r1,r4
+	mull3	r1,-828(fp),-824(fp)
+	mull2	r0,-828(fp)
+	addl3	-820(fp),-824(fp),r0
+	bicl3	#0,r0,-820(fp)
+	cmpl	-820(fp),-824(fp)
+	bgequ	noname.261
+	addl2	#65536,-828(fp)
+noname.261:
+	movzwl	-818(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-828(fp)
+	bicl3	#-65536,-820(fp),r0
+	ashl	#16,r0,-824(fp)
+	addl2	-824(fp),r4
+	bicl2	#0,r4
+	cmpl	r4,-824(fp)
+	bgequ	noname.262
+	incl	-828(fp)
+noname.262:
+	movl	r4,r1
+	movl	-828(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.263
+	incl	r2
+noname.263:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.264
+	incl	r8
+noname.264:
+
+	movzwl	22(r6),r2
+	bicl3	#-65536,24(r7),r3
+	movzwl	26(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,20(r6),-840(fp)
+	bicl3	#-65536,r2,-844(fp)
+	mull3	r0,-840(fp),-832(fp)
+	mull2	r3,-840(fp)
+	mull3	r3,-844(fp),-836(fp)
+	mull2	r0,-844(fp)
+	addl3	-832(fp),-836(fp),r0
+	bicl3	#0,r0,-832(fp)
+	cmpl	-832(fp),-836(fp)
+	bgequ	noname.265
+	addl2	#65536,-844(fp)
+noname.265:
+	movzwl	-830(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-844(fp)
+	bicl3	#-65536,-832(fp),r0
+	ashl	#16,r0,-836(fp)
+	addl3	-836(fp),-840(fp),r0
+	bicl3	#0,r0,-840(fp)
+	cmpl	-840(fp),-836(fp)
+	bgequ	noname.266
+	incl	-844(fp)
+noname.266:
+	movl	-840(fp),r1
+	movl	-844(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.267
+	incl	r2
+noname.267:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.268
+	incl	r8
+noname.268:
+
+	bicl3	#-65536,24(r6),r3
+	movzwl	26(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,20(r7),r2
+	movzwl	22(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-848(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-852(fp)
+	mull2	r0,r4
+	addl3	-848(fp),-852(fp),r0
+	bicl3	#0,r0,-848(fp)
+	cmpl	-848(fp),-852(fp)
+	bgequ	noname.269
+	addl2	#65536,r4
+noname.269:
+	movzwl	-846(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-848(fp),r0
+	ashl	#16,r0,-852(fp)
+	addl2	-852(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-852(fp)
+	bgequ	noname.270
+	incl	r4
+noname.270:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.271
+	incl	r2
+noname.271:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.272
+	incl	r8
+noname.272:
+
+	bicl3	#-65536,28(r6),r3
+	movzwl	30(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,16(r7),r2
+	movzwl	18(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-856(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-860(fp)
+	mull2	r0,r4
+	addl3	-856(fp),-860(fp),r0
+	bicl3	#0,r0,-856(fp)
+	cmpl	-856(fp),-860(fp)
+	bgequ	noname.273
+	addl2	#65536,r4
+noname.273:
+	movzwl	-854(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-856(fp),r0
+	ashl	#16,r0,-860(fp)
+	addl2	-860(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-860(fp)
+	bgequ	noname.274
+	incl	r4
+noname.274:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.275
+	incl	r2
+noname.275:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.276
+	incl	r8
+noname.276:
+
+	movl	r10,44(r11)
+
+	clrl	r10
+
+	bicl3	#-65536,28(r6),r3
+	movzwl	30(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,20(r7),r2
+	movzwl	22(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-864(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-868(fp)
+	mull2	r0,r4
+	addl3	-864(fp),-868(fp),r0
+	bicl3	#0,r0,-864(fp)
+	cmpl	-864(fp),-868(fp)
+	bgequ	noname.277
+	addl2	#65536,r4
+noname.277:
+	movzwl	-862(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-864(fp),r0
+	ashl	#16,r0,-868(fp)
+	addl2	-868(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-868(fp)
+	bgequ	noname.278
+	incl	r4
+noname.278:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.279
+	incl	r2
+noname.279:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.280
+	incl	r10
+noname.280:
+
+	bicl3	#-65536,24(r6),r3
+	movzwl	26(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,24(r7),r2
+	movzwl	26(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-872(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-876(fp)
+	mull2	r0,r4
+	addl3	-872(fp),-876(fp),r0
+	bicl3	#0,r0,-872(fp)
+	cmpl	-872(fp),-876(fp)
+	bgequ	noname.281
+	addl2	#65536,r4
+noname.281:
+	movzwl	-870(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-872(fp),r0
+	ashl	#16,r0,-876(fp)
+	addl2	-876(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-876(fp)
+	bgequ	noname.282
+	incl	r4
+noname.282:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.283
+	incl	r2
+noname.283:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.284
+	incl	r10
+noname.284:
+
+	bicl3	#-65536,20(r6),r3
+	movzwl	22(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,28(r7),r2
+	movzwl	30(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-880(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-884(fp)
+	mull2	r0,r4
+	addl3	-880(fp),-884(fp),r0
+	bicl3	#0,r0,-880(fp)
+	cmpl	-880(fp),-884(fp)
+	bgequ	noname.285
+	addl2	#65536,r4
+noname.285:
+	movzwl	-878(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-880(fp),r0
+	ashl	#16,r0,-884(fp)
+	addl2	-884(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-884(fp)
+	bgequ	noname.286
+	incl	r4
+noname.286:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.287
+	incl	r2
+noname.287:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.288
+	incl	r10
+noname.288:
+
+	movl	r9,48(r11)
+
+	clrl	r9
+
+	bicl3	#-65536,24(r6),r3
+	movzwl	26(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,28(r7),r2
+	movzwl	30(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-888(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-892(fp)
+	mull2	r0,r4
+	addl3	-888(fp),-892(fp),r0
+	bicl3	#0,r0,-888(fp)
+	cmpl	-888(fp),-892(fp)
+	bgequ	noname.289
+	addl2	#65536,r4
+noname.289:
+	movzwl	-886(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-888(fp),r0
+	ashl	#16,r0,-892(fp)
+	addl2	-892(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-892(fp)
+	bgequ	noname.290
+	incl	r4
+noname.290:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.291
+	incl	r2
+noname.291:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.292
+	incl	r9
+noname.292:
+
+	movzwl	30(r6),r2
+	bicl3	#-65536,24(r7),r3
+	movzwl	26(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,28(r6),-904(fp)
+	bicl3	#-65536,r2,-908(fp)
+	mull3	r0,-904(fp),-896(fp)
+	mull2	r3,-904(fp)
+	mull3	r3,-908(fp),-900(fp)
+	mull2	r0,-908(fp)
+	addl3	-896(fp),-900(fp),r0
+	bicl3	#0,r0,-896(fp)
+	cmpl	-896(fp),-900(fp)
+	bgequ	noname.293
+	addl2	#65536,-908(fp)
+noname.293:
+	movzwl	-894(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-908(fp)
+	bicl3	#-65536,-896(fp),r0
+	ashl	#16,r0,-900(fp)
+	addl3	-900(fp),-904(fp),r0
+	bicl3	#0,r0,-904(fp)
+	cmpl	-904(fp),-900(fp)
+	bgequ	noname.294
+	incl	-908(fp)
+noname.294:
+	movl	-904(fp),r1
+	movl	-908(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.295
+	incl	r2
+noname.295:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.296
+	incl	r9
+noname.296:
+
+	movl	r8,52(r11)
+
+	clrl	r8
+
+	movzwl	30(r6),r2
+	bicl3	#-65536,28(r7),r3
+	movzwl	30(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,28(r6),-920(fp)
+	bicl3	#-65536,r2,-924(fp)
+	mull3	r0,-920(fp),-912(fp)
+	mull2	r3,-920(fp)
+	mull3	r3,-924(fp),-916(fp)
+	mull2	r0,-924(fp)
+	addl3	-912(fp),-916(fp),r0
+	bicl3	#0,r0,-912(fp)
+	cmpl	-912(fp),-916(fp)
+	bgequ	noname.297
+	addl2	#65536,-924(fp)
+noname.297:
+	movzwl	-910(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-924(fp)
+	bicl3	#-65536,-912(fp),r0
+	ashl	#16,r0,-916(fp)
+	addl3	-916(fp),-920(fp),r0
+	bicl3	#0,r0,-920(fp)
+	cmpl	-920(fp),-916(fp)
+	bgequ	noname.298
+	incl	-924(fp)
+noname.298:
+	movl	-920(fp),r1
+	movl	-924(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.299
+	incl	r2
+noname.299:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.300
+	incl	r8
+noname.300:
+
+	movl	r10,56(r11)
+
+	movl	r9,60(r11)
+
+	ret	
+
+
+
+;r=4 ;(AP)
+;a=8 ;(AP)
+;b=12 ;(AP)
+;n=16 ;(AP)	n	by value (input)
+
+	.psect	code,nowrt
+
+.entry	BN_MUL_COMBA4,^m<r2,r3,r4,r5,r6,r7,r8,r9,r10,r11>
+	movab	-156(sp),sp
+
+	clrq	r9
+
+	clrl	r8
+
+	movl	8(ap),r6
+	bicl3	#-65536,(r6),r3
+	movzwl	2(r6),r2
+	bicl2	#-65536,r2
+	movl	12(ap),r7
+	bicl3	#-65536,(r7),r1
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r2,r4
+	mull3	r0,r5,-4(fp)
+	mull2	r1,r5
+	mull3	r1,r4,-8(fp)
+	mull2	r0,r4
+	addl3	-4(fp),-8(fp),r0
+	bicl3	#0,r0,-4(fp)
+	cmpl	-4(fp),-8(fp)
+	bgequ	noname.303
+	addl2	#65536,r4
+noname.303:
+	movzwl	-2(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-4(fp),r0
+	ashl	#16,r0,-8(fp)
+	addl2	-8(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-8(fp)
+	bgequ	noname.304
+	incl	r4
+noname.304:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.305
+	incl	r2
+noname.305:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.306
+	incl	r8
+noname.306:
+
+	movl	4(ap),r11
+	movl	r10,(r11)
+
+	clrl	r10
+
+	bicl3	#-65536,(r6),r3
+	movzwl	2(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,4(r7),r2
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-12(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-16(fp)
+	mull2	r0,r4
+	addl3	-12(fp),-16(fp),r0
+	bicl3	#0,r0,-12(fp)
+	cmpl	-12(fp),-16(fp)
+	bgequ	noname.307
+	addl2	#65536,r4
+noname.307:
+	movzwl	-10(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-12(fp),r0
+	ashl	#16,r0,-16(fp)
+	addl2	-16(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-16(fp)
+	bgequ	noname.308
+	incl	r4
+noname.308:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.309
+	incl	r2
+noname.309:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.310
+	incl	r10
+noname.310:
+
+	bicl3	#-65536,4(r6),r3
+	movzwl	6(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,(r7),r2
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-20(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-24(fp)
+	mull2	r0,r4
+	addl3	-20(fp),-24(fp),r0
+	bicl3	#0,r0,-20(fp)
+	cmpl	-20(fp),-24(fp)
+	bgequ	noname.311
+	addl2	#65536,r4
+noname.311:
+	movzwl	-18(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-20(fp),r0
+	ashl	#16,r0,-24(fp)
+	addl2	-24(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-24(fp)
+	bgequ	noname.312
+	incl	r4
+noname.312:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.313
+	incl	r2
+noname.313:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.314
+	incl	r10
+noname.314:
+
+	movl	r9,4(r11)
+
+	clrl	r9
+
+	bicl3	#-65536,8(r6),r3
+	movzwl	10(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,(r7),r2
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-28(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-32(fp)
+	mull2	r0,r4
+	addl3	-28(fp),-32(fp),r0
+	bicl3	#0,r0,-28(fp)
+	cmpl	-28(fp),-32(fp)
+	bgequ	noname.315
+	addl2	#65536,r4
+noname.315:
+	movzwl	-26(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-28(fp),r0
+	ashl	#16,r0,-32(fp)
+	addl2	-32(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-32(fp)
+	bgequ	noname.316
+	incl	r4
+noname.316:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.317
+	incl	r2
+noname.317:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.318
+	incl	r9
+noname.318:
+
+	bicl3	#-65536,4(r6),r3
+	movzwl	6(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,4(r7),r2
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-36(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-40(fp)
+	mull2	r0,r4
+	addl3	-36(fp),-40(fp),r0
+	bicl3	#0,r0,-36(fp)
+	cmpl	-36(fp),-40(fp)
+	bgequ	noname.319
+	addl2	#65536,r4
+noname.319:
+	movzwl	-34(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-36(fp),r0
+	ashl	#16,r0,-40(fp)
+	addl2	-40(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-40(fp)
+	bgequ	noname.320
+	incl	r4
+noname.320:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.321
+	incl	r2
+noname.321:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.322
+	incl	r9
+noname.322:
+
+	bicl3	#-65536,(r6),r3
+	movzwl	2(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,8(r7),r2
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-44(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-48(fp)
+	mull2	r0,r4
+	addl3	-44(fp),-48(fp),r0
+	bicl3	#0,r0,-44(fp)
+	cmpl	-44(fp),-48(fp)
+	bgequ	noname.323
+	addl2	#65536,r4
+noname.323:
+	movzwl	-42(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-44(fp),r0
+	ashl	#16,r0,-48(fp)
+	addl2	-48(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-48(fp)
+	bgequ	noname.324
+	incl	r4
+noname.324:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.325
+	incl	r2
+noname.325:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.326
+	incl	r9
+noname.326:
+
+	movl	r8,8(r11)
+
+	clrl	r8
+
+	bicl3	#-65536,(r6),r3
+	movzwl	2(r6),r2
+	bicl3	#-65536,12(r7),r1
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r4
+	bicl3	#-65536,r2,-60(fp)
+	mull3	r0,r4,-52(fp)
+	mull2	r1,r4
+	mull3	r1,-60(fp),-56(fp)
+	mull2	r0,-60(fp)
+	addl3	-52(fp),-56(fp),r0
+	bicl3	#0,r0,-52(fp)
+	cmpl	-52(fp),-56(fp)
+	bgequ	noname.327
+	addl2	#65536,-60(fp)
+noname.327:
+	movzwl	-50(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-60(fp)
+	bicl3	#-65536,-52(fp),r0
+	ashl	#16,r0,-56(fp)
+	addl2	-56(fp),r4
+	bicl2	#0,r4
+	cmpl	r4,-56(fp)
+	bgequ	noname.328
+	incl	-60(fp)
+noname.328:
+	movl	r4,r1
+	movl	-60(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.329
+	incl	r2
+noname.329:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.330
+	incl	r8
+noname.330:
+
+	movzwl	6(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r6),-72(fp)
+	bicl3	#-65536,r2,-76(fp)
+	mull3	r0,-72(fp),-64(fp)
+	mull2	r3,-72(fp)
+	mull3	r3,-76(fp),-68(fp)
+	mull2	r0,-76(fp)
+	addl3	-64(fp),-68(fp),r0
+	bicl3	#0,r0,-64(fp)
+	cmpl	-64(fp),-68(fp)
+	bgequ	noname.331
+	addl2	#65536,-76(fp)
+noname.331:
+	movzwl	-62(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-76(fp)
+	bicl3	#-65536,-64(fp),r0
+	ashl	#16,r0,-68(fp)
+	addl3	-68(fp),-72(fp),r0
+	bicl3	#0,r0,-72(fp)
+	cmpl	-72(fp),-68(fp)
+	bgequ	noname.332
+	incl	-76(fp)
+noname.332:
+	movl	-72(fp),r1
+	movl	-76(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.333
+	incl	r2
+noname.333:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.334
+	incl	r8
+noname.334:
+
+	bicl3	#-65536,8(r6),r3
+	movzwl	10(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,4(r7),r2
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-80(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-84(fp)
+	mull2	r0,r4
+	addl3	-80(fp),-84(fp),r0
+	bicl3	#0,r0,-80(fp)
+	cmpl	-80(fp),-84(fp)
+	bgequ	noname.335
+	addl2	#65536,r4
+noname.335:
+	movzwl	-78(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-80(fp),r0
+	ashl	#16,r0,-84(fp)
+	addl2	-84(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-84(fp)
+	bgequ	noname.336
+	incl	r4
+noname.336:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.337
+	incl	r2
+noname.337:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.338
+	incl	r8
+noname.338:
+
+	bicl3	#-65536,12(r6),r3
+	movzwl	14(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,(r7),r2
+	movzwl	2(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-88(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-92(fp)
+	mull2	r0,r4
+	addl3	-88(fp),-92(fp),r0
+	bicl3	#0,r0,-88(fp)
+	cmpl	-88(fp),-92(fp)
+	bgequ	noname.339
+	addl2	#65536,r4
+noname.339:
+	movzwl	-86(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-88(fp),r0
+	ashl	#16,r0,-92(fp)
+	addl2	-92(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-92(fp)
+	bgequ	noname.340
+	incl	r4
+noname.340:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.341
+	incl	r2
+noname.341:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.342
+	incl	r8
+noname.342:
+
+	movl	r10,12(r11)
+
+	clrl	r10
+
+	bicl3	#-65536,12(r6),r3
+	movzwl	14(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,4(r7),r2
+	movzwl	6(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-96(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-100(fp)
+	mull2	r0,r4
+	addl3	-96(fp),-100(fp),r0
+	bicl3	#0,r0,-96(fp)
+	cmpl	-96(fp),-100(fp)
+	bgequ	noname.343
+	addl2	#65536,r4
+noname.343:
+	movzwl	-94(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-96(fp),r0
+	ashl	#16,r0,-100(fp)
+	addl2	-100(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-100(fp)
+	bgequ	noname.344
+	incl	r4
+noname.344:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.345
+	incl	r2
+noname.345:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.346
+	incl	r10
+noname.346:
+
+	bicl3	#-65536,8(r6),r3
+	movzwl	10(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,8(r7),r2
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-104(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-108(fp)
+	mull2	r0,r4
+	addl3	-104(fp),-108(fp),r0
+	bicl3	#0,r0,-104(fp)
+	cmpl	-104(fp),-108(fp)
+	bgequ	noname.347
+	addl2	#65536,r4
+noname.347:
+	movzwl	-102(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-104(fp),r0
+	ashl	#16,r0,-108(fp)
+	addl2	-108(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-108(fp)
+	bgequ	noname.348
+	incl	r4
+noname.348:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.349
+	incl	r2
+noname.349:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.350
+	incl	r10
+noname.350:
+
+	bicl3	#-65536,4(r6),r3
+	movzwl	6(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,12(r7),r2
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-112(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-116(fp)
+	mull2	r0,r4
+	addl3	-112(fp),-116(fp),r0
+	bicl3	#0,r0,-112(fp)
+	cmpl	-112(fp),-116(fp)
+	bgequ	noname.351
+	addl2	#65536,r4
+noname.351:
+	movzwl	-110(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-112(fp),r0
+	ashl	#16,r0,-116(fp)
+	addl2	-116(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-116(fp)
+	bgequ	noname.352
+	incl	r4
+noname.352:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.353
+	incl	r2
+noname.353:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.354
+	incl	r10
+noname.354:
+
+	movl	r9,16(r11)
+
+	clrl	r9
+
+	bicl3	#-65536,8(r6),r3
+	movzwl	10(r6),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,12(r7),r2
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-120(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-124(fp)
+	mull2	r0,r4
+	addl3	-120(fp),-124(fp),r0
+	bicl3	#0,r0,-120(fp)
+	cmpl	-120(fp),-124(fp)
+	bgequ	noname.355
+	addl2	#65536,r4
+noname.355:
+	movzwl	-118(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-120(fp),r0
+	ashl	#16,r0,-124(fp)
+	addl2	-124(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-124(fp)
+	bgequ	noname.356
+	incl	r4
+noname.356:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.357
+	incl	r2
+noname.357:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.358
+	incl	r9
+noname.358:
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,8(r7),r3
+	movzwl	10(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-136(fp)
+	bicl3	#-65536,r2,-140(fp)
+	mull3	r0,-136(fp),-128(fp)
+	mull2	r3,-136(fp)
+	mull3	r3,-140(fp),-132(fp)
+	mull2	r0,-140(fp)
+	addl3	-128(fp),-132(fp),r0
+	bicl3	#0,r0,-128(fp)
+	cmpl	-128(fp),-132(fp)
+	bgequ	noname.359
+	addl2	#65536,-140(fp)
+noname.359:
+	movzwl	-126(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-140(fp)
+	bicl3	#-65536,-128(fp),r0
+	ashl	#16,r0,-132(fp)
+	addl3	-132(fp),-136(fp),r0
+	bicl3	#0,r0,-136(fp)
+	cmpl	-136(fp),-132(fp)
+	bgequ	noname.360
+	incl	-140(fp)
+noname.360:
+	movl	-136(fp),r1
+	movl	-140(fp),r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.361
+	incl	r2
+noname.361:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.362
+	incl	r9
+noname.362:
+
+	movl	r8,20(r11)
+
+	clrl	r8
+
+	movzwl	14(r6),r2
+	bicl3	#-65536,12(r7),r3
+	movzwl	14(r7),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r6),-152(fp)
+	bicl3	#-65536,r2,-156(fp)
+	mull3	r0,-152(fp),-144(fp)
+	mull2	r3,-152(fp)
+	mull3	r3,-156(fp),-148(fp)
+	mull2	r0,-156(fp)
+	addl3	-144(fp),-148(fp),r0
+	bicl3	#0,r0,-144(fp)
+	cmpl	-144(fp),-148(fp)
+	bgequ	noname.363
+	addl2	#65536,-156(fp)
+noname.363:
+	movzwl	-142(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-156(fp)
+	bicl3	#-65536,-144(fp),r0
+	ashl	#16,r0,-148(fp)
+	addl3	-148(fp),-152(fp),r0
+	bicl3	#0,r0,-152(fp)
+	cmpl	-152(fp),-148(fp)
+	bgequ	noname.364
+	incl	-156(fp)
+noname.364:
+	movl	-152(fp),r1
+	movl	-156(fp),r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.365
+	incl	r2
+noname.365:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.366
+	incl	r8
+noname.366:
+
+	movl	r10,24(r11)
+
+	movl	r9,28(r11)
+
+	ret	
+
+
+
+;r=4 ;(AP)
+;a=8 ;(AP)
+;b=12 ;(AP)
+;n=16 ;(AP)	n	by value (input)
+
+	.psect	code,nowrt
+
+.entry	BN_SQR_COMBA8,^m<r2,r3,r4,r5,r6,r7,r8,r9>
+	movab	-444(sp),sp
+
+	clrq	r8
+
+	clrl	r7
+
+	movl	8(ap),r4
+	movl	(r4),r3
+	bicl3	#-65536,r3,-4(fp)
+	extzv	#16,#16,r3,r0
+	bicl3	#-65536,r0,r3
+	movl	-4(fp),r0
+	mull3	r0,r3,-8(fp)
+	mull3	r0,r0,-4(fp)
+	mull2	r3,r3
+	bicl3	#32767,-8(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r3
+	bicl3	#-65536,-8(fp),r0
+	ashl	#17,r0,-8(fp)
+	addl3	-4(fp),-8(fp),r0
+	bicl3	#0,r0,-4(fp)
+	cmpl	-4(fp),-8(fp)
+	bgequ	noname.369
+	incl	r3
+noname.369:
+	movl	-4(fp),r1
+	movl	r3,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.370
+	incl	r2
+noname.370:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.371
+	incl	r7
+noname.371:
+
+	movl	r9,@4(ap)
+
+	clrl	r9
+
+	movzwl	6(r4),r2
+	bicl3	#-65536,(r4),r3
+	movzwl	2(r4),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,4(r4),-20(fp)
+	bicl3	#-65536,r2,-24(fp)
+	mull3	r0,-20(fp),-12(fp)
+	mull2	r3,-20(fp)
+	mull3	r3,-24(fp),-16(fp)
+	mull2	r0,-24(fp)
+	addl3	-12(fp),-16(fp),r0
+	bicl3	#0,r0,-12(fp)
+	cmpl	-12(fp),-16(fp)
+	bgequ	noname.372
+	addl2	#65536,-24(fp)
+noname.372:
+	movzwl	-10(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-24(fp)
+	bicl3	#-65536,-12(fp),r0
+	ashl	#16,r0,-16(fp)
+	addl3	-16(fp),-20(fp),r0
+	bicl3	#0,r0,-20(fp)
+	cmpl	-20(fp),-16(fp)
+	bgequ	noname.373
+	incl	-24(fp)
+noname.373:
+	movl	-20(fp),r3
+	movl	-24(fp),r2
+	bbc	#31,r2,noname.374
+	incl	r9
+noname.374:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.375
+	incl	r2
+noname.375:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.376
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.376
+	incl	r9
+noname.376:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.377
+	incl	r9
+noname.377:
+
+	movl	4(ap),r0
+	movl	r8,4(r0)
+
+	clrl	r8
+
+	movl	8(ap),r4
+	movl	4(r4),r3
+	bicl3	#-65536,r3,-28(fp)
+	extzv	#16,#16,r3,r0
+	bicl3	#-65536,r0,r3
+	movl	-28(fp),r0
+	mull3	r0,r3,-32(fp)
+	mull3	r0,r0,-28(fp)
+	mull2	r3,r3
+	bicl3	#32767,-32(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r3
+	bicl3	#-65536,-32(fp),r0
+	ashl	#17,r0,-32(fp)
+	addl3	-28(fp),-32(fp),r0
+	bicl3	#0,r0,-28(fp)
+	cmpl	-28(fp),-32(fp)
+	bgequ	noname.378
+	incl	r3
+noname.378:
+	movl	-28(fp),r1
+	movl	r3,r2
+	addl2	r1,r7
+	bicl2	#0,r7
+	cmpl	r7,r1
+	bgequ	noname.379
+	incl	r2
+noname.379:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.380
+	incl	r8
+noname.380:
+
+	movzwl	10(r4),r2
+	bicl3	#-65536,(r4),r3
+	movzwl	2(r4),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,8(r4),-44(fp)
+	bicl3	#-65536,r2,-48(fp)
+	mull3	r0,-44(fp),-36(fp)
+	mull2	r3,-44(fp)
+	mull3	r3,-48(fp),-40(fp)
+	mull2	r0,-48(fp)
+	addl3	-36(fp),-40(fp),r0
+	bicl3	#0,r0,-36(fp)
+	cmpl	-36(fp),-40(fp)
+	bgequ	noname.381
+	addl2	#65536,-48(fp)
+noname.381:
+	movzwl	-34(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-48(fp)
+	bicl3	#-65536,-36(fp),r0
+	ashl	#16,r0,-40(fp)
+	addl3	-40(fp),-44(fp),r0
+	bicl3	#0,r0,-44(fp)
+	cmpl	-44(fp),-40(fp)
+	bgequ	noname.382
+	incl	-48(fp)
+noname.382:
+	movl	-44(fp),r3
+	movl	-48(fp),r2
+	bbc	#31,r2,noname.383
+	incl	r8
+noname.383:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.384
+	incl	r2
+noname.384:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.385
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.385
+	incl	r8
+noname.385:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.386
+	incl	r8
+noname.386:
+
+	movl	4(ap),r0
+	movl	r7,8(r0)
+
+	clrl	r7
+
+	movl	8(ap),r0
+	movzwl	14(r0),r2
+	bicl3	#-65536,(r0),r3
+	movzwl	2(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,12(r0),-60(fp)
+	bicl3	#-65536,r2,-64(fp)
+	mull3	r1,-60(fp),-52(fp)
+	mull2	r3,-60(fp)
+	mull3	r3,-64(fp),-56(fp)
+	mull2	r1,-64(fp)
+	addl3	-52(fp),-56(fp),r0
+	bicl3	#0,r0,-52(fp)
+	cmpl	-52(fp),-56(fp)
+	bgequ	noname.387
+	addl2	#65536,-64(fp)
+noname.387:
+	movzwl	-50(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-64(fp)
+	bicl3	#-65536,-52(fp),r0
+	ashl	#16,r0,-56(fp)
+	addl3	-56(fp),-60(fp),r0
+	bicl3	#0,r0,-60(fp)
+	cmpl	-60(fp),-56(fp)
+	bgequ	noname.388
+	incl	-64(fp)
+noname.388:
+	movl	-60(fp),r3
+	movl	-64(fp),r2
+	bbc	#31,r2,noname.389
+	incl	r7
+noname.389:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.390
+	incl	r2
+noname.390:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.391
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.391
+	incl	r7
+noname.391:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.392
+	incl	r7
+noname.392:
+
+	movl	8(ap),r0
+	movzwl	10(r0),r2
+	bicl3	#-65536,4(r0),r3
+	movzwl	6(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,8(r0),-76(fp)
+	bicl3	#-65536,r2,-80(fp)
+	mull3	r1,-76(fp),-68(fp)
+	mull2	r3,-76(fp)
+	mull3	r3,-80(fp),-72(fp)
+	mull2	r1,-80(fp)
+	addl3	-68(fp),-72(fp),r0
+	bicl3	#0,r0,-68(fp)
+	cmpl	-68(fp),-72(fp)
+	bgequ	noname.393
+	addl2	#65536,-80(fp)
+noname.393:
+	movzwl	-66(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-80(fp)
+	bicl3	#-65536,-68(fp),r0
+	ashl	#16,r0,-72(fp)
+	addl3	-72(fp),-76(fp),r0
+	bicl3	#0,r0,-76(fp)
+	cmpl	-76(fp),-72(fp)
+	bgequ	noname.394
+	incl	-80(fp)
+noname.394:
+	movl	-76(fp),r3
+	movl	-80(fp),r2
+	bbc	#31,r2,noname.395
+	incl	r7
+noname.395:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.396
+	incl	r2
+noname.396:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.397
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.397
+	incl	r7
+noname.397:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.398
+	incl	r7
+noname.398:
+
+	movl	4(ap),r0
+	movl	r9,12(r0)
+
+	clrl	r9
+
+	movl	8(ap),r2
+	movl	8(r2),r4
+	bicl3	#-65536,r4,-84(fp)
+	extzv	#16,#16,r4,r0
+	bicl3	#-65536,r0,r4
+	movl	-84(fp),r0
+	mull3	r0,r4,-88(fp)
+	mull3	r0,r0,-84(fp)
+	mull2	r4,r4
+	bicl3	#32767,-88(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r4
+	bicl3	#-65536,-88(fp),r0
+	ashl	#17,r0,-88(fp)
+	addl3	-84(fp),-88(fp),r0
+	bicl3	#0,r0,-84(fp)
+	cmpl	-84(fp),-88(fp)
+	bgequ	noname.399
+	incl	r4
+noname.399:
+	movl	-84(fp),r1
+	movl	r4,r3
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.400
+	incl	r3
+noname.400:
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.401
+	incl	r9
+noname.401:
+
+	movzwl	14(r2),r3
+	bicl3	#-65536,4(r2),r1
+	movzwl	6(r2),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,12(r2),-100(fp)
+	bicl3	#-65536,r3,-104(fp)
+	mull3	r0,-100(fp),-92(fp)
+	mull2	r1,-100(fp)
+	mull3	r1,-104(fp),-96(fp)
+	mull2	r0,-104(fp)
+	addl3	-92(fp),-96(fp),r0
+	bicl3	#0,r0,-92(fp)
+	cmpl	-92(fp),-96(fp)
+	bgequ	noname.402
+	addl2	#65536,-104(fp)
+noname.402:
+	movzwl	-90(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-104(fp)
+	bicl3	#-65536,-92(fp),r0
+	ashl	#16,r0,-96(fp)
+	addl3	-96(fp),-100(fp),r0
+	bicl3	#0,r0,-100(fp)
+	cmpl	-100(fp),-96(fp)
+	bgequ	noname.403
+	incl	-104(fp)
+noname.403:
+	movl	-100(fp),r3
+	movl	-104(fp),r2
+	bbc	#31,r2,noname.404
+	incl	r9
+noname.404:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.405
+	incl	r2
+noname.405:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.406
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.406
+	incl	r9
+noname.406:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.407
+	incl	r9
+noname.407:
+
+	movl	8(ap),r0
+	movzwl	18(r0),r2
+	bicl3	#-65536,(r0),r3
+	movzwl	2(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,16(r0),-116(fp)
+	bicl3	#-65536,r2,-120(fp)
+	mull3	r1,-116(fp),-108(fp)
+	mull2	r3,-116(fp)
+	mull3	r3,-120(fp),-112(fp)
+	mull2	r1,-120(fp)
+	addl3	-108(fp),-112(fp),r0
+	bicl3	#0,r0,-108(fp)
+	cmpl	-108(fp),-112(fp)
+	bgequ	noname.408
+	addl2	#65536,-120(fp)
+noname.408:
+	movzwl	-106(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-120(fp)
+	bicl3	#-65536,-108(fp),r0
+	ashl	#16,r0,-112(fp)
+	addl3	-112(fp),-116(fp),r0
+	bicl3	#0,r0,-116(fp)
+	cmpl	-116(fp),-112(fp)
+	bgequ	noname.409
+	incl	-120(fp)
+noname.409:
+	movl	-116(fp),r3
+	movl	-120(fp),r2
+	bbc	#31,r2,noname.410
+	incl	r9
+noname.410:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.411
+	incl	r2
+noname.411:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.412
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.412
+	incl	r9
+noname.412:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.413
+	incl	r9
+noname.413:
+
+	movl	4(ap),r0
+	movl	r8,16(r0)
+
+	clrl	r8
+
+	movl	8(ap),r0
+	movzwl	22(r0),r2
+	bicl3	#-65536,(r0),r3
+	movzwl	2(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,20(r0),-132(fp)
+	bicl3	#-65536,r2,-136(fp)
+	mull3	r1,-132(fp),-124(fp)
+	mull2	r3,-132(fp)
+	mull3	r3,-136(fp),-128(fp)
+	mull2	r1,-136(fp)
+	addl3	-124(fp),-128(fp),r0
+	bicl3	#0,r0,-124(fp)
+	cmpl	-124(fp),-128(fp)
+	bgequ	noname.414
+	addl2	#65536,-136(fp)
+noname.414:
+	movzwl	-122(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-136(fp)
+	bicl3	#-65536,-124(fp),r0
+	ashl	#16,r0,-128(fp)
+	addl3	-128(fp),-132(fp),r0
+	bicl3	#0,r0,-132(fp)
+	cmpl	-132(fp),-128(fp)
+	bgequ	noname.415
+	incl	-136(fp)
+noname.415:
+	movl	-132(fp),r3
+	movl	-136(fp),r2
+	bbc	#31,r2,noname.416
+	incl	r8
+noname.416:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.417
+	incl	r2
+noname.417:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.418
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.418
+	incl	r8
+noname.418:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.419
+	incl	r8
+noname.419:
+
+	movl	8(ap),r0
+	movzwl	18(r0),r2
+	bicl3	#-65536,4(r0),r3
+	movzwl	6(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,16(r0),-148(fp)
+	bicl3	#-65536,r2,-152(fp)
+	mull3	r1,-148(fp),-140(fp)
+	mull2	r3,-148(fp)
+	mull3	r3,-152(fp),-144(fp)
+	mull2	r1,-152(fp)
+	addl3	-140(fp),-144(fp),r0
+	bicl3	#0,r0,-140(fp)
+	cmpl	-140(fp),-144(fp)
+	bgequ	noname.420
+	addl2	#65536,-152(fp)
+noname.420:
+	movzwl	-138(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-152(fp)
+	bicl3	#-65536,-140(fp),r0
+	ashl	#16,r0,-144(fp)
+	addl3	-144(fp),-148(fp),r0
+	bicl3	#0,r0,-148(fp)
+	cmpl	-148(fp),-144(fp)
+	bgequ	noname.421
+	incl	-152(fp)
+noname.421:
+	movl	-148(fp),r3
+	movl	-152(fp),r2
+	bbc	#31,r2,noname.422
+	incl	r8
+noname.422:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.423
+	incl	r2
+noname.423:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.424
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.424
+	incl	r8
+noname.424:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.425
+	incl	r8
+noname.425:
+
+	movl	8(ap),r0
+	movzwl	14(r0),r2
+	bicl3	#-65536,8(r0),r3
+	movzwl	10(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,12(r0),-164(fp)
+	bicl3	#-65536,r2,-168(fp)
+	mull3	r1,-164(fp),-156(fp)
+	mull2	r3,-164(fp)
+	mull3	r3,-168(fp),-160(fp)
+	mull2	r1,-168(fp)
+	addl3	-156(fp),-160(fp),r0
+	bicl3	#0,r0,-156(fp)
+	cmpl	-156(fp),-160(fp)
+	bgequ	noname.426
+	addl2	#65536,-168(fp)
+noname.426:
+	movzwl	-154(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-168(fp)
+	bicl3	#-65536,-156(fp),r0
+	ashl	#16,r0,-160(fp)
+	addl3	-160(fp),-164(fp),r0
+	bicl3	#0,r0,-164(fp)
+	cmpl	-164(fp),-160(fp)
+	bgequ	noname.427
+	incl	-168(fp)
+noname.427:
+	movl	-164(fp),r3
+	movl	-168(fp),r2
+	bbc	#31,r2,noname.428
+	incl	r8
+noname.428:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.429
+	incl	r2
+noname.429:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.430
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.430
+	incl	r8
+noname.430:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.431
+	incl	r8
+noname.431:
+
+	movl	4(ap),r0
+	movl	r7,20(r0)
+
+	clrl	r7
+
+	movl	8(ap),r2
+	movl	12(r2),r4
+	bicl3	#-65536,r4,-172(fp)
+	extzv	#16,#16,r4,r0
+	bicl3	#-65536,r0,r4
+	movl	-172(fp),r0
+	mull3	r0,r4,-176(fp)
+	mull3	r0,r0,-172(fp)
+	mull2	r4,r4
+	bicl3	#32767,-176(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r4
+	bicl3	#-65536,-176(fp),r0
+	ashl	#17,r0,-176(fp)
+	addl3	-172(fp),-176(fp),r0
+	bicl3	#0,r0,-172(fp)
+	cmpl	-172(fp),-176(fp)
+	bgequ	noname.432
+	incl	r4
+noname.432:
+	movl	-172(fp),r1
+	movl	r4,r3
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.433
+	incl	r3
+noname.433:
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.434
+	incl	r7
+noname.434:
+
+	movzwl	18(r2),r3
+	bicl3	#-65536,8(r2),r1
+	movzwl	10(r2),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,16(r2),-188(fp)
+	bicl3	#-65536,r3,-192(fp)
+	mull3	r0,-188(fp),-180(fp)
+	mull2	r1,-188(fp)
+	mull3	r1,-192(fp),-184(fp)
+	mull2	r0,-192(fp)
+	addl3	-180(fp),-184(fp),r0
+	bicl3	#0,r0,-180(fp)
+	cmpl	-180(fp),-184(fp)
+	bgequ	noname.435
+	addl2	#65536,-192(fp)
+noname.435:
+	movzwl	-178(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-192(fp)
+	bicl3	#-65536,-180(fp),r0
+	ashl	#16,r0,-184(fp)
+	addl3	-184(fp),-188(fp),r0
+	bicl3	#0,r0,-188(fp)
+	cmpl	-188(fp),-184(fp)
+	bgequ	noname.436
+	incl	-192(fp)
+noname.436:
+	movl	-188(fp),r3
+	movl	-192(fp),r2
+	bbc	#31,r2,noname.437
+	incl	r7
+noname.437:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.438
+	incl	r2
+noname.438:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.439
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.439
+	incl	r7
+noname.439:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.440
+	incl	r7
+noname.440:
+
+	movl	8(ap),r0
+	movzwl	22(r0),r2
+	bicl3	#-65536,4(r0),r3
+	movzwl	6(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,20(r0),-204(fp)
+	bicl3	#-65536,r2,-208(fp)
+	mull3	r1,-204(fp),-196(fp)
+	mull2	r3,-204(fp)
+	mull3	r3,-208(fp),-200(fp)
+	mull2	r1,-208(fp)
+	addl3	-196(fp),-200(fp),r0
+	bicl3	#0,r0,-196(fp)
+	cmpl	-196(fp),-200(fp)
+	bgequ	noname.441
+	addl2	#65536,-208(fp)
+noname.441:
+	movzwl	-194(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-208(fp)
+	bicl3	#-65536,-196(fp),r0
+	ashl	#16,r0,-200(fp)
+	addl3	-200(fp),-204(fp),r0
+	bicl3	#0,r0,-204(fp)
+	cmpl	-204(fp),-200(fp)
+	bgequ	noname.442
+	incl	-208(fp)
+noname.442:
+	movl	-204(fp),r3
+	movl	-208(fp),r2
+	bbc	#31,r2,noname.443
+	incl	r7
+noname.443:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.444
+	incl	r2
+noname.444:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.445
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.445
+	incl	r7
+noname.445:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.446
+	incl	r7
+noname.446:
+
+	movl	8(ap),r0
+	movzwl	26(r0),r2
+	bicl3	#-65536,(r0),r3
+	movzwl	2(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,24(r0),-220(fp)
+	bicl3	#-65536,r2,-224(fp)
+	mull3	r1,-220(fp),-212(fp)
+	mull2	r3,-220(fp)
+	mull3	r3,-224(fp),-216(fp)
+	mull2	r1,-224(fp)
+	addl3	-212(fp),-216(fp),r0
+	bicl3	#0,r0,-212(fp)
+	cmpl	-212(fp),-216(fp)
+	bgequ	noname.447
+	addl2	#65536,-224(fp)
+noname.447:
+	movzwl	-210(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-224(fp)
+	bicl3	#-65536,-212(fp),r0
+	ashl	#16,r0,-216(fp)
+	addl3	-216(fp),-220(fp),r0
+	bicl3	#0,r0,-220(fp)
+	cmpl	-220(fp),-216(fp)
+	bgequ	noname.448
+	incl	-224(fp)
+noname.448:
+	movl	-220(fp),r3
+	movl	-224(fp),r2
+	bbc	#31,r2,noname.449
+	incl	r7
+noname.449:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.450
+	incl	r2
+noname.450:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.451
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.451
+	incl	r7
+noname.451:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.452
+	incl	r7
+noname.452:
+
+	movl	4(ap),r0
+	movl	r9,24(r0)
+
+	clrl	r9
+
+	movl	8(ap),r0
+	movzwl	30(r0),r2
+	bicl3	#-65536,(r0),r3
+	movzwl	2(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,28(r0),-236(fp)
+	bicl3	#-65536,r2,-240(fp)
+	mull3	r1,-236(fp),-228(fp)
+	mull2	r3,-236(fp)
+	mull3	r3,-240(fp),-232(fp)
+	mull2	r1,-240(fp)
+	addl3	-228(fp),-232(fp),r0
+	bicl3	#0,r0,-228(fp)
+	cmpl	-228(fp),-232(fp)
+	bgequ	noname.453
+	addl2	#65536,-240(fp)
+noname.453:
+	movzwl	-226(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-240(fp)
+	bicl3	#-65536,-228(fp),r0
+	ashl	#16,r0,-232(fp)
+	addl3	-232(fp),-236(fp),r0
+	bicl3	#0,r0,-236(fp)
+	cmpl	-236(fp),-232(fp)
+	bgequ	noname.454
+	incl	-240(fp)
+noname.454:
+	movl	-236(fp),r3
+	movl	-240(fp),r2
+	bbc	#31,r2,noname.455
+	incl	r9
+noname.455:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.456
+	incl	r2
+noname.456:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.457
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.457
+	incl	r9
+noname.457:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.458
+	incl	r9
+noname.458:
+
+	movl	8(ap),r0
+	movzwl	26(r0),r2
+	bicl3	#-65536,4(r0),r3
+	movzwl	6(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,24(r0),-252(fp)
+	bicl3	#-65536,r2,-256(fp)
+	mull3	r1,-252(fp),-244(fp)
+	mull2	r3,-252(fp)
+	mull3	r3,-256(fp),-248(fp)
+	mull2	r1,-256(fp)
+	addl3	-244(fp),-248(fp),r0
+	bicl3	#0,r0,-244(fp)
+	cmpl	-244(fp),-248(fp)
+	bgequ	noname.459
+	addl2	#65536,-256(fp)
+noname.459:
+	movzwl	-242(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-256(fp)
+	bicl3	#-65536,-244(fp),r0
+	ashl	#16,r0,-248(fp)
+	addl3	-248(fp),-252(fp),r0
+	bicl3	#0,r0,-252(fp)
+	cmpl	-252(fp),-248(fp)
+	bgequ	noname.460
+	incl	-256(fp)
+noname.460:
+	movl	-252(fp),r3
+	movl	-256(fp),r2
+	bbc	#31,r2,noname.461
+	incl	r9
+noname.461:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.462
+	incl	r2
+noname.462:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.463
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.463
+	incl	r9
+noname.463:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.464
+	incl	r9
+noname.464:
+
+	movl	8(ap),r0
+	movzwl	22(r0),r2
+	bicl3	#-65536,8(r0),r3
+	movzwl	10(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,20(r0),-268(fp)
+	bicl3	#-65536,r2,-272(fp)
+	mull3	r1,-268(fp),-260(fp)
+	mull2	r3,-268(fp)
+	mull3	r3,-272(fp),-264(fp)
+	mull2	r1,-272(fp)
+	addl3	-260(fp),-264(fp),r0
+	bicl3	#0,r0,-260(fp)
+	cmpl	-260(fp),-264(fp)
+	bgequ	noname.465
+	addl2	#65536,-272(fp)
+noname.465:
+	movzwl	-258(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-272(fp)
+	bicl3	#-65536,-260(fp),r0
+	ashl	#16,r0,-264(fp)
+	addl3	-264(fp),-268(fp),r0
+	bicl3	#0,r0,-268(fp)
+	cmpl	-268(fp),-264(fp)
+	bgequ	noname.466
+	incl	-272(fp)
+noname.466:
+	movl	-268(fp),r3
+	movl	-272(fp),r2
+	bbc	#31,r2,noname.467
+	incl	r9
+noname.467:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.468
+	incl	r2
+noname.468:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.469
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.469
+	incl	r9
+noname.469:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.470
+	incl	r9
+noname.470:
+
+	movl	8(ap),r0
+	movzwl	18(r0),r2
+	bicl3	#-65536,12(r0),r3
+	movzwl	14(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,16(r0),-284(fp)
+	bicl3	#-65536,r2,-288(fp)
+	mull3	r1,-284(fp),-276(fp)
+	mull2	r3,-284(fp)
+	mull3	r3,-288(fp),-280(fp)
+	mull2	r1,-288(fp)
+	addl3	-276(fp),-280(fp),r0
+	bicl3	#0,r0,-276(fp)
+	cmpl	-276(fp),-280(fp)
+	bgequ	noname.471
+	addl2	#65536,-288(fp)
+noname.471:
+	movzwl	-274(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-288(fp)
+	bicl3	#-65536,-276(fp),r0
+	ashl	#16,r0,-280(fp)
+	addl3	-280(fp),-284(fp),r0
+	bicl3	#0,r0,-284(fp)
+	cmpl	-284(fp),-280(fp)
+	bgequ	noname.472
+	incl	-288(fp)
+noname.472:
+	movl	-284(fp),r3
+	movl	-288(fp),r2
+	bbc	#31,r2,noname.473
+	incl	r9
+noname.473:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.474
+	incl	r2
+noname.474:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.475
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.475
+	incl	r9
+noname.475:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.476
+	incl	r9
+noname.476:
+
+	movl	4(ap),r0
+	movl	r8,28(r0)
+
+	clrl	r8
+
+	movl	8(ap),r3
+	movl	16(r3),r4
+	bicl3	#-65536,r4,r5
+	extzv	#16,#16,r4,r0
+	bicl3	#-65536,r0,r4
+	mull3	r5,r4,-292(fp)
+	mull2	r5,r5
+	mull2	r4,r4
+	bicl3	#32767,-292(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r4
+	bicl3	#-65536,-292(fp),r0
+	ashl	#17,r0,-292(fp)
+	addl2	-292(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-292(fp)
+	bgequ	noname.477
+	incl	r4
+noname.477:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r7
+	bicl2	#0,r7
+	cmpl	r7,r1
+	bgequ	noname.478
+	incl	r2
+noname.478:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.479
+	incl	r8
+noname.479:
+
+	bicl3	#-65536,20(r3),r4
+	movzwl	22(r3),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,12(r3),r2
+	movzwl	14(r3),r0
+	bicl2	#-65536,r0
+	movl	r4,r6
+	movl	r1,r5
+	mull3	r0,r6,-296(fp)
+	mull2	r2,r6
+	mull3	r2,r5,-300(fp)
+	mull2	r0,r5
+	addl3	-296(fp),-300(fp),r0
+	bicl3	#0,r0,-296(fp)
+	cmpl	-296(fp),-300(fp)
+	bgequ	noname.480
+	addl2	#65536,r5
+noname.480:
+	movzwl	-294(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r5
+	bicl3	#-65536,-296(fp),r0
+	ashl	#16,r0,-300(fp)
+	addl2	-300(fp),r6
+	bicl2	#0,r6
+	cmpl	r6,-300(fp)
+	bgequ	noname.481
+	incl	r5
+noname.481:
+	movl	r6,r3
+	movl	r5,r2
+	bbc	#31,r2,noname.482
+	incl	r8
+noname.482:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.483
+	incl	r2
+noname.483:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.484
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.484
+	incl	r8
+noname.484:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.485
+	incl	r8
+noname.485:
+
+	movl	8(ap),r0
+	bicl3	#-65536,24(r0),r3
+	movzwl	26(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,8(r0),r2
+	movzwl	10(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-304(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-308(fp)
+	mull2	r0,r4
+	addl3	-304(fp),-308(fp),r0
+	bicl3	#0,r0,-304(fp)
+	cmpl	-304(fp),-308(fp)
+	bgequ	noname.486
+	addl2	#65536,r4
+noname.486:
+	movzwl	-302(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-304(fp),r0
+	ashl	#16,r0,-308(fp)
+	addl2	-308(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-308(fp)
+	bgequ	noname.487
+	incl	r4
+noname.487:
+	movl	r5,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.488
+	incl	r8
+noname.488:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.489
+	incl	r2
+noname.489:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.490
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.490
+	incl	r8
+noname.490:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.491
+	incl	r8
+noname.491:
+
+	movl	8(ap),r0
+	bicl3	#-65536,28(r0),r3
+	movzwl	30(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,4(r0),r2
+	movzwl	6(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-312(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-316(fp)
+	mull2	r0,r4
+	addl3	-312(fp),-316(fp),r0
+	bicl3	#0,r0,-312(fp)
+	cmpl	-312(fp),-316(fp)
+	bgequ	noname.492
+	addl2	#65536,r4
+noname.492:
+	movzwl	-310(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-312(fp),r0
+	ashl	#16,r0,-316(fp)
+	addl2	-316(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-316(fp)
+	bgequ	noname.493
+	incl	r4
+noname.493:
+	movl	r5,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.494
+	incl	r8
+noname.494:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.495
+	incl	r2
+noname.495:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.496
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.496
+	incl	r8
+noname.496:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.497
+	incl	r8
+noname.497:
+
+	movl	4(ap),r0
+	movl	r7,32(r0)
+
+	clrl	r7
+
+	movl	8(ap),r0
+	bicl3	#-65536,28(r0),r3
+	movzwl	30(r0),r2
+	bicl3	#-65536,8(r0),r1
+	movzwl	10(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r4
+	bicl3	#-65536,r2,-328(fp)
+	mull3	r0,r4,-320(fp)
+	mull2	r1,r4
+	mull3	r1,-328(fp),-324(fp)
+	mull2	r0,-328(fp)
+	addl3	-320(fp),-324(fp),r0
+	bicl3	#0,r0,-320(fp)
+	cmpl	-320(fp),-324(fp)
+	bgequ	noname.498
+	addl2	#65536,-328(fp)
+noname.498:
+	movzwl	-318(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-328(fp)
+	bicl3	#-65536,-320(fp),r0
+	ashl	#16,r0,-324(fp)
+	addl2	-324(fp),r4
+	bicl2	#0,r4
+	cmpl	r4,-324(fp)
+	bgequ	noname.499
+	incl	-328(fp)
+noname.499:
+	movl	r4,r3
+	movl	-328(fp),r2
+	bbc	#31,r2,noname.500
+	incl	r7
+noname.500:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.501
+	incl	r2
+noname.501:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.502
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.502
+	incl	r7
+noname.502:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.503
+	incl	r7
+noname.503:
+
+	movl	8(ap),r0
+	movzwl	26(r0),r2
+	bicl3	#-65536,12(r0),r3
+	movzwl	14(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,24(r0),-340(fp)
+	bicl3	#-65536,r2,-344(fp)
+	mull3	r1,-340(fp),-332(fp)
+	mull2	r3,-340(fp)
+	mull3	r3,-344(fp),-336(fp)
+	mull2	r1,-344(fp)
+	addl3	-332(fp),-336(fp),r0
+	bicl3	#0,r0,-332(fp)
+	cmpl	-332(fp),-336(fp)
+	bgequ	noname.504
+	addl2	#65536,-344(fp)
+noname.504:
+	movzwl	-330(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-344(fp)
+	bicl3	#-65536,-332(fp),r0
+	ashl	#16,r0,-336(fp)
+	addl3	-336(fp),-340(fp),r0
+	bicl3	#0,r0,-340(fp)
+	cmpl	-340(fp),-336(fp)
+	bgequ	noname.505
+	incl	-344(fp)
+noname.505:
+	movl	-340(fp),r3
+	movl	-344(fp),r2
+	bbc	#31,r2,noname.506
+	incl	r7
+noname.506:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.507
+	incl	r2
+noname.507:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.508
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.508
+	incl	r7
+noname.508:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.509
+	incl	r7
+noname.509:
+
+	movl	8(ap),r0
+	movzwl	22(r0),r2
+	bicl3	#-65536,16(r0),r3
+	movzwl	18(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,20(r0),-356(fp)
+	bicl3	#-65536,r2,-360(fp)
+	mull3	r1,-356(fp),-348(fp)
+	mull2	r3,-356(fp)
+	mull3	r3,-360(fp),-352(fp)
+	mull2	r1,-360(fp)
+	addl3	-348(fp),-352(fp),r0
+	bicl3	#0,r0,-348(fp)
+	cmpl	-348(fp),-352(fp)
+	bgequ	noname.510
+	addl2	#65536,-360(fp)
+noname.510:
+	movzwl	-346(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-360(fp)
+	bicl3	#-65536,-348(fp),r0
+	ashl	#16,r0,-352(fp)
+	addl3	-352(fp),-356(fp),r0
+	bicl3	#0,r0,-356(fp)
+	cmpl	-356(fp),-352(fp)
+	bgequ	noname.511
+	incl	-360(fp)
+noname.511:
+	movl	-356(fp),r3
+	movl	-360(fp),r2
+	bbc	#31,r2,noname.512
+	incl	r7
+noname.512:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.513
+	incl	r2
+noname.513:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.514
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.514
+	incl	r7
+noname.514:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.515
+	incl	r7
+noname.515:
+
+	movl	4(ap),r0
+	movl	r9,36(r0)
+
+	clrl	r9
+
+	movl	8(ap),r3
+	movl	20(r3),r4
+	bicl3	#-65536,r4,-364(fp)
+	extzv	#16,#16,r4,r0
+	bicl3	#-65536,r0,r4
+	movl	-364(fp),r0
+	mull3	r0,r4,-368(fp)
+	mull3	r0,r0,-364(fp)
+	mull2	r4,r4
+	bicl3	#32767,-368(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r4
+	bicl3	#-65536,-368(fp),r0
+	ashl	#17,r0,-368(fp)
+	addl3	-364(fp),-368(fp),r0
+	bicl3	#0,r0,-364(fp)
+	cmpl	-364(fp),-368(fp)
+	bgequ	noname.516
+	incl	r4
+noname.516:
+	movl	-364(fp),r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.517
+	incl	r2
+noname.517:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.518
+	incl	r9
+noname.518:
+
+	bicl3	#-65536,24(r3),r4
+	movzwl	26(r3),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,16(r3),r2
+	movzwl	18(r3),r0
+	bicl2	#-65536,r0
+	movl	r4,r6
+	movl	r1,r5
+	mull3	r0,r6,-372(fp)
+	mull2	r2,r6
+	mull3	r2,r5,-376(fp)
+	mull2	r0,r5
+	addl3	-372(fp),-376(fp),r0
+	bicl3	#0,r0,-372(fp)
+	cmpl	-372(fp),-376(fp)
+	bgequ	noname.519
+	addl2	#65536,r5
+noname.519:
+	movzwl	-370(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r5
+	bicl3	#-65536,-372(fp),r0
+	ashl	#16,r0,-376(fp)
+	addl2	-376(fp),r6
+	bicl2	#0,r6
+	cmpl	r6,-376(fp)
+	bgequ	noname.520
+	incl	r5
+noname.520:
+	movl	r6,r3
+	movl	r5,r2
+	bbc	#31,r2,noname.521
+	incl	r9
+noname.521:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.522
+	incl	r2
+noname.522:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.523
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.523
+	incl	r9
+noname.523:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.524
+	incl	r9
+noname.524:
+
+	movl	8(ap),r0
+	bicl3	#-65536,28(r0),r3
+	movzwl	30(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,12(r0),r2
+	movzwl	14(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-380(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-384(fp)
+	mull2	r0,r4
+	addl3	-380(fp),-384(fp),r0
+	bicl3	#0,r0,-380(fp)
+	cmpl	-380(fp),-384(fp)
+	bgequ	noname.525
+	addl2	#65536,r4
+noname.525:
+	movzwl	-378(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-380(fp),r0
+	ashl	#16,r0,-384(fp)
+	addl2	-384(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-384(fp)
+	bgequ	noname.526
+	incl	r4
+noname.526:
+	movl	r5,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.527
+	incl	r9
+noname.527:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.528
+	incl	r2
+noname.528:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.529
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.529
+	incl	r9
+noname.529:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.530
+	incl	r9
+noname.530:
+	movl	4(ap),r0
+	movl	r8,40(r0)
+
+	clrl	r8
+
+	movl	8(ap),r0
+	bicl3	#-65536,28(r0),r3
+	movzwl	30(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,16(r0),r2
+	movzwl	18(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-388(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-392(fp)
+	mull2	r0,r4
+	addl3	-388(fp),-392(fp),r0
+	bicl3	#0,r0,-388(fp)
+	cmpl	-388(fp),-392(fp)
+	bgequ	noname.531
+	addl2	#65536,r4
+noname.531:
+	movzwl	-386(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-388(fp),r0
+	ashl	#16,r0,-392(fp)
+	addl2	-392(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-392(fp)
+	bgequ	noname.532
+	incl	r4
+noname.532:
+	movl	r5,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.533
+	incl	r8
+noname.533:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.534
+	incl	r2
+noname.534:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.535
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.535
+	incl	r8
+noname.535:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.536
+	incl	r8
+noname.536:
+
+	movl	8(ap),r0
+	bicl3	#-65536,24(r0),r3
+	movzwl	26(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,20(r0),r2
+	movzwl	22(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-396(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-400(fp)
+	mull2	r0,r4
+	addl3	-396(fp),-400(fp),r0
+	bicl3	#0,r0,-396(fp)
+	cmpl	-396(fp),-400(fp)
+	bgequ	noname.537
+	addl2	#65536,r4
+noname.537:
+	movzwl	-394(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-396(fp),r0
+	ashl	#16,r0,-400(fp)
+	addl2	-400(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-400(fp)
+	bgequ	noname.538
+	incl	r4
+noname.538:
+	movl	r5,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.539
+	incl	r8
+noname.539:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.540
+	incl	r2
+noname.540:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r7
+	bicl2	#0,r7
+	cmpl	r7,r3
+	bgequ	noname.541
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.541
+	incl	r8
+noname.541:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.542
+	incl	r8
+noname.542:
+
+	movl	4(ap),r0
+	movl	r7,44(r0)
+
+	clrl	r7
+
+	movl	8(ap),r3
+	movl	24(r3),r4
+	bicl3	#-65536,r4,r5
+	extzv	#16,#16,r4,r0
+	bicl3	#-65536,r0,r4
+	mull3	r5,r4,-404(fp)
+	mull2	r5,r5
+	mull2	r4,r4
+	bicl3	#32767,-404(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r4
+	bicl3	#-65536,-404(fp),r0
+	ashl	#17,r0,-404(fp)
+	addl2	-404(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-404(fp)
+	bgequ	noname.543
+	incl	r4
+noname.543:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.544
+	incl	r2
+noname.544:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.545
+	incl	r7
+noname.545:
+
+	movzwl	30(r3),r2
+	bicl3	#-65536,20(r3),r1
+	movzwl	22(r3),r0
+	bicl2	#-65536,r0
+	bicl3	#-65536,28(r3),-416(fp)
+	bicl3	#-65536,r2,-420(fp)
+	mull3	r0,-416(fp),-408(fp)
+	mull2	r1,-416(fp)
+	mull3	r1,-420(fp),-412(fp)
+	mull2	r0,-420(fp)
+	addl3	-408(fp),-412(fp),r0
+	bicl3	#0,r0,-408(fp)
+	cmpl	-408(fp),-412(fp)
+	bgequ	noname.546
+	addl2	#65536,-420(fp)
+noname.546:
+	movzwl	-406(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-420(fp)
+	bicl3	#-65536,-408(fp),r0
+	ashl	#16,r0,-412(fp)
+	addl3	-412(fp),-416(fp),r0
+	bicl3	#0,r0,-416(fp)
+	cmpl	-416(fp),-412(fp)
+	bgequ	noname.547
+	incl	-420(fp)
+noname.547:
+	movl	-416(fp),r3
+	movl	-420(fp),r2
+	bbc	#31,r2,noname.548
+	incl	r7
+noname.548:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.549
+	incl	r2
+noname.549:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.550
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.550
+	incl	r7
+noname.550:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.551
+	incl	r7
+noname.551:
+
+	movl	4(ap),r0
+	movl	r9,48(r0)
+
+	clrl	r9
+
+	movl	8(ap),r0
+	movzwl	30(r0),r2
+	bicl3	#-65536,24(r0),r3
+	movzwl	26(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,28(r0),-432(fp)
+	bicl3	#-65536,r2,-436(fp)
+	mull3	r1,-432(fp),-424(fp)
+	mull2	r3,-432(fp)
+	mull3	r3,-436(fp),-428(fp)
+	mull2	r1,-436(fp)
+	addl3	-424(fp),-428(fp),r0
+	bicl3	#0,r0,-424(fp)
+	cmpl	-424(fp),-428(fp)
+	bgequ	noname.552
+	addl2	#65536,-436(fp)
+noname.552:
+	movzwl	-422(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,-436(fp)
+	bicl3	#-65536,-424(fp),r0
+	ashl	#16,r0,-428(fp)
+	addl3	-428(fp),-432(fp),r0
+	bicl3	#0,r0,-432(fp)
+	cmpl	-432(fp),-428(fp)
+	bgequ	noname.553
+	incl	-436(fp)
+noname.553:
+	movl	-432(fp),r3
+	movl	-436(fp),r2
+	bbc	#31,r2,noname.554
+	incl	r9
+noname.554:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.555
+	incl	r2
+noname.555:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.556
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.556
+	incl	r9
+noname.556:
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.557
+	incl	r9
+noname.557:
+
+	movl	4(ap),r4
+	movl	r8,52(r4)
+
+	clrl	r8
+
+	movl	8(ap),r0
+	movl	28(r0),r3
+	bicl3	#-65536,r3,-440(fp)
+	extzv	#16,#16,r3,r0
+	bicl3	#-65536,r0,r3
+	movl	-440(fp),r0
+	mull3	r0,r3,-444(fp)
+	mull3	r0,r0,-440(fp)
+	mull2	r3,r3
+	bicl3	#32767,-444(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r3
+	bicl3	#-65536,-444(fp),r0
+	ashl	#17,r0,-444(fp)
+	addl3	-440(fp),-444(fp),r0
+	bicl3	#0,r0,-440(fp)
+	cmpl	-440(fp),-444(fp)
+	bgequ	noname.558
+	incl	r3
+noname.558:
+	movl	-440(fp),r1
+	movl	r3,r2
+	addl2	r1,r7
+	bicl2	#0,r7
+	cmpl	r7,r1
+	bgequ	noname.559
+	incl	r2
+noname.559:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.560
+	incl	r8
+noname.560:
+
+	movl	r7,56(r4)
+
+	movl	r9,60(r4)
+
+	ret	
+
+
+
+;r=4 ;(AP)
+;a=8 ;(AP)
+;b=12 ;(AP)
+;n=16 ;(AP)	n	by value (input)
+
+	.psect	code,nowrt
+
+.entry	BN_SQR_COMBA4,^m<r2,r3,r4,r5,r6,r7,r8,r9,r10>
+	subl2	#44,sp
+
+	clrq	r8
+
+	clrl	r10
+
+	movl	8(ap),r5
+	movl	(r5),r3
+	bicl3	#-65536,r3,r4
+	extzv	#16,#16,r3,r0
+	bicl3	#-65536,r0,r3
+	mull3	r4,r3,-4(fp)
+	mull2	r4,r4
+	mull2	r3,r3
+	bicl3	#32767,-4(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r3
+	bicl3	#-65536,-4(fp),r0
+	ashl	#17,r0,-4(fp)
+	addl2	-4(fp),r4
+	bicl2	#0,r4
+	cmpl	r4,-4(fp)
+	bgequ	noname.563
+	incl	r3
+noname.563:
+	movl	r4,r1
+	movl	r3,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.564
+	incl	r2
+noname.564:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.565
+	incl	r10
+noname.565:
+
+	movl	r9,@4(ap)
+
+	clrl	r9
+
+	bicl3	#-65536,4(r5),r3
+	movzwl	6(r5),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,(r5),r2
+	movzwl	2(r5),r0
+	bicl2	#-65536,r0
+	movl	r3,r6
+	movl	r1,r4
+	mull3	r0,r6,-8(fp)
+	mull2	r2,r6
+	mull2	r4,r2
+	mull2	r0,r4
+	addl3	-8(fp),r2,r0
+	bicl3	#0,r0,-8(fp)
+	cmpl	-8(fp),r2
+	bgequ	noname.566
+	addl2	#65536,r4
+noname.566:
+	movzwl	-6(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-8(fp),r0
+	ashl	#16,r0,r1
+	addl2	r1,r6
+	bicl2	#0,r6
+	cmpl	r6,r1
+	bgequ	noname.567
+	incl	r4
+noname.567:
+	movl	r6,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.568
+	incl	r9
+noname.568:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.569
+	incl	r2
+noname.569:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.570
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.570
+	incl	r9
+noname.570:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.571
+	incl	r9
+noname.571:
+
+	movl	4(ap),r0
+	movl	r8,4(r0)
+
+	clrl	r8
+
+	movl	8(ap),r4
+	movl	4(r4),r3
+	bicl3	#-65536,r3,r5
+	extzv	#16,#16,r3,r0
+	bicl3	#-65536,r0,r3
+	mull3	r5,r3,r1
+	mull2	r5,r5
+	mull2	r3,r3
+	bicl3	#32767,r1,r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r3
+	bicl2	#-65536,r1
+	ashl	#17,r1,r1
+	addl2	r1,r5
+	bicl2	#0,r5
+	cmpl	r5,r1
+	bgequ	noname.572
+	incl	r3
+noname.572:
+	movl	r5,r1
+	movl	r3,r2
+	addl2	r1,r10
+	bicl2	#0,r10
+	cmpl	r10,r1
+	bgequ	noname.573
+	incl	r2
+noname.573:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.574
+	incl	r8
+noname.574:
+
+	bicl3	#-65536,8(r4),r3
+	movzwl	10(r4),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,(r4),r2
+	movzwl	2(r4),r0
+	bicl2	#-65536,r0
+	movl	r3,r6
+	movl	r1,r5
+	mull3	r0,r6,r7
+	mull2	r2,r6
+	mull2	r5,r2
+	mull2	r0,r5
+	addl2	r2,r7
+	bicl2	#0,r7
+	cmpl	r7,r2
+	bgequ	noname.575
+	addl2	#65536,r5
+noname.575:
+	extzv	#16,#16,r7,r0
+	bicl2	#-65536,r0
+	addl2	r0,r5
+	bicl3	#-65536,r7,r0
+	ashl	#16,r0,r1
+	addl2	r1,r6
+	bicl2	#0,r6
+	cmpl	r6,r1
+	bgequ	noname.576
+	incl	r5
+noname.576:
+	movl	r6,r3
+	movl	r5,r2
+	bbc	#31,r2,noname.577
+	incl	r8
+noname.577:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.578
+	incl	r2
+noname.578:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r10
+	bicl2	#0,r10
+	cmpl	r10,r3
+	bgequ	noname.579
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.579
+	incl	r8
+noname.579:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.580
+	incl	r8
+noname.580:
+
+	movl	4(ap),r0
+	movl	r10,8(r0)
+
+	clrl	r10
+
+	movl	8(ap),r0
+	bicl3	#-65536,12(r0),r3
+	movzwl	14(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,(r0),r2
+	movzwl	2(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,r6
+	mull2	r2,r5
+	mull3	r2,r4,-12(fp)
+	mull2	r0,r4
+	addl2	-12(fp),r6
+	bicl2	#0,r6
+	cmpl	r6,-12(fp)
+	bgequ	noname.581
+	addl2	#65536,r4
+noname.581:
+	extzv	#16,#16,r6,r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,r6,r0
+	ashl	#16,r0,-12(fp)
+	addl2	-12(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-12(fp)
+	bgequ	noname.582
+	incl	r4
+noname.582:
+	movl	r5,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.583
+	incl	r10
+noname.583:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.584
+	incl	r2
+noname.584:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.585
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.585
+	incl	r10
+noname.585:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.586
+	incl	r10
+noname.586:
+
+	movl	8(ap),r0
+	bicl3	#-65536,8(r0),r3
+	movzwl	10(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,4(r0),r2
+	movzwl	6(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-16(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-20(fp)
+	mull2	r0,r4
+	addl3	-16(fp),-20(fp),r0
+	bicl3	#0,r0,-16(fp)
+	cmpl	-16(fp),-20(fp)
+	bgequ	noname.587
+	addl2	#65536,r4
+noname.587:
+	movzwl	-14(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-16(fp),r0
+	ashl	#16,r0,-20(fp)
+	addl2	-20(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-20(fp)
+	bgequ	noname.588
+	incl	r4
+noname.588:
+	movl	r5,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.589
+	incl	r10
+noname.589:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.590
+	incl	r2
+noname.590:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r9
+	bicl2	#0,r9
+	cmpl	r9,r3
+	bgequ	noname.591
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.591
+	incl	r10
+noname.591:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.592
+	incl	r10
+noname.592:
+	movl	4(ap),r0
+	movl	r9,12(r0)
+
+	clrl	r9
+
+	movl	8(ap),r3
+	movl	8(r3),r4
+	bicl3	#-65536,r4,r5
+	extzv	#16,#16,r4,r0
+	bicl3	#-65536,r0,r4
+	mull3	r5,r4,-24(fp)
+	mull2	r5,r5
+	mull2	r4,r4
+	bicl3	#32767,-24(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r4
+	bicl3	#-65536,-24(fp),r0
+	ashl	#17,r0,-24(fp)
+	addl2	-24(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-24(fp)
+	bgequ	noname.593
+	incl	r4
+noname.593:
+	movl	r5,r1
+	movl	r4,r2
+	addl2	r1,r8
+	bicl2	#0,r8
+	cmpl	r8,r1
+	bgequ	noname.594
+	incl	r2
+noname.594:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.595
+	incl	r9
+noname.595:
+
+	bicl3	#-65536,12(r3),r4
+	movzwl	14(r3),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,4(r3),r2
+	movzwl	6(r3),r0
+	bicl2	#-65536,r0
+	movl	r4,r6
+	movl	r1,r5
+	mull3	r0,r6,-28(fp)
+	mull2	r2,r6
+	mull3	r2,r5,-32(fp)
+	mull2	r0,r5
+	addl3	-28(fp),-32(fp),r0
+	bicl3	#0,r0,-28(fp)
+	cmpl	-28(fp),-32(fp)
+	bgequ	noname.596
+	addl2	#65536,r5
+noname.596:
+	movzwl	-26(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r5
+	bicl3	#-65536,-28(fp),r0
+	ashl	#16,r0,-32(fp)
+	addl2	-32(fp),r6
+	bicl2	#0,r6
+	cmpl	r6,-32(fp)
+	bgequ	noname.597
+	incl	r5
+noname.597:
+	movl	r6,r3
+	movl	r5,r2
+	bbc	#31,r2,noname.598
+	incl	r9
+noname.598:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.599
+	incl	r2
+noname.599:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r8
+	bicl2	#0,r8
+	cmpl	r8,r3
+	bgequ	noname.600
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.600
+	incl	r9
+noname.600:
+	addl2	r2,r10
+	bicl2	#0,r10
+	cmpl	r10,r2
+	bgequ	noname.601
+	incl	r9
+noname.601:
+
+	movl	4(ap),r0
+	movl	r8,16(r0)
+
+	clrl	r8
+
+	movl	8(ap),r0
+	bicl3	#-65536,12(r0),r3
+	movzwl	14(r0),r1
+	bicl2	#-65536,r1
+	bicl3	#-65536,8(r0),r2
+	movzwl	10(r0),r0
+	bicl2	#-65536,r0
+	movl	r3,r5
+	movl	r1,r4
+	mull3	r0,r5,-36(fp)
+	mull2	r2,r5
+	mull3	r2,r4,-40(fp)
+	mull2	r0,r4
+	addl3	-36(fp),-40(fp),r0
+	bicl3	#0,r0,-36(fp)
+	cmpl	-36(fp),-40(fp)
+	bgequ	noname.602
+	addl2	#65536,r4
+noname.602:
+	movzwl	-34(fp),r0
+	bicl2	#-65536,r0
+	addl2	r0,r4
+	bicl3	#-65536,-36(fp),r0
+	ashl	#16,r0,-40(fp)
+	addl2	-40(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-40(fp)
+	bgequ	noname.603
+	incl	r4
+noname.603:
+	movl	r5,r3
+	movl	r4,r2
+	bbc	#31,r2,noname.604
+	incl	r8
+noname.604:
+	addl2	r2,r2
+	bicl2	#0,r2
+	bbc	#31,r3,noname.605
+	incl	r2
+noname.605:
+	addl2	r3,r3
+	bicl2	#0,r3
+	addl2	r3,r10
+	bicl2	#0,r10
+	cmpl	r10,r3
+	bgequ	noname.606
+	incl	r2
+	bicl3	#0,r2,r0
+	bneq	noname.606
+	incl	r8
+noname.606:
+	addl2	r2,r9
+	bicl2	#0,r9
+	cmpl	r9,r2
+	bgequ	noname.607
+	incl	r8
+noname.607:
+
+	movl	4(ap),r4
+	movl	r10,20(r4)
+
+	clrl	r10
+
+	movl	8(ap),r0
+	movl	12(r0),r3
+	bicl3	#-65536,r3,r5
+	extzv	#16,#16,r3,r0
+	bicl3	#-65536,r0,r3
+	mull3	r5,r3,-44(fp)
+	mull2	r5,r5
+	mull2	r3,r3
+	bicl3	#32767,-44(fp),r0
+	extzv	#15,#17,r0,r0
+	addl2	r0,r3
+	bicl3	#-65536,-44(fp),r0
+	ashl	#17,r0,-44(fp)
+	addl2	-44(fp),r5
+	bicl2	#0,r5
+	cmpl	r5,-44(fp)
+	bgequ	noname.608
+	incl	r3
+noname.608:
+	movl	r5,r1
+	movl	r3,r2
+	addl2	r1,r9
+	bicl2	#0,r9
+	cmpl	r9,r1
+	bgequ	noname.609
+	incl	r2
+noname.609:
+	addl2	r2,r8
+	bicl2	#0,r8
+	cmpl	r8,r2
+	bgequ	noname.610
+	incl	r10
+noname.610:
+
+	movl	r9,24(r4)
+
+	movl	r8,28(r4)
+
+	ret	
+
+; For now, the code below doesn't work, so I end this prematurely.
+.end

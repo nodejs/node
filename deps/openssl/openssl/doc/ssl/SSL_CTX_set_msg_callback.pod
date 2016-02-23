@@ -1,0 +1,99 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_msg_callback, SSL_CTX_set_msg_callback_arg, SSL_set_msg_callback, SSL_get_msg_callback_arg - install callback for observing protocol messages
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ void SSL_CTX_set_msg_callback(SSL_CTX *ctx, void (*cb)(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg));
+ void SSL_CTX_set_msg_callback_arg(SSL_CTX *ctx, void *arg);
+
+ void SSL_set_msg_callback(SSL *ssl, void (*cb)(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg));
+ void SSL_set_msg_callback_arg(SSL *ssl, void *arg);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_msg_callback() or SSL_set_msg_callback() can be used to
+define a message callback function I<cb> for observing all SSL/TLS
+protocol messages (such as handshake messages) that are received or
+sent.  SSL_CTX_set_msg_callback_arg() and SSL_set_msg_callback_arg()
+can be used to set argument I<arg> to the callback function, which is
+available for arbitrary application use.
+
+SSL_CTX_set_msg_callback() and SSL_CTX_set_msg_callback_arg() specify
+default settings that will be copied to new B<SSL> objects by
+L<SSL_new(3)|SSL_new(3)>. SSL_set_msg_callback() and
+SSL_set_msg_callback_arg() modify the actual settings of an B<SSL>
+object. Using a B<0> pointer for I<cb> disables the message callback.
+
+When I<cb> is called by the SSL/TLS library for a protocol message,
+the function arguments have the following meaning:
+
+=over 4
+
+=item I<write_p>
+
+This flag is B<0> when a protocol message has been received and B<1>
+when a protocol message has been sent.
+
+=item I<version>
+
+The protocol version according to which the protocol message is
+interpreted by the library. Currently, this is one of
+B<SSL2_VERSION>, B<SSL3_VERSION> and B<TLS1_VERSION> (for SSL 2.0, SSL
+3.0 and TLS 1.0, respectively).
+
+=item I<content_type>
+
+In the case of SSL 2.0, this is always B<0>.  In the case of SSL 3.0
+or TLS 1.0, this is one of the B<ContentType> values defined in the
+protocol specification (B<change_cipher_spec(20)>, B<alert(21)>,
+B<handshake(22)>; but never B<application_data(23)> because the
+callback will only be called for protocol messages).
+
+=item I<buf>, I<len>
+
+I<buf> points to a buffer containing the protocol message, which
+consists of I<len> bytes. The buffer is no longer valid after the
+callback function has returned.
+
+=item I<ssl>
+
+The B<SSL> object that received or sent the message.
+
+=item I<arg>
+
+The user-defined argument optionally defined by
+SSL_CTX_set_msg_callback_arg() or SSL_set_msg_callback_arg().
+
+=back
+
+=head1 NOTES
+
+Protocol messages are passed to the callback function after decryption
+and fragment collection where applicable. (Thus record boundaries are
+not visible.)
+
+If processing a received protocol message results in an error,
+the callback function may not be called.  For example, the callback
+function will never see messages that are considered too large to be
+processed.
+
+Due to automatic protocol version negotiation, I<version> is not
+necessarily the protocol version used by the sender of the message: If
+a TLS 1.0 ClientHello message is received by an SSL 3.0-only server,
+I<version> will be B<SSL3_VERSION>.
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>, L<SSL_new(3)|SSL_new(3)>
+
+=head1 HISTORY
+
+SSL_CTX_set_msg_callback(), SSL_CTX_set_msg_callback_arg(),
+SSL_set_msg_callback() and SSL_get_msg_callback_arg() were added in OpenSSL 0.9.7.
+
+=cut

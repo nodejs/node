@@ -1,0 +1,412 @@
+	Fixed the weak key values which were wrong :-(
+	Defining SIGACTION causes sigaction() to be used instead of signal().
+	SIGUSR1/SIGUSR2 are no longer mapped in the read tty stuff because it
+	can cause problems.  This should hopefully not affect normal
+	applications.
+
+Version 4.04
+	Fixed a few tests in destest.  Also added x86 assember for
+	des_ncbc_encrypt() which is the standard cbc mode function.
+	This makes a very very large performace difference.
+	Ariel Glenn ariel@columbia.edu reports that the terminal
+	'turn echo off' can return (errno == EINVAL) under solaris
+	when redirection is used.  So I now catch that as well as ENOTTY.
+
+
+Version 4.03
+	Left a static out of enc_write.c, which caused to buffer to be
+	continiously malloc()ed.  Does anyone use these functions?  I keep
+	on feeling like removing them since I only had these in there
+	for a version of kerberised login.  Anyway, this was pointed out
+	by Theo de Raadt <deraadt@cvs.openbsd.org>
+	The 'n' bit ofb code was wrong, it was not shifting the shift
+	register. It worked correctly for n == 64.  Thanks to
+	Gigi Ankeny <Gigi.Ankeny@Eng.Sun.COM> for pointing this one out.
+
+Version 4.02
+	I was doing 'if (memcmp(weak_keys[i],key,sizeof(key)) == 0)'
+	when checking for weak keys which is wrong :-(, pointed out by
+	Markus F.X.J. Oberhumer <markus.oberhumer@jk.uni-linz.ac.at>.
+
+Version 4.01
+	Even faster inner loop in the DES assembler for x86 and a modification
+	for IP/FP which is faster on x86.  Both of these changes are
+	from Svend Olaf Mikkelsen <svolaf@inet.uni-c.dk>.  His
+	changes make the assembler run %40 faster on a pentium.  This is just
+	a case of getting the instruction sequence 'just right'.
+	All credit to 'Svend' :-)
+	Quite a few special x86 'make' targets.
+	A libdes-l (lite) distribution.
+
+Version 4.00
+	After a bit of a pause, I'll up the major version number since this
+	is mostly a performace release.  I've added x86 assembler and
+	added more options for performance.  A %28 speedup for gcc 
+	on a pentium and the assembler is a %50 speedup.
+	MIPS CPU's, sparc and Alpha are the main CPU's with speedups.
+	Run des_opts to work out which options should be used.
+	DES_RISC1/DES_RISC2 use alternative inner loops which use
+	more registers but should give speedups on any CPU that does
+	dual issue (pentium).  DES_UNROLL unrolls the inner loop,
+	which costs in code size.
+
+Version 3.26
+	I've finally removed one of the shifts in D_ENCRYPT.  This
+	meant I've changed the des_SPtrans table (spr.h), the set_key()
+	function and some things in des_enc.c.  This has definitly
+	made things faster :-).  I've known about this one for some
+	time but I've been too lazy to follow it up :-).
+	Noticed that in the D_ENCRYPT() macro, we can just do L^=(..)^(..)^..
+	instead of L^=((..)|(..)|(..)..  This should save a register at
+	least.
+	Assember for x86.  The file to replace is des_enc.c, which is replaced
+	by one of the assembler files found in asm.  Look at des/asm/readme
+	for more info.
+
+	/* Modification to fcrypt so it can be compiled to support
+	HPUX 10.x's long password format, define -DLONGCRYPT to use this.
+	Thanks to Jens Kupferschmidt <bt1cu@hpboot.rz.uni-leipzig.de>. */
+
+	SIGWINCH case put in des_read_passwd() so the function does not
+	'exit' if this function is recieved.
+
+Version 3.25 17/07/96
+	Modified read_pwd.c so that stdin can be read if not a tty.
+	Thanks to Jeff Barber <jeffb@issl.atl.hp.com> for the patches.
+	des_init_random_number_generator() shortened due to VMS linker
+	limits.
+	Added RSA's DESX cbc mode.  It is a form of cbc encryption, with 2
+	8 byte quantites xored before and after encryption.
+	des_xcbc_encryption() - the name is funny to preserve the des_
+	prefix on all functions.
+
+Version 3.24 20/04/96
+	The DES_PTR macro option checked and used by SSLeay configuration
+
+Version 3.23 11/04/96
+	Added DES_LONG.  If defined to 'unsigned int' on the DEC Alpha,
+	it gives a %20 speedup :-)
+	Fixed the problem with des.pl under perl5.  The patches were
+	sent by Ed Kubaitis (ejk@uiuc.edu).
+	if fcrypt.c, changed values to handle illegal salt values the way
+	normal crypt() implementations do.  Some programs apparently use
+	them :-(. The patch was sent by Bjorn Gronvall <bg@sics.se>
+
+Version 3.22 29/11/95
+	Bug in des(1), an error with the uuencoding stuff when the
+	'data' is small, thanks to Geoff Keating <keagchon@mehta.anu.edu.au>
+	for the patch.
+
+Version 3.21 22/11/95
+	After some emailing back and forth with 
+	Colin Plumb <colin@nyx10.cs.du.edu>, I've tweaked a few things
+	and in a future version I will probably put in some of the
+	optimisation he suggested for use with the DES_USE_PTR option.
+	Extra routines from Mark Murray <mark@grondar.za> for use in
+	freeBSD.  They mostly involve random number generation for use
+	with kerberos.  They involve evil machine specific system calls
+	etc so I would normally suggest pushing this stuff into the
+	application and/or using RAND_seed()/RAND_bytes() if you are
+	using this DES library as part of SSLeay.
+	Redone the read_pw() function so that it is cleaner and
+	supports termios, thanks to Sameer Parekh <sameer@c2.org>
+	for the initial patches for this.
+	Renamed 3ecb_encrypt() to ecb3_encrypt().  This has been
+	 done just to make things more consistent.
+	I have also now added triple DES versions of cfb and ofb.
+
+Version 3.20
+	Damn, Damn, Damn, as pointed out by Mike_Spreitzer.PARC@xerox.com,
+	my des_random_seed() function was only copying 4 bytes of the
+	passed seed into the init structure.  It is now fixed to copy 8.
+	My own suggestion is to used something like MD5 :-)
+
+Version 3.19 
+	While looking at my code one day, I though, why do I keep on
+	calling des_encrypt(in,out,ks,enc) when every function that
+	calls it has in and out the same.  So I dropped the 'out'
+	parameter, people should not be using this function.
+
+Version 3.18 30/08/95
+	Fixed a few bit with the distribution and the filenames.
+	3.17 had been munged via a move to DOS and back again.
+	NO CODE CHANGES
+
+Version 3.17 14/07/95
+	Fixed ede3 cbc which I had broken in 3.16.  I have also
+	removed some unneeded variables in 7-8 of the routines.
+
+Version 3.16 26/06/95
+	Added des_encrypt2() which does not use IP/FP, used by triple
+	des routines.  Tweaked things a bit elsewhere. %13 speedup on
+	sparc and %6 on a R4400 for ede3 cbc mode.
+
+Version 3.15 06/06/95
+	Added des_ncbc_encrypt(), it is des_cbc mode except that it is
+	'normal' and copies the new iv value back over the top of the
+	passed parameter.
+	CHANGED des_ede3_cbc_encrypt() so that it too now overwrites
+	the iv.  THIS WILL BREAK EXISTING CODE, but since this function
+	only new, I feel I can change it, not so with des_cbc_encrypt :-(.
+	I need to update the documentation.
+
+Version 3.14 31/05/95
+	New release upon the world, as part of my SSL implementation.
+	New copyright and usage stuff.  Basically free for all to use
+	as long as you say it came from me :-)
+
+Version 3.13 31/05/95
+	A fix in speed.c, if HZ is not defined, I set it to 100.0
+	which is reasonable for most unixes except SunOS 4.x.
+	I now have a #ifdef sun but timing for SunOS 4.x looked very
+	good :-(.  At my last job where I used SunOS 4.x, it was
+	defined to be 60.0 (look at the old INSTALL documentation), at
+	the last release had it changed to 100.0 since I now work with
+	Solaris2 and SVR4 boxes.
+	Thanks to  Rory Chisholm <rchishol@math.ethz.ch> for pointing this
+	one out.
+
+Version 3.12 08/05/95
+	As pointed out by The Crypt Keeper <tck@bend.UCSD.EDU>,
+	my D_ENCRYPT macro in crypt() had an un-necessary variable.
+	It has been removed.
+
+Version 3.11 03/05/95
+	Added des_ede3_cbc_encrypt() which is cbc mode des with 3 keys
+	and one iv.  It is a standard and I needed it for my SSL code.
+	It makes more sense to use this for triple DES than
+	3cbc_encrypt().  I have also added (or should I say tested :-)
+	cfb64_encrypt() which is cfb64 but it will encrypt a partial
+	number of bytes - 3 bytes in 3 bytes out.  Again this is for
+	my SSL library, as a form of encryption to use with SSL
+	telnet.
+
+Version 3.10 22/03/95
+	Fixed a bug in 3cbc_encrypt() :-(.  When making repeated calls
+	to cbc3_encrypt, the 2 iv values that were being returned to
+	be used in the next call were reversed :-(.
+	Many thanks to Bill Wade <wade@Stoner.COM> for pointing out
+	this error.
+
+Version 3.09 01/02/95
+	Fixed des_random_key to far more random, it was rather feeble
+	with regards to picking the initial seed.  The problem was
+	pointed out by Olaf Kirch <okir@monad.swb.de>.
+
+Version 3.08 14/12/94
+	Added Makefile.PL so libdes can be built into perl5.
+	Changed des_locl.h so RAND is always defined.
+
+Version 3.07 05/12/94
+	Added GNUmake and stuff so the library can be build with
+	glibc.
+
+Version 3.06 30/08/94
+	Added rpc_enc.c which contains _des_crypt.  This is for use in
+	secure_rpc v 4.0
+	Finally fixed the cfb_enc problems.
+	Fixed a few parameter parsing bugs in des (-3 and -b), thanks
+	to Rob McMillan <R.McMillan@its.gu.edu.au>
+
+Version 3.05 21/04/94
+	for unsigned long l; gcc does not produce ((l>>34) == 0)
+	This causes bugs in cfb_enc.
+	Thanks to Hadmut Danisch <danisch@ira.uka.de>
+
+Version 3.04 20/04/94
+	Added a version number to des.c and libdes.a
+
+Version 3.03 12/01/94
+	Fixed a bug in non zero iv in 3cbc_enc.
+
+Version 3.02 29/10/93
+	I now work in a place where there are 6+ architectures and 14+
+	OS versions :-).
+	Fixed TERMIO definition so the most sys V boxes will work :-)
+
+Release upon comp.sources.misc
+Version 3.01 08/10/93
+	Added des_3cbc_encrypt()
+
+Version 3.00 07/10/93
+	Fixed up documentation.
+	quad_cksum definitely compatible with MIT's now.
+
+Version 2.30 24/08/93
+	Triple DES now defaults to triple cbc but can do triple ecb
+	 with the -b flag.
+	Fixed some MSDOS uuen/uudecoding problems, thanks to
+	Added prototypes.
+	
+Version 2.22 29/06/93
+	Fixed a bug in des_is_weak_key() which stopped it working :-(
+	thanks to engineering@MorningStar.Com.
+
+Version 2.21 03/06/93
+	des(1) with no arguments gives quite a bit of help.
+	Added -c (generate ckecksum) flag to des(1).
+	Added -3 (triple DES) flag to des(1).
+	Added cfb and ofb routines to the library.
+
+Version 2.20 11/03/93
+	Added -u (uuencode) flag to des(1).
+	I have been playing with byte order in quad_cksum to make it
+	 compatible with MIT's version.  All I can say is avid this
+	 function if possible since MIT's output is endian dependent.
+
+Version 2.12 14/10/92
+	Added MSDOS specific macro in ecb_encrypt which gives a %70
+	 speed up when the code is compiled with turbo C.
+
+Version 2.11 12/10/92
+	Speedup in set_key (recoding of PC-1)
+	 I now do it in 47 simple operations, down from 60.
+	 Thanks to John Fletcher (john_fletcher@lccmail.ocf.llnl.gov)
+	 for motivating me to look for a faster system :-)
+	 The speedup is probably less that 1% but it is still 13
+	 instructions less :-).
+
+Version 2.10 06/10/92
+	The code now works on the 64bit ETA10 and CRAY without modifications or
+	 #defines.  I believe the code should work on any machine that
+	 defines long, int or short to be 8 bytes long.
+	Thanks to Shabbir J. Safdar (shabby@mentor.cc.purdue.edu)
+	 for helping me fix the code to run on 64bit machines (he had
+	 access to an ETA10).
+	Thanks also to John Fletcher <john_fletcher@lccmail.ocf.llnl.gov>
+	 for testing the routines on a CRAY.
+	read_password.c has been renamed to read_passwd.c
+	string_to_key.c has been renamed to string2key.c
+
+Version 2.00 14/09/92
+	Made mods so that the library should work on 64bit CPU's.
+	Removed all my uchar and ulong defs.  To many different
+	 versions of unix define them in their header files in too many
+	 different combinations :-)
+	IRIX - Sillicon Graphics mods (mostly in read_password.c).
+	 Thanks to Andrew Daviel (advax@erich.triumf.ca)
+
+Version 1.99 26/08/92
+	Fixed a bug or 2 in enc_read.c
+	Fixed a bug in enc_write.c
+	Fixed a pseudo bug in fcrypt.c (very obscure).
+
+Version 1.98 31/07/92
+	Support for the ETA10.  This is a strange machine that defines
+	longs and ints as 8 bytes and shorts as 4 bytes.
+	Since I do evil things with long * that assume that they are 4
+	bytes.  Look in the Makefile for the option to compile for
+	this machine.  quad_cksum appears to have problems but I
+	will don't have the time to fix it right now, and this is not
+	a function that uses DES and so will not effect the main uses
+	of the library.
+
+Version 1.97 20/05/92 eay
+	Fixed the Imakefile and made some changes to des.h to fix some
+	problems when building this package with Kerberos v 4.
+
+Version 1.96 18/05/92 eay
+	Fixed a small bug in string_to_key() where problems could
+	occur if des_check_key was set to true and the string
+	generated a weak key.
+
+Patch2 posted to comp.sources.misc
+Version 1.95 13/05/92 eay
+	Added an alternative version of the D_ENCRYPT macro in
+	ecb_encrypt and fcrypt.  Depending on the compiler, one version or the
+	other will be faster.  This was inspired by 
+	Dana How <how@isl.stanford.edu>, and her pointers about doing the
+	*(ulong *)((uchar *)ptr+(value&0xfc))
+	vs
+	ptr[value&0x3f]
+	to stop the C compiler doing a <<2 to convert the long array index.
+
+Version 1.94 05/05/92 eay
+	Fixed an incompatibility between my string_to_key and the MIT
+	 version.  When the key is longer than 8 chars, I was wrapping
+	 with a different method.  To use the old version, define
+	 OLD_STR_TO_KEY in the makefile.  Thanks to
+	 viktor@newsu.shearson.com (Viktor Dukhovni).
+
+Version 1.93 28/04/92 eay
+	Fixed the VMS mods so that echo is now turned off in
+	 read_password.  Thanks again to brennan@coco.cchs.su.oz.AU.
+	MSDOS support added.  The routines can be compiled with
+	 Turbo C (v2.0) and MSC (v5.1).  Make sure MSDOS is defined.
+
+Patch1 posted to comp.sources.misc
+Version 1.92 13/04/92 eay
+	Changed D_ENCRYPT so that the rotation of R occurs outside of
+	 the loop.  This required rotating all the longs in sp.h (now
+	 called spr.h). Thanks to Richard Outerbridge <71755.204@CompuServe.COM>
+	speed.c has been changed so it will work without SIGALRM.  If
+	 times(3) is not present it will try to use ftime() instead.
+
+Version 1.91 08/04/92 eay
+	Added -E/-D options to des(1) so it can use string_to_key.
+	Added SVR4 mods suggested by witr@rwwa.COM
+	Added VMS mods suggested by brennan@coco.cchs.su.oz.AU.  If
+	anyone knows how to turn of tty echo in VMS please tell me or
+	implement it yourself :-).
+	Changed FILE *IN/*OUT to *DES_IN/*DES_OUT since it appears VMS
+	does not like IN/OUT being used.
+
+Libdes posted to comp.sources.misc
+Version 1.9 24/03/92 eay
+	Now contains a fast small crypt replacement.
+	Added des(1) command.
+	Added des_rw_mode so people can use cbc encryption with
+	enc_read and enc_write.
+
+Version 1.8 15/10/91 eay
+	Bug in cbc_cksum.
+	Many thanks to Keith Reynolds (keithr@sco.COM) for pointing this
+	one out.
+
+Version 1.7 24/09/91 eay
+	Fixed set_key :-)
+	set_key is 4 times faster and takes less space.
+	There are a few minor changes that could be made.
+
+Version 1.6 19/09/1991 eay
+	Finally go IP and FP finished.
+	Now I need to fix set_key.
+	This version is quite a bit faster that 1.51
+
+Version 1.52 15/06/1991 eay
+	20% speedup in ecb_encrypt by changing the E bit selection
+	to use 2 32bit words.  This also required modification of the
+	sp table.  There is still a way to speedup the IP and IP-1
+	(hints from outer@sq.com) still working on this one :-(.
+
+Version 1.51 07/06/1991 eay
+	Faster des_encrypt by loop unrolling
+	Fixed bug in quad_cksum.c (thanks to hughes@logos.ucs.indiana.edu)
+
+Version 1.50 28/05/1991 eay
+	Optimised the code a bit more for the sparc.  I have improved the
+	speed of the inner des_encrypt by speeding up the initial and
+	final permutations.
+
+Version 1.40 23/10/1990 eay
+	Fixed des_random_key, it did not produce a random key :-(
+
+Version 1.30  2/10/1990 eay
+	Have made des_quad_cksum the same as MIT's, the full package
+	should be compatible with MIT's
+	Have tested on a DECstation 3100
+	Still need to fix des_set_key (make it faster).
+	Does des_cbc_encrypts at 70.5k/sec on a 3100.
+
+Version 1.20 18/09/1990 eay
+	Fixed byte order dependencies.
+	Fixed (I hope) all the word alignment problems.
+	Speedup in des_ecb_encrypt.
+
+Version 1.10 11/09/1990 eay
+	Added des_enc_read and des_enc_write.
+	Still need to fix des_quad_cksum.
+	Still need to document des_enc_read and des_enc_write.
+
+Version 1.00 27/08/1990 eay
+

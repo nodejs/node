@@ -1,0 +1,53 @@
+=pod
+
+=head1 NAME
+
+SSL_get_client_CA_list, SSL_CTX_get_client_CA_list - get list of client CAs
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ STACK_OF(X509_NAME) *SSL_get_client_CA_list(const SSL *s);
+ STACK_OF(X509_NAME) *SSL_CTX_get_client_CA_list(const SSL_CTX *ctx); 
+
+=head1 DESCRIPTION
+
+SSL_CTX_get_client_CA_list() returns the list of client CAs explicitly set for
+B<ctx> using L<SSL_CTX_set_client_CA_list(3)|SSL_CTX_set_client_CA_list(3)>.
+
+SSL_get_client_CA_list() returns the list of client CAs explicitly
+set for B<ssl> using SSL_set_client_CA_list() or B<ssl>'s SSL_CTX object with
+L<SSL_CTX_set_client_CA_list(3)|SSL_CTX_set_client_CA_list(3)>, when in
+server mode. In client mode, SSL_get_client_CA_list returns the list of
+client CAs sent from the server, if any.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set_client_CA_list() and SSL_set_client_CA_list() do not return
+diagnostic information.
+
+SSL_CTX_add_client_CA() and SSL_add_client_CA() have the following return
+values:
+
+=over 4
+
+=item STACK_OF(X509_NAMES)
+
+List of CA names explicitly set (for B<ctx> or in server mode) or send
+by the server (client mode).
+
+=item NULL
+
+No client CA list was explicitly set (for B<ctx> or in server mode) or
+the server did not send a list of CAs (client mode).
+
+=back
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>,
+L<SSL_CTX_set_client_CA_list(3)|SSL_CTX_set_client_CA_list(3)>,
+L<SSL_CTX_set_client_cert_cb(3)|SSL_CTX_set_client_cert_cb(3)>
+
+=cut

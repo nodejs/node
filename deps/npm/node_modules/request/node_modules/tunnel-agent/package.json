@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      "tunnel-agent@~0.4.1",
+      "/Users/ogd/Documents/projects/npm/npm/node_modules/request"
+    ]
+  ],
+  "_from": "tunnel-agent@>=0.4.1 <0.5.0",
+  "_id": "tunnel-agent@0.4.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/tunnel-agent",
+  "_nodeVersion": "5.0.0",
+  "_npmUser": {
+    "email": "simeonvelichkov@gmail.com",
+    "name": "simov"
+  },
+  "_npmVersion": "3.3.12",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "tunnel-agent",
+    "raw": "tunnel-agent@~0.4.1",
+    "rawSpec": "~0.4.1",
+    "scope": null,
+    "spec": ">=0.4.1 <0.5.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/tunnel-agent/-/tunnel-agent-0.4.2.tgz",
+  "_shasum": "1104e3f36ac87125c287270067d582d18133bfee",
+  "_shrinkwrap": null,
+  "_spec": "tunnel-agent@~0.4.1",
+  "_where": "/Users/ogd/Documents/projects/npm/npm/node_modules/request",
+  "author": {
+    "email": "mikeal.rogers@gmail.com",
+    "name": "Mikeal Rogers",
+    "url": "http://www.futurealoof.com"
+  },
+  "bugs": {
+    "url": "https://github.com/mikeal/tunnel-agent/issues"
+  },
+  "dependencies": {},
+  "description": "HTTP proxy tunneling agent. Formerly part of mikeal/request, now a standalone module.",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "1104e3f36ac87125c287270067d582d18133bfee",
+    "tarball": "http://registry.npmjs.org/tunnel-agent/-/tunnel-agent-0.4.2.tgz"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "gitHead": "449634d1054949f9f145f4925985a8dea0f46b0f",
+  "homepage": "https://github.com/mikeal/tunnel-agent#readme",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "mikeal",
+      "email": "mikeal.rogers@gmail.com"
+    },
+    {
+      "name": "nylen",
+      "email": "jnylen@gmail.com"
+    },
+    {
+      "name": "fredkschott",
+      "email": "fkschott@gmail.com"
+    },
+    {
+      "name": "simov",
+      "email": "simeonvelichkov@gmail.com"
+    }
+  ],
+  "name": "tunnel-agent",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "url": "git+https://github.com/mikeal/tunnel-agent.git"
+  },
+  "scripts": {},
+  "version": "0.4.2"
+}

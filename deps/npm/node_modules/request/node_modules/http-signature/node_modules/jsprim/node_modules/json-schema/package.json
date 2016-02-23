@@ -1,0 +1,86 @@
+{
+  "_args": [
+    [
+      "json-schema@0.2.2",
+      "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim"
+    ]
+  ],
+  "_from": "json-schema@0.2.2",
+  "_id": "json-schema@0.2.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/jsprim/json-schema",
+  "_npmUser": {
+    "email": "kriszyp@gmail.com",
+    "name": "kriszyp"
+  },
+  "_npmVersion": "1.1.59",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "json-schema",
+    "raw": "json-schema@0.2.2",
+    "rawSpec": "0.2.2",
+    "scope": null,
+    "spec": "0.2.2",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/request/http-signature/jsprim"
+  ],
+  "_resolved": "https://registry.npmjs.org/json-schema/-/json-schema-0.2.2.tgz",
+  "_shasum": "50354f19f603917c695f70b85afa77c3b0f23506",
+  "_shrinkwrap": null,
+  "_spec": "json-schema@0.2.2",
+  "_where": "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim",
+  "author": {
+    "name": "Kris Zyp"
+  },
+  "bugs": {
+    "url": "https://github.com/kriszyp/json-schema/issues"
+  },
+  "dependencies": {},
+  "description": "JSON Schema validation and specifications",
+  "devDependencies": {
+    "vows": "*"
+  },
+  "directories": {
+    "lib": "./lib"
+  },
+  "dist": {
+    "shasum": "50354f19f603917c695f70b85afa77c3b0f23506",
+    "tarball": "http://registry.npmjs.org/json-schema/-/json-schema-0.2.2.tgz"
+  },
+  "homepage": "https://github.com/kriszyp/json-schema#readme",
+  "keywords": [
+    "json",
+    "schema"
+  ],
+  "licenses": [
+    {
+      "type": "AFLv2.1",
+      "url": "http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L43"
+    },
+    {
+      "type": "BSD",
+      "url": "http://trac.dojotoolkit.org/browser/dojo/trunk/LICENSE#L13"
+    }
+  ],
+  "main": "./lib/validate.js",
+  "maintainers": [
+    {
+      "name": "kriszyp",
+      "email": "kriszyp@gmail.com"
+    }
+  ],
+  "name": "json-schema",
+  "optionalDependencies": {},
+  "readme": "JSON Schema is a repository for the JSON Schema specification, reference schemas and a CommonJS implementation of JSON Schema (not the only JavaScript implementation of JSON Schema, JSV is another excellent JavaScript validator).\r\n\r\nCode is licensed under the AFL or BSD license as part of the Persevere \r\nproject which is administered under the Dojo foundation,\r\nand all contributions require a Dojo CLA.",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/kriszyp/json-schema.git"
+  },
+  "scripts": {
+    "test": "echo TESTS DISABLED vows --spec test/*.js"
+  },
+  "version": "0.2.2"
+}

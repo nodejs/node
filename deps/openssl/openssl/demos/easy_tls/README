@@ -1,0 +1,65 @@
+easy_tls - generic SSL/TLS proxy
+========
+
+(... and example for non-blocking SSL/TLS I/O multiplexing.)
+
+
+  easy_tls.c, easy_tls.h:
+
+     Small generic SSL/TLS proxy library: With a few function calls,
+     an application socket will be replaced by a pipe handled by a
+     separate SSL/TLS proxy process.  This allows easily adding
+     SSL/TLS support to many programs not originally designed for it.
+
+     [Actually easy_tls.c is not a proper library: Customization
+     requires defining preprocessor macros while compiling it.
+     This is quite confusing, so I'll probably change it.]
+
+     These files may be used under the OpenSSL license.
+
+
+
+  test.c, test.h, Makefile, cert.pem, cacerts.pem:
+
+     Rudimentary example program using the easy_tls library, and
+     example key and certificates for it.  Usage examples:
+
+       $ ./test 8443     # create server listening at port 8443
+       $ ./test 127.0.0.1 8443  # create client, connect to port 8443
+                                # at IP address 127.0.0.1
+
+     'test' will not automatically do SSL/TLS, or even read or write
+     data -- it must be told to do so on input lines starting
+     with a command letter.  'W' means write a line, 'R' means
+     read a line, 'C' means close the connection, 'T' means
+     start an SSL/TLS proxy.  E.g. (user input tagged with '*'):
+
+     * R
+       <<< 220 mail.example.net
+     * WSTARTTLS
+       >>> STARTTLS
+     * R
+       <<< 220 Ready to start TLS
+     * T
+       test_process_init(fd = 3, client_p = 1, apparg = (nil))
+       +++ `E:self signed certificate in certificate chain'
+       +++ `<... certificate info ...>'
+     * WHELO localhost
+       >>> HELO localhost
+       R
+       <<< 250 mail.example.net
+
+     You can even do SSL/TLS over SSL/TLS over SSL/TLS ... by using
+     'T' multiple times.  I have no idea why you would want to though.
+
+
+This code is rather old.  When I find time I will update anything that
+should be changed, and improve code comments.  To compile the sample
+program 'test' on platforms other then Linux or Solaris, you will have
+to edit the Makefile.
+
+As noted above, easy_tls.c will be changed to become a library one
+day, which means that future revisions will not be fully compatible to
+the current version.
+
+Bodo Möller <bodo@openssl.org>

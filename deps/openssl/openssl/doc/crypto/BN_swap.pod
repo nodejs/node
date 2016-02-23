@@ -1,0 +1,23 @@
+=pod
+
+=head1 NAME
+
+BN_swap - exchange BIGNUMs
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ void BN_swap(BIGNUM *a, BIGNUM *b);
+
+=head1 DESCRIPTION
+
+BN_swap() exchanges the values of I<a> and I<b>.
+
+L<bn(3)|bn(3)>
+
+=head1 HISTORY
+
+BN_swap was added in OpenSSL 0.9.7.
+
+=cut

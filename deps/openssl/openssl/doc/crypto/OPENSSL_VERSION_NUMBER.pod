@@ -1,0 +1,101 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_VERSION_NUMBER, SSLeay, SSLeay_version - get OpenSSL version number
+
+=head1 SYNOPSIS
+
+ #include <openssl/opensslv.h>
+ #define OPENSSL_VERSION_NUMBER 0xnnnnnnnnnL
+
+ #include <openssl/crypto.h>
+ long SSLeay(void);
+ const char *SSLeay_version(int t);
+
+=head1 DESCRIPTION
+
+OPENSSL_VERSION_NUMBER is a numeric release version identifier:
+
+ MNNFFPPS: major minor fix patch status
+
+The status nibble has one of the values 0 for development, 1 to e for betas
+1 to 14, and f for release.
+
+for example
+
+ 0x000906000 == 0.9.6 dev
+ 0x000906023 == 0.9.6b beta 3
+ 0x00090605f == 0.9.6e release
+
+Versions prior to 0.9.3 have identifiers E<lt> 0x0930.
+Versions between 0.9.3 and 0.9.5 had a version identifier with this
+interpretation:
+
+ MMNNFFRBB major minor fix final beta/patch
+
+for example
+
+ 0x000904100 == 0.9.4 release
+ 0x000905000 == 0.9.5 dev
+
+Version 0.9.5a had an interim interpretation that is like the current one,
+except the patch level got the highest bit set, to keep continuity.  The
+number was therefore 0x0090581f.
+
+
+For backward compatibility, SSLEAY_VERSION_NUMBER is also defined.
+
+SSLeay() returns this number. The return value can be compared to the
+macro to make sure that the correct version of the library has been
+loaded, especially when using DLLs on Windows systems.
+
+SSLeay_version() returns different strings depending on B<t>:
+
+=over 4
+
+=item SSLEAY_VERSION
+
+The text variant of the version number and the release date.  For example,
+"OpenSSL 0.9.5a 1 Apr 2000".
+
+=item SSLEAY_CFLAGS
+
+The compiler flags set for the compilation process in the form
+"compiler: ..."  if available or "compiler: information not available"
+otherwise.
+
+=item SSLEAY_BUILT_ON
+
+The date of the build process in the form "built on: ..." if available
+or "built on: date not available" otherwise.
+
+=item SSLEAY_PLATFORM
+
+The "Configure" target of the library build in the form "platform: ..."
+if available or "platform: information not available" otherwise.
+
+=item SSLEAY_DIR
+
+The "OPENSSLDIR" setting of the library build in the form "OPENSSLDIR: "...""
+if available or "OPENSSLDIR: N/A" otherwise.
+
+=back
+
+For an unknown B<t>, the text "not available" is returned.
+
+=head1 RETURN VALUE
+
+The version number.
+
+=head1 SEE ALSO
+
+L<crypto(3)|crypto(3)>
+
+=head1 HISTORY
+
+SSLeay() and SSLEAY_VERSION_NUMBER are available in all versions of SSLeay and OpenSSL.
+OPENSSL_VERSION_NUMBER is available in all versions of OpenSSL.
+B<SSLEAY_DIR> was added in OpenSSL 0.9.7.
+
+=cut

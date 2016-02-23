@@ -1,0 +1,66 @@
+{
+  "name": "validate-npm-package-name",
+  "version": "2.2.2",
+  "description": "Give me a string and I'll tell you if it's a valid npm package name",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "builtins": "0.0.7"
+  },
+  "devDependencies": {
+    "tap": "^0.4.13"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/validate-npm-package-name.git"
+  },
+  "keywords": [
+    "npm",
+    "package",
+    "names",
+    "validation"
+  ],
+  "author": {
+    "name": "zeke"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/validate-npm-package-name/issues"
+  },
+  "homepage": "https://github.com/npm/validate-npm-package-name",
+  "gitHead": "3af92c881549f1b96f05ab6bfb5768bba94ad72d",
+  "_id": "validate-npm-package-name@2.2.2",
+  "_shasum": "f65695b22f7324442019a3c7fa39a6e7fd299085",
+  "_from": "validate-npm-package-name@>=2.2.2 <2.3.0",
+  "_npmVersion": "3.0.0",
+  "_nodeVersion": "0.12.5",
+  "_npmUser": {
+    "name": "zkat",
+    "email": "kat@sykosomatic.org"
+  },
+  "dist": {
+    "shasum": "f65695b22f7324442019a3c7fa39a6e7fd299085",
+    "tarball": "http://registry.npmjs.org/validate-npm-package-name/-/validate-npm-package-name-2.2.2.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "zeke",
+      "email": "zeke@sikelianos.com"
+    },
+    {
+      "name": "bcoe",
+      "email": "ben@npmjs.com"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "_resolved": "https://registry.npmjs.org/validate-npm-package-name/-/validate-npm-package-name-2.2.2.tgz",
+  "readme": "ERROR: No README data found!"
+}

@@ -1,0 +1,90 @@
+{
+  "_args": [
+    [
+      "boom@2.x.x",
+      "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/hawk"
+    ]
+  ],
+  "_from": "boom@>=2.0.0 <3.0.0",
+  "_id": "boom@2.10.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/hawk/boom",
+  "_nodeVersion": "0.10.40",
+  "_npmUser": {
+    "email": "arbretz@gmail.com",
+    "name": "arb"
+  },
+  "_npmVersion": "2.11.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "boom",
+    "raw": "boom@2.x.x",
+    "rawSpec": "2.x.x",
+    "scope": null,
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/hawk",
+    "/request/hawk/cryptiles"
+  ],
+  "_resolved": "https://registry.npmjs.org/boom/-/boom-2.10.1.tgz",
+  "_shasum": "39c8918ceff5799f83f9492a848f625add0c766f",
+  "_shrinkwrap": null,
+  "_spec": "boom@2.x.x",
+  "_where": "/Users/ogd/Documents/projects/npm/npm/node_modules/request/node_modules/hawk",
+  "bugs": {
+    "url": "https://github.com/hapijs/boom/issues"
+  },
+  "dependencies": {
+    "hoek": "2.x.x"
+  },
+  "description": "HTTP-friendly error objects",
+  "devDependencies": {
+    "code": "1.x.x",
+    "lab": "7.x.x"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "39c8918ceff5799f83f9492a848f625add0c766f",
+    "tarball": "http://registry.npmjs.org/boom/-/boom-2.10.1.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.40"
+  },
+  "gitHead": "ff1a662a86b39426cdd18f4441b112d307a34a6f",
+  "homepage": "https://github.com/hapijs/boom#readme",
+  "keywords": [
+    "error",
+    "http"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "lib/index.js",
+  "maintainers": [
+    {
+      "name": "hueniverse",
+      "email": "eran@hueniverse.com"
+    },
+    {
+      "name": "wyatt",
+      "email": "wpreul@gmail.com"
+    },
+    {
+      "name": "arb",
+      "email": "arbretz@gmail.com"
+    }
+  ],
+  "name": "boom",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hapijs/boom.git"
+  },
+  "scripts": {
+    "test": "lab -a code -t 100 -L",
+    "test-cov-html": "lab -a code -r html -o coverage.html -L"
+  },
+  "version": "2.10.1"
+}

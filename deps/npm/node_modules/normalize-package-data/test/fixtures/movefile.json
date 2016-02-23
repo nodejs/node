@@ -1,0 +1,21 @@
+{
+  "name": "movefile",
+  "description": "rename implementation working over devices",
+  "version": "0.2.0",
+  "author": "yazgazan <yazgazan@gmail.com>",
+  "main": "./build/Release/movefile",
+  "keywords": ["move", "file", "rename"],
+  "repository": "git://github.com/yazgazan/movefile.git",
+  "directories": {
+    "lib": "./build/Release/"
+  },
+  "scripts": {
+    "install": "./node_modules/node-gyp/bin/node-gyp.js configure && ./node_modules/node-gyp/bin/node-gyp.js build"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "dependencies": {
+    "node-gyp": "~0.9.1"
+  }
+}

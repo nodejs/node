@@ -1,0 +1,61 @@
+=pod
+
+=head1 NAME
+
+SSL_get_ex_data_X509_STORE_CTX_idx - get ex_data index to access SSL structure
+from X509_STORE_CTX
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_get_ex_data_X509_STORE_CTX_idx(void);
+
+=head1 DESCRIPTION
+
+SSL_get_ex_data_X509_STORE_CTX_idx() returns the index number under which
+the pointer to the SSL object is stored into the X509_STORE_CTX object.
+
+=head1 NOTES
+
+Whenever a X509_STORE_CTX object is created for the verification of the
+peers certificate during a handshake, a pointer to the SSL object is
+stored into the X509_STORE_CTX object to identify the connection affected.
+To retrieve this pointer the X509_STORE_CTX_get_ex_data() function can
+be used with the correct index. This index is globally the same for all
+X509_STORE_CTX objects and can be retrieved using
+SSL_get_ex_data_X509_STORE_CTX_idx(). The index value is set when
+SSL_get_ex_data_X509_STORE_CTX_idx() is first called either by the application
+program directly or indirectly during other SSL setup functions or during
+the handshake.
+
+The value depends on other index values defined for X509_STORE_CTX objects
+before the SSL index is created.
+
+=head1 RETURN VALUES
+
+=over 4
+
+=item E<gt>=0
+
+The index value to access the pointer.
+
+=item E<lt>0
+
+An error occurred, check the error stack for a detailed error message.
+
+=back
+
+=head1 EXAMPLES
+
+The index returned from SSL_get_ex_data_X509_STORE_CTX_idx() allows to
+access the SSL object for the connection to be accessed during the
+verify_callback() when checking the peers certificate. Please check
+the example in L<SSL_CTX_set_verify(3)|SSL_CTX_set_verify(3)>,
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>, L<SSL_CTX_set_verify(3)|SSL_CTX_set_verify(3)>,
+L<CRYPTO_set_ex_data(3)|CRYPTO_set_ex_data(3)>
+
+=cut

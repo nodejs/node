@@ -1,0 +1,51 @@
+{
+  "name": "ansistyles",
+  "version": "0.1.3",
+  "description": "Functions that surround a string with ansistyle codes so it prints in style.",
+  "main": "ansistyles.js",
+  "scripts": {
+    "test": "node test/ansistyles.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/thlorenz/ansistyles.git"
+  },
+  "keywords": [
+    "ansi",
+    "style",
+    "terminal",
+    "console"
+  ],
+  "author": {
+    "name": "Thorsten Lorenz",
+    "email": "thlorenz@gmx.de",
+    "url": "thlorenz.com"
+  },
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "gitHead": "27bf1bc65231bcc7fd109bf13b13601b51f8cd04",
+  "readme": "# ansistyles [![build status](https://secure.travis-ci.org/thlorenz/ansistyles.png)](http://next.travis-ci.org/thlorenz/ansistyles)\n\nFunctions that surround a string with ansistyle codes so it prints in style.\n\nIn case you need colors, like `red`, have a look at [ansicolors](https://github.com/thlorenz/ansicolors).\n\n## Installation\n\n    npm install ansistyles\n\n## Usage\n\n```js\nvar styles = require('ansistyles');\n\nconsole.log(styles.bright('hello world'));    // prints hello world in 'bright' white\nconsole.log(styles.underline('hello world')); // prints hello world underlined\nconsole.log(styles.inverse('hello world'));   // prints hello world black on white\n```\n\n## Combining with ansicolors\n\nGet the ansicolors module:\n\n    npm install ansicolors\n\n```js\nvar styles = require('ansistyles')\n  , colors = require('ansicolors');\n\n  console.log(\n    // prints hello world underlined in blue on a green background\n    colors.bgGreen(colors.blue(styles.underline('hello world'))) \n  );\n```\n\n## Tests\n\nLook at the [tests](https://github.com/thlorenz/ansistyles/blob/master/test/ansistyles.js) to see more examples and/or run them via: \n\n    npm explore ansistyles && npm test\n\n## More Styles\n\nAs you can see from [here](https://github.com/thlorenz/ansistyles/blob/master/ansistyles.js#L4-L15), more styles are available,\nbut didn't have any effect on the terminals that I tested on Mac Lion and Ubuntu Linux.\n\nI included them for completeness, but didn't show them in the examples because they seem to have no effect.\n\n### reset\n\nA style reset function is also included, please note however that this is not nestable.\n\nTherefore the below only underlines `hell` only, but not `world`.\n\n```js\nconsole.log(styles.underline('hell' + styles.reset('o') + ' world'));\n```\n\nIt is essentially the same as:\n\n```js\nconsole.log(styles.underline('hell') + styles.reset('') + 'o world');\n```\n\n\n\n## Alternatives\n\n**ansistyles** tries to meet simple use cases with a very simple API. However, if you need a more powerful ansi formatting tool, \nI'd suggest to look at the [features](https://github.com/TooTallNate/ansi.js#features) of the [ansi module](https://github.com/TooTallNate/ansi.js).\n",
+  "bugs": {
+    "url": "https://github.com/thlorenz/ansistyles/issues"
+  },
+  "_id": "ansistyles@0.1.3",
+  "dist": {
+    "shasum": "5de60415bda071bb37127854c864f41b23254539",
+    "tarball": "http://registry.npmjs.org/ansistyles/-/ansistyles-0.1.3.tgz"
+  },
+  "_from": "ansistyles@>=0.1.3 <0.2.0",
+  "_npmVersion": "1.3.11",
+  "_npmUser": {
+    "name": "thlorenz",
+    "email": "thlorenz@gmx.de"
+  },
+  "maintainers": [
+    {
+      "name": "thlorenz",
+      "email": "thlorenz@gmx.de"
+    }
+  ],
+  "directories": {},
+  "_shasum": "5de60415bda071bb37127854c864f41b23254539",
+  "_resolved": "https://registry.npmjs.org/ansistyles/-/ansistyles-0.1.3.tgz"
+}

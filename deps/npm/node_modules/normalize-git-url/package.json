@@ -1,0 +1,65 @@
+{
+  "name": "normalize-git-url",
+  "version": "3.0.1",
+  "description": "Normalizes Git URLs. For npm, but you can use it too.",
+  "main": "normalize-git-url.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "^1.1.0"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/normalize-git-url.git"
+  },
+  "keywords": [
+    "git",
+    "github",
+    "url",
+    "normalize",
+    "npm"
+  ],
+  "author": {
+    "name": "Forrest L Norvell",
+    "email": "ogd@aoaioxxysz.net"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/normalize-git-url/issues"
+  },
+  "homepage": "https://github.com/npm/normalize-git-url",
+  "gitHead": "8393cd4345e404eb6ad2ff6853dcc8287807ca22",
+  "_id": "normalize-git-url@3.0.1",
+  "_shasum": "d40d419d05a15870271e50534dbb7b8ccd9b0a5c",
+  "_from": "normalize-git-url@>=3.0.1 <3.1.0",
+  "_npmVersion": "3.1.2",
+  "_nodeVersion": "2.2.2",
+  "_npmUser": {
+    "name": "zkat",
+    "email": "kat@sykosomatic.org"
+  },
+  "dist": {
+    "shasum": "d40d419d05a15870271e50534dbb7b8ccd9b0a5c",
+    "tarball": "http://registry.npmjs.org/normalize-git-url/-/normalize-git-url-3.0.1.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    },
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "_resolved": "https://registry.npmjs.org/normalize-git-url/-/normalize-git-url-3.0.1.tgz"
+}

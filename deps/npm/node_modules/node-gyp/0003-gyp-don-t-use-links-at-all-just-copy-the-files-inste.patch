@@ -1,0 +1,39 @@
+From 0cd9f08a6d4f4be6643001b6c3b5ad40e094bdcc Mon Sep 17 00:00:00 2001
+From: Nathan Zadoks <nathan@nathan7.eu>
+Date: Tue, 2 Jul 2013 11:07:16 -0700
+Subject: [PATCH 3/3] gyp: don't use links at all, just copy the files instead
+
+---
+ gyp/pylib/gyp/generator/make.py  | 2 +-
+ gyp/pylib/gyp/generator/ninja.py | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/gyp/pylib/gyp/generator/make.py b/gyp/pylib/gyp/generator/make.py
+index 9b3e4e3..b3f8a2b 100644
+--- a/gyp/pylib/gyp/generator/make.py
++++ b/gyp/pylib/gyp/generator/make.py
+@@ -372,7 +372,7 @@ cmd_touch = touch $@
+ 
+ quiet_cmd_copy = COPY $@
+ # send stderr to /dev/null to ignore messages when linking directories.
+-cmd_copy = ln -f "$<" "$@" 2>/dev/null || (rm -rf "$@" && cp -af "$<" "$@")
++cmd_copy = rm -rf "$@" && cp -af "$<" "$@"
+ 
+ %(link_commands)s
+ """
+diff --git a/gyp/pylib/gyp/generator/ninja.py b/gyp/pylib/gyp/generator/ninja.py
+index 7461814..c2951a4 100644
+--- a/gyp/pylib/gyp/generator/ninja.py
++++ b/gyp/pylib/gyp/generator/ninja.py
+@@ -2020,7 +2020,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
+     master_ninja.rule(
+       'copy',
+       description='COPY $in $out',
+-      command='ln -f $in $out 2>/dev/null || (rm -rf $out && cp -af $in $out)')
++      command='rm -rf $out && cp -af $in $out')
+   master_ninja.newline()
+ 
+   all_targets = set()
+-- 
+2.3.2 (Apple Git-55)
+

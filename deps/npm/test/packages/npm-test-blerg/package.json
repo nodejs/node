@@ -1,0 +1,5 @@
+{ "name":"npm-test-blerg"
+, "version" : "0.0.2"
+, "scripts" : { "test" : "node test.js" }
+, "publishConfig": {"tag": "foo"}
+}

@@ -1,0 +1,54 @@
+{
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "name": "chownr",
+  "description": "like `chown -R`",
+  "version": "1.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/chownr.git"
+  },
+  "main": "chownr.js",
+  "files": [
+    "chownr.js"
+  ],
+  "devDependencies": {
+    "mkdirp": "0.3",
+    "rimraf": "",
+    "tap": "^1.2.0"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "license": "ISC",
+  "gitHead": "c6c43844e80d7c7045e737a72b9fbb1ba0579a26",
+  "bugs": {
+    "url": "https://github.com/isaacs/chownr/issues"
+  },
+  "homepage": "https://github.com/isaacs/chownr#readme",
+  "_id": "chownr@1.0.1",
+  "_shasum": "e2a75042a9551908bebd25b8523d5f9769d79181",
+  "_from": "chownr@>=1.0.1 <1.1.0",
+  "_npmVersion": "3.2.2",
+  "_nodeVersion": "2.2.1",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "isaacs@npmjs.com"
+  },
+  "dist": {
+    "shasum": "e2a75042a9551908bebd25b8523d5f9769d79181",
+    "tarball": "http://registry.npmjs.org/chownr/-/chownr-1.0.1.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/chownr/-/chownr-1.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

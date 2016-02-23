@@ -1,0 +1,36 @@
+version: v1.8.0.build{build}
+
+install:
+  - cinst -y nsis
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - platform: x86
+      configuration: Release
+    - platform: x64
+      configuration: Release
+
+platform:
+  - x86
+  - x64
+
+configuration:
+  - Release
+
+build_script:
+  # Fixed tag version number if using a tag.
+  - cmd: if "%APPVEYOR_REPO_TAG%" == "true" set APPVEYOR_BUILD_VERSION=%APPVEYOR_REPO_TAG_NAME%
+  # vcbuild overwrites the platform variable.
+  - cmd: set ARCH=%platform%
+  - cmd: vcbuild.bat release %ARCH% shared
+
+after_build:
+  - '"%PROGRAMFILES(x86)%\NSIS\makensis" /DVERSION=%APPVEYOR_BUILD_VERSION% /DARCH=%ARCH% libuv.nsi'
+
+artifacts:
+  - name: Installer
+    path: 'libuv-*.exe'
+
+cache:
+  - C:\projects\libuv\build\gyp

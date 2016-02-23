@@ -1,0 +1,49 @@
+So far...
+
+ssl3.netscape.com:443 does not support client side dynamic
+session-renegotiation.
+
+ssl3.netscape.com:444 (asks for client cert) sends out all the CA RDN
+in an invalid format (the outer sequence is removed).
+
+Netscape-Commerce/1.12, when talking SSLv2, accepts a 32 byte
+challenge but then appears to only use 16 bytes when generating the
+encryption keys.  Using 16 bytes is ok but it should be ok to use 32.
+According to the SSLv3 spec, one should use 32 bytes for the challenge
+when opperating in SSLv2/v3 compatablity mode, but as mentioned above,
+this breaks this server so 16 bytes is the way to go.
+
+www.microsoft.com - when talking SSLv2, if session-id reuse is
+performed, the session-id passed back in the server-finished message
+is different from the one decided upon.
+
+ssl3.netscape.com:443, first a connection is established with RC4-MD5.
+If it is then resumed, we end up using DES-CBC3-SHA.  It should be
+RC4-MD5 according to 7.6.1.3, 'cipher_suite'.
+Netscape-Enterprise/2.01 (https://merchant.netscape.com) has this bug.
+It only really shows up when connecting via SSLv2/v3 then reconnecting
+via SSLv3. The cipher list changes....
+NEW INFORMATION.  Try connecting with a cipher list of just
+DES-CBC-SHA:RC4-MD5.  For some weird reason, each new connection uses
+RC4-MD5, but a re-connect tries to use DES-CBC-SHA.  So netscape, when
+doing a re-connect, always takes the first cipher in the cipher list.
+
+If we accept a netscape connection, demand a client cert, have a
+non-self-signed CA which does not have it's CA in netscape, and the
+browser has a cert, it will crash/hang.  Works for 3.x and 4.xbeta
+
+Netscape browsers do not really notice the server sending a
+close notify message.  I was sending one, and then some invalid data.
+netscape complained of an invalid mac. (a fork()ed child doing a
+SSL_shutdown() and still sharing the socket with its parent).
+
+Netscape, when using export ciphers, will accept a 1024 bit temporary
+RSA key.  It is supposed to only accept 512.
+
+If Netscape connects to a server which requests a client certificate
+it will frequently hang after the user has selected one and never
+complete the connection. Hitting "Stop" and reload fixes this and
+all subsequent connections work fine. This appears to be because 
+Netscape wont read any new records in when it is awaiting a server
+done message at this point. The fix is to send the certificate request
+and server done messages in one record.

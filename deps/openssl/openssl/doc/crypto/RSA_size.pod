@@ -1,0 +1,33 @@
+=pod
+
+=head1 NAME
+
+RSA_size - get RSA modulus size
+
+=head1 SYNOPSIS
+
+ #include <openssl/rsa.h>
+
+ int RSA_size(const RSA *rsa);
+
+=head1 DESCRIPTION
+
+This function returns the RSA modulus size in bytes. It can be used to
+determine how much memory must be allocated for an RSA encrypted
+value.
+
+B<rsa-E<gt>n> must not be B<NULL>.
+
+=head1 RETURN VALUE
+
+The size in bytes.
+
+=head1 SEE ALSO
+
+L<rsa(3)|rsa(3)>
+
+=head1 HISTORY
+
+RSA_size() is available in all versions of SSLeay and OpenSSL.
+
+=cut

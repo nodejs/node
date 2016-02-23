@@ -1,0 +1,30 @@
+=pod
+
+=head1 NAME
+
+d2i_X509_ALGOR, i2d_X509_ALGOR - AlgorithmIdentifier functions.
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ X509_ALGOR *d2i_X509_ALGOR(X509_ALGOR **a, unsigned char **pp, long length);
+ int i2d_X509_ALGOR(X509_ALGOR *a, unsigned char **pp);
+
+=head1 DESCRIPTION
+
+These functions decode and encode an B<X509_ALGOR> structure which is
+equivalent to the B<AlgorithmIdentifier> structure.
+
+Othewise these behave in a similar way to d2i_X509() and i2d_X509()
+described in the L<d2i_X509(3)|d2i_X509(3)> manual page.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)|d2i_X509(3)>
+
+=head1 HISTORY
+
+TBA
+
+=cut

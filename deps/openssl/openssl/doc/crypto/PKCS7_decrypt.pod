@@ -1,0 +1,55 @@
+=pod
+
+=head1 NAME
+
+PKCS7_decrypt - decrypt content from a PKCS#7 envelopedData structure
+
+=head1 SYNOPSIS
+
+ #include <openssl/pkcs7.h>
+
+ int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data, int flags);
+
+=head1 DESCRIPTION
+
+PKCS7_decrypt() extracts and decrypts the content from a PKCS#7 envelopedData
+structure. B<pkey> is the private key of the recipient, B<cert> is the
+recipients certificate, B<data> is a BIO to write the content to and
+B<flags> is an optional set of flags.
+
+=head1 NOTES
+
+OpenSSL_add_all_algorithms() (or equivalent) should be called before using this
+function or errors about unknown algorithms will occur.
+
+Although the recipients certificate is not needed to decrypt the data it is needed
+to locate the appropriate (of possible several) recipients in the PKCS#7 structure.
+
+The following flags can be passed in the B<flags> parameter.
+
+If the B<PKCS7_TEXT> flag is set MIME headers for type B<text/plain> are deleted
+from the content. If the content is not of type B<text/plain> then an error is
+returned.
+
+=head1 RETURN VALUES
+
+PKCS7_decrypt() returns either 1 for success or 0 for failure.
+The error can be obtained from ERR_get_error(3)
+
+=head1 BUGS
+
+PKCS7_decrypt() must be passed the correct recipient key and certificate. It would
+be better if it could look up the correct key and certificate from a database.
+
+The lack of single pass processing and need to hold all data in memory as
+mentioned in PKCS7_sign() also applies to PKCS7_verify().
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)|ERR_get_error(3)>, L<PKCS7_encrypt(3)|PKCS7_encrypt(3)>
+
+=head1 HISTORY
+
+PKCS7_decrypt() was added to OpenSSL 0.9.5
+
+=cut

@@ -1,0 +1,66 @@
+=pod
+
+=head1 NAME
+
+RSA_sign, RSA_verify - RSA signatures
+
+=head1 SYNOPSIS
+
+ #include <openssl/rsa.h>
+
+ int RSA_sign(int type, const unsigned char *m, unsigned int m_len,
+    unsigned char *sigret, unsigned int *siglen, RSA *rsa);
+
+ int RSA_verify(int type, const unsigned char *m, unsigned int m_len,
+    unsigned char *sigbuf, unsigned int siglen, RSA *rsa);
+
+=head1 DESCRIPTION
+
+RSA_sign() signs the message digest B<m> of size B<m_len> using the
+private key B<rsa> as specified in PKCS #1 v2.0. It stores the
+signature in B<sigret> and the signature size in B<siglen>. B<sigret>
+must point to RSA_size(B<rsa>) bytes of memory.
+Note that PKCS #1 adds meta-data, placing limits on the size of the
+key that can be used.
+See L<RSA_private_encrypt(3)|RSA_private_encrypt(3)> for lower-level
+operations.
+
+B<type> denotes the message digest algorithm that was used to generate
+B<m>. It usually is one of B<NID_sha1>, B<NID_ripemd160> and B<NID_md5>;
+see L<objects(3)|objects(3)> for details. If B<type> is B<NID_md5_sha1>,
+an SSL signature (MD5 and SHA1 message digests with PKCS #1 padding
+and no algorithm identifier) is created.
+
+RSA_verify() verifies that the signature B<sigbuf> of size B<siglen>
+matches a given message digest B<m> of size B<m_len>. B<type> denotes
+the message digest algorithm that was used to generate the signature.
+B<rsa> is the signer's public key.
+
+=head1 RETURN VALUES
+
+RSA_sign() returns 1 on success, 0 otherwise.  RSA_verify() returns 1
+on successful verification, 0 otherwise.
+
+The error codes can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+
+=head1 BUGS
+
+Certain signatures with an improper algorithm identifier are accepted
+for compatibility with SSLeay 0.4.5 :-)
+
+=head1 CONFORMING TO
+
+SSL, PKCS #1 v2.0
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)|ERR_get_error(3)>, L<objects(3)|objects(3)>,
+L<rsa(3)|rsa(3)>, L<RSA_private_encrypt(3)|RSA_private_encrypt(3)>,
+L<RSA_public_decrypt(3)|RSA_public_decrypt(3)> 
+
+=head1 HISTORY
+
+RSA_sign() and RSA_verify() are available in all versions of SSLeay
+and OpenSSL.
+
+=cut

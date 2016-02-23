@@ -1,0 +1,244 @@
+{
+  "flags": [
+    "--harmony-simd",
+    "test/simdjs/harness-adapt.js"
+  ],
+  "name": "SIMDJS",
+  "path": [
+    "../../"
+  ],
+  "resources": [
+    "test/simdjs/data/src/benchmarks/base.js",
+    "test/simdjs/harness-adapt.js",
+    "test/simdjs/harness-finish.js",
+    "test/simdjs/data/src/benchmarks/kernel-template.js",
+    "test/simdjs/data/src/benchmarks/averageFloat32x4.js",
+    "test/simdjs/data/src/benchmarks/averageFloat32x4LoadFromInt8Array.js",
+    "test/simdjs/data/src/benchmarks/averageFloat32x4LoadX.js",
+    "test/simdjs/data/src/benchmarks/averageFloat32x4LoadXY.js",
+    "test/simdjs/data/src/benchmarks/averageFloat32x4LoadXYZ.js",
+    "test/simdjs/data/src/benchmarks/matrix-multiplication.js",
+    "test/simdjs/data/src/benchmarks/transform.js",
+    "test/simdjs/data/src/benchmarks/shiftrows.js",
+    "test/simdjs/data/src/benchmarks/transpose4x4.js",
+    "test/simdjs/data/src/benchmarks/inverse4x4.js",
+    "test/simdjs/data/src/benchmarks/memset.js",
+    "test/simdjs/data/src/benchmarks/memcpy.js"
+  ],
+  "run_count": 5,
+  "run_count_arm": 3,
+  "run_count_arm64": 3,
+  "tests": [
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/kernel-template.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "kernel-template",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/averageFloat32x4.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "averageFloat32x4",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/averageFloat32x4LoadFromInt8Array.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "averageFloat32x4LoadFromInt8Array",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/averageFloat32x4LoadX.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "averageFloat32x4LoadX",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/averageFloat32x4LoadXY.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "averageFloat32x4LoadXY",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/averageFloat32x4LoadXYZ.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "averageFloat32x4LoadXYZ",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/matrix-multiplication.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "matrix-multiplication",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/transform.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "transform",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/shiftrows.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "shiftrows",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/transpose4x4.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "transpose4x4",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/inverse4x4.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "inverse4x4",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/memset.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "memset",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    },
+    {
+      "flags": [
+        "test/simdjs/data/src/benchmarks/memcpy.js"
+      ],
+      "main": "test/simdjs/harness-finish.js",
+      "name": "memcpy",
+      "results_regexp": "%s\\([ ]*([0-9.]+)(ms)?\\)",
+      "tests": [
+        {
+          "name": "SIMD"
+        },
+        {
+          "name": "Non-SIMD"
+        }
+      ]
+    }
+  ],
+  "timeout_arm": 480,
+  "timeout_arm64": 120,
+  "units": "ms"
+}

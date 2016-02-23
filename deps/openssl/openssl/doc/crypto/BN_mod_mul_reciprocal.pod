@@ -1,0 +1,81 @@
+=pod
+
+=head1 NAME
+
+BN_mod_mul_reciprocal,  BN_div_recp, BN_RECP_CTX_new, BN_RECP_CTX_init,
+BN_RECP_CTX_free, BN_RECP_CTX_set - modular multiplication using
+reciprocal
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ BN_RECP_CTX *BN_RECP_CTX_new(void);
+ void BN_RECP_CTX_init(BN_RECP_CTX *recp);
+ void BN_RECP_CTX_free(BN_RECP_CTX *recp);
+
+ int BN_RECP_CTX_set(BN_RECP_CTX *recp, const BIGNUM *m, BN_CTX *ctx);
+
+ int BN_div_recp(BIGNUM *dv, BIGNUM *rem, BIGNUM *a, BN_RECP_CTX *recp,
+        BN_CTX *ctx);
+
+ int BN_mod_mul_reciprocal(BIGNUM *r, BIGNUM *a, BIGNUM *b,
+        BN_RECP_CTX *recp, BN_CTX *ctx);
+
+=head1 DESCRIPTION
+
+BN_mod_mul_reciprocal() can be used to perform an efficient
+L<BN_mod_mul(3)|BN_mod_mul(3)> operation when the operation will be performed
+repeatedly with the same modulus. It computes B<r>=(B<a>*B<b>)%B<m>
+using B<recp>=1/B<m>, which is set as described below.  B<ctx> is a
+previously allocated B<BN_CTX> used for temporary variables.
+
+BN_RECP_CTX_new() allocates and initializes a B<BN_RECP> structure.
+BN_RECP_CTX_init() initializes an existing uninitialized B<BN_RECP>.
+
+BN_RECP_CTX_free() frees the components of the B<BN_RECP>, and, if it
+was created by BN_RECP_CTX_new(), also the structure itself.
+
+BN_RECP_CTX_set() stores B<m> in B<recp> and sets it up for computing
+1/B<m> and shifting it left by BN_num_bits(B<m>)+1 to make it an
+integer. The result and the number of bits it was shifted left will
+later be stored in B<recp>.
+
+BN_div_recp() divides B<a> by B<m> using B<recp>. It places the quotient
+in B<dv> and the remainder in B<rem>.
+
+The B<BN_RECP_CTX> structure is defined as follows:
+
+ typedef struct bn_recp_ctx_st
+	{
+	BIGNUM N;	/* the divisor */
+	BIGNUM Nr;	/* the reciprocal */
+	int num_bits;
+	int shift;
+	int flags;
+	} BN_RECP_CTX;
+
+It cannot be shared between threads.
+
+=head1 RETURN VALUES
+
+BN_RECP_CTX_new() returns the newly allocated B<BN_RECP_CTX>, and NULL
+on error.
+
+BN_RECP_CTX_init() and BN_RECP_CTX_free() have no return values.
+
+For the other functions, 1 is returned for success, 0 on error.
+The error codes can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<bn(3)|bn(3)>, L<ERR_get_error(3)|ERR_get_error(3)>, L<BN_add(3)|BN_add(3)>,
+L<BN_CTX_new(3)|BN_CTX_new(3)>
+
+=head1 HISTORY
+
+B<BN_RECP_CTX> was added in SSLeay 0.9.0. Before that, the function
+BN_reciprocal() was used instead, and the BN_mod_mul_reciprocal()
+arguments were different.
+
+=cut

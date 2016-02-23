@@ -1,0 +1,24 @@
+<pkgref spec="1.12" uuid="DF0233A3-6B5D-4FBF-8048-8FC57F42278F">
+  <config>
+    <identifier>org.nodejs.npm.pkg</identifier>
+    <version>1.0</version>
+    <description></description>
+    <post-install type="none"/>
+    <requireAuthorization/>
+    <installFrom relative="true">../deps/npm</installFrom>
+    <installTo mod="true">/usr/local/lib/node_modules/npm</installTo>
+    <flags>
+      <followSymbolicLinks/>
+    </flags>
+    <packageStore type="internal"></packageStore>
+    <mod>installTo.path</mod>
+    <mod>installFrom.isRelativeType</mod>
+    <mod>installTo</mod>
+    <mod>scripts.postinstall.isRelativeType</mod>
+    <mod>parent</mod>
+    <mod>installTo.isAbsoluteType</mod>
+  </config>
+  <scripts>
+    <postinstall relative="true" mod="true">osx-pkg-postinstall.sh</postinstall>
+  </scripts>
+</pkgref>

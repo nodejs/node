@@ -1,0 +1,11 @@
+{ "name": "npm-test-optional-deps"
+, "version": "1.2.5"
+, "scripts": { "test": "node test.js" }
+, "optionalDependencies":
+  { "npm-test-foobarzaaakakaka": "http://example.com/"
+  , "dnode": "10.999.14234"
+  , "sax": "0.3.5"
+  , "glob": "some invalid version 99 #! $$ x y z"
+  , "npm-test-failer":"*"
+  }
+}

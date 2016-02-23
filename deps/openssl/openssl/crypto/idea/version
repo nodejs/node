@@ -1,0 +1,12 @@
+1.1 07/12/95 - eay
+	Many thanks to Rhys Weatherley <rweather@us.oracle.com>
+	for pointing out that I was assuming little endian byte
+	order for all quantities what idea actually used
+	bigendian.  No where in the spec does it mention
+	this, it is all in terms of 16 bit numbers and even the example
+	does not use byte streams for the input example :-(.
+	If you byte swap each pair of input, keys and iv, the functions
+	would produce the output as the old version :-(.
+
+1.0 ??/??/95 - eay
+	First version.

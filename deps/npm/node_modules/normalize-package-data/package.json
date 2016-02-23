@@ -1,0 +1,86 @@
+{
+  "name": "normalize-package-data",
+  "version": "2.3.5",
+  "author": {
+    "name": "Meryn Stol",
+    "email": "merynstol@gmail.com"
+  },
+  "description": "Normalizes data that can be found in package.json files.",
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/normalize-package-data.git"
+  },
+  "main": "lib/normalize.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "dependencies": {
+    "hosted-git-info": "^2.1.4",
+    "is-builtin-module": "^1.0.0",
+    "semver": "2 || 3 || 4 || 5",
+    "validate-npm-package-license": "^3.0.1"
+  },
+  "devDependencies": {
+    "async": "^1.5.0",
+    "tap": "^2.2.0",
+    "underscore": "^1.8.3"
+  },
+  "contributors": [
+    {
+      "name": "Isaac Z. Schlueter",
+      "email": "i@izs.me"
+    },
+    {
+      "name": "Meryn Stol",
+      "email": "merynstol@gmail.com"
+    },
+    {
+      "name": "Robert Kowalski",
+      "email": "rok@kowalski.gd"
+    }
+  ],
+  "gitHead": "3dc7756af20b3b1b24c6d75302448ca3659e0a65",
+  "bugs": {
+    "url": "https://github.com/npm/normalize-package-data/issues"
+  },
+  "homepage": "https://github.com/npm/normalize-package-data#readme",
+  "_id": "normalize-package-data@2.3.5",
+  "_shasum": "8d924f142960e1777e7ffe170543631cc7cb02df",
+  "_from": "normalize-package-data@>=2.3.5 <2.4.0",
+  "_npmVersion": "3.3.6",
+  "_nodeVersion": "5.0.0",
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "dist": {
+    "shasum": "8d924f142960e1777e7ffe170543631cc7cb02df",
+    "tarball": "http://registry.npmjs.org/normalize-package-data/-/normalize-package-data-2.3.5.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    },
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "meryn",
+      "email": "merynstol@gmail.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/normalize-package-data/-/normalize-package-data-2.3.5.tgz",
+  "readme": "ERROR: No README data found!"
+}

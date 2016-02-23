@@ -1,0 +1,87 @@
+=pod
+
+=head1 NAME
+
+EVP_DigestSignInit, EVP_DigestSignUpdate, EVP_DigestSignFinal - EVP signing functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int EVP_DigestSignInit(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
+			const EVP_MD *type, ENGINE *e, EVP_PKEY *pkey);
+ int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt);
+ int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sig, size_t *siglen);
+
+=head1 DESCRIPTION
+
+The EVP signature routines are a high level interface to digital signatures.
+
+EVP_DigestSignInit() sets up signing context B<ctx> to use digest B<type> from
+ENGINE B<impl> and private key B<pkey>. B<ctx> must be initialized with
+EVP_MD_CTX_init() before calling this function. If B<pctx> is not NULL the
+EVP_PKEY_CTX of the signing operation will be written to B<*pctx>: this can
+be used to set alternative signing options.
+
+EVP_DigestSignUpdate() hashes B<cnt> bytes of data at B<d> into the
+signature context B<ctx>. This function can be called several times on the
+same B<ctx> to include additional data. This function is currently implemented
+usig a macro.
+
+EVP_DigestSignFinal() signs the data in B<ctx> places the signature in B<sig>.
+If B<sig> is B<NULL> then the maximum size of the output buffer is written to
+the B<siglen> parameter. If B<sig> is not B<NULL> then before the call the
+B<siglen> parameter should contain the length of the B<sig> buffer, if the
+call is successful the signature is written to B<sig> and the amount of data
+written to B<siglen>.
+
+=head1 RETURN VALUES
+
+EVP_DigestSignInit() EVP_DigestSignUpdate() and EVP_DigestSignaFinal() return
+1 for success and 0 or a negative value for failure. In particular a return
+value of -2 indicates the operation is not supported by the public key
+algorithm.
+
+The error codes can be obtained from L<ERR_get_error(3)|ERR_get_error(3)>.
+
+=head1 NOTES
+
+The B<EVP> interface to digital signatures should almost always be used in
+preference to the low level interfaces. This is because the code then becomes
+transparent to the algorithm used and much more flexible.
+
+In previous versions of OpenSSL there was a link between message digest types
+and public key algorithms. This meant that "clone" digests such as EVP_dss1()
+needed to be used to sign using SHA1 and DSA. This is no longer necessary and
+the use of clone digest is now discouraged.
+
+For some key types and parameters the random number generator must be seeded
+or the operation will fail. 
+
+The call to EVP_DigestSignFinal() internally finalizes a copy of the digest
+context. This means that calls to EVP_DigestSignUpdate() and
+EVP_DigestSignFinal() can be called later to digest and sign additional data.
+
+Since only a copy of the digest context is ever finalized the context must
+be cleaned up after use by calling EVP_MD_CTX_cleanup() or a memory leak
+will occur.
+
+The use of EVP_PKEY_size() with these functions is discouraged because some
+signature operations may have a signature length which depends on the
+parameters set. As a result EVP_PKEY_size() would have to return a value
+which indicates the maximum possible signature for any set of parameters.
+
+=head1 SEE ALSO
+
+L<EVP_DigestVerifyInit(3)|EVP_DigestVerifyInit(3)>,
+L<EVP_DigestInit(3)|EVP_DigestInit(3)>, L<err(3)|err(3)>,
+L<evp(3)|evp(3)>, L<hmac(3)|hmac(3)>, L<md2(3)|md2(3)>,
+L<md5(3)|md5(3)>, L<mdc2(3)|mdc2(3)>, L<ripemd(3)|ripemd(3)>,
+L<sha(3)|sha(3)>, L<dgst(1)|dgst(1)>
+
+=head1 HISTORY
+
+EVP_DigestSignInit(), EVP_DigestSignUpdate() and EVP_DigestSignFinal() 
+were first added to OpenSSL 1.0.0.
+
+=cut

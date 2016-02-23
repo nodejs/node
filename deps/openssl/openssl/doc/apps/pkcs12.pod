@@ -1,0 +1,368 @@
+
+=pod
+
+=head1 NAME
+
+pkcs12 - PKCS#12 file utility
+
+=head1 SYNOPSIS
+
+B<openssl> B<pkcs12>
+[B<-export>]
+[B<-chain>]
+[B<-inkey filename>]
+[B<-certfile filename>]
+[B<-name name>]
+[B<-caname name>]
+[B<-in filename>]
+[B<-out filename>]
+[B<-noout>]
+[B<-nomacver>]
+[B<-nocerts>]
+[B<-clcerts>]
+[B<-cacerts>]
+[B<-nokeys>]
+[B<-info>]
+[B<-des | -des3 | -idea | -aes128 | -aes192 | -aes256 | -camellia128 | -camellia192 | -camellia256 | -nodes>]
+[B<-noiter>]
+[B<-maciter | -nomaciter | -nomac>]
+[B<-twopass>]
+[B<-descert>]
+[B<-certpbe cipher>]
+[B<-keypbe cipher>]
+[B<-macalg digest>]
+[B<-keyex>]
+[B<-keysig>]
+[B<-password arg>]
+[B<-passin arg>]
+[B<-passout arg>]
+[B<-rand file(s)>]
+[B<-CAfile file>]
+[B<-CApath dir>]
+[B<-CSP name>]
+
+=head1 DESCRIPTION
+
+The B<pkcs12> command allows PKCS#12 files (sometimes referred to as
+PFX files) to be created and parsed. PKCS#12 files are used by several
+programs including Netscape, MSIE and MS Outlook.
+
+=head1 COMMAND OPTIONS
+
+There are a lot of options the meaning of some depends of whether a PKCS#12 file
+is being created or parsed. By default a PKCS#12 file is parsed. A PKCS#12
+file can be created by using the B<-export> option (see below).
+
+=head1 PARSING OPTIONS
+
+=over 4
+
+=item B<-in filename>
+
+This specifies filename of the PKCS#12 file to be parsed. Standard input is used
+by default.
+
+=item B<-out filename>
+
+The filename to write certificates and private keys to, standard output by
+default.  They are all written in PEM format.
+
+=item B<-passin arg>
+
+the PKCS#12 file (i.e. input file) password source. For more information about
+the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section in
+L<openssl(1)|openssl(1)>.
+
+=item B<-passout arg>
+
+pass phrase source to encrypt any outputted private keys with. For more
+information about the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section
+in L<openssl(1)|openssl(1)>.
+
+=item B<-password arg>
+
+With -export, -password is equivalent to -passout.
+Otherwise, -password is equivalent to -passin.
+
+=item B<-noout>
+
+this option inhibits output of the keys and certificates to the output file
+version of the PKCS#12 file.
+
+=item B<-clcerts>
+
+only output client certificates (not CA certificates).
+
+=item B<-cacerts>
+
+only output CA certificates (not client certificates).
+
+=item B<-nocerts>
+
+no certificates at all will be output.
+
+=item B<-nokeys>
+
+no private keys will be output.
+
+=item B<-info>
+
+output additional information about the PKCS#12 file structure, algorithms used and
+iteration counts.
+
+=item B<-des>
+
+use DES to encrypt private keys before outputting.
+
+=item B<-des3>
+
+use triple DES to encrypt private keys before outputting, this is the default.
+
+=item B<-idea>
+
+use IDEA to encrypt private keys before outputting.
+
+=item B<-aes128>, B<-aes192>, B<-aes256>
+
+use AES to encrypt private keys before outputting.
+
+=item B<-camellia128>, B<-camellia192>, B<-camellia256>
+
+use Camellia to encrypt private keys before outputting.
+
+=item B<-nodes>
+
+don't encrypt the private keys at all.
+
+=item B<-nomacver>
+
+don't attempt to verify the integrity MAC before reading the file.
+
+=item B<-twopass>
+
+prompt for separate integrity and encryption passwords: most software
+always assumes these are the same so this option will render such
+PKCS#12 files unreadable.
+
+=back
+
+=head1 FILE CREATION OPTIONS
+
+=over 4
+
+=item B<-export>
+
+This option specifies that a PKCS#12 file will be created rather than
+parsed.
+
+=item B<-out filename>
+
+This specifies filename to write the PKCS#12 file to. Standard output is used
+by default.
+
+=item B<-in filename>
+
+The filename to read certificates and private keys from, standard input by
+default.  They must all be in PEM format. The order doesn't matter but one
+private key and its corresponding certificate should be present. If additional
+certificates are present they will also be included in the PKCS#12 file.
+
+=item B<-inkey filename>
+
+file to read private key from. If not present then a private key must be present
+in the input file.
+
+=item B<-name friendlyname>
+
+This specifies the "friendly name" for the certificate and private key. This
+name is typically displayed in list boxes by software importing the file.
+
+=item B<-certfile filename>
+
+A filename to read additional certificates from.
+
+=item B<-caname friendlyname>
+
+This specifies the "friendly name" for other certificates. This option may be
+used multiple times to specify names for all certificates in the order they
+appear. Netscape ignores friendly names on other certificates whereas MSIE
+displays them.
+
+=item B<-pass arg>, B<-passout arg>
+
+the PKCS#12 file (i.e. output file) password source. For more information about
+the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section in
+L<openssl(1)|openssl(1)>.
+
+=item B<-passin password>
+
+pass phrase source to decrypt any input private keys with. For more information
+about the format of B<arg> see the B<PASS PHRASE ARGUMENTS> section in
+L<openssl(1)|openssl(1)>.
+
+=item B<-chain>
+
+if this option is present then an attempt is made to include the entire
+certificate chain of the user certificate. The standard CA store is used
+for this search. If the search fails it is considered a fatal error.
+
+=item B<-descert>
+
+encrypt the certificate using triple DES, this may render the PKCS#12
+file unreadable by some "export grade" software. By default the private
+key is encrypted using triple DES and the certificate using 40 bit RC2.
+
+=item B<-keypbe alg>, B<-certpbe alg>
+
+these options allow the algorithm used to encrypt the private key and
+certificates to be selected. Any PKCS#5 v1.5 or PKCS#12 PBE algorithm name
+can be used (see B<NOTES> section for more information). If a cipher name
+(as output by the B<list-cipher-algorithms> command is specified then it
+is used with PKCS#5 v2.0. For interoperability reasons it is advisable to only
+use PKCS#12 algorithms.
+
+=item B<-keyex|-keysig>
+
+specifies that the private key is to be used for key exchange or just signing.
+This option is only interpreted by MSIE and similar MS software. Normally
+"export grade" software will only allow 512 bit RSA keys to be used for
+encryption purposes but arbitrary length keys for signing. The B<-keysig>
+option marks the key for signing only. Signing only keys can be used for
+S/MIME signing, authenticode (ActiveX control signing)  and SSL client
+authentication, however due to a bug only MSIE 5.0 and later support
+the use of signing only keys for SSL client authentication.
+
+=item B<-macalg digest>
+
+specify the MAC digest algorithm. If not included them SHA1 will be used.
+
+=item B<-nomaciter>, B<-noiter>
+
+these options affect the iteration counts on the MAC and key algorithms.
+Unless you wish to produce files compatible with MSIE 4.0 you should leave
+these options alone.
+
+To discourage attacks by using large dictionaries of common passwords the
+algorithm that derives keys from passwords can have an iteration count applied
+to it: this causes a certain part of the algorithm to be repeated and slows it
+down. The MAC is used to check the file integrity but since it will normally
+have the same password as the keys and certificates it could also be attacked.
+By default both MAC and encryption iteration counts are set to 2048, using
+these options the MAC and encryption iteration counts can be set to 1, since
+this reduces the file security you should not use these options unless you
+really have to. Most software supports both MAC and key iteration counts.
+MSIE 4.0 doesn't support MAC iteration counts so it needs the B<-nomaciter>
+option.
+
+=item B<-maciter>
+
+This option is included for compatibility with previous versions, it used
+to be needed to use MAC iterations counts but they are now used by default.
+
+=item B<-nomac>
+
+don't attempt to provide the MAC integrity.
+
+=item B<-rand file(s)>
+
+a file or files containing random data used to seed the random number
+generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
+Multiple files can be specified separated by a OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item B<-CAfile file>
+
+CA storage as a file.
+
+=item B<-CApath dir>
+
+CA storage as a directory. This directory must be a standard certificate
+directory: that is a hash of each subject name (using B<x509 -hash>) should be
+linked to each certificate.
+
+=item B<-CSP name>
+
+write B<name> as a Microsoft CSP name.
+
+=back
+
+=head1 NOTES
+
+Although there are a large number of options most of them are very rarely
+used. For PKCS#12 file parsing only B<-in> and B<-out> need to be used
+for PKCS#12 file creation B<-export> and B<-name> are also used.
+
+If none of the B<-clcerts>, B<-cacerts> or B<-nocerts> options are present
+then all certificates will be output in the order they appear in the input
+PKCS#12 files. There is no guarantee that the first certificate present is
+the one corresponding to the private key. Certain software which requires
+a private key and certificate and assumes the first certificate in the
+file is the one corresponding to the private key: this may not always
+be the case. Using the B<-clcerts> option will solve this problem by only
+outputting the certificate corresponding to the private key. If the CA
+certificates are required then they can be output to a separate file using
+the B<-nokeys -cacerts> options to just output CA certificates.
+
+The B<-keypbe> and B<-certpbe> algorithms allow the precise encryption
+algorithms for private keys and certificates to be specified. Normally
+the defaults are fine but occasionally software can't handle triple DES
+encrypted private keys, then the option B<-keypbe PBE-SHA1-RC2-40> can
+be used to reduce the private key encryption to 40 bit RC2. A complete
+description of all algorithms is contained in the B<pkcs8> manual page.
+
+=head1 EXAMPLES
+
+Parse a PKCS#12 file and output it to a file:
+
+ openssl pkcs12 -in file.p12 -out file.pem
+
+Output only client certificates to a file:
+
+ openssl pkcs12 -in file.p12 -clcerts -out file.pem
+
+Don't encrypt the private key:
+ 
+ openssl pkcs12 -in file.p12 -out file.pem -nodes
+
+Print some info about a PKCS#12 file:
+
+ openssl pkcs12 -in file.p12 -info -noout
+
+Create a PKCS#12 file:
+
+ openssl pkcs12 -export -in file.pem -out file.p12 -name "My Certificate"
+
+Include some extra certificates:
+
+ openssl pkcs12 -export -in file.pem -out file.p12 -name "My Certificate" \
+  -certfile othercerts.pem
+
+=head1 BUGS
+
+Some would argue that the PKCS#12 standard is one big bug :-)
+
+Versions of OpenSSL before 0.9.6a had a bug in the PKCS#12 key generation
+routines. Under rare circumstances this could produce a PKCS#12 file encrypted
+with an invalid key. As a result some PKCS#12 files which triggered this bug
+from other implementations (MSIE or Netscape) could not be decrypted
+by OpenSSL and similarly OpenSSL could produce PKCS#12 files which could
+not be decrypted by other implementations. The chances of producing such
+a file are relatively small: less than 1 in 256.
+
+A side effect of fixing this bug is that any old invalidly encrypted PKCS#12
+files cannot no longer be parsed by the fixed version. Under such circumstances
+the B<pkcs12> utility will report that the MAC is OK but fail with a decryption
+error when extracting private keys.
+
+This problem can be resolved by extracting the private keys and certificates
+from the PKCS#12 file using an older version of OpenSSL and recreating the PKCS#12
+file from the keys and certificates using a newer version of OpenSSL. For example:
+
+ old-openssl -in bad.p12 -out keycerts.pem
+ openssl -in keycerts.pem -export -name "My PKCS#12 file" -out fixed.p12
+
+=head1 SEE ALSO
+
+L<pkcs8(1)|pkcs8(1)>
+

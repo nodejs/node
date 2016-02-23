@@ -1,0 +1,222 @@
+=pod
+
+=head1 NAME
+
+pkeyutl - public key algorithm utility
+
+=head1 SYNOPSIS
+
+B<openssl> B<pkeyutl>
+[B<-in file>]
+[B<-out file>]
+[B<-sigfile file>]
+[B<-inkey file>]
+[B<-keyform PEM|DER>]
+[B<-passin arg>]
+[B<-peerkey file>]
+[B<-peerform PEM|DER>]
+[B<-pubin>]
+[B<-certin>]
+[B<-rev>]
+[B<-sign>]
+[B<-verify>]
+[B<-verifyrecover>]
+[B<-encrypt>]
+[B<-decrypt>]
+[B<-derive>]
+[B<-pkeyopt opt:value>]
+[B<-hexdump>]
+[B<-asn1parse>]
+[B<-engine id>]
+
+=head1 DESCRIPTION
+
+The B<pkeyutl> command can be used to perform public key operations using
+any supported algorithm.
+
+=head1 COMMAND OPTIONS
+
+=over 4
+
+=item B<-in filename>
+
+This specifies the input filename to read data from or standard input
+if this option is not specified.
+
+=item B<-out filename>
+
+specifies the output filename to write to or standard output by
+default.
+
+=item B<-inkey file>
+
+the input key file, by default it should be a private key.
+
+=item B<-keyform PEM|DER>
+
+the key format PEM, DER or ENGINE.
+
+=item B<-passin arg>
+
+the input key password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+
+
+=item B<-peerkey file>
+
+the peer key file, used by key derivation (agreement) operations.
+
+=item B<-peerform PEM|DER>
+
+the peer key format PEM, DER or ENGINE.
+
+=item B<-engine id>
+
+specifying an engine (by its unique B<id> string) will cause B<pkeyutl>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+
+=item B<-pubin>
+
+the input file is a public key. 
+
+=item B<-certin>
+
+the input is a certificate containing a public key. 
+
+=item B<-rev>
+
+reverse the order of the input buffer. This is useful for some libraries
+(such as CryptoAPI) which represent the buffer in little endian format.
+
+=item B<-sign>
+
+sign the input data and output the signed result. This requires
+a private key.
+
+=item B<-verify>
+
+verify the input data against the signature file and indicate if the
+verification succeeded or failed.
+
+=item B<-verifyrecover>
+
+verify the input data and output the recovered data.
+
+=item B<-encrypt>
+
+encrypt the input data using a public key.
+
+=item B<-decrypt>
+
+decrypt the input data using a private key.
+
+=item B<-derive>
+
+derive a shared secret using the peer key.
+
+=item B<-hexdump>
+
+hex dump the output data.
+
+=item B<-asn1parse>
+
+asn1parse the output data, this is useful when combined with the
+B<-verifyrecover> option when an ASN1 structure is signed.
+
+=back
+
+=head1 NOTES
+
+The operations and options supported vary according to the key algorithm
+and its implementation. The OpenSSL operations and options are indicated below.
+
+Unless otherwise mentioned all algorithms support the B<digest:alg> option
+which specifies the digest in use for sign, verify and verifyrecover operations.
+The value B<alg> should represent a digest name as used in the
+EVP_get_digestbyname() function for example B<sha1>.
+
+=head1 RSA ALGORITHM
+
+The RSA algorithm supports encrypt, decrypt, sign, verify and verifyrecover
+operations in general. Some padding modes only support some of these 
+operations however.
+
+=over 4
+
+=item -B<rsa_padding_mode:mode>
+
+This sets the RSA padding mode. Acceptable values for B<mode> are B<pkcs1> for
+PKCS#1 padding, B<sslv23> for SSLv23 padding, B<none> for no padding, B<oaep>
+for B<OAEP> mode, B<x931> for X9.31 mode and B<pss> for PSS.
+
+In PKCS#1 padding if the message digest is not set then the supplied data is 
+signed or verified directly instead of using a B<DigestInfo> structure. If a
+digest is set then the a B<DigestInfo> structure is used and its the length
+must correspond to the digest type.
+
+For B<oeap> mode only encryption and decryption is supported.
+
+For B<x931> if the digest type is set it is used to format the block data
+otherwise the first byte is used to specify the X9.31 digest ID. Sign,
+verify and verifyrecover are can be performed in this mode.
+
+For B<pss> mode only sign and verify are supported and the digest type must be
+specified.
+
+=item B<rsa_pss_saltlen:len>
+
+For B<pss> mode only this option specifies the salt length. Two special values
+are supported: -1 sets the salt length to the digest length. When signing -2
+sets the salt length to the maximum permissible value. When verifying -2 causes
+the salt length to be automatically determined based on the B<PSS> block
+structure.
+
+=back
+
+=head1 DSA ALGORITHM
+
+The DSA algorithm supports signing and verification operations only. Currently
+there are no additional options other than B<digest>. Only the SHA1
+digest can be used and this digest is assumed by default.
+
+=head1 DH ALGORITHM
+
+The DH algorithm only supports the derivation operation and no additional
+options.
+
+=head1 EC ALGORITHM
+
+The EC algorithm supports sign, verify and derive operations. The sign and
+verify operations use ECDSA and derive uses ECDH. Currently there are no
+additional options other than B<digest>. Only the SHA1 digest can be used and
+this digest is assumed by default.
+
+=head1 EXAMPLES
+
+Sign some data using a private key:
+
+ openssl pkeyutl -sign -in file -inkey key.pem -out sig
+
+Recover the signed data (e.g. if an RSA key is used):
+
+ openssl pkeyutl -verifyrecover -in sig -inkey key.pem
+
+Verify the signature (e.g. a DSA key):
+
+ openssl pkeyutl -verify -in file -sigfile sig -inkey key.pem
+
+Sign data using a message digest value (this is currently only valid for RSA):
+
+ openssl pkeyutl -sign -in file -inkey key.pem -out sig -pkeyopt digest:sha256
+
+Derive a shared secret value:
+
+ openssl pkeyutl -derive -inkey key.pem -peerkey pubkey.pem -out secret
+
+=head1 SEE ALSO
+
+L<genpkey(1)|genpkey(1)>, L<pkey(1)|pkey(1)>, L<rsautl(1)|rsautl(1)>
+L<dgst(1)|dgst(1)>, L<rsa(1)|rsa(1)>, L<genrsa(1)|genrsa(1)>

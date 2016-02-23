@@ -1,0 +1,35 @@
+c-ares version 1.10.0
+
+Changes:
+
+ o Added ares_create_query(), to be used instead of ares_mkquery()
+ o ares_inet_ntop() and ares_inet_pton() are now recognized c-ares functions
+
+Bug fixes:
+
+ o include the ares_parse_soa_reply.* files in the tarball
+ o read_udp_packets: bail out loop on bad sockets
+ o get_DNS_AdaptersAddresses: fix IPv6 parsing
+ o adig: perror() doesn't work for socket errors on windows
+ o ares_parse_aaaa_reply: fix memory leak
+ o setup_once.h: HP-UX <sys/socket.h> issue workaround
+ o configure: several fixes
+ o config-dos.h: define strerror() to strerror_s_() for High-C
+ o config-dos.h: define HAVE_CLOSE_S for MSDOS/Watt-32
+ o ares_build.h.dist: enhance non-configure GCC ABI detection logic
+ o ares.h: stricter CARES_EXTERN linkage decorations logic
+ o ares_cancel(): cancel requests safely
+ o protocol parsing: check input data stricter
+ o library init: be recursive, reference count inits/cleanups
+ o ares_parse_txt_reply: return a ares_txt_reply node for each sub-string
+ o ares_set_servers_csv: fixed IPv6 address parsing
+ o build: fix build on msvc11
+ 
+Thanks go to these friendly people for their efforts and contributions:
+
+ Eugeny Gladkih, Yang Tse, Gisle Vanem, Guenter Knauf, Horatiu Popescu,
+ Alexander Klauer, Patrick Valsecchi, Paul Saab, Keith Shaw,
+ Alex Loukissas
+ 
+
+Have fun!

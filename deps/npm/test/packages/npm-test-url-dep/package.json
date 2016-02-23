@@ -1,0 +1,7 @@
+{ "name":"npm-test-url-dep"
+, "version" : "1.2.3"
+, "dependencies" :
+  { "jsonify" : "https://github.com/substack/jsonify/tarball/master"
+  , "sax": "isaacs/sax-js"
+  , "canonical-host": "git://github.com/isaacs/canonical-host"
+  } }

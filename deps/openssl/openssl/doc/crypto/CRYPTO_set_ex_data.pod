@@ -1,0 +1,53 @@
+=pod
+
+=head1 NAME
+
+CRYPTO_set_ex_data, CRYPTO_get_ex_data - internal application specific data functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/crypto.h>
+
+ int CRYPTO_set_ex_data(CRYPTO_EX_DATA *r, int idx, void *arg);
+
+ void *CRYPTO_get_ex_data(CRYPTO_EX_DATA *r, int idx);
+
+=head1 DESCRIPTION
+
+Several OpenSSL structures can have application specific data attached to them.
+These functions are used internally by OpenSSL to manipulate application
+specific data attached to a specific structure.
+
+These functions should only be used by applications to manipulate
+B<CRYPTO_EX_DATA> structures passed to the B<new_func()>, B<free_func()> and
+B<dup_func()> callbacks: as passed to B<RSA_get_ex_new_index()> for example.
+
+B<CRYPTO_set_ex_data()> is used to set application specific data, the data is
+supplied in the B<arg> parameter and its precise meaning is up to the
+application.
+
+B<CRYPTO_get_ex_data()> is used to retrieve application specific data. The data
+is returned to the application, this will be the same value as supplied to
+a previous B<CRYPTO_set_ex_data()> call.
+
+=head1 RETURN VALUES
+
+B<CRYPTO_set_ex_data()> returns 1 on success or 0 on failure.
+
+B<CRYPTO_get_ex_data()> returns the application data or 0 on failure. 0 may also
+be valid application data but currently it can only fail if given an invalid B<idx>
+parameter.
+
+On failure an error code can be obtained from L<ERR_get_error(3)|ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<RSA_get_ex_new_index(3)|RSA_get_ex_new_index(3)>,
+L<DSA_get_ex_new_index(3)|DSA_get_ex_new_index(3)>,
+L<DH_get_ex_new_index(3)|DH_get_ex_new_index(3)>
+
+=head1 HISTORY
+
+CRYPTO_set_ex_data() and CRYPTO_get_ex_data() have been available since SSLeay 0.9.0.
+
+=cut

@@ -1,0 +1,77 @@
+=pod
+
+=head1 NAME
+
+RAND_add, RAND_seed, RAND_status, RAND_event, RAND_screen - add
+entropy to the PRNG
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ void RAND_seed(const void *buf, int num);
+
+ void RAND_add(const void *buf, int num, double entropy);
+
+ int  RAND_status(void);
+
+ int  RAND_event(UINT iMsg, WPARAM wParam, LPARAM lParam);
+ void RAND_screen(void);
+
+=head1 DESCRIPTION
+
+RAND_add() mixes the B<num> bytes at B<buf> into the PRNG state. Thus,
+if the data at B<buf> are unpredictable to an adversary, this
+increases the uncertainty about the state and makes the PRNG output
+less predictable. Suitable input comes from user interaction (random
+key presses, mouse movements) and certain hardware events. The
+B<entropy> argument is (the lower bound of) an estimate of how much
+randomness is contained in B<buf>, measured in bytes. Details about
+sources of randomness and how to estimate their entropy can be found
+in the literature, e.g. RFC 1750.
+
+RAND_add() may be called with sensitive data such as user entered
+passwords. The seed values cannot be recovered from the PRNG output.
+
+OpenSSL makes sure that the PRNG state is unique for each thread. On
+systems that provide C</dev/urandom>, the randomness device is used
+to seed the PRNG transparently. However, on all other systems, the
+application is responsible for seeding the PRNG by calling RAND_add(),
+L<RAND_egd(3)|RAND_egd(3)>
+or L<RAND_load_file(3)|RAND_load_file(3)>.
+
+RAND_seed() is equivalent to RAND_add() when B<num == entropy>.
+
+RAND_event() collects the entropy from Windows events such as mouse
+movements and other user interaction. It should be called with the
+B<iMsg>, B<wParam> and B<lParam> arguments of I<all> messages sent to
+the window procedure. It will estimate the entropy contained in the
+event message (if any), and add it to the PRNG. The program can then
+process the messages as usual.
+
+The RAND_screen() function is available for the convenience of Windows
+programmers. It adds the current contents of the screen to the PRNG.
+For applications that can catch Windows events, seeding the PRNG by
+calling RAND_event() is a significantly better source of
+randomness. It should be noted that both methods cannot be used on
+servers that run without user interaction.
+
+=head1 RETURN VALUES
+
+RAND_status() and RAND_event() return 1 if the PRNG has been seeded
+with enough data, 0 otherwise.
+
+The other functions do not return values.
+
+=head1 SEE ALSO
+
+L<rand(3)|rand(3)>, L<RAND_egd(3)|RAND_egd(3)>,
+L<RAND_load_file(3)|RAND_load_file(3)>, L<RAND_cleanup(3)|RAND_cleanup(3)>
+
+=head1 HISTORY
+
+RAND_seed() and RAND_screen() are available in all versions of SSLeay
+and OpenSSL. RAND_add() and RAND_status() have been added in OpenSSL
+0.9.5, RAND_event() in OpenSSL 0.9.5a.
+
+=cut

@@ -1,0 +1,92 @@
+{
+  "_args": [
+    [
+      "spdx-expression-parse@~1.0.0",
+      "/Users/rebecca/code/npm/node_modules/validate-npm-package-license"
+    ]
+  ],
+  "_from": "spdx-expression-parse@>=1.0.0 <1.1.0",
+  "_id": "spdx-expression-parse@1.0.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/validate-npm-package-license/spdx-expression-parse",
+  "_nodeVersion": "5.0.0",
+  "_npmUser": {
+    "email": "kyle@kemitchell.com",
+    "name": "kemitchell"
+  },
+  "_npmVersion": "3.3.6",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "spdx-expression-parse",
+    "raw": "spdx-expression-parse@~1.0.0",
+    "rawSpec": "~1.0.0",
+    "scope": null,
+    "spec": ">=1.0.0 <1.1.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/validate-npm-package-license"
+  ],
+  "_resolved": "https://registry.npmjs.org/spdx-expression-parse/-/spdx-expression-parse-1.0.2.tgz",
+  "_shasum": "d52b14b5e9670771440af225bcb563122ac452f6",
+  "_shrinkwrap": null,
+  "_spec": "spdx-expression-parse@~1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/validate-npm-package-license",
+  "author": {
+    "email": "kyle@kemitchell.com",
+    "name": "Kyle E. Mitchell",
+    "url": "http://kemitchell.com"
+  },
+  "bugs": {
+    "url": "https://github.com/kemitchell/spdx-expression-parse.js/issues"
+  },
+  "dependencies": {
+    "spdx-exceptions": "^1.0.4",
+    "spdx-license-ids": "^1.0.0"
+  },
+  "description": "parse SPDX license expressions",
+  "devDependencies": {
+    "defence-cli": "^1.0.1",
+    "jison": "^0.4.15",
+    "replace-require-self": "^1.0.0",
+    "uglify-js": "^2.4.24"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "d52b14b5e9670771440af225bcb563122ac452f6",
+    "tarball": "http://registry.npmjs.org/spdx-expression-parse/-/spdx-expression-parse-1.0.2.tgz"
+  },
+  "gitHead": "ffe2fa7272ebf640b18286fc561f17a844d4f06b",
+  "homepage": "https://github.com/kemitchell/spdx-expression-parse.js#readme",
+  "keywords": [
+    "SPDX",
+    "law",
+    "legal",
+    "license",
+    "metadata",
+    "package",
+    "package.json",
+    "standards"
+  ],
+  "license": "(MIT AND CC-BY-3.0)",
+  "maintainers": [
+    {
+      "name": "kemitchell",
+      "email": "kyle@kemitchell.com"
+    }
+  ],
+  "name": "spdx-expression-parse",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kemitchell/spdx-expression-parse.js.git"
+  },
+  "scripts": {
+    "prepublish": "node generate-parser.js | uglifyjs > parser.generated.js",
+    "pretest": "npm run prepublish",
+    "test": "defence -i javascript README.md | replace-require-self | node"
+  },
+  "version": "1.0.2"
+}

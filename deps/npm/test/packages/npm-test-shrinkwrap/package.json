@@ -1,0 +1,13 @@
+{
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "name": "npm-test-shrinkwrap",
+  "version": "0.0.0",
+  "dependencies": {
+    "npm-test-single-file": "https://gist.github.com/isaacs/1837112/raw/9ef57a59fc22aeb1d1ca346b68826dcb638b8416/index.js",
+    "glob": "git://github.com/isaacs/node-glob.git#npm-test",
+    "minimatch": "~0.1.0"
+  },
+  "scripts": {
+    "test": "node test.js"
+  }
+}

@@ -1,0 +1,40 @@
+=pod
+
+=head1 NAME
+
+DH_new, DH_free - allocate and free DH objects
+
+=head1 SYNOPSIS
+
+ #include <openssl/dh.h>
+
+ DH* DH_new(void);
+
+ void DH_free(DH *dh);
+
+=head1 DESCRIPTION
+
+DH_new() allocates and initializes a B<DH> structure.
+
+DH_free() frees the B<DH> structure and its components. The values are
+erased before the memory is returned to the system.
+
+=head1 RETURN VALUES
+
+If the allocation fails, DH_new() returns B<NULL> and sets an error
+code that can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>. Otherwise it returns
+a pointer to the newly allocated structure.
+
+DH_free() returns no value.
+
+=head1 SEE ALSO
+
+L<dh(3)|dh(3)>, L<ERR_get_error(3)|ERR_get_error(3)>,
+L<DH_generate_parameters(3)|DH_generate_parameters(3)>,
+L<DH_generate_key(3)|DH_generate_key(3)>
+
+=head1 HISTORY
+
+DH_new() and DH_free() are available in all versions of SSLeay and OpenSSL.
+
+=cut

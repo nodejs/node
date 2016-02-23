@@ -1,0 +1,9 @@
+!
+! Ensure transfer vector is at beginning of image
+!
+CLUSTER=FIRST
+COLLECT=FIRST,$$ENGINE
+!
+! make psects nonshareable so image can be installed.
+!
+PSECT_ATTR=$CHAR_STRING_CONSTANTS,NOWRT

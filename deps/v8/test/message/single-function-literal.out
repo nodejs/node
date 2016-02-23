@@ -1,0 +1,5 @@
+undefined:1: SyntaxError: Single function literal required
+(function() { return 5; })();
+                            ^
+SyntaxError: Single function literal required
+    at *%(basename)s:32:16

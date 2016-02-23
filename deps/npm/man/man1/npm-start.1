@@ -1,0 +1,34 @@
+.TH "NPM\-START" "1" "January 2016" "" ""
+.SH "NAME"
+\fBnpm-start\fR \- Start a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm start [\-\- <args>]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This runs an arbitrary command specified in the package's \fB"start"\fP property of
+its \fB"scripts"\fP object\. If no \fB"start"\fP property is specified on the
+\fB"scripts"\fP object, it will run \fBnode server\.js\fP\|\.
+.P
+As of \fBnpm@2\.0\.0\fP \fIhttp://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
+use custom arguments when executing scripts\. Refer to npm help run\-script for
+more details\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help 7 scripts
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help restart
+.IP \(bu 2
+npm help stop
+
+.RE
+

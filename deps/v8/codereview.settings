@@ -1,0 +1,8 @@
+CODE_REVIEW_SERVER: https://codereview.chromium.org
+CC_LIST: v8-reviews@googlegroups.com
+VIEW_VC: https://chromium.googlesource.com/v8/v8/+/
+STATUS: http://v8-status.appspot.com/status
+TRY_ON_UPLOAD: False
+TRYSERVER_SVN_URL: svn://svn.chromium.org/chrome-try-v8
+PROJECT: v8
+PENDING_REF_PREFIX: refs/pending/

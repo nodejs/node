@@ -1,0 +1,39 @@
+=pod
+
+=head1 NAME
+
+X509_new, X509_free - X509 certificate ASN1 allocation functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ X509 *X509_new(void);
+ void X509_free(X509 *a);
+
+=head1 DESCRIPTION
+
+The X509 ASN1 allocation routines, allocate and free an
+X509 structure, which represents an X509 certificate.
+
+X509_new() allocates and initializes a X509 structure.
+
+X509_free() frees up the B<X509> structure B<a>.
+
+=head1 RETURN VALUES
+
+If the allocation fails, X509_new() returns B<NULL> and sets an error
+code that can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+Otherwise it returns a pointer to the newly allocated structure.
+
+X509_free() returns no value.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)|ERR_get_error(3)>, L<d2i_X509(3)|d2i_X509(3)>
+
+=head1 HISTORY
+
+X509_new() and X509_free() are available in all versions of SSLeay and OpenSSL.
+
+=cut

@@ -1,0 +1,15 @@
+var assert = require('assert')
+
+exports.name = prompt('name', package.name || basename)
+exports.version = '1.2.5'
+exports.description = prompt('description', package.description)
+exports.author = 'npmbot <n@p.m> (http://npm.im)'
+exports.scripts = package.scripts || {}
+exports.scripts.test = 'make test'
+exports.main = package.main || 'main.js'
+exports.config = JSON.parse(JSON.stringify(config))
+try {delete exports.config.config}catch(e){}
+try {delete exports.package.config}catch(e){}
+try {delete exports.package.package}catch(e){}
+try {delete exports.config.package}catch(e){}
+exports.package = JSON.parse(JSON.stringify(package))

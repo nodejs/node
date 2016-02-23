@@ -1,0 +1,70 @@
+=pod
+
+=head1 NAME
+
+nseq - create or examine a netscape certificate sequence
+
+=head1 SYNOPSIS
+
+B<openssl> B<nseq>
+[B<-in filename>]
+[B<-out filename>]
+[B<-toseq>]
+
+=head1 DESCRIPTION
+
+The B<nseq> command takes a file containing a Netscape certificate
+sequence and prints out the certificates contained in it or takes a
+file of certificates and converts it into a Netscape certificate
+sequence.
+
+=head1 COMMAND OPTIONS
+
+=over 4
+
+=item B<-in filename>
+
+This specifies the input filename to read or standard input if this
+option is not specified.
+
+=item B<-out filename>
+
+specifies the output filename or standard output by default.
+
+=item B<-toseq>
+
+normally a Netscape certificate sequence will be input and the output
+is the certificates contained in it. With the B<-toseq> option the
+situation is reversed: a Netscape certificate sequence is created from
+a file of certificates.
+
+=back
+
+=head1 EXAMPLES
+
+Output the certificates in a Netscape certificate sequence
+
+ openssl nseq -in nseq.pem -out certs.pem
+
+Create a Netscape certificate sequence
+
+ openssl nseq -in certs.pem -toseq -out nseq.pem
+
+=head1 NOTES
+
+The B<PEM> encoded form uses the same headers and footers as a certificate:
+
+ -----BEGIN CERTIFICATE-----
+ -----END CERTIFICATE-----
+
+A Netscape certificate sequence is a Netscape specific form that can be sent
+to browsers as an alternative to the standard PKCS#7 format when several
+certificates are sent to the browser: for example during certificate enrollment.
+It is used by Netscape certificate server for example.
+
+=head1 BUGS
+
+This program needs a few more options: like allowing DER or PEM input and
+output files and allowing multiple certificate files to be used.
+
+=cut

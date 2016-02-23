@@ -1,0 +1,60 @@
+{
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "name": "fstream-ignore",
+  "description": "A thing for ignoring files based on globs",
+  "version": "1.0.3",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/fstream-ignore.git"
+  },
+  "main": "ignore.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "dependencies": {
+    "fstream": "^1.0.0",
+    "inherits": "2",
+    "minimatch": "^3.0.0"
+  },
+  "devDependencies": {
+    "mkdirp": "",
+    "rimraf": "",
+    "tap": "^2.2.0"
+  },
+  "license": "ISC",
+  "gitHead": "86c835eef61049496003f6b90c1e6c1236c92d6a",
+  "bugs": {
+    "url": "https://github.com/isaacs/fstream-ignore/issues"
+  },
+  "homepage": "https://github.com/isaacs/fstream-ignore#readme",
+  "_id": "fstream-ignore@1.0.3",
+  "_shasum": "4c74d91fa88b22b42f4f86a18a2820dd79d8fcdd",
+  "_from": "fstream-ignore@>=1.0.0 <2.0.0",
+  "_npmVersion": "2.14.8",
+  "_nodeVersion": "4.2.1",
+  "_npmUser": {
+    "name": "othiym23",
+    "email": "ogd@aoaioxxysz.net"
+  },
+  "dist": {
+    "shasum": "4c74d91fa88b22b42f4f86a18a2820dd79d8fcdd",
+    "tarball": "http://registry.npmjs.org/fstream-ignore/-/fstream-ignore-1.0.3.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/fstream-ignore/-/fstream-ignore-1.0.3.tgz",
+  "readme": "ERROR: No README data found!"
+}

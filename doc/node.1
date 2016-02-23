@@ -1,0 +1,836 @@
+.TH NODE.JS "1" "2010" "" ""
+
+
+.SH "NAME"
+node \- Server-side JavaScript
+
+.SH SYNOPSIS
+
+
+.B node
+[
+.B \-v
+]
+[
+.B \-\-debug
+|
+.B \-\-debug-brk
+]
+[
+.B \-\-v8-options
+]
+.br
+     [
+.B \-e
+.I command
+|
+.I script.js
+]
+[
+.I arguments
+]
+
+Execute without arguments to start the REPL.
+
+
+.SH DESCRIPTION
+
+Node.js is a set of libraries for JavaScript which allows
+it to be used outside of the browser. It is primarily
+focused on creating simple, easy to build network clients
+and servers.
+
+
+.SH OPTIONS
+
+  -v, --version          print node's version
+
+  -e, --eval script      evaluate script
+
+  -p, --print            print result of --eval
+
+  -c, --check            syntax check script without executing
+
+  -i, --interactive      always enter the REPL even if stdin
+                         does not appear to be a terminal
+
+  -r, --require          module to preload at startup
+
+  --no-deprecation       silence deprecation warnings
+
+  --trace-deprecation    show stack traces on deprecations
+
+  --throw-deprecation    throw errors on deprecations
+
+  --track-heap-objects   track heap object allocations for heap snapshots
+
+  --prof-process         process v8 profiler output generated using --prof
+
+  --v8-options           print v8 command line options
+
+  --tls-cipher-list=list use an alternative default TLS cipher list
+                         (available only when Node.js is built with
+                         OpenSSL and crypto support enabled)
+
+.SH ENVIRONMENT VARIABLES
+
+.IP NODE_PATH
+\':\'\-separated list of directories prefixed to the module search path.
+.IP NODE_DISABLE_COLORS
+If set to 1 then colors will not be used in the REPL.
+.IP NODE_ICU_DATA
+Data path for ICU (Intl object) data. Will extend linked-in data when compiled
+with small-icu support.
+.IP NODE_REPL_HISTORY
+Path to the file used to store the persistent REPL history. The default path
+is ~/.node_repl_history, which is overridden by this variable. Setting the
+value to an empty string ("") disables persistent REPL history.
+
+.SH V8 OPTIONS
+
+  --use_strict (enforce strict mode)
+        type: bool  default: false
+  --use_strong (enforce strong mode)
+        type: bool  default: false
+  --strong_mode (experimental strong language mode)
+        type: bool  default: false
+  --strong_this (don't allow 'this' to escape from constructors)
+        type: bool  default: true
+  --es_staging (enable all completed harmony features)
+        type: bool  default: false
+  --harmony (enable all completed harmony features)
+        type: bool  default: false
+  --harmony_shipping (enable all shipped harmony features)
+        type: bool  default: true
+  --legacy_const (legacy semantics for const in sloppy mode)
+        type: bool  default: true
+  --harmony_modules (enable "harmony modules" (in progress))
+        type: bool  default: false
+  --harmony_regexps (enable "harmony regular expression extensions" (in progress))
+        type: bool  default: false
+  --harmony_proxies (enable "harmony proxies" (in progress))
+        type: bool  default: false
+  --harmony_sloppy_function (enable "harmony sloppy function block scoping" (in progress))
+        type: bool  default: false
+  --harmony_sloppy_let (enable "harmony let in sloppy mode" (in progress))
+        type: bool  default: false
+  --harmony_unicode_regexps (enable "harmony unicode regexps" (in progress))
+        type: bool  default: false
+  --harmony_reflect (enable "harmony Reflect API" (in progress))
+        type: bool  default: false
+  --harmony_destructuring (enable "harmony destructuring" (in progress))
+        type: bool  default: false
+  --harmony_default_parameters (enable "harmony default parameters" (in progress))
+        type: bool  default: false
+  --harmony_sharedarraybuffer (enable "harmony sharedarraybuffer" (in progress))
+        type: bool  default: false
+  --harmony_atomics (enable "harmony atomics" (in progress))
+        type: bool  default: false
+  --harmony_simd (enable "harmony simd" (in progress))
+        type: bool  default: false
+  --harmony_array_includes (enable "harmony Array.prototype.includes")
+        type: bool  default: false
+  --harmony_tostring (enable "harmony toString")
+        type: bool  default: false
+  --harmony_concat_spreadable (enable "harmony isConcatSpreadable")
+        type: bool  default: false
+  --harmony_rest_parameters (enable "harmony rest parameters")
+        type: bool  default: false
+  --harmony_sloppy (enable "harmony features in sloppy mode")
+        type: bool  default: false
+  --harmony_arrow_functions (enable "harmony arrow functions")
+        type: bool  default: true
+  --harmony_new_target (enable "harmony new.target")
+        type: bool  default: true
+  --harmony_object_observe (enable "harmony Object.observe")
+        type: bool  default: true
+  --harmony_spreadcalls (enable "harmony spread-calls")
+        type: bool  default: true
+  --harmony_spread_arrays (enable "harmony spread in array literals")
+        type: bool  default: true
+  --harmony_object (enable "harmony Object methods")
+        type: bool  default: true
+  --compiled_keyed_generic_loads (use optimizing compiler to generate keyed generic load stubs)
+        type: bool  default: false
+  --pretenuring_call_new (pretenure call new)
+        type: bool  default: false
+  --allocation_site_pretenuring (pretenure with allocation sites)
+        type: bool  default: true
+  --trace_pretenuring (trace pretenuring decisions of HAllocate instructions)
+        type: bool  default: false
+  --trace_pretenuring_statistics (trace allocation site pretenuring statistics)
+        type: bool  default: false
+  --track_fields (track fields with only smi values)
+        type: bool  default: true
+  --track_double_fields (track fields with double values)
+        type: bool  default: true
+  --track_heap_object_fields (track fields with heap values)
+        type: bool  default: true
+  --track_computed_fields (track computed boilerplate fields)
+        type: bool  default: true
+  --track_field_types (track field types)
+        type: bool  default: true
+  --smi_binop (support smi representation in binary operations)
+        type: bool  default: true
+  --optimize_for_size (Enables optimizations which favor memory size over execution speed)
+        type: bool  default: false
+  --unbox_double_arrays (automatically unbox arrays of doubles)
+        type: bool  default: true
+  --string_slices (use string slices)
+        type: bool  default: true
+  --ignition (use ignition interpreter)
+        type: bool  default: false
+  --ignition_filter (filter for ignition interpreter)
+        type: string  default: ~~
+  --print_bytecode (print bytecode generated by ignition interpreter)
+        type: bool  default: false
+  --trace_ignition_codegen (trace the codegen of ignition interpreter bytecode handlers)
+        type: bool  default: false
+  --crankshaft (use crankshaft)
+        type: bool  default: true
+  --hydrogen_filter (optimization filter)
+        type: string  default: *
+  --use_gvn (use hydrogen global value numbering)
+        type: bool  default: true
+  --gvn_iterations (maximum number of GVN fix-point iterations)
+        type: int  default: 3
+  --use_canonicalizing (use hydrogen instruction canonicalizing)
+        type: bool  default: true
+  --use_inlining (use function inlining)
+        type: bool  default: true
+  --use_escape_analysis (use hydrogen escape analysis)
+        type: bool  default: true
+  --use_allocation_folding (use allocation folding)
+        type: bool  default: true
+  --use_local_allocation_folding (only fold in basic blocks)
+        type: bool  default: false
+  --use_write_barrier_elimination (eliminate write barriers targeting allocations in optimized code)
+        type: bool  default: true
+  --max_inlining_levels (maximum number of inlining levels)
+        type: int  default: 5
+  --max_inlined_source_size (maximum source size in bytes considered for a single inlining)
+        type: int  default: 600
+  --max_inlined_nodes (maximum number of AST nodes considered for a single inlining)
+        type: int  default: 196
+  --max_inlined_nodes_cumulative (maximum cumulative number of AST nodes considered for inlining)
+        type: int  default: 400
+  --loop_invariant_code_motion (loop invariant code motion)
+        type: bool  default: true
+  --fast_math (faster (but maybe less accurate) math functions)
+        type: bool  default: true
+  --collect_megamorphic_maps_from_stub_cache (crankshaft harvests type feedback from stub cache)
+        type: bool  default: true
+  --hydrogen_stats (print statistics for hydrogen)
+        type: bool  default: false
+  --trace_check_elimination (trace check elimination phase)
+        type: bool  default: false
+  --trace_environment_liveness (trace liveness of local variable slots)
+        type: bool  default: false
+  --trace_hydrogen (trace generated hydrogen to file)
+        type: bool  default: false
+  --trace_hydrogen_filter (hydrogen tracing filter)
+        type: string  default: *
+  --trace_hydrogen_stubs (trace generated hydrogen for stubs)
+        type: bool  default: false
+  --trace_hydrogen_file (trace hydrogen to given file name)
+        type: string  default: NULL
+  --trace_phase (trace generated IR for specified phases)
+        type: string  default: HLZ
+  --trace_inlining (trace inlining decisions)
+        type: bool  default: false
+  --trace_load_elimination (trace load elimination)
+        type: bool  default: false
+  --trace_store_elimination (trace store elimination)
+        type: bool  default: false
+  --trace_alloc (trace register allocator)
+        type: bool  default: false
+  --trace_all_uses (trace all use positions)
+        type: bool  default: false
+  --trace_range (trace range analysis)
+        type: bool  default: false
+  --trace_gvn (trace global value numbering)
+        type: bool  default: false
+  --trace_representation (trace representation types)
+        type: bool  default: false
+  --trace_removable_simulates (trace removable simulates)
+        type: bool  default: false
+  --trace_escape_analysis (trace hydrogen escape analysis)
+        type: bool  default: false
+  --trace_allocation_folding (trace allocation folding)
+        type: bool  default: false
+  --trace_track_allocation_sites (trace the tracking of allocation sites)
+        type: bool  default: false
+  --trace_migration (trace object migration)
+        type: bool  default: false
+  --trace_generalization (trace map generalization)
+        type: bool  default: false
+  --stress_pointer_maps (pointer map for every instruction)
+        type: bool  default: false
+  --stress_environments (environment for every instruction)
+        type: bool  default: false
+  --deopt_every_n_times (deoptimize every n times a deopt point is passed)
+        type: int  default: 0
+  --deopt_every_n_garbage_collections (deoptimize every n garbage collections)
+        type: int  default: 0
+  --print_deopt_stress (print number of possible deopt points)
+        type: bool  default: false
+  --trap_on_deopt (put a break point before deoptimizing)
+        type: bool  default: false
+  --trap_on_stub_deopt (put a break point before deoptimizing a stub)
+        type: bool  default: false
+  --deoptimize_uncommon_cases (deoptimize uncommon cases)
+        type: bool  default: true
+  --polymorphic_inlining (polymorphic inlining)
+        type: bool  default: true
+  --use_osr (use on-stack replacement)
+        type: bool  default: true
+  --array_bounds_checks_elimination (perform array bounds checks elimination)
+        type: bool  default: true
+  --trace_bce (trace array bounds check elimination)
+        type: bool  default: false
+  --array_bounds_checks_hoisting (perform array bounds checks hoisting)
+        type: bool  default: false
+  --array_index_dehoisting (perform array index dehoisting)
+        type: bool  default: true
+  --analyze_environment_liveness (analyze liveness of environment slots and zap dead values)
+        type: bool  default: true
+  --load_elimination (use load elimination)
+        type: bool  default: true
+  --check_elimination (use check elimination)
+        type: bool  default: true
+  --store_elimination (use store elimination)
+        type: bool  default: false
+  --dead_code_elimination (use dead code elimination)
+        type: bool  default: true
+  --fold_constants (use constant folding)
+        type: bool  default: true
+  --trace_dead_code_elimination (trace dead code elimination)
+        type: bool  default: false
+  --unreachable_code_elimination (eliminate unreachable code)
+        type: bool  default: true
+  --trace_osr (trace on-stack replacement)
+        type: bool  default: false
+  --stress_runs (number of stress runs)
+        type: int  default: 0
+  --lookup_sample_by_shared (when picking a function to optimize, watch for shared function info, not JSFunction itself)
+        type: bool  default: true
+  --cache_optimized_code (cache optimized code for closures)
+        type: bool  default: true
+  --flush_optimized_code_cache (flushes the cache of optimized code for closures on every GC)
+        type: bool  default: true
+  --inline_construct (inline constructor calls)
+        type: bool  default: true
+  --inline_arguments (inline functions with arguments object)
+        type: bool  default: true
+  --inline_accessors (inline JavaScript accessors)
+        type: bool  default: true
+  --escape_analysis_iterations (maximum number of escape analysis fix-point iterations)
+        type: int  default: 2
+  --optimize_for_in (optimize functions containing for-in loops)
+        type: bool  default: true
+  --concurrent_recompilation (optimizing hot functions asynchronously on a separate thread)
+        type: bool  default: true
+  --trace_concurrent_recompilation (track concurrent recompilation)
+        type: bool  default: false
+  --concurrent_recompilation_queue_length (the length of the concurrent compilation queue)
+        type: int  default: 8
+  --concurrent_recompilation_delay (artificial compilation delay in ms)
+        type: int  default: 0
+  --block_concurrent_recompilation (block queued jobs until released)
+        type: bool  default: false
+  --concurrent_osr (concurrent on-stack replacement)
+        type: bool  default: true
+  --omit_map_checks_for_leaf_maps (do not emit check maps for constant values that have a leaf map, deoptimize the optimized code if the layout of the maps changes.)
+        type: bool  default: true
+  --turbo (enable TurboFan compiler)
+        type: bool  default: false
+  --turbo_shipping (enable TurboFan compiler on subset)
+        type: bool  default: true
+  --turbo_greedy_regalloc (use the greedy register allocator)
+        type: bool  default: false
+  --turbo_preprocess_ranges (run pre-register allocation heuristics)
+        type: bool  default: false
+  --turbo_filter (optimization filter for TurboFan compiler)
+        type: string  default: ~~
+  --trace_turbo (trace generated TurboFan IR)
+        type: bool  default: false
+  --trace_turbo_graph (trace generated TurboFan graphs)
+        type: bool  default: false
+  --trace_turbo_cfg_file (trace turbo cfg graph (for C1 visualizer) to a given file name)
+        type: string  default: NULL
+  --trace_turbo_types (trace TurboFan's types)
+        type: bool  default: true
+  --trace_turbo_scheduler (trace TurboFan's scheduler)
+        type: bool  default: false
+  --trace_turbo_reduction (trace TurboFan's various reducers)
+        type: bool  default: false
+  --trace_turbo_jt (trace TurboFan's jump threading)
+        type: bool  default: false
+  --trace_turbo_ceq (trace TurboFan's control equivalence)
+        type: bool  default: false
+  --turbo_asm (enable TurboFan for asm.js code)
+        type: bool  default: true
+  --turbo_asm_deoptimization (enable deoptimization in TurboFan for asm.js code)
+        type: bool  default: false
+  --turbo_verify (verify TurboFan graphs at each phase)
+        type: bool  default: false
+  --turbo_stats (print TurboFan statistics)
+        type: bool  default: false
+  --turbo_splitting (split nodes during scheduling in TurboFan)
+        type: bool  default: true
+  --turbo_types (use typed lowering in TurboFan)
+        type: bool  default: true
+  --turbo_type_feedback (use type feedback in TurboFan)
+        type: bool  default: false
+  --turbo_allocate (enable inline allocations in TurboFan)
+        type: bool  default: false
+  --turbo_source_positions (track source code positions when building TurboFan IR)
+        type: bool  default: false
+  --context_specialization (enable context specialization in TurboFan)
+        type: bool  default: false
+  --turbo_inlining (enable inlining in TurboFan)
+        type: bool  default: false
+  --trace_turbo_inlining (trace TurboFan inlining)
+        type: bool  default: false
+  --loop_assignment_analysis (perform loop assignment analysis)
+        type: bool  default: true
+  --turbo_profiling (enable profiling in TurboFan)
+        type: bool  default: false
+  --turbo_verify_allocation (verify register allocation in TurboFan)
+        type: bool  default: false
+  --turbo_move_optimization (optimize gap moves in TurboFan)
+        type: bool  default: true
+  --turbo_jt (enable jump threading in TurboFan)
+        type: bool  default: true
+  --turbo_osr (enable OSR in TurboFan)
+        type: bool  default: true
+  --turbo_try_catch (enable try-catch support in TurboFan)
+        type: bool  default: true
+  --turbo_try_finally (enable try-finally support in TurboFan)
+        type: bool  default: false
+  --turbo_stress_loop_peeling (stress loop peeling optimization)
+        type: bool  default: false
+  --turbo_cf_optimization (optimize control flow in TurboFan)
+        type: bool  default: true
+  --turbo_frame_elision (elide frames in TurboFan)
+        type: bool  default: true
+  --turbo_cache_shared_code (cache context-independent code)
+        type: bool  default: true
+  --turbo_preserve_shared_code (keep context-independent code)
+        type: bool  default: false
+  --typed_array_max_size_in_heap (threshold for in-heap typed array)
+        type: int  default: 64
+  --frame_count (number of stack frames inspected by the profiler)
+        type: int  default: 1
+  --interrupt_budget (execution budget before interrupt is triggered)
+        type: int  default: 6144
+  --type_info_threshold (percentage of ICs that must have type info to allow optimization)
+        type: int  default: 25
+  --generic_ic_threshold (max percentage of megamorphic/generic ICs to allow optimization)
+        type: int  default: 30
+  --self_opt_count (call count before self-optimization)
+        type: int  default: 130
+  --trace_opt_verbose (extra verbose compilation tracing)
+        type: bool  default: false
+  --debug_code (generate extra code (assertions) for debugging)
+        type: bool  default: false
+  --code_comments (emit comments in code disassembly)
+        type: bool  default: false
+  --enable_sse3 (enable use of SSE3 instructions if available)
+        type: bool  default: true
+  --enable_sse4_1 (enable use of SSE4.1 instructions if available)
+        type: bool  default: true
+  --enable_sahf (enable use of SAHF instruction if available (X64 only))
+        type: bool  default: true
+  --enable_avx (enable use of AVX instructions if available)
+        type: bool  default: true
+  --enable_fma3 (enable use of FMA3 instructions if available)
+        type: bool  default: true
+  --enable_bmi1 (enable use of BMI1 instructions if available)
+        type: bool  default: true
+  --enable_bmi2 (enable use of BMI2 instructions if available)
+        type: bool  default: true
+  --enable_lzcnt (enable use of LZCNT instruction if available)
+        type: bool  default: true
+  --enable_popcnt (enable use of POPCNT instruction if available)
+        type: bool  default: true
+  --enable_vfp3 (enable use of VFP3 instructions if available)
+        type: bool  default: true
+  --enable_armv7 (enable use of ARMv7 instructions if available (ARM only))
+        type: bool  default: true
+  --enable_armv8 (enable use of ARMv8 instructions if available (ARM 32-bit only))
+        type: bool  default: true
+  --enable_neon (enable use of NEON instructions if available (ARM only))
+        type: bool  default: true
+  --enable_sudiv (enable use of SDIV and UDIV instructions if available (ARM only))
+        type: bool  default: true
+  --enable_mls (enable use of MLS instructions if available (ARM only))
+        type: bool  default: true
+  --enable_movw_movt (enable loading 32-bit constant by means of movw/movt instruction pairs (ARM only))
+        type: bool  default: false
+  --enable_unaligned_accesses (enable unaligned accesses for ARMv7 (ARM only))
+        type: bool  default: true
+  --enable_32dregs (enable use of d16-d31 registers on ARM - this requires VFP3)
+        type: bool  default: true
+  --enable_vldr_imm (enable use of constant pools for double immediate (ARM only))
+        type: bool  default: false
+  --force_long_branches (force all emitted branches to be in long mode (MIPS/PPC only))
+        type: bool  default: false
+  --mcpu (enable optimization for specific cpu)
+        type: string  default: auto
+  --expose_natives_as (expose natives in global object)
+        type: string  default: NULL
+  --expose_debug_as (expose debug in global object)
+        type: string  default: NULL
+  --expose_free_buffer (expose freeBuffer extension)
+        type: bool  default: false
+  --expose_gc (expose gc extension)
+        type: bool  default: false
+  --expose_gc_as (expose gc extension under the specified name)
+        type: string  default: NULL
+  --expose_externalize_string (expose externalize string extension)
+        type: bool  default: false
+  --expose_trigger_failure (expose trigger-failure extension)
+        type: bool  default: false
+  --stack_trace_limit (number of stack frames to capture)
+        type: int  default: 10
+  --builtins_in_stack_traces (show built-in functions in stack traces)
+        type: bool  default: false
+  --disable_native_files (disable builtin natives files)
+        type: bool  default: false
+  --inline_new (use fast inline allocation)
+        type: bool  default: true
+  --trace_codegen (print name of functions for which code is generated)
+        type: bool  default: false
+  --trace (trace function calls)
+        type: bool  default: false
+  --mask_constants_with_cookie (use random jit cookie to mask large constants)
+        type: bool  default: true
+  --lazy (use lazy compilation)
+        type: bool  default: true
+  --trace_opt (trace lazy optimization)
+        type: bool  default: false
+  --trace_opt_stats (trace lazy optimization statistics)
+        type: bool  default: false
+  --opt (use adaptive optimizations)
+        type: bool  default: true
+  --always_opt (always try to optimize functions)
+        type: bool  default: false
+  --always_osr (always try to OSR functions)
+        type: bool  default: false
+  --prepare_always_opt (prepare for turning on always opt)
+        type: bool  default: false
+  --trace_deopt (trace optimize function deoptimization)
+        type: bool  default: false
+  --trace_stub_failures (trace deoptimization of generated code stubs)
+        type: bool  default: false
+  --serialize_toplevel (enable caching of toplevel scripts)
+        type: bool  default: true
+  --serialize_inner (enable caching of inner functions)
+        type: bool  default: true
+  --trace_serializer (print code serializer trace)
+        type: bool  default: false
+  --min_preparse_length (minimum length for automatic enable preparsing)
+        type: int  default: 1024
+  --max_opt_count (maximum number of optimization attempts before giving up.)
+        type: int  default: 10
+  --compilation_cache (enable compilation cache)
+        type: bool  default: true
+  --cache_prototype_transitions (cache prototype transitions)
+        type: bool  default: true
+  --cpu_profiler_sampling_interval (CPU profiler sampling interval in microseconds)
+        type: int  default: 1000
+  --trace_debug_json (trace debugging JSON request/response)
+        type: bool  default: false
+  --trace_js_array_abuse (trace out-of-bounds accesses to JS arrays)
+        type: bool  default: false
+  --trace_external_array_abuse (trace out-of-bounds-accesses to external arrays)
+        type: bool  default: false
+  --trace_array_abuse (trace out-of-bounds accesses to all arrays)
+        type: bool  default: false
+  --enable_liveedit (enable liveedit experimental feature)
+        type: bool  default: true
+  --hard_abort (abort by crashing)
+        type: bool  default: true
+  --stack_size (default size of stack region v8 is allowed to use (in kBytes))
+        type: int  default: 984
+  --max_stack_trace_source_length (maximum length of function source code printed in a stack trace.)
+        type: int  default: 300
+  --always_inline_smi_code (always inline smi code in non-opt code)
+        type: bool  default: false
+  --min_semi_space_size (min size of a semi-space (in MBytes), the new space consists of twosemi-spaces)
+        type: int  default: 0
+  --target_semi_space_size (target size of a semi-space (in MBytes) before triggering a GC)
+        type: int  default: 0
+  --max_semi_space_size (max size of a semi-space (in MBytes), the new space consists of twosemi-spaces)
+        type: int  default: 0
+  --semi_space_growth_factor (factor by which to grow the new space)
+        type: int  default: 2
+  --experimental_new_space_growth_heuristic (Grow the new space based on the percentage of survivors instead of their absolute value.)
+        type: bool  default: false
+  --max_old_space_size (max size of the old space (in Mbytes))
+        type: int  default: 0
+  --initial_old_space_size (initial old space size (in Mbytes))
+        type: int  default: 0
+  --max_executable_size (max size of executable memory (in Mbytes))
+        type: int  default: 0
+  --gc_global (always perform global GCs)
+        type: bool  default: false
+  --gc_interval (garbage collect after <n> allocations)
+        type: int  default: -1
+  --retain_maps_for_n_gc (keeps maps alive for <n> old space garbage collections)
+        type: int  default: 2
+  --trace_gc (print one trace line following each garbage collection)
+        type: bool  default: false
+  --trace_gc_nvp (print one detailed trace line in name=value format after each garbage collection)
+        type: bool  default: false
+  --trace_gc_ignore_scavenger (do not print trace line after scavenger collection)
+        type: bool  default: false
+  --trace_idle_notification (print one trace line following each idle notification)
+        type: bool  default: false
+  --trace_idle_notification_verbose (prints the heap state used by the idle notification)
+        type: bool  default: false
+  --print_cumulative_gc_stat (print cumulative GC statistics in name=value format on exit)
+        type: bool  default: false
+  --print_max_heap_committed (print statistics of the maximum memory committed for the heap in name=value format on exit)
+        type: bool  default: false
+  --trace_gc_verbose (print more details following each garbage collection)
+        type: bool  default: false
+  --trace_allocation_stack_interval (print stack trace after <n> free-list allocations)
+        type: int  default: -1
+  --trace_fragmentation (report fragmentation for old space)
+        type: bool  default: false
+  --trace_fragmentation_verbose (report fragmentation for old space (detailed))
+        type: bool  default: false
+  --trace_mutator_utilization (print mutator utilization, allocation speed, gc speed)
+        type: bool  default: false
+  --weak_embedded_maps_in_optimized_code (make maps embedded in optimized code weak)
+        type: bool  default: true
+  --weak_embedded_objects_in_optimized_code (make objects embedded in optimized code weak)
+        type: bool  default: true
+  --flush_code (flush code that we expect not to use again)
+        type: bool  default: true
+  --trace_code_flushing (trace code flushing progress)
+        type: bool  default: false
+  --age_code (track un-executed functions to age code and flush only old code (required for code flushing))
+        type: bool  default: true
+  --incremental_marking (use incremental marking)
+        type: bool  default: true
+  --overapproximate_weak_closure (overapproximate weak closer to reduce atomic pause time)
+        type: bool  default: true
+  --min_progress_during_object_groups_marking (keep overapproximating the weak closure as long as we discover at least this many unmarked objects)
+        type: int  default: 128
+  --max_object_groups_marking_rounds (at most try this many times to over approximate the weak closure)
+        type: int  default: 3
+  --concurrent_sweeping (use concurrent sweeping)
+        type: bool  default: true
+  --trace_incremental_marking (trace progress of the incremental marking)
+        type: bool  default: false
+  --track_gc_object_stats (track object counts and memory usage)
+        type: bool  default: false
+  --trace_gc_object_stats (trace object counts and memory usage)
+        type: bool  default: false
+  --track_detached_contexts (track native contexts that are expected to be garbage collected)
+        type: bool  default: true
+  --trace_detached_contexts (trace native contexts that are expected to be garbage collected)
+        type: bool  default: false
+  --histogram_interval (time interval in ms for aggregating memory histograms)
+        type: int  default: 600000
+  --heap_profiler_trace_objects (Dump heap object allocations/movements/size_updates)
+        type: bool  default: false
+  --use_idle_notification (Use idle notification to reduce memory footprint.)
+        type: bool  default: true
+  --use_ic (use inline caching)
+        type: bool  default: true
+  --trace_ic (trace inline cache state transitions)
+        type: bool  default: false
+  --vector_stores (use vectors for store ics)
+        type: bool  default: false
+  --global_var_shortcuts (use ic-less global loads and stores)
+        type: bool  default: false
+  --native_code_counters (generate extra code for manipulating stats counters)
+        type: bool  default: false
+  --always_compact (Perform compaction on every full GC)
+        type: bool  default: false
+  --never_compact (Never perform compaction on full GC - testing only)
+        type: bool  default: false
+  --compact_code_space (Compact code space on full collections)
+        type: bool  default: true
+  --cleanup_code_caches_at_gc (Flush inline caches prior to mark compact collection and flush code caches in maps during mark compact cycle.)
+        type: bool  default: true
+  --use_marking_progress_bar (Use a progress bar to scan large objects in increments when incremental marking is active.)
+        type: bool  default: true
+  --zap_code_space (Zap free memory in code space with 0xCC while sweeping.)
+        type: bool  default: false
+  --random_seed (Default seed for initializing random generator (0, the default, means to use system random).)
+        type: int  default: 0
+  --trace_weak_arrays (Trace WeakFixedArray usage)
+        type: bool  default: false
+  --track_prototype_users (Keep track of which maps refer to a given prototype object)
+        type: bool  default: false
+  --trace_prototype_users (Trace updates to prototype user tracking)
+        type: bool  default: false
+  --eliminate_prototype_chain_checks (Collapse prototype chain checks into single-cell checks)
+        type: bool  default: true
+  --use_verbose_printer (allows verbose printing)
+        type: bool  default: true
+  --allow_natives_syntax (allow natives syntax)
+        type: bool  default: false
+  --trace_parse (trace parsing and preparsing)
+        type: bool  default: false
+  --trace_sim (Trace simulator execution)
+        type: bool  default: false
+  --debug_sim (Enable debugging the simulator)
+        type: bool  default: false
+  --check_icache (Check icache flushes in ARM and MIPS simulator)
+        type: bool  default: false
+  --stop_sim_at (Simulator stop after x number of instructions)
+        type: int  default: 0
+  --sim_stack_alignment (Stack alingment in bytes in simulator (4 or 8, 8 is default))
+        type: int  default: 8
+  --sim_stack_size (Stack size of the ARM64, MIPS64 and PPC64 simulator in kBytes (default is 2 MB))
+        type: int  default: 2048
+  --log_regs_modified (When logging register values, only print modified registers.)
+        type: bool  default: true
+  --log_colour (When logging, try to use coloured output.)
+        type: bool  default: true
+  --ignore_asm_unimplemented_break (Don't break for ASM_UNIMPLEMENTED_BREAK macros.)
+        type: bool  default: false
+  --trace_sim_messages (Trace simulator debug messages. Implied by --trace-sim.)
+        type: bool  default: false
+  --stack_trace_on_illegal (print stack trace when an illegal exception is thrown)
+        type: bool  default: false
+  --abort_on_uncaught_exception (abort program (dump core) when an uncaught exception is thrown)
+        type: bool  default: false
+  --randomize_hashes (randomize hashes to avoid predictable hash collisions (with snapshots this option cannot override the baked-in seed))
+        type: bool  default: true
+  --hash_seed (Fixed seed to use to hash property keys (0 means random)(with snapshots this option cannot override the baked-in seed))
+        type: int  default: 0
+  --profile_deserialization (Print the time it takes to deserialize the snapshot.)
+        type: bool  default: false
+  --serialization_statistics (Collect statistics on serialized objects.)
+        type: bool  default: false
+  --regexp_optimization (generate optimized regexp code)
+        type: bool  default: true
+  --testing_bool_flag (testing_bool_flag)
+        type: bool  default: true
+  --testing_maybe_bool_flag (testing_maybe_bool_flag)
+        type: maybe_bool  default: unset
+  --testing_int_flag (testing_int_flag)
+        type: int  default: 13
+  --testing_float_flag (float-flag)
+        type: float  default: 2.5
+  --testing_string_flag (string-flag)
+        type: string  default: Hello, world!
+  --testing_prng_seed (Seed used for threading test randomness)
+        type: int  default: 42
+  --testing_serialization_file (file in which to serialize heap)
+        type: string  default: /tmp/serdes
+  --startup_blob (Write V8 startup blob file. (mksnapshot only))
+        type: string  default: NULL
+  --profile_hydrogen_code_stub_compilation (Print the time it takes to lazily compile hydrogen code stubs.)
+        type: bool  default: false
+  --predictable (enable predictable mode)
+        type: bool  default: false
+  --force_marking_deque_overflows (force overflows of marking deque by reducing it's size to 64 words)
+        type: bool  default: false
+  --stress_compaction (stress the GC compactor to flush out bugs (implies --force_marking_deque_overflows))
+        type: bool  default: false
+  --manual_evacuation_candidates_selection (Test mode only flag. It allows an unit test to select evacuation candidates pages (requires --stress_compaction).)
+        type: bool  default: false
+  --external_allocation_limit_incremental_time (Time spent in incremental marking steps (in ms) once the external allocation limit is reached)
+        type: int  default: 1
+  --help (Print usage message, including flags, on console)
+        type: bool  default: true
+  --dump_counters (Dump counters on exit)
+        type: bool  default: false
+  --map_counters (Map counters to a file)
+        type: string  default:
+  --js_arguments (Pass all remaining arguments to the script. Alias for "--".)
+        type: arguments  default:
+  --log (Minimal logging (no API, code, GC, suspect, or handles samples).)
+        type: bool  default: false
+  --log_all (Log all events to the log file.)
+        type: bool  default: false
+  --log_api (Log API events to the log file.)
+        type: bool  default: false
+  --log_code (Log code events to the log file without profiling.)
+        type: bool  default: false
+  --log_gc (Log heap samples on garbage collection for the hp2ps tool.)
+        type: bool  default: false
+  --log_handles (Log global handle events.)
+        type: bool  default: false
+  --log_snapshot_positions (log positions of (de)serialized objects in the snapshot.)
+        type: bool  default: false
+  --log_suspect (Log suspect operations.)
+        type: bool  default: false
+  --prof (Log statistical profiling information (implies --log-code).)
+        type: bool  default: false
+  --prof_cpp (Like --prof, but ignore generated code.)
+        type: bool  default: false
+  --prof_browser_mode (Used with --prof, turns on browser-compatible mode for profiling.)
+        type: bool  default: true
+  --log_regexp (Log regular expression execution.)
+        type: bool  default: false
+  --logfile (Specify the name of the log file.)
+        type: string  default: v8.log
+  --logfile_per_isolate (Separate log files for each isolate.)
+        type: bool  default: true
+  --ll_prof (Enable low-level linux profiler.)
+        type: bool  default: false
+  --perf_basic_prof (Enable perf linux profiler (basic support).)
+        type: bool  default: false
+  --perf_basic_prof_only_functions (Only report function code ranges to perf (i.e. no stubs).)
+        type: bool  default: false
+  --gc_fake_mmap (Specify the name of the file for fake gc mmap used in ll_prof)
+        type: string  default: /tmp/__v8_gc__
+  --log_internal_timer_events (Time internal events.)
+        type: bool  default: false
+  --log_timer_events (Time events including external callbacks.)
+        type: bool  default: false
+  --log_instruction_stats (Log AArch64 instruction statistics.)
+        type: bool  default: false
+  --log_instruction_file (AArch64 instruction statistics log file.)
+        type: string  default: arm64_inst.csv
+  --log_instruction_period (AArch64 instruction statistics logging period.)
+        type: int  default: 4194304
+  --redirect_code_traces (output deopt information and disassembly into file code-<pid>-<isolate id>.asm)
+        type: bool  default: false
+  --redirect_code_traces_to (output deopt information and disassembly into the given file)
+        type: string  default: NULL
+  --hydrogen_track_positions (track source code positions when building IR)
+        type: bool  default: false
+  --trace_elements_transitions (trace elements transitions)
+        type: bool  default: false
+  --trace_creation_allocation_sites (trace the creation of allocation sites)
+        type: bool  default: false
+  --print_code_stubs (print code stubs)
+        type: bool  default: false
+  --test_secondary_stub_cache (test secondary stub cache by disabling the primary one)
+        type: bool  default: false
+  --test_primary_stub_cache (test primary stub cache by disabling the secondary one)
+        type: bool  default: false
+  --print_code (print generated code)
+        type: bool  default: false
+  --print_opt_code (print optimized code)
+        type: bool  default: false
+  --print_unopt_code (print unoptimized code before printing optimized code based on it)
+        type: bool  default: false
+  --print_code_verbose (print more information for code)
+        type: bool  default: false
+  --print_builtin_code (print generated code for builtins)
+        type: bool  default: false
+  --sodium (print generated code output suitable for use with the Sodium code viewer)
+        type: bool  default: false
+  --print_all_code (enable all flags related to printing code)
+        type: bool  default: false
+
+.SH RESOURCES AND DOCUMENTATION
+
+See the website for documentation https://nodejs.org/
+
+Mailing list: http://groups.google.com/group/nodejs
+
+IRC (general questions): irc.freenode.net #node.js
+
+IRC (node core development): irc.freenode.net #node-dev

@@ -1,0 +1,5 @@
+[ Linux ] virtual/pointerevent/fast/events/mouse-cursor-style-change-iframe.html [ Skip ]
+
+# Turn off Slimming Paint tests on linux.
+[ Linux ] virtual/slimmingpaint/ [ Skip ]
+

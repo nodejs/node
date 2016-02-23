@@ -1,0 +1,55 @@
+=pod
+
+=head1 NAME
+
+rand - generate pseudo-random bytes
+
+=head1 SYNOPSIS
+
+B<openssl rand>
+[B<-out> I<file>]
+[B<-rand> I<file(s)>]
+[B<-base64>]
+[B<-hex>]
+I<num>
+
+=head1 DESCRIPTION
+
+The B<rand> command outputs I<num> pseudo-random bytes after seeding
+the random number generator once.  As in other B<openssl> command
+line tools, PRNG seeding uses the file I<$HOME/>B<.rnd> or B<.rnd>
+in addition to the files given in the B<-rand> option.  A new
+I<$HOME>/B<.rnd> or B<.rnd> file will be written back if enough
+seeding was obtained from these sources.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-out> I<file>
+
+Write to I<file> instead of standard output.
+
+=item B<-rand> I<file(s)>
+
+Use specified file or files or EGD socket (see L<RAND_egd(3)|RAND_egd(3)>)
+for seeding the random number generator.
+Multiple files can be specified separated by a OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item B<-base64>
+
+Perform base64 encoding on the output.
+
+=item B<-hex>
+
+Show the output as a hex string.
+
+=back
+
+=head1 SEE ALSO
+
+L<RAND_bytes(3)|RAND_bytes(3)>
+
+=cut
