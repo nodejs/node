@@ -1,0 +1,15 @@
+INSTALL ?= install
+
+PREFIX ?= /usr/local
+
+all:
+
+install:
+	$(INSTALL) -dm0755 "${DESTDIR}${PREFIX}/share/man/man1"
+	$(INSTALL) -m0644 faketime.1 "${DESTDIR}${PREFIX}/share/man/man1/faketime.1"
+	gzip -f "${DESTDIR}${PREFIX}/share/man/man1/faketime.1"
+
+uninstall:
+	rm -f "${DESTDIR}${PREFIX}/share/man/man1/faketime.1.gz"
+
+.PHONY: all install uninstall

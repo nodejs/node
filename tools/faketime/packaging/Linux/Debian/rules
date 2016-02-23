@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+
+# Author: Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+# Date: Tue, 26 Aug 2008 14:24:50 -0400
+
+export DEB_CFLAGS_MAINT_APPEND=-DMULTI_ARCH
+
+# make sure dh_makeshlibs does not modify post{inst,rm} scripts:
+# (avoids lintian's postinst-has-useless-call-to-ldconfig)
+override_dh_makeshlibs:
+	dh_makeshlibs --noscripts
+
+override_dh_installchangelogs:
+	dh_installchangelogs NEWS
+
+%:
+	PREFIX=/usr dh $@

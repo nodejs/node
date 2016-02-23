@@ -1,0 +1,10 @@
+GLIBC_2.2 {
+  global:
+
+  timer_gettime; timer_settime;
+  local: timer_settime_*; timer_gettime_*;
+};
+GLIBC_2.3.3 {
+  # Changed timer_t.
+  timer_gettime; timer_settime;
+} GLIBC_2.2;

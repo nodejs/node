@@ -1,0 +1,12 @@
+--- test/Makefile.OSX.orig	2013-10-11 09:42:38.000000000 -0500
++++ test/Makefile.OSX	2013-10-11 14:46:11.000000000 -0500
+@@ -1,7 +1,6 @@
+-CC = gcc
++CC ?= clang
+ 
+-CFLAGS = -std=gnu99 -Wall -DFAKE_STAT
+-LDFLAGS =
++CFLAGS += -std=gnu99 -Wall -DFAKE_STAT
+ 
+ SRC = timetest.c
+ OBJ = ${SRC:.c=.o}

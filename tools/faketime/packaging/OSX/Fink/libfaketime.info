@@ -1,0 +1,54 @@
+Package: libfaketime
+Version: 0.9.5
+Revision: 1
+
+Source: http://www.code-wizards.com/projects/%n/%n-%v.tar.gz
+Source-MD5: 89b5c71e6c6a93b1c6feba374ac37719
+
+Maintainer: Wolfgang Hommel <wolf@fink.code-wizards.com>
+HomePage: http://www.code-wizards.com/projects/%n
+License: GPL
+
+Description: Modify system time for single applications
+
+DescDetail: <<
+libfaketime is a library that is dynamically linked to applications
+or system commands at run-time by using the DYLD_INSERT_LIBRARIES
+mechanism. It then intercepts various system calls, which programs
+use to retrieve the current date and time. libfaketime can then
+report faked dates and times to these programs. This means you can
+modify the system time a program uses without having to change the
+date and time system-wide.
+<<
+
+DescUsage: <<
+libfaketime includes a simple wrapper called faketime. Run the
+command faketime without any parameters for usage information.
+For information on how to use libfaketime without the wrapper
+and access its full raw functionality, please see
+%p/share/doc/libfaketime/README*
+<<
+
+BuildDepends: fink (>= 0.28)
+Distribution: 10.7, 10.8, 10.9
+
+CompileScript: <<
+#! /bin/sh -ev
+make -f Makefile.OSX -C src PREFIX=%{p}
+<<
+
+InfoTest: <<
+  TestScript: make -f Makefile.OSX test || exit 2
+<<
+
+InstallScript: <<
+#! /bin/sh -ev
+make -f Makefile.OSX -C src install PREFIX=%{i}
+<<
+
+DocFiles: COPYING README README.OSX
+
+Shlibs: <<
+  !%p/lib/faketime/%N.1.dylib
+<<
+

@@ -81,7 +81,6 @@ deps/npm/node_modules/.bin/
 /SHASUMS*.txt*
 
 # test artifacts
-tools/faketime
 icu_config.gypi
 test.tap
 

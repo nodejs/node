@@ -1,0 +1,11 @@
+Open issues / next steps for libfaketime development
+
+- add more functional tests that check more than the basic functionality
+- use the testing framework to also implement unit tests
+- make the new "limiting" and "spawning" features more flexible to use
+  and available through the wrapper shell script
+- fake timer_create and friends
+- handle CLOCK_REALTIME_COARSE and CLOCK_MONOTONIC_COARSE
+- work around thread local storage issue, e.g., by using pthreads
+- add autoconf/automake support to get rid of separate Makefile.OSX
+

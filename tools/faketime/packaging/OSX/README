@@ -1,0 +1,67 @@
+# Packaging for OS X
+
+Several software tools assist with the installation of open source software
+on OS X. The authors of libfaketime maintain the libfaketime build spec files
+for MacPorts, Homebrew, and Fink.
+
+
+## MacPorts
+
+Installing libfaketime via MacPorts is based on the provided Portfile, which
+has been included in the official MacPorts distribution since October, 2013.
+Users therefore can use "sudo port install libfaketime" as installation
+command.
+
+Some libfaketime Portfile caveats:
+
+- Github-based source file distribution
+    (0.9.5rc3 is code-identical to 0.9.5 release except for Makefile patches)
+- Non-clang-compilers need to be blacklisted (for libfaketime =0.9.5)
+- MacPorts folks have requested to avoid a platform-specific Makefile.OSX in
+  the future
+
+Portfile submission is documented in https://www.macports.org/guide/#project.contributing
+and handled via a ticketing system:
+
+- https://trac.macports.org/ticket/40662
+- https://trac.macports.org/ticket/40748
+
+
+## Homebrew
+
+The libfaketime 'formula' for Homebrew is available since November, 2013.
+Homebrew users can use 'brew install libfaketime' as installation command.
+
+Some libfaketime formula caveats:
+
+- "depends_on :macos => :lion" must be set for libfaketime >=0.9.5
+- :llvm builds <= 2336 must be blacklisted because libfaketime =0.9.5
+  requires a compiler with thread local storage support.
+
+Formula submission is handled via pull request on Github following the
+"one formula per commit, one commit per formula" rule, which necessitates
+squashing commits and forced pushes when applying fixes. Style issues
+complementary to the documentation have been discussed in
+
+    https://github.com/mxcl/homebrew/pull/23245
+
+
+## Fink
+
+A libfaketime.info file is included in the Fink 10.7 tree since October,
+2013, and installed using
+
+    fink install libfaketime
+
+Some libfaketime fink info file caveats:
+
+- The dynamic library must be declared as private Shlib; this also necessitates
+  BuildDepends: fink (>= 0.28)
+- "Distribution: 10.7, 10.8, 10.9" is required because libfaketime >=0.9.5 does
+  not work on OS X 10.6 or before anymore.
+- When compiling, PREFIX=%{p} needs to be used because this path is hardcoded
+  into the wrapper. However, "make install" needs to deploy into PREFIX=%{i} to
+  make packaging work.
+
+Submission is via https://sourceforge.net/p/fink/package-submissions/
+
