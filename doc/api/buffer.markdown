@@ -378,7 +378,7 @@ console.log(buf1.compare(buf1));
 console.log(buf1.compare(buf2));
   // Prints: -1
 console.log(buf1.compare(buf3));
-  // Prints: 1
+  // Prints: -1
 console.log(buf2.compare(buf1));
   // Prints: 1
 console.log(buf2.compare(buf3));
@@ -727,7 +727,7 @@ const buf = new Buffer([1,-2,3,4]);
 
 buf.readInt16BE();
   // returns 510
-buf.readInt16LE(1);
+buf.readInt16LE();
   // returns -511
 ```
 
