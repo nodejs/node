@@ -63,27 +63,19 @@ assert.throws(function() {
 // Should not work with Infinity key length
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, Infinity, common.fail);
-}, function(err) {
-  return err instanceof Error && err.message === 'Bad key length';
-});
+}, /Bad key length/);
 
 // Should not work with negative Infinity key length
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, -Infinity, common.fail);
-}, function(err) {
-  return err instanceof Error && err.message === 'Bad key length';
-});
+}, /Bad key length/);
 
 // Should not work with NaN key length
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, NaN, common.fail);
-}, function(err) {
-  return err instanceof Error && err.message === 'Bad key length';
-});
+}, /Bad key length/);
 
 // Should not work with negative key length
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, -1, common.fail);
-}, function(err) {
-  return err instanceof Error && err.message === 'Bad key length';
-});
+}, /Bad key length/);
