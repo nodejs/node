@@ -43,7 +43,7 @@ using v8::TryCatch;
 using v8::UnboundScript;
 using v8::V8;
 using v8::Value;
-using v8::WeakCallbackData;
+using v8::WeakCallbackInfo;
 
 
 class ContextifyContext {
@@ -64,7 +64,7 @@ class ContextifyContext {
     // Allocation failure or maximum call stack size reached
     if (context_.IsEmpty())
       return;
-    context_.SetWeak(this, WeakCallback<Context>);
+    context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
     context_.MarkIndependent();
   }
 
@@ -302,10 +302,8 @@ class ContextifyContext {
   }
 
 
-  template <class T>
-  static void WeakCallback(const WeakCallbackData<T, ContextifyContext>& data) {
+  static void WeakCallback(const WeakCallbackInfo<ContextifyContext>& data) {
     ContextifyContext* context = data.GetParameter();
-    context->context_.ClearWeak();
     delete context;
   }
 
