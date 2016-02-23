@@ -77,3 +77,17 @@ var r3 = repl.start({
 
 assert.equal(r3.replMode, repl.REPL_MODE_MAGIC);
 assert.equal(r3.historySize, 50);
+
+// Verify that defaults are used when no arguments are provided
+const r4 = repl.start();
+
+assert.strictEqual(r4._prompt, '> ');
+assert.strictEqual(r4.input, process.stdin);
+assert.strictEqual(r4.output, process.stdout);
+assert.strictEqual(r4.terminal, !!r4.output.isTTY);
+assert.strictEqual(r4.useColors, r4.terminal);
+assert.strictEqual(r4.useGlobal, false);
+assert.strictEqual(r4.ignoreUndefined, false);
+assert.strictEqual(r4.replMode, repl.REPL_MODE_SLOPPY);
+assert.strictEqual(r4.historySize, 30);
+r4.close();
