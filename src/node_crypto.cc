@@ -4953,12 +4953,12 @@ class PBKDF2Request : public AsyncWrap {
   PBKDF2Request(Environment* env,
                 Local<Object> object,
                 const EVP_MD* digest,
-                ssize_t passlen,
+                int passlen,
                 char* pass,
-                ssize_t saltlen,
+                int saltlen,
                 char* salt,
-                ssize_t iter,
-                ssize_t keylen)
+                int iter,
+                int keylen)
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
         digest_(digest),
         error_(0),
@@ -4987,7 +4987,7 @@ class PBKDF2Request : public AsyncWrap {
     return digest_;
   }
 
-  inline ssize_t passlen() const {
+  inline int passlen() const {
     return passlen_;
   }
 
@@ -4995,7 +4995,7 @@ class PBKDF2Request : public AsyncWrap {
     return pass_;
   }
 
-  inline ssize_t saltlen() const {
+  inline int saltlen() const {
     return saltlen_;
   }
 
@@ -5003,7 +5003,7 @@ class PBKDF2Request : public AsyncWrap {
     return salt_;
   }
 
-  inline ssize_t keylen() const {
+  inline int keylen() const {
     return keylen_;
   }
 
@@ -5011,7 +5011,7 @@ class PBKDF2Request : public AsyncWrap {
     return key_;
   }
 
-  inline ssize_t iter() const {
+  inline int iter() const {
     return iter_;
   }
 
@@ -5044,13 +5044,13 @@ class PBKDF2Request : public AsyncWrap {
  private:
   const EVP_MD* digest_;
   int error_;
-  ssize_t passlen_;
+  int passlen_;
   char* pass_;
-  ssize_t saltlen_;
+  int saltlen_;
   char* salt_;
-  ssize_t keylen_;
+  int keylen_;
   char* key_;
-  ssize_t iter_;
+  int iter_;
 };
 
 
@@ -5107,10 +5107,11 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   const char* type_error = nullptr;
   char* pass = nullptr;
   char* salt = nullptr;
-  ssize_t passlen = -1;
-  ssize_t saltlen = -1;
-  double keylen = -1;
-  ssize_t iter = -1;
+  int passlen = -1;
+  int saltlen = -1;
+  double raw_keylen = -1;
+  int keylen = -1;
+  int iter = -1;
   PBKDF2Request* req = nullptr;
   Local<Object> obj;
 
@@ -5162,8 +5163,14 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  keylen = args[3]->NumberValue();
-  if (keylen < 0 || isnan(keylen) || isinf(keylen)) {
+  raw_keylen = args[3]->NumberValue();
+  if (raw_keylen < 0.0 || isnan(raw_keylen) || isinf(raw_keylen)) {
+    type_error = "Bad key length";
+    goto err;
+  }
+
+  keylen = static_cast<int>(raw_keylen);
+  if (keylen < 0) {
     type_error = "Bad key length";
     goto err;
   }
@@ -5190,7 +5197,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
                           saltlen,
                           salt,
                           iter,
-                          static_cast<ssize_t>(keylen));
+                          keylen);
 
   if (args[5]->IsFunction()) {
     obj->Set(env->ondone_string(), args[5]);
