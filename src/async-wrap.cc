@@ -9,6 +9,7 @@
 #include "v8-profiler.h"
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -231,7 +232,9 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   Local<Value> ret = cb->Call(context, argc, argv);
 
   if (ran_init_callback() && !post_fn.IsEmpty()) {
-    if (post_fn->Call(context, 1, &uid).IsEmpty())
+    Local<Value> did_throw = Boolean::New(env()->isolate(), ret.IsEmpty());
+    Local<Value> vals[] = { uid, did_throw };
+    if (post_fn->Call(context, arraysize(vals), vals).IsEmpty())
       FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
   }
 
