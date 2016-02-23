@@ -1172,7 +1172,12 @@ Local<Value> MakeCallback(Environment* env,
   Local<Value> ret = callback->Call(recv, argc, argv);
 
   if (ran_init_callback && !post_fn.IsEmpty()) {
-    if (post_fn->Call(object, 0, nullptr).IsEmpty())
+    Local<Value> did_throw = Boolean::New(env->isolate(), ret.IsEmpty());
+    // Currently there's no way to retrieve an uid from node::MakeCallback().
+    // This needs to be fixed.
+    Local<Value> vals[] =
+        { Undefined(env->isolate()).As<Value>(), did_throw };
+    if (post_fn->Call(object, arraysize(vals), vals).IsEmpty())
       FatalError("node::MakeCallback", "post hook threw");
   }
 
