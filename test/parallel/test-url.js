@@ -851,6 +851,21 @@ var parseTests = {
     pathname: '/:npm/npm',
     path: '/:npm/npm',
     href: 'git+ssh://git@github.com/:npm/npm'
+  },
+
+  'https://*': {
+    protocol: 'https:',
+    slashes: true,
+    auth: null,
+    host: '',
+    port: null,
+    hostname: '',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/*',
+    path: '/*',
+    href: 'https:///*'
   }
 
 };
