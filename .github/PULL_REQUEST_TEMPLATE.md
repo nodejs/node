@@ -1,7 +1,3 @@
-### Description of change
-
-_Please provide a description of the change here._
-
 ### Pull Request check-list
 
 _Please make sure to review and check all of these items:_
@@ -14,11 +10,15 @@ _Please make sure to review and check all of these items:_
 - [ ] Is a documentation update included (if this change modifies
   existing APIs, or introduces new ones)?
 
-_NOTE: these things are not required to open a PR and can be done afterwards /
-while the PR is open._
+_NOTE: these things are not required to open a PR and can be done
+afterwards / while the PR is open._
 
 ### Affected core subsystem(s)
 
 _Please provide affected core subsystem(s) (like buffer, cluster, crypto, etc)_
 
 [0]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit
+
+### Description of change
+
+_Please provide a description of the change here._
