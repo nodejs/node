@@ -4,7 +4,6 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 if (cluster.isMaster) {
-  assert.strictEqual(process.execArgv.length, 0, 'run test with no args');
 
   function checkExitCode(code, signal) {
     assert.strictEqual(code, 0);
