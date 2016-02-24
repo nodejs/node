@@ -335,6 +335,22 @@ util.isError({ name: 'Error', message: 'an error occurred' })
   // false
 ```
 
+Note that this method relies on `Object.prototype.toString()` behavior. It is
+possible to obtain an incorrect result when the `object` argument manipulates
+`@@toStringTag`.
+
+```js
+// This example requires the `--harmony-tostring` flag
+const util = require('util');
+const obj = { name: 'Error', message: 'an error occurred' };
+
+util.isError(obj);
+  // false
+obj[Symbol.toStringTag] = 'Error';
+util.isError(obj);
+  // true
+```
+
 ## util.isFunction(object)
 
     Stability: 0 - Deprecated
