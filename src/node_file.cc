@@ -200,6 +200,11 @@ static void After(uv_fs_t *req) {
                                    static_cast<const uv_stat_t*>(req->ptr));
         break;
 
+      case UV_FS_MKDTEMP:
+        argv[1] = String::NewFromUtf8(env->isolate(),
+                                      static_cast<const char*>(req->path));
+        break;
+
       case UV_FS_READLINK:
         argv[1] = String::NewFromUtf8(env->isolate(),
                                       static_cast<const char*>(req->ptr));
@@ -1264,6 +1269,25 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() < 1)
+    return TYPE_ERROR("template is required");
+  if (!args[0]->IsString())
+    return TYPE_ERROR("template must be a string");
+
+  node::Utf8Value tmpl(env->isolate(), args[0]);
+
+  if (args[1]->IsObject()) {
+    ASYNC_CALL(mkdtemp, args[1], *tmpl);
+  } else {
+    SYNC_CALL(mkdtemp, *tmpl, *tmpl);
+    args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                  SYNC_REQ.path));
+  }
+}
+
 void FSInitialize(const FunctionCallbackInfo<Value>& args) {
   Local<Function> stats_constructor = args[0].As<Function>();
   CHECK(stats_constructor->IsFunction());
@@ -1316,6 +1340,8 @@ void InitFs(Local<Object> target,
 
   env->SetMethod(target, "utimes", UTimes);
   env->SetMethod(target, "futimes", FUTimes);
+
+  env->SetMethod(target, "mkdtemp", Mkdtemp);
 
   StatWatcher::Initialize(env, target);
 
