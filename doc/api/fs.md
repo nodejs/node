@@ -851,6 +851,30 @@ added: v0.1.21
 
 Synchronous mkdir(2). Returns `undefined`.
 
+## fs.mkdtemp(prefix, callback)
+
+Creates a unique temporary directory.
+
+Generates six random characters to be appended behind a required
+`prefix` to create a unique temporary directory.
+
+The created folder path is passed as a string to the callback's second
+parameter.
+
+Example:
+
+```js
+fs.mkdtemp('/tmp/foo-', (err, folder) => {
+  console.log(folder);
+    // Prints: /tmp/foo-itXde2
+});
+```
+
+## fs.mkdtempSync(template)
+
+The synchronous version of [`fs.mkdtemp()`][]. Returns the created
+folder path.
+
 ## fs.open(path, flags[, mode], callback)
 <!-- YAML
 added: v0.0.2
