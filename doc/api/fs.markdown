@@ -436,6 +436,15 @@ to the completion callback.
 
 Synchronous fchown(2). Returns `undefined`.
 
+## fs.fdatasync(fd, callback)
+
+Asynchronous fdatasync(2). No arguments other than a possible exception are
+given to the completion callback.
+
+## fs.fdatasyncSync(fd)
+
+Synchronous fdatasync(2). Returns `undefined`.
+
 ## fs.fstat(fd, callback)
 
 Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
