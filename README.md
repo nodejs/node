@@ -160,8 +160,8 @@ $ node -e "console.log('Hello from Node.js ' + process.version)"
 Prerequisites:
 
 * [Python 2.6 or 2.7](https://www.python.org/downloads/)
-* Visual Studio 2013 for Windows Desktop, or
-* Visual Studio Express 2013 for Windows Desktop
+* Visual Studio 2013 / 2015, all editions including the Community edition, or
+* Visual Studio Express 2013 / 2015 for Desktop
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
