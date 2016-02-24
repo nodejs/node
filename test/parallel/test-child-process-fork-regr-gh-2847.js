@@ -32,6 +32,15 @@ var server = net.createServer(function(s) {
     var s = net.connect(common.PORT, function() {
       worker.send({}, s, callback);
     });
+
+    // Errors can happen if this connection
+    // is still happening while the server has been closed.
+    s.on('error', function(err) {
+      if ((err.code !== 'ECONNRESET') &&
+          ((err.code !== 'ECONNREFUSED'))) {
+        throw err;
+      }
+    });
   }
 
   worker.process.once('close', common.mustCall(function() {
@@ -40,7 +49,14 @@ var server = net.createServer(function(s) {
     server.close();
   }));
 
-  // Send 2 handles to make `process.disconnect()` wait
   send();
-  send();
+  send(function(err) {
+    // Ignore errors when sending the second handle because the worker
+    // may already have exited.
+    if (err) {
+      if (err.code !== 'ECONNREFUSED') {
+        throw err;
+      }
+    }
+  });
 });
