@@ -164,7 +164,7 @@ time thresholds have been reached_.  If one or more timers are ready, the
 event loop will wrap back to the timers phase to execute  those timers'
 callbacks.
 
-### `setImmediate()`:
+### `setImmediate`:
 
 `setImmediate()` is actually a special timer that runs in a separate phase of
 the event loop.  It uses a libuv API that schedules callbacks to execute after
@@ -281,7 +281,7 @@ To get around this the `'listening'` event is queued in a `nextTick()` to allow
 the script to run to completion. Which allows the user to set any event
 handlers they want.
 
-## process.nextTick() vs `setImmediate()`
+## `process.nextTick()` vs `setImmediate()`
 
 We have two calls that are similar as far as users are concerned, but their
 names are confusing.
@@ -322,7 +322,7 @@ server.on('listening', function() { });
 ```
 
 Say that listen() is run at the beginning of the event loop, but the 
-listening callback is placed in a setImmediate. Now, unless a hostname 
+listening callback is placed in a `setImmediate()`. Now, unless a hostname 
 is passed binding to the port will happen immediately. Now for the 
 event loop to proceed it must hit the `poll` phase, which means there 
 is a non-zero chance that a connection could have been received allowing
