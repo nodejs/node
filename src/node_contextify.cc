@@ -56,8 +56,7 @@ class ContextifyContext {
   Persistent<Context> context_;
 
  public:
-  explicit ContextifyContext(Environment* env, Local<Object> sandbox_obj)
-      : env_(env) {
+  ContextifyContext(Environment* env, Local<Object> sandbox_obj) : env_(env) {
     Local<Context> v8_context = CreateV8Context(env, sandbox_obj);
     context_.Reset(env->isolate(), v8_context);
 
@@ -120,6 +119,7 @@ class ContextifyContext {
     Local<Context> context = PersistentToLocal(env()->isolate(), context_);
     Local<Object> global =
         context->Global()->GetPrototype()->ToObject(env()->isolate());
+    Local<Object> sandbox_obj = sandbox();
 
     Local<Function> clone_property_method;
 
@@ -127,7 +127,7 @@ class ContextifyContext {
     int length = names->Length();
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
-      bool has = sandbox()->HasOwnProperty(context, key).FromJust();
+      bool has = sandbox_obj->HasOwnProperty(context, key).FromJust();
       if (!has) {
         // Could also do this like so:
         //
@@ -160,7 +160,7 @@ class ContextifyContext {
           clone_property_method = Local<Function>::Cast(script->Run());
           CHECK(clone_property_method->IsFunction());
         }
-        Local<Value> args[] = { global, key, sandbox() };
+        Local<Value> args[] = { global, key, sandbox_obj };
         clone_property_method->Call(global, ARRAY_SIZE(args), args);
       }
     }
@@ -333,16 +333,18 @@ class ContextifyContext {
     if (ctx->context_.IsEmpty())
       return;
 
+    Local<Context> context = ctx->context();
+    Local<Object> sandbox = ctx->sandbox();
     MaybeLocal<Value> maybe_rv =
-        ctx->sandbox()->GetRealNamedProperty(ctx->context(), property);
+        sandbox->GetRealNamedProperty(context, property);
     if (maybe_rv.IsEmpty()) {
       maybe_rv =
-          ctx->global_proxy()->GetRealNamedProperty(ctx->context(), property);
+          ctx->global_proxy()->GetRealNamedProperty(context, property);
     }
 
     Local<Value> rv;
     if (maybe_rv.ToLocal(&rv)) {
-      if (rv == ctx->sandbox())
+      if (rv == sandbox)
         rv = ctx->global_proxy();
 
       args.GetReturnValue().Set(rv);
@@ -375,14 +377,14 @@ class ContextifyContext {
     if (ctx->context_.IsEmpty())
       return;
 
+    Local<Context> context = ctx->context();
     Maybe<PropertyAttribute> maybe_prop_attr =
-        ctx->sandbox()->GetRealNamedPropertyAttributes(ctx->context(),
-                                                       property);
+        ctx->sandbox()->GetRealNamedPropertyAttributes(context, property);
 
     if (maybe_prop_attr.IsNothing()) {
       maybe_prop_attr =
-          ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
-              property);
+          ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
+                                                              property);
     }
 
     if (maybe_prop_attr.IsJust()) {
