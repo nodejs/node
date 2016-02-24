@@ -207,13 +207,7 @@ struct _native {
   size_t source_len;
 };
 
-static const struct _native natives[] = {
-
-%(native_lines)s\
-
-  { NULL, NULL, 0 } /* sentinel */
-
-};
+static const struct _native natives[] = { %(native_lines)s };
 
 }
 #endif
