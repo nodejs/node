@@ -7,7 +7,11 @@
     "node": ">=0.6.10"
   },
   "dependencies": {
-    "marked": "~0.1.9"
+    "marked": "~0.1.9",
+    "remark": "^3.2.2",
+    "remark-highlight.js": "^3.0.0",
+    "remark-html": "^3.0.0",
+    "remark-toc": "^3.0.0"
   },
   "devDependencies": {},
   "optionalDependencies": {},
