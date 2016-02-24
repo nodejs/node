@@ -261,8 +261,25 @@ completion.
 By placing it in a `process.nextTick()`, the script still has the ability to
 run to completion, allowing all the variables, functions, etc., to be
 initialized prior to the callback being called.   It also has the advantage of
-not allowing the event loop_ to continue.  It may be useful that the user be
+not allowing the event loop to continue.  It may be useful that the user be
 alerted to an error before the event loop is allowed to continue.
+
+A real world example in node would be:
+
+```js
+const server = net.createServer(() => {}).listen(8080);
+
+server.on('listening', () => {});
+```
+
+When only a port is passed the port is bound immediately. So the `'listening'`
+callback could be called immediately. Problem is that the `.on
+('listening')` will
+not have been set by that time.
+
+To get around this the `'listening'` event is queued in a `nextTick()` to allow
+the script to run to completion. Which allows the user to set any event
+handlers they want.
 
 ## process.nextTick() vs `setImmediate()`
 
