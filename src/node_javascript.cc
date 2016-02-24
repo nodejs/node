@@ -4,11 +4,6 @@
 #include "env.h"
 #include "env-inl.h"
 
-#include <string.h>
-#if !defined(_MSC_VER)
-#include <strings.h>
-#endif
-
 namespace node {
 
 using v8::HandleScope;
@@ -26,13 +21,13 @@ Local<String> MainSource(Environment* env) {
 void DefineJavaScript(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
-  for (int i = 0; natives[i].name; i++) {
-    if (natives[i].source != node_native) {
-      Local<String> name = String::NewFromUtf8(env->isolate(), natives[i].name);
+  for (auto native : natives) {
+    if (native.source != node_native) {
+      Local<String> name = String::NewFromUtf8(env->isolate(), native.name);
       Local<String> source =
           String::NewFromUtf8(
-              env->isolate(), reinterpret_cast<const char*>(natives[i].source),
-              NewStringType::kNormal, natives[i].source_len).ToLocalChecked();
+              env->isolate(), reinterpret_cast<const char*>(native.source),
+              NewStringType::kNormal, native.source_len).ToLocalChecked();
       target->Set(name, source);
     }
   }
