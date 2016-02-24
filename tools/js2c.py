@@ -42,7 +42,7 @@ import jsmin
 
 
 def ToCArray(filename, lines):
-  return ','.join(str(ord(c)) for c in lines + '\0')
+  return ','.join(str(ord(c)) for c in lines)
 
 
 def CompressScript(lines, do_jsmin):
@@ -221,7 +221,7 @@ static const struct _native natives[] = {
 
 
 NATIVE_DECLARATION = """\
-  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native)-1 },
+  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native) },
 """
 
 SOURCE_DECLARATION = """\
