@@ -20,7 +20,7 @@ using v8::String;
 Local<String> MainSource(Environment* env) {
   return String::NewFromUtf8(
       env->isolate(), reinterpret_cast<const char*>(node_native),
-      NewStringType::kNormal, sizeof(node_native) - 1).ToLocalChecked();
+      NewStringType::kNormal, sizeof(node_native)).ToLocalChecked();
 }
 
 void DefineJavaScript(Environment* env, Local<Object> target) {
