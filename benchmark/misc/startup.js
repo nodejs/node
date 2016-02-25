@@ -3,9 +3,6 @@ var common = require('../common.js');
 var spawn = require('child_process').spawn;
 var path = require('path');
 var emptyJsFile = path.resolve(__dirname, '../../test/fixtures/semicolon.js');
-var starts = 100;
-var i = 0;
-var start;
 
 var bench = common.createBenchmark(startNode, {
   dur: [1]
@@ -15,7 +12,6 @@ function startNode(conf) {
   var dur = +conf.dur;
   var go = true;
   var starts = 0;
-  var open = 0;
 
   setTimeout(function() {
     go = false;

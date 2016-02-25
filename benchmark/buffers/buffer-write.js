@@ -48,10 +48,10 @@ function main(conf) {
 function benchInt(buff, fn, len, noAssert) {
   var m = mod[fn];
   var testFunction = new Function('buff', [
-    "for (var i = 0; i !== " + len + "; i++) {",
-    "  buff." + fn + "(i & " + m + ", 0, " + JSON.stringify(noAssert) + ");",
-    "}"
-  ].join("\n"));
+    'for (var i = 0; i !== ' + len + '; i++) {',
+    '  buff.' + fn + '(i & ' + m + ', 0, ' + JSON.stringify(noAssert) + ');',
+    '}'
+  ].join('\n'));
   bench.start();
   testFunction(buff);
   bench.end(len / 1e6);
@@ -59,10 +59,10 @@ function benchInt(buff, fn, len, noAssert) {
 
 function benchFloat(buff, fn, len, noAssert) {
   var testFunction = new Function('buff', [
-    "for (var i = 0; i !== " + len + "; i++) {",
-    "  buff." + fn + "(i, 0, " + JSON.stringify(noAssert) + ");",
-    "}"
-  ].join("\n"));
+    'for (var i = 0; i !== ' + len + '; i++) {',
+    '  buff.' + fn + '(i, 0, ' + JSON.stringify(noAssert) + ');',
+    '}'
+  ].join('\n'));
   bench.start();
   testFunction(buff);
   bench.end(len / 1e6);

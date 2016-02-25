@@ -90,7 +90,6 @@ function client() {
       break;
     default:
       throw new Error('invalid type: ' + type);
-      break;
   }
 
   var clientHandle = new TCP();

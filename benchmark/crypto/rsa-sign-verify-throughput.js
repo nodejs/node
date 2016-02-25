@@ -24,7 +24,6 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var crypto = require('crypto');
   var message = (new Buffer(conf.len)).fill('b');
 
   bench.start();
@@ -37,7 +36,6 @@ function StreamWrite(algo, keylen, message, writes, len) {
   var kbits = bits / (1024);
 
   var privateKey = RSA_PrivatePem[keylen];
-  var publicKey = RSA_PublicPem[keylen];
   var s = crypto.createSign(algo);
   var v = crypto.createVerify(algo);
 
@@ -46,7 +44,7 @@ function StreamWrite(algo, keylen, message, writes, len) {
     v.update(message);
   }
 
-  var sign = s.sign(privateKey, 'binary');
+  s.sign(privateKey, 'binary');
   s.end();
   v.end();
 

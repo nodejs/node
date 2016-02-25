@@ -96,7 +96,6 @@ function legacyWrite(alice, bob, message, encoding, writes) {
   written += dec.length;
   dec = bob.final();
   written += dec.length;
-  var bits = written * 8;
   var gbits = written / (1024 * 1024 * 1024);
   bench.end(gbits);
 }
