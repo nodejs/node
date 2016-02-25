@@ -31,7 +31,7 @@ function AEAD_Bench(cipher, message, associate_data, key, iv, n, len) {
     var bob = crypto.createDecipheriv(cipher, key, iv);
     bob.setAuthTag(tag);
     bob.setAAD(associate_data);
-    var clear = bob.update(enc);
+    bob.update(enc);
     bob.final();
   }
 

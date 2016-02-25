@@ -62,7 +62,6 @@ function server() {
         break;
       default:
         throw new Error('invalid type: ' + type);
-        break;
     }
 
     clientHandle.readStart();

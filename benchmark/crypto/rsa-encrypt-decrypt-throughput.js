@@ -23,7 +23,6 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var crypto = require('crypto');
   var message = (new Buffer(conf.len)).fill('b');
 
   bench.start();
@@ -39,7 +38,7 @@ function StreamWrite(algo, keylen, message, n, len) {
   var publicKey = RSA_PublicPem[keylen];
   for (var i = 0; i < n; i++) {
     var enc = crypto.privateEncrypt(privateKey, message);
-    var clear = crypto.publicDecrypt(publicKey, enc);
+    crypto.publicDecrypt(publicKey, enc);
   }
 
   bench.end(kbits);
