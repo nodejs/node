@@ -70,6 +70,12 @@ function verifyFiles(files, blockName, onprogress, ondone) {
   );
 
   files = Object.keys(files).map(function(name) {
+    if (name === 'test.js') {
+      files[name] = `'use strict';
+require('../../common');
+${files[name]}
+`;
+    }
     return {
       path: path.resolve(dir, name),
       name: name,
