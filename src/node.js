@@ -22,6 +22,42 @@
 
     EventEmitter.call(process);
 
+    // Default process warning handler..
+    process.on('warning', (warning) => {
+      // By default, print the short warning message if --no-warnings is not
+      // set. If --trace-warnings is set, then the stack trace for the warning
+      // is shown. This takes backwards compatibility with --trace-deprecation
+      // into consideration also.
+      if (process.noProcessWarnings) return;
+      const trace = process.traceProcessWarnings ||
+                    (warning.name === 'DeprecationWarning' &&
+                     process.traceDeprecation);
+      if (trace)
+        console.warn(warning.stack);
+      else
+        console.warn(`${warning.name}: ${warning.message}`);
+    });
+
+    // process.emitWarning(error[, name])
+    // process.emitWarning(str[, name])
+    process.emitWarning = function(warning, name) {
+      if (!(warning instanceof Error) && typeof warning !== 'string')
+        throw new TypeError(`'warning' must be an Error object or string`);
+
+      if (name && typeof name !== 'string')
+        throw new TypeError(`'name' must be a string`);
+
+      if (typeof warning === 'string') {
+        warning = new Error(warning);
+      }
+
+      warning.name = name || (warning.name === 'Error'
+        ? 'Warning'
+        : warning.name);
+
+      process.nextTick(() => process.emit('warning', warning));
+    };
+
     let eeWarned = false;
     Object.defineProperty(process, 'EventEmitter', {
       get() {

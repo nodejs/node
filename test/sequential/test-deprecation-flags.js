@@ -1,16 +1,17 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var execFile = require('child_process').execFile;
-var depmod = require.resolve('../fixtures/deprecated.js');
-var node = process.execPath;
+const assert = require('assert');
+const execFile = require('child_process').execFile;
+const depmod = require.resolve('../fixtures/deprecated.js');
+const node = process.execPath;
 
-var depUserland =
+const depUserland =
     require.resolve('../fixtures/deprecated-userland-function.js');
 
-var normal = [depmod];
-var noDep = ['--no-deprecation', depmod];
-var traceDep = ['--trace-deprecation', depmod];
+const normal = [depmod];
+const noDep = ['--no-deprecation', depmod];
+const traceDep = ['--trace-deprecation', depmod];
+const noWarn = ['--no-warnings', depmod]; // same effect as --no-deprecation
 
 execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
@@ -28,15 +29,23 @@ execFile(node, noDep, function(er, stdout, stderr) {
   console.log('silent ok');
 });
 
+execFile(node, noWarn, function(er, stdout, stderr) {
+  console.error('--no-warnings: silence warnings');
+  assert.equal(er, null);
+  assert.equal(stdout, '');
+  assert.equal(stderr, 'DEBUG: This is deprecated\n');
+  console.log('silent ok');
+});
+
 execFile(node, traceDep, function(er, stdout, stderr) {
   console.error('--trace-deprecation: show stack');
   assert.equal(er, null);
   assert.equal(stdout, '');
   var stack = stderr.trim().split('\n');
   // just check the top and bottom.
-  assert.equal(stack[0],
-               'Trace: util.debug is deprecated. Use console.error instead.');
-  assert.equal(stack.pop(), 'DEBUG: This is deprecated');
+  assert.equal(stack[1], 'DeprecationWarning: util.debug is deprecated. ' +
+    'Use console.error instead.');
+  assert.equal(stack[0], 'DEBUG: This is deprecated');
   console.log('trace ok');
 });
 
@@ -44,6 +53,6 @@ execFile(node, [depUserland], function(er, stdout, stderr) {
   console.error('normal: testing deprecated userland function');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  assert.equal(0, stderr.indexOf('deprecatedFunction is deprecated.'));
+  assert(/deprecatedFunction is deprecated/.test(stderr));
   console.error('normal: ok');
 });
