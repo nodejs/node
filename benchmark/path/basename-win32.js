@@ -9,7 +9,7 @@ var bench = common.createBenchmark(main, {
     'C:\\',
     'C:\\foo',
     'D:\\foo\\.bar.baz',
-    ['E:\\foo\\.bar.baz','.baz'].join('|'),
+    ['E:\\foo\\.bar.baz', '.baz'].join('|'),
     'foo',
     'foo\\bar.',
     ['foo\\bar.', '.'].join('|'),

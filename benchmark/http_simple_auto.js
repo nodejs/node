@@ -8,74 +8,73 @@
 //
 'use strict';
 
-var path = require("path");
-var http = require("http");
-var spawn = require("child_process").spawn;
+var http = require('http');
+var spawn = require('child_process').spawn;
 
 var port = parseInt(process.env.PORT || 8000);
 
-var fixed = ""
-for (var i = 0; i < 20*1024; i++) {
-  fixed += "C";
+var fixed = '';
+for (var i = 0; i < 20 * 1024; i++) {
+  fixed += 'C';
 }
 
 var stored = {};
 var storedBuffer = {};
 
-var server = http.createServer(function (req, res) {
-  var commands = req.url.split("/");
+var server = http.createServer(function(req, res) {
+  var commands = req.url.split('/');
   var command = commands[1];
-  var body = "";
+  var body = '';
   var arg = commands[2];
   var n_chunks = parseInt(commands[3], 10);
   var status = 200;
 
-  if (command == "bytes") {
-    var n = parseInt(arg, 10)
+  if (command == 'bytes') {
+    var n = parseInt(arg, 10);
     if (n <= 0)
-      throw "bytes called with n <= 0"
+      throw new Error('bytes called with n <= 0');
     if (stored[n] === undefined) {
-      stored[n] = "";
+      stored[n] = '';
       for (var i = 0; i < n; i++) {
-        stored[n] += "C"
+        stored[n] += 'C';
       }
     }
     body = stored[n];
 
-  } else if (command == "buffer") {
-    var n = parseInt(arg, 10)
-    if (n <= 0) throw new Error("bytes called with n <= 0");
+  } else if (command == 'buffer') {
+    var n = parseInt(arg, 10);
+    if (n <= 0) throw new Error('bytes called with n <= 0');
     if (storedBuffer[n] === undefined) {
       storedBuffer[n] = new Buffer(n);
       for (var i = 0; i < n; i++) {
-        storedBuffer[n][i] = "C".charCodeAt(0);
+        storedBuffer[n][i] = 'C'.charCodeAt(0);
       }
     }
     body = storedBuffer[n];
 
-  } else if (command == "quit") {
+  } else if (command == 'quit') {
     res.connection.server.close();
-    body = "quitting";
+    body = 'quitting';
 
-  } else if (command == "fixed") {
+  } else if (command == 'fixed') {
     body = fixed;
 
-  } else if (command == "echo") {
-    res.writeHead(200, { "Content-Type": "text/plain",
-                         "Transfer-Encoding": "chunked" });
+  } else if (command == 'echo') {
+    res.writeHead(200, { 'Content-Type': 'text/plain',
+                         'Transfer-Encoding': 'chunked' });
     req.pipe(res);
     return;
 
   } else {
     status = 404;
-    body = "not found\n";
+    body = 'not found\n';
   }
 
   // example: http://localhost:port/bytes/512/4
   // sends a 512 byte body in 4 chunks of 128 bytes
   if (n_chunks > 0) {
-    res.writeHead(status, { "Content-Type": "text/plain",
-                            "Transfer-Encoding": "chunked" });
+    res.writeHead(status, { 'Content-Type': 'text/plain',
+                            'Transfer-Encoding': 'chunked' });
     // send body in chunks
     var len = body.length;
     var step = Math.floor(len / n_chunks) || 1;
@@ -87,14 +86,14 @@ var server = http.createServer(function (req, res) {
   } else {
     var content_length = body.length.toString();
 
-    res.writeHead(status, { "Content-Type": "text/plain",
-                            "Content-Length": content_length });
+    res.writeHead(status, { 'Content-Type': 'text/plain',
+                            'Content-Length': content_length });
     res.end(body);
   }
 
 });
 
-server.listen(port, function () {
+server.listen(port, function() {
   var url = 'http://127.0.0.1:' + port + '/';
 
   var n = process.argv.length - 1;

@@ -9,7 +9,6 @@
 'use strict';
 
 var common = require('../common.js');
-var PORT = common.PORT;
 
 var bench = common.createBenchmark(main, {
   num: [1, 4, 8, 16],

@@ -29,7 +29,7 @@ function main(conf) {
       encoding = 'ascii';
       break;
     case 'utf':
-      chunk = new Array(Math.ceil(size/2) + 1).join('ü');
+      chunk = new Array(Math.ceil(size / 2) + 1).join('ü');
       encoding = 'utf8';
       break;
     default:

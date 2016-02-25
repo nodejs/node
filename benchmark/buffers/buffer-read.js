@@ -22,10 +22,10 @@ function main(conf) {
 
   buff.writeDoubleLE(0, 0, noAssert);
   var testFunction = new Function('buff', [
-    "for (var i = 0; i !== " + len + "; i++) {",
-    "  buff." + fn + "(0, " + JSON.stringify(noAssert) + ");",
-    "}"
-  ].join("\n"));
+    'for (var i = 0; i !== ' + len + '; i++) {',
+    '  buff.' + fn + '(0, ' + JSON.stringify(noAssert) + ');',
+    '}'
+  ].join('\n'));
   bench.start();
   testFunction(buff);
   bench.end(len / 1e6);

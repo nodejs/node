@@ -4,7 +4,7 @@ var http = require('http');
 var concurrency = 30;
 var port = 12346;
 var n = 700;
-var bytes = 1024*5;
+var bytes = 1024 * 5;
 
 var requests = 0;
 var responses = 0;
@@ -20,7 +20,7 @@ var server = http.createServer(function(req, res) {
     'Content-Length': body.length
   });
   res.end(body);
-})
+});
 
 server.listen(port, function() {
   var agent = new http.Agent();

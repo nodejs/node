@@ -8,7 +8,7 @@ http.createServer(function(req, res) {
   res.writeHead(200, { 'content-type': 'text/plain',
                        'content-length': '2' });
 
-  var lag = parseInt(req.url.split("/").pop(), 10) || defaultLag;
+  var lag = parseInt(req.url.split('/').pop(), 10) || defaultLag;
   setTimeout(function() {
     res.end('ok');
   }, lag);
