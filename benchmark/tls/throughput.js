@@ -31,7 +31,7 @@ function main(conf) {
       encoding = 'ascii';
       break;
     case 'utf':
-      chunk = new Array(size/2 + 1).join('ü');
+      chunk = new Array(size / 2 + 1).join('ü');
       encoding = 'utf8';
       break;
     default:
@@ -54,7 +54,6 @@ function main(conf) {
     });
 
     function write() {
-      var i = 0;
       while (false !== conn.write(chunk, encoding));
     }
   });

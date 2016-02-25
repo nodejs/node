@@ -12,7 +12,7 @@ var gargs = [1, 2, 3];
 
 function main(conf) {
 
-  var args, ret, n = +conf.n;
+  var args, n = +conf.n;
   var myArguments = gargs.slice(0, conf.arguments);
   bench.start();
 
