@@ -8,7 +8,6 @@
 // Verify that our assumptions are valid.
 
 var common = require('../common.js');
-var PORT = common.PORT;
 
 var bench = common.createBenchmark(main, {
   type: ['asc', 'utf', 'buf'],

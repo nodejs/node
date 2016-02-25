@@ -1,13 +1,13 @@
-var path = require('path'),
-    exec = require('child_process').exec,
-    http = require('http');
+'use strict';
+
+var http = require('http');
 
 var port = parseInt(process.env.PORT || 8000);
 
 var fixed = makeString(20 * 1024, 'C'),
-    storedBytes = {},
-    storedBuffer = {},
-    storedUnicode = {};
+  storedBytes = {},
+  storedBuffer = {},
+  storedUnicode = {};
 
 var useDomains = process.env.NODE_USE_DOMAINS;
 
@@ -22,7 +22,7 @@ if (useDomains) {
   gdom.enter();
 }
 
-var server = module.exports = http.createServer(function (req, res) {
+var server = module.exports = http.createServer(function(req, res) {
   if (useDomains) {
     var dom = domain.create();
     dom.add(req);
@@ -39,7 +39,7 @@ var server = module.exports = http.createServer(function (req, res) {
   if (command == 'bytes') {
     var n = ~~arg;
     if (n <= 0)
-      throw new Error('bytes called with n <= 0')
+      throw new Error('bytes called with n <= 0');
     if (storedBytes[n] === undefined) {
       storedBytes[n] = makeString(n, 'C');
     }
@@ -114,7 +114,7 @@ function makeString(size, c) {
   return s;
 }
 
-server.listen(port, function () {
+server.listen(port, function() {
   if (module === require.main)
-    console.error('Listening at http://127.0.0.1:'+port+'/');
+    console.error('Listening at http://127.0.0.1:' + port + '/');
 });
