@@ -2,6 +2,7 @@ lib/internal/v8_prof_polyfill.js
 lib/internal/v8_prof_processor.js
 lib/punycode.js
 test/addons/??_*/
+test/addons/0*
 test/fixtures
 test/**/node_modules
 test/disabled
