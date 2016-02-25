@@ -49,14 +49,13 @@ function runTest(dur, size, type) {
       break;
   }
 
-  var writes = 0;
   var fs = require('fs');
   try { fs.unlinkSync('write_stream_throughput'); } catch (e) {}
 
-  var start
+  var start;
   var end;
   function done() {
-    var time = end[0] + end[1]/1E9;
+    var time = end[0] + end[1] / 1E9;
     var written = fs.statSync('write_stream_throughput').size / 1024;
     var rate = (written / time).toFixed(2);
     console.log('fs_write_stream_dur_%d_size_%d_type_%s: %d',

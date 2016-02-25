@@ -35,7 +35,6 @@ function main(conf) {
       break;
     default:
       throw new Error('invalid type: ' + type);
-      break;
   }
 
   server();
@@ -77,8 +76,8 @@ function server() {
     socket.on('connect', function() {
       bench.start();
 
-      socket.on('drain', send)
-      send()
+      socket.on('drain', send);
+      send();
 
       setTimeout(function() {
         var bytes = writer.received;
@@ -88,7 +87,7 @@ function server() {
 
       function send() {
         socket.cork();
-        while(socket.write(chunk, encoding)) {}
+        while (socket.write(chunk, encoding)) {}
         socket.uncork();
       }
     });
