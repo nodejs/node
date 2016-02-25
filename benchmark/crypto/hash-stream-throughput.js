@@ -19,9 +19,6 @@ function main(conf) {
     api = 'legacy';
   }
 
-  var crypto = require('crypto');
-  var assert = require('assert');
-
   var message;
   var encoding;
   switch (conf.type) {

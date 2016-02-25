@@ -1,7 +1,6 @@
 var fs = require('fs');
 var path = require('path');
 var common = require('../common.js');
-var packageJson = '{"main": "index.js"}';
 
 var tmpDirectory = path.join(__dirname, '..', 'tmp');
 var benchmarkDirectory = path.join(tmpDirectory, 'nodejs-benchmark-module');
@@ -44,7 +43,7 @@ function rmrf(location) {
     var things = fs.readdirSync(location);
     things.forEach(function(thing) {
       var cur = path.join(location, thing),
-          isDirectory = fs.statSync(cur).isDirectory();
+        isDirectory = fs.statSync(cur).isDirectory();
       if (isDirectory) {
         rmrf(cur);
         return;
