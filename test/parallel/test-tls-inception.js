@@ -32,8 +32,15 @@ a = tls.createServer(options, function(socket) {
   dest.pipe(socket);
   socket.pipe(dest);
 
+  if (common.isWindows) {
+    socket.on('error', function(err) {
+      if (err.code !== 'ECONNRESET')
+        throw err;
+    });
+  }
+
   dest.on('end', function() {
-    socket.destroy();
+    socket.end();
   });
 });
 
