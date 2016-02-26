@@ -187,7 +187,7 @@ drop membership on all valid interfaces.
 
 ### socket.send(msg, [offset, length,] port, address[, callback])
 
-* `buf` {Buffer|String|Array} Message to be sent
+* `msg` {Buffer|String|Array} Message to be sent
 * `offset` {Number} Integer. Optional. Offset in the buffer where the message starts.
 * `length` {Number} Integer. Optional. Number of bytes in the message.
 * `port` {Number} Integer. Destination port.
