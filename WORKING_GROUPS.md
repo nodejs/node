@@ -32,6 +32,7 @@ back in to the CTC.
 * [Intl](#intl)
 * [HTTP](#http)
 * [Documentation](#documentation)
+* [Testing](#testing)
 
 #### Process:
 
@@ -286,6 +287,18 @@ Its responsibilities are:
 * Ensuring that Node's documentation addresses a wide variety of audiences.
 * Creating and operating a process for documentation review that produces
   quality documentation and avoids impeding the progress of Core work.
+
+### [Testing](https://github.com/nodejs/testing)
+
+The Node.js Testing Working Group's purpose is to extend and improve testing of
+the Node.js source code.
+
+It's responsibilities are:
+
+* Coordinating an overall strategy for improving testing.
+* Documenting guidelines around tests.
+* Working with the Build Working Group to improve continuous integration.
+* Improving tooling for testing.
 
 ## Starting a WG
 
