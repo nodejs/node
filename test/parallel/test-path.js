@@ -471,7 +471,12 @@ const relativeTests = [
      ['c:/aaaaa/', 'c:/aaaa/cccc', '..\\aaaa\\cccc'],
      ['C:\\foo\\bar\\baz\\quux', 'C:\\', '..\\..\\..\\..'],
      ['C:\\foo\\test', 'C:\\foo\\test\\bar\\package.json', 'bar\\package.json'],
-     ['C:\\foo\\bar\\baz-quux', 'C:\\foo\\bar\\baz', '..\\baz']
+     ['C:\\foo\\bar\\baz-quux', 'C:\\foo\\bar\\baz', '..\\baz'],
+     ['C:\\foo\\bar\\baz', 'C:\\foo\\bar\\baz-quux', '..\\baz-quux'],
+     ['\\\\foo\\bar', '\\\\foo\\bar\\baz', 'baz'],
+     ['\\\\foo\\bar\\baz', '\\\\foo\\bar', '..'],
+     ['\\\\foo\\bar\\baz-quux', '\\\\foo\\bar\\baz', '..\\baz'],
+     ['\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz-quux', '..\\baz-quux']
     ]
   ],
   [ path.posix.relative,
