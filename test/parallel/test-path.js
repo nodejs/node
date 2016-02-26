@@ -488,7 +488,9 @@ const relativeTests = [
      ['/var/', '/var/lib', 'lib'],
      ['/', '/var/lib', 'var/lib'],
      ['/foo/test', '/foo/test/bar/package.json', 'bar/package.json'],
-     ['/Users/a/web/b/test/mails', '/Users/a/web/b', '../..']
+     ['/Users/a/web/b/test/mails', '/Users/a/web/b', '../..'],
+     ['/foo/bar/baz-quux', '/foo/bar/baz', '../baz'],
+     ['/foo/bar/baz', '/foo/bar/baz-quux', '../baz-quux']
     ]
   ]
 ];
