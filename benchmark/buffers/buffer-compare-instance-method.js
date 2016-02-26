@@ -16,10 +16,10 @@ function main(conf) {
   b1[size - 1] = 'b'.charCodeAt(0);
 
   // Force optimization before starting the benchmark
-  b0.compare(b0, b1);
+  b0.compare(b1);
   v8.setFlagsFromString('--allow_natives_syntax');
   eval('%OptimizeFunctionOnNextCall(b0.compare)');
-  b0.compare(b0, b1);
+  b0.compare(b1);
 
   bench.start();
   for (var i = 0; i < iter; i++) {
