@@ -1,18 +1,25 @@
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
+const v8 = require('v8');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   size: [16, 512, 1024, 4096, 16386],
   millions: [1]
 });
 
 function main(conf) {
-  var iter = (conf.millions >>> 0) * 1e6;
-  var size = (conf.size >>> 0);
-  var b0 = new Buffer(size).fill('a');
-  var b1 = new Buffer(size).fill('a');
+  const iter = (conf.millions >>> 0) * 1e6;
+  const size = (conf.size >>> 0);
+  const b0 = new Buffer(size).fill('a');
+  const b1 = new Buffer(size).fill('a');
 
   b1[size - 1] = 'b'.charCodeAt(0);
+
+  // Force optimization before starting the benchmark
+  b0.compare(b0, b1);
+  v8.setFlagsFromString('--allow_natives_syntax');
+  eval('%OptimizeFunctionOnNextCall(b0.compare)');
+  b0.compare(b0, b1);
 
   bench.start();
   for (var i = 0; i < iter; i++) {
