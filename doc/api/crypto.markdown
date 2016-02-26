@@ -912,7 +912,7 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'binary'` encoded strings or
 [buffers][].
 
-## crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
+### crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
 optional specific `generator`.
