@@ -42,7 +42,9 @@ function trim(string, chars, guard) {
   var strSymbols = stringToArray(string),
       chrSymbols = stringToArray(chars);
 
-  return strSymbols.slice(charsStartIndex(strSymbols, chrSymbols), charsEndIndex(strSymbols, chrSymbols) + 1).join('');
+  return strSymbols
+    .slice(charsStartIndex(strSymbols, chrSymbols), charsEndIndex(strSymbols, chrSymbols) + 1)
+    .join('');
 }
 
 module.exports = trim;

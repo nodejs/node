@@ -49,6 +49,7 @@ module.exports = function(context) {
     // Information for each code path segment.
     // - calledInSomePaths:  A flag of be called `super()` in some code paths.
     // - calledInEveryPaths: A flag of be called `super()` in all code paths.
+    // - validNodes:
     var segInfoMap = Object.create(null);
 
     /**
@@ -77,21 +78,26 @@ module.exports = function(context) {
          * @returns {void}
          */
         "onCodePathStart": function(codePath, node) {
-            if (!isConstructorFunction(node)) {
-                return;
+            if (isConstructorFunction(node)) {
+                // Class > ClassBody > MethodDefinition > FunctionExpression
+                var classNode = node.parent.parent.parent;
+                funcInfo = {
+                    upper: funcInfo,
+                    isConstructor: true,
+                    hasExtends: Boolean(
+                        classNode.superClass &&
+                        !astUtils.isNullOrUndefined(classNode.superClass)
+                    ),
+                    codePath: codePath
+                };
+            } else {
+                funcInfo = {
+                    upper: funcInfo,
+                    isConstructor: false,
+                    hasExtends: false,
+                    codePath: codePath
+                };
             }
-
-            // Class > ClassBody > MethodDefinition > FunctionExpression
-            var classNode = node.parent.parent.parent;
-            funcInfo = {
-                upper: funcInfo,
-                hasExtends: Boolean(
-                    classNode.superClass &&
-                    !astUtils.isNullOrUndefined(classNode.superClass)
-                ),
-                scope: context.getScope(),
-                codePath: codePath
-            };
         },
 
         /**
@@ -102,10 +108,6 @@ module.exports = function(context) {
          * @returns {void}
          */
         "onCodePathEnd": function(codePath, node) {
-            if (!isConstructorFunction(node)) {
-                return;
-            }
-
             // Skip if own class which has a valid `extends` part.
             var hasExtends = funcInfo.hasExtends;
             funcInfo = funcInfo.upper;
@@ -135,18 +137,15 @@ module.exports = function(context) {
         "onCodePathSegmentStart": function(segment) {
             // Skip if this is not in a constructor of a class which has a valid
             // `extends` part.
-            if (!(
-                funcInfo &&
-                funcInfo.hasExtends &&
-                funcInfo.scope === context.getScope().variableScope
-            )) {
+            if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
                 return;
             }
 
             // Initialize info.
             var info = segInfoMap[segment.id] = {
                 calledInSomePaths: false,
-                calledInEveryPaths: false
+                calledInEveryPaths: false,
+                validNodes: []
             };
 
             // When there are previous segments, aggregates these.
@@ -155,6 +154,51 @@ module.exports = function(context) {
                 info.calledInSomePaths = prevSegments.some(isCalledInSomePath);
                 info.calledInEveryPaths = prevSegments.every(isCalledInEveryPath);
             }
+        },
+
+        /**
+         * Update information of the code path segment when a code path was
+         * looped.
+         * @param {CodePathSegment} fromSegment - The code path segment of the
+         *      end of a loop.
+         * @param {CodePathSegment} toSegment - A code path segment of the head
+         *      of a loop.
+         * @returns {void}
+         */
+        "onCodePathSegmentLoop": function(fromSegment, toSegment) {
+            // Skip if this is not in a constructor of a class which has a valid
+            // `extends` part.
+            if (!(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends)) {
+                return;
+            }
+
+            // Update information inside of the loop.
+            var isRealLoop = toSegment.prevSegments.length >= 2;
+            funcInfo.codePath.traverseSegments(
+                {first: toSegment, last: fromSegment},
+                function(segment) {
+                    var info = segInfoMap[segment.id];
+
+                    // Updates flags.
+                    var prevSegments = segment.prevSegments;
+                    info.calledInSomePaths = prevSegments.some(isCalledInSomePath);
+                    info.calledInEveryPaths = prevSegments.every(isCalledInEveryPath);
+
+                    // If flags become true anew, reports the valid nodes.
+                    if (info.calledInSomePaths || isRealLoop) {
+                        var nodes = info.validNodes;
+                        info.validNodes = [];
+
+                        for (var i = 0; i < nodes.length; ++i) {
+                            var node = nodes[i];
+                            context.report({
+                                message: "Unexpected duplicate 'super()'.",
+                                node: node
+                            });
+                        }
+                    }
+                }
+            );
         },
 
         /**
@@ -169,7 +213,7 @@ module.exports = function(context) {
             }
 
             // Skip if this is not in a constructor.
-            if (!(funcInfo && funcInfo.scope === context.getScope().variableScope)) {
+            if (!(funcInfo && funcInfo.isConstructor)) {
                 return;
             }
 
@@ -191,6 +235,8 @@ module.exports = function(context) {
                         message: "Unexpected duplicate 'super()'.",
                         node: node
                     });
+                } else {
+                    info.validNodes.push(node);
                 }
             } else {
                 // This class does not have a valid `extends` part.

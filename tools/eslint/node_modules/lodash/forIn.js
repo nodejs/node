@@ -1,6 +1,6 @@
-var baseFor = require('./_baseFor'),
-    keysIn = require('./keysIn'),
-    toFunction = require('./_toFunction');
+var baseCastFunction = require('./_baseCastFunction'),
+    baseFor = require('./_baseFor'),
+    keysIn = require('./keysIn');
 
 /**
  * Iterates over own and inherited enumerable properties of an object invoking
@@ -29,7 +29,9 @@ var baseFor = require('./_baseFor'),
  * // => logs 'a', 'b', then 'c' (iteration order is not guaranteed)
  */
 function forIn(object, iteratee) {
-  return object == null ? object : baseFor(object, toFunction(iteratee), keysIn);
+  return object == null
+    ? object
+    : baseFor(object, baseCastFunction(iteratee), keysIn);
 }
 
 module.exports = forIn;

@@ -21,7 +21,9 @@ var debug = require("debug"),
     pathIsInside = require("path-is-inside"),
     stripComments = require("strip-json-comments"),
     stringify = require("json-stable-stringify"),
-    isAbsolutePath = require("path-is-absolute");
+    isAbsolutePath = require("path-is-absolute"),
+    defaultOptions = require("../../conf/eslint.json"),
+    requireUncached = require("require-uncached");
 
 
 //------------------------------------------------------------------------------
@@ -152,7 +154,7 @@ function loadLegacyConfigFile(filePath) {
 function loadJSConfigFile(filePath) {
     debug("Loading JS config file: " + filePath);
     try {
-        return require(filePath);
+        return requireUncached(filePath);
     } catch (e) {
         debug("Error reading JavaScript file: " + filePath);
         e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
@@ -439,6 +441,11 @@ function load(filePath, applyEnvironments) {
         // ensure plugins are properly loaded first
         if (config.plugins) {
             Plugins.loadAll(config.plugins);
+        }
+
+        // remove parser from config if it is the default parser
+        if (config.parser === defaultOptions.parser) {
+            config.parser = null;
         }
 
         // include full path of parser if present

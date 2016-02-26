@@ -17,6 +17,8 @@ pp.raise = function(pos, message) {
   throw err
 }
 
+pp.raiseRecoverable = pp.raise
+
 pp.curPosition = function() {
   if (this.options.locations) {
     return new Position(this.curLine, this.pos - this.lineStart)

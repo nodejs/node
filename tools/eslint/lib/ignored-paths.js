@@ -232,3 +232,4 @@ IgnoredPaths.prototype.contains = function(filepath, category) {
 };
 
 module.exports = IgnoredPaths;
+

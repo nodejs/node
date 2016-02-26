@@ -6,7 +6,6 @@ var nativeKeys = Object.keys;
  * property of prototypes or treat sparse arrays as dense.
  *
  * @private
- * @type Function
  * @param {Object} object The object to query.
  * @returns {Array} Returns the array of property names.
  */

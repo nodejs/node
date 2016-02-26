@@ -1,4 +1,5 @@
 var createWrapper = require('./_createWrapper'),
+    getPlaceholder = require('./_getPlaceholder'),
     replaceHolders = require('./_replaceHolders'),
     rest = require('./rest');
 
@@ -44,9 +45,7 @@ var BIND_FLAG = 1,
 var bind = rest(function(func, thisArg, partials) {
   var bitmask = BIND_FLAG;
   if (partials.length) {
-    var placeholder = bind.placeholder,
-        holders = replaceHolders(partials, placeholder);
-
+    var holders = replaceHolders(partials, getPlaceholder(bind));
     bitmask |= PARTIAL_FLAG;
   }
   return createWrapper(func, bitmask, thisArg, partials, holders);

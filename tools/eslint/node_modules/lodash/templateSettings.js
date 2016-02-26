@@ -10,7 +10,7 @@ var escape = require('./escape'),
  *
  * @static
  * @memberOf _
- * @type Object
+ * @type {Object}
  */
 var templateSettings = {
 
@@ -18,7 +18,7 @@ var templateSettings = {
    * Used to detect `data` property values to be HTML-escaped.
    *
    * @memberOf _.templateSettings
-   * @type RegExp
+   * @type {RegExp}
    */
   'escape': reEscape,
 
@@ -26,7 +26,7 @@ var templateSettings = {
    * Used to detect code to be evaluated.
    *
    * @memberOf _.templateSettings
-   * @type RegExp
+   * @type {RegExp}
    */
   'evaluate': reEvaluate,
 
@@ -34,7 +34,7 @@ var templateSettings = {
    * Used to detect `data` property values to inject.
    *
    * @memberOf _.templateSettings
-   * @type RegExp
+   * @type {RegExp}
    */
   'interpolate': reInterpolate,
 
@@ -42,7 +42,7 @@ var templateSettings = {
    * Used to reference the data object in the template text.
    *
    * @memberOf _.templateSettings
-   * @type string
+   * @type {string}
    */
   'variable': '',
 
@@ -50,7 +50,7 @@ var templateSettings = {
    * Used to import variables into the compiled template.
    *
    * @memberOf _.templateSettings
-   * @type Object
+   * @type {Object}
    */
   'imports': {
 
@@ -58,7 +58,7 @@ var templateSettings = {
      * A reference to the `lodash` function.
      *
      * @memberOf _.templateSettings.imports
-     * @type Function
+     * @type {Function}
      */
     '_': { 'escape': escape }
   }

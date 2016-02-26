@@ -1,8 +1,8 @@
 var arrayMap = require('./_arrayMap'),
+    baseCastArrayLikeObject = require('./_baseCastArrayLikeObject'),
     baseIntersection = require('./_baseIntersection'),
     last = require('./last'),
-    rest = require('./rest'),
-    toArrayLikeObject = require('./_toArrayLikeObject');
+    rest = require('./rest');
 
 /**
  * This method is like `_.intersection` except that it accepts `comparator`
@@ -25,7 +25,7 @@ var arrayMap = require('./_arrayMap'),
  */
 var intersectionWith = rest(function(arrays) {
   var comparator = last(arrays),
-      mapped = arrayMap(arrays, toArrayLikeObject);
+      mapped = arrayMap(arrays, baseCastArrayLikeObject);
 
   if (comparator === last(mapped)) {
     comparator = undefined;

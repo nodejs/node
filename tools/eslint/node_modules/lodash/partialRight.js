@@ -1,4 +1,5 @@
 var createWrapper = require('./_createWrapper'),
+    getPlaceholder = require('./_getPlaceholder'),
     replaceHolders = require('./_replaceHolders'),
     rest = require('./rest');
 
@@ -37,9 +38,7 @@ var PARTIAL_RIGHT_FLAG = 64;
  * // => 'hello fred'
  */
 var partialRight = rest(function(func, partials) {
-  var placeholder = partialRight.placeholder,
-      holders = replaceHolders(partials, placeholder);
-
+  var holders = replaceHolders(partials, getPlaceholder(partialRight));
   return createWrapper(func, PARTIAL_RIGHT_FLAG, undefined, partials, holders);
 });
 

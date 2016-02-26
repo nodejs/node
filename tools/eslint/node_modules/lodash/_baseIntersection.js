@@ -42,11 +42,17 @@ function baseIntersection(arrays, iteratee, comparator) {
     var value = array[index],
         computed = iteratee ? iteratee(value) : value;
 
-    if (!(seen ? cacheHas(seen, computed) : includes(result, computed, comparator))) {
+    if (!(seen
+          ? cacheHas(seen, computed)
+          : includes(result, computed, comparator)
+        )) {
       var othIndex = othLength;
       while (--othIndex) {
         var cache = caches[othIndex];
-        if (!(cache ? cacheHas(cache, computed) : includes(arrays[othIndex], computed, comparator))) {
+        if (!(cache
+              ? cacheHas(cache, computed)
+              : includes(arrays[othIndex], computed, comparator))
+            ) {
           continue outer;
         }
       }

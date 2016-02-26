@@ -39,9 +39,9 @@ function mergeData(data, source) {
       isCommon = newBitmask < (BIND_FLAG | BIND_KEY_FLAG | ARY_FLAG);
 
   var isCombo =
-    (srcBitmask == ARY_FLAG && (bitmask == CURRY_FLAG)) ||
-    (srcBitmask == ARY_FLAG && (bitmask == REARG_FLAG) && (data[7].length <= source[8])) ||
-    (srcBitmask == (ARY_FLAG | REARG_FLAG) && (source[7].length <= source[8]) && (bitmask == CURRY_FLAG));
+    ((srcBitmask == ARY_FLAG) && (bitmask == CURRY_FLAG)) ||
+    ((srcBitmask == ARY_FLAG) && (bitmask == REARG_FLAG) && (data[7].length <= source[8])) ||
+    ((srcBitmask == (ARY_FLAG | REARG_FLAG)) && (source[7].length <= source[8]) && (bitmask == CURRY_FLAG));
 
   // Exit early if metadata can't be merged.
   if (!(isCommon || isCombo)) {
@@ -51,7 +51,7 @@ function mergeData(data, source) {
   if (srcBitmask & BIND_FLAG) {
     data[2] = source[2];
     // Set when currying a bound function.
-    newBitmask |= (bitmask & BIND_FLAG) ? 0 : CURRY_BOUND_FLAG;
+    newBitmask |= bitmask & BIND_FLAG ? 0 : CURRY_BOUND_FLAG;
   }
   // Compose partial arguments.
   var value = source[3];

@@ -2,8 +2,9 @@ var baseIsMatch = require('./_baseIsMatch'),
     getMatchData = require('./_getMatchData');
 
 /**
- * Performs a deep comparison between `object` and `source` to determine if
- * `object` contains equivalent property values.
+ * Performs a partial deep comparison between `object` and `source` to
+ * determine if `object` contains equivalent property values. This method is
+ * equivalent to a `_.matches` function when `source` is partially applied.
  *
  * **Note:** This method supports comparing the same values as `_.isEqual`.
  *

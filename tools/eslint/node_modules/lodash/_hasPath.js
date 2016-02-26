@@ -1,4 +1,4 @@
-var baseToPath = require('./_baseToPath'),
+var baseCastPath = require('./_baseCastPath'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
     isIndex = require('./_isIndex'),
@@ -23,7 +23,7 @@ function hasPath(object, path, hasFunc) {
   }
   var result = hasFunc(object, path);
   if (!result && !isKey(path)) {
-    path = baseToPath(path);
+    path = baseCastPath(path);
     object = parent(object, path);
     if (object != null) {
       path = last(path);

@@ -1,4 +1,4 @@
-var baseToPath = require('./_baseToPath'),
+var baseCastPath = require('./_baseCastPath'),
     get = require('./get'),
     isFunction = require('./isFunction'),
     isKey = require('./_isKey'),
@@ -34,7 +34,7 @@ var baseToPath = require('./_baseToPath'),
  */
 function result(object, path, defaultValue) {
   if (!isKey(path, object)) {
-    path = baseToPath(path);
+    path = baseCastPath(path);
     var result = get(object, path);
     object = parent(object, path);
   } else {

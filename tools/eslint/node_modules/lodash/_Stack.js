@@ -8,6 +8,7 @@ var stackClear = require('./_stackClear'),
  * Creates a stack cache object to store key-value pairs.
  *
  * @private
+ * @constructor
  * @param {Array} [values] The values to cache.
  */
 function Stack(values) {

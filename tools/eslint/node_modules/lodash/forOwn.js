@@ -1,5 +1,5 @@
-var baseForOwn = require('./_baseForOwn'),
-    toFunction = require('./_toFunction');
+var baseCastFunction = require('./_baseCastFunction'),
+    baseForOwn = require('./_baseForOwn');
 
 /**
  * Iterates over own enumerable properties of an object invoking `iteratee`
@@ -28,7 +28,7 @@ var baseForOwn = require('./_baseForOwn'),
  * // => logs 'a' then 'b' (iteration order is not guaranteed)
  */
 function forOwn(object, iteratee) {
-  return object && baseForOwn(object, toFunction(iteratee));
+  return object && baseForOwn(object, baseCastFunction(iteratee));
 }
 
 module.exports = forOwn;

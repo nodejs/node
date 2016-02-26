@@ -13,8 +13,8 @@ export class LooseParser {
       let here = this.toks.curPosition()
       this.tok.loc = new SourceLocation(this.toks, here, here)
     }
-    this.ahead = []; // Tokens ahead
-    this.context = []; // Indentation contexted
+    this.ahead = [] // Tokens ahead
+    this.context = [] // Indentation contexted
     this.curIndent = 0
     this.curLineStart = 0
     this.nextLineStart = this.lineEnd(this.curLineStart) + 1

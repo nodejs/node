@@ -30,7 +30,7 @@ var arrayMap = require('./_arrayMap'),
  * // => [10, 20]
  */
 var pullAt = rest(function(array, indexes) {
-  indexes = arrayMap(baseFlatten(indexes), String);
+  indexes = arrayMap(baseFlatten(indexes, 1), String);
 
   var result = baseAt(array, indexes);
   basePullAt(array, indexes.sort(compareAscending));

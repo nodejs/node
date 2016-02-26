@@ -70,7 +70,7 @@ module.exports = function(context) {
 
             var source = context.getSource(),
                 allComments = context.getAllComments(),
-                pattern = /[^\n\r\u2028\u2029 ] {2,}/g,  // note: repeating space
+                pattern = /[^\n\r\u2028\u2029\t ].? {2,}/g,  // note: repeating space
                 token,
                 previousToken,
                 parent;

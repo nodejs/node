@@ -210,7 +210,8 @@ function template(string, options, guard) {
     'return __p\n}';
 
   var result = attempt(function() {
-    return Function(importsKeys, sourceURL + 'return ' + source).apply(undefined, importsValues);
+    return Function(importsKeys, sourceURL + 'return ' + source)
+      .apply(undefined, importsValues);
   });
 
   // Provide the compiled function's source by its `toString` method or

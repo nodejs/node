@@ -28,7 +28,7 @@ var REARG_FLAG = 256;
  * // => ['a', 'b', 'c']
  */
 var rearg = rest(function(func, indexes) {
-  return createWrapper(func, REARG_FLAG, undefined, undefined, undefined, baseFlatten(indexes));
+  return createWrapper(func, REARG_FLAG, undefined, undefined, undefined, baseFlatten(indexes, 1));
 });
 
 module.exports = rearg;

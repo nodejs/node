@@ -2,6 +2,9 @@ var baseCreate = require('./_baseCreate'),
     isFunction = require('./isFunction'),
     isPrototype = require('./_isPrototype');
 
+/** Built-in value references. */
+var getPrototypeOf = Object.getPrototypeOf;
+
 /**
  * Initializes an object clone.
  *
@@ -10,11 +13,9 @@ var baseCreate = require('./_baseCreate'),
  * @returns {Object} Returns the initialized clone.
  */
 function initCloneObject(object) {
-  if (isPrototype(object)) {
-    return {};
-  }
-  var Ctor = object.constructor;
-  return baseCreate(isFunction(Ctor) ? Ctor.prototype : undefined);
+  return (isFunction(object.constructor) && !isPrototype(object))
+    ? baseCreate(getPrototypeOf(object))
+    : {};
 }
 
 module.exports = initCloneObject;

@@ -28,7 +28,7 @@ var concat = rest(function(array, values) {
   if (!isArray(array)) {
     array = array == null ? [] : [Object(array)];
   }
-  values = baseFlatten(values);
+  values = baseFlatten(values, 1);
   return arrayConcat(array, values);
 });
 

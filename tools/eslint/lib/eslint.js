@@ -280,7 +280,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
     ast.comments.forEach(function(comment) {
 
         var value = comment.value.trim();
-        var match = /^(eslint-\w+|eslint-\w+-\w+|eslint|exported|globals?)(\s|$)/.exec(value);
+        var match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
 
         if (match) {
             value = value.substring(match.index + match[1].length);
@@ -324,6 +324,9 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
                 if (match[1] === "eslint-disable-line") {
                     disableReporting(reportingConfig, { "line": comment.loc.start.line, "column": 0 }, Object.keys(parseListConfig(value)));
                     enableReporting(reportingConfig, comment.loc.end, Object.keys(parseListConfig(value)));
+                } else if (match[1] === "eslint-disable-next-line") {
+                    disableReporting(reportingConfig, comment.loc.start, Object.keys(parseListConfig(value)));
+                    enableReporting(reportingConfig, { "line": comment.loc.start.line + 2 }, Object.keys(parseListConfig(value)));
                 }
             }
         }

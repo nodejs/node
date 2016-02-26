@@ -1,5 +1,5 @@
-var baseForOwnRight = require('./_baseForOwnRight'),
-    toFunction = require('./_toFunction');
+var baseCastFunction = require('./_baseCastFunction'),
+    baseForOwnRight = require('./_baseForOwnRight');
 
 /**
  * This method is like `_.forOwn` except that it iterates over properties of
@@ -26,7 +26,7 @@ var baseForOwnRight = require('./_baseForOwnRight'),
  * // => logs 'b' then 'a' assuming `_.forOwn` logs 'a' then 'b'
  */
 function forOwnRight(object, iteratee) {
-  return object && baseForOwnRight(object, toFunction(iteratee));
+  return object && baseForOwnRight(object, baseCastFunction(iteratee));
 }
 
 module.exports = forOwnRight;

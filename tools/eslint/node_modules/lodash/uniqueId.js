@@ -9,7 +9,7 @@ var idCounter = 0;
  * @static
  * @memberOf _
  * @category Util
- * @param {string} [prefix] The value to prefix the ID with.
+ * @param {string} [prefix=''] The value to prefix the ID with.
  * @returns {string} Returns the unique ID.
  * @example
  *

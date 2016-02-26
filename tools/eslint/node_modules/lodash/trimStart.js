@@ -36,7 +36,9 @@ function trimStart(string, chars, guard) {
     return string;
   }
   var strSymbols = stringToArray(string);
-  return strSymbols.slice(charsStartIndex(strSymbols, stringToArray(chars))).join('');
+  return strSymbols
+    .slice(charsStartIndex(strSymbols, stringToArray(chars)))
+    .join('');
 }
 
 module.exports = trimStart;

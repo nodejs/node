@@ -41,7 +41,7 @@ var ast = espree.parse(code, {
     // create a top-level tokens array containing all tokens
     tokens: true,
 
-    // specify the language version (3, 5, or 6, default is 5)
+    // specify the language version (3, 5, 6, or 7, default is 5)
     ecmaVersion: 5,
 
     // specify which type of script you're parsing (script or module, default is script)
@@ -129,6 +129,10 @@ We are building on top of Acorn, however, so that we can contribute back and hel
 ### What ECMAScript 6 features do you support?
 
 All of them.
+
+### What ECMAScript 7 features do you support?
+
+There is only one ECMAScript 7 syntax change: the exponentiation operator. Espree supports this.
 
 ### How do you determine which experimental features to support?
 

@@ -1,7 +1,7 @@
 var arrayEach = require('./_arrayEach'),
+    baseCastFunction = require('./_baseCastFunction'),
     baseEach = require('./_baseEach'),
-    isArray = require('./isArray'),
-    toFunction = require('./_toFunction');
+    isArray = require('./isArray');
 
 /**
  * Iterates over elements of `collection` invoking `iteratee` for each element.
@@ -34,7 +34,7 @@ var arrayEach = require('./_arrayEach'),
 function forEach(collection, iteratee) {
   return (typeof iteratee == 'function' && isArray(collection))
     ? arrayEach(collection, iteratee)
-    : baseEach(collection, toFunction(iteratee));
+    : baseEach(collection, baseCastFunction(iteratee));
 }
 
 module.exports = forEach;
