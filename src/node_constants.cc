@@ -864,6 +864,10 @@ void DefineOpenSSLConstants(Local<Object> target) {
 
 # ifndef OPENSSL_NO_ENGINE
 
+# ifdef ENGINE_METHOD_RSA
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RSA);
+# endif
+
 # ifdef ENGINE_METHOD_DSA
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DSA);
 # endif
