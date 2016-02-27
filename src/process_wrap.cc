@@ -204,6 +204,10 @@ class ProcessWrap : public HandleWrap {
     Local<String> detached_key = env->detached_string();
     if (js_options->Get(detached_key)->IsTrue()) {
       options.flags |= UV_PROCESS_DETACHED;
+
+      if (js_options->Get(env->hide_string())->IsTrue()) {
+          options.flags |= UV_PROCESS_WINDOWS_HIDE;
+      }
     }
 
     int err = uv_spawn(env->event_loop(), &wrap->process_, &options);

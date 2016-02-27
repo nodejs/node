@@ -275,6 +275,8 @@ not clone the current process.*
   * `detached` {Boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
     [`options.detached`][])
+  * `hide` {Boolean} Hide the console created for a Windows detached child
+    process. Has no effect if not detached, or not Windows.
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * return: {ChildProcess}
@@ -372,8 +374,8 @@ child.on('error', (err) => {
 
 On Windows, setting `options.detached` to `true` makes it possible for the
 child process to continue running after the parent exits. The child will have
-its own console window. *Once enabled for a child process, it cannot be
-disabled*.
+run in its own console window. The console window can be hidden by setting
+`options.hide` to `true`.
 
 On non-Windows platforms, if `options.detached` is set to `true`, the child
 process will be made the leader of a new process group and session. Note that
