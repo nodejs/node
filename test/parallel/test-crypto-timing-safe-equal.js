@@ -8,6 +8,7 @@ if (!common.hasCrypto) {
 }
 var crypto = require('crypto');
 
-assert.ok(crypto.timingSafeEqual('alpha', 'alpha'), 'equal strings not equal');
-assert.ok(!crypto.timingSafeEqual('alpha', 'beta'),
+assert.ok(crypto.timingSafeEqual(new Buffer('alpha'), new Buffer('alpha')),
+  'equal strings not equal');
+assert.ok(!crypto.timingSafeEqual(new Buffer('alpha'), new Buffer('beta')),
   'inequal strings considered equal');

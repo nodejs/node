@@ -608,7 +608,7 @@ This can be called many times with new data as it is streamed.
 ### hmac.validate(inputHmac)
 
 Return true if and only if the computed hmac matches the input hmac,
-provided as a [Buffer](buffer.html). This uses a timing-safe comparison.
+provided as a [`Buffer`][]. This uses a timing-safe comparison.
 
 The `hmac` object can not be used after `validate()` method has been
 called.
@@ -1175,7 +1175,7 @@ help an attacker guess one of the values. This is suitable for comparing secret
 values like authentication cookies or
 [capability urls](http://www.w3.org/TR/capability-urls/).
 
-`a` and `b` can be strings or [Buffers](buffer.html).
+Each of `a` and `b` should be a [`Buffer`][].
 
 ### crypto.privateEncrypt(private_key, buffer)
 
