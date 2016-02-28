@@ -43,14 +43,15 @@ function main(conf) {
     querystring.parse(input, '&&&&&&&&&&');
   }
 
+  var i;
   if (type !== 'multicharsep') {
     bench.start();
-    for (var i = 0; i < n; i += 1)
+    for (i = 0; i < n; i += 1)
       querystring.parse(input);
     bench.end(n);
   } else {
     bench.start();
-    for (var i = 0; i < n; i += 1)
+    for (i = 0; i < n; i += 1)
       querystring.parse(input, '&&&&&&&&&&');
     bench.end(n);
   }

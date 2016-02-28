@@ -36,8 +36,9 @@ var server = module.exports = http.createServer(function(req, res) {
   var n_chunks = parseInt(commands[3], 10);
   var status = 200;
 
+  var n, i;
   if (command == 'bytes') {
-    var n = ~~arg;
+    n = ~~arg;
     if (n <= 0)
       throw new Error('bytes called with n <= 0');
     if (storedBytes[n] === undefined) {
@@ -46,19 +47,19 @@ var server = module.exports = http.createServer(function(req, res) {
     body = storedBytes[n];
 
   } else if (command == 'buffer') {
-    var n = ~~arg;
+    n = ~~arg;
     if (n <= 0)
       throw new Error('buffer called with n <= 0');
     if (storedBuffer[n] === undefined) {
       storedBuffer[n] = new Buffer(n);
-      for (var i = 0; i < n; i++) {
+      for (i = 0; i < n; i++) {
         storedBuffer[n][i] = 'C'.charCodeAt(0);
       }
     }
     body = storedBuffer[n];
 
   } else if (command == 'unicode') {
-    var n = ~~arg;
+    n = ~~arg;
     if (n <= 0)
       throw new Error('unicode called with n <= 0');
     if (storedUnicode[n] === undefined) {
@@ -93,7 +94,7 @@ var server = module.exports = http.createServer(function(req, res) {
     var len = body.length;
     var step = Math.floor(len / n_chunks) || 1;
 
-    for (var i = 0, n = (n_chunks - 1); i < n; ++i) {
+    for (i = 0, n = (n_chunks - 1); i < n; ++i) {
       res.write(body.slice(i * step, i * step + step));
     }
     res.end(body.slice((n_chunks - 1) * step));

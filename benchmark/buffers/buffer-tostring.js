@@ -14,12 +14,13 @@ function main(conf) {
   const n = conf.n | 0;
   const buf = Buffer(len).fill(42);
 
+  var i;
   bench.start();
   if (arg) {
-    for (var i = 0; i < n; i += 1)
+    for (i = 0; i < n; i += 1)
       buf.toString('utf8');
   } else {
-    for (var i = 0; i < n; i += 1)
+    for (i = 0; i < n; i += 1)
       buf.toString();
   }
   bench.end(n);
