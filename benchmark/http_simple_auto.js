@@ -13,9 +13,10 @@ var spawn = require("child_process").spawn;
 
 var port = parseInt(process.env.PORT || 8000);
 
-var fixed = ""
-for (var i = 0; i < 20*1024; i++) {
-  fixed += "C";
+var fixed = '';
+var i;
+for (i = 0; i < 20 * 1024; i++) {
+  fixed += 'C';
 }
 
 var stored = {};
@@ -28,26 +29,26 @@ var server = http.createServer(function (req, res) {
   var arg = commands[2];
   var n_chunks = parseInt(commands[3], 10);
   var status = 200;
+  var n;
 
-  if (command == "bytes") {
-    var n = parseInt(arg, 10)
+  if (command == 'bytes') {
+    n = parseInt(arg, 10);
     if (n <= 0)
       throw "bytes called with n <= 0"
     if (stored[n] === undefined) {
-      stored[n] = "";
-      for (var i = 0; i < n; i++) {
-        stored[n] += "C"
+      stored[n] = '';
+      for (i = 0; i < n; i++) {
+        stored[n] += 'C';
       }
     }
     body = stored[n];
-
-  } else if (command == "buffer") {
-    var n = parseInt(arg, 10)
-    if (n <= 0) throw new Error("bytes called with n <= 0");
+  } else if (command == 'buffer') {
+    n = parseInt(arg, 10);
+    if (n <= 0) throw new Error('bytes called with n <= 0');
     if (storedBuffer[n] === undefined) {
       storedBuffer[n] = new Buffer(n);
-      for (var i = 0; i < n; i++) {
-        storedBuffer[n][i] = "C".charCodeAt(0);
+      for (i = 0; i < n; i++) {
+        storedBuffer[n][i] = 'C'.charCodeAt(0);
       }
     }
     body = storedBuffer[n];
@@ -79,7 +80,7 @@ var server = http.createServer(function (req, res) {
     var len = body.length;
     var step = Math.floor(len / n_chunks) || 1;
 
-    for (var i = 0, n = (n_chunks - 1); i < n; ++i) {
+    for (i = 0, n = (n_chunks - 1); i < n; ++i) {
       res.write(body.slice(i * step, i * step + step));
     }
     res.end(body.slice((n_chunks - 1) * step));
