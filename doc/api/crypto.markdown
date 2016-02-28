@@ -1168,7 +1168,7 @@ keys:
 
 All paddings are defined in the `constants` module.
 
-## crypto.timingSafeEqual(a, b)
+### crypto.timingSafeEqual(a, b)
 
 Returns true if a is equal to b, without leaking timing information that would
 help an attacker guess one of the values. This is suitable for comparing secret
