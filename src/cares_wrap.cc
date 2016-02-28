@@ -1087,6 +1087,27 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
+static void IsIPv4(const FunctionCallbackInfo<Value>& args) {
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
+  char address_buffer[sizeof(struct in_addr)];
+
+  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0) {
+    args.GetReturnValue().Set(true);
+  } else {
+    args.GetReturnValue().Set(false);
+  }
+}
+
+static void IsIPv6(const FunctionCallbackInfo<Value>& args) {
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
+  char address_buffer[sizeof(struct in6_addr)];
+
+  if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0) {
+    args.GetReturnValue().Set(true);
+  } else {
+    args.GetReturnValue().Set(false);
+  }
+}
 
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1327,6 +1348,8 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
   env->SetMethod(target, "isIP", IsIP);
+  env->SetMethod(target, "isIPv4", IsIPv4);
+  env->SetMethod(target, "isIPv6", IsIPv6);
 
   env->SetMethod(target, "strerror", StrError);
   env->SetMethod(target, "getServers", GetServers);
