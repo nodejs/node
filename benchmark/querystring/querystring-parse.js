@@ -27,8 +27,16 @@ function main(conf) {
   v8.setFlagsFromString('--allow_natives_syntax');
   eval('%OptimizeFunctionOnNextCall(querystring.parse)');
 
-  bench.start();
-  for (var i = 0; i < n; i += 1)
-    querystring.parse(input);
-  bench.end(n);
+  var i;
+  if (type !== 'multicharsep') {
+    bench.start();
+    for (i = 0; i < n; i += 1)
+      querystring.parse(input);
+    bench.end(n);
+  } else {
+    bench.start();
+    for (i = 0; i < n; i += 1)
+      querystring.parse(input, '&&&&&&&&&&');
+    bench.end(n);
+  }
 }
