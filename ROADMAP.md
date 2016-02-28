@@ -11,9 +11,9 @@ Node.js does not remove stdlib JS API.
 Shipping with current and well supported dependencies is the best way to ensure long term stability of the platform. When those dependencies are no longer maintained Node.js will take on their continued maintenance as part of our [Long Term Support policy](#long-term-support).
 
 Node.js will continue to adopt new V8 releases.
-* When V8 ships a breaking change to their C++ API that can be handled by [`nan`](https://github.com/rvagg/nan)
+* When V8 ships a breaking change to their C++ API that can be handled by [`nan`](https://github.com/nodejs/nan)
 the *minor* version of Node.js will be increased.
-* When V8 ships a breaking change to their C++ API that can NOT be handled by [`nan`](https://github.com/rvagg/nan)
+* When V8 ships a breaking change to their C++ API that can NOT be handled by [`nan`](https://github.com/nodejs/nan)
 the *major* version of Node.js will be increased.
 * When new features in the JavaScript language are introduced by V8 the
 *minor* version number will be increased. TC39 has stated clearly that no
