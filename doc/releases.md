@@ -82,7 +82,7 @@ Set the `NODE_VERSION_IS_RELEASE` macro value to `1`. This causes the build to b
 
 This macro is used to signal an ABI version for native addons. It currently has two common uses in the community:
 
-* Determining what API to work against for compiling native addons, e.g. [NAN](https://github.com/rvagg/nan) uses it to form a compatibility-layer for much of what it wraps.
+* Determining what API to work against for compiling native addons, e.g. [NAN](https://github.com/nodejs/nan) uses it to form a compatibility-layer for much of what it wraps.
 * Determining the ABI for downloading pre-built binaries of native addons, e.g. [node-pre-gyp](https://github.com/mapbox/node-pre-gyp) uses this value as exposed via `process.versions.modules` to help determine the appropriate binary to download at install-time.
 
 The general rule is to bump this version when there are _breaking ABI_ changes and also if there are non-trivial API changes. The rules are not yet strictly defined, so if in doubt, please confer with someone that will have a more informed perspective, such as a member of the NAN team.
