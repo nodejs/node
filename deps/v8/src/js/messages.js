@@ -432,10 +432,11 @@ function ScriptLineEnd(n) {
  * If sourceURL comment is available returns sourceURL comment contents.
  * Otherwise, script name is returned. See
  * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
- * and Source Map Revision 3 proposal for details on using //# sourceURL
- * comment to identify scripts that don't have name.
+ * and Source Map Revision 3 proposal for details on using //# sourceURL and
+ * deprecated //@ sourceURL comment to identify scripts that don't have name.
  *
- * @return {?string} script name if present, value for //# sourceURL comment.
+ * @return {?string} script name if present, value for //# sourceURL comment or
+ * deprecated //@ sourceURL comment otherwise.
  */
 function ScriptNameOrSourceURL() {
   if (this.source_url) return this.source_url;
