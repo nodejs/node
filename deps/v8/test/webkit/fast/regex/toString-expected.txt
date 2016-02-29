@@ -28,7 +28,7 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 PASS RegExp('/').source is "\\/"
 PASS RegExp('').source is "(?:)"
-FAIL RegExp.prototype.source should be (?:). Threw exception TypeError: RegExp.prototype.source getter called on non-RegExp object
+FAIL RegExp.prototype.source should be (?:) (of type string). Was undefined (of type undefined).
 PASS RegExp('/').toString() is "/\\//"
 PASS RegExp('').toString() is "/(?:)/"
 PASS RegExp.prototype.toString() is "/(?:)/"

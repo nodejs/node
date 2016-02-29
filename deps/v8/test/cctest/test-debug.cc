@@ -4405,6 +4405,23 @@ TEST(DisableBreak) {
   CheckDebuggerUnloaded(env->GetIsolate());
 }
 
+
+TEST(DisableDebuggerStatement) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // Register a debug event listener which sets the break flag and counts.
+  v8::Debug::SetDebugEventListener(env->GetIsolate(), DebugEventCounter);
+  CompileRun("debugger;");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Check that we ignore debugger statement when breakpoints aren't active.
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
+  isolate->debug()->set_break_points_active(false);
+  CompileRun("debugger;");
+  CHECK_EQ(1, break_point_hit_count);
+}
+
 static const char* kSimpleExtensionSource =
   "(function Foo() {"
   "  return 4;"

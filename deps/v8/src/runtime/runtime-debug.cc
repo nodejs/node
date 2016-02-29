@@ -30,7 +30,9 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
 RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
-  isolate->debug()->HandleDebugBreak();
+  if (isolate->debug()->break_points_active()) {
+    isolate->debug()->HandleDebugBreak();
+  }
   return isolate->heap()->undefined_value();
 }
 
