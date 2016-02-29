@@ -8653,10 +8653,17 @@ static Maybe<bool> GetKeysFromJSObject(Isolate* isolate,
     // use the cache says yes, so we should not create a cache.
     Handle<JSFunction> arguments_function(
         JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
+    bool has_hidden_prototype = false;
+    Object* prototype = object->map()->prototype();
+    if (prototype->IsJSObject()) {
+      has_hidden_prototype =
+          JSObject::cast(prototype)->map()->is_hidden_prototype();
+    }
     bool cache_enum_length =
         ((object->map()->GetConstructor() != *arguments_function) &&
          !object->IsJSValue() && !object->IsAccessCheckNeeded() &&
-         !object->HasNamedInterceptor() && !object->HasIndexedInterceptor());
+         !object->HasNamedInterceptor() && !object->HasIndexedInterceptor() &&
+         !has_hidden_prototype);
     // Compute the property keys and cache them if possible.
     Handle<FixedArray> enum_keys =
         JSObject::GetEnumPropertyKeys(object, cache_enum_length);

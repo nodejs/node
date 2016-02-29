@@ -477,6 +477,7 @@ class Debug {
     return !!base::NoBarrier_Load(&thread_local_.current_debug_scope_);
   }
   void set_break_points_active(bool v) { break_points_active_ = v; }
+  bool break_points_active() const { return break_points_active_; }
 
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
   int break_id() { return thread_local_.break_id_; }

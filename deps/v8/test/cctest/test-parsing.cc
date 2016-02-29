@@ -2308,6 +2308,7 @@ TEST(ErrorsYieldSloppy) {
 
 
 TEST(NoErrorsGenerator) {
+  // clang-format off
   const char* context_data[][2] = {
     { "function * gen() {", "}" },
     { "(function * gen() {", "})" },
@@ -2345,6 +2346,8 @@ TEST(NoErrorsGenerator) {
     // Yield is still a valid key in object literals.
     "({ yield: 1 })",
     "({ get yield() { } })",
+    // And in assignment pattern computed properties
+    "({ [yield]: x } = { })",
     // Yield without RHS.
     "yield;",
     "yield",
@@ -2362,12 +2365,17 @@ TEST(NoErrorsGenerator) {
     "yield\nfor (;;) {}",
     NULL
   };
+  // clang-format on
 
-  RunParserSyncTest(context_data, statement_data, kSuccess);
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyDestructuringAssignment};
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 
 TEST(ErrorsYieldGenerator) {
+  // clang-format off
   const char* context_data[][2] = {
     { "function * gen() {", "}" },
     { "\"use strict\"; function * gen() {", "}" },
@@ -2408,8 +2416,19 @@ TEST(ErrorsYieldGenerator) {
     "yield\n{yield: 42}",
     "yield /* comment */\n {yield: 42}",
     "yield //comment\n {yield: 42}",
+    // Destructuring binding and assignment are both disallowed
+    "var [yield] = [42];",
+    "var {foo: yield} = {a: 42};",
+    "[yield] = [42];",
+    "({a: yield} = {a: 42});",
+    // Also disallow full yield expressions on LHS
+    "var [yield 24] = [42];",
+    "var {foo: yield 24} = {a: 42};",
+    "[yield 24] = [42];",
+    "({a: yield 24} = {a: 42});",
     NULL
   };
+  // clang-format on
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
