@@ -24,8 +24,10 @@ utils.Import(function(from) {
 // ES6 21.2.5.15.
 function RegExpGetUnicode() {
   if (!IS_REGEXP(this)) {
+    // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
       %IncrementUseCounter(kRegExpPrototypeUnicodeGetter);
+      return UNDEFINED;
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.unicode");
   }

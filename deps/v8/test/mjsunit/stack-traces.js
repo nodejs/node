@@ -69,7 +69,7 @@ function testEvalWithSourceURL() {
 
 function testNestedEvalWithSourceURL() {
   var x = "FAIL";
-  var innerEval = 'function Inner() { eval(x); }\n//# sourceURL=res://inner-eval';
+  var innerEval = 'function Inner() { eval(x); }\n//@ sourceURL=res://inner-eval';
   eval("function Outer() { eval(innerEval); Inner(); }; Outer();\n//# sourceURL=res://outer-eval");
 }
 
