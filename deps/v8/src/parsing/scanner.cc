@@ -356,7 +356,7 @@ Token::Value Scanner::SkipSourceURLComment() {
 
 
 void Scanner::TryToParseSourceURLComment() {
-  // Magic comments are of the form: //[#]\s<name>=\s*<value>\s*.* and this
+  // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
   if (c0_ < 0 || !unicode_cache_->IsWhiteSpace(c0_)) return;
   Advance();
@@ -574,7 +574,7 @@ void Scanner::Scan() {
         Advance();
         if (c0_ == '/') {
           Advance();
-          if (c0_ == '#') {
+          if (c0_ == '#' || c0_ == '@') {
             Advance();
             token = SkipSourceURLComment();
           } else {

@@ -412,6 +412,12 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639
   'built-ins/ArrayBuffer/allocation-limit': [SKIP],
 
+  # https://code.google.com/p/chromium/issues/detail?id=581577
+  'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
+  'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
+  'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
+  'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

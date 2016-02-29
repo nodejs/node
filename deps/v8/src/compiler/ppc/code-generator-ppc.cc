@@ -1221,11 +1221,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 #if V8_TARGET_ARCH_PPC64
       if (check_conversion) {
         // Set 2nd output to zero if conversion fails.
-        CRBit crbit = static_cast<CRBit>(VXCVI % CRWIDTH);
-        __ mcrfs(cr7, VXCVI);  // extract FPSCR field containing VXCVI into cr7
-        __ li(i.OutputRegister(1), Operand(1));
-        __ isel(i.OutputRegister(1), r0, i.OutputRegister(1),
-                v8::internal::Assembler::encode_crbit(cr7, crbit));
+        CRegister cr = cr7;
+        int crbit = v8::internal::Assembler::encode_crbit(
+            cr, static_cast<CRBit>(VXCVI % CRWIDTH));
+        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        if (CpuFeatures::IsSupported(ISELECT)) {
+          __ li(i.OutputRegister(1), Operand(1));
+          __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+        } else {
+          __ li(i.OutputRegister(1), Operand::Zero());
+          __ bc(v8::internal::Assembler::kInstrSize * 2, BT, crbit);
+          __ li(i.OutputRegister(1), Operand(1));
+        }
       }
 #endif
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -1241,11 +1248,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                                       i.OutputRegister(0), kScratchDoubleReg);
       if (check_conversion) {
         // Set 2nd output to zero if conversion fails.
-        CRBit crbit = static_cast<CRBit>(VXCVI % CRWIDTH);
-        __ mcrfs(cr7, VXCVI);  // extract FPSCR field containing VXCVI into cr7
-        __ li(i.OutputRegister(1), Operand(1));
-        __ isel(i.OutputRegister(1), r0, i.OutputRegister(1),
-                v8::internal::Assembler::encode_crbit(cr7, crbit));
+        CRegister cr = cr7;
+        int crbit = v8::internal::Assembler::encode_crbit(
+            cr, static_cast<CRBit>(VXCVI % CRWIDTH));
+        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        if (CpuFeatures::IsSupported(ISELECT)) {
+          __ li(i.OutputRegister(1), Operand(1));
+          __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+        } else {
+          __ li(i.OutputRegister(1), Operand::Zero());
+          __ bc(v8::internal::Assembler::kInstrSize * 2, BT, crbit);
+          __ li(i.OutputRegister(1), Operand(1));
+        }
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -1440,8 +1454,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   PPCOperandConverter i(this, instr);
   Label done;
   ArchOpcode op = instr->arch_opcode();
-  bool check_unordered = (op == kPPC_CmpDouble);
   CRegister cr = cr0;
+  int reg_value = -1;
 
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
@@ -1449,44 +1463,44 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
 
   Condition cond = FlagsConditionToCondition(condition, op);
-  switch (cond) {
-    case eq:
-    case lt:
+  if (op == kPPC_CmpDouble) {
+    // check for unordered if necessary
+    if (cond == le) {
+      reg_value = 0;
       __ li(reg, Operand::Zero());
-      __ li(kScratchReg, Operand(1));
-      __ isel(cond, reg, kScratchReg, reg, cr);
-      break;
-    case ne:
-    case ge:
+      __ bunordered(&done, cr);
+    } else if (cond == gt) {
+      reg_value = 1;
       __ li(reg, Operand(1));
-      __ isel(NegateCondition(cond), reg, r0, reg, cr);
-      break;
-    case gt:
-      if (check_unordered) {
-        __ li(reg, Operand(1));
+      __ bunordered(&done, cr);
+    }
+    // Unnecessary for eq/lt & ne/ge since only FU bit will be set.
+  }
+
+  if (CpuFeatures::IsSupported(ISELECT)) {
+    switch (cond) {
+      case eq:
+      case lt:
+      case gt:
+        if (reg_value != 1) __ li(reg, Operand(1));
         __ li(kScratchReg, Operand::Zero());
-        __ bunordered(&done, cr);
         __ isel(cond, reg, reg, kScratchReg, cr);
-      } else {
-        __ li(reg, Operand::Zero());
-        __ li(kScratchReg, Operand(1));
-        __ isel(cond, reg, kScratchReg, reg, cr);
-      }
-      break;
-    case le:
-      if (check_unordered) {
-        __ li(reg, Operand::Zero());
-        __ li(kScratchReg, Operand(1));
-        __ bunordered(&done, cr);
-        __ isel(NegateCondition(cond), reg, r0, kScratchReg, cr);
-      } else {
-        __ li(reg, Operand(1));
+        break;
+      case ne:
+      case ge:
+      case le:
+        if (reg_value != 1) __ li(reg, Operand(1));
+        // r0 implies logical zero in this form
         __ isel(NegateCondition(cond), reg, r0, reg, cr);
-      }
-      break;
+        break;
     default:
       UNREACHABLE();
       break;
+    }
+  } else {
+    if (reg_value != 0) __ li(reg, Operand::Zero());
+    __ b(NegateCondition(cond), &done, cr);
+    __ li(reg, Operand(1));
   }
   __ bind(&done);
 }
