@@ -300,6 +300,11 @@ It's responsibilities are:
 * Working with the Build Working Group to improve continuous integration.
 * Improving tooling for testing.
 
+## Joining a WG
+
+To find out how to join a working group, consult the GOVERNANCE.md in
+the working group's repository, or simply open an issue there.
+
 ## Starting a WG
 
 A Working Group is established by first defining a charter  that can be
