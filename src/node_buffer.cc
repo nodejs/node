@@ -139,9 +139,11 @@ CallbackInfo::~CallbackInfo() {
 
 void CallbackInfo::WeakCallback(
     const WeakCallbackInfo<CallbackInfo>& data) {
-  data.GetParameter()->WeakCallback(
+  CallbackInfo* self = data.GetParameter();
+  self->WeakCallback(
       data.GetIsolate(),
       static_cast<char*>(data.GetInternalField(kBufferInternalFieldIndex)));
+  delete self;
 }
 
 
@@ -149,8 +151,6 @@ void CallbackInfo::WeakCallback(Isolate* isolate, char* const data) {
   callback_(data, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
-
-  delete this;
 }
 
 
