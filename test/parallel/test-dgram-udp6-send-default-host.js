@@ -4,7 +4,12 @@ const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 
-const client = dgram.createSocket('udp4');
+if (!common.hasIPv6) {
+  console.log('1..0 # Skipped: no IPv6 support');
+  return;
+}
+
+const client = dgram.createSocket('udp6');
 
 const toSend = [new Buffer(256), new Buffer(256), new Buffer(256), 'hello'];
 

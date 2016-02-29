@@ -209,10 +209,7 @@ If `msg` is an array, `offset` and `length` must not be specified.
 
 The `address` argument is a string. If the value of `address` is a host name,
 DNS will be used to resolve the address of the host. If the `address` is not
-specified or is an empty string, `'0.0.0.0'` or `'::0'` will be used instead.
-It is possible, depending on the network configuration, that these defaults
-may not work; accordingly, it is best to be explicit about the destination
-address.
+specified or is an empty string, `'127.0.0.1'` or `'::1'` will be used instead.
 
 If the socket has not been previously bound with a call to `bind`, the socket
 is assigned a random port number and is bound to the "all interfaces" address
