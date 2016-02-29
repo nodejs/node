@@ -476,7 +476,11 @@ const relativeTests = [
      ['\\\\foo\\bar', '\\\\foo\\bar\\baz', 'baz'],
      ['\\\\foo\\bar\\baz', '\\\\foo\\bar', '..'],
      ['\\\\foo\\bar\\baz-quux', '\\\\foo\\bar\\baz', '..\\baz'],
-     ['\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz-quux', '..\\baz-quux']
+     ['\\\\foo\\bar\\baz', '\\\\foo\\bar\\baz-quux', '..\\baz-quux'],
+     ['C:\\baz-quux', 'C:\\baz', '..\\baz'],
+     ['C:\\baz', 'C:\\baz-quux', '..\\baz-quux'],
+     ['\\\\foo\\baz-quux', '\\\\foo\\baz', '..\\baz'],
+     ['\\\\foo\\baz', '\\\\foo\\baz-quux', '..\\baz-quux']
     ]
   ],
   [ path.posix.relative,
@@ -490,7 +494,9 @@ const relativeTests = [
      ['/foo/test', '/foo/test/bar/package.json', 'bar/package.json'],
      ['/Users/a/web/b/test/mails', '/Users/a/web/b', '../..'],
      ['/foo/bar/baz-quux', '/foo/bar/baz', '../baz'],
-     ['/foo/bar/baz', '/foo/bar/baz-quux', '../baz-quux']
+     ['/foo/bar/baz', '/foo/bar/baz-quux', '../baz-quux'],
+     ['/baz-quux', '/baz', '../baz'],
+     ['/baz', '/baz-quux', '../baz-quux']
     ]
   ]
 ];
