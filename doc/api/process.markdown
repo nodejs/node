@@ -670,7 +670,7 @@ As with `require.main`, it will be `undefined` if there was no entry script.
 ## process.memoryUsage()
 
 Returns an object describing the memory usage of the Node.js process
-measured in bytes.
+measured in *bytes*.
 
 ```js
 const util = require('util');
@@ -683,10 +683,11 @@ This will generate:
 ```js
 { rss: 4935680,
   heapTotal: 1826816,
-  heapUsed: 650472 }
+  heapUsed: 650472,
+  heapLimit: 1535115264 }
 ```
 
-`heapTotal` and `heapUsed` refer to V8's memory usage.
+`heapTotal`, `heapUsed`, and `heapLimit` refer to V8's memory usage.
 
 
 ## process.nextTick(callback[, arg][, ...])
